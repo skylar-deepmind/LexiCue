@@ -1,0 +1,16 @@
+LexiCue built-in German word forms and English-gloss dictionary.
+
+The German word-form and sense data is derived from the kaikki.org
+machine-readable Wiktionary data, extracted by Tatu Ylonen (wiktextract)
+from the English Wiktionary, and is distributed under the CC BY-SA 4.0
+license.
+
+  Source: https://kaikki.org/dictionary/German/
+  License: https://creativecommons.org/licenses/by-sa/4.0/
+
+The word-frequency filter list is derived from OpenSubtitles (2018)
+compiled by hermitdave (FrequencyWords) under an MIT license.
+
+  Source: https://github.com/hermitdave/FrequencyWords
+
+The resulting TSV files are derived works combining both datasets.

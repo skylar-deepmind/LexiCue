@@ -1,0 +1,14 @@
+PhraseDict data attribution
+===========================
+
+This resource combines the original LexiCue phrase list with filtered data
+from Kaikki's machine-readable English Wiktionary data:
+
+https://kaikki.org/dictionary/English/pos-phrase/
+
+The Wiktionary-derived data is available under the Creative Commons
+Attribution-ShareAlike 4.0 International license (CC BY-SA 4.0). The
+underlying Wiktionary content is available at https://www.wiktionary.org/.
+
+The original LexiCue phrase entries are retained at the beginning of the
+resource and are not part of the Wiktionary-derived data.

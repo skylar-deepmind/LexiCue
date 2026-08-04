@@ -1,0 +1,12 @@
+LexiCue uses data from CC-CEDICT, a community maintained free Chinese-English
+dictionary published by MDBG.
+
+CC-CEDICT is made available under a Creative Commons
+Attribution-ShareAlike 4.0 International (CC BY-SA 4.0) Licence.
+
+Referenced works:
+  CEDICT - Copyright (C) 1997, 1998 Paul Andrew Denisowski
+
+For full details see:
+  - https://www.mdbg.net/chinese/dictionary?page=cc-cedict
+  - https://creativecommons.org/licenses/by-sa/4.0/
