@@ -141,10 +141,12 @@ pub fn initialize_builtin_dictionary(conn: &rusqlite::Connection) -> Result<(), 
     transaction.commit().map_err(|e| e.to_string())
 }
 
+type BuiltinEntry = (Option<String>, String, Option<String>);
+
 fn builtin_entry(
     conn: &rusqlite::Connection,
     lemma: &str,
-) -> Result<Option<(Option<String>, String, Option<String>)>, String> {
+) -> Result<Option<BuiltinEntry>, String> {
     let result = conn.query_row(
         "SELECT phonetic, translation, part_of_speech FROM builtin_dictionary_entries WHERE lemma = ?1",
         [lemma],
@@ -160,7 +162,7 @@ fn builtin_entry(
 fn builtin_japanese_entry(
     conn: &rusqlite::Connection,
     lemma: &str,
-) -> Result<Option<(Option<String>, String, Option<String>)>, String> {
+) -> Result<Option<BuiltinEntry>, String> {
     let result = conn.query_row(
         "SELECT reading, translation, part_of_speech FROM builtin_japanese_dictionary_entries WHERE lemma = ?1",
         [lemma],
@@ -176,7 +178,7 @@ fn builtin_japanese_entry(
 fn builtin_german_entry(
     conn: &rusqlite::Connection,
     lemma: &str,
-) -> Result<Option<(Option<String>, String, Option<String>)>, String> {
+) -> Result<Option<BuiltinEntry>, String> {
     let result = conn.query_row(
         "SELECT phonetic, translation, part_of_speech FROM builtin_german_dictionary_entries WHERE lemma = ?1",
         [lemma],
@@ -192,7 +194,7 @@ fn builtin_german_entry(
 fn builtin_chinese_entry(
     conn: &rusqlite::Connection,
     lemma: &str,
-) -> Result<Option<(Option<String>, String, Option<String>)>, String> {
+) -> Result<Option<BuiltinEntry>, String> {
     let result = conn.query_row(
         "SELECT reading, translation, part_of_speech FROM builtin_chinese_dictionary_entries WHERE lemma = ?1",
         [lemma],

@@ -148,7 +148,7 @@ pub struct AiConfig {
 
 impl AiConfig {
     fn is_openai(&self) -> bool {
-        self.provider.trim().to_ascii_lowercase() == "openai"
+        self.provider.trim().eq_ignore_ascii_case("openai")
     }
 }
 
@@ -298,9 +298,7 @@ fn extract_json(content: &str) -> &str {
 }
 
 fn repair_json(content: &str) -> String {
-    let normalized = content
-        .replace('\u{201C}', "\"")
-        .replace('\u{201D}', "\"");
+    let normalized = content.replace(['\u{201C}', '\u{201D}'], "\"");
     let normalized = repair_key(&normalized, "segment index", "segment_index");
     let normalized = repair_key(&normalized, "meaning zh", "meaning_zh");
     let normalized = repair_key(&normalized, "usage zh", "usage_zh");

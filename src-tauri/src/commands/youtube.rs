@@ -1023,7 +1023,7 @@ pub async fn youtube_merge_subs(
 ) -> Result<SubtitleResult, String> {
     let job = create_download_job(app, job_id);
     let _guard = JobGuard { job_id };
-    let body = (|| async {
+    let body = async {
         let sub_a = download_sub_with_job(&job, 5.0, 35.0, &url, &primary.lang, primary.is_auto).await?;
         if job.cancelled() {
             return Err(CANCELLED_MESSAGE.to_string());
@@ -1049,7 +1049,7 @@ pub async fn youtube_merge_subs(
             name: format!("{video_id}.{}-{}.srt", primary.lang, secondary.lang),
             content: merged,
         })
-    })();
+    };
 
     let result = match tokio::time::timeout(OPERATION_TIMEOUT, body).await {
         Ok(result) => result,
@@ -1228,9 +1228,8 @@ fn parse_srt(content: &str) -> Vec<SrtCue> {
 
 fn merge_srt_cues(primary: &[SrtCue], secondary: &[SrtCue]) -> String {
     let mut out = String::new();
-    let mut idx = 1u32;
     let mut sec = 0usize;
-    for cue in primary {
+    for (index, cue) in primary.iter().enumerate() {
         while sec < secondary.len() && secondary[sec].end_ms < cue.start_ms {
             sec += 1;
         }
@@ -1247,7 +1246,7 @@ fn merge_srt_cues(primary: &[SrtCue], secondary: &[SrtCue]) -> String {
         let src = cue.text.trim().replace('\n', " ");
         out.push_str(&format!(
             "{}\n{} --> {}\n{}\n",
-            idx,
+            index + 1,
             ms_to_srt_ts(cue.start_ms as f64),
             ms_to_srt_ts(cue.end_ms as f64),
             src
@@ -1259,7 +1258,6 @@ fn merge_srt_cues(primary: &[SrtCue], secondary: &[SrtCue]) -> String {
             }
         }
         out.push('\n');
-        idx += 1;
     }
     out
 }

@@ -55,9 +55,7 @@ fn tokenize_german_text(text: &str) -> Vec<(String, i32)> {
     let mut current = String::new();
     let mut position = 0i32;
     for c in text.chars() {
-        if is_latin_letter(c) {
-            current.push(c);
-        } else if c == '-' && !current.is_empty() {
+        if is_latin_letter(c) || (c == '-' && !current.is_empty()) {
             current.push(c);
         } else {
             if !current.is_empty() {

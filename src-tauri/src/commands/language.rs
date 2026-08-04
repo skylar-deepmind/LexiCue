@@ -46,7 +46,7 @@ fn tokenize_japanese_text(text: &str) -> Vec<JapaneseToken> {
             continue;
         }
         let details = token.details();
-        let pos_major = details.get(0).copied().unwrap_or("*");
+        let pos_major = details.first().copied().unwrap_or("*");
         if !is_learning_relevant_pos(pos_major) {
             continue;
         }
@@ -56,7 +56,7 @@ fn tokenize_japanese_text(text: &str) -> Vec<JapaneseToken> {
             .unwrap_or(surface.as_str())
             .to_string();
         let reading = details.get(6).copied().filter(|value| *value != "*");
-        let part_of_speech = details.get(0).copied().filter(|value| *value != "*");
+        let part_of_speech = details.first().copied().filter(|value| *value != "*");
         result.push(JapaneseToken {
             surface,
             lemma,
@@ -94,9 +94,9 @@ mod tests {
     fn filters_particles_and_symbols() {
         let tokens = tokenize_japanese("昨日、寿司を食べました。".to_string()).unwrap();
         let surfaces: Vec<&str> = tokens.iter().map(|t| t.surface.as_str()).collect();
-        assert!(!surfaces.iter().any(|s| *s == "を"), "particle を should be filtered");
-        assert!(!surfaces.iter().any(|s| *s == "、"), "symbol 、 should be filtered");
-        assert!(!surfaces.iter().any(|s| *s == "。"), "symbol 。 should be filtered");
+        assert!(!surfaces.contains(&"を"), "particle を should be filtered");
+        assert!(!surfaces.contains(&"、"), "symbol 、 should be filtered");
+        assert!(!surfaces.contains(&"。"), "symbol 。 should be filtered");
     }
 
     #[test]
