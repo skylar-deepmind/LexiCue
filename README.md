@@ -4,7 +4,7 @@ Local-first 词汇学习与阅读工具。通过阅读自己导入的文本，�
 
 支持英语、日语、德语、中文四种学习语言，内置对应语言的离线词典数据。
 
-> 当前以源码形式发布，尚未提供预编译安装包。
+> 预编译安装包通过 [GitHub Actions](.github/workflows/build-installers.yml) 手动触发构建。当前安装包**未签名**，首次安装时各平台会给出安全提示，请参阅 [DISTRIBUTION.md](DISTRIBUTION.md) 按平台处理。
 
 ## 功能
 
@@ -62,7 +62,15 @@ cd src-tauri && cargo test
 npm run tauri build
 ```
 
-生成物位于 `src-tauri/target/release/bundle/`。当前仓库不提供 GitHub Actions 自动构建发布流程，如需自动构建可参考 `tauri.conf.json` 自行配置。
+生成物位于 `src-tauri/target/release/bundle/`。也可在 GitHub Actions 手动触发 [build-installers](.github/workflows/build-installers.yml) 工作流，自动构建 macOS / Windows / Android 安装包（从仓库 **Actions** 页面 → **Build Installers** → **Run workflow**）。
+
+## 安装与常见问题
+
+安装包为未签名构建，首次安装可能遇到系统拦截提示（macOS「已损坏」、Windows SmartScreen、Android 未知来源）。请按平台参照 [DISTRIBUTION.md](DISTRIBUTION.md) 操作，macOS 也可直接运行一键修复脚本：
+
+```bash
+bash scripts/fix-macos-quarantine.sh
+```
 
 ## AI 辅助功能（可选）
 
