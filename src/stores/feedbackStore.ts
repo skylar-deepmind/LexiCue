@@ -19,14 +19,14 @@ const timers = new Map<number, number>();
 
 export const useFeedbackStore = create<FeedbackStore>((set) => ({
   messages: [],
-  show: (message, type = 'info', duration = 1000) => {
+  show: (message, type = 'info', duration?) => {
     const id = nextId++;
     set((state) => ({ messages: [...state.messages, { id, message, type }] }));
-    if (type === 'error') return id;
+    const effectiveDuration = type === 'error' ? (duration ?? 10000) : (duration ?? 1000);
     const timerId = window.setTimeout(() => {
       timers.delete(id);
       set((state) => ({ messages: state.messages.filter((item) => item.id !== id) }));
-    }, duration);
+    }, effectiveDuration);
     timers.set(id, timerId);
     return id;
   },

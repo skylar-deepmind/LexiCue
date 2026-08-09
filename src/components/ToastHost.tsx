@@ -25,23 +25,23 @@ export default function ToastHost() {
           >
             <Icon size={17} className={`mt-0.5 shrink-0 ${style.iconColor}`} />
             <span className="flex-1 break-words">{item.message}</span>
-            {item.type === 'error' ? (
+            {item.type === 'error' && (
               <button
-                onClick={() => {
-                  navigator.clipboard.writeText(item.message);
-                  dismiss(item.id);
-                }}
+                onClick={() => navigator.clipboard.writeText(item.message)}
                 aria-label={t('toast.copyErrorAria')}
                 title={t('toast.copyErrorAria')}
-                className="shrink-0 opacity-60 hover:opacity-100"
+                className="shrink-0 cursor-pointer rounded p-0.5 opacity-60 hover:bg-black/5 hover:opacity-100"
               >
                 <Copy size={15} />
               </button>
-            ) : (
-              <button onClick={() => dismiss(item.id)} aria-label={t('toast.closeAria')} className="shrink-0 opacity-60 hover:opacity-100">
-                <X size={15} />
-              </button>
             )}
+            <button
+              onClick={() => dismiss(item.id)}
+              aria-label={t('toast.closeAria')}
+              className="shrink-0 cursor-pointer rounded p-0.5 opacity-60 hover:bg-black/5 hover:opacity-100"
+            >
+              <X size={15} />
+            </button>
           </div>
         );
       })}
