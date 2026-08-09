@@ -48,6 +48,7 @@ pub fn run() {
                     commands::dictionary::initialize_builtin_chinese_dictionary(&conn)?;
                     commands::dictionary::initialize_builtin_chinese_phrase_dictionary(&conn)?;
                     commands::dictionary::initialize_builtin_phrase_dictionary(&conn)?;
+                    commands::dictionary::initialize_builtin_japanese_phrase_dictionary(&conn)?;
                     Ok(())
                 })();
                 match result {

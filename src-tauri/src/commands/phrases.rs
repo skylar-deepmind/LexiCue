@@ -4,6 +4,7 @@ use tauri::State;
 
 use crate::db::DbState;
 use crate::commands::chinese;
+use crate::commands::language;
 
 #[derive(Serialize)]
 pub struct PhraseInfo {
@@ -341,10 +342,13 @@ pub fn get_file_phrases(state: State<DbState>, file_id: i64) -> Result<Vec<Segme
     for row in rows {
         let (id, text, status, definition, source, position, segment_index, language, spaced_word_count) =
             row.map_err(|e| e.to_string())?;
-        // Chinese has no spaces, so the SQL word count is always 1. Re-tokenize
-        // with jieba so the reading page can highlight the full phrase span.
+        // Chinese and Japanese have no spaces, so the SQL word count is always
+        // 1. Re-tokenize with the same tokenizer used during import so the
+        // reading page can highlight the full phrase span.
         let word_count = if language == "zh" {
             chinese::tokenize_chinese_with_offsets(&text).len() as i32
+        } else if language == "ja" {
+            language::tokenize_japanese_with_offsets(&text).len() as i32
         } else {
             spaced_word_count
         };

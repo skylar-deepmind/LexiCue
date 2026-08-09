@@ -404,6 +404,13 @@ fn create_tables(conn: &Connection) -> Result<(), rusqlite::Error> {
             translation TEXT NOT NULL,
             category TEXT
         ) STRICT;
+
+        CREATE TABLE IF NOT EXISTS builtin_japanese_phrase_dictionary (
+            text TEXT PRIMARY KEY,
+            reading TEXT,
+            translation TEXT NOT NULL,
+            category TEXT
+        ) STRICT;
     ",
     )?;
 

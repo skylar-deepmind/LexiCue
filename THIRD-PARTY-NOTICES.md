@@ -12,6 +12,7 @@ shipped with the application in `src-tauri/resources/`.
 | ECDICT (English–Chinese) | en | https://github.com/skywind3000/ECDICT | MIT | `ECDICT-LICENSE.txt` |
 | PhraseDict (English phrases) | en | https://kaikki.org/dictionary/English/pos-phrase/ | CC BY-SA 4.0 | `PHRASEDICT-LICENSE.txt` |
 | JMdict (Japanese) | ja | https://www.edrdg.org/ | CC BY-SA 4.0 | `JMDICT-LICENSE.txt` |
+| JMdict Idioms (Japanese 慣用句) | ja | https://github.com/scriptin/jmdict-simplified | CC BY-SA 4.0 | `JMDICT-LICENSE.txt` |
 | CC-CEDICT (Chinese) | zh | https://www.mdbg.net/chinese/dictionary?page=cc-cedict | CC BY-SA 4.0 | `CC-CEDICT-LICENSE.txt` |
 | German Wiktionary word forms & glosses | de | https://kaikki.org/dictionary/German/ | CC BY-SA 4.0 | `GERMAN-LICENSE.txt` |
 | FrequencyWords (German frequency filter) | de | https://github.com/hermitdave/FrequencyWords | MIT | `GERMAN-LICENSE.txt` |

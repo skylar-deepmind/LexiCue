@@ -6,7 +6,10 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use tauri::{AppHandle, Emitter, State};
 
-use super::import::{detect_chinese_phrases_in_segments, detect_phrases_in_segments};
+use super::import::{
+    detect_chinese_phrases_in_segments, detect_japanese_phrases_in_segments,
+    detect_phrases_in_segments,
+};
 use crate::db::DbState;
 
 const CANCELLED_MESSAGE: &str = "ERR_CANCELLED";
@@ -410,22 +413,6 @@ fn now_ms() -> i64 {
         .as_millis() as i64
 }
 
-fn token_position(text: &str, phrase_start: usize) -> i32 {
-    text[..phrase_start]
-        .split_whitespace()
-        .filter(|word| word.chars().any(|c| c.is_alphabetic()))
-        .count() as i32
-}
-
-fn is_cjk_text(text: &str) -> bool {
-    text.chars().any(|c| {
-        matches!(
-            c,
-            '\u{3400}'..='\u{4DBF}' | '\u{4E00}'..='\u{9FFF}' | '\u{F900}'..='\u{FAFF}'
-        )
-    })
-}
-
 fn language_display_name(code: &str) -> String {
     match code {
         "en" => "英语".to_string(),
@@ -447,32 +434,30 @@ fn count_han_chars(text: &str) -> usize {
         .count()
 }
 
-// Chinese text has no spaces, so "at least two words" does not apply. For zh we
-// require at least two Han characters; for space-separated languages we keep
-// the original multi-word rule.
-fn phrase_passes_filter(text: &str, is_zh: bool) -> bool {
-    if is_zh {
+/// Count script characters in text (Han, kana, Latin letters and digits),
+/// excluding whitespace and punctuation. Used for CJK languages where a
+/// phrase is not space-delimited.
+fn count_content_chars(text: &str) -> usize {
+    text.chars().filter(|c| c.is_alphanumeric()).count()
+}
+
+// Chinese and Japanese text has no spaces, so "at least two words" does not
+// apply. For those languages we require a minimum number of content
+// characters; for space-separated languages we keep the original multi-word
+// rule. Japanese uses a higher threshold than Chinese so common two-character
+// words like 寿司 do not slip through.
+fn phrase_passes_filter(text: &str, language: &str) -> bool {
+    if language == "ja" {
+        count_content_chars(text) >= 3 && text.chars().count() <= 24
+    } else if language == "zh" {
         count_han_chars(text) >= 2 && text.chars().count() <= 24
     } else {
         text.split_whitespace().count() >= 2 && text.len() <= 120
     }
 }
 
-fn find_phrase_position(text: &str, phrase: &str) -> Option<i32> {
-    let normalized_text = text.to_lowercase();
-    let normalized_phrase = phrase.trim().to_lowercase();
-    let start = normalized_text.find(&normalized_phrase)?;
-    if is_cjk_text(&normalized_text) {
-        // Chinese has no spaces, so map the character offset back to the token
-        // index produced by the same tokenizer used during import.
-        for token in super::chinese::tokenize_chinese_with_offsets(&normalized_text) {
-            if token.char_start <= start && start < token.char_end {
-                return Some(token.position);
-            }
-        }
-        return None;
-    }
-    Some(token_position(text, start))
+fn find_phrase_position(text: &str, phrase: &str, language: &str) -> Option<i32> {
+    super::language::map_phrase_position(language, text, phrase)
 }
 
 fn phrase_schema(language: &str) -> serde_json::Value {
@@ -509,6 +494,11 @@ fn build_phrase_prompt(language: &str, input: &str) -> String {
     if language == "zh" {
         format!(
             "请从下面的中文资料中识别有独立语义和学习价值的词组，包括成语、惯用语、固定搭配和常用多字词搭配。不要输出普通连续词、专有名词或没有独立意义的短组合。\n规则：\n- text 必须是对应分段中出现的连续原文，不含空格。\n- segment_index 必须是词组所属分段的输入编号（整数）。\n- pinyin 是该词组的汉语拼音（带声调数字）。\n- translation_en 是英文释义。\n- meaning_zh 是用中文解释的词义。\n- 只返回 JSON 对象 {{\"phrases\": [...]}}，不要添加 Markdown 或任何解释。\n\n输出格式示例：\n{{\"phrases\": [{{\"text\": \"举足轻重\", \"segment_index\": 1, \"pinyin\": \"ju3 zu2 qing1 zhong4\", \"translation_en\": \"play a decisive role\", \"meaning_zh\": \"形容所处地位重要，一举一动都足以影响全局\", \"usage_zh\": \"常作谓语或定语\", \"category\": \"成语\"}}]}}\n\n输入：\n{}",
+            input
+        )
+    } else if language == "ja" {
+        format!(
+            "请从下面的日语资料中识别有独立语义和学习价值的惯用句、连语和固定搭配，例如「話が通じない」「肩を並べる」「猫の手も借りたい」等。不要输出普通单词、专有名词或没有独立意义的短组合。\n规则：\n- text 必须是对应分段中出现的连续原文，不能插入或删除空格（日语通常没有空格）。\n- segment_index 必须是词组所属分段的输入编号（整数）。\n- 只返回 JSON 对象 {{\"phrases\": [...]}}，不要添加 Markdown 或任何解释。\n\n输出格式示例：\n{{\"phrases\": [{{\"text\": \"話が通じない\", \"segment_index\": 1, \"meaning_zh\": \"无法沟通，说不通\", \"usage_zh\": \"形容双方无法互相理解\", \"category\": \"慣用句\"}}]}}\n\n输入：\n{}",
             input
         )
     } else {
@@ -1130,13 +1120,13 @@ pub async fn analyze_file_phrases(
     let mut unique: HashMap<String, (AnalyzedPhrase, Vec<(i32, i32)>)> = HashMap::new();
     for phrase in analyzed {
         let text = phrase.text.trim().to_lowercase();
-        if !phrase_passes_filter(&text, is_zh) {
+        if !phrase_passes_filter(&text, &language) {
             continue;
         }
         let Some(segment_text) = segment_map.get(&phrase.segment_index) else {
             continue;
         };
-        let Some(position) = find_phrase_position(segment_text, &phrase.text) else {
+        let Some(position) = find_phrase_position(segment_text, &phrase.text, &language) else {
             continue;
         };
         let entry = unique.entry(text).or_insert_with(|| (phrase, Vec::new()));
@@ -1155,6 +1145,7 @@ pub async fn analyze_file_phrases(
         let builtin = match language.as_str() {
             "en" => detect_phrases_in_segments(&conn, &segments)?,
             "zh" => detect_chinese_phrases_in_segments(&conn, &segments)?,
+            "ja" => detect_japanese_phrases_in_segments(&conn, &segments)?,
             _ => Vec::new(),
         };
         let mut phrase_texts: HashSet<String> =
@@ -1340,26 +1331,60 @@ mod tests {
 
     #[test]
     fn phrase_filter_keeps_chinese_phrases() {
-        assert!(phrase_passes_filter("与此同时", true));
-        assert!(phrase_passes_filter("举足轻重", true));
-        assert!(phrase_passes_filter("发挥作用", true));
+        assert!(phrase_passes_filter("与此同时", "zh"));
+        assert!(phrase_passes_filter("举足轻重", "zh"));
+        assert!(phrase_passes_filter("发挥作用", "zh"));
     }
 
     #[test]
     fn phrase_filter_rejects_single_han_char() {
-        assert!(!phrase_passes_filter("的", true));
-        assert!(!phrase_passes_filter("我", true));
+        assert!(!phrase_passes_filter("的", "zh"));
+        assert!(!phrase_passes_filter("我", "zh"));
     }
 
     #[test]
     fn phrase_filter_keeps_space_separated_phrases() {
-        assert!(phrase_passes_filter("look forward to", false));
-        assert!(!phrase_passes_filter("look", false));
-        assert!(!phrase_passes_filter("as", false));
+        assert!(phrase_passes_filter("look forward to", "en"));
+        assert!(!phrase_passes_filter("look", "en"));
+        assert!(!phrase_passes_filter("as", "en"));
     }
 
     #[test]
     fn phrase_filter_handles_mixed_scripts() {
-        assert!(phrase_passes_filter("用 Python 写代码", true));
+        assert!(phrase_passes_filter("用 Python 写代码", "zh"));
+    }
+
+    #[test]
+    fn phrase_filter_keeps_japanese_phrases() {
+        assert!(phrase_passes_filter("話が通じない", "ja"));
+        assert!(phrase_passes_filter("肩を並べる", "ja"));
+        assert!(phrase_passes_filter("あっという間", "ja"));
+        assert!(phrase_passes_filter("阿吽の呼吸", "ja"));
+    }
+
+    #[test]
+    fn phrase_filter_rejects_short_japanese_text() {
+        assert!(!phrase_passes_filter("寿司", "ja"));
+        assert!(!phrase_passes_filter("、", "ja"));
+    }
+
+    #[test]
+    fn finds_japanese_phrase_position_via_lindera() {
+        let text = "彼は話が通じない人だ。";
+        // Content tokens: 彼(0), 話(1), 通じ(2), 人(3). Particles are filtered.
+        assert_eq!(find_phrase_position(text, "話が通じない", "ja"), Some(1));
+        assert_eq!(find_phrase_position(text, "通じ", "ja"), Some(2));
+    }
+
+    #[test]
+    fn japanese_phrase_ignores_inserted_spaces() {
+        let text = "彼は話が通じない人だ。";
+        assert_eq!(find_phrase_position(text, "話が 通じない", "ja"), Some(1));
+    }
+
+    #[test]
+    fn japanese_phrase_not_found_returns_none() {
+        let text = "彼は話が通じない人だ。";
+        assert_eq!(find_phrase_position(text, "存在しない", "ja"), None);
     }
 }

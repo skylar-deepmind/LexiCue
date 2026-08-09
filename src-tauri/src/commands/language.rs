@@ -15,6 +15,15 @@ pub struct JapaneseToken {
     pub position: i32,
 }
 
+#[derive(Debug, PartialEq)]
+pub struct JapaneseTokenWithOffset {
+    pub surface: String,
+    pub position: i32,
+    pub char_start: usize,
+    pub char_end: usize,
+    pub part_of_speech: Option<String>,
+}
+
 fn is_learning_relevant_pos(pos: &str) -> bool {
     !matches!(
         pos,
@@ -68,6 +77,43 @@ fn tokenize_japanese_text(text: &str) -> Vec<JapaneseToken> {
     result
 }
 
+/// Tokenize Japanese text and return content tokens (particles and symbols
+/// filtered out) with absolute character offsets and sequential content
+/// positions. The positions match the numbering the reading page uses to
+/// highlight spans, so phrase lookups can map a character offset back to a
+/// token index.
+pub fn tokenize_japanese_with_offsets(text: &str) -> Vec<JapaneseTokenWithOffset> {
+    let segmenter = segmenter()
+        .lock()
+        .expect("japanese segmenter lock poisoned");
+    let mut tokens = segmenter
+        .segment(Cow::Borrowed(text))
+        .expect("japanese segmentation failed");
+
+    let mut result = Vec::new();
+    for token in tokens.iter_mut() {
+        let surface = token.surface.to_string();
+        if surface.trim().is_empty() {
+            continue;
+        }
+        let byte_start = token.byte_start;
+        let byte_end = token.byte_end;
+        let details = token.details();
+        let pos_major = details.first().copied().unwrap_or("*");
+        if !is_learning_relevant_pos(pos_major) {
+            continue;
+        }
+        result.push(JapaneseTokenWithOffset {
+            surface,
+            position: result.len() as i32,
+            char_start: text[..byte_start].chars().count(),
+            char_end: text[..byte_end].chars().count(),
+            part_of_speech: details.first().copied().filter(|value| *value != "*").map(str::to_string),
+        });
+    }
+    result
+}
+
 #[tauri::command]
 pub fn tokenize_japanese(text: String) -> Result<Vec<JapaneseToken>, String> {
     Ok(tokenize_japanese_text(&text))
@@ -78,9 +124,43 @@ pub fn tokenize_japanese_batch(texts: Vec<String>) -> Result<Vec<Vec<JapaneseTok
     Ok(texts.iter().map(|text| tokenize_japanese_text(text)).collect())
 }
 
+/// Map a phrase found verbatim in a segment back to the token position the
+/// reading page expects. Space-separated languages count whitespace-delimited
+/// words; CJK languages use the same tokenizer used during import.
+pub fn map_phrase_position(language: &str, segment: &str, phrase: &str) -> Option<i32> {
+    let normalized_text = segment.to_lowercase();
+    let mut normalized_phrase = phrase.trim().to_lowercase();
+    if language == "ja" {
+        // Japanese has no spaces, so strip any the model may have inserted.
+        normalized_phrase.retain(|c| !c.is_whitespace());
+    }
+    let start = normalized_text.find(&normalized_phrase)?;
+    // `str::find` returns a byte offset; the tokenizers expose character
+    // offsets, so convert before comparing.
+    let start_char = normalized_text[..start].chars().count();
+    match language {
+        "zh" => super::chinese::tokenize_chinese_with_offsets(&normalized_text)
+            .into_iter()
+            .find(|token| token.char_start <= start_char && start_char < token.char_end)
+            .map(|token| token.position),
+        "ja" => tokenize_japanese_with_offsets(&normalized_text)
+            .into_iter()
+            .find(|token| token.char_start <= start_char && start_char < token.char_end)
+            .map(|token| token.position),
+        _ => Some(
+            normalized_text[..start]
+                .split_whitespace()
+                .filter(|word| word.chars().any(|c| c.is_alphabetic()))
+                .count() as i32,
+        ),
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{tokenize_japanese, tokenize_japanese_batch};
+    use super::{
+        tokenize_japanese, tokenize_japanese_batch, tokenize_japanese_with_offsets,
+    };
 
     #[test]
     fn conjugates_to_base_form() {
@@ -135,6 +215,40 @@ mod tests {
             assert_eq!(tokens.len(), single.len());
             assert_eq!(tokens, &single);
         }
+    }
+
+    #[test]
+    fn offsets_match_surfaces_in_original_text() {
+        let text = "昨日、寿司を食べました。";
+        let tokens = tokenize_japanese_with_offsets(text);
+        assert!(tokens.len() >= 3);
+        for token in &tokens {
+            let start_byte = text
+                .char_indices()
+                .nth(token.char_start)
+                .map(|(i, _)| i)
+                .unwrap_or(text.len());
+            let end_byte = text
+                .char_indices()
+                .nth(token.char_end)
+                .map(|(i, _)| i)
+                .unwrap_or(text.len());
+            let slice = &text[start_byte..end_byte];
+            assert_eq!(slice, token.surface);
+        }
+    }
+
+    #[test]
+    fn offsets_skip_particles_sequentially() {
+        let tokens = tokenize_japanese_with_offsets("話が通じない");
+        // が is a particle and ない an auxiliary verb, both filtered out.
+        let surfaces: Vec<&str> = tokens.iter().map(|t| t.surface.as_str()).collect();
+        assert_eq!(surfaces, vec!["話", "通じ"]);
+        for (index, token) in tokens.iter().enumerate() {
+            assert_eq!(token.position, index as i32);
+        }
+        let wakari = tokens.iter().find(|t| t.surface == "通じ").unwrap();
+        assert_eq!(wakari.char_start, "話が".chars().count());
     }
 
     #[test]

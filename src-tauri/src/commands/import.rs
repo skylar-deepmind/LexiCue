@@ -4,6 +4,7 @@ use std::collections::{HashMap, HashSet};
 use tauri::State;
 
 use crate::commands::chinese;
+use crate::commands::language;
 use crate::db::DbState;
 
 #[derive(Deserialize)]
@@ -267,6 +268,73 @@ pub fn detect_chinese_phrases_in_segments(
     Ok(results)
 }
 
+/// Detect built-in Japanese idioms inside segments. Japanese text has no
+/// spaces and particles sit between content words, so a phrase is matched as a
+/// literal substring and then mapped back to the content-token position used by
+/// the reading page. Longest phrases are matched first and overlapping spans
+/// are skipped.
+pub fn detect_japanese_phrases_in_segments(
+    conn: &rusqlite::Connection,
+    segment_texts: &[(i32, String)],
+) -> Result<Vec<PhraseOccurrenceInput>, String> {
+    let mut phrase_entries: Vec<String> = {
+        let mut stmt = conn
+            .prepare("SELECT text FROM builtin_japanese_phrase_dictionary")
+            .map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map([], |row| row.get::<_, String>(0))
+            .map_err(|e| e.to_string())?;
+        rows.filter_map(|r| r.ok()).collect()
+    };
+    phrase_entries.sort_by_key(|text| -(text.chars().count() as i64));
+
+    let mut results: Vec<PhraseOccurrenceInput> = Vec::new();
+
+    for (seg_idx, seg_text) in segment_texts {
+        let tokens = language::tokenize_japanese_with_offsets(seg_text);
+        if tokens.is_empty() {
+            continue;
+        }
+        let mut occupied: Vec<bool> = vec![false; tokens.len()];
+        let normalized = seg_text.to_lowercase();
+
+        for phrase_text in &phrase_entries {
+            let phrase_lower = phrase_text.to_lowercase();
+            let phrase_len = language::tokenize_japanese_with_offsets(&phrase_lower).len();
+            if phrase_len == 0 {
+                continue;
+            }
+            let mut search_byte = 0usize;
+            while let Some(byte_rel) = normalized[search_byte..].find(&phrase_lower) {
+                let byte_start = search_byte + byte_rel;
+                let char_start = normalized[..byte_start].chars().count();
+                search_byte = byte_start + phrase_lower.len();
+                let Some(token) = tokens
+                    .iter()
+                    .find(|t| t.char_start <= char_start && char_start < t.char_end)
+                else {
+                    continue;
+                };
+                let start_pos = token.position as usize;
+                let end_pos = start_pos + phrase_len;
+                if end_pos > tokens.len()
+                    || occupied[start_pos..end_pos].iter().any(|&o| o)
+                {
+                    continue;
+                }
+                occupied[start_pos..end_pos].fill(true);
+                results.push(PhraseOccurrenceInput {
+                    text: phrase_text.clone(),
+                    segment_index: *seg_idx,
+                    position: token.position,
+                });
+            }
+        }
+    }
+
+    Ok(results)
+}
+
 #[tauri::command]
 pub fn import_file(state: State<DbState>, payload: ImportPayload) -> Result<i64, String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
@@ -362,6 +430,7 @@ pub fn import_file(state: State<DbState>, payload: ImportPayload) -> Result<i64,
         let detected_phrases = match payload.language.as_str() {
             "en" => detect_phrases_in_segments(&conn, &seg_texts)?,
             "zh" => detect_chinese_phrases_in_segments(&conn, &seg_texts)?,
+            "ja" => detect_japanese_phrases_in_segments(&conn, &seg_texts)?,
             _ => Vec::new(),
         };
 
@@ -507,5 +576,61 @@ mod tests {
         let texts: Vec<&str> = result.iter().map(|p| p.text.as_str()).collect();
         assert!(texts.contains(&"发挥重要作用"));
         assert!(!texts.contains(&"发挥"), "short phrase should be shadowed by the longer one");
+    }
+
+    fn ja_phrase_db(entries: &[&str]) -> rusqlite::Connection {
+        let conn = rusqlite::Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE builtin_japanese_phrase_dictionary (
+                text TEXT PRIMARY KEY,
+                reading TEXT,
+                translation TEXT NOT NULL,
+                category TEXT
+            ) STRICT;",
+        )
+        .unwrap();
+        for text in entries {
+            conn.execute(
+                "INSERT INTO builtin_japanese_phrase_dictionary (text, reading, translation, category)
+                 VALUES (?1, 'test', 'test', '慣用句')",
+                params![text],
+            )
+            .unwrap();
+        }
+        conn
+    }
+
+    #[test]
+    fn detects_japanese_phrases_in_segments() {
+        let conn = ja_phrase_db(&["話が通じない", "肩を並べる"]);
+        let segments = vec![(0, "彼は話が通じない人だ。".to_string())];
+        let result = detect_japanese_phrases_in_segments(&conn, &segments).unwrap();
+        let texts: Vec<&str> = result.iter().map(|p| p.text.as_str()).collect();
+        assert!(texts.contains(&"話が通じない"));
+        assert!(!texts.contains(&"肩を並べる"));
+        for phrase in result {
+            assert!(phrase.position >= 0);
+        }
+    }
+
+    #[test]
+    fn japanese_phrase_positions_are_lindera_token_indexes() {
+        let conn = ja_phrase_db(&["話が通じない"]);
+        let segments = vec![(0, "彼は話が通じない人だ。".to_string())];
+        let result = detect_japanese_phrases_in_segments(&conn, &segments).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].text, "話が通じない");
+        // lindera content tokens: 彼(0) 話(1) 通じ(2) 人(3)
+        assert_eq!(result[0].position, 1);
+    }
+
+    #[test]
+    fn japanese_longest_match_wins_and_no_overlap() {
+        let conn = ja_phrase_db(&["話が通じる", "話が通じない"]);
+        let segments = vec![(0, "彼は話が通じない人だ。".to_string())];
+        let result = detect_japanese_phrases_in_segments(&conn, &segments).unwrap();
+        let texts: Vec<&str> = result.iter().map(|p| p.text.as_str()).collect();
+        assert!(texts.contains(&"話が通じない"));
+        assert!(!texts.contains(&"話が通じる"), "overlapping phrase should be shadowed");
     }
 }

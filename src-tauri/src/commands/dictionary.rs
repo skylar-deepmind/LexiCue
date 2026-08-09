@@ -499,6 +499,61 @@ pub fn initialize_builtin_chinese_phrase_dictionary(
     transaction.commit().map_err(|e| e.to_string())
 }
 
+pub fn initialize_builtin_japanese_phrase_dictionary(
+    conn: &rusqlite::Connection,
+) -> Result<(), String> {
+    let exists: bool = conn
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM dictionary_sources WHERE provider = 'JMdict Idioms')",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+    if exists {
+        return Ok(());
+    }
+
+    let decoder = flate2::read::GzDecoder::new(
+        include_bytes!("../../resources/jmdict-phrases.tsv.gz").as_slice(),
+    );
+    let mut contents = String::new();
+    decoder
+        .take(32 * 1024 * 1024)
+        .read_to_string(&mut contents)
+        .map_err(|e| e.to_string())?;
+    let transaction = conn.unchecked_transaction().map_err(|e| e.to_string())?;
+    for line in contents.lines() {
+        let mut fields = line.splitn(4, '\t');
+        let text = fields.next().unwrap_or_default().trim();
+        let reading = fields.next().unwrap_or_default().trim();
+        let translation = fields.next().unwrap_or_default().trim();
+        let category = fields.next().unwrap_or_default().trim();
+        if text.is_empty() || translation.is_empty() {
+            continue;
+        }
+        transaction
+            .execute(
+                "INSERT OR IGNORE INTO builtin_japanese_phrase_dictionary (text, reading, translation, category)
+                 VALUES (?1, ?2, ?3, ?4)",
+                rusqlite::params![
+                    text,
+                    (!reading.is_empty()).then_some(reading),
+                    translation,
+                    (!category.is_empty()).then_some(category),
+                ],
+            )
+            .map_err(|e| e.to_string())?;
+    }
+    transaction
+        .execute(
+            "INSERT OR REPLACE INTO dictionary_sources (language, provider, version, source_url, license, imported_at)
+              VALUES ('ja', 'JMdict Idioms', '2026-08', 'https://github.com/scriptin/jmdict-simplified', 'CC BY-SA 4.0', ?1)",
+            [now_ms()],
+        )
+        .map_err(|e| e.to_string())?;
+    transaction.commit().map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 pub fn lookup_phrase_dictionary(
     state: State<DbState>,
@@ -1349,7 +1404,7 @@ pub fn read_dictionary_audio(
 
 #[cfg(test)]
 mod tests {
-    use super::{audio_cache_filename, initialize_builtin_chinese_dictionary, initialize_builtin_chinese_phrase_dictionary, initialize_builtin_dictionary, initialize_builtin_german_dictionary, initialize_builtin_japanese_dictionary, initialize_builtin_phrase_dictionary};
+    use super::{audio_cache_filename, initialize_builtin_chinese_dictionary, initialize_builtin_chinese_phrase_dictionary, initialize_builtin_dictionary, initialize_builtin_german_dictionary, initialize_builtin_japanese_dictionary, initialize_builtin_japanese_phrase_dictionary, initialize_builtin_phrase_dictionary};
     use rusqlite::Connection;
 
     #[test]
@@ -1491,6 +1546,51 @@ mod tests {
             )
             .unwrap();
         assert_eq!(version, "2026-08");
+    }
+
+    #[test]
+    fn loads_builtin_japanese_phrase_dictionary_once() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE dictionary_sources (
+                language TEXT NOT NULL,
+                provider TEXT NOT NULL,
+                version TEXT,
+                source_url TEXT,
+                license TEXT,
+                imported_at INTEGER NOT NULL,
+                PRIMARY KEY(language, provider)
+            ) STRICT;
+            CREATE TABLE builtin_japanese_phrase_dictionary (
+                text TEXT PRIMARY KEY,
+                reading TEXT,
+                translation TEXT NOT NULL,
+                category TEXT
+            ) STRICT;",
+        )
+        .unwrap();
+
+        initialize_builtin_japanese_phrase_dictionary(&conn).unwrap();
+        initialize_builtin_japanese_phrase_dictionary(&conn).unwrap();
+
+        let count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM builtin_japanese_phrase_dictionary",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(count > 1_000, "count was {count}");
+
+        let (reading, category): (String, String) = conn
+            .query_row(
+                "SELECT reading, category FROM builtin_japanese_phrase_dictionary WHERE text = '阿吽の呼吸'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(reading, "あうんのこきゅう");
+        assert_eq!(category, "慣用句");
     }
 
     #[test]
