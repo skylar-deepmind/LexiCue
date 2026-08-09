@@ -132,13 +132,6 @@ pub struct OllamaAnalysisResult {
     pub occurrence_count: usize,
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct AiExplanation {
-    pub translation: String,
-    pub grammar: String,
-    pub notes: String,
-}
-
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AiConfig {
@@ -689,47 +682,6 @@ async fn chat_openai(
         .ok_or_else(|| "AI 服务未返回任何内容".to_string())
 }
 
-#[tauri::command]
-pub async fn explain_text(
-    config: AiConfig,
-    language: String,
-    text: String,
-) -> Result<AiExplanation, String> {
-    if config.model.trim().is_empty() || text.trim().is_empty() {
-        return Err("模型和文本不能为空".to_string());
-    }
-    let client = ai_client(std::time::Duration::from_secs(120), &config.base_url)?;
-    let schema = serde_json::json!({
-        "type": "object",
-        "properties": {
-            "translation": { "type": "string" },
-            "grammar": { "type": "string" },
-            "notes": { "type": "string" }
-        },
-        "required": ["translation", "grammar", "notes"]
-    });
-    let prompt = format!(
-        "请解释下面的{}学习资料。给出自然的中文翻译、简洁语法说明和词汇学习提示。不要编造原文中不存在的内容。\n\n原文：{}",
-        language, text.trim()
-    );
-    let content = chat(
-        &client,
-        &config,
-        &CancellationToken::default(),
-        None,
-        prompt,
-        schema,
-    )
-    .await?;
-    parse_ai_json::<AiExplanation>(&content).map_err(|error| {
-        format!(
-            "AI 返回格式无效：{}。原始内容：{}",
-            error,
-            content.chars().take(400).collect::<String>()
-        )
-    })
-}
-
 fn build_models_request(
     client: &Client,
     config: &AiConfig,
@@ -749,39 +701,101 @@ fn build_models_request(
     request
 }
 
+/// Minimal chat request used to verify that the configured AI service can
+/// actually process a chat call, matching the path the real analysis uses.
+/// Only called when the model list endpoint is unreachable but a model is set.
+async fn probe_chat(client: &Client, config: &AiConfig) -> Result<(), String> {
+    let url = chat_endpoint(config);
+    let body = serde_json::json!({
+        "model": config.model,
+        "stream": false,
+        "messages": [
+            { "role": "user", "content": "ping" }
+        ]
+    });
+    let response = send_retry(
+        &CancellationToken::default(),
+        None,
+        || {
+            let mut request = client.post(&url).json(&body);
+            if config.is_openai() {
+                if let Some(key) = config
+                    .api_key
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|key| !key.is_empty())
+                {
+                    request = request.bearer_auth(key);
+                }
+            }
+            request
+        },
+    )
+    .await
+    .map_err(|error| {
+        if error == CANCELLED_MESSAGE {
+            error
+        } else {
+            format!("无法连接 AI 服务（{}）：{}", url, error)
+        }
+    })?;
+    if response.status().is_success() {
+        Ok(())
+    } else {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        Err(format!("AI 服务返回错误 {}：{}", status, body))
+    }
+}
+
 #[tauri::command]
 pub async fn ai_status(config: AiConfig) -> Result<(), String> {
-    let client = ai_client(std::time::Duration::from_secs(5), &config.base_url)?;
+    let client = ai_client(std::time::Duration::from_secs(15), &config.base_url)?;
     let url = models_endpoint(&config);
-    build_models_request(&client, &config, &url)
-        .send()
+    let connected = async {
+        send_retry(
+            &CancellationToken::default(),
+            None,
+            || build_models_request(&client, &config, &url),
+        )
         .await
-        .map_err(|error| {
-            format!(
-                "无法连接 AI 服务（{}）：{}",
-                url, error
-            )
-        })?
+        .map_err(|error| format!("无法连接 AI 服务（{}）：{}", url, error))?
         .error_for_status()
-        .map(|_| ())
-        .map_err(|error| format!("AI 服务不可用：{}", error))
+        .map_err(|error| format!("AI 服务不可用：{}", error))?;
+        Ok::<(), String>(())
+    }
+    .await;
+    match connected {
+        Ok(()) => Ok(()),
+        Err(models_error) => {
+            if config.model.trim().is_empty() {
+                return Err(models_error);
+            }
+            probe_chat(&client, &config)
+                .await
+                .map_err(|chat_error| format!("{}；聊天接口探测也失败：{}", models_error, chat_error))
+        }
+    }
 }
 
 #[tauri::command]
 pub async fn ai_models(config: AiConfig) -> Result<Vec<OllamaModel>, String> {
-    let client = ai_client(std::time::Duration::from_secs(5), &config.base_url)?;
+    let client = ai_client(std::time::Duration::from_secs(15), &config.base_url)?;
     let url = models_endpoint(&config);
-    let response = build_models_request(&client, &config, &url)
-        .send()
-        .await
-        .map_err(|error| {
-            format!(
-                "无法连接 AI 服务（{}）：{}",
-                url, error
-            )
-        })?
-        .error_for_status()
-        .map_err(|error| format!("AI 服务不可用：{}", error))?;
+    let response = send_retry(
+        &CancellationToken::default(),
+        None,
+        || build_models_request(&client, &config, &url),
+    )
+    .await
+    .map_err(|error| {
+        format!(
+            "无法连接 AI 服务（{}）：{}",
+            url, error
+        )
+    })?
+    .error_for_status()
+    .map_err(|error| format!("AI 服务不可用：{}", error))?;
 
     if config.is_openai() {
         let parsed: OpenAiModelListResponse = response

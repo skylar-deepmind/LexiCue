@@ -3,6 +3,8 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 
 export type AiProvider = 'ollama' | 'openai';
 
+export type AiConnectionStatus = 'idle' | 'checking' | 'ready' | 'error';
+
 export const DEFAULT_OLLAMA_URL = 'http://localhost:11434';
 
 export interface AiPreset {
@@ -32,15 +34,37 @@ interface AiState {
   model: string;
   apiKey: string;
   apiKeys: Record<string, string>;
+  aiStatus: AiConnectionStatus;
+  aiModels: string[];
+  aiError: string;
+  aiFingerprint: string;
   setEnabled: (enabled: boolean) => void;
   setProvider: (provider: AiProvider) => void;
   setBaseUrl: (baseUrl: string) => void;
   setModel: (model: string) => void;
   setApiKey: (apiKey: string) => void;
   selectBaseUrl: (baseUrl: string) => void;
+  setAiStatus: (status: AiConnectionStatus) => void;
+  setAiModels: (models: string[]) => void;
+  setAiError: (error: string) => void;
+  setAiFingerprint: (fingerprint: string) => void;
+  resetAiCheck: () => void;
 }
 
-type PersistedAi = Partial<Omit<AiState, 'setEnabled' | 'setProvider' | 'setBaseUrl' | 'setModel' | 'setApiKey' | 'selectBaseUrl'>>;
+type PersistedAi = Partial<Omit<
+  AiState,
+  | 'setEnabled'
+  | 'setProvider'
+  | 'setBaseUrl'
+  | 'setModel'
+  | 'setApiKey'
+  | 'selectBaseUrl'
+  | 'setAiStatus'
+  | 'setAiModels'
+  | 'setAiError'
+  | 'setAiFingerprint'
+  | 'resetAiCheck'
+>>;
 
 export const useAiStore = create<AiState>()(
   persist(
@@ -51,6 +75,10 @@ export const useAiStore = create<AiState>()(
       model: '',
       apiKey: '',
       apiKeys: {},
+      aiStatus: 'idle',
+      aiModels: [],
+      aiError: '',
+      aiFingerprint: '',
       setEnabled: (enabled) => set({ enabled }),
       setProvider: (provider) => set({ provider }),
       setBaseUrl: (baseUrl) => set({ baseUrl }),
@@ -63,6 +91,11 @@ export const useAiStore = create<AiState>()(
         baseUrl,
         apiKey: state.apiKeys[normalizeBaseUrl(baseUrl)] ?? '',
       })),
+      setAiStatus: (status) => set({ aiStatus: status }),
+      setAiModels: (models) => set({ aiModels: models }),
+      setAiError: (error) => set({ aiError: error }),
+      setAiFingerprint: (fingerprint) => set({ aiFingerprint: fingerprint }),
+      resetAiCheck: () => set({ aiStatus: 'idle', aiModels: [], aiError: '', aiFingerprint: '' }),
     }),
     {
       name: 'lexicue-ai',
@@ -83,6 +116,9 @@ export const useAiStore = create<AiState>()(
         const apiKeys = saved.apiKeys && typeof saved.apiKeys === 'object'
           ? saved.apiKeys as Record<string, string>
           : (apiKey ? { [normalizeBaseUrl(baseUrl)]: apiKey } : {});
+        const savedStatus = saved.aiStatus === 'ready' || saved.aiStatus === 'error'
+          ? saved.aiStatus
+          : 'idle';
         return {
           ...current,
           ...saved,
@@ -92,6 +128,10 @@ export const useAiStore = create<AiState>()(
           model: typeof saved.model === 'string' ? saved.model : (legacyModel ?? ''),
           apiKey,
           apiKeys,
+          aiStatus: savedStatus,
+          aiModels: Array.isArray(saved.aiModels) ? saved.aiModels : [],
+          aiError: typeof saved.aiError === 'string' ? saved.aiError : '',
+          aiFingerprint: typeof saved.aiFingerprint === 'string' ? saved.aiFingerprint : '',
         };
       },
     },

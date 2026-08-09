@@ -106,7 +106,6 @@ pub fn run() {
             commands::ollama::ai_models,
             commands::ollama::analyze_file_phrases,
             commands::ollama::cancel_phrase_analysis,
-            commands::ollama::explain_text,
             commands::ollama::translate_segments,
             commands::ollama::cancel_translate_segments,
             commands::youtube::youtube_list_subs,

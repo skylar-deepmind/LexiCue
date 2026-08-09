@@ -15,17 +15,9 @@ import SegmentCard from '../components/SegmentCard';
 import EmptyState from '../components/EmptyState';
 import WordDetailPanel from '../components/WordDetail';
 import PhraseDetailPanel from '../components/PhraseDetail';
-import { useAiStore } from '../stores/aiStore';
-import { getAiConfig } from '../lib/ai';
 import type { PhraseDetail as PhraseDetailType } from '../lib/types';
 
 const STATUS_CYCLE: WordStatus[] = ['unprocessed', 'learning', 'known', 'ignored'];
-
-interface AiExplanation {
-  translation: string;
-  grammar: string;
-  notes: string;
-}
 
 export default function ReadingPage() {
   const { t } = useTranslation();
@@ -47,7 +39,6 @@ export default function ReadingPage() {
   const setReadingFontSize = usePreferencesStore((state) => state.setReadingFontSize);
   const readingLineHeight = usePreferencesStore((state) => state.readingLineHeight);
   const setReadingLineHeight = usePreferencesStore((state) => state.setReadingLineHeight);
-  const aiEnabled = useAiStore((state) => state.enabled);
   const [files, setFiles] = useState<FileRecord[]>([]);
   const [detail, setDetail] = useState<WordDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -58,8 +49,6 @@ export default function ReadingPage() {
   const [quickSelected, setQuickSelected] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [activeMatchIndex, setActiveMatchIndex] = useState(0);
-  const [aiExplanation, setAiExplanation] = useState<AiExplanation | null>(null);
-  const [aiLoading, setAiLoading] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [showHint, setShowHint] = useState(true);
   const toolsRef = useRef<HTMLDivElement>(null);
@@ -191,30 +180,6 @@ export default function ReadingPage() {
       useFeedbackStore.getState().show(t('reading.cannotLoadPhrase'), 'error');
     } finally {
       setPhraseDetailLoading(false);
-    }
-  };
-
-  const explainCurrentSegment = async () => {
-    const segment = segments[activeSegmentIndex];
-    const config = getAiConfig();
-    if (!segment) return;
-    if (!config.model) {
-      useFeedbackStore.getState().show(t('errors.needAiSetup'), 'error');
-      return;
-    }
-    setAiLoading(true);
-    try {
-      const result = await invoke<AiExplanation>('explain_text', {
-        config,
-        language: currentLanguage,
-        text: segment.en_text,
-      });
-      setAiExplanation(result);
-    } catch (error) {
-      console.error('AI explanation failed:', error);
-      useFeedbackStore.getState().show(t('reading.aiExplainFailed'), 'error');
-    } finally {
-      setAiLoading(false);
     }
   };
 
@@ -395,19 +360,6 @@ export default function ReadingPage() {
                 >
                   {quickMode ? t('reading.exitQuickMode') : t('reading.quickMode')}
                 </button>
-                {aiEnabled && (
-                  <button
-                    role="menuitem"
-                    onClick={() => {
-                      setToolsOpen(false);
-                      void explainCurrentSegment();
-                    }}
-                    disabled={aiLoading || segments.length === 0}
-                    className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-40"
-                  >
-                    {aiLoading ? t('reading.aiAnalyzing') : t('reading.aiExplain')}
-                  </button>
-                )}
                 <div className="border-t border-gray-100 px-4 py-2.5">
                   <div className="flex items-center justify-between gap-3 text-xs">
                     <span className="text-gray-500">{t('reading.fontSize')}</span>
@@ -568,20 +520,6 @@ export default function ReadingPage() {
                 </label>
               ))}
             </div>
-          </div>
-        </div>
-      )}
-
-      {aiEnabled && aiExplanation && (
-        <div className="border-b border-purple-100 bg-purple-50/50 px-4 py-3 sm:px-6">
-          <div className="mx-auto max-w-2xl space-y-2 text-sm">
-            <div className="flex items-center justify-between">
-              <span className="font-medium text-purple-800">{t('reading.aiPanelTitle')}</span>
-              <button onClick={() => setAiExplanation(null)} className="text-xs text-purple-500 hover:text-purple-800">{t('reading.close')}</button>
-            </div>
-            <p className="text-gray-700"><strong>{t('reading.translation')}</strong>{aiExplanation.translation}</p>
-            <p className="text-gray-700"><strong>{t('reading.grammar')}</strong>{aiExplanation.grammar}</p>
-            <p className="text-gray-700"><strong>{t('reading.notes')}</strong>{aiExplanation.notes}</p>
           </div>
         </div>
       )}

@@ -54,9 +54,15 @@ export default function SettingsPage() {
   const selectAiBaseUrl = useAiStore((state) => state.selectBaseUrl);
   const setAiModel = useAiStore((state) => state.setModel);
   const setAiApiKey = useAiStore((state) => state.setApiKey);
-  const [aiModels, setAiModels] = useState<string[]>([]);
-  const [aiStatus, setAiStatus] = useState<'idle' | 'checking' | 'ready' | 'error'>('idle');
-  const [aiError, setAiError] = useState('');
+  const aiStatus = useAiStore((state) => state.aiStatus);
+  const aiModels = useAiStore((state) => state.aiModels);
+  const aiError = useAiStore((state) => state.aiError);
+  const setAiStatus = useAiStore((state) => state.setAiStatus);
+  const setAiModels = useAiStore((state) => state.setAiModels);
+  const setAiError = useAiStore((state) => state.setAiError);
+  const aiFingerprint = useAiStore((state) => state.aiFingerprint);
+  const setAiFingerprint = useAiStore((state) => state.setAiFingerprint);
+  const resetAiCheck = useAiStore((state) => state.resetAiCheck);
   const [ytdlp, setYtdlp] = useState<YtDlpStatus | null>(null);
   const [ytdlpChecking, setYtdlpChecking] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
@@ -102,30 +108,46 @@ export default function SettingsPage() {
       model: aiModel,
       apiKey: aiProvider === 'openai' ? aiApiKey : undefined,
     };
+    const fingerprint = JSON.stringify(config);
     try {
       await invoke('ai_status', { config });
-      const models = await invoke<{ name: string }[]>('ai_models', { config });
-      setAiModels(models.map((item) => item.name));
       setAiStatus('ready');
+      setAiFingerprint(fingerprint);
+      try {
+        const models = await invoke<{ name: string }[]>('ai_models', { config });
+        setAiModels(models.map((item) => item.name));
+      } catch (error) {
+        console.error('Failed to load AI model list:', error);
+        setAiModels([]);
+      }
     } catch (error) {
       console.error('Failed to connect to AI service:', error);
       setAiStatus('error');
       setAiError(String(error));
+      setAiFingerprint(fingerprint);
     }
   };
 
+  useEffect(() => {
+    const fingerprint = JSON.stringify({
+      provider: aiProvider,
+      baseUrl: aiBaseUrl.trim() || DEFAULT_OLLAMA_URL,
+      model: aiModel,
+      apiKey: aiProvider === 'openai' ? aiApiKey : undefined,
+    });
+    if (aiStatus !== 'idle' && aiFingerprint && aiFingerprint !== fingerprint) {
+      resetAiCheck();
+    }
+  }, [aiProvider, aiBaseUrl, aiModel, aiApiKey, aiStatus, aiFingerprint, resetAiCheck]);
+
   const switchProvider = (provider: AiProvider) => {
     setAiProvider(provider);
-    setAiStatus('idle');
-    setAiModels([]);
-    setAiError('');
+    resetAiCheck();
   };
 
   const selectPreset = (value: string) => {
     selectAiBaseUrl(value === 'custom' ? '' : value);
-    setAiStatus('idle');
-    setAiModels([]);
-    setAiError('');
+    resetAiCheck();
   };
 
   const handleImport = async () => {

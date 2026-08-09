@@ -48,8 +48,36 @@ pub struct TrackSelection {
     pub is_auto: bool,
 }
 
+fn ytdlp_path() -> Option<&'static Path> {
+    static CACHED: OnceLock<Option<PathBuf>> = OnceLock::new();
+    CACHED
+        .get_or_init(|| {
+            let mut candidates: Vec<PathBuf> = vec![
+                PathBuf::from("/opt/homebrew/bin/yt-dlp"),
+                PathBuf::from("/usr/local/bin/yt-dlp"),
+                PathBuf::from("/usr/bin/yt-dlp"),
+            ];
+            if let Some(home) = std::env::var_os("HOME") {
+                let home = PathBuf::from(home);
+                candidates.push(home.join(".local/bin/yt-dlp"));
+                candidates.push(home.join(".cargo/bin/yt-dlp"));
+            }
+            candidates.into_iter().find(|p| p.is_file())
+            .or_else(|| {
+                Command::new("yt-dlp")
+                    .arg("--version")
+                    .output()
+                    .ok()
+                    .filter(|o| o.status.success())
+                    .map(|_| PathBuf::from("yt-dlp"))
+            })
+        })
+        .as_deref()
+}
+
 fn ytdlp_version() -> Option<String> {
-    let output = Command::new("yt-dlp").arg("--version").output().ok()?;
+    let path = ytdlp_path()?;
+    let output = Command::new(path).arg("--version").output().ok()?;
     if !output.status.success() {
         return None;
     }
@@ -471,7 +499,7 @@ async fn fetch_ytdlp_json(
     if let Some(json) = get_cached_metadata(&video_id) {
         return Ok(json);
     }
-    let mut cmd = tokio::process::Command::new("yt-dlp");
+    let mut cmd = tokio::process::Command::new(ytdlp_path().expect("yt-dlp not found"));
     cmd.arg("--skip-download")
         .arg("--no-playlist")
         .arg("--dump-single-json")
@@ -641,7 +669,7 @@ async fn download_sub_ytdlp(
 ) -> Result<SubtitleResult, String> {
     let video_id = extract_video_id(url).unwrap_or_else(|| "video".to_string());
     let dir = create_temp_dir()?;
-    let mut cmd = tokio::process::Command::new("yt-dlp");
+    let mut cmd = tokio::process::Command::new(ytdlp_path().expect("yt-dlp not found"));
     cmd.arg("--skip-download")
         .arg("--no-playlist")
         .arg("--retries")
@@ -1460,7 +1488,7 @@ mod tests {
             job_id: 2,
             token: Arc::new(AtomicBool::new(true)),
         };
-        let mut cmd = tokio::process::Command::new("yt-dlp");
+        let mut cmd = tokio::process::Command::new(ytdlp_path().expect("yt-dlp not found"));
         cmd.arg("--skip-download")
             .arg("--no-playlist")
             .arg("-J")
