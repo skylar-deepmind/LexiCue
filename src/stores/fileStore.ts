@@ -333,7 +333,11 @@ export const useFileStore = create<FileStore>((set, get) => ({
         },
       });
       set({ pendingImport: null });
-      await get().loadFiles();
+      if (usePreferencesStore.getState().language === pending.language) {
+        await get().loadFiles();
+      } else {
+        usePreferencesStore.getState().setLanguage(pending.language);
+      }
       useFeedbackStore.getState().show(
          i18n.t('fileStore.importedSummary', {
           segments: pending.parsed.segments.length,
