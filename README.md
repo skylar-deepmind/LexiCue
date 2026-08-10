@@ -23,7 +23,7 @@ Local-first 词汇学习与阅读工具。通过阅读自己导入的文本，�
 
 | 语言 | 词典 | 分词/形变 |
 | ---- | ---- | ---- |
-| 英语 English | ECDICT、PhraseDict | 正则分词、词组识别 |
+| 英语 English | ECDICT、PhraseDict | 词形还原（kaikki 词形映射，books → book） |
 | 日语 日本語 | JMdict | lindera（嵌入式 UniDic） |
 | 德语 Deutsch | kaikki.org 派生数据 | 词形还原（词频过滤） |
 | 中文 中文 | CC-CEDICT | jieba 分词、拼音标注 |

@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
 import type { Segment } from '../lib/types';
 import type { Language } from '../lib/languages';
-import { lemmatize } from '../lib/lemmatizer';
 
 interface WordStatusInfo {
   id: number;
@@ -87,7 +86,7 @@ export const useReaderStore = create<ReaderStore>((set) => ({
       }
 
       let segTokens: Map<number, SegmentToken[]> = new Map();
-      if (currentLanguage === 'ja' || currentLanguage === 'de' || currentLanguage === 'zh') {
+      if (currentLanguage === 'en' || currentLanguage === 'ja' || currentLanguage === 'de' || currentLanguage === 'zh') {
         const raw: SegmentToken[] = await invoke('get_file_segment_tokens', { fileId });
         for (const t of raw) {
           const list = segTokens.get(t.segment_index) ?? [];
@@ -112,5 +111,3 @@ export const useReaderStore = create<ReaderStore>((set) => ({
     }
   },
 }));
-
-export { lemmatize };

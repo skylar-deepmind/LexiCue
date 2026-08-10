@@ -8,7 +8,6 @@ import { usePreferencesStore } from '../stores/preferencesStore';
 import { useFeedbackStore } from '../stores/feedbackStore';
 import type { FileRecord, WordStatus } from '../lib/types';
 import type { WordDetail } from '../lib/types';
-import { lemmatize } from '../lib/lemmatizer';
 import type { ContextMenuItem } from '../components/ContextMenu';
 import ContextMenu from '../components/ContextMenu';
 import SegmentCard from '../components/SegmentCard';
@@ -264,20 +263,9 @@ export default function ReadingPage() {
   };
 
   const fileWordCounts = new Map<string, number>();
-  if (currentLanguage === 'ja' || currentLanguage === 'de' || currentLanguage === 'zh') {
-    for (const tokens of segmentTokens.values()) {
-      for (const t of tokens) {
-        fileWordCounts.set(t.lemma, (fileWordCounts.get(t.lemma) ?? 0) + 1);
-      }
-    }
-  } else {
-    for (const segment of segments) {
-      for (const token of segment.en_text.split(/\s+/)) {
-        const clean = token.replace(/[^a-zA-Z'-]/g, '').toLowerCase();
-        if (clean.length === 0 || (clean.length === 1 && clean !== 'a' && clean !== 'i')) continue;
-        const lemma = lemmatize(clean);
-        fileWordCounts.set(lemma, (fileWordCounts.get(lemma) ?? 0) + 1);
-      }
+  for (const tokens of segmentTokens.values()) {
+    for (const t of tokens) {
+      fileWordCounts.set(t.lemma, (fileWordCounts.get(t.lemma) ?? 0) + 1);
     }
   }
   const fileWordItems = Array.from(fileWordCounts.entries())
@@ -544,7 +532,6 @@ export default function ReadingPage() {
                   onWordContextMenu={handleWordContextMenu}
                   onPhraseClick={(phraseId) => handlePhraseClick(phraseId)}
                    showTranslation={showTranslation}
-                   language={currentLanguage}
                   highlightQuery={searchQuery}
                   isActive={index === activeSegmentIndex || index === matchingSegmentIndexes[activeMatchIndex]}
                   fontSize={readingFontSize}

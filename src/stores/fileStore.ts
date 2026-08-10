@@ -82,6 +82,13 @@ interface GermanToken {
   position: number;
 }
 
+interface EnglishToken {
+  surface: string;
+  lemma: string;
+  part_of_speech: string | null;
+  position: number;
+}
+
 interface ChineseToken {
   surface: string;
   lemma: string;
@@ -133,6 +140,27 @@ async function enrichGermanParsing(parsed: ParsedResult): Promise<ParsedResult> 
   return { ...parsed, lemmas: [...lemmas], occurrences };
 }
 
+async function enrichEnglishParsing(parsed: ParsedResult): Promise<ParsedResult> {
+  const lemmas = new Set<string>();
+  const occurrences: OccurrenceInput[] = [];
+  const batches = await invoke<EnglishToken[][]>('tokenize_english_batch', {
+    texts: parsed.segments.map((segment) => segment.en_text),
+  });
+  parsed.segments.forEach((segment, index) => {
+    for (const token of batches[index] ?? []) {
+      lemmas.add(token.lemma);
+      occurrences.push({
+        lemma: token.lemma,
+        segment_index: segment.index,
+        original_form: token.surface,
+        position: token.position,
+        part_of_speech: token.part_of_speech,
+      });
+    }
+  });
+  return { ...parsed, lemmas: [...lemmas], occurrences };
+}
+
 async function enrichChineseParsing(parsed: ParsedResult): Promise<ParsedResult> {
   const lemmas = new Set<string>();
   const occurrences: OccurrenceInput[] = [];
@@ -161,6 +189,8 @@ async function parseContent(content: string, fileType: 'txt' | 'srt', language: 
     parsed = await enrichJapaneseParsing(parsed);
   } else if (language === 'de') {
     parsed = await enrichGermanParsing(parsed);
+  } else if (language === 'en') {
+    parsed = await enrichEnglishParsing(parsed);
   } else if (language === 'zh') {
     parsed = await enrichChineseParsing(parsed);
   }

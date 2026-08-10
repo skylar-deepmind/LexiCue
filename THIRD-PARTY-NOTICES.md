@@ -16,11 +16,18 @@ shipped with the application in `src-tauri/resources/`.
 | CC-CEDICT (Chinese) | zh | https://www.mdbg.net/chinese/dictionary?page=cc-cedict | CC BY-SA 4.0 | `CC-CEDICT-LICENSE.txt` |
 | German Wiktionary word forms & glosses | de | https://kaikki.org/dictionary/German/ | CC BY-SA 4.0 | `GERMAN-LICENSE.txt` |
 | FrequencyWords (German frequency filter) | de | https://github.com/hermitdave/FrequencyWords | MIT | `GERMAN-LICENSE.txt` |
+| English Wiktionary word forms | en | https://kaikki.org/dictionary/English/ | CC BY-SA 4.0 | `ENGLISH-LICENSE.txt` |
+| FrequencyWords (English frequency filter) | en | https://github.com/hermitdave/FrequencyWords | MIT | `ENGLISH-LICENSE.txt` |
 
 The German word-form and sense data is derived from the kaikki.org
 machine-readable Wiktionary data extracted by Tatu Ylonen (wiktextract). The
 resulting TSV files combine both Wiktionary-derived data (CC BY-SA 4.0) and the
 FrequencyWords filter list (MIT). See `GERMAN-LICENSE.txt` for details.
+
+The English word-form data (used to reduce surface forms like `books` or `went`
+to their base lemma) is derived from the kaikki.org machine-readable Wiktionary
+data, combined with the FrequencyWords filter list (MIT). See
+`ENGLISH-LICENSE.txt` for details.
 
 The PhraseDict data combines the original LexiCue phrase list with filtered data
 from Kaikki's machine-readable English Wiktionary data. See

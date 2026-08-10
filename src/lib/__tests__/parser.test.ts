@@ -31,14 +31,14 @@ I'm doing great.
     expect(result.segments[0].en_text).toBe('Hello world');
   });
 
-  it('extracts words and their lemmas', () => {
+  it('extracts English words for later lemmatization', () => {
     const srt = `1
 00:00:01,000 --> 00:00:03,000
 He went to the store.`;
 
     const result = parseFile(srt, 'srt');
-    expect(result.lemmas).toContain('go');
-    expect(result.occurrences.some(o => o.lemma === 'go' && o.original_form === 'went')).toBe(true);
+    expect(result.lemmas).toContain('went');
+    expect(result.occurrences.some(o => o.lemma === 'went' && o.original_form === 'went')).toBe(true);
   });
 
   it('skips empty blocks', () => {

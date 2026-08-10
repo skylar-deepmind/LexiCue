@@ -1,5 +1,4 @@
 import { tokenizeWithPositionsForLanguage } from './tokenizer';
-import { lemmatize } from './lemmatizer';
 import type { SegmentInput, OccurrenceInput } from './types';
 import type { Language } from './languages';
 
@@ -146,7 +145,7 @@ function parseSrtBlocks(content: string, _mode: SubtitleMode, language: Language
     });
 
     for (const w of words) {
-      const lemma = language === 'en' ? lemmatize(w.word) : w.word;
+      const lemma = w.word;
       allLemmas.add(lemma);
       allOccurrences.push({
         lemma,
@@ -192,7 +191,7 @@ function parseTxtBlocks(content: string, language: Language): ParsedResult {
     });
 
     for (const w of words) {
-      const lemma = language === 'en' ? lemmatize(w.word) : w.word;
+      const lemma = w.word;
       allLemmas.add(lemma);
       allOccurrences.push({
         lemma,

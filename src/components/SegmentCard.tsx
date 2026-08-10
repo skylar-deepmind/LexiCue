@@ -1,8 +1,6 @@
 import type { ReactElement } from 'react';
 import type { Segment } from '../lib/types';
 import type { SegmentPhrase, SegmentToken } from '../stores/readerStore';
-import { lemmatize } from '../lib/lemmatizer';
-import type { Language } from '../lib/languages';
 import type { ReadingFontSize, ReadingLineHeight } from '../stores/preferencesStore';
 
 const FONT_CLASS: Record<ReadingFontSize, string> = { sm: 'text-sm', md: 'text-base', lg: 'text-lg' };
@@ -25,7 +23,6 @@ interface SegmentCardProps {
   showTranslation?: boolean;
   highlightQuery?: string;
   isActive?: boolean;
-  language?: Language;
   fontSize?: ReadingFontSize;
   lineHeight?: ReadingLineHeight;
 }
@@ -46,7 +43,7 @@ function tokenizeEnText(text: string): RenderedToken[] {
     } else {
       const clean = token.replace(/[^a-zA-Z'-]/g, '').toLowerCase();
       const isWord = clean.length > 0 && (clean === 'a' || clean === 'i' || (clean.length > 1 && /^[a-z]+$/.test(clean)));
-      result.push({ token, wordIndex: isWord ? wordIndex : -1, lemma: isWord ? lemmatize(clean) : null });
+      result.push({ token, wordIndex: isWord ? wordIndex : -1, lemma: isWord ? clean : null });
       if (isWord) wordIndex++;
     }
   }
@@ -86,13 +83,12 @@ export default function SegmentCard({
   showTranslation = true,
   highlightQuery = '',
   isActive = false,
-  language = 'en',
   fontSize = 'md',
   lineHeight = 'normal',
 }: SegmentCardProps) {
-  const useSegmentTokens = language === 'ja' || language === 'de' || language === 'zh';
+  const useSegmentTokens = segmentTokens !== undefined && segmentTokens.length > 0;
   const renderedTokens: RenderedToken[] =
-    useSegmentTokens && segmentTokens && segmentTokens.length > 0
+    useSegmentTokens
       ? tokenizeSurfaceText(segment.en_text, segmentTokens)
       : tokenizeEnText(segment.en_text);
 

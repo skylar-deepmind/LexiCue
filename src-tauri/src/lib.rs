@@ -61,6 +61,13 @@ pub fn run() {
                         let _ = app_handle.emit("dictionary-ready", false);
                     }
                 }
+                // One-time, idempotent migration that normalizes English word
+                // lemmas to their base form so lookups resolve offline.
+                if let Ok(conn) = init_db(&dict_dir.join("lexicue.db")) {
+                    if let Err(e) = commands::english::run_migrate_english_lemmas(&conn) {
+                        log::error!("english lemma migration failed: {e}");
+                    }
+                }
             });
 
             Ok(())
@@ -117,6 +124,10 @@ pub fn run() {
             commands::language::tokenize_japanese_batch,
             commands::german::tokenize_german,
             commands::german::tokenize_german_batch,
+            commands::english::tokenize_english,
+            commands::english::tokenize_english_batch,
+            commands::english::lemmatize_english,
+            commands::english::migrate_english_lemmas_cmd,
             commands::chinese::tokenize_chinese,
             commands::chinese::tokenize_chinese_batch,
             commands::dictionary::dictionary_status,

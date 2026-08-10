@@ -370,7 +370,7 @@
     "title": "Lernsprache auswählen",
     "mainLanguage": "Hauptsprache der Datei",
     "selectLanguage": "Sprache auswählen",
-    "hint": "Wählen Sie für japanische Untertitel „Japanisch“; die App segmentiert Japanisch und extrahiert Lesungen und Wortarten. Wählen Sie für deutsche Dateien „Deutsch“; die App führt Wortformen zusammen (z. B. ging→gehen). Wählen Sie für chinesische Dateien „Chinesisch“; die App segmentiert Chinesisch und extrahiert Pinyin. Die Analyse beginnt erst, wenn eine Sprache ausgewählt wurde.",
+    "hint": "Wählen Sie für japanische Untertitel „Japanisch“; die App segmentiert Japanisch und extrahiert Lesungen und Wortarten. Wählen Sie für englische Dateien „Englisch“; die App reduziert Wortformen auf die Grundform (z. B. went→go). Wählen Sie für deutsche Dateien „Deutsch“; die App führt Wortformen zusammen (z. B. ging→gehen). Wählen Sie für chinesische Dateien „Chinesisch“; die App segmentiert Chinesisch und extrahiert Pinyin. Die Analyse beginnt erst, wenn eine Sprache ausgewählt wurde.",
     "cancel": "Abbrechen",
     "startParsing": "Analyse starten"
   },

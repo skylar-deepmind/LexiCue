@@ -3,7 +3,6 @@ import { Fragment, useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { speakText } from '../lib/tts';
-import { lemmatize } from '../lib/lemmatizer';
 import type { DictionaryEntry, DueCard, DuePhraseCard, PhraseDictionaryEntry } from '../lib/types';
 
 interface FlashCardProps {
@@ -60,6 +59,7 @@ function renderOccurrenceSentence(
   enText: string,
   card: DueCard | DuePhraseCard,
   originalForm: string | null,
+  englishLemmas?: Map<string, string> | null,
 ): ReactNode {
   if (isPhraseCard(card)) {
     const pieces = splitSentence(enText);
@@ -110,7 +110,7 @@ function renderOccurrenceSentence(
   const highlighted = new Set<number>();
   let matched = false;
   pieces.forEach((piece, index) => {
-    if (piece.isWord && lemmatize(piece.clean) === card.lemma) {
+    if (piece.isWord && englishLemmas?.get(piece.clean) === card.lemma) {
       highlighted.add(index);
       matched = true;
     }
@@ -133,8 +133,29 @@ export default function FlashCard({ card, revealed, onReveal }: FlashCardProps) 
   const [dictionary, setDictionary] = useState<DictionaryEntry | null>(null);
   const [phraseDictionary, setPhraseDictionary] = useState<PhraseDictionaryEntry | null>(null);
   const [audioLoading, setAudioLoading] = useState(false);
+  const [englishLemmas, setEnglishLemmas] = useState<Map<string, string> | null>(null);
   const wordText = getWordText(card);
   const phraseMode = isPhraseCard(card);
+
+  useEffect(() => {
+    if (phraseMode || card.language !== 'en' || !occ) return;
+    const pieces = splitSentence(occ.en_text);
+    const words = pieces.filter((piece) => piece.isWord).map((piece) => piece.clean);
+    if (words.length === 0) return;
+    let cancelled = false;
+    setEnglishLemmas(null);
+    invoke<string[]>('lemmatize_english', { words })
+      .then((lemmas) => {
+        if (cancelled) return;
+        const map = new Map<string, string>();
+        words.forEach((word, index) => map.set(word, lemmas[index] ?? word));
+        setEnglishLemmas(map);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [card, phraseMode, occ]);
 
   const playAudio = async () => {
     setAudioLoading(true);
@@ -262,7 +283,7 @@ export default function FlashCard({ card, revealed, onReveal }: FlashCardProps) 
             {occ && (
               <div className="mt-5 rounded-xl bg-gray-50 p-3">
                 <p className="text-sm leading-relaxed text-gray-700">
-                  {renderOccurrenceSentence(occ.en_text, card, occ.original_form ?? null)}
+                  {renderOccurrenceSentence(occ.en_text, card, occ.original_form ?? null, englishLemmas)}
                 </p>
                 {occ.zh_text && <p className="mt-1 text-xs text-gray-500">{occ.zh_text}</p>}
                 <p className="mt-2 text-xs text-gray-400">

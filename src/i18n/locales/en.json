@@ -370,7 +370,7 @@
     "title": "Select Learning Language",
     "mainLanguage": "Main language in the file",
     "selectLanguage": "Select a language",
-    "hint": "For Japanese subtitles choose “Japanese”; the app will tokenize Japanese and extract readings and parts of speech. For German files choose “German”; the app will lemmatize word forms (e.g. ging→gehen). For Chinese files choose “Chinese”; the app will segment Chinese and extract pinyin. Parsing won't start until a language is selected.",
+    "hint": "For Japanese subtitles choose “Japanese”; the app will tokenize Japanese and extract readings and parts of speech. For English files choose “English”; the app will reduce word forms to their base lemma (e.g. went→go). For German files choose “German”; the app will lemmatize word forms (e.g. ging→gehen). For Chinese files choose “Chinese”; the app will segment Chinese and extract pinyin. Parsing won't start until a language is selected.",
     "cancel": "Cancel",
     "startParsing": "Start Parsing"
   },

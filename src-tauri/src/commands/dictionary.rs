@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::io::Read;
 use tauri::{AppHandle, Manager, State};
 
+use crate::commands::english;
 use crate::db::{DbState, DictionaryStatus};
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -647,6 +648,18 @@ pub fn get_cached_dictionary(
     let language = language.as_deref().unwrap_or("en");
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
     cached_entry(&conn, &normalized, language)?
+        .or_else(|| {
+            if language == "en" {
+                let resolved = english::lemma_of_surface(&normalized);
+                if resolved != normalized {
+                    cached_entry(&conn, &resolved, language).ok().flatten()
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        })
         .ok_or_else(|| "dictionary entry not cached".to_string())
 }
 
@@ -874,14 +887,23 @@ pub async fn lookup_dictionary(
 
     let (cached, builtin) = {
         let conn = state.conn.lock().map_err(|e| e.to_string())?;
-        (
-            cached_entry(&conn, &normalized, &language)?,
-            if language == "en" {
-                builtin_entry(&conn, &normalized)?
-            } else {
-                None
-            },
-        )
+        let resolved = if language == "en" {
+            english::lemma_of_surface(&normalized)
+        } else {
+            normalized.clone()
+        };
+        let builtin = if language == "en" {
+            builtin_entry(&conn, &normalized)?.or_else(|| {
+                if resolved != normalized {
+                    builtin_entry(&conn, &resolved).ok().flatten()
+                } else {
+                    None
+                }
+            })
+        } else {
+            None
+        };
+        (cached_entry(&conn, &normalized, &language)?, builtin)
     };
     if !refresh {
         if let Some(entry) = cached.as_ref().filter(|entry| entry.provider != "ECDICT") {

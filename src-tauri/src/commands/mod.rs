@@ -1,5 +1,6 @@
 pub mod chinese;
 pub mod dictionary;
+pub mod english;
 pub mod export;
 pub mod files;
 pub mod german;
