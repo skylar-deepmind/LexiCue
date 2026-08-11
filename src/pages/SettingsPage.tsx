@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
-import { BookOpen, Brain, Clapperboard, Database, Eye, EyeOff, RefreshCw, Trash2, Upload } from 'lucide-react';
+import { BookOpen, Brain, Clapperboard, Database, Download, Eye, EyeOff, RefreshCw, Trash2, Upload } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
+import { getVersion } from '@tauri-apps/api/app';
 import { ask } from '@tauri-apps/plugin-dialog';
+import { openUrl } from '@tauri-apps/plugin-opener';
 import { useTranslation } from 'react-i18next';
 import { useFileStore } from '../stores/fileStore';
+import { useUpdateStore } from '../stores/updateStore';
 import { DEFAULT_OLLAMA_URL, OPENAI_PRESETS, useAiStore, type AiProvider } from '../stores/aiStore';
 import type { DictionarySource } from '../lib/types';
 import { useTheme } from '../components/useTheme';
@@ -32,6 +35,7 @@ const SECTION_NAV = [
   { id: 'youtube', labelKey: 'settings.youtube.title' },
   { id: 'theme', labelKey: 'settings.theme.title' },
   { id: 'dictionary', labelKey: 'settings.dictionary.title' },
+  { id: 'updates', labelKey: 'settings.updates.title' },
 ];
 
 export default function SettingsPage() {
@@ -67,6 +71,15 @@ export default function SettingsPage() {
   const [ytdlpChecking, setYtdlpChecking] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
   const [showYtInstall, setShowYtInstall] = useState(false);
+  const [currentVersion, setCurrentVersion] = useState('');
+  const updateStatus = useUpdateStore((state) => state.status);
+  const updateVersion = useUpdateStore((state) => state.version);
+  const updateNotes = useUpdateStore((state) => state.notes);
+  const updateProgress = useUpdateStore((state) => state.progress);
+  const updateError = useUpdateStore((state) => state.error);
+  const updateDownloadUrl = useUpdateStore((state) => state.downloadUrl);
+  const checkUpdate = useUpdateStore((state) => state.check);
+  const installUpdate = useUpdateStore((state) => state.install);
 
   const scrollToSection = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -97,6 +110,9 @@ export default function SettingsPage() {
   useEffect(() => {
     void loadSources();
     void checkYtdlp();
+    void getVersion()
+      .then(setCurrentVersion)
+      .catch(() => setCurrentVersion(''));
   }, []);
 
   const checkAi = async () => {
@@ -506,6 +522,85 @@ export default function SettingsPage() {
               ))}
             </div>
           )}
+        </section>
+
+        <section id="updates" className="scroll-mt-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="rounded-xl bg-green-50 p-2 text-green-600">
+                <Download size={20} />
+              </div>
+              <div>
+                <h2 className="font-semibold text-gray-900">{t('settings.updates.title')}</h2>
+                <p className="mt-1 max-w-xl text-sm text-gray-500">{t('settings.updates.description')}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => void checkUpdate()}
+              disabled={updateStatus === 'checking' || updateStatus === 'downloading'}
+              className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-50"
+            >
+              <RefreshCw size={14} className={updateStatus === 'checking' ? 'animate-spin' : ''} />
+              {updateStatus === 'checking' ? t('settings.updates.checking') : t('settings.updates.check')}
+            </button>
+          </div>
+
+          <div className="mt-4 space-y-3">
+            <div className="flex items-center gap-2 text-sm text-gray-700">
+              <span className="h-2 w-2 rounded-full bg-green-500" />
+              <span>{t('settings.updates.currentVersion', { version: currentVersion || '-' })}</span>
+            </div>
+
+            {updateStatus === 'upToDate' && (
+              <p className="rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700">{t('settings.updates.upToDate')}</p>
+            )}
+
+            {updateStatus === 'available' && updateVersion && (
+              <div className="rounded-lg bg-blue-50 p-4 text-sm text-blue-800">
+                <p className="font-medium">{t('settings.updates.available', { version: updateVersion })}</p>
+                {updateNotes && (
+                  <p className="mt-2 whitespace-pre-wrap text-xs leading-5 text-blue-700">{updateNotes}</p>
+                )}
+                {updateDownloadUrl ? (
+                  <div>
+                    <button
+                      onClick={() => void openUrl(updateDownloadUrl)}
+                      className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+                    >
+                      <Download size={15} />
+                      {t('settings.updates.downloadPage')}
+                    </button>
+                    <p className="mt-2 text-xs text-blue-500">{t('settings.updates.androidHint')}</p>
+                  </div>
+                ) : (
+                  <div>
+                    <button
+                      onClick={() => void installUpdate()}
+                      className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+                    >
+                      <Download size={15} />
+                      {t('settings.updates.install')}
+                    </button>
+                    <p className="mt-2 text-xs text-blue-500">{t('settings.updates.installHint')}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {updateStatus === 'downloading' && (
+              <div className="rounded-lg bg-blue-50 p-4 text-sm text-blue-800">
+                <p className="font-medium">{t('settings.updates.downloading')}</p>
+                <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-blue-100">
+                  <div className="h-full bg-blue-600 transition-all" style={{ width: `${updateProgress}%` }} />
+                </div>
+                <p className="mt-1 text-right text-xs">{updateProgress}%</p>
+              </div>
+            )}
+
+            {updateStatus === 'error' && updateError && (
+              <p className="rounded-lg bg-red-50 px-4 py-3 text-xs text-red-600">{updateError}</p>
+            )}
+          </div>
         </section>
           </div>
         </div>

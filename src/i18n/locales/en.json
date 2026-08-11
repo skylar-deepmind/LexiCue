@@ -123,6 +123,20 @@
       "deleteConfirm_one": "Delete “{{provider}}” and its {{count}} dictionary entry?",
       "deleteConfirm_other": "Delete “{{provider}}” and its {{count}} dictionary entries?",
       "deleteTitle": "Delete Dictionary"
+    },
+    "updates": {
+      "title": "About & Updates",
+      "description": "Automatically detect and install the latest LexiCue version, distributed via GitHub Releases.",
+      "check": "Check for Updates",
+      "checking": "Checking...",
+      "currentVersion": "Current version v{{version}}",
+      "upToDate": "You are up to date",
+      "available": "New version v{{version}} available",
+      "install": "Download & Install",
+      "installHint": "The app will install and restart automatically once downloaded.",
+      "downloadPage": "Open Download Page",
+      "androidHint": "Auto-update is not supported on Android. Open the download page to get the latest APK and install it manually.",
+      "downloading": "Downloading update..."
     }
   },
   "files": {
@@ -397,7 +411,8 @@
     "closeAria": "Dismiss notification"
   },
   "layout": {
-    "dictInit": "Initializing dictionary…"
+    "dictInit": "Initializing dictionary…",
+    "updateAvailable": "New version v{{version}} available — install it in Settings → About & Updates"
   },
   "themes": {
     "oceanLabel": "Ocean Blue",

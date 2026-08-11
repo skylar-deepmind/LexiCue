@@ -10,7 +10,12 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_opener::init())
         .setup(|app| {
+            #[cfg(desktop)]
+            app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
+
             if cfg!(debug_assertions) {
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()
@@ -131,6 +136,7 @@ pub fn run() {
             commands::chinese::tokenize_chinese,
             commands::chinese::tokenize_chinese_batch,
             commands::dictionary::dictionary_status,
+            commands::updater::check_github_release,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

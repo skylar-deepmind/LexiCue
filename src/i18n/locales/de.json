@@ -123,6 +123,20 @@
       "deleteConfirm_one": "„{{provider}}“ und seinen {{count}} Wörterbucheintrag löschen?",
       "deleteConfirm_other": "„{{provider}}“ und seine {{count}} Wörterbucheinträge löschen?",
       "deleteTitle": "Wörterbuch löschen"
+    },
+    "updates": {
+      "title": "Über & Updates",
+      "description": "Erkennt und installiert automatisch die neueste LexiCue-Version, verteilt über GitHub Releases.",
+      "check": "Nach Updates suchen",
+      "checking": "Suche...",
+      "currentVersion": "Aktuelle Version v{{version}}",
+      "upToDate": "Sie sind auf dem neuesten Stand",
+      "available": "Neue Version v{{version}} verfügbar",
+      "install": "Herunterladen & Installieren",
+      "installHint": "Nach dem Download installiert und startet die App automatisch neu.",
+      "downloadPage": "Download-Seite öffnen",
+      "androidHint": "Automatische Updates werden unter Android nicht unterstützt. Öffnen Sie die Download-Seite, um die neueste APK zu laden und manuell zu installieren.",
+      "downloading": "Update wird heruntergeladen..."
     }
   },
   "files": {
@@ -397,7 +411,8 @@
     "closeAria": "Benachrichtigung schließen"
   },
   "layout": {
-    "dictInit": "Wörterbuch wird initialisiert…"
+    "dictInit": "Wörterbuch wird initialisiert…",
+    "updateAvailable": "Neue Version v{{version}} verfügbar – unter Einstellungen → Über & Updates installieren"
   },
   "themes": {
     "oceanLabel": "Ozeanblau",

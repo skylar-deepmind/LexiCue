@@ -120,6 +120,20 @@
       "deleting": "删除中...",
       "deleteConfirm": "确定删除“{{provider}}”及其 {{count}} 条词典记录吗？",
       "deleteTitle": "删除词典"
+    },
+    "updates": {
+      "title": "关于与更新",
+      "description": "自动检测并安装 LexiCue 最新版本，更新包通过 GitHub Releases 发布。",
+      "check": "检查更新",
+      "checking": "检查中...",
+      "currentVersion": "当前版本 v{{version}}",
+      "upToDate": "已是最新版本",
+      "available": "发现新版本 v{{version}}",
+      "install": "下载并安装",
+      "installHint": "下载完成后应用会自动安装并重启。",
+      "downloadPage": "打开下载页面",
+      "androidHint": "Android 版本不支持自动更新，请打开下载页面获取最新 APK 后手动安装。",
+      "downloading": "正在下载更新..."
     }
   },
   "files": {
@@ -381,7 +395,8 @@
     "closeAria": "关闭提示"
   },
   "layout": {
-    "dictInit": "词典初始化中…"
+    "dictInit": "词典初始化中…",
+    "updateAvailable": "发现新版本 v{{version}}，可在「设置 → 关于与更新」中安装"
   },
   "themes": {
     "oceanLabel": "海湾蓝",

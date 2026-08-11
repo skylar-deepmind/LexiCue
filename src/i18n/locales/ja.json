@@ -120,6 +120,20 @@
       "deleting": "削除中...",
       "deleteConfirm": "「{{provider}}」とその {{count}} 件の辞書エントリを削除しますか？",
       "deleteTitle": "辞書を削除"
+    },
+    "updates": {
+      "title": "バージョン情報と更新",
+      "description": "LexiCue の最新版を自動的に検出してインストールします。更新は GitHub Releases から配布されます。",
+      "check": "更新を確認",
+      "checking": "確認中...",
+      "currentVersion": "現在のバージョン v{{version}}",
+      "upToDate": "最新バージョンです",
+      "available": "新しいバージョン v{{version}} が利用可能です",
+      "install": "ダウンロードしてインストール",
+      "installHint": "ダウンロード完了後、自動的にインストールして再起動します。",
+      "downloadPage": "ダウンロードページを開く",
+      "androidHint": "Android 版は自動更新に対応していません。ダウンロードページから最新の APK を取得して手動でインストールしてください。",
+      "downloading": "更新をダウンロード中..."
     }
   },
   "files": {
@@ -381,7 +395,8 @@
     "closeAria": "通知を閉じる"
   },
   "layout": {
-    "dictInit": "辞書を初期化中…"
+    "dictInit": "辞書を初期化中…",
+    "updateAvailable": "新しいバージョン v{{version}} が利用可能です。設定 → バージョン情報と更新 からインストールできます"
   },
   "themes": {
     "oceanLabel": "オーシャンブルー",
