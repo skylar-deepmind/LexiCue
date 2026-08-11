@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="LexiCue — Local-first 词汇学习与阅读工具。把你正在读的内容，变成真正记得住的词汇。" />
+  <meta name="theme-color" content="#2563eb" />
+  <link rel="icon" type="image/png" href="lexicue-icon.png" />
+  <title>LexiCue — 从真实阅读中记住词汇</title>
+  <script>
+    (function () {
+      var t = null;
+      try { t = localStorage.getItem("lexicue-theme"); } catch (e) {}
+      if (t !== "light" && t !== "dark") {
+        t = (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
+      }
+      document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="nav-wrap">
+    <div class="container">
+      <nav aria-label="主导航">
+        <a class="brand" href="#top" aria-label="LexiCue 首页"><img class="logo" src="lexicue-icon.png" alt="LexiCue" width="34" height="34" /><span>LexiCue</span></a>
+        <div class="nav-links">
+          <a href="#features" data-i18n="nav.features">产品亮点</a>
+          <a href="#workflow" data-i18n="nav.workflow">怎么用</a>
+          <a href="#privacy" data-i18n="nav.privacy">隐私</a>
+          <a href="#languages" data-i18n="nav.languages">支持语言</a>
+        </div>
+        <div class="nav-actions">
+          <button type="button" class="theme-toggle" data-theme-toggle aria-label="切换主题" title="切换主题">
+            <svg class="theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            <svg class="theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+          </button>
+          <div class="lang-switch" role="group" aria-label="Language">
+            <button type="button" class="lang-btn" data-lang="zh" aria-label="中文">中</button>
+            <button type="button" class="lang-btn" data-lang="en" aria-label="English">EN</button>
+          </div>
+          <a class="nav-cta" href="https://github.com/skylar-deepmind/LexiCue" target="_blank" rel="noreferrer">GitHub ↗</a>
+        </div>
+      </nav>
+    </div>
+  </div>
+
+  <main id="top">
+    <section class="hero">
+      <div class="container">
+        <div class="eyebrow"><span class="dot"></span><span data-i18n="hero.eyebrow">Local-first · 开源 · 离线优先</span></div>
+        <h1 data-i18n="hero.title"></h1>
+        <p class="hero-copy" data-i18n="hero.sub"></p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="https://github.com/skylar-deepmind/LexiCue/releases/latest" target="_blank" rel="noreferrer" data-i18n="hero.ctaDownload"></a>
+          <a class="btn btn-secondary" href="https://github.com/skylar-deepmind/LexiCue" target="_blank" rel="noreferrer" data-i18n="hero.ctaGithub"></a>
+        </div>
+        <div class="microcopy">macOS · Windows · Android ｜ English · 日本語 · Deutsch · 中文</div>
+
+        <div class="hero-stage reveal" aria-label="LexiCue 应用界面演示，点击左侧可切换模块">
+          <div class="glow"></div>
+          <div class="app-window">
+            <div class="window-bar"><span class="window-dot"></span><span class="window-dot"></span><span class="window-dot"></span><span class="window-title">LexiCue</span></div>
+            <div class="app-shell">
+              <aside class="sidebar" aria-label="模块切换">
+                <div class="mini-logo"><img class="logo" src="lexicue-icon.png" alt="LexiCue" width="24" height="24" /> LexiCue</div>
+                <button type="button" class="side-item active" data-view="reading"><span class="icon">≡</span><span data-i18n="mock.sidebar.read">阅读</span></button>
+                <button type="button" class="side-item" data-view="files"><span class="icon">▤</span><span data-i18n="mock.sidebar.files">文件</span></button>
+                <button type="button" class="side-item" data-view="words"><span class="icon">Aa</span><span data-i18n="mock.sidebar.words">单词</span></button>
+                <button type="button" class="side-item" data-view="phrases"><span class="icon">◌</span><span data-i18n="mock.sidebar.phrases">词组</span></button>
+                <button type="button" class="side-item" data-view="review"><span class="icon">↻</span><span data-i18n="mock.sidebar.review">复习</span></button>
+                <button type="button" class="side-item" data-view="insights"><span class="icon">▦</span><span data-i18n="mock.sidebar.stats">统计</span></button>
+              </aside>
+
+              <div class="view-area">
+                <!-- 阅读 -->
+                <div class="view active" data-view="reading">
+                  <div class="reading-grid">
+                    <div class="reader">
+                      <div class="reader-top">
+                        <div><div class="reader-title">How We Remember What We Read</div><div class="reader-sub">English · 1,284 words · 12 min</div></div>
+                        <div class="pill"><span data-i18n="mock.pill">逐句阅读</span> ▾</div>
+                      </div>
+                      <div class="paragraph">The most <span class="word blue">effective</span> learning happens when new ideas are connected to a meaningful context. Instead of <span class="word violet">memorizing in isolation</span>, we remember better when vocabulary appears inside a story, an argument, or a real conversation.</div>
+                      <div class="translation">最有效的学习发生在新知识与有意义的语境建立连接时。与孤立记忆相比，词汇出现在故事、论证或真实对话中时更容易被记住。</div>
+                      <div class="paragraph">LexiCue turns that reading process into a lightweight review loop: notice a word, understand it, keep reading, and revisit it at the right time.</div>
+                    </div>
+                    <aside class="detail">
+                      <div class="detail-label" data-i18n="mock.detailLabel"></div>
+                      <div class="detail-word">effective</div>
+                      <div class="detail-pron" data-i18n="mock.pron"></div>
+                      <div class="tag-row"><span class="tag" data-i18n="mock.tagA"></span><span class="tag" data-i18n="mock.tagB"></span></div>
+                      <div class="definition" data-i18n="mock.def"></div>
+                      <div class="detail-label" style="margin-top:14px" data-i18n="mock.contextLabel"></div>
+                      <div class="definition" style="border-top:0">The most effective learning happens when…</div>
+                      <button class="add-review" data-i18n="mock.addButton"></button>
+                    </aside>
+                  </div>
+                </div>
+
+                <!-- 文件 -->
+                <div class="view" data-view="files">
+                  <div class="mock-head">
+                    <div class="mock-title" data-i18n="mock.sidebar.files">文件</div>
+                    <div class="mock-actions">
+                      <span class="mock-btn" data-i18n="f1.youtube">YouTube 字幕</span>
+                      <span class="mock-btn primary" data-i18n="mock.files.import">导入文件</span>
+                    </div>
+                  </div>
+                  <div class="files-grid">
+                    <div class="file-card">
+                      <span class="file-emoji">📄</span>
+                      <div class="file-info"><div class="file-name">The Art of Clear Writing.txt</div><div class="file-meta">TXT · 1,284 words</div></div>
+                      <span class="file-badge" data-i18n="mock.files.processed">已处理</span>
+                    </div>
+                    <div class="file-card">
+                      <span class="file-emoji">🎬</span>
+                      <div class="file-info"><div class="file-name">The Power of Habit.srt</div><div class="file-meta">SRT · 486 segments</div></div>
+                    </div>
+                    <div class="file-card">
+                      <span class="file-emoji">📄</span>
+                      <div class="file-info"><div class="file-name">Weekly in English.vtt</div><div class="file-meta">VTT · 96 segments</div></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 单词 -->
+                <div class="view" data-view="words">
+                  <div class="mock-head">
+                    <div class="mock-title" data-i18n="mock.sidebar.words">单词</div>
+                    <div class="mock-search" data-i18n="mock.words.search">搜索单词…</div>
+                  </div>
+                  <div class="mock-tabs">
+                    <span class="mock-tab" data-i18n="mock.words.t0">全部</span>
+                    <span class="mock-tab" data-i18n="mock.words.t1">未处理</span>
+                    <span class="mock-tab active" data-i18n="mock.words.t2">学习中</span>
+                    <span class="mock-tab" data-i18n="mock.words.t3">已掌握</span>
+                    <span class="mock-tab" data-i18n="mock.words.t4">已跳过</span>
+                    <span class="mock-sort"><span data-i18n="mock.words.sort">排序</span>：词频 ▾</span>
+                  </div>
+                  <div class="mock-count" data-i18n="mock.words.count">1,284 个单词</div>
+                  <div class="mock-list">
+                    <div class="word-row"><span class="row-check"></span><span class="row-lemma">effective</span><span class="row-freq">×12</span><span class="badge blue" data-i18n="mock.status.learning">学习中</span></div>
+                    <div class="word-row"><span class="row-check"></span><span class="row-lemma">memorize</span><span class="row-freq">×9</span><span class="badge blue" data-i18n="mock.status.learning">学习中</span></div>
+                    <div class="word-row"><span class="row-check"></span><span class="row-lemma">vocabulary</span><span class="row-freq">×8</span><span class="badge green" data-i18n="mock.status.known">已掌握</span></div>
+                    <div class="word-row"><span class="row-check"></span><span class="row-lemma">meaningful</span><span class="row-freq">×6</span><span class="badge green" data-i18n="mock.status.known">已掌握</span></div>
+                    <div class="word-row"><span class="row-check"></span><span class="row-lemma">revisit</span><span class="row-freq">×4</span><span class="badge gray" data-i18n="mock.status.unprocessed">未处理</span></div>
+                    <div class="word-row"><span class="row-check"></span><span class="row-lemma">genuinely</span><span class="row-freq">×3</span><span class="badge dim" data-i18n="mock.status.ignored">已跳过</span></div>
+                  </div>
+                </div>
+
+                <!-- 词组 -->
+                <div class="view" data-view="phrases">
+                  <div class="mock-head">
+                    <div class="mock-title" data-i18n="mock.sidebar.phrases">词组</div>
+                    <div class="mock-search" data-i18n="mock.phrases.search">搜索词组…</div>
+                  </div>
+                  <div class="mock-tabs">
+                    <span class="mock-tab" data-i18n="mock.words.t0">全部</span>
+                    <span class="mock-tab active" data-i18n="mock.words.t2">学习中</span>
+                    <span class="mock-tab" data-i18n="mock.words.t1">未处理</span>
+                    <span class="mock-tab" data-i18n="mock.words.t3">已掌握</span>
+                    <span class="mock-sort"><span data-i18n="mock.words.sort">排序</span>：词频 ▾</span>
+                  </div>
+                  <div class="mock-count" data-i18n="mock.phrases.count">86 个词组</div>
+                  <div class="mock-list">
+                    <div class="phrase-row"><div class="phrase-main"><span class="phrase-text">in isolation</span><span class="phrase-trans">孤立地；单独地</span></div><span class="row-freq">×6</span><span class="source auto" data-i18n="mock.phrases.auto">自动识别</span></div>
+                    <div class="phrase-row"><div class="phrase-main"><span class="phrase-text">in context</span><span class="phrase-trans">在语境中</span></div><span class="row-freq">×5</span><span class="source auto" data-i18n="mock.phrases.auto">自动识别</span></div>
+                    <div class="phrase-row"><div class="phrase-main"><span class="phrase-text">pick up</span><span class="phrase-trans">学会；捡起</span></div><span class="row-freq">×4</span><span class="source auto" data-i18n="mock.phrases.auto">自动识别</span></div>
+                    <div class="phrase-row"><div class="phrase-main"><span class="phrase-text">come across</span><span class="phrase-trans">偶然遇到</span></div><span class="row-freq">×3</span><span class="source auto" data-i18n="mock.phrases.auto">自动识别</span></div>
+                    <div class="phrase-row"><div class="phrase-main"><span class="phrase-text">right now</span><span class="phrase-trans">现在；立刻</span></div><span class="row-freq">×2</span><span class="source manual" data-i18n="mock.phrases.manual">手动添加</span></div>
+                  </div>
+                </div>
+
+                <!-- 复习 -->
+                <div class="view" data-view="review">
+                  <div class="mock-tabs" style="justify-content:center">
+                    <span class="mock-tab active" data-i18n="mock.sidebar.words">单词</span>
+                    <span class="mock-tab" data-i18n="mock.sidebar.phrases">词组</span>
+                  </div>
+                  <div class="review-progress">
+                    <div class="review-progress-top"><span>1 / 12</span><span>8%</span></div>
+                    <div class="review-bar"><i style="width:8%"></i></div>
+                  </div>
+                  <div class="flashcard">
+                    <div class="card-word">effective</div>
+                    <p class="card-hint" data-i18n="mock.review.hint">点击显示答案</p>
+                    <div class="card-answer">
+                      <div class="card-ans-label" data-i18n="mock.review.answer">答案</div>
+                      <div class="card-pron">/ɪˈfektɪv/ · <span data-i18n="mock.status.learning">学习中</span></div>
+                      <div class="card-def">有效的；起作用的</div>
+                      <div class="card-example">“The most effective learning happens when new ideas are connected to a meaningful context.”</div>
+                    </div>
+                  </div>
+                  <div class="rating-row">
+                    <button type="button" class="rate again"><span data-i18n="mock.review.again">忘记</span><small data-i18n="mock.review.hAgain">10 分钟</small></button>
+                    <button type="button" class="rate hard"><span data-i18n="mock.review.hard">困难</span><small data-i18n="mock.review.hHard">1 天</small></button>
+                    <button type="button" class="rate good"><span data-i18n="mock.review.good">记得</span><small data-i18n="mock.review.hGood">3 天</small></button>
+                    <button type="button" class="rate easy"><span data-i18n="mock.review.easy">简单</span><small data-i18n="mock.review.hEasy">6 天</small></button>
+                  </div>
+                </div>
+
+                <!-- 统计 -->
+                <div class="view" data-view="insights">
+                  <div class="stats-grid">
+                    <div class="stat-card"><span data-i18n="mock.insights.total">单词总数</span><b>1,284</b></div>
+                    <div class="stat-card"><span data-i18n="mock.insights.known">已掌握</span><b class="green">356</b></div>
+                    <div class="stat-card"><span data-i18n="mock.insights.learning">学习中</span><b class="blue">142</b></div>
+                    <div class="stat-card"><span data-i18n="mock.insights.due">待复习</span><b class="orange">28</b></div>
+                  </div>
+                  <div class="insights-row">
+                    <div class="insight-card">
+                      <div class="insight-card-head"><span data-i18n="mock.insights.mastery">掌握进度</span><span class="green">28%</span></div>
+                      <div class="insight-bar"><i style="width:28%"></i></div>
+                      <div class="insight-sub">356 / 1,284</div>
+                      <div class="dist-row"><span data-i18n="mock.status.known">已掌握</span><b class="green">356</b></div>
+                      <div class="dist-row"><span data-i18n="mock.status.learning">学习中</span><b class="blue">142</b></div>
+                      <div class="dist-row"><span data-i18n="mock.status.unprocessed">未处理</span><b class="gray">758</b></div>
+                      <div class="dist-row"><span data-i18n="mock.status.ignored">已跳过</span><b class="gray">28</b></div>
+                    </div>
+                    <div class="insight-card">
+                      <div class="insight-card-head" data-i18n="mock.insights.last7">近 7 天复习</div>
+                      <div class="chart">
+                        <div class="chart-col"><i style="height:46%"></i><span data-i18n="mock.insights.d0">周一</span></div>
+                        <div class="chart-col"><i style="height:77%"></i><span data-i18n="mock.insights.d1">周二</span></div>
+                        <div class="chart-col"><i style="height:31%"></i><span data-i18n="mock.insights.d2">周三</span></div>
+                        <div class="chart-col"><i style="height:58%"></i><span data-i18n="mock.insights.d3">周四</span></div>
+                        <div class="chart-col"><i style="height:100%"></i><span data-i18n="mock.insights.d4">周五</span></div>
+                        <div class="chart-col"><i style="height:69%"></i><span data-i18n="mock.insights.d5">周六</span></div>
+                        <div class="chart-col"><i style="height:35%"></i><span data-i18n="mock.insights.d6">周日</span></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="stage-hint" data-i18n="hero.hint"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="features">
+      <div class="container">
+        <div class="section-head reveal">
+          <div class="section-kicker" data-i18n="features.kicker"></div>
+          <h2 data-i18n="features.title"></h2>
+          <p data-i18n="features.sub"></p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card wide reveal">
+            <div class="feature-icon blue">⌁</div>
+            <h3 data-i18n="f1.title"></h3>
+            <p data-i18n="f1.desc"></p>
+            <div class="lang-chips">
+              <span class="lang-chip">.txt</span><span class="lang-chip">.srt</span><span class="lang-chip">.vtt</span>
+              <span class="lang-chip" data-i18n="f1.youtube"></span>
+            </div>
+          </article>
+          <article class="feature-card reveal">
+            <div class="feature-icon violet">Aa</div>
+            <h3 data-i18n="f2.title"></h3>
+            <p data-i18n="f2.desc"></p>
+          </article>
+          <article class="feature-card reveal">
+            <div class="feature-icon sage">↻</div>
+            <h3 data-i18n="f3.title"></h3>
+            <p data-i18n="f3.desc"></p>
+          </article>
+          <article class="feature-card reveal">
+            <div class="feature-icon amber">◫</div>
+            <h3 data-i18n="f4.title"></h3>
+            <p data-i18n="f4.desc"></p>
+          </article>
+          <article class="feature-card reveal">
+            <div class="feature-icon blue">✓</div>
+            <h3 data-i18n="f5.title"></h3>
+            <p data-i18n="f5.desc"></p>
+          </article>
+          <article class="feature-card wide reveal">
+            <div class="feature-icon violet">✦</div>
+            <h3 data-i18n="f6.title"></h3>
+            <p data-i18n="f6.desc"></p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="workflow">
+      <div class="container">
+        <div class="section-head reveal">
+          <div class="section-kicker" data-i18n="workflow.kicker"></div>
+          <h2 data-i18n="workflow.title"></h2>
+          <p data-i18n="workflow.sub"></p>
+        </div>
+        <div class="flow">
+          <article class="step reveal"><div class="step-num">01</div><div class="step-arrow">→</div><h3 data-i18n="s1.title"></h3><p data-i18n="s1.desc"></p></article>
+          <article class="step reveal"><div class="step-num">02</div><div class="step-arrow">→</div><h3 data-i18n="s2.title"></h3><p data-i18n="s2.desc"></p></article>
+          <article class="step reveal"><div class="step-num">03</div><div class="step-arrow">→</div><h3 data-i18n="s3.title"></h3><p data-i18n="s3.desc"></p></article>
+          <article class="step reveal"><div class="step-num">04</div><h3 data-i18n="s4.title"></h3><p data-i18n="s4.desc"></p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="privacy">
+      <div class="container">
+        <div class="privacy reveal">
+          <div>
+            <div class="section-kicker" data-i18n="privacy.kicker"></div>
+            <h2 data-i18n="privacy.title"></h2>
+            <p data-i18n="privacy.body"></p>
+            <div class="privacy-list">
+              <div class="privacy-item"><span class="check">✓</span><span data-i18n="privacy.list.0"></span></div>
+              <div class="privacy-item"><span class="check">✓</span><span data-i18n="privacy.list.1"></span></div>
+              <div class="privacy-item"><span class="check">✓</span><span data-i18n="privacy.list.2"></span></div>
+              <div class="privacy-item"><span class="check">✓</span><span data-i18n="privacy.list.3"></span></div>
+            </div>
+          </div>
+          <div class="local-card">
+            <div class="local-top"><strong style="color:#f3f4f6" data-i18n="local.title"></strong><div class="local-status"><span class="green-dot"></span><span data-i18n="local.status"></span></div></div>
+            <div class="db"><span>lexicue.db</span><small>SQLite</small></div>
+            <div class="db"><span data-i18n="local.d1"></span><small>offline</small></div>
+            <div class="db"><span data-i18n="local.d2"></span><small>offline</small></div>
+            <div class="db"><span data-i18n="local.d3"></span><small>local</small></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="languages">
+      <div class="container">
+        <div class="section-head reveal">
+          <div class="section-kicker" data-i18n="lang.kicker"></div>
+          <h2 data-i18n="lang.title"></h2>
+          <p data-i18n="lang.sub"></p>
+        </div>
+        <div class="lang-table reveal">
+          <div class="lang-row">
+            <div data-i18n="lang.h.language"></div>
+            <div data-i18n="lang.h.dict"></div>
+            <div data-i18n="lang.h.proc"></div>
+          </div>
+          <div class="lang-row">
+            <div class="lang-name" data-i18n="lang.en.name"></div>
+            <div data-i18n="lang.en.dict" data-i18n-label="lang.dictLabel"></div>
+            <div data-i18n="lang.en.proc" data-i18n-label="lang.procLabel"></div>
+          </div>
+          <div class="lang-row">
+            <div class="lang-name" data-i18n="lang.ja.name"></div>
+            <div data-i18n="lang.ja.dict" data-i18n-label="lang.dictLabel"></div>
+            <div data-i18n="lang.ja.proc" data-i18n-label="lang.procLabel"></div>
+          </div>
+          <div class="lang-row">
+            <div class="lang-name" data-i18n="lang.de.name"></div>
+            <div data-i18n="lang.de.dict" data-i18n-label="lang.dictLabel"></div>
+            <div data-i18n="lang.de.proc" data-i18n-label="lang.procLabel"></div>
+          </div>
+          <div class="lang-row">
+            <div class="lang-name" data-i18n="lang.zh.name"></div>
+            <div data-i18n="lang.zh.dict" data-i18n-label="lang.dictLabel"></div>
+            <div data-i18n="lang.zh.proc" data-i18n-label="lang.procLabel"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="container">
+        <div class="cta-box reveal">
+          <div class="section-kicker" data-i18n="cta.kicker"></div>
+          <h2 data-i18n="cta.title"></h2>
+          <p data-i18n="cta.body"></p>
+          <p class="star-ask" data-i18n="cta.starAsk"></p>
+          <div class="hero-actions">
+            <a class="btn btn-primary" href="https://github.com/skylar-deepmind/LexiCue/releases/latest" target="_blank" rel="noreferrer" data-i18n="cta.download"></a>
+            <a class="btn btn-secondary" href="https://github.com/skylar-deepmind/LexiCue" target="_blank" rel="noreferrer" data-i18n="cta.github"></a>
+            <a class="btn btn-star" href="https://github.com/skylar-deepmind/LexiCue" target="_blank" rel="noreferrer" data-i18n="cta.star"></a>
+          </div>
+          <div class="notice" data-i18n="cta.notice"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container footer-inner">
+      <div data-i18n="footer.tagline"></div>
+      <div class="footer-links">
+        <a href="https://github.com/skylar-deepmind/LexiCue" target="_blank" rel="noreferrer" data-i18n="footer.github"></a>
+        <a href="https://github.com/skylar-deepmind/LexiCue/blob/main/LICENSE" target="_blank" rel="noreferrer" data-i18n="footer.license"></a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
