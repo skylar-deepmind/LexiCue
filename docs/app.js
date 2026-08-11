@@ -102,7 +102,38 @@
         starAsk: "喜欢 LexiCue？点个 Star 支持一下吧",
         notice: "安装包目前为未签名构建，首次安装可能触发系统安全提示，<a href=\"https://github.com/skylar-deepmind/LexiCue/blob/main/DISTRIBUTION.md\" target=\"_blank\" rel=\"noreferrer\">按安装说明操作即可</a>。"
       },
-      footer: { tagline: "LexiCue · 本地优先的阅读学习工具", github: "GitHub", license: "MIT License" }
+      footer: { tagline: "LexiCue · 本地优先的阅读学习工具", github: "GitHub", license: "MIT License" },
+      dl: {
+        kicker: "下载",
+        title: "选择你要安装的设备",
+        sub: "不同设备对应不同的安装包，选错可能装不上。",
+        close: "关闭",
+        detected: "检测到你的设备",
+        go: "前往下载 →",
+        mac: {
+          name: "macOS",
+          desc: "Mac 电脑 · DMG 安装包",
+          arm: "Apple 芯片",
+          intel: "Intel 芯片",
+          file: {
+            arm: "在最新版本页选择文件名以 <span class=\"dl-tag\">_aarch64.dmg</span> 结尾的文件。",
+            intel: "在最新版本页选择文件名以 <span class=\"dl-tag\">_x64.dmg</span> 结尾的文件。"
+          },
+          help: "不确定芯片？点左上角苹果菜单 → 关于本机，看「芯片」一栏。"
+        },
+        win: {
+          name: "Windows",
+          desc: "PC 电脑 · 安装程序",
+          file: "在最新版本页选择文件名以 <span class=\"dl-tag\">-setup.exe</span> 结尾的文件。"
+        },
+        and: {
+          name: "Android",
+          desc: "安卓手机 · APK 安装包",
+          file: "在最新版本页选择文件名以 <span class=\"dl-tag\">.apk</span> 结尾的文件。"
+        },
+        note: "安装包为未签名构建，首次安装系统会给出安全提示，属于正常现象。<a href=\"https://github.com/skylar-deepmind/LexiCue/blob/main/DISTRIBUTION.md\" target=\"_blank\" rel=\"noreferrer\">按安装说明处理即可</a>。",
+        all: "不确定？查看全部版本 →"
+      }
     },
 
     en: {
@@ -207,7 +238,38 @@
         starAsk: "Enjoying LexiCue? Give it a star on GitHub",
         notice: "Installers are currently unsigned — your system may show a security warning on first install. <a href=\"https://github.com/skylar-deepmind/LexiCue/blob/main/DISTRIBUTION.md\" target=\"_blank\" rel=\"noreferrer\">See the install guide</a>."
       },
-      footer: { tagline: "LexiCue · Local-first reading & vocabulary tool", github: "GitHub", license: "MIT License" }
+      footer: { tagline: "LexiCue · Local-first reading & vocabulary tool", github: "GitHub", license: "MIT License" },
+      dl: {
+        kicker: "Download",
+        title: "Choose your device",
+        sub: "Each device needs a different installer — pick the right one.",
+        close: "Close",
+        detected: "Detected your device",
+        go: "Go download →",
+        mac: {
+          name: "macOS",
+          desc: "Mac · DMG installer",
+          arm: "Apple Silicon",
+          intel: "Intel",
+          file: {
+            arm: "On the latest release, pick the file ending in <span class=\"dl-tag\">_aarch64.dmg</span>.",
+            intel: "On the latest release, pick the file ending in <span class=\"dl-tag\">_x64.dmg</span>."
+          },
+          help: "Not sure? Click the Apple menu (top-left) → About This Mac → check the “Chip” line."
+        },
+        win: {
+          name: "Windows",
+          desc: "PC · installer",
+          file: "On the latest release, pick the file ending in <span class=\"dl-tag\">-setup.exe</span>."
+        },
+        and: {
+          name: "Android",
+          desc: "Android phone · APK",
+          file: "On the latest release, pick the file ending in <span class=\"dl-tag\">.apk</span>."
+        },
+        note: "Installers are unsigned — your system may warn you on first install. That's expected. <a href=\"https://github.com/skylar-deepmind/LexiCue/blob/main/DISTRIBUTION.md\" target=\"_blank\" rel=\"noreferrer\">See the install guide</a>.",
+        all: "Not sure? View all releases →"
+      }
     }
   };
 
@@ -261,6 +323,8 @@
 
     var toggle = document.querySelector("[data-theme-toggle]");
     if (toggle) toggle.setAttribute("aria-label", dict.themeToggle);
+    var dlClose = document.querySelector("[data-dl-close]");
+    if (dlClose) dlClose.setAttribute("aria-label", dict.dl.close);
 
     updateWindowTitle(dict);
   }
@@ -323,6 +387,61 @@
       applyLanguage(lang);
     });
   });
+
+  var dlOverlay = document.querySelector("[data-dl-overlay]");
+  var lastTrigger = null;
+
+  function openDownload(trigger) {
+    lastTrigger = trigger || null;
+    dlOverlay.classList.add("open");
+    document.body.classList.add("no-scroll");
+    var closeBtn = dlOverlay.querySelector("[data-dl-close]");
+    if (closeBtn) closeBtn.focus();
+  }
+
+  function closeDownload() {
+    dlOverlay.classList.remove("open");
+    document.body.classList.remove("no-scroll");
+    if (lastTrigger) lastTrigger.focus();
+  }
+
+  document.querySelectorAll("[data-open-download]").forEach(function (el) {
+    el.addEventListener("click", function (e) {
+      e.preventDefault();
+      openDownload(el);
+    });
+  });
+
+  dlOverlay.querySelector("[data-dl-close]").addEventListener("click", closeDownload);
+  dlOverlay.addEventListener("click", function (e) {
+    if (e.target === dlOverlay) closeDownload();
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && dlOverlay.classList.contains("open")) closeDownload();
+  });
+
+  dlOverlay.querySelectorAll(".dl-chip").forEach(function (chip) {
+    chip.addEventListener("click", function () {
+      var card = chip.closest(".dl-card");
+      var arch = chip.dataset.arch;
+      card.querySelectorAll(".dl-chip").forEach(function (c) {
+        c.classList.toggle("active", c === chip);
+      });
+      card.querySelectorAll(".dl-file").forEach(function (f) {
+        f.hidden = f.dataset.arch ? f.dataset.arch !== arch : arch !== "arm";
+      });
+    });
+  });
+
+  var ua = (navigator.userAgent || "").toLowerCase();
+  var detectedOs = null;
+  if (/android/.test(ua)) detectedOs = "android";
+  else if (/mac os x|macintosh/.test(ua)) detectedOs = "mac";
+  else if (/windows/.test(ua)) detectedOs = "win";
+  if (detectedOs) {
+    var detectedCard = dlOverlay.querySelector('[data-os="' + detectedOs + '"]');
+    if (detectedCard) detectedCard.classList.add("recommended");
+  }
 
   var io = new IntersectionObserver(function (entries) {
     entries.forEach(function (entry) {

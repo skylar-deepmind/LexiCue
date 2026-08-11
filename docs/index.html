@@ -52,7 +52,7 @@
         <h1 data-i18n="hero.title"></h1>
         <p class="hero-copy" data-i18n="hero.sub"></p>
         <div class="hero-actions">
-          <a class="btn btn-primary" href="https://github.com/skylar-deepmind/LexiCue/releases/latest" target="_blank" rel="noreferrer" data-i18n="hero.ctaDownload"></a>
+          <a class="btn btn-primary" href="https://github.com/skylar-deepmind/LexiCue/releases/latest" target="_blank" rel="noreferrer" data-open-download data-i18n="hero.ctaDownload"></a>
           <a class="btn btn-secondary" href="https://github.com/skylar-deepmind/LexiCue" target="_blank" rel="noreferrer" data-i18n="hero.ctaGithub"></a>
         </div>
         <div class="microcopy">macOS · Windows · Android ｜ English · 日本語 · Deutsch · 中文</div>
@@ -372,7 +372,7 @@
           <p data-i18n="cta.body"></p>
           <p class="star-ask" data-i18n="cta.starAsk"></p>
           <div class="hero-actions">
-            <a class="btn btn-primary" href="https://github.com/skylar-deepmind/LexiCue/releases/latest" target="_blank" rel="noreferrer" data-i18n="cta.download"></a>
+            <a class="btn btn-primary" href="https://github.com/skylar-deepmind/LexiCue/releases/latest" target="_blank" rel="noreferrer" data-open-download data-i18n="cta.download"></a>
             <a class="btn btn-secondary" href="https://github.com/skylar-deepmind/LexiCue" target="_blank" rel="noreferrer" data-i18n="cta.github"></a>
             <a class="btn btn-star" href="https://github.com/skylar-deepmind/LexiCue" target="_blank" rel="noreferrer" data-i18n="cta.star"></a>
           </div>
@@ -391,6 +391,57 @@
       </div>
     </div>
   </footer>
+
+  <div class="dl-overlay" data-dl-overlay>
+    <div class="dl-dialog" role="dialog" aria-modal="true" aria-labelledby="dl-title">
+      <button type="button" class="dl-close" data-dl-close aria-label="关闭">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+      <div class="dl-kicker" data-i18n="dl.kicker"></div>
+      <h3 class="dl-title" id="dl-title" data-i18n="dl.title"></h3>
+      <p class="dl-sub" data-i18n="dl.sub"></p>
+
+      <div class="dl-grid">
+        <div class="dl-card" data-os="mac">
+          <span class="dl-detected" data-i18n="dl.detected"></span>
+          <span class="dl-icon dl-icon-mac" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4" width="19" height="13" rx="2.5"/><path d="M8.5 21h7M12 17v4"/></svg></span>
+          <div class="dl-name" data-i18n="dl.mac.name"></div>
+          <div class="dl-desc" data-i18n="dl.mac.desc"></div>
+          <div class="dl-chip-row">
+            <button type="button" class="dl-chip active" data-arch="arm" data-i18n="dl.mac.arm"></button>
+            <button type="button" class="dl-chip" data-arch="intel" data-i18n="dl.mac.intel"></button>
+          </div>
+          <p class="dl-file" data-i18n="dl.mac.file.arm"></p>
+          <p class="dl-file" data-arch="intel" hidden data-i18n="dl.mac.file.intel"></p>
+          <p class="dl-help" data-i18n="dl.mac.help"></p>
+          <a class="dl-link" href="https://github.com/skylar-deepmind/LexiCue/releases/latest" target="_blank" rel="noreferrer" data-i18n="dl.go"></a>
+        </div>
+
+        <div class="dl-card" data-os="win">
+          <span class="dl-detected" data-i18n="dl.detected"></span>
+          <span class="dl-icon dl-icon-win" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg></span>
+          <div class="dl-name" data-i18n="dl.win.name"></div>
+          <div class="dl-desc" data-i18n="dl.win.desc"></div>
+          <p class="dl-file" data-i18n="dl.win.file"></p>
+          <a class="dl-link" href="https://github.com/skylar-deepmind/LexiCue/releases/latest" target="_blank" rel="noreferrer" data-i18n="dl.go"></a>
+        </div>
+
+        <div class="dl-card" data-os="android">
+          <span class="dl-detected" data-i18n="dl.detected"></span>
+          <span class="dl-icon dl-icon-and" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18h2"/></svg></span>
+          <div class="dl-name" data-i18n="dl.and.name"></div>
+          <div class="dl-desc" data-i18n="dl.and.desc"></div>
+          <p class="dl-file" data-i18n="dl.and.file"></p>
+          <a class="dl-link" href="https://github.com/skylar-deepmind/LexiCue/releases/latest" target="_blank" rel="noreferrer" data-i18n="dl.go"></a>
+        </div>
+      </div>
+
+      <p class="dl-note" data-i18n="dl.note"></p>
+      <div class="dl-foot">
+        <a href="https://github.com/skylar-deepmind/LexiCue/releases/latest" target="_blank" rel="noreferrer" data-i18n="dl.all"></a>
+      </div>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>
