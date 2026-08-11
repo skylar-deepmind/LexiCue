@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://skylar-deepmind.github.io/LexiCue/sitemap.xml

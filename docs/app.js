@@ -334,7 +334,7 @@
       var saved = localStorage.getItem("lexicue-lang");
       if (saved === "zh" || saved === "en") return saved;
     } catch (e) {}
-    return /^zh/i.test(navigator.language || "") ? "zh" : "en";
+    return "en";
   }
 
   function setView(view) {
