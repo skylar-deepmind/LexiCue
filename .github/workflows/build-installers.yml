@@ -25,6 +25,9 @@ jobs:
     timeout-minutes: 60
     permissions:
       contents: write
+    env:
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: "sccache"
     strategy:
       fail-fast: false
       matrix:
@@ -40,6 +43,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.11
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
@@ -54,7 +59,7 @@ jobs:
           releaseName: 'LexiCue v__VERSION__'
           releaseDraft: ${{ inputs.draft }}
           prerelease: false
-          retryAttempts: 3
+          retryAttempts: 1
           args: --target ${{ matrix.target }} --bundles app,dmg
 
   windows:
@@ -64,6 +69,9 @@ jobs:
     timeout-minutes: 60
     permissions:
       contents: write
+    env:
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: "sccache"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -71,6 +79,8 @@ jobs:
           node-version: 22
           cache: npm
       - uses: dtolnay/rust-toolchain@stable
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.11
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
@@ -85,7 +95,7 @@ jobs:
           releaseName: 'LexiCue v__VERSION__'
           releaseDraft: ${{ inputs.draft }}
           prerelease: false
-          retryAttempts: 3
+          retryAttempts: 1
           updaterJsonPreferNsis: true
           args: --bundles nsis
 
@@ -128,6 +138,6 @@ jobs:
           releaseName: 'LexiCue v__VERSION__'
           releaseDraft: ${{ inputs.draft }}
           prerelease: false
-          retryAttempts: 3
+          retryAttempts: 1
           mobile: android
           args: --apk --target aarch64 --debug

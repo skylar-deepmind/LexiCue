@@ -52,7 +52,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDkwRkVDMDc3REQ2MkEwMDIKUldRQ29HTGRkOEQra051b0xPS1dPMWVnQWFsNkxzS3pYZ3A1bzBQM2ZSV3VISGttbVZnak8rTnAK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQ1MUE0RDU2NUZDREMxNTcKUldSWHdjMWZWazBhUlY3NHZHMEhnUWJmQnJHTm5qaUVieU9WWTF3UFVHQXBjZEVtSEE0TERhcVIK",
       "endpoints": [
         "https://github.com/skylar-deepmind/LexiCue/releases/latest/download/latest.json"
       ],
