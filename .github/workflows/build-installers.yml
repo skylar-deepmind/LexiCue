@@ -140,4 +140,4 @@ jobs:
           prerelease: false
           retryAttempts: 1
           mobile: android
-          args: --apk --target aarch64 --release
+          args: --apk --target aarch64
