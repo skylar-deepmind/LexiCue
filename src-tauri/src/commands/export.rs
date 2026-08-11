@@ -157,7 +157,7 @@ pub fn export_all(state: State<DbState>) -> Result<BackupPayload, String> {
     Ok(BackupPayload {
         schema_version: 4,
         exported_at: now_ms(),
-        app_version: "0.1.0".to_string(),
+        app_version: env!("CARGO_PKG_VERSION").to_string(),
         data: BackupData {
             files,
             segments,
