@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BookOpen, Brain, Clapperboard, Database, Download, Eye, EyeOff, RefreshCw, Trash2, Upload } from 'lucide-react';
+import { BookOpen, Brain, Clapperboard, Database, Download, Eye, EyeOff, HardDrive, RefreshCw, Trash2, Upload } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { getVersion } from '@tauri-apps/api/app';
 import { ask } from '@tauri-apps/plugin-dialog';
@@ -13,10 +13,26 @@ import { useTheme } from '../components/useTheme';
 import { THEMES } from '../lib/themes';
 import { SELF_NAMES, UI_LANGUAGES, isLanguage } from '../lib/languages';
 import { usePreferencesStore } from '../stores/preferencesStore';
+import { formatBytes } from '../lib/format';
 
 interface YtDlpStatus {
   available: boolean;
   version: string | null;
+}
+
+interface StorageComponent {
+  key: string;
+  bytes: number;
+}
+
+interface StorageUsage {
+  total: number;
+  components: StorageComponent[];
+  database_breakdown: {
+    user_data: number;
+    builtin_dictionaries: number;
+    dictionary_entries: number;
+  };
 }
 
 function formatImportedAt(timestamp: number, locale: string) {
@@ -35,6 +51,7 @@ const SECTION_NAV = [
   { id: 'youtube', labelKey: 'settings.youtube.title' },
   { id: 'theme', labelKey: 'settings.theme.title' },
   { id: 'dictionary', labelKey: 'settings.dictionary.title' },
+  { id: 'storage', labelKey: 'settings.storage.title' },
   { id: 'updates', labelKey: 'settings.updates.title' },
 ];
 
@@ -47,6 +64,8 @@ export default function SettingsPage() {
   const [sources, setSources] = useState<DictionarySource[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [storage, setStorage] = useState<StorageUsage | null>(null);
+  const [storageLoading, setStorageLoading] = useState(true);
   const aiEnabled = useAiStore((state) => state.enabled);
   const aiProvider = useAiStore((state) => state.provider);
   const aiBaseUrl = useAiStore((state) => state.baseUrl);
@@ -107,8 +126,20 @@ export default function SettingsPage() {
     }
   };
 
+  const loadStorage = async () => {
+    setStorageLoading(true);
+    try {
+      setStorage(await invoke<StorageUsage>('get_storage_usage'));
+    } catch (error) {
+      console.error('Failed to load storage usage:', error);
+    } finally {
+      setStorageLoading(false);
+    }
+  };
+
   useEffect(() => {
     void loadSources();
+    void loadStorage();
     void checkYtdlp();
     void getVersion()
       .then(setCurrentVersion)
@@ -522,6 +553,70 @@ export default function SettingsPage() {
               ))}
             </div>
           )}
+        </section>
+
+        <section id="storage" className="scroll-mt-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="rounded-xl bg-cyan-50 p-2 text-cyan-600">
+                <HardDrive size={20} />
+              </div>
+              <div>
+                <h2 className="font-semibold text-gray-900">{t('settings.storage.title')}</h2>
+                <p className="mt-1 max-w-xl text-sm text-gray-500">{t('settings.storage.description')}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => void loadStorage()}
+              disabled={storageLoading}
+              className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-50"
+            >
+              <RefreshCw size={14} className={storageLoading ? 'animate-spin' : ''} />
+              {t('settings.storage.recalc')}
+            </button>
+          </div>
+
+          {storageLoading ? (
+            <div className="flex items-center justify-center gap-2 p-10 text-sm text-gray-400">
+              <RefreshCw size={15} className="animate-spin" />
+              {t('settings.storage.loading')}
+            </div>
+          ) : storage ? (
+            <div className="mt-4">
+              <div className="rounded-xl bg-gray-50 p-4">
+                <p className="text-xs text-gray-500">{t('settings.storage.total')}</p>
+                <p className="mt-1 text-3xl font-semibold text-gray-900">{formatBytes(storage.total)}</p>
+              </div>
+              <div className="mt-3 space-y-2">
+                {storage.components.map((component) => (
+                  <div key={component.key} className="flex items-center justify-between rounded-lg border border-gray-100 px-4 py-2.5 text-sm">
+                    <span className="text-gray-700">{t(`settings.storage.${component.key}`)}</span>
+                    <span className="font-medium text-gray-900">{formatBytes(component.bytes)}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 rounded-xl border border-gray-100 p-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-medium text-gray-900">{t('settings.storage.dbBreakdown')}</h3>
+                  <span className="text-xs text-gray-400">{t('settings.storage.estimated')}</span>
+                </div>
+                <div className="mt-3 space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-700">{t('settings.storage.userData')}</span>
+                    <span className="font-medium text-gray-900">{formatBytes(storage.database_breakdown.user_data)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-700">{t('settings.storage.builtinDictionaries')}</span>
+                    <span className="font-medium text-gray-900">{formatBytes(storage.database_breakdown.builtin_dictionaries)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-700">{t('settings.storage.dictionaryEntries')}</span>
+                    <span className="font-medium text-gray-900">{formatBytes(storage.database_breakdown.dictionary_entries)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </section>
 
         <section id="updates" className="scroll-mt-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">

@@ -121,6 +121,22 @@
       "deleteConfirm": "确定删除“{{provider}}”及其 {{count}} 条词典记录吗？",
       "deleteTitle": "删除词典"
     },
+    "storage": {
+      "title": "存储空间",
+      "description": "查看应用数据在本机占用的磁盘空间。",
+      "total": "总占用",
+      "database": "数据库",
+      "audioCache": "音频缓存",
+      "backup": "备份文件",
+      "other": "其他",
+      "dbBreakdown": "数据库构成",
+      "estimated": "估算值",
+      "userData": "学习数据",
+      "builtinDictionaries": "内置词典",
+      "dictionaryEntries": "词典缓存与导入包",
+      "recalc": "重新计算",
+      "loading": "正在计算磁盘占用..."
+    },
     "updates": {
       "title": "关于与更新",
       "description": "自动检测并安装 LexiCue 最新版本，更新包通过 GitHub Releases 发布。",

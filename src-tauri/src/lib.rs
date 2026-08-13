@@ -114,6 +114,7 @@ pub fn run() {
             commands::dictionary::read_dictionary_audio,
             commands::dictionary::import_dictionary_pack,
             commands::stats::get_learning_stats,
+            commands::stats::get_storage_usage,
             commands::ollama::ai_status,
             commands::ollama::ai_models,
             commands::ollama::analyze_file_phrases,

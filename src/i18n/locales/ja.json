@@ -121,6 +121,22 @@
       "deleteConfirm": "「{{provider}}」とその {{count}} 件の辞書エントリを削除しますか？",
       "deleteTitle": "辞書を削除"
     },
+    "storage": {
+      "title": "ストレージ",
+      "description": "この端末で LexiCue のデータが使用しているディスク容量を表示します。",
+      "total": "合計使用量",
+      "database": "データベース",
+      "audioCache": "音声キャッシュ",
+      "backup": "バックアップファイル",
+      "other": "その他",
+      "dbBreakdown": "データベースの内訳",
+      "estimated": "推定値",
+      "userData": "学習データ",
+      "builtinDictionaries": "内蔵辞書",
+      "dictionaryEntries": "辞書キャッシュとインポートパック",
+      "recalc": "再計算",
+      "loading": "ディスク使用量を計算中..."
+    },
     "updates": {
       "title": "バージョン情報と更新",
       "description": "LexiCue の最新版を自動的に検出してインストールします。更新は GitHub Releases から配布されます。",

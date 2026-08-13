@@ -124,6 +124,22 @@
       "deleteConfirm_other": "„{{provider}}“ und seine {{count}} Wörterbucheinträge löschen?",
       "deleteTitle": "Wörterbuch löschen"
     },
+    "storage": {
+      "title": "Speicher",
+      "description": "Von LexiCue auf diesem Gerät verwendeter Speicherplatz.",
+      "total": "Gesamtnutzung",
+      "database": "Datenbank",
+      "audioCache": "Audio-Cache",
+      "backup": "Sicherungsdateien",
+      "other": "Sonstiges",
+      "dbBreakdown": "Aufschlüsselung der Datenbank",
+      "estimated": "Geschätzt",
+      "userData": "Lerndaten",
+      "builtinDictionaries": "Integrierte Wörterbücher",
+      "dictionaryEntries": "Wörterbuch-Cache & importierte Pakete",
+      "recalc": "Neu berechnen",
+      "loading": "Berechne Speicherplatz..."
+    },
     "updates": {
       "title": "Über & Updates",
       "description": "Erkennt und installiert automatisch die neueste LexiCue-Version, verteilt über GitHub Releases.",

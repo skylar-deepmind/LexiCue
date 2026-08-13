@@ -124,6 +124,22 @@
       "deleteConfirm_other": "Delete “{{provider}}” and its {{count}} dictionary entries?",
       "deleteTitle": "Delete Dictionary"
     },
+    "storage": {
+      "title": "Storage",
+      "description": "Disk space used by LexiCue data on this device.",
+      "total": "Total usage",
+      "database": "Database",
+      "audioCache": "Audio cache",
+      "backup": "Backup files",
+      "other": "Other",
+      "dbBreakdown": "Database breakdown",
+      "estimated": "Estimated",
+      "userData": "Learning data",
+      "builtinDictionaries": "Built-in dictionaries",
+      "dictionaryEntries": "Dictionary cache & imported packs",
+      "recalc": "Recalculate",
+      "loading": "Calculating disk usage..."
+    },
     "updates": {
       "title": "About & Updates",
       "description": "Automatically detect and install the latest LexiCue version, distributed via GitHub Releases.",
