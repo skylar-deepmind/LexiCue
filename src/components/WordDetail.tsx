@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { speakText } from '../lib/tts';
 import type { DictionaryEntry, WordDetail, WordStatus } from '../lib/types';
 import StatusBadge from './StatusBadge';
+import OccurrenceText from './OccurrenceText';
 import { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 
@@ -262,7 +263,9 @@ export default function WordDetailPanel({ detail, onClose, onStatusChange, onDef
           <div className="space-y-2">
             {detail.occurrences.map((occ) => (
               <div key={occ.id} className="bg-gray-50 rounded-lg p-3 text-sm">
-                <p className="text-gray-700 leading-relaxed">{occ.en_text}</p>
+                <p className="text-gray-700 leading-relaxed">
+                  <OccurrenceText text={occ.en_text} surface={occ.original_form} language={detail.word.language} />
+                </p>
                 {occ.zh_text && (
                   <p className="text-gray-400 text-xs mt-1">{occ.zh_text}</p>
                 )}

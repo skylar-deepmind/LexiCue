@@ -1,9 +1,10 @@
 import { BookOpen, Volume2 } from 'lucide-react';
-import { Fragment, useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { speakText } from '../lib/tts';
 import type { DictionaryEntry, DueCard, DuePhraseCard, PhraseDictionaryEntry } from '../lib/types';
+import OccurrenceText from './OccurrenceText';
 
 interface FlashCardProps {
   card: DueCard | DuePhraseCard;
@@ -25,137 +26,14 @@ function getWordText(card: DueCard | DuePhraseCard): string {
   return '';
 }
 
-interface SentencePiece {
-  text: string;
-  isWord: boolean;
-  clean: string;
-}
-
-function splitSentence(text: string): SentencePiece[] {
-  const raw = text.split(/(\s+)/).filter(Boolean);
-  return raw.map((token) => {
-    if (/^\s+$/.test(token)) return { text: token, isWord: false, clean: '' };
-    const clean = token.replace(/[^\p{Script=Latin}'-]/gu, '').toLowerCase();
-    const isWord = clean.length > 0 && (clean === 'a' || clean === 'i' || (clean.length > 1 && /^\p{Script=Latin}+$/u.test(clean)));
-    return { text: token, isWord, clean };
-  });
-}
-
-function renderCjkSentence(enText: string, surface: string): ReactNode {
-  if (!surface) return enText;
-  const parts = enText.split(surface);
-  if (parts.length === 1) return enText;
-  return parts.map((part, index) => (
-    <Fragment key={index}>
-      {part}
-      {index < parts.length - 1 && (
-        <span className="rounded-sm bg-blue-50/60 font-medium text-blue-700">{surface}</span>
-      )}
-    </Fragment>
-  ));
-}
-
-function renderOccurrenceSentence(
-  enText: string,
-  card: DueCard | DuePhraseCard,
-  originalForm: string | null,
-  englishLemmas?: Map<string, string> | null,
-): ReactNode {
-  if (isPhraseCard(card)) {
-    const pieces = splitSentence(enText);
-    const phraseWords = card.text.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    const highlighted = new Set<number>();
-    if (phraseWords.length > 0) {
-      for (let i = 0; i < pieces.length; i++) {
-        if (!pieces[i].isWord || pieces[i].clean !== phraseWords[0]) continue;
-        const matchIndexes: number[] = [];
-        let wordIndex = 0;
-        for (let j = i; j < pieces.length && wordIndex < phraseWords.length; j++) {
-          if (!pieces[j].isWord) continue;
-          if (pieces[j].clean !== phraseWords[wordIndex]) break;
-          matchIndexes.push(j);
-          wordIndex++;
-        }
-        if (wordIndex === phraseWords.length) {
-          for (const index of matchIndexes) highlighted.add(index);
-          break;
-        }
-      }
-    }
-    return pieces.map((piece, index) => (
-      <span key={index} className={highlighted.has(index) ? 'rounded-sm bg-blue-50/60 font-medium text-blue-700' : undefined}>
-        {piece.text}
-      </span>
-    ));
-  }
-
-  if (card.language === 'ja' || card.language === 'zh') {
-    return renderCjkSentence(enText, originalForm ?? '');
-  }
-
-  if (card.language === 'de') {
-    const pieces = splitSentence(enText);
-    const target = (originalForm ?? card.lemma).toLowerCase();
-    return pieces.map((piece, index) => {
-      const matched = piece.isWord && piece.clean === target;
-      return (
-        <span key={index} className={matched ? 'rounded-sm bg-blue-50/60 font-medium text-blue-700' : undefined}>
-          {piece.text}
-        </span>
-      );
-    });
-  }
-
-  const pieces = splitSentence(enText);
-  const highlighted = new Set<number>();
-  let matched = false;
-  pieces.forEach((piece, index) => {
-    if (piece.isWord && englishLemmas?.get(piece.clean) === card.lemma) {
-      highlighted.add(index);
-      matched = true;
-    }
-  });
-  if (!matched && originalForm) {
-    pieces.forEach((piece, index) => {
-      if (piece.isWord && piece.clean === originalForm) highlighted.add(index);
-    });
-  }
-  return pieces.map((piece, index) => (
-    <span key={index} className={highlighted.has(index) ? 'rounded-sm bg-blue-50/60 font-medium text-blue-700' : undefined}>
-      {piece.text}
-    </span>
-  ));
-}
-
 export default function FlashCard({ card, revealed, onReveal }: FlashCardProps) {
   const { t } = useTranslation();
   const occ = card.occurrences[0];
   const [dictionary, setDictionary] = useState<DictionaryEntry | null>(null);
   const [phraseDictionary, setPhraseDictionary] = useState<PhraseDictionaryEntry | null>(null);
   const [audioLoading, setAudioLoading] = useState(false);
-  const [englishLemmas, setEnglishLemmas] = useState<Map<string, string> | null>(null);
   const wordText = getWordText(card);
   const phraseMode = isPhraseCard(card);
-
-  useEffect(() => {
-    if (phraseMode || card.language !== 'en' || !occ) return;
-    const pieces = splitSentence(occ.en_text);
-    const words = pieces.filter((piece) => piece.isWord).map((piece) => piece.clean);
-    if (words.length === 0) return;
-    let cancelled = false;
-    setEnglishLemmas(null);
-    invoke<string[]>('lemmatize_english', { words })
-      .then((lemmas) => {
-        if (cancelled) return;
-        const map = new Map<string, string>();
-        words.forEach((word, index) => map.set(word, lemmas[index] ?? word));
-        setEnglishLemmas(map);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [card, phraseMode, occ]);
 
   const playAudio = async () => {
     setAudioLoading(true);
@@ -283,7 +161,12 @@ export default function FlashCard({ card, revealed, onReveal }: FlashCardProps) 
             {occ && (
               <div className="mt-5 rounded-xl bg-gray-50 p-3">
                 <p className="text-sm leading-relaxed text-gray-700">
-                  {renderOccurrenceSentence(occ.en_text, card, occ.original_form ?? null, englishLemmas)}
+                  <OccurrenceText
+                    text={occ.en_text}
+                    surface={occ.original_form ?? wordText}
+                    language={card.language}
+                    mode={phraseMode ? 'phrase' : 'word'}
+                  />
                 </p>
                 {occ.zh_text && <p className="mt-1 text-xs text-gray-500">{occ.zh_text}</p>}
                 <p className="mt-2 text-xs text-gray-400">

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import type { PhraseDetail, PhraseDictionaryEntry, WordStatus } from '../lib/types';
 import StatusBadge from './StatusBadge';
+import OccurrenceText from './OccurrenceText';
 
 interface PhraseDetailProps {
   detail: PhraseDetail;
@@ -179,7 +180,15 @@ export default function PhraseDetailPanel({ detail, onClose, onStatusChange, onD
           <div className="space-y-2">
             {detail.occurrences.map((occ) => (
               <div key={occ.id} className="bg-gray-50 rounded-lg p-3 text-sm">
-                <p className="text-gray-700 leading-relaxed">{occ.en_text}</p>
+                <p className="text-gray-700 leading-relaxed">
+                  <OccurrenceText
+                    text={occ.en_text}
+                    surface={detail.phrase.text}
+                    language={detail.phrase.language}
+                    mode="phrase"
+                    highlightClassName="rounded-sm bg-purple-50/60 font-medium text-purple-700"
+                  />
+                </p>
                 {occ.zh_text && (
                   <p className="text-gray-400 text-xs mt-1">{occ.zh_text}</p>
                 )}
