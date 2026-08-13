@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePhraseStore } from '../stores/phraseStore';
 import { useFeedbackStore } from '../stores/feedbackStore';
-import type { WordStatus } from '../lib/types';
+import type { WordStatus, PhraseInfo } from '../lib/types';
 import StatusBadge from '../components/StatusBadge';
 import PhraseDetailPanel from '../components/PhraseDetail';
 import ContextMenu from '../components/ContextMenu';
@@ -45,9 +45,11 @@ export default function PhrasesPage() {
     detailLoading,
     detailError,
     detailErrorId,
+    refreshKey,
   } = store;
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
+  const [pageIds, setPageIds] = useState<number[] | null>(null);
   const selectAllRef = useRef<HTMLInputElement>(null);
   const [contextMenu, setContextMenu] = useState<{
     x: number; y: number;
@@ -81,13 +83,33 @@ export default function PhrasesPage() {
     phrase.text.toLowerCase().includes(query.trim().toLowerCase()),
   );
   const totalPages = Math.max(1, Math.ceil(visiblePhrases.length / PAGE_SIZE));
-  const pagePhrases = visiblePhrases.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const phraseById = useMemo(() => new Map(phrases.map((p) => [p.id, p])), [phrases]);
+  const pagePhrases = useMemo(
+    () => (pageIds ? pageIds.map((id) => phraseById.get(id)).filter((p): p is PhraseInfo => !!p) : []),
+    [pageIds, phraseById],
+  );
   const allVisibleSelected = pagePhrases.length > 0 && pagePhrases.every((phrase) => selected.has(phrase.id));
   const someVisibleSelected = pagePhrases.some((phrase) => selected.has(phrase.id));
 
   useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
-  }, [page, totalPages]);
+    const all = usePhraseStore.getState().phrases;
+    const visible = all.filter((phrase) => phrase.text.toLowerCase().includes(query.trim().toLowerCase()));
+    setPageIds(visible.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((p) => p.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, query, refreshKey]);
+
+  useEffect(() => {
+    if (pageIds !== null && pagePhrases.length === 0 && visiblePhrases.length > 0) {
+      const target = Math.min(page, totalPages);
+      const all = usePhraseStore.getState().phrases;
+      const visible = all.filter((phrase) =>
+        phrase.text.toLowerCase().includes(query.trim().toLowerCase()),
+      );
+      setPageIds(visible.slice((target - 1) * PAGE_SIZE, target * PAGE_SIZE).map((p) => p.id));
+      if (target !== page) setPage(target);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageIds, pagePhrases.length, visiblePhrases.length, totalPages, page, query]);
 
   useEffect(() => {
     setPage(1);

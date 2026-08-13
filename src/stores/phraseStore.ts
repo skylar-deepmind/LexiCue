@@ -1,7 +1,13 @@
 import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
 import type { PhraseInfo, PhraseDetail, WordStatus } from '../lib/types';
+import { applyStatusUpdates, type RemovedItem } from '../lib/statusList';
 import { usePreferencesStore } from './preferencesStore';
+
+interface BatchAction {
+  changes: { id: number; status: WordStatus }[];
+  removed: RemovedItem<PhraseInfo>[];
+}
 
 interface PhraseStore {
   phrases: PhraseInfo[];
@@ -10,11 +16,12 @@ interface PhraseStore {
   sortBy: 'frequency' | 'alpha' | 'recent';
   selected: Set<number>;
   batchUpdating: boolean;
-  lastBatchAction: { changes: { id: number; status: WordStatus }[] } | null;
+  lastBatchAction: BatchAction | null;
   loading: boolean;
   detailLoading: boolean;
   detailError: boolean;
   detailErrorId: number | null;
+  refreshKey: number;
   loadPhrases: () => Promise<void>;
   loadDetail: (phraseId: number) => Promise<void>;
   closeDetail: () => void;
@@ -41,6 +48,7 @@ export const usePhraseStore = create<PhraseStore>((set, get) => ({
   detailLoading: false,
   detailError: false,
   detailErrorId: null,
+  refreshKey: 0,
 
   loadPhrases: async () => {
     const { filter, sortBy } = get();
@@ -52,7 +60,7 @@ export const usePhraseStore = create<PhraseStore>((set, get) => ({
         sortBy,
         language: language === 'all' ? null : language,
       });
-      set({ phrases });
+      set({ phrases, refreshKey: get().refreshKey + 1 });
     } catch (e) {
       console.error('Failed to load phrases:', e);
     } finally {
@@ -90,8 +98,13 @@ export const usePhraseStore = create<PhraseStore>((set, get) => ({
     if (status === 'learning') {
       await invoke('create_phrase_review_card', { phraseId });
     }
-    set({ lastBatchAction: null });
-    await get().loadPhrases();
+    const result = applyStatusUpdates(get().phrases, [{ id: phraseId, status }], get().filter);
+    const keptIds = new Set(result.words.map((p) => p.id));
+    set({
+      phrases: result.words,
+      selected: new Set(Array.from(get().selected).filter((id) => keptIds.has(id))),
+      lastBatchAction: null,
+    });
     const { detail } = get();
     if (detail && detail.phrase.id === phraseId) {
       get().loadDetail(phraseId);
@@ -113,6 +126,7 @@ export const usePhraseStore = create<PhraseStore>((set, get) => ({
     const changes = get().phrases
       .filter((phrase) => selected.has(phrase.id))
       .map((phrase) => ({ id: phrase.id, status: phrase.status }));
+    if (changes.length === 0) return 0;
     set({ batchUpdating: true });
     try {
       await invoke('batch_update_phrase_status', {
@@ -124,8 +138,16 @@ export const usePhraseStore = create<PhraseStore>((set, get) => ({
           Array.from(selected).map((phraseId) => invoke('create_phrase_review_card', { phraseId })),
         );
       }
-      set({ selected: new Set(), lastBatchAction: { changes } });
-      await get().loadPhrases();
+      const result = applyStatusUpdates(
+        get().phrases,
+        changes.map((c) => ({ id: c.id, status })),
+        get().filter,
+      );
+      set({
+        phrases: result.words,
+        selected: new Set(),
+        lastBatchAction: { changes, removed: result.removed },
+      });
       return changes.length;
     } finally {
       set({ batchUpdating: false });
@@ -146,8 +168,16 @@ export const usePhraseStore = create<PhraseStore>((set, get) => ({
       for (const [status, ids] of grouped) {
         await invoke('batch_update_phrase_status', { phraseIds: ids, status });
       }
-      set({ lastBatchAction: null });
-      await get().loadPhrases();
+      let phrases = applyStatusUpdates(get().phrases, action.changes, 'all').words;
+      const removed = [...action.removed].sort((a, b) => a.index - b.index);
+      for (const r of removed) {
+        phrases.splice(Math.min(r.index, phrases.length), 0, r.item);
+      }
+      set({
+        phrases,
+        lastBatchAction: null,
+        refreshKey: get().refreshKey + 1,
+      });
     } finally {
       set({ batchUpdating: false });
     }

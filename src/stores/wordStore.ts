@@ -1,7 +1,13 @@
 import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
 import type { WordInfo, WordDetail, WordStatus } from '../lib/types';
+import { applyStatusUpdates, type RemovedItem } from '../lib/statusList';
 import { usePreferencesStore } from './preferencesStore';
+
+interface BatchAction {
+  changes: { id: number; status: WordStatus }[];
+  removed: RemovedItem<WordInfo>[];
+}
 
 interface WordStore {
   words: WordInfo[];
@@ -10,11 +16,12 @@ interface WordStore {
   sortBy: 'frequency' | 'alpha' | 'recent';
   selected: Set<number>;
   batchUpdating: boolean;
-  lastBatchAction: { changes: { id: number; status: WordStatus }[] } | null;
+  lastBatchAction: BatchAction | null;
   loading: boolean;
   detailLoading: boolean;
   detailError: boolean;
   detailErrorId: number | null;
+  refreshKey: number;
   loadWords: () => Promise<void>;
   loadDetail: (wordId: number) => Promise<void>;
   closeDetail: () => void;
@@ -41,6 +48,7 @@ export const useWordStore = create<WordStore>((set, get) => ({
   detailLoading: false,
   detailError: false,
   detailErrorId: null,
+  refreshKey: 0,
 
   loadWords: async () => {
     const { filter, sortBy } = get();
@@ -52,7 +60,7 @@ export const useWordStore = create<WordStore>((set, get) => ({
         sortBy,
         language: language === 'all' ? null : language,
       });
-      set({ words });
+      set({ words, refreshKey: get().refreshKey + 1 });
     } catch (e) {
       console.error('Failed to load words:', e);
     } finally {
@@ -90,8 +98,13 @@ export const useWordStore = create<WordStore>((set, get) => ({
     if (status === 'learning') {
       await invoke('create_review_card', { wordId });
     }
-    set({ lastBatchAction: null });
-    await get().loadWords();
+    const result = applyStatusUpdates(get().words, [{ id: wordId, status }], get().filter);
+    const keptIds = new Set(result.words.map((w) => w.id));
+    set({
+      words: result.words,
+      selected: new Set(Array.from(get().selected).filter((id) => keptIds.has(id))),
+      lastBatchAction: null,
+    });
     const { detail } = get();
     if (detail && detail.word.id === wordId) {
       get().loadDetail(wordId);
@@ -113,6 +126,7 @@ export const useWordStore = create<WordStore>((set, get) => ({
     const changes = get().words
       .filter((word) => selected.has(word.id))
       .map((word) => ({ id: word.id, status: word.status }));
+    if (changes.length === 0) return 0;
     set({ batchUpdating: true });
     try {
       await invoke('batch_update_status', {
@@ -124,8 +138,16 @@ export const useWordStore = create<WordStore>((set, get) => ({
           Array.from(selected).map((wordId) => invoke('create_review_card', { wordId })),
         );
       }
-      set({ selected: new Set(), lastBatchAction: { changes } });
-      await get().loadWords();
+      const result = applyStatusUpdates(
+        get().words,
+        changes.map((c) => ({ id: c.id, status })),
+        get().filter,
+      );
+      set({
+        words: result.words,
+        selected: new Set(),
+        lastBatchAction: { changes, removed: result.removed },
+      });
       return changes.length;
     } finally {
       set({ batchUpdating: false });
@@ -146,8 +168,16 @@ export const useWordStore = create<WordStore>((set, get) => ({
       for (const [status, ids] of grouped) {
         await invoke('batch_update_status', { wordIds: ids, status });
       }
-      set({ lastBatchAction: null });
-      await get().loadWords();
+      let words = applyStatusUpdates(get().words, action.changes, 'all').words;
+      const removed = [...action.removed].sort((a, b) => a.index - b.index);
+      for (const r of removed) {
+        words.splice(Math.min(r.index, words.length), 0, r.item);
+      }
+      set({
+        words,
+        lastBatchAction: null,
+        refreshKey: get().refreshKey + 1,
+      });
     } finally {
       set({ batchUpdating: false });
     }
