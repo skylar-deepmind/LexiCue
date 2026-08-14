@@ -10,6 +10,7 @@ interface ImportPreviewProps {
   wordCount: number;
   language: Language;
   replaceFileName?: string | null;
+  targetFolder?: string | null;
   busy?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
@@ -22,6 +23,7 @@ export default function ImportPreview({
   wordCount,
   language,
   replaceFileName,
+  targetFolder,
   busy = false,
   onConfirm,
   onCancel,
@@ -41,6 +43,11 @@ export default function ImportPreview({
           {replaceFileName && (
             <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
               {t('importPreview.replaceHint', { name: replaceFileName })}
+            </p>
+          )}
+          {targetFolder && (
+            <p className="mt-3 rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700">
+              {t('importPreview.targetFolder', { name: targetFolder })}
             </p>
           )}
         </div>

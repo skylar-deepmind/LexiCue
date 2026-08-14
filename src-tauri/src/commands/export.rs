@@ -14,6 +14,8 @@ pub struct BackupPayload {
 #[derive(Serialize, Deserialize)]
 pub struct BackupData {
     pub files: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub folders: Vec<serde_json::Value>,
     pub segments: Vec<serde_json::Value>,
     pub words: Vec<serde_json::Value>,
     pub occurrences: Vec<serde_json::Value>,
@@ -140,6 +142,7 @@ pub fn export_all(state: State<DbState>) -> Result<BackupPayload, String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
 
     let files = query_all(&conn, "files")?;
+    let folders = query_all(&conn, "folders")?;
     let segments = query_all(&conn, "segments")?;
     let words = query_all(&conn, "words")?;
     let occurrences = query_all(&conn, "occurrences")?;
@@ -160,6 +163,7 @@ pub fn export_all(state: State<DbState>) -> Result<BackupPayload, String> {
         app_version: env!("CARGO_PKG_VERSION").to_string(),
         data: BackupData {
             files,
+            folders,
             segments,
             words,
             occurrences,
@@ -224,8 +228,11 @@ pub fn restore_all(state: State<DbState>, backup: BackupPayload) -> Result<(), S
             .map_err(|e| e.to_string())?;
         conn.execute("DELETE FROM files", [])
             .map_err(|e| e.to_string())?;
+        conn.execute("DELETE FROM folders", [])
+            .map_err(|e| e.to_string())?;
 
         insert_from_json(&conn, "files", &backup.data.files)?;
+        insert_from_json(&conn, "folders", &backup.data.folders)?;
         insert_from_json(&conn, "words", &backup.data.words)?;
         insert_from_json(&conn, "segments", &backup.data.segments)?;
         insert_from_json(&conn, "occurrences", &backup.data.occurrences)?;

@@ -167,7 +167,23 @@
     "aiCancelled": "已取消 AI 词组分析",
     "emptyTitle": "暂无文件",
     "emptyDescription": "导入 TXT 文本或双语 SRT 字幕文件，开始构建你的个人词库",
-    "emptyAction": "导入第一个文件"
+    "emptyAction": "导入第一个文件",
+    "newFolder": "新建文件夹",
+    "root": "我的文件",
+    "rootFiles": "文件",
+    "folderFiles": "文件",
+    "categoryCount": "{{count}} 个文件",
+    "folderCount": "{{count}} 个文件",
+    "moveFileTitle": "移动文件到",
+    "moveFolderTitle": "移动文件夹到",
+    "moveEmptyFolders": "还没有文件夹，可在页面中新建",
+    "breadcrumbAria": "面包屑导航",
+    "folders": "文件夹",
+    "collapseTree": "收起文件夹树",
+    "expandTree": "展开文件夹树",
+    "treeEmpty": "还没有文件夹",
+    "emptyFolderTitle": "此文件夹为空",
+    "emptyFolderDescription": "新建子文件夹，或把文件拖到这里"
   },
   "fileCard": {
     "segments": "{{count}} 段",
@@ -182,7 +198,9 @@
     "analyzeTitle": "使用 AI 分析词组",
     "analyzedTitle": "该文件已完成 AI 词组分析",
     "cancelAria": "中断 AI 词组分析",
-    "retrying": "AI 服务暂时不可用（{{reason}}），正在自动重试（{{attempt}}/{{maxAttempts}}）..."
+    "retrying": "AI 服务暂时不可用（{{reason}}），正在自动重试（{{attempt}}/{{maxAttempts}}）...",
+    "moveAria": "移动 {{name}} 到文件夹",
+    "moveTitle": "移动到文件夹"
   },
   "words": {
     "title": "单词列表",
@@ -396,7 +414,8 @@
     "words": "{{count}} 个单词",
     "replaceHint": "将替换已有文件“{{name}}”，全局单词状态和复习记录会保留。",
     "cancel": "取消",
-    "confirm": "确认导入"
+    "confirm": "确认导入",
+    "targetFolder": "将导入到：{{name}}"
   },
   "statusBadge": {
     "selectTitle": "选择单词状态"
@@ -457,7 +476,9 @@
     "restoreTitle": "恢复数据",
     "restored": "数据恢复成功",
     "restoreFailed": "恢复失败，请检查备份文件",
-    "youtubeTitle": "YouTube 视频"
+    "youtubeTitle": "YouTube 视频",
+    "folderOpFailed": "文件夹操作失败，请重试",
+    "fileMoveFailed": "移动文件失败，请重试"
   },
   "reviewStore": {
     "submitFailed": "评分提交失败，请重试"
@@ -469,5 +490,18 @@
     "stageParsing": "解析视频信息",
     "downloading": "准备下载字幕...",
     "downloadingMerge": "准备下载并合并字幕..."
+  },
+  "folders": {
+    "newTitle": "新建文件夹",
+    "renameTitle": "重命名文件夹",
+    "namePlaceholder": "文件夹名称",
+    "create": "创建",
+    "rename": "重命名",
+    "delete": "删除",
+    "deleteTitle": "删除文件夹",
+    "deleteConfirm": "删除文件夹「{{name}}」？其子文件夹和文件将移回「我的文件」，阅读内容不会被删除。",
+    "newSubfolder": "新建子文件夹",
+    "move": "移动到…",
+    "actionsAria": "{{name}} 的操作"
   }
 }

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
 import { ask, message, open, save } from '@tauri-apps/plugin-dialog';
 import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
-import type { FileRecord, BackupPayload } from '../lib/types';
+import type { FileRecord, BackupPayload, FolderInfo } from '../lib/types';
 import { computeHash } from '../lib/hash';
 import { parseFile, type ParsedResult } from '../lib/parser';
 import type { Language } from '../lib/languages';
@@ -41,12 +41,21 @@ function sanitizeFileName(title: string): string {
 
 interface FileStore {
   files: FileRecord[];
+  folders: FolderInfo[];
+  currentFolderId: number | null;
   loading: boolean;
   pendingImport: PendingImport | null;
   importingYouTube: boolean;
   youtubePhase: YoutubePhase | null;
   confirming: boolean;
   loadFiles: () => Promise<void>;
+  loadFolders: () => Promise<void>;
+  setCurrentFolder: (folderId: number | null) => void;
+  createFolder: (name: string, parentId: number | null) => Promise<void>;
+  renameFolder: (folderId: number, name: string) => Promise<void>;
+  deleteFolder: (folderId: number) => Promise<void>;
+  moveFolder: (folderId: number, targetParentId: number | null) => Promise<void>;
+  moveFile: (fileId: number, folderId: number | null) => Promise<void>;
   importFile: () => Promise<void>;
   setImportLanguage: (language: Language) => Promise<void>;
   importKnownWords: () => Promise<void>;
@@ -199,6 +208,8 @@ async function parseContent(content: string, fileType: 'txt' | 'srt', language: 
 
 export const useFileStore = create<FileStore>((set, get) => ({
   files: [],
+  folders: [],
+  currentFolderId: null,
   loading: false,
   pendingImport: null,
   importingYouTube: false,
@@ -207,16 +218,85 @@ export const useFileStore = create<FileStore>((set, get) => ({
 
   loadFiles: async () => {
     const language = usePreferencesStore.getState().language;
+    const folderId = get().currentFolderId;
     set({ loading: true });
     try {
       const files: FileRecord[] = await invoke('list_files', {
         language: language === 'all' ? null : language,
+        folderId,
       });
       set({ files });
     } catch (e) {
       console.error('Failed to load files:', e);
     } finally {
       set({ loading: false });
+    }
+  },
+
+  loadFolders: async () => {
+    const language = usePreferencesStore.getState().language;
+    try {
+      const folders: FolderInfo[] = await invoke('list_folders', {
+        language: language === 'all' ? null : language,
+      });
+      set({ folders });
+    } catch (e) {
+      console.error('Failed to load folders:', e);
+    }
+  },
+
+  setCurrentFolder: (folderId) => {
+    set({ currentFolderId: folderId });
+    void get().loadFiles();
+  },
+
+  createFolder: async (name, parentId) => {
+    try {
+      await invoke('create_folder', { name, parentId });
+      await get().loadFolders();
+    } catch (e) {
+      console.error('Failed to create folder:', e);
+      useFeedbackStore.getState().show(i18n.t('fileStore.folderOpFailed'), 'error');
+    }
+  },
+
+  renameFolder: async (folderId, name) => {
+    try {
+      await invoke('rename_folder', { folderId, name });
+      await get().loadFolders();
+    } catch (e) {
+      console.error('Failed to rename folder:', e);
+      useFeedbackStore.getState().show(i18n.t('fileStore.folderOpFailed'), 'error');
+    }
+  },
+
+  deleteFolder: async (folderId) => {
+    try {
+      await invoke('delete_folder', { folderId });
+      await Promise.all([get().loadFiles(), get().loadFolders()]);
+    } catch (e) {
+      console.error('Failed to delete folder:', e);
+      useFeedbackStore.getState().show(i18n.t('fileStore.folderOpFailed'), 'error');
+    }
+  },
+
+  moveFolder: async (folderId, targetParentId) => {
+    try {
+      await invoke('move_folder', { folderId, targetParentId });
+      await get().loadFolders();
+    } catch (e) {
+      console.error('Failed to move folder:', e);
+      useFeedbackStore.getState().show(i18n.t('fileStore.folderOpFailed'), 'error');
+    }
+  },
+
+  moveFile: async (fileId, folderId) => {
+    try {
+      await invoke('move_file', { fileId, folderId });
+      await Promise.all([get().loadFiles(), get().loadFolders()]);
+    } catch (e) {
+      console.error('Failed to move file:', e);
+      useFeedbackStore.getState().show(i18n.t('fileStore.fileMoveFailed'), 'error');
     }
   },
 
@@ -360,6 +440,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
           lemmas: pending.parsed.lemmas,
           occurrences: pending.parsed.occurrences,
           replaceFileId: pending.replaceFileId,
+          folderId: get().currentFolderId,
         },
       });
       set({ pendingImport: null });
@@ -538,6 +619,7 @@ usePreferencesStore.subscribe(
   (state) => state.language,
   () => {
     useFileStore.getState().loadFiles();
+    useFileStore.getState().loadFolders();
   },
 );
 

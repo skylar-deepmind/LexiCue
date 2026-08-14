@@ -1,13 +1,15 @@
-import { Brain, Trash2 } from 'lucide-react';
+import { Brain, Trash2, FolderInput } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { FileRecord } from '../lib/types';
 import type { OllamaRetry } from '../stores/ollamaStore';
 
 interface FileCardProps {
   file: FileRecord;
+  folderPath?: string;
   onDelete: (id: number) => void;
   onAnalyze: (id: number) => void;
   onCancel: (id: number) => void;
+  onMove: (file: FileRecord) => void;
   aiEnabled: boolean;
   analysisProgress?: {
     status: 'processing' | 'completed' | 'error';
@@ -20,7 +22,7 @@ interface FileCardProps {
   onClick: () => void;
 }
 
-export default function FileCard({ file, onDelete, onAnalyze, onCancel, aiEnabled, analysisProgress, analysisCompleted, retrying, onClick }: FileCardProps) {
+export default function FileCard({ file, folderPath, onDelete, onAnalyze, onCancel, onMove, aiEnabled, analysisProgress, analysisCompleted, retrying, onClick }: FileCardProps) {
   const { t, i18n } = useTranslation();
   const icon = file.type === 'srt' ? '🎬' : '📄';
   const date = new Date(file.imported_at).toLocaleDateString(i18n.resolvedLanguage ?? 'zh');
@@ -38,6 +40,12 @@ export default function FileCard({ file, onDelete, onAnalyze, onCancel, aiEnable
             <p className="text-xs text-gray-500 mt-0.5">
               {file.type.toUpperCase()} · {t('fileCard.segments', { count: file.segment_count })} · {date}
             </p>
+            {folderPath && (
+              <p className="mt-1 flex items-center gap-1 text-xs text-gray-400" title={folderPath}>
+                <FolderInput size={11} className="shrink-0" />
+                <span className="truncate">{folderPath}</span>
+              </p>
+            )}
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
@@ -55,6 +63,17 @@ export default function FileCard({ file, onDelete, onAnalyze, onCancel, aiEnable
               <Brain size={16} />
             </button>
           )}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onMove(file);
+            }}
+            className="p-1 text-gray-400 transition-colors hover:text-blue-600"
+            aria-label={t('fileCard.moveAria', { name: file.name })}
+            title={t('fileCard.moveTitle')}
+          >
+            <FolderInput size={16} />
+          </button>
           <button
             onClick={(e) => {
               e.stopPropagation();

@@ -35,7 +35,20 @@ pub fn init_db(db_path: &Path) -> Result<Connection, rusqlite::Error> {
     create_tables(&conn)?;
     migrate_legacy_constraints(&conn)?;
     backfill_phrase_provider(&conn)?;
+    migrate_file_folder(&conn)?;
     Ok(conn)
+}
+
+fn migrate_file_folder(conn: &Connection) -> Result<(), rusqlite::Error> {
+    let has_folder_id = conn
+        .prepare("PRAGMA table_info(files)")?
+        .query_map([], |row| row.get::<_, String>(1))?
+        .filter_map(|col| col.ok())
+        .any(|col| col == "folder_id");
+    if !has_folder_id {
+        conn.execute_batch("ALTER TABLE files ADD COLUMN folder_id INTEGER")?;
+    }
+    Ok(())
 }
 
 fn table_sql(conn: &Connection, name: &str) -> Result<String, rusqlite::Error> {
@@ -215,7 +228,15 @@ fn create_tables(conn: &Connection) -> Result<(), rusqlite::Error> {
              content TEXT NOT NULL,
              content_hash TEXT NOT NULL,
              imported_at INTEGER NOT NULL,
-             language TEXT NOT NULL DEFAULT 'en'
+             language TEXT NOT NULL DEFAULT 'en',
+             folder_id INTEGER
+        ) STRICT;
+
+        CREATE TABLE IF NOT EXISTS folders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            parent_id INTEGER,
+            created_at INTEGER NOT NULL
         ) STRICT;
 
         CREATE TABLE IF NOT EXISTS segments (

@@ -167,7 +167,23 @@
     "aiCancelled": "AI フレーズ分析をキャンセルしました",
     "emptyTitle": "ファイルはまだありません",
     "emptyDescription": "TXT テキストまたはバイリンガル SRT 字幕ファイルをインポートして、自分だけの語彙を構築しましょう",
-    "emptyAction": "最初のファイルをインポート"
+    "emptyAction": "最初のファイルをインポート",
+    "newFolder": "新しいフォルダ",
+    "root": "マイファイル",
+    "rootFiles": "ファイル",
+    "folderFiles": "ファイル",
+    "categoryCount": "{{count}} ファイル",
+    "folderCount": "{{count}} ファイル",
+    "moveFileTitle": "ファイルを移動先",
+    "moveFolderTitle": "フォルダを移動先",
+    "moveEmptyFolders": "フォルダがまだありません。ページから作成できます",
+    "breadcrumbAria": "パンくずリスト",
+    "folders": "フォルダ",
+    "collapseTree": "フォルダツリーを折りたたむ",
+    "expandTree": "フォルダツリーを展開",
+    "treeEmpty": "フォルダはまだありません",
+    "emptyFolderTitle": "このフォルダは空です",
+    "emptyFolderDescription": "サブフォルダを作成するか、ファイルをここにドラッグしてください"
   },
   "fileCard": {
     "segments": "{{count}} セグメント",
@@ -182,7 +198,9 @@
     "analyzeTitle": "フレーズを AI で分析",
     "analyzedTitle": "このファイルはすでに分析済みです",
     "cancelAria": "AI フレーズ分析を中断",
-    "retrying": "AI サービスが一時的に利用できません（{{reason}}）。自動再試行中（{{attempt}}/{{maxAttempts}}）..."
+    "retrying": "AI サービスが一時的に利用できません（{{reason}}）。自動再試行中（{{attempt}}/{{maxAttempts}}）...",
+    "moveAria": "{{name}} をフォルダに移動",
+    "moveTitle": "フォルダに移動"
   },
   "words": {
     "title": "単語リスト",
@@ -396,7 +414,8 @@
     "words": "{{count}} 個の単語",
     "replaceHint": "既存のファイル「{{name}}」を置き換えます。全体の単語ステータスと復習記録は保持されます。",
     "cancel": "キャンセル",
-    "confirm": "インポートを確定"
+    "confirm": "インポートを確定",
+    "targetFolder": "インポート先: {{name}}"
   },
   "statusBadge": {
     "selectTitle": "単語ステータスを選択"
@@ -457,7 +476,9 @@
     "restoreTitle": "データを復元",
     "restored": "データの復元に成功しました",
     "restoreFailed": "復元に失敗しました。バックアップファイルを確認してください。",
-    "youtubeTitle": "YouTube 動画"
+    "youtubeTitle": "YouTube 動画",
+    "folderOpFailed": "フォルダ操作に失敗しました。もう一度お試しください",
+    "fileMoveFailed": "ファイルの移動に失敗しました。もう一度お試しください"
   },
   "reviewStore": {
     "submitFailed": "評価の送信に失敗しました。もう一度お試しください。"
@@ -469,5 +490,18 @@
     "stageParsing": "動画情報を解析中",
     "downloading": "字幕のダウンロードを準備中...",
     "downloadingMerge": "字幕のダウンロードと結合を準備中..."
+  },
+  "folders": {
+    "newTitle": "新しいフォルダ",
+    "renameTitle": "フォルダ名を変更",
+    "namePlaceholder": "フォルダ名",
+    "create": "作成",
+    "rename": "名前変更",
+    "delete": "削除",
+    "deleteTitle": "フォルダを削除",
+    "deleteConfirm": "フォルダ「{{name}}」を削除しますか？サブフォルダとファイルは「マイファイル」に戻ります。読書データは削除されません。",
+    "newSubfolder": "サブフォルダを作成",
+    "move": "移動…",
+    "actionsAria": "{{name}} の操作"
   }
 }

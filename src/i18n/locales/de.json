@@ -170,7 +170,25 @@
     "aiCancelled": "KI-Phrasenanalyse abgebrochen",
     "emptyTitle": "Noch keine Dateien",
     "emptyDescription": "Importieren Sie TXT-Text oder zweisprachige SRT-Untertiteldateien, um Ihren persönlichen Wortschatz aufzubauen",
-    "emptyAction": "Erste Datei importieren"
+    "emptyAction": "Erste Datei importieren",
+    "newFolder": "Neuer Ordner",
+    "root": "Meine Dateien",
+    "rootFiles": "Dateien",
+    "folderFiles": "Dateien",
+    "categoryCount_one": "{{count}} Datei",
+    "categoryCount_other": "{{count}} Dateien",
+    "folderCount_one": "{{count}} Datei",
+    "folderCount_other": "{{count}} Dateien",
+    "moveFileTitle": "Datei verschieben nach",
+    "moveFolderTitle": "Ordner verschieben nach",
+    "moveEmptyFolders": "Noch keine Ordner. Sie können einen über die Seite erstellen.",
+    "breadcrumbAria": "Brotkrumen-Navigation",
+    "folders": "Ordner",
+    "collapseTree": "Ordnerbaum einklappen",
+    "expandTree": "Ordnerbaum aufklappen",
+    "treeEmpty": "Noch keine Ordner",
+    "emptyFolderTitle": "Dieser Ordner ist leer",
+    "emptyFolderDescription": "Erstellen Sie einen Unterordner oder ziehen Sie Dateien hierher"
   },
   "fileCard": {
     "segments_one": "{{count}} Segment",
@@ -186,7 +204,9 @@
     "analyzeTitle": "Phrasen mit KI analysieren",
     "analyzedTitle": "Diese Datei wurde bereits analysiert",
     "cancelAria": "KI-Phrasenanalyse unterbrechen",
-    "retrying": "KI-Dienst vorübergehend nicht verfügbar ({{reason}}), automatischer Neuversuch ({{attempt}}/{{maxAttempts}})…"
+    "retrying": "KI-Dienst vorübergehend nicht verfügbar ({{reason}}), automatischer Neuversuch ({{attempt}}/{{maxAttempts}})…",
+    "moveAria": "{{name}} in Ordner verschieben",
+    "moveTitle": "In Ordner verschieben"
   },
   "words": {
     "title": "Wortliste",
@@ -412,7 +432,8 @@
     "words_other": "{{count}} Wörter",
     "replaceHint": "Dies ersetzt die vorhandene Datei „{{name}}“. Globaler Wortstatus und Wiederholungsverlauf bleiben erhalten.",
     "cancel": "Abbrechen",
-    "confirm": "Import bestätigen"
+    "confirm": "Import bestätigen",
+    "targetFolder": "Wird importiert nach: {{name}}"
   },
   "statusBadge": {
     "selectTitle": "Wortstatus auswählen"
@@ -474,7 +495,9 @@
     "restoreTitle": "Daten wiederherstellen",
     "restored": "Daten erfolgreich wiederhergestellt",
     "restoreFailed": "Wiederherstellung fehlgeschlagen. Bitte Sicherungsdatei prüfen.",
-    "youtubeTitle": "YouTube-Video"
+    "youtubeTitle": "YouTube-Video",
+    "folderOpFailed": "Ordneraktion fehlgeschlagen. Bitte erneut versuchen",
+    "fileMoveFailed": "Verschieben der Datei fehlgeschlagen. Bitte erneut versuchen"
   },
   "reviewStore": {
     "submitFailed": "Bewertung konnte nicht gesendet werden. Bitte erneut versuchen."
@@ -486,5 +509,18 @@
     "stageParsing": "Videoinformationen werden analysiert",
     "downloading": "Untertitel-Download wird vorbereitet...",
     "downloadingMerge": "Untertitel-Download und -Zusammenführung wird vorbereitet..."
+  },
+  "folders": {
+    "newTitle": "Neuer Ordner",
+    "renameTitle": "Ordner umbenennen",
+    "namePlaceholder": "Ordnername",
+    "create": "Erstellen",
+    "rename": "Umbenennen",
+    "delete": "Löschen",
+    "deleteTitle": "Ordner löschen",
+    "deleteConfirm": "Ordner „{{name}}“ löschen? Seine Unterordner und Dateien werden zurück nach „Meine Dateien“ verschoben. Lesedaten werden nicht gelöscht.",
+    "newSubfolder": "Neuer Unterordner",
+    "move": "Verschieben nach…",
+    "actionsAria": "Aktionen für {{name}}"
   }
 }

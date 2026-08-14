@@ -12,6 +12,15 @@ export interface FileRecord {
   phrase_analyzed: boolean;
   phrase_analysis_at: number | null;
   language: Language;
+  folder_id: number | null;
+}
+
+export interface FolderInfo {
+  id: number;
+  name: string;
+  parent_id: number | null;
+  created_at: number;
+  file_count: number;
 }
 
 export interface Segment {
@@ -120,6 +129,7 @@ export interface ImportPayload {
   occurrences: OccurrenceInput[];
   phrase_occurrences?: PhraseOccurrenceInput[];
   replace_file_id?: number;
+  folder_id?: number | null;
   language: Language;
 }
 

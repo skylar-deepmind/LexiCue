@@ -170,7 +170,25 @@
     "aiCancelled": "AI phrase analysis cancelled",
     "emptyTitle": "No files yet",
     "emptyDescription": "Import TXT text or bilingual SRT subtitle files to start building your personal vocabulary",
-    "emptyAction": "Import Your First File"
+    "emptyAction": "Import Your First File",
+    "newFolder": "New Folder",
+    "root": "My Files",
+    "rootFiles": "Files",
+    "folderFiles": "Files",
+    "categoryCount_one": "{{count}} file",
+    "categoryCount_other": "{{count}} files",
+    "folderCount_one": "{{count}} file",
+    "folderCount_other": "{{count}} files",
+    "moveFileTitle": "Move file to",
+    "moveFolderTitle": "Move folder to",
+    "moveEmptyFolders": "No folders yet. Create one from the page.",
+    "breadcrumbAria": "Breadcrumb",
+    "folders": "Folders",
+    "collapseTree": "Collapse folder tree",
+    "expandTree": "Expand folder tree",
+    "treeEmpty": "No folders yet",
+    "emptyFolderTitle": "This folder is empty",
+    "emptyFolderDescription": "Create a subfolder, or drag files here"
   },
   "fileCard": {
     "segments_one": "{{count}} segment",
@@ -186,7 +204,9 @@
     "analyzeTitle": "Analyze phrases with AI",
     "analyzedTitle": "This file has already been analyzed",
     "cancelAria": "Interrupt AI phrase analysis",
-    "retrying": "AI service temporarily unavailable ({{reason}}), auto-retrying ({{attempt}}/{{maxAttempts}})…"
+    "retrying": "AI service temporarily unavailable ({{reason}}), auto-retrying ({{attempt}}/{{maxAttempts}})…",
+    "moveAria": "Move {{name}} to a folder",
+    "moveTitle": "Move to folder"
   },
   "words": {
     "title": "Word List",
@@ -412,7 +432,8 @@
     "words_other": "{{count}} words",
     "replaceHint": "This will replace the existing file “{{name}}”. Global word status and review history will be kept.",
     "cancel": "Cancel",
-    "confirm": "Confirm Import"
+    "confirm": "Confirm Import",
+    "targetFolder": "Will be imported into: {{name}}"
   },
   "statusBadge": {
     "selectTitle": "Select word status"
@@ -474,7 +495,9 @@
     "restoreTitle": "Restore Data",
     "restored": "Data restored successfully",
     "restoreFailed": "Restore failed. Please check the backup file.",
-    "youtubeTitle": "YouTube video"
+    "youtubeTitle": "YouTube video",
+    "folderOpFailed": "Folder operation failed, please try again",
+    "fileMoveFailed": "Failed to move file, please try again"
   },
   "reviewStore": {
     "submitFailed": "Failed to submit rating. Please try again."
@@ -486,5 +509,18 @@
     "stageParsing": "Parsing video info",
     "downloading": "Preparing to download subtitles...",
     "downloadingMerge": "Preparing to download and merge subtitles..."
+  },
+  "folders": {
+    "newTitle": "New Folder",
+    "renameTitle": "Rename Folder",
+    "namePlaceholder": "Folder name",
+    "create": "Create",
+    "rename": "Rename",
+    "delete": "Delete",
+    "deleteTitle": "Delete Folder",
+    "deleteConfirm": "Delete folder \"{{name}}\"? Its subfolders and files will move back to My Files. Reading data will not be deleted.",
+    "newSubfolder": "New Subfolder",
+    "move": "Move to…",
+    "actionsAria": "Actions for {{name}}"
   }
 }
