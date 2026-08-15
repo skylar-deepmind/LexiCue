@@ -1,120 +1,69 @@
 # LexiCue
 
-Local-first 词汇学习与阅读工具。通过阅读自己导入的文本，自动识别生词、词组与短语，并配合间隔重复复习（FSRS）巩固记忆。
+**Read what you love. Remember the words.**
 
-支持英语、日语、德语、中文四种学习语言，内置对应语言的离线词典数据。
+LexiCue is a free, open-source, local-first reading tool that builds vocabulary while you read. Import an article, a book, or movie subtitles — tap any word to see its meaning on the spot, and let smart review make it stick.
 
-> 预编译安装包通过 [GitHub Actions](.github/workflows/build-installers.yml) 手动触发构建。当前安装包**未签名**，首次安装时各平台会给出安全提示，请参阅 [DISTRIBUTION.md](DISTRIBUTION.md) 按平台处理。
+> **中文版** · [日本語版](README.ja.md)
 
-## 功能
+## Is LexiCue for you?
 
-- **文本导入**：支持 `.txt` / `.srt` / `.vtt` 等文本格式，从 YouTube 字幕导入（需本机安装 [yt-dlp](https://github.com/yt-dlp/yt-dlp)）
-- **阅读辅助**：逐句阅读、点击查词、逐段对照译文
-- **词汇提取**：自动分词并标注原形（德语 `ging → gehen`）、读音（日语假名、中文拼音）与词性
-- **词组识别**：内置常用词组词典，自动识别固定搭配与短语
-- **间隔重复**：基于 [ts-fsrs](https://github.com/open-spaced-repetition/ts-fsrs) 的 FSRS 算法安排单词与词组复习
-- **数据统计**：学习进度、复习量、掌握情况一目了然
-- **多语言界面**：中文、English、日本語、Deutsch
-- **暗色模式**
-- **内置离线词典**：ECDICT、CC-CEDICT、JMdict、德语 Wiktionary 派生数据等（详见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)）
-- **可选 AI 辅助**：段落解释、词组自动识别（默认关闭，详见下文）
+- You are learning **English, Japanese, German, or Chinese**
+- You prefer learning from **real content** — articles, books, subtitles — over word lists
+- You watch shows or movies and want to learn the words that come up
+- You care about **privacy** and don't want to register an account or upload your data
+- You want a **free, open-source** tool that works **offline**
 
-## 支持的语言
+If any of these sound like you, LexiCue is built for you. If not, you'll know in a minute — there's nothing to install, no account, and nothing to lose by trying.
 
-| 语言 | 词典 | 分词/形变 |
-| ---- | ---- | ---- |
-| 英语 English | ECDICT、PhraseDict | 词形还原（kaikki 词形映射，books → book） |
-| 日语 日本語 | JMdict | lindera（嵌入式 UniDic） |
-| 德语 Deutsch | kaikki.org 派生数据 | 词形还原（词频过滤） |
-| 中文 中文 | CC-CEDICT | jieba 分词、拼音标注 |
+## How to use it
 
-## 环境要求
+1. **Import** — drop in a `.txt`, `.srt`, or `.vtt` file, or pull YouTube subtitles
+2. **Read** — read line by line, tap any word for its meaning and reading
+3. **Collect** — new words and phrases are gathered into your word list automatically
+4. **Review** — LexiCue reminds you at just the right time, a few minutes a day
 
-- Node.js 20+
-- Rust 1.77.2+
-- 平台支持：macOS / Windows / Linux
+## Features at a glance
 
-## 开发
+- **Learn from what you love** — your own articles, books, and subtitles, not a preset word list
+- **Tap-to-look-up** — meaning, pronunciation, and example sentence without losing your place
+- **Smart review** — spaced repetition that nudges you right before you forget
+- **Built-in offline dictionaries** — English, Japanese, German, and Chinese, no internet needed
+- **Your data stays yours** — everything is saved locally, no account or upload required
+- **AI is optional** — paragraph explanations and translations if you want them, off by default
 
-```bash
-# 安装前端依赖
-npm install
+## Privacy
 
-# 启动前端开发服务器（http://localhost:5173）
-npm run dev
+All your study data is stored in a local database on your device. Nothing is uploaded unless you explicitly ask — for example, when you turn on AI or download YouTube subtitles.
 
-# 以桌面应用方式运行（Tauri）
-npm run tauri dev
+## Download & install
 
-# 类型检查 + 前端构建
-npm run build
+Grab the latest installer for **macOS / Windows / Android** from the [Releases page](https://github.com/skylar-deepmind/LexiCue/releases/latest).
 
-# 运行前端测试
-npm test
+> Installers are currently **unsigned** — your system may show a security warning on first install. That's expected. See [DISTRIBUTION.md](DISTRIBUTION.md) for the platform-by-platform guide.
 
-# 运行 Rust 测试
-cd src-tauri && cargo test
-```
+## Support the project
 
-## 打包桌面应用
+LexiCue is free and open source. If it helps you, the author would appreciate your support on **爱发电 (Aifadian)**, a platform for supporting creators:
+
+👉 [https://www.ifdian.net/a/skylar-lexicue](https://www.ifdian.net/a/skylar-lexicue)
+
+A star on GitHub also goes a long way: [github.com/skylar-deepmind/LexiCue](https://github.com/skylar-deepmind/LexiCue)
+
+## Development
+
+For contributors. Requires Node.js 20+ and Rust 1.77.2+.
 
 ```bash
-npm run tauri build
+npm install        # install frontend dependencies
+npm run tauri dev  # run as a desktop app
+npm run build      # typecheck + frontend build
+npm test           # frontend tests
+cd src-tauri && cargo test   # Rust tests
 ```
 
-生成物位于 `src-tauri/target/release/bundle/`。也可在 GitHub Actions 手动触发 [build-installers](.github/workflows/build-installers.yml) 工作流，自动构建 macOS / Windows / Android 安装包（从仓库 **Actions** 页面 → **Build Installers** → **Run workflow**）。
+Build installers with `npm run tauri build` (output in `src-tauri/target/release/bundle/`).
 
-## 安装与常见问题
+## License
 
-安装包为未签名构建，首次安装可能遇到系统拦截提示（macOS「已损坏」、Windows SmartScreen、Android 未知来源）。请按平台参照 [DISTRIBUTION.md](DISTRIBUTION.md) 操作，macOS 也可直接运行一键修复脚本：
-
-```bash
-bash scripts/fix-macos-quarantine.sh
-```
-
-## AI 辅助功能（可选）
-
-AI 相关功能默认关闭，可在「设置 → AI 分析」中启用。支持两种提供方：
-
-- **本地 Ollama**（推荐）：连接 `http://localhost:11434`，学习文本不会离开你的电脑
-- **云端 API**：使用 OpenAI 兼容接口（如 OpenAI、DeepSeek、自定义地址），需要填入自己的 API Key
-
-启用后可用：段落解释、词组自动识别、段落翻译。
-
-> 注意：使用云端 API 时，你主动请求分析/翻译的文本内容会发送给对应的 AI 服务商。请确认所选服务的数据处理政策后再使用。API Key 保存在本机应用的 localStorage 中，不会上传到 GitHub。
-
-## YouTube 字幕导入
-
-从 YouTube 导入字幕需要本机安装 [yt-dlp](https://github.com/yt-dlp/yt-dlp)。
-
-```bash
-# macOS (Homebrew)
-brew install yt-dlp
-
-# 其他安装方式见 https://github.com/yt-dlp/yt-dlp#installation
-```
-
-未安装时仍可列出视频的字幕轨道，但下载会失败。请遵守 YouTube 服务条款与内容创作者的权利。
-
-## 数据与隐私
-
-- 所有学习数据默认保存在本机 SQLite 数据库（应用数据目录下的 `lexicue.db`），**不会自动上传**
-- 词典数据在首次启动时导入本地数据库，之后离线可用
-- 内置离线词典数据由第三方开源数据派生，授权与来源详见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)
-- 支持数据导出与恢复（应用内「设置」页）
-- 除你主动触发的 AI 请求与 YouTube 字幕下载外，应用不会联网
-
-## 导入第三方词典包
-
-LexiCue 支持从「文件」页导入 JSON 格式的离线词典包，导入后可在本地离线查询。格式说明见 [DICTIONARY_PACK.md](DICTIONARY_PACK.md)。
-
-## 路线图
-
-- 确定应用图标与品牌 Logo
-- 产品宣传页
-- 自动更新推送
-- 提供预编译安装包与自动构建发布
-
-## 许可证
-
-MIT License，见 [LICENSE](LICENSE)。内置词典数据的第三方授权声明见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
+MIT License — see [LICENSE](LICENSE). Third-party dictionary data credits: [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). Import custom dictionary packs per [DICTIONARY_PACK.md](DICTIONARY_PACK.md).

@@ -4,7 +4,7 @@
       metaTitle: "LexiCue — 从真实阅读中记住词汇",
       metaDesc: "LexiCue — Local-first 词汇学习与阅读工具。把你正在读的内容，变成真正记得住的词汇。",
       themeToggle: "切换明暗主题",
-      nav: { features: "产品亮点", workflow: "怎么用", privacy: "隐私", languages: "支持语言" },
+      nav: { features: "产品亮点", workflow: "怎么用", privacy: "隐私", languages: "支持语言", support: "支持作者" },
       hero: {
         eyebrow: "Local-first · 开源 · 离线优先",
         title: "把你正在读的内容，<br><span class=\"gradient-text\">变成真正记得住的词汇。</span>",
@@ -100,9 +100,10 @@
         github: "在 GitHub 查看",
         star: "在 GitHub 留下 Star ⭐",
         starAsk: "喜欢 LexiCue？点个 Star 支持一下吧",
+        support: "喜欢 LexiCue？欢迎在爱发电（Aifadian）上支持作者 ❤",
         notice: "安装包目前为未签名构建，首次安装可能触发系统安全提示，<a href=\"https://github.com/skylar-deepmind/LexiCue/blob/main/DISTRIBUTION.md\" target=\"_blank\" rel=\"noreferrer\">按安装说明操作即可</a>。"
       },
-      footer: { tagline: "LexiCue · 本地优先的阅读学习工具", github: "GitHub", license: "MIT License" },
+      footer: { tagline: "LexiCue · 本地优先的阅读学习工具", github: "GitHub", license: "MIT License", support: "支持作者" },
       dl: {
         kicker: "下载",
         title: "选择你要安装的设备",
@@ -140,7 +141,7 @@
       metaTitle: "LexiCue — Learn vocabulary from real reading",
       metaDesc: "LexiCue — a local-first reading tool that turns what you read into vocabulary you remember.",
       themeToggle: "Toggle light / dark theme",
-      nav: { features: "Features", workflow: "How it works", privacy: "Privacy", languages: "Languages" },
+      nav: { features: "Features", workflow: "How it works", privacy: "Privacy", languages: "Languages", support: "Support" },
       hero: {
         eyebrow: "Local-first · Open source · Works offline",
         title: "Read what you love.<br><span class=\"gradient-text\">Remember the words.</span>",
@@ -236,9 +237,10 @@
         github: "View on GitHub",
         star: "Star on GitHub ⭐",
         starAsk: "Enjoying LexiCue? Give it a star on GitHub",
+        support: "Enjoying LexiCue? Support the author on 爱发电 (Aifadian) ❤",
         notice: "Installers are currently unsigned — your system may show a security warning on first install. <a href=\"https://github.com/skylar-deepmind/LexiCue/blob/main/DISTRIBUTION.md\" target=\"_blank\" rel=\"noreferrer\">See the install guide</a>."
       },
-      footer: { tagline: "LexiCue · Local-first reading & vocabulary tool", github: "GitHub", license: "MIT License" },
+      footer: { tagline: "LexiCue · Local-first reading & vocabulary tool", github: "GitHub", license: "MIT License", support: "Support" },
       dl: {
         kicker: "Download",
         title: "Choose your device",
@@ -269,6 +271,143 @@
         },
         note: "Installers are unsigned — your system may warn you on first install. That's expected. <a href=\"https://github.com/skylar-deepmind/LexiCue/blob/main/DISTRIBUTION.md\" target=\"_blank\" rel=\"noreferrer\">See the install guide</a>.",
         all: "Not sure? View all releases →"
+      }
+    },
+
+    ja: {
+      metaTitle: "LexiCue — 好きなものを読んで、単語を覚える",
+      metaDesc: "LexiCue — ローカルファーストのリーディング学習ツール。読んでいる内容が、本当に覚えられる単語になります。",
+      themeToggle: "ライト/ダークテーマを切り替え",
+      nav: { features: "特長", workflow: "使い方", privacy: "プライバシー", languages: "対応言語", support: "支援する" },
+      hero: {
+        eyebrow: "ローカルファースト · オープンソース · オフライン対応",
+        title: "好きなものを読もう。<br><span class=\"gradient-text\">言葉はそのまま覚えられる。</span>",
+        sub: "LexiCue は、読んでいる内容から語彙を育てるローカルファーストのリーディングツールです。記事や字幕を読みながら、わからない単語をその場で調べ、スマートな復習で定着させましょう。",
+        ctaDownload: "無料ダウンロード",
+        ctaGithub: "GitHub で見る",
+        hint: "左のタブをクリックして各機能をプレビュー"
+      },
+      mock: {
+        windowTitle: "LexiCue · 読書",
+        sidebar: { read: "読書", files: "ファイル", words: "単語", phrases: "フレーズ", review: "復習", stats: "統計" },
+        pill: "一文ずつ読む",
+        detailLabel: "単語の詳細",
+        pron: "/ɪˈfektɪv/ · 形容詞",
+        tagA: "新規",
+        tagB: "形容詞",
+        def: "<strong>効果的な；有効な</strong><br>successful in producing the intended result.",
+        contextLabel: "文脈の中での用例",
+        addButton: "復習に追加",
+        files: { import: "ファイルをインポート", processed: "処理済み" },
+        words: { search: "単語を検索…", count: "1,284 単語", t0: "すべて", t1: "未処理", t2: "学習中", t3: "既知", t4: "スキップ", sort: "並べ替え" },
+        phrases: { search: "フレーズを検索…", count: "86 フレーズ", auto: "自動検出", manual: "手動追加" },
+        status: { unprocessed: "未処理", learning: "学習中", known: "既知", ignored: "スキップ" },
+        review: {
+          hint: "クリックで答えを表示",
+          answer: "答え",
+          again: "忘れた", hard: "難しい", good: "覚えている", easy: "簡単",
+          hAgain: "10 分", hHard: "1 日", hGood: "3 日", hEasy: "6 日"
+        },
+        insights: {
+          total: "総単語数", known: "習得済み", learning: "学習中", due: "復習待ち",
+          mastery: "習得度", last7: "直近 7 日間",
+          d0: "月", d1: "火", d2: "水", d3: "木", d4: "金", d5: "土", d6: "日"
+        }
+      },
+      features: {
+        kicker: "LexiCue を選ぶ理由",
+        title: "調べるために読書をやめるのではなく、<br>読書がそのまま学びになる。",
+        sub: "実際に読んでいる内容が中心。その場で理解し、読みながら蓄積し、復習は LexiCue に任せましょう。"
+      },
+      f1: {
+        title: "単語帳ではなく、好きな内容から始める",
+        desc: "TXT・SRT・VTT ファイルを取り込むか、YouTube の字幕を取得。本当に読みたいものを学べます。",
+        youtube: "YouTube 字幕"
+      },
+      f2: { title: "読書の流れを止めずに調べられる", desc: "単語をタップすると意味・読み・例文がすぐ表示され、自動的に単語リストへ追加されます。" },
+      f3: { title: "ちょうどいいタイミングで復習", desc: "忘れかけた瞬間を狙うスマートなリマインドで、「忘れた」を「覚えた」に変えます。" },
+      f4: { title: "辞書はアプリに内蔵", desc: "英語・日本語・ドイツ語・中国語のオフライン辞書を内蔵。インターネットなしでも調べられます。" },
+      f5: { title: "データは自分のコンピューターに", desc: "すべてローカルに保存。アカウント不要、許可なくアップロードされることもありません。" },
+      f6: {
+        title: "AI も使えるけど、使うかはあなた次第",
+        desc: "段落の説明や翻訳が欲しければ AI を有効化。デフォルトではオフなので、明示しない限りテキストが端末の外に出ることはありません。"
+      },
+      workflow: {
+        kicker: "使い方",
+        title: "4 つのステップで、シンプルな学習ループ。",
+        sub: "設定を調べる必要はありません。開いて、流れに沿うだけ。"
+      },
+      s1: { title: "インポート", desc: "記事・字幕・YouTube キャプションを取り込みます。" },
+      s2: { title: "読む", desc: "一文ずつ読み、単語をタップ、訳もちらりと確認。" },
+      s3: { title: "蓄積", desc: "新しい単語とフレーズが自動でリストにたまります。" },
+      s4: { title: "復習", desc: "いいタイミングでそっとリマインド。数単語、数分だけ。" },
+      privacy: {
+        kicker: "デフォルトでローカルファースト",
+        title: "読んでいる内容は、自分のコンピューターに残ります。",
+        body: "すべてのデータは端末内に保存。強制サインアップもクラウド必須もありません。AI を使いたい場合は、ローカルの Ollama か自分の API に接続できます。",
+        list: ["学習記録はローカルデータベースに保存", "辞書は一度取り込めばオフラインで利用可能", "いつでもエクスポート・リストア可能", "AI はオプション、デフォルトでオフ"]
+      },
+      local: {
+        title: "ローカルデータ",
+        status: "端末内",
+        d1: "英語辞書",
+        d2: "日 / 中 / 独辞書",
+        d3: "復習履歴"
+      },
+      lang: {
+        kicker: "対応言語",
+        title: "4 つの言語、同じ使い心地。",
+        sub: "言語を選べば辞書も付いてきます。読む・調べる・復習する、すべて同じ操作感。",
+        h: { language: "学習言語", dict: "オフライン辞書", proc: "自動処理" },
+        dictLabel: "辞書",
+        procLabel: "処理",
+        en: { name: "English · 英語", dict: "ECDICT + フレーズ辞書", proc: "語形の正規化（books → book）" },
+        ja: { name: "日本語 · 日本語", dict: "JMdict", proc: "分かち書き + かな読み" },
+        de: { name: "Deutsch · ドイツ語", dict: "kaikki データ", proc: "語形の正規化" },
+        zh: { name: "中文 · 中国語", dict: "CC-CEDICT", proc: "分かち書き + ピンイン" }
+      },
+      cta: {
+        kicker: "オープンソース · MIT",
+        title: "読んだものが、<br>そのまま小さな語彙の勝利になる。",
+        body: "無料・オープンソースで、まだまだ進化中。GitHub で見るか、さっそくダウンロードしてみましょう。",
+        download: "無料ダウンロード",
+        github: "GitHub で見る",
+        star: "GitHub で Star ⭐",
+        starAsk: "LexiCue が気に入ったら、GitHub で Star を",
+        support: "気に入っていただけたら、愛発電（Aifadian）で作者を支援できます ❤",
+        notice: "インストーラーは現在未署名のため、初回インストール時にセキュリティ警告が表示される場合があります。<a href=\"https://github.com/skylar-deepmind/LexiCue/blob/main/DISTRIBUTION.md\" target=\"_blank\" rel=\"noreferrer\">インストールガイドを見る</a>。"
+      },
+      footer: { tagline: "LexiCue · ローカルファーストのリーディング＆語彙学習ツール", github: "GitHub", license: "MIT License", support: "支援する" },
+      dl: {
+        kicker: "ダウンロード",
+        title: "インストールするデバイスを選択",
+        sub: "デバイスごとに必要なインストーラーが異なります。正しいものを選んでください。",
+        close: "閉じる",
+        detected: "お使いのデバイスを検出",
+        go: "ダウンロードへ →",
+        mac: {
+          name: "macOS",
+          desc: "Mac · DMG インストーラー",
+          arm: "Apple Silicon",
+          intel: "Intel",
+          file: {
+            arm: "最新リリースから、末尾が <span class=\"dl-tag\">_aarch64.dmg</span> のファイルを選んでください。",
+            intel: "最新リリースから、末尾が <span class=\"dl-tag\">_x64.dmg</span> のファイルを選んでください。"
+          },
+          help: "わからない場合は、左上の Apple メニュー → この Mac について → 「チップ」の項目を確認。"
+        },
+        win: {
+          name: "Windows",
+          desc: "PC · インストーラー",
+          file: "最新リリースから、末尾が <span class=\"dl-tag\">-setup.exe</span> のファイルを選んでください。"
+        },
+        and: {
+          name: "Android",
+          desc: "Android スマホ · APK",
+          file: "最新リリースから、末尾が <span class=\"dl-tag\">.apk</span> のファイルを選んでください。"
+        },
+        note: "インストーラーは未署名のため、初回インストール時にシステムから警告が出る場合がありますが正常です。<a href=\"https://github.com/skylar-deepmind/LexiCue/blob/main/DISTRIBUTION.md\" target=\"_blank\" rel=\"noreferrer\">インストールガイドを見る</a>。",
+        all: "迷ったら？全リリースを見る →"
       }
     }
   };
@@ -301,7 +440,7 @@
 
   function applyLanguage(lang) {
     var dict = I18N[lang] || I18N.zh;
-    document.documentElement.lang = lang === "en" ? "en" : "zh-CN";
+    document.documentElement.lang = lang === "en" ? "en" : (lang === "ja" ? "ja" : "zh-CN");
     document.title = dict.metaTitle;
     document.querySelector('meta[name="description"]').content = dict.metaDesc;
 
@@ -332,7 +471,7 @@
   function currentLang() {
     try {
       var saved = localStorage.getItem("lexicue-lang");
-      if (saved === "zh" || saved === "en") return saved;
+      if (saved === "zh" || saved === "en" || saved === "ja") return saved;
     } catch (e) {}
     return "en";
   }
