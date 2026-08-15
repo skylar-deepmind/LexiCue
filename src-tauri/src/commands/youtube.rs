@@ -1255,37 +1255,365 @@ fn parse_srt(content: &str) -> Vec<SrtCue> {
 }
 
 fn merge_srt_cues(primary: &[SrtCue], secondary: &[SrtCue]) -> String {
+    let offset = estimate_time_offset(primary, secondary);
+    let secondary: Vec<SrtCue> = secondary
+        .iter()
+        .map(|cue| SrtCue {
+            start_ms: cue.start_ms - offset,
+            end_ms: cue.end_ms - offset,
+            text: cue.text.clone(),
+        })
+        .collect();
+
+    let primary_signal = has_punctuation_signal(primary);
+    let secondary_signal = has_punctuation_signal(&secondary);
+
+    let pairs = if primary_signal != secondary_signal {
+        // Interlock: the punctuated track anchors the segmentation for both.
+        joint_segment(primary, &secondary)
+    } else {
+        let primary_sentences = merge_cues_into_sentences(primary);
+        let secondary_sentences = merge_cues_into_sentences(&secondary);
+        align_sentences(&primary_sentences, &secondary_sentences)
+    };
+    render_pairs(&pairs)
+}
+
+#[derive(Clone)]
+struct Sentence {
+    start_ms: i64,
+    end_ms: i64,
+    text: String,
+}
+
+const MAX_CUES_PER_SENTENCE: usize = 15;
+const MAX_CHARS_PER_SENTENCE: usize = 240;
+
+fn cue_text(cue: &SrtCue) -> String {
+    cue.text.trim().replace('\n', " ")
+}
+
+fn join_buffer(buffer: &[&SrtCue]) -> String {
+    buffer
+        .iter()
+        .map(|cue| cue_text(cue))
+        .collect::<Vec<_>>()
+        .join(" ")
+        .trim()
+        .to_string()
+}
+
+fn is_abbreviation(text: &str) -> bool {
+    const ABBREVIATIONS: &[&str] = &[
+        "MR", "MRS", "MS", "MISS", "DR", "ST", "JR", "SR", "PROF", "CAPT", "LT", "COL", "GEN",
+        "SEN", "REP", "GOV", "NO", "VS", "ETC", "EG", "IE", "EST", "APPROX", "DEPT", "FIG", "US",
+        "UK", "U.S", "Z.B", "USW", "CA", "NR", "HR", "FR", "BSPW", "GGF", "A.M", "P.M",
+    ];
+    let token_start = text
+        .char_indices()
+        .rev()
+        .find(|(_, c)| !(c.is_alphanumeric() || matches!(c, '.' | '\'' | '-')))
+        .map(|(index, c)| index + c.len_utf8())
+        .unwrap_or(0);
+    let token = text[token_start..].trim_end_matches('.').to_uppercase();
+    if ABBREVIATIONS.contains(&token.as_str()) {
+        return true;
+    }
+    token.contains('.') && token.chars().all(|c| c.is_ascii_digit() || c == '.')
+}
+
+fn is_sentence_boundary(text: &str) -> bool {
+    let mut stripped = text.trim();
+    loop {
+        let Some(last) = stripped.chars().last() else {
+            return false;
+        };
+        if !(last.is_whitespace()
+            || matches!(
+                last,
+                '"' | '\''
+                    | '“'
+                    | '”'
+                    | '‘'
+                    | '’'
+                    | '«'
+                    | '»'
+                    | '「'
+                    | '」'
+                    | '『'
+                    | '』'
+                    | '('
+                    | ')'
+                    | '（'
+                    | '）'
+                    | '['
+                    | ']'
+                    | '【'
+                    | '】'
+            ))
+        {
+            break;
+        }
+        stripped = &stripped[..stripped.len() - last.len_utf8()];
+    }
+    let Some(last) = stripped.chars().last() else {
+        return false;
+    };
+    if matches!(last, '。' | '！' | '？' | '…' | '～' | '~' | '!' | '?') {
+        return true;
+    }
+    if last == '.' {
+        return !is_abbreviation(stripped);
+    }
+    false
+}
+
+fn update_quote_depth(depth: &mut i32, ch: char, prev: char, next: char) {
+    if matches!(ch, '「' | '『' | '（' | '【' | '(' | '[' | '“' | '«') {
+        *depth += 1;
+        return;
+    }
+    if matches!(ch, '」' | '』' | '）' | '】' | ')' | ']' | '”' | '»') {
+        if *depth > 0 {
+            *depth -= 1;
+        }
+        return;
+    }
+    if ch != '"' && ch != '\'' {
+        return;
+    }
+    if ch == '\'' && prev.is_alphanumeric() && next.is_alphanumeric() {
+        return; // contraction, e.g. "I'm"
+    }
+    let prev_word = prev.is_alphanumeric();
+    let next_word = next.is_alphanumeric();
+    let prev_punct = matches!(prev, '.' | ',' | '!' | '?' | '…' | '。' | '！' | '？');
+    if (prev_word || prev_punct) && !next_word {
+        if *depth > 0 {
+            *depth -= 1;
+        }
+    } else if !prev_word && next_word {
+        *depth += 1;
+    }
+}
+
+fn merge_cues_into_sentences(cues: &[SrtCue]) -> Vec<Sentence> {
+    let mut sentences = Vec::new();
+    let mut buffer: Vec<&SrtCue> = Vec::new();
+    let mut quote_depth: i32 = 0;
+    for cue in cues {
+        buffer.push(cue);
+        let text = cue_text(cue);
+        let chars: Vec<char> = text.chars().collect();
+        for (index, ch) in chars.iter().enumerate() {
+            let prev = if index > 0 { chars[index - 1] } else { ' ' };
+            let next = if index + 1 < chars.len() { chars[index + 1] } else { ' ' };
+            update_quote_depth(&mut quote_depth, *ch, prev, next);
+        }
+        let text = join_buffer(&buffer);
+        let chars: usize = buffer.iter().map(|c| c.text.chars().count()).sum();
+        if (quote_depth == 0 && is_sentence_boundary(&text))
+            || chars >= MAX_CHARS_PER_SENTENCE
+            || buffer.len() >= MAX_CUES_PER_SENTENCE
+        {
+            let first = buffer[0];
+            let last = buffer[buffer.len() - 1];
+            sentences.push(Sentence {
+                start_ms: first.start_ms,
+                end_ms: last.end_ms,
+                text,
+            });
+            buffer.clear();
+            quote_depth = 0;
+        }
+    }
+    if !buffer.is_empty() {
+        let first = buffer[0];
+        let last = buffer[buffer.len() - 1];
+        sentences.push(Sentence {
+            start_ms: first.start_ms,
+            end_ms: last.end_ms,
+            text: join_buffer(&buffer),
+        });
+    }
+    sentences
+}
+
+fn has_punctuation_signal(cues: &[SrtCue]) -> bool {
+    if cues.is_empty() {
+        return false;
+    }
+    let boundaries = cues
+        .iter()
+        .filter(|cue| is_sentence_boundary(&cue_text(cue)))
+        .count();
+    boundaries * 4 >= cues.len()
+}
+
+fn estimate_time_offset(primary: &[SrtCue], secondary: &[SrtCue]) -> i64 {
+    let mut deltas = Vec::with_capacity(primary.len().min(secondary.len()));
+    for i in 0..primary.len().min(secondary.len()) {
+        deltas.push(secondary[i].start_ms - primary[i].start_ms);
+    }
+    if deltas.len() < 5 {
+        return 0;
+    }
+    deltas.sort_unstable();
+    let offset = deltas[deltas.len() / 2];
+    offset.clamp(-30_000, 30_000)
+}
+
+fn emit_pair(buf_a: &[&SrtCue], buf_b: &[&SrtCue]) -> (Sentence, Option<Sentence>) {
+    let build = |buf: &[&SrtCue]| Sentence {
+        start_ms: buf.first().map_or(0, |c| c.start_ms),
+        end_ms: buf.last().map_or(0, |c| c.end_ms),
+        text: join_buffer(buf),
+    };
+    let a = build(buf_a);
+    let b = if buf_b.is_empty() { None } else { Some(build(buf_b)) };
+    (a, b)
+}
+
+fn joint_segment(primary: &[SrtCue], secondary: &[SrtCue]) -> Vec<(Sentence, Option<Sentence>)> {
+    let primary_signal = has_punctuation_signal(primary);
+    let secondary_signal = has_punctuation_signal(secondary);
+
+    let mut pairs: Vec<(Sentence, Option<Sentence>)> = Vec::new();
+    let mut buf_a: Vec<&SrtCue> = Vec::new();
+    let mut buf_b: Vec<&SrtCue> = Vec::new();
+    let (mut i, mut j) = (0usize, 0usize);
+
+    loop {
+        if i >= primary.len() && j >= secondary.len() {
+            break;
+        }
+
+        let text_a = join_buffer(&buf_a);
+        let text_b = join_buffer(&buf_b);
+        let a_bound = is_sentence_boundary(&text_a);
+        let b_bound = is_sentence_boundary(&text_b);
+        let a_cap = buf_a.len() >= MAX_CUES_PER_SENTENCE
+            || text_a.chars().count() >= MAX_CHARS_PER_SENTENCE;
+        let b_cap = buf_b.len() >= MAX_CUES_PER_SENTENCE
+            || text_b.chars().count() >= MAX_CHARS_PER_SENTENCE;
+
+        let flush = if primary_signal && secondary_signal {
+            (a_bound && b_bound) || a_cap || b_cap
+        } else if primary_signal || secondary_signal {
+            let signal_bound = if primary_signal { a_bound } else { b_bound };
+            let other_len = if primary_signal { buf_b.len() } else { buf_a.len() };
+            (signal_bound && (other_len >= 2 || (a_bound && b_bound))) || a_cap || b_cap
+        } else {
+            a_cap || b_cap
+        };
+
+        if flush {
+            if !buf_a.is_empty() {
+                pairs.push(emit_pair(&buf_a, &buf_b));
+            }
+            buf_a.clear();
+            buf_b.clear();
+            continue;
+        }
+
+        if buf_a.is_empty() && i < primary.len() {
+            buf_a.push(&primary[i]);
+            i += 1;
+        } else if buf_b.is_empty() && j < secondary.len() {
+            buf_b.push(&secondary[j]);
+            j += 1;
+        } else if i >= primary.len() {
+            // Primary exhausted: emit what we have, then drop the rest.
+            if !buf_a.is_empty() {
+                pairs.push(emit_pair(&buf_a, &buf_b));
+            }
+            buf_a.clear();
+            buf_b.clear();
+        } else {
+            let a_end = buf_a.last().map_or(0, |c| c.end_ms);
+            let b_end = buf_b.last().map_or(0, |c| c.end_ms);
+            if a_end <= b_end {
+                buf_a.push(&primary[i]);
+                i += 1;
+            } else {
+                buf_b.push(&secondary[j]);
+                j += 1;
+            }
+        }
+    }
+
+    if !buf_a.is_empty() {
+        pairs.push(emit_pair(&buf_a, &buf_b));
+    }
+    pairs
+}
+
+fn align_sentences(
+    primary: &[Sentence],
+    secondary: &[Sentence],
+) -> Vec<(Sentence, Option<Sentence>)> {
+    let mut translations: Vec<Option<&str>> = vec![None; primary.len()];
+    let mut j = 0usize;
+    for i in 0..primary.len() {
+        while j < secondary.len() && secondary[j].end_ms < primary[i].start_ms {
+            j += 1;
+        }
+        if j >= secondary.len() {
+            break;
+        }
+        if secondary[j].start_ms > primary[i].end_ms {
+            continue;
+        }
+        let mut best = i;
+        let mut best_overlap = 0i64;
+        let mut k = i;
+        while k < primary.len() && primary[k].start_ms <= secondary[j].end_ms {
+            let overlap = primary[k].end_ms.min(secondary[j].end_ms)
+                - primary[k].start_ms.max(secondary[j].start_ms);
+            if overlap > best_overlap {
+                best_overlap = overlap;
+                best = k;
+            }
+            k += 1;
+        }
+        if translations[best].is_none() {
+            translations[best] = Some(&secondary[j].text);
+        }
+        j += 1;
+    }
+
+    primary
+        .iter()
+        .enumerate()
+        .map(|(index, sentence)| {
+            let translation = translations[index].map(|text| Sentence {
+                start_ms: 0,
+                end_ms: 0,
+                text: text.to_string(),
+            });
+            (sentence.clone(), translation)
+        })
+        .collect()
+}
+
+fn render_pairs(pairs: &[(Sentence, Option<Sentence>)]) -> String {
     let mut out = String::new();
-    let mut sec = 0usize;
-    for (index, cue) in primary.iter().enumerate() {
-        while sec < secondary.len() && secondary[sec].end_ms < cue.start_ms {
-            sec += 1;
-        }
-        let mut translation: Option<&str> = None;
-        if sec < secondary.len() {
-            let candidate = &secondary[sec];
-            if candidate.start_ms < cue.end_ms && candidate.end_ms > cue.start_ms {
-                translation = Some(candidate.text.trim());
-                if candidate.end_ms <= cue.end_ms {
-                    sec += 1;
-                }
-            }
-        }
-        let src = cue.text.trim().replace('\n', " ");
+    for (index, (sentence, translation)) in pairs.iter().enumerate() {
         out.push_str(&format!(
-            "{}\n{} --> {}\n{}\n",
+            "{}\n{} --> {}\n{}",
             index + 1,
-            ms_to_srt_ts(cue.start_ms as f64),
-            ms_to_srt_ts(cue.end_ms as f64),
-            src
+            ms_to_srt_ts(sentence.start_ms as f64),
+            ms_to_srt_ts(sentence.end_ms as f64),
+            sentence.text
         ));
-        if let Some(zh) = translation {
-            if !zh.is_empty() {
-                out.push_str(zh);
+        if let Some(translation) = translation {
+            let translation = translation.text.trim();
+            if !translation.is_empty() {
                 out.push('\n');
+                out.push_str(translation);
             }
         }
-        out.push('\n');
+        out.push_str("\n\n");
     }
     out
 }
@@ -1329,17 +1657,130 @@ mod tests {
     #[test]
     fn merges_overlapping_secondary_cues() {
         let primary = vec![
-            SrtCue { start_ms: 1000, end_ms: 3000, text: "First".to_string() },
-            SrtCue { start_ms: 3000, end_ms: 5000, text: "Second".to_string() },
+            SrtCue { start_ms: 1000, end_ms: 3000, text: "First.".to_string() },
+            SrtCue { start_ms: 3000, end_ms: 5000, text: "Second.".to_string() },
         ];
         let secondary = vec![
-            SrtCue { start_ms: 1500, end_ms: 2500, text: "一".to_string() },
+            SrtCue { start_ms: 1500, end_ms: 2500, text: "一。".to_string() },
             SrtCue { start_ms: 6000, end_ms: 7000, text: "无匹配".to_string() },
         ];
         let merged = merge_srt_cues(&primary, &secondary);
-        assert!(merged.contains("First\n一"));
-        assert!(merged.contains("Second\n"));
+        assert!(merged.contains("First.\n一。"));
+        assert!(merged.contains("Second.\n"));
         assert!(!merged.contains("无匹配"));
+    }
+
+    #[test]
+    fn joins_cues_into_complete_sentences() {
+        let primary = vec![
+            SrtCue { start_ms: 1000, end_ms: 2000, text: "I went to the store".to_string() },
+            SrtCue { start_ms: 2000, end_ms: 3000, text: "and bought some milk.".to_string() },
+            SrtCue { start_ms: 3000, end_ms: 4000, text: "Then I left.".to_string() },
+        ];
+        let sentences = merge_cues_into_sentences(&primary);
+        assert_eq!(sentences.len(), 2);
+        assert_eq!(sentences[0].text, "I went to the store and bought some milk.");
+        assert_eq!(sentences[0].start_ms, 1000);
+        assert_eq!(sentences[0].end_ms, 3000);
+        assert_eq!(sentences[1].text, "Then I left.");
+    }
+
+    #[test]
+    fn detects_sentence_boundaries() {
+        assert!(is_sentence_boundary("Hello."));
+        assert!(is_sentence_boundary("Really?"));
+        assert!(is_sentence_boundary("Wow!"));
+        assert!(is_sentence_boundary("他走了。"));
+        assert!(is_sentence_boundary("そうですね。"));
+        assert!(!is_sentence_boundary("keep going"));
+        assert!(!is_sentence_boundary("He saw Dr."));
+        assert!(!is_sentence_boundary("U.S."));
+        assert!(!is_sentence_boundary("3.5"));
+        assert!(is_sentence_boundary("速度是3.5米。"));
+        assert!(is_sentence_boundary("That's all."));
+    }
+
+    #[test]
+    fn attaches_spanning_translation_to_best_overlap() {
+        let primary = vec![
+            SrtCue { start_ms: 1000, end_ms: 3000, text: "First sentence.".to_string() },
+            SrtCue { start_ms: 3000, end_ms: 5000, text: "Second sentence.".to_string() },
+        ];
+        let secondary = vec![
+            SrtCue { start_ms: 2800, end_ms: 4800, text: "两句合译。".to_string() },
+        ];
+        let merged = merge_srt_cues(&primary, &secondary);
+        let cues = parse_srt(&merged);
+        assert_eq!(cues.len(), 2);
+        assert!(!cues[0].text.contains("两句合译"));
+        assert!(cues[1].text.contains("Second sentence.\n两句合译"));
+    }
+
+    #[test]
+    fn leaves_translation_empty_when_tracks_drift() {
+        let primary = vec![
+            SrtCue { start_ms: 1000, end_ms: 2000, text: "Here.".to_string() },
+        ];
+        let secondary = vec![
+            SrtCue { start_ms: 9000, end_ms: 10000, text: "差距太大。".to_string() },
+        ];
+        let merged = merge_srt_cues(&primary, &secondary);
+        assert!(merged.contains("Here.\n\n"));
+        assert!(!merged.contains("差距太大"));
+    }
+
+    #[test]
+    fn continues_sentences_across_cue_boundaries_inside_quotes() {
+        let primary = vec![
+            SrtCue { start_ms: 1000, end_ms: 2000, text: "He said, \"I'm fine.".to_string() },
+            SrtCue { start_ms: 2000, end_ms: 3000, text: "She left.\"".to_string() },
+        ];
+        let sentences = merge_cues_into_sentences(&primary);
+        assert_eq!(sentences.len(), 1);
+        assert_eq!(sentences[0].text, "He said, \"I'm fine. She left.\"");
+    }
+
+    #[test]
+    fn anchors_no_punctuation_track_on_translation_boundaries() {
+        let primary = vec![
+            SrtCue { start_ms: 0, end_ms: 2000, text: "One two".to_string() },
+            SrtCue { start_ms: 2000, end_ms: 4000, text: "three four".to_string() },
+            SrtCue { start_ms: 4000, end_ms: 6000, text: "five six".to_string() },
+            SrtCue { start_ms: 6000, end_ms: 8000, text: "seven eight".to_string() },
+        ];
+        let secondary = vec![
+            SrtCue { start_ms: 0, end_ms: 4000, text: "一二。".to_string() },
+            SrtCue { start_ms: 4000, end_ms: 8000, text: "三四。".to_string() },
+        ];
+        let merged = merge_srt_cues(&primary, &secondary);
+        let cues = parse_srt(&merged);
+        assert_eq!(cues.len(), 2);
+        assert!(cues[0].text.contains("One two three four"));
+        assert!(cues[0].text.contains("一二。"));
+        assert!(cues[1].text.contains("five six seven eight"));
+        assert!(cues[1].text.contains("三四。"));
+    }
+
+    #[test]
+    fn corrects_global_time_offset_between_tracks() {
+        let primary: Vec<SrtCue> = (0..6)
+            .map(|i| SrtCue {
+                start_ms: 1000 + i * 2000,
+                end_ms: 2000 + i * 2000,
+                text: format!("Sentence {}.", i + 1),
+            })
+            .collect();
+        let secondary: Vec<SrtCue> = (0..6)
+            .map(|i| SrtCue {
+                start_ms: 6500 + i * 2000,
+                end_ms: 7500 + i * 2000,
+                text: format!("第{}句。", i + 1),
+            })
+            .collect();
+        let merged = merge_srt_cues(&primary, &secondary);
+        for i in 0..6 {
+            assert!(merged.contains(&format!("Sentence {}.\n第{}句。", i + 1, i + 1)));
+        }
     }
 
     #[test]
@@ -1382,7 +1823,7 @@ mod tests {
         assert!(!cues_b.is_empty());
         let merged = merge_srt_cues(&cues_a, &cues_b);
         let merged_cues = parse_srt(&merged);
-        assert_eq!(merged_cues.len(), cues_a.len());
+        assert!(merged_cues.len() <= cues_a.len());
         assert!(merged.contains("-->"));
         assert!(
             merged_cues.iter().any(|cue| cue.text.contains('\n')),

@@ -1,4 +1,10 @@
 import { tokenizeWithPositionsForLanguage } from './tokenizer';
+import {
+  alignSentenceStreams,
+  mergeUnitsIntoSentences,
+  splitIntoSentences,
+  type SentenceMergeUnit,
+} from './sentenceMerge';
 import type { SegmentInput, OccurrenceInput } from './types';
 import type { Language } from './languages';
 
@@ -58,18 +64,20 @@ function parseSrtBlocks(content: string, _mode: SubtitleMode, language: Language
 
   const blocks = normalized.split(/\n\n+/);
 
-  const segments: SegmentInput[] = [];
-  const allLemmas: Set<string> = new Set();
-  const allOccurrences: OccurrenceInput[] = [];
+  interface Cue {
+    startTime: string | null;
+    endTime: string | null;
+    sourceLines: string[];
+    transLines: string[];
+  }
 
-  let segIndex = 0;
+  const cues: Cue[] = [];
 
   for (const block of blocks) {
     const lines = block.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     if (lines.length === 0) continue;
 
-    const indexLineIdx = lines.findIndex(l => !/^\d+$/.test(l) && !l.includes('-->'));
-    if (indexLineIdx === -1) continue;
+    if (lines.findIndex(l => !/^\d+$/.test(l) && !l.includes('-->')) === -1) continue;
 
     let startTime: string | null = null;
     let endTime: string | null = null;
@@ -127,21 +135,42 @@ function parseSrtBlocks(content: string, _mode: SubtitleMode, language: Language
 
     if (enLines.length === 0) continue;
 
-    const enText = enLines.join(' ').replace(/\s+/g, ' ').trim();
-    const zhText = zhLines.length > 0
-      ? (language === 'zh'
-          ? zhLines.join(' ').replace(/\s+/g, ' ').trim()
-          : zhLines.join('').replace(/\s+/g, '').trim())
-      : null;
+    cues.push({ startTime, endTime, sourceLines: enLines, transLines: zhLines });
+  }
 
-    const words = tokenizeWithPositionsForLanguage(enText, language);
+  const units: SentenceMergeUnit[] = [];
+  const translationLanguage = language === 'zh' ? 'en' : 'zh';
+
+  for (const cue of cues) {
+    const sourceStream = cue.sourceLines.flatMap((line) => splitIntoSentences(line, language));
+    const transStream = cue.transLines.flatMap((line) => splitIntoSentences(line, translationLanguage));
+
+    const pairs = alignSentenceStreams(sourceStream, transStream, language);
+    for (const pair of pairs) {
+      units.push({
+        source: pair.source,
+        translation: pair.translation,
+        startTime: cue.startTime,
+        endTime: cue.endTime,
+      });
+    }
+  }
+
+  const sentences = mergeUnitsIntoSentences(units, language);
+
+  const segments: SegmentInput[] = [];
+  const allLemmas: Set<string> = new Set();
+  const allOccurrences: OccurrenceInput[] = [];
+
+  sentences.forEach((sentence, segIndex) => {
+    const words = tokenizeWithPositionsForLanguage(sentence.source, language);
 
     segments.push({
       index: segIndex,
-      en_text: enText,
-      zh_text: zhText,
-      start_time: startTime,
-      end_time: endTime,
+      en_text: sentence.source,
+      zh_text: sentence.translation,
+      start_time: sentence.startTime,
+      end_time: sentence.endTime,
     });
 
     for (const w of words) {
@@ -154,9 +183,7 @@ function parseSrtBlocks(content: string, _mode: SubtitleMode, language: Language
         position: w.position,
       });
     }
-
-    segIndex++;
-  }
+  });
 
   return {
     segments,
