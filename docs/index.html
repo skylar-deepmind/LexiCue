@@ -117,10 +117,10 @@
             <div class="app-shell">
               <aside class="sidebar" aria-label="Module switcher">
                 <div class="mini-logo"><img class="logo" src="lexicue-icon.png" alt="LexiCue" width="24" height="24" /> LexiCue</div>
-                <button type="button" class="side-item active" data-view="reading"><span class="icon">≡</span><span data-i18n="mock.sidebar.read">Reading</span></button>
                 <button type="button" class="side-item" data-view="files"><span class="icon">▤</span><span data-i18n="mock.sidebar.files">Files</span></button>
                 <button type="button" class="side-item" data-view="words"><span class="icon">Aa</span><span data-i18n="mock.sidebar.words">Words</span></button>
                 <button type="button" class="side-item" data-view="phrases"><span class="icon">◌</span><span data-i18n="mock.sidebar.phrases">Phrases</span></button>
+                <button type="button" class="side-item active" data-view="reading"><span class="icon">≡</span><span data-i18n="mock.sidebar.read">Reading</span></button>
                 <button type="button" class="side-item" data-view="review"><span class="icon">↻</span><span data-i18n="mock.sidebar.review">Review</span></button>
                 <button type="button" class="side-item" data-view="insights"><span class="icon">▦</span><span data-i18n="mock.sidebar.stats">Stats</span></button>
               </aside>
@@ -141,12 +141,11 @@
                     <aside class="detail">
                       <div class="detail-label" data-i18n="mock.detailLabel">Word detail</div>
                       <div class="detail-word">effective</div>
-                      <div class="detail-pron" data-i18n="mock.pron">/ɪˈfektɪv/ · adjective</div>
-                      <div class="tag-row"><span class="tag" data-i18n="mock.tagA">new</span><span class="tag" data-i18n="mock.tagB">adjective</span></div>
+                      <div class="detail-pron"><button type="button" class="pron-btn" aria-label="Play pronunciation"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14"/></svg></button><span data-i18n="mock.pron">/ɪˈfektɪv/ · adjective</span></div>
+                      <div class="detail-badge" title="Learning"><span class="badge blue" data-i18n="mock.status.learning">Learning</span><span class="badge-chevron">▾</span></div>
                       <div class="definition" data-i18n="mock.def"><strong>有效的；起作用的</strong><br>successful in producing the intended result.</div>
                       <div class="detail-label" style="margin-top:14px" data-i18n="mock.contextLabel">In context</div>
                       <div class="definition" style="border-top:0">The most effective learning happens when…</div>
-                      <button class="add-review" data-i18n="mock.addButton">Add to review</button>
                     </aside>
                   </div>
                 </div>
@@ -161,6 +160,10 @@
                     </div>
                   </div>
                   <div class="files-grid">
+                    <div class="folder-card">
+                      <span class="folder-icon">📁</span>
+                      <div class="file-info"><div class="file-name" data-i18n="mock.files.folderName">Study Notes</div><div class="file-meta" data-i18n="mock.files.folderFiles">12 files</div></div>
+                    </div>
                     <div class="file-card">
                       <span class="file-emoji">📄</span>
                       <div class="file-info"><div class="file-name">The Art of Clear Writing.txt</div><div class="file-meta">TXT · 1,284 words</div></div>
@@ -184,11 +187,11 @@
                     <div class="mock-search" data-i18n="mock.words.search">Search words…</div>
                   </div>
                   <div class="mock-tabs">
-                    <span class="mock-tab" data-i18n="mock.words.t0">All</span>
-                    <span class="mock-tab" data-i18n="mock.words.t1">New</span>
-                    <span class="mock-tab active" data-i18n="mock.words.t2">Learning</span>
+                    <span class="mock-tab active" data-i18n="mock.words.t1">New</span>
+                    <span class="mock-tab" data-i18n="mock.words.t2">Learning</span>
                     <span class="mock-tab" data-i18n="mock.words.t3">Known</span>
                     <span class="mock-tab" data-i18n="mock.words.t4">Ignored</span>
+                    <span class="mock-tab" data-i18n="mock.words.t0">All</span>
                     <span class="mock-sort"><span data-i18n="mock.words.sort">Sort</span>：frequency ▾</span>
                   </div>
                   <div class="mock-count" data-i18n="mock.words.count">1,284 words</div>
@@ -199,6 +202,8 @@
                     <div class="word-row"><span class="row-check"></span><span class="row-lemma">meaningful</span><span class="row-freq">×6</span><span class="badge green" data-i18n="mock.status.known">Known</span></div>
                     <div class="word-row"><span class="row-check"></span><span class="row-lemma">revisit</span><span class="row-freq">×4</span><span class="badge gray" data-i18n="mock.status.unprocessed">New</span></div>
                     <div class="word-row"><span class="row-check"></span><span class="row-lemma">genuinely</span><span class="row-freq">×3</span><span class="badge dim" data-i18n="mock.status.ignored">Ignored</span></div>
+                    <div class="word-row"><span class="row-check"></span><span class="row-lemma">context</span><span class="row-freq">×2</span><span class="badge gray" data-i18n="mock.status.unprocessed">New</span></div>
+                    <div class="word-row"><span class="row-check"></span><span class="row-lemma">pronounce</span><span class="row-freq">×1</span><span class="badge gray" data-i18n="mock.status.unprocessed">New</span></div>
                   </div>
                 </div>
 
@@ -209,19 +214,21 @@
                     <div class="mock-search" data-i18n="mock.phrases.search">Search phrases…</div>
                   </div>
                   <div class="mock-tabs">
-                    <span class="mock-tab" data-i18n="mock.words.t0">All</span>
-                    <span class="mock-tab active" data-i18n="mock.words.t2">Learning</span>
-                    <span class="mock-tab" data-i18n="mock.words.t1">New</span>
+                    <span class="mock-tab active" data-i18n="mock.words.t1">New</span>
+                    <span class="mock-tab" data-i18n="mock.words.t2">Learning</span>
                     <span class="mock-tab" data-i18n="mock.words.t3">Known</span>
+                    <span class="mock-tab" data-i18n="mock.words.t4">Ignored</span>
+                    <span class="mock-tab" data-i18n="mock.words.t0">All</span>
                     <span class="mock-sort"><span data-i18n="mock.words.sort">Sort</span>：frequency ▾</span>
                   </div>
                   <div class="mock-count" data-i18n="mock.phrases.count">86 phrases</div>
                   <div class="mock-list">
-                    <div class="phrase-row"><div class="phrase-main"><span class="phrase-text">in isolation</span><span class="phrase-trans">孤立地；单独地</span></div><span class="row-freq">×6</span><span class="source auto" data-i18n="mock.phrases.auto">Auto</span></div>
-                    <div class="phrase-row"><div class="phrase-main"><span class="phrase-text">in context</span><span class="phrase-trans">在语境中</span></div><span class="row-freq">×5</span><span class="source auto" data-i18n="mock.phrases.auto">Auto</span></div>
-                    <div class="phrase-row"><div class="phrase-main"><span class="phrase-text">pick up</span><span class="phrase-trans">学会；捡起</span></div><span class="row-freq">×4</span><span class="source auto" data-i18n="mock.phrases.auto">Auto</span></div>
-                    <div class="phrase-row"><div class="phrase-main"><span class="phrase-text">come across</span><span class="phrase-trans">偶然遇到</span></div><span class="row-freq">×3</span><span class="source auto" data-i18n="mock.phrases.auto">Auto</span></div>
-                    <div class="phrase-row"><div class="phrase-main"><span class="phrase-text">right now</span><span class="phrase-trans">现在；立刻</span></div><span class="row-freq">×2</span><span class="source manual" data-i18n="mock.phrases.manual">Manual</span></div>
+                    <div class="phrase-row"><span class="row-check"></span><div class="phrase-main"><span class="phrase-text">in isolation</span></div><span class="row-freq">×6</span><span class="badge gray" data-i18n="mock.status.unprocessed">New</span><span class="source auto" data-i18n="mock.phrases.auto">Auto</span></div>
+                    <div class="phrase-row"><span class="row-check"></span><div class="phrase-main"><span class="phrase-text">in context</span></div><span class="row-freq">×5</span><span class="badge blue" data-i18n="mock.status.learning">Learning</span><span class="source auto" data-i18n="mock.phrases.auto">Auto</span></div>
+                    <div class="phrase-row"><span class="row-check"></span><div class="phrase-main"><span class="phrase-text">pick up</span></div><span class="row-freq">×4</span><span class="badge blue" data-i18n="mock.status.learning">Learning</span><span class="source auto" data-i18n="mock.phrases.auto">Auto</span></div>
+                    <div class="phrase-row"><span class="row-check"></span><div class="phrase-main"><span class="phrase-text">come across</span></div><span class="row-freq">×3</span><span class="badge green" data-i18n="mock.status.known">Known</span><span class="source auto" data-i18n="mock.phrases.auto">Auto</span></div>
+                    <div class="phrase-row"><span class="row-check"></span><div class="phrase-main"><span class="phrase-text">right now</span></div><span class="row-freq">×2</span><span class="badge dim" data-i18n="mock.status.ignored">Ignored</span><span class="source manual" data-i18n="mock.phrases.manual">Manual</span></div>
+                    <div class="phrase-row"><span class="row-check"></span><div class="phrase-main"><span class="phrase-text">get started</span></div><span class="row-freq">×1</span><span class="badge gray" data-i18n="mock.status.unprocessed">New</span><span class="source manual" data-i18n="mock.phrases.manual">Manual</span></div>
                   </div>
                 </div>
 
@@ -261,6 +268,12 @@
                     <div class="stat-card"><span data-i18n="mock.insights.learning">Learning</span><b class="blue">142</b></div>
                     <div class="stat-card"><span data-i18n="mock.insights.due">Due</span><b class="orange">28</b></div>
                   </div>
+                  <div class="stats-grid phrase">
+                    <div class="stat-card"><span data-i18n="mock.insights.totalPhrases">Total phrases</span><b>86</b></div>
+                    <div class="stat-card"><span data-i18n="mock.insights.known">Mastered</span><b class="green">24</b></div>
+                    <div class="stat-card"><span data-i18n="mock.insights.learning">Learning</span><b class="violet">31</b></div>
+                    <div class="stat-card"><span data-i18n="mock.insights.due">Due</span><b class="orange">6</b></div>
+                  </div>
                   <div class="insights-row">
                     <div class="insight-card">
                       <div class="insight-card-head"><span data-i18n="mock.insights.mastery">Mastery</span><span class="green">28%</span></div>
@@ -270,6 +283,15 @@
                       <div class="dist-row"><span data-i18n="mock.status.learning">Learning</span><b class="blue">142</b></div>
                       <div class="dist-row"><span data-i18n="mock.status.unprocessed">New</span><b class="gray">758</b></div>
                       <div class="dist-row"><span data-i18n="mock.status.ignored">Ignored</span><b class="gray">28</b></div>
+                    </div>
+                    <div class="insight-card">
+                      <div class="insight-card-head"><span data-i18n="mock.insights.phraseMastery">Phrase mastery</span><span class="violet">28%</span></div>
+                      <div class="insight-bar"><i style="width:28%; background:#8b5cf6"></i></div>
+                      <div class="insight-sub">24 / 86</div>
+                      <div class="dist-row"><span data-i18n="mock.status.known">Known</span><b class="green">24</b></div>
+                      <div class="dist-row"><span data-i18n="mock.status.learning">Learning</span><b class="violet">31</b></div>
+                      <div class="dist-row"><span data-i18n="mock.status.unprocessed">New</span><b class="gray">28</b></div>
+                      <div class="dist-row"><span data-i18n="mock.status.ignored">Ignored</span><b class="gray">3</b></div>
                     </div>
                     <div class="insight-card">
                       <div class="insight-card-head" data-i18n="mock.insights.last7">Last 7 days</div>

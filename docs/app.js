@@ -19,12 +19,9 @@
         pill: "逐句阅读",
         detailLabel: "单词详情",
         pron: "/ɪˈfektɪv/ · 形容词",
-        tagA: "新词",
-        tagB: "形容词",
         def: "<strong>有效的；起作用的</strong><br>successful in producing the intended result.",
         contextLabel: "原文语境",
-        addButton: "加入学习",
-        files: { import: "导入文件", processed: "已处理" },
+        files: { import: "导入文件", processed: "已处理", folderName: "学习笔记", folderFiles: "12 个文件" },
         words: { search: "搜索单词…", count: "1,284 个单词", t0: "全部", t1: "未处理", t2: "学习中", t3: "已掌握", t4: "已跳过", sort: "排序" },
         phrases: { search: "搜索词组…", count: "86 个词组", auto: "自动识别", manual: "手动添加" },
         status: { unprocessed: "未处理", learning: "学习中", known: "已掌握", ignored: "已跳过" },
@@ -36,6 +33,7 @@
         },
         insights: {
           total: "单词总数", known: "已掌握", learning: "学习中", due: "待复习",
+          totalPhrases: "词组总数", phraseMastery: "词组掌握度",
           mastery: "掌握进度", last7: "近 7 天复习",
           d0: "周一", d1: "周二", d2: "周三", d3: "周四", d4: "周五", d5: "周六", d6: "周日"
         }
@@ -156,12 +154,9 @@
         pill: "Read line by line",
         detailLabel: "Word detail",
         pron: "/ɪˈfektɪv/ · adjective",
-        tagA: "new",
-        tagB: "adjective",
         def: "<strong>有效的；起作用的</strong><br>successful in producing the intended result.",
         contextLabel: "In context",
-        addButton: "Add to review",
-        files: { import: "Import file", processed: "Processed" },
+        files: { import: "Import file", processed: "Processed", folderName: "Study Notes", folderFiles: "12 files" },
         words: { search: "Search words…", count: "1,284 words", t0: "All", t1: "New", t2: "Learning", t3: "Known", t4: "Ignored", sort: "Sort" },
         phrases: { search: "Search phrases…", count: "86 phrases", auto: "Auto", manual: "Manual" },
         status: { unprocessed: "New", learning: "Learning", known: "Known", ignored: "Ignored" },
@@ -173,6 +168,7 @@
         },
         insights: {
           total: "Total words", known: "Mastered", learning: "Learning", due: "Due",
+          totalPhrases: "Total phrases", phraseMastery: "Phrase mastery",
           mastery: "Mastery", last7: "Last 7 days",
           d0: "Mon", d1: "Tue", d2: "Wed", d3: "Thu", d4: "Fri", d5: "Sat", d6: "Sun"
         }
@@ -293,12 +289,9 @@
         pill: "一文ずつ読む",
         detailLabel: "単語の詳細",
         pron: "/ɪˈfektɪv/ · 形容詞",
-        tagA: "新規",
-        tagB: "形容詞",
         def: "<strong>効果的な；有効な</strong><br>successful in producing the intended result.",
         contextLabel: "文脈の中での用例",
-        addButton: "復習に追加",
-        files: { import: "ファイルをインポート", processed: "処理済み" },
+        files: { import: "ファイルをインポート", processed: "処理済み", folderName: "学習ノート", folderFiles: "12 ファイル" },
         words: { search: "単語を検索…", count: "1,284 単語", t0: "すべて", t1: "未処理", t2: "学習中", t3: "既知", t4: "スキップ", sort: "並べ替え" },
         phrases: { search: "フレーズを検索…", count: "86 フレーズ", auto: "自動検出", manual: "手動追加" },
         status: { unprocessed: "未処理", learning: "学習中", known: "既知", ignored: "スキップ" },
@@ -310,6 +303,7 @@
         },
         insights: {
           total: "総単語数", known: "習得済み", learning: "学習中", due: "復習待ち",
+          totalPhrases: "総フレーズ数", phraseMastery: "フレーズ習得度",
           mastery: "習得度", last7: "直近 7 日間",
           d0: "月", d1: "火", d2: "水", d3: "木", d4: "金", d5: "土", d6: "日"
         }

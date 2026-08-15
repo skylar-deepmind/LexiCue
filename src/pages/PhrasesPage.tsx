@@ -265,9 +265,9 @@ export default function PhrasesPage() {
 
       <div className="flex-1 overflow-y-auto">
         {loading ? (
-          <div className="divide-y divide-gray-50">
+          <div className="grid grid-cols-1 gap-x-8 sm:grid-cols-2 xl:grid-cols-3">
             {Array.from({ length: 12 }).map((_, index) => (
-              <div key={index} className="flex items-center gap-3 px-4 py-3 sm:px-6">
+              <div key={index} className="flex items-center gap-3 px-4 py-3">
                 <Skeleton className="h-4 w-4" />
                 <div className="flex-1 space-y-2">
                   <div className="flex items-center gap-2">
@@ -287,8 +287,8 @@ export default function PhrasesPage() {
         ) : visiblePhrases.length === 0 ? (
           <EmptyState icon="🔎" title={t('phrases.noMatchTitle')} description={t('phrases.noMatchDescription')} />
         ) : (
-          <div className="divide-y divide-gray-50">
-            <div className="flex items-center gap-3 px-6 py-2 bg-gray-50 text-xs text-gray-500">
+          <div>
+            <div className="flex items-center gap-3 px-4 sm:px-6 py-2 bg-gray-50 text-xs text-gray-500">
               <input
                 ref={selectAllRef}
                 type="checkbox"
@@ -302,6 +302,7 @@ export default function PhrasesPage() {
               <span>{t('phrases.currentResults', { count: visiblePhrases.length })}</span>
               {someVisibleSelected && <span>{t('phrases.selectedCount', { count: selected.size })}</span>}
             </div>
+            <div className="grid grid-cols-1 gap-x-8 px-4 sm:px-6 pt-1 sm:grid-cols-2 xl:grid-cols-3">
             {pagePhrases.map((phrase) => (
               <div
                 key={phrase.id}
@@ -315,7 +316,7 @@ export default function PhrasesPage() {
                     status: phrase.status as WordStatus,
                   });
                 }}
-                className="flex items-start gap-3 px-4 sm:px-6 py-3 hover:bg-gray-50 transition-colors group"
+                className="flex items-start gap-3 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors group"
               >
                 <input
                   type="checkbox"
@@ -353,6 +354,7 @@ export default function PhrasesPage() {
                 </div>
               </div>
             ))}
+            </div>
           </div>
         )}
       </div>
