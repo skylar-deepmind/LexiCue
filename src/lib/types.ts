@@ -13,6 +13,16 @@ export interface FileRecord {
   phrase_analysis_at: number | null;
   language: Language;
   folder_id: number | null;
+  word_progress: LearningProgress;
+  phrase_progress: LearningProgress;
+}
+
+export interface LearningProgress {
+  total: number;
+  unprocessed: number;
+  learning: number;
+  known: number;
+  ignored: number;
 }
 
 export interface FolderInfo {
@@ -41,10 +51,14 @@ export interface WordInfo {
   language: Language;
   reading: string | null;
   part_of_speech: string | null;
+  baseline_pending?: boolean;
 }
 
 export interface OccurrenceDetail {
   id: number;
+  file_id: number;
+  segment_id: number;
+  segment_index: number;
   original_form: string;
   position: number;
   en_text: string;
@@ -52,6 +66,7 @@ export interface OccurrenceDetail {
   start_time: string | null;
   end_time: string | null;
   file_name: string;
+  hidden: boolean;
 }
 
 export interface WordDetail {
@@ -102,6 +117,7 @@ export interface DueCard {
   language: Language;
   reading: string | null;
   part_of_speech: string | null;
+  baseline_pending: boolean;
 }
 
 export interface CardOccurrence {

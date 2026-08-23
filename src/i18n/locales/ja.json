@@ -10,6 +10,16 @@
     "saved": "保存しました",
     "retry": "再試行"
   },
+  "display": {
+    "title": "表示",
+    "aria": "学習コンテンツの表示を調整",
+    "categories": {
+      "learning": "学習テキスト",
+      "definition": "定義・訳文",
+      "auxiliary": "補足情報"
+    },
+    "sizes": { "sm": "小", "md": "標準", "lg": "大" }
+  },
   "status": {
     "unprocessed": "未処理",
     "learning": "学習中",
@@ -59,10 +69,13 @@
   "settings": {
     "title": "設定",
     "navAria": "設定セクション",
+    "expand": "展開",
+    "collapse": "折りたたむ",
     "uiLanguage": {
       "title": "表示言語",
       "description": "アプリの表示言語を選択します。"
     },
+    "frequencyBaseline": { "title": "頻度ベースライン" },
     "ai": {
       "title": "AI 機能",
       "description": "有効にすると段落の説明やフレーズの自動認識ができます。ローカルの Ollama またはクラウド API キーに対応しています。",
@@ -85,6 +98,8 @@
       "statusError": "接続に失敗しました。設定を確認してください。",
       "statusIdle": "接続はまだテストされていません",
       "disabledHint": "AI は無効です。読書・ファイルページの AI ボタンは非表示になります。ここからいつでも再度有効にできます。",
+      "summaryEnabled": "有効 · {{provider}}",
+      "summaryDisabled": "無効",
       "custom": "カスタム"
     },
     "youtube": {
@@ -113,6 +128,7 @@
       "loading": "辞書リストを読み込み中...",
       "empty": "オフライン辞書はまだインポートされていません",
       "emptyHint": "JSON 辞書パックをインポートすると、復習カードが自動的にその意味を読み込みます。",
+      "summary": "内蔵辞書とインポート済みパックを管理します。",
       "entries": "{{count}} 件の辞書エントリ",
       "importedAt": "{{date}} にインポート",
       "license": "ライセンス：{{license}}",
@@ -124,6 +140,8 @@
     "storage": {
       "title": "ストレージ",
       "description": "この端末で LexiCue のデータが使用しているディスク容量を表示します。",
+      "summaryKnown": "合計使用量 {{size}}",
+      "summaryUnknown": "展開してローカルの使用量を計算します。",
       "total": "合計使用量",
       "database": "データベース",
       "audioCache": "音声キャッシュ",
@@ -188,6 +206,7 @@
   "fileCard": {
     "segments": "{{count}} セグメント",
     "aiDone": "AI フレーズ分析が完了しました",
+    "analysisFailed": "AI フレーズ分析に失敗しました",
     "analyzing": "フレーズを分析中",
     "preparing": "準備中...",
     "segmentsProgress": "{{processed}}/{{total}} セグメント",
@@ -200,7 +219,56 @@
     "cancelAria": "AI フレーズ分析を中断",
     "retrying": "AI サービスが一時的に利用できません（{{reason}}）。自動再試行中（{{attempt}}/{{maxAttempts}}）...",
     "moveAria": "{{name}} をフォルダに移動",
-    "moveTitle": "フォルダに移動"
+    "moveTitle": "フォルダに移動",
+    "learningProgress": "学習進捗",
+    "learningProgressAria": "学習進捗：{{stage}}",
+    "noLearningContent": "学習内容はありません",
+    "wordsOnlyPending": "単語のみ · フレーズ未分析",
+    "stage": {
+      "notStarted": "未開始",
+      "starting": "スタート",
+      "progressing": "進行中",
+      "flowing": "順調",
+      "nearlyDone": "完了間近",
+      "complete": "完了"
+    }
+  },
+  "fileDetail": {
+    "back": "ファイルに戻る",
+    "notFound": "ファイルが見つかりません", "notFoundHint": "削除された可能性があります。ファイル一覧に戻ってください。"
+  },
+  "frequencyBaseline": {
+    "chooseTitle": "頻度ベースラインを選ぶ",
+    "chooseDescription": "代表的な単語を確認してから、先にスキップする一般的な単語の範囲を選びます。これは頻度にもとづく提案であり、CEFR/HSK 認定ではありません。習熟度には個人差があります。",
+    "settingsTitle": "頻度ベースラインの管理",
+    "settingsDescription": "サンプルの確認、段階の変更、事前マークの取り消しができます。これは CEFR/HSK 認定ではなく、未確認の単語は毎日の単語復習で徐々に修正されます。",
+    "settingsSummaryEnabled": "{{language}}：頻出語上位 {{tier}} 語を有効化済み",
+    "settingsSummaryDisabled": "{{language}}：頻度ベースラインは未設定",
+    "allLanguagesHint": "英語と中国語の頻度ベースラインは設定で管理できます。",
+    "manage": "ベースラインを管理",
+    "currentSummary": "{{language}} の現在のベースライン：{{tier}}",
+    "currentHint": "段階の変更、サンプルの確認、事前マークの取り消しは設定から行えます。",
+    "firstRange": "頻出語 上位 {{count}} 語",
+    "addedRange": "{{start}}–{{end}} の追加語",
+    "sampleCount": "代表語 100 語",
+    "nextSample": "別のサンプル",
+    "loading": "サンプルを読み込み中…",
+    "impact": "インポート済み単語のうち {{matching}} 語が一致し、{{skipped}} 語を新たにスキップ、{{retained}} 語は変更しません。",
+    "apply": "上位 {{count}} 語を適用",
+    "applying": "適用中…",
+    "settingsPreview": "代表サンプル（100 語）",
+    "settingsImpact": "ベースラインにより {{marked}} 語をスキップし、そのうち {{pending}} 語は毎日の復習で徐々に修正されます。",
+    "data": "データ：wordfreq v{{version}} · {{license}}",
+    "source": "データ元とライセンス",
+    "cefr": "CEFR の基準レベル記述",
+    "disable": "今後の自動事前マークを停止",
+    "revoke": "未確認の事前マークを取り消す",
+    "tiers": {
+      "1000": { "title": "基礎の出発点", "count": "頻出語 上位 1,000 語", "description": "最もよく使われる基本語です。核となる語彙を作り始める際の目安になります。" },
+      "3000": { "title": "日常コミュニケーション", "count": "頻出語 上位 3,000 語", "description": "日常会話や一般的な内容の語をさらに含みます。サンプルで実際の理解度を判断してください。" },
+      "5000": { "title": "より自信をもって使う", "count": "頻出語 上位 5,000 語", "description": "学習、仕事、一般的な読書でよく使う語をより多く含みます。能力認定ではありません。" },
+      "10000": { "title": "幅広い読書", "count": "頻出語 上位 10,000 語", "description": "より幅広いメディアや読書でよく使う語を含みます。実際の馴染みやすさで選んでください。" }
+    }
   },
   "words": {
     "title": "単語リスト",
@@ -247,8 +315,6 @@
     "selectFile": "ファイルを選択...",
     "hideTranslation": "翻訳を隠す",
     "showTranslation": "翻訳を表示",
-    "quickMode": "クイック処理",
-    "exitQuickMode": "クイックモードを終了",
     "hint": "単語をクリックで意味を表示 · 右クリックで素早くマーク",
     "prevSegment": "前へ",
     "nextSegment": "次へ",
@@ -274,22 +340,12 @@
     "noResults": "結果なし",
     "prevMatchAria": "前の検索結果",
     "nextMatchAria": "次の検索結果",
-    "quickTitle": "このファイルの単語",
-    "uniqueWords": "{{count}} 個のユニークな単語（頻度順）",
-    "markAllKnown": "未処理をすべて既知にする",
-    "markAllLearning": "未処理をすべて学習に追加",
-    "selectAll": "すべて選択",
-    "clear": "クリア",
-    "selectedCount": "{{count}} 件を選択中",
-    "markKnown": "既知としてマーク",
-    "addLearning": "学習に追加",
     "emptyTitle": "ファイルを選択して読書を開始",
     "emptyDescription": "ファイルリストからインポート済みのファイルを選択してください",
     "emptyContent": "コンテンツはまだありません",
     "cannotLoadWord": "単語の詳細を読み込めませんでした",
     "cannotLoadPhrase": "フレーズの詳細を読み込めませんでした",
-    "definitionSaved": "意味を保存しました",
-    "markedStatus": "{{count}} 個の単語を{{status}}とマークしました"
+    "definitionSaved": "意味を保存しました"
   },
   "review": {
     "completedTitle": "セッション完了",
@@ -310,7 +366,8 @@
     "errorTitle": "進捗を一時的に読み込めません",
     "errorDescription": "しばらくしてから再度お試しください",
     "title": "学習進捗",
-    "subtitle": "全体の語彙の蓄積と復習状況",
+    "subtitle": "語彙の蓄積と復習状況",
+    "viewLanguage": "表示する言語",
     "reviewed": "累計 {{count}} 回復習しました",
     "totalWords": "総単語数",
     "known": "既知",
@@ -351,7 +408,12 @@
     "source": "出典：{{provider}}",
     "definitionLabel": "中国語の意味",
     "definitionPlaceholder": "中国語の意味を入力...",
-    "occurrences": "出現箇所 ({{count}})"
+    "occurrences": "出現箇所 ({{count}})",
+    "hideOccurrence": "この例文を非表示",
+    "hideOccurrenceAria": "例文を非表示",
+    "restoreOccurrence": "この例文を復元",
+    "restoreOccurrenceAria": "例文を復元",
+    "hiddenOccurrences": "非表示の例文 ({{count}})"
   },
   "phraseDetail": {
     "frequency": "出現 {{count}} 回",
@@ -367,7 +429,12 @@
     "categoryCollocation": "コロケーション",
     "definitionLabel": "中国語の意味",
     "definitionPlaceholder": "中国語の意味を入力...",
-    "occurrences": "出現箇所 ({{count}})"
+    "occurrences": "出現箇所 ({{count}})",
+    "hideOccurrence": "この例文を非表示",
+    "hideOccurrenceAria": "例文を非表示",
+    "restoreOccurrence": "この例文を復元",
+    "restoreOccurrenceAria": "例文を復元",
+    "hiddenOccurrences": "非表示の例文 ({{count}})"
   },
   "youtube": {
     "title": "YouTube からインポート",

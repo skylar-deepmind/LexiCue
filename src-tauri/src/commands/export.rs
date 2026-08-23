@@ -158,7 +158,7 @@ pub fn export_all(state: State<DbState>) -> Result<BackupPayload, String> {
     let file_phrase_analysis = query_all(&conn, "file_phrase_analysis")?;
 
     Ok(BackupPayload {
-        schema_version: 4,
+        schema_version: 5,
         exported_at: now_ms(),
         app_version: env!("CARGO_PKG_VERSION").to_string(),
         data: BackupData {
@@ -189,6 +189,7 @@ pub fn restore_all(state: State<DbState>, backup: BackupPayload) -> Result<(), S
         && backup.schema_version != 2
         && backup.schema_version != 3
         && backup.schema_version != 4
+        && backup.schema_version != 5
     {
         return Err(format!(
             "Unsupported backup schema version: {}",

@@ -10,6 +10,16 @@
     "saved": "已保存",
     "retry": "重试"
   },
+  "display": {
+    "title": "显示",
+    "aria": "调整学习内容显示",
+    "categories": {
+      "learning": "主学习文本",
+      "definition": "释义与译文",
+      "auxiliary": "辅助信息"
+    },
+    "sizes": { "sm": "小", "md": "标准", "lg": "大" }
+  },
   "status": {
     "unprocessed": "未处理",
     "learning": "学习中",
@@ -59,10 +69,13 @@
   "settings": {
     "title": "设置",
     "navAria": "设置分类",
+    "expand": "展开",
+    "collapse": "收起",
     "uiLanguage": {
       "title": "界面语言",
       "description": "选择应用界面的显示语言。"
     },
+    "frequencyBaseline": { "title": "高频词基线" },
     "ai": {
       "title": "AI 功能",
       "description": "开启后可解释段落并自动识别词组。支持本地 Ollama 或自填云端 API Key。",
@@ -85,6 +98,8 @@
       "statusError": "连接失败，请检查配置是否正确",
       "statusIdle": "尚未检测连接",
       "disabledHint": "AI 功能已关闭，阅读与文件页的 AI 按钮将隐藏。需要时可在此重新开启。",
+      "summaryEnabled": "已开启 · {{provider}}",
+      "summaryDisabled": "已关闭",
       "custom": "自定义"
     },
     "youtube": {
@@ -113,6 +128,7 @@
       "loading": "正在加载词典列表...",
       "empty": "还没有导入离线词典",
       "emptyHint": "导入 JSON 词典包后，复习卡片会自动读取其中的释义。",
+      "summary": "管理内置词典与导入的词典包。",
       "entries": "{{count}} 条词典记录",
       "importedAt": "导入于 {{date}}",
       "license": "许可：{{license}}",
@@ -124,6 +140,8 @@
     "storage": {
       "title": "存储空间",
       "description": "查看应用数据在本机占用的磁盘空间。",
+      "summaryKnown": "总占用 {{size}}",
+      "summaryUnknown": "展开后计算本机占用空间。",
       "total": "总占用",
       "database": "数据库",
       "audioCache": "音频缓存",
@@ -188,6 +206,7 @@
   "fileCard": {
     "segments": "{{count}} 段",
     "aiDone": "已完成 AI 词组分析",
+    "analysisFailed": "AI 词组分析失败",
     "analyzing": "正在分析词组",
     "preparing": "准备中...",
     "segmentsProgress": "{{processed}}/{{total}} 段",
@@ -200,7 +219,56 @@
     "cancelAria": "中断 AI 词组分析",
     "retrying": "AI 服务暂时不可用（{{reason}}），正在自动重试（{{attempt}}/{{maxAttempts}}）...",
     "moveAria": "移动 {{name}} 到文件夹",
-    "moveTitle": "移动到文件夹"
+    "moveTitle": "移动到文件夹",
+    "learningProgress": "学习进度",
+    "learningProgressAria": "学习进度：{{stage}}",
+    "noLearningContent": "暂无学习内容",
+    "wordsOnlyPending": "仅计单词 · 词组待分析",
+    "stage": {
+      "notStarted": "未开始",
+      "starting": "起步",
+      "progressing": "推进中",
+      "flowing": "渐入佳境",
+      "nearlyDone": "接近完成",
+      "complete": "已完成"
+    }
+  },
+  "fileDetail": {
+    "back": "返回文件",
+    "notFound": "找不到此文件", "notFoundHint": "文件可能已被删除，请返回文件列表"
+  },
+  "frequencyBaseline": {
+    "chooseTitle": "选择高频词基线",
+    "chooseDescription": "先看代表词，再选择可先跳过的常见词范围。这是词频建议，不是 CEFR 或 HSK 认证；实际掌握程度因人而异。",
+    "settingsTitle": "高频词基线管理",
+    "settingsDescription": "查看样本、调整档位或撤销预标记。这是词频建议，不是 CEFR 或 HSK 认证；待确认词会在每日单词复习中逐步校正。",
+    "settingsSummaryEnabled": "{{language}}：已启用前 {{tier}} 高频词",
+    "settingsSummaryDisabled": "{{language}}：尚未启用高频词基线",
+    "allLanguagesHint": "可在设置中管理英语和中文的高频词基线。",
+    "manage": "管理基线",
+    "currentSummary": "{{language}} 当前基线：{{tier}}",
+    "currentHint": "调整档位、查看样本或撤销预标记，请前往设置。",
+    "firstRange": "前 {{count}} 高频词",
+    "addedRange": "{{start}}–{{end}} 新增词",
+    "sampleCount": "100 个代表词",
+    "nextSample": "换一批",
+    "loading": "正在加载样本…",
+    "impact": "已导入词中匹配 {{matching}} 个；将新增跳过 {{skipped}} 个，保留 {{retained}} 个不变。",
+    "apply": "应用前 {{count}} 词基线",
+    "applying": "应用中…",
+    "settingsPreview": "代表词样本（100 个）",
+    "settingsImpact": "已按基线跳过 {{marked}} 个词，其中 {{pending}} 个将在每日复习中逐步校正。",
+    "data": "数据：wordfreq v{{version}} · {{license}}",
+    "source": "数据来源与许可",
+    "cefr": "CEFR 参考级描述",
+    "disable": "停止未来自动预标记",
+    "revoke": "撤销尚未确认的预标记",
+    "tiers": {
+      "1000": { "title": "基础起步", "count": "前 1,000 高频词", "description": "覆盖最常用的基础词；适合刚开始建立核心词汇时参考。" },
+      "3000": { "title": "日常沟通", "count": "前 3,000 高频词", "description": "覆盖更多日常交流和常见内容中的词；具体掌握仍应以样本判断。" },
+      "5000": { "title": "较熟练使用", "count": "前 5,000 高频词", "description": "覆盖较多学习、工作与一般阅读中的常见词；不是能力认证。" },
+      "10000": { "title": "广泛阅读", "count": "前 10,000 高频词", "description": "覆盖更广的媒体和阅读常见词；是否跳过应以实际熟悉度为准。" }
+    }
   },
   "words": {
     "title": "单词列表",
@@ -247,8 +315,6 @@
     "selectFile": "选择文件...",
     "hideTranslation": "隐藏翻译",
     "showTranslation": "显示翻译",
-    "quickMode": "快速处理",
-    "exitQuickMode": "退出快速处理",
     "hint": "点击单词查看释义 · 右键快速标记",
     "prevSegment": "上一段",
     "nextSegment": "下一段",
@@ -274,22 +340,12 @@
     "noResults": "无结果",
     "prevMatchAria": "上一个搜索结果",
     "nextMatchAria": "下一个搜索结果",
-    "quickTitle": "当前文件词汇",
-    "uniqueWords": "{{count}} 个唯一单词，按出现频率排序",
-    "markAllKnown": "未处理全部标为已掌握",
-    "markAllLearning": "未处理全部加入学习",
-    "selectAll": "全选",
-    "clear": "清空",
-    "selectedCount": "已选 {{count}}",
-    "markKnown": "标记已掌握",
-    "addLearning": "加入学习",
     "emptyTitle": "选择文件开始阅读",
     "emptyDescription": "从文件列表中选择一个已导入的文件",
     "emptyContent": "暂无内容",
     "cannotLoadWord": "无法加载单词详情",
     "cannotLoadPhrase": "无法加载词组详情",
-    "definitionSaved": "释义已保存",
-    "markedStatus": "已将 {{count}} 个词标记为{{status}}"
+    "definitionSaved": "释义已保存"
   },
   "review": {
     "completedTitle": "本次复习完成",
@@ -310,14 +366,15 @@
     "errorTitle": "暂时无法加载进度",
     "errorDescription": "请稍后重试",
     "title": "学习进度",
-    "subtitle": "全局词库的积累和复习情况",
+    "subtitle": "词汇与复习情况",
+    "viewLanguage": "查看语言",
     "reviewed": "已复习 {{count}} 次",
-    "totalWords": "全局词汇",
+    "totalWords": "词汇",
     "known": "已掌握",
     "learning": "学习中",
     "due": "待复习",
-    "totalPhrases": "全局词组",
-    "wordDistribution": "全局掌握分布",
+    "totalPhrases": "词组",
+    "wordDistribution": "掌握分布",
     "phraseDistribution": "词组掌握分布",
     "last7Days": "近 7 天复习",
     "knownNote": "此处的“已掌握”是用户标记状态，不等同于复习验证掌握。",
@@ -351,7 +408,12 @@
     "source": "来源：{{provider}}",
     "definitionLabel": "中文释义",
     "definitionPlaceholder": "输入中文释义...",
-    "occurrences": "出现位置 ({{count}})"
+    "occurrences": "出现位置 ({{count}})",
+    "hideOccurrence": "隐藏该例句",
+    "hideOccurrenceAria": "隐藏例句",
+    "restoreOccurrence": "恢复该例句",
+    "restoreOccurrenceAria": "恢复例句",
+    "hiddenOccurrences": "已隐藏例句 ({{count}})"
   },
   "phraseDetail": {
     "frequency": "出现 {{count}} 次",
@@ -367,7 +429,12 @@
     "categoryCollocation": "固定搭配",
     "definitionLabel": "中文释义",
     "definitionPlaceholder": "输入中文释义...",
-    "occurrences": "出现位置 ({{count}})"
+    "occurrences": "出现位置 ({{count}})",
+    "hideOccurrence": "隐藏该例句",
+    "hideOccurrenceAria": "隐藏例句",
+    "restoreOccurrence": "恢复该例句",
+    "restoreOccurrenceAria": "恢复例句",
+    "hiddenOccurrences": "已隐藏例句 ({{count}})"
   },
   "youtube": {
     "title": "从 YouTube 导入",

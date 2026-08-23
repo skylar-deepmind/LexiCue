@@ -144,10 +144,7 @@ pub fn initialize_builtin_dictionary(conn: &rusqlite::Connection) -> Result<(), 
 
 type BuiltinEntry = (Option<String>, String, Option<String>);
 
-fn builtin_entry(
-    conn: &rusqlite::Connection,
-    lemma: &str,
-) -> Result<Option<BuiltinEntry>, String> {
+fn builtin_entry(conn: &rusqlite::Connection, lemma: &str) -> Result<Option<BuiltinEntry>, String> {
     let result = conn.query_row(
         "SELECT phonetic, translation, part_of_speech FROM builtin_dictionary_entries WHERE lemma = ?1",
         [lemma],
@@ -666,6 +663,12 @@ pub fn get_cached_dictionary(
 #[tauri::command]
 pub fn list_dictionary_sources(state: State<DbState>) -> Result<Vec<DictionarySource>, String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    list_dictionary_sources_for_conn(&conn)
+}
+
+fn list_dictionary_sources_for_conn(
+    conn: &rusqlite::Connection,
+) -> Result<Vec<DictionarySource>, String> {
     let mut stmt = conn
         .prepare(
             "SELECT s.language, s.provider, s.version, s.source_url, s.license, s.imported_at,
@@ -681,6 +684,15 @@ pub fn list_dictionary_sources(state: State<DbState>) -> Result<Vec<DictionarySo
                         ELSE 0 END +
                         CASE WHEN s.provider = 'CC-CEDICT'
                             THEN (SELECT COUNT(*) FROM builtin_chinese_dictionary_entries)
+                        ELSE 0 END
+                        + CASE WHEN s.provider = 'PhraseDict'
+                            THEN (SELECT COUNT(*) FROM builtin_phrase_dictionary)
+                        ELSE 0 END
+                        + CASE WHEN s.provider = 'CC-CEDICT Phrases'
+                            THEN (SELECT COUNT(*) FROM builtin_chinese_phrase_dictionary)
+                        ELSE 0 END
+                        + CASE WHEN s.provider = 'JMdict Idioms'
+                            THEN (SELECT COUNT(*) FROM builtin_japanese_phrase_dictionary)
                         ELSE 0 END
              FROM dictionary_sources s
              LEFT JOIN dictionary_entries e ON e.provider = s.provider AND e.language = s.language
@@ -710,7 +722,11 @@ pub fn delete_dictionary_source(
     provider: String,
     language: Option<String>,
 ) -> Result<i64, String> {
-    if provider == "ECDICT" || provider == "JMdict" || provider == "GermanDict" || provider == "CC-CEDICT" {
+    if provider == "ECDICT"
+        || provider == "JMdict"
+        || provider == "GermanDict"
+        || provider == "CC-CEDICT"
+    {
         return Err("the built-in dictionary cannot be deleted".to_string());
     }
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
@@ -796,13 +812,20 @@ async fn fetch_jisho_entry(
         .enumerate()
         .flat_map(|(index, sense)| {
             let pos = sense.parts_of_speech.join(", ");
-            let translation_for_def = if index == 0 { local_translation.clone() } else { None };
-            sense.english_definitions.iter().map(move |def| DictionaryDefinition {
-                part_of_speech: pos.clone(),
-                definition: def.clone(),
-                translation: translation_for_def.clone(),
-                example: None,
-            })
+            let translation_for_def = if index == 0 {
+                local_translation.clone()
+            } else {
+                None
+            };
+            sense
+                .english_definitions
+                .iter()
+                .map(move |def| DictionaryDefinition {
+                    part_of_speech: pos.clone(),
+                    definition: def.clone(),
+                    translation: translation_for_def.clone(),
+                    example: None,
+                })
         })
         .take(12)
         .collect();
@@ -1062,8 +1085,9 @@ async fn lookup_japanese(
     }
 
     let local_fallback = cached.or_else(|| {
-        builtin.as_ref().map(|(reading, translation, part_of_speech)| {
-            DictionaryEntry {
+        builtin
+            .as_ref()
+            .map(|(reading, translation, part_of_speech)| DictionaryEntry {
                 lemma: normalized.clone(),
                 language: "ja".to_string(),
                 provider: "JMdict".to_string(),
@@ -1077,8 +1101,7 @@ async fn lookup_japanese(
                     example: None,
                 }],
                 fetched_at: now_ms(),
-            }
-        })
+            })
     });
 
     let online_result = fetch_jisho_entry(&normalized, "ja", &builtin).await;
@@ -1426,7 +1449,13 @@ pub fn read_dictionary_audio(
 
 #[cfg(test)]
 mod tests {
-    use super::{audio_cache_filename, initialize_builtin_chinese_dictionary, initialize_builtin_chinese_phrase_dictionary, initialize_builtin_dictionary, initialize_builtin_german_dictionary, initialize_builtin_japanese_dictionary, initialize_builtin_japanese_phrase_dictionary, initialize_builtin_phrase_dictionary};
+    use super::{
+        audio_cache_filename, initialize_builtin_chinese_dictionary,
+        initialize_builtin_chinese_phrase_dictionary, initialize_builtin_dictionary,
+        initialize_builtin_german_dictionary, initialize_builtin_japanese_dictionary,
+        initialize_builtin_japanese_phrase_dictionary, initialize_builtin_phrase_dictionary,
+        list_dictionary_sources_for_conn,
+    };
     use rusqlite::Connection;
 
     #[test]
@@ -1660,10 +1689,7 @@ mod tests {
             audio_cache_filename("Häuser"),
             audio_cache_filename("Hauser")
         );
-        assert_eq!(
-            audio_cache_filename("Haus"),
-            audio_cache_filename("Haus")
-        );
+        assert_eq!(audio_cache_filename("Haus"), audio_cache_filename("Haus"));
         assert!(audio_cache_filename("das").ends_with(".mp3"));
     }
 
@@ -1763,5 +1789,41 @@ mod tests {
             )
             .unwrap();
         assert_eq!(language, "zh");
+    }
+
+    #[test]
+    fn lists_builtin_phrase_dictionary_record_counts() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE dictionary_sources (language TEXT NOT NULL, provider TEXT NOT NULL, version TEXT, source_url TEXT, license TEXT, imported_at INTEGER NOT NULL, PRIMARY KEY(language, provider));
+             CREATE TABLE dictionary_entries (lemma TEXT, provider TEXT, language TEXT);
+             CREATE TABLE builtin_dictionary_entries (lemma TEXT);
+             CREATE TABLE builtin_japanese_dictionary_entries (lemma TEXT);
+             CREATE TABLE builtin_german_dictionary_entries (lemma TEXT);
+             CREATE TABLE builtin_chinese_dictionary_entries (lemma TEXT);
+             CREATE TABLE builtin_phrase_dictionary (text TEXT);
+             CREATE TABLE builtin_chinese_phrase_dictionary (text TEXT);
+             CREATE TABLE builtin_japanese_phrase_dictionary (text TEXT);",
+        ).unwrap();
+        conn.execute_batch(
+            "INSERT INTO dictionary_sources VALUES ('en', 'PhraseDict', NULL, NULL, NULL, 1);
+             INSERT INTO dictionary_sources VALUES ('zh', 'CC-CEDICT Phrases', NULL, NULL, NULL, 2);
+             INSERT INTO dictionary_sources VALUES ('ja', 'JMdict Idioms', NULL, NULL, NULL, 3);
+             INSERT INTO builtin_phrase_dictionary VALUES ('in spite of');
+             INSERT INTO builtin_phrase_dictionary VALUES ('as well as');
+             INSERT INTO builtin_chinese_phrase_dictionary VALUES ('你好');
+             INSERT INTO builtin_japanese_phrase_dictionary VALUES ('一方で');
+             INSERT INTO builtin_japanese_phrase_dictionary VALUES ('にもかかわらず');",
+        )
+        .unwrap();
+
+        let sources = list_dictionary_sources_for_conn(&conn).unwrap();
+        let counts: std::collections::HashMap<_, _> = sources
+            .into_iter()
+            .map(|source| (source.provider, source.entry_count))
+            .collect();
+        assert_eq!(counts.get("PhraseDict"), Some(&2));
+        assert_eq!(counts.get("CC-CEDICT Phrases"), Some(&1));
+        assert_eq!(counts.get("JMdict Idioms"), Some(&2));
     }
 }

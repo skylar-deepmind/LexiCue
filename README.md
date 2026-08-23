@@ -4,7 +4,7 @@
 
 LexiCue is a free, open-source, local-first reading tool that builds vocabulary while you read. Import an article, a book, or movie subtitles — tap any word to see its meaning on the spot, and let smart review make it stick.
 
-> **中文版** · [日本語版](README.ja.md)
+> [中文版](README.zh-CN.md) · [日本語版](README.ja.md)
 
 ## Is LexiCue for you?
 
@@ -19,8 +19,8 @@ If any of these sound like you, LexiCue is built for you. If not, you'll know in
 ## How to use it
 
 1. **Import** — drop in a `.txt`, `.srt`, or `.vtt` file, or pull YouTube subtitles
-2. **Read** — read line by line, tap any word for its meaning and reading
-3. **Collect** — new words and phrases are gathered into your word list automatically
+2. **Read** — read line by line, tap any word for its meaning and reading, and adjust text sizes to suit you
+3. **Collect** — new words and phrases are gathered into your word list automatically; file views show their learning progress
 4. **Review** — LexiCue reminds you at just the right time, a few minutes a day
 
 ## Features at a glance
@@ -28,6 +28,8 @@ If any of these sound like you, LexiCue is built for you. If not, you'll know in
 - **Learn from what you love** — your own articles, books, and subtitles, not a preset word list
 - **Tap-to-look-up** — meaning, pronunciation, and example sentence without losing your place
 - **Smart review** — spaced repetition that nudges you right before you forget
+- **Start with familiar high-frequency words** — optionally mark the top 1,000–10,000 English or Chinese words as known, then verify a few each day
+- **Progress you can trace back to the source** — open an imported file to keep reading and see its word and phrase progress
 - **Built-in offline dictionaries** — English, Japanese, German, and Chinese, no internet needed
 - **Your data stays yours** — everything is saved locally, no account or upload required
 - **AI is optional** — paragraph explanations and translations if you want them, off by default

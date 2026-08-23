@@ -63,9 +63,40 @@ pub fn lemma_of_surface(surface: &str) -> String {
 fn is_stripped(c: char) -> bool {
     matches!(
         c,
-        '.' | ',' | '!' | '?' | ';' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '"' | '\'' | '`'
-            | '«' | '»' | '–' | '—' | '…' | '@' | '#' | '$' | '%' | '^' | '&' | '*' | '+' | '='
-            | '<' | '>' | '/' | '\\' | '|' | '~'
+        '.' | ','
+            | '!'
+            | '?'
+            | ';'
+            | ':'
+            | '('
+            | ')'
+            | '['
+            | ']'
+            | '{'
+            | '}'
+            | '"'
+            | '\''
+            | '`'
+            | '«'
+            | '»'
+            | '–'
+            | '—'
+            | '…'
+            | '@'
+            | '#'
+            | '$'
+            | '%'
+            | '^'
+            | '&'
+            | '*'
+            | '+'
+            | '='
+            | '<'
+            | '>'
+            | '/'
+            | '\\'
+            | '|'
+            | '~'
     )
 }
 
@@ -92,10 +123,7 @@ fn tokenize_english_text(text: &str) -> Vec<(String, i32)> {
         .collect()
 }
 
-fn lemmatize_tokens(
-    tokens: Vec<(String, i32)>,
-    wordforms: &EnglishWordforms,
-) -> Vec<EnglishToken> {
+fn lemmatize_tokens(tokens: Vec<(String, i32)>, wordforms: &EnglishWordforms) -> Vec<EnglishToken> {
     tokens
         .into_iter()
         .map(|(surface, position)| {
@@ -131,10 +159,7 @@ pub fn tokenize_english_batch(texts: Vec<String>) -> Result<Vec<Vec<EnglishToken
 
 #[tauri::command]
 pub fn lemmatize_english(words: Vec<String>) -> Result<Vec<String>, String> {
-    Ok(words
-        .iter()
-        .map(|word| lemma_of_surface(word))
-        .collect())
+    Ok(words.iter().map(|word| lemma_of_surface(word)).collect())
 }
 
 /// Rewrite English word rows so their lemma is the canonical base form, merging
@@ -184,15 +209,14 @@ pub fn migrate_english_lemmas(conn: &rusqlite::Connection) -> Result<i64, String
                 )
                 .map_err(|e| e.to_string())?;
 
-                let has_review =
-                    |word_id: i64| -> Result<bool, String> {
-                        conn.query_row(
-                            "SELECT EXISTS(SELECT 1 FROM reviews WHERE word_id = ?1)",
-                            [word_id],
-                            |row| row.get(0),
-                        )
-                        .map_err(|e| e.to_string())
-                    };
+                let has_review = |word_id: i64| -> Result<bool, String> {
+                    conn.query_row(
+                        "SELECT EXISTS(SELECT 1 FROM reviews WHERE word_id = ?1)",
+                        [word_id],
+                        |row| row.get(0),
+                    )
+                    .map_err(|e| e.to_string())
+                };
                 let (src_review, target_review) = (has_review(id)?, has_review(target_id)?);
                 if src_review && !target_review {
                     conn.execute(
@@ -235,7 +259,8 @@ pub fn migrate_english_lemmas_cmd(state: State<DbState>) -> Result<i64, String> 
 /// Transactional wrapper around `migrate_english_lemmas`, safe to call from a
 /// startup thread as well as from a command.
 pub fn run_migrate_english_lemmas(conn: &rusqlite::Connection) -> Result<i64, String> {
-    conn.execute("BEGIN IMMEDIATE", []).map_err(|e| e.to_string())?;
+    conn.execute("BEGIN IMMEDIATE", [])
+        .map_err(|e| e.to_string())?;
     let result = migrate_english_lemmas(conn);
     match result {
         Ok(n) => {
@@ -293,7 +318,10 @@ mod tests {
     fn handles_case_and_punctuation() {
         let tokens = tokenize_english_text("Went To the CITY, and saw men.");
         let surfaces: Vec<&str> = tokens.iter().map(|(s, _)| s.as_str()).collect();
-        assert_eq!(surfaces, vec!["Went", "To", "the", "CITY", "and", "saw", "men"]);
+        assert_eq!(
+            surfaces,
+            vec!["Went", "To", "the", "CITY", "and", "saw", "men"]
+        );
         let wordforms = load_wordforms();
         let lemmatized = lemmatize_tokens(tokens, wordforms);
         assert_eq!(lemmatized[0].lemma, "go");
@@ -313,12 +341,19 @@ mod tests {
         let surfaces: Vec<&str> = tokens.iter().map(|(s, _)| s.as_str()).collect();
         assert_eq!(surfaces, vec!["a", "writer"]);
         let positions: Vec<i32> = tokens.iter().map(|(_, p)| *p).collect();
-        assert_eq!(positions, vec![0, 2], "positions mirror import.rs phrase detection");
+        assert_eq!(
+            positions,
+            vec![0, 2],
+            "positions mirror import.rs phrase detection"
+        );
     }
 
     #[test]
     fn batch_matches_single_calls() {
-        let texts = vec!["I went to the store.".to_string(), "Books are heavy.".to_string()];
+        let texts = vec![
+            "I went to the store.".to_string(),
+            "Books are heavy.".to_string(),
+        ];
         let batch = tokenize_english_batch(texts.clone()).unwrap();
         assert_eq!(batch.len(), 2);
         for (index, tokens) in batch.iter().enumerate() {
@@ -369,35 +404,74 @@ mod tests {
         use rusqlite::params;
         let conn = migration_conn();
 
-        conn.execute("INSERT INTO words (language, lemma, definition) VALUES ('en', 'books', 'definition')", []).unwrap();
+        conn.execute(
+            "INSERT INTO words (language, lemma, definition) VALUES ('en', 'books', 'definition')",
+            [],
+        )
+        .unwrap();
         let books_id = conn.last_insert_rowid();
         conn.execute("INSERT INTO occurrences (word_id, segment_id, original_form, position) VALUES (?1, 0, 'books', 0)", params![books_id]).unwrap();
 
-        conn.execute("INSERT INTO words (language, lemma) VALUES ('en', 'book')", []).unwrap();
+        conn.execute(
+            "INSERT INTO words (language, lemma) VALUES ('en', 'book')",
+            [],
+        )
+        .unwrap();
         let book_id = conn.last_insert_rowid();
         conn.execute("INSERT INTO occurrences (word_id, segment_id, original_form, position) VALUES (?1, 0, 'book', 0)", params![book_id]).unwrap();
-        conn.execute("INSERT INTO reviews (word_id, due_at) VALUES (?1, 100)", params![book_id]).unwrap();
+        conn.execute(
+            "INSERT INTO reviews (word_id, due_at) VALUES (?1, 100)",
+            params![book_id],
+        )
+        .unwrap();
 
-        conn.execute("INSERT INTO words (language, lemma) VALUES ('en', 'went')", []).unwrap();
+        conn.execute(
+            "INSERT INTO words (language, lemma) VALUES ('en', 'went')",
+            [],
+        )
+        .unwrap();
         let went_id = conn.last_insert_rowid();
         conn.execute("INSERT INTO occurrences (word_id, segment_id, original_form, position) VALUES (?1, 0, 'went', 0)", params![went_id]).unwrap();
-        conn.execute("INSERT INTO review_logs (word_id, rating, reviewed_at) VALUES (?1, 3, 200)", params![went_id]).unwrap();
+        conn.execute(
+            "INSERT INTO review_logs (word_id, rating, reviewed_at) VALUES (?1, 3, 200)",
+            params![went_id],
+        )
+        .unwrap();
 
-        conn.execute("INSERT INTO words (language, lemma) VALUES ('en', 'book')", []).unwrap_err();
+        conn.execute(
+            "INSERT INTO words (language, lemma) VALUES ('en', 'book')",
+            [],
+        )
+        .unwrap_err();
 
         let merged = migrate_english_lemmas(&conn).unwrap();
         assert_eq!(merged, 2);
 
-        let books_exists: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM words WHERE lemma = 'books'", [], |row| row.get(0)).unwrap();
+        let books_exists: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM words WHERE lemma = 'books'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
         assert_eq!(books_exists, 0);
 
-        let book_occ: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM occurrences WHERE word_id = ?1", params![book_id], |row| row.get(0)).unwrap();
+        let book_occ: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM occurrences WHERE word_id = ?1",
+                params![book_id],
+                |row| row.get(0),
+            )
+            .unwrap();
         assert_eq!(book_occ, 2, "occurrences from 'books' merge into 'book'");
 
-        let review: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM reviews WHERE word_id = ?1", params![book_id], |row| row.get(0)).unwrap();
+        let review: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM reviews WHERE word_id = ?1",
+                params![book_id],
+                |row| row.get(0),
+            )
+            .unwrap();
         assert_eq!(review, 1, "target review preserved");
 
         let go_occ: i64 = conn.query_row(

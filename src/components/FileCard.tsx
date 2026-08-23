@@ -2,6 +2,7 @@ import { Brain, Trash2, FolderInput } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { FileRecord } from '../lib/types';
 import type { OllamaRetry } from '../stores/ollamaStore';
+import { learningIndex, learningStage } from '../lib/fileProgress';
 
 interface FileCardProps {
   file: FileRecord;
@@ -26,6 +27,8 @@ export default function FileCard({ file, folderPath, onDelete, onAnalyze, onCanc
   const { t, i18n } = useTranslation();
   const icon = file.type === 'srt' ? '🎬' : '📄';
   const date = new Date(file.imported_at).toLocaleDateString(i18n.resolvedLanguage ?? 'zh');
+  const index = learningIndex(file.word_progress, file.phrase_progress, analysisCompleted);
+  const stage = learningStage(index);
 
   return (
     <div
@@ -87,10 +90,31 @@ export default function FileCard({ file, folderPath, onDelete, onAnalyze, onCanc
           </button>
         </div>
       </div>
+      <div
+        className="mt-3 flex items-center justify-between gap-3 border-t border-gray-100 pt-3"
+        aria-label={index === null ? t('fileCard.noLearningContent') : t('fileCard.learningProgressAria', { stage: t(`fileCard.stage.${stage}`) })}
+      >
+        <span className="text-xs text-gray-400">{t('fileCard.learningProgress')}</span>
+        {index === null ? (
+          <span className="text-xs text-gray-400">{t('fileCard.noLearningContent')}</span>
+        ) : (
+          <span className={`learning-stage learning-stage-${stage} flex items-center gap-1.5 text-xs font-medium`}>
+            <span className="learning-stage-dot" aria-hidden="true" />
+            <span>{t(`fileCard.stage.${stage}`)}</span>
+          </span>
+        )}
+      </div>
+      {!analysisCompleted && <p className="mt-1 text-right text-[11px] text-gray-400">{t('fileCard.wordsOnlyPending')}</p>}
       {aiEnabled && analysisCompleted && !analysisProgress && (
         <p className="mt-3 text-xs text-green-700">{t('fileCard.aiDone')}</p>
       )}
-      {aiEnabled && analysisProgress && (
+      {aiEnabled && analysisProgress?.status === 'error' && (
+        <p className="mt-3 text-xs text-red-600">{t('fileCard.analysisFailed')}</p>
+      )}
+      {aiEnabled && analysisProgress?.status === 'completed' && (
+        <p className="mt-3 text-xs text-green-700">{t('fileCard.aiDone')}</p>
+      )}
+      {aiEnabled && analysisProgress?.status === 'processing' && (
         <div className="mt-3" onClick={(event) => event.stopPropagation()}>
           <div className="mb-1 flex items-center justify-between gap-2 text-xs text-purple-700">
             <span>{t('fileCard.analyzing')}</span>

@@ -3,10 +3,10 @@ import { persist, createJSONStorage, subscribeWithSelector } from 'zustand/middl
 import type { Language, UILanguage } from '../lib/languages';
 import { isLanguage, detectSystemLanguage, isUILanguage } from '../lib/languages';
 
-export type ReadingFontSize = 'sm' | 'md' | 'lg';
+export type ContentFontSize = 'sm' | 'md' | 'lg';
 export type ReadingLineHeight = 'compact' | 'normal' | 'loose';
 
-const FONT_SIZES: ReadingFontSize[] = ['sm', 'md', 'lg'];
+const FONT_SIZES: ContentFontSize[] = ['sm', 'md', 'lg'];
 const LINE_HEIGHTS: ReadingLineHeight[] = ['compact', 'normal', 'loose'];
 
 interface PreferencesState {
@@ -14,8 +14,12 @@ interface PreferencesState {
   setLanguage: (language: Language | 'all') => void;
   uiLanguage: UILanguage;
   setUiLanguage: (language: UILanguage) => void;
-  readingFontSize: ReadingFontSize;
-  setReadingFontSize: (size: ReadingFontSize) => void;
+  learningTextFontSize: ContentFontSize;
+  setLearningTextFontSize: (size: ContentFontSize) => void;
+  definitionFontSize: ContentFontSize;
+  setDefinitionFontSize: (size: ContentFontSize) => void;
+  auxiliaryFontSize: ContentFontSize;
+  setAuxiliaryFontSize: (size: ContentFontSize) => void;
   readingLineHeight: ReadingLineHeight;
   setReadingLineHeight: (lineHeight: ReadingLineHeight) => void;
 }
@@ -28,8 +32,12 @@ export const usePreferencesStore = create<PreferencesState>()(
         setLanguage: (language) => set({ language }),
         uiLanguage: detectSystemLanguage(),
         setUiLanguage: (language) => set({ uiLanguage: language }),
-        readingFontSize: 'md',
-        setReadingFontSize: (size) => set({ readingFontSize: size }),
+        learningTextFontSize: 'md',
+        setLearningTextFontSize: (size) => set({ learningTextFontSize: size }),
+        definitionFontSize: 'md',
+        setDefinitionFontSize: (size) => set({ definitionFontSize: size }),
+        auxiliaryFontSize: 'md',
+        setAuxiliaryFontSize: (size) => set({ auxiliaryFontSize: size }),
         readingLineHeight: 'normal',
         setReadingLineHeight: (lineHeight) => set({ readingLineHeight: lineHeight }),
       }),
@@ -41,6 +49,9 @@ export const usePreferencesStore = create<PreferencesState>()(
             language?: unknown;
             uiLanguage?: unknown;
             readingFontSize?: unknown;
+            learningTextFontSize?: unknown;
+            definitionFontSize?: unknown;
+            auxiliaryFontSize?: unknown;
             readingLineHeight?: unknown;
           };
           const language = typeof saved.language === 'string' && isLanguage(saved.language)
@@ -49,13 +60,23 @@ export const usePreferencesStore = create<PreferencesState>()(
           const uiLanguage = isUILanguage(saved.uiLanguage)
             ? saved.uiLanguage
             : current.uiLanguage;
-          const readingFontSize = FONT_SIZES.includes(saved.readingFontSize as ReadingFontSize)
-            ? saved.readingFontSize as ReadingFontSize
-            : current.readingFontSize;
+          // readingFontSize was the pre-0.3 reading-only setting. Preserve it as
+          // the initial value for the new primary learning-text preference.
+          const learningTextFontSize = FONT_SIZES.includes(saved.learningTextFontSize as ContentFontSize)
+            ? saved.learningTextFontSize as ContentFontSize
+            : FONT_SIZES.includes(saved.readingFontSize as ContentFontSize)
+              ? saved.readingFontSize as ContentFontSize
+              : current.learningTextFontSize;
+          const definitionFontSize = FONT_SIZES.includes(saved.definitionFontSize as ContentFontSize)
+            ? saved.definitionFontSize as ContentFontSize
+            : current.definitionFontSize;
+          const auxiliaryFontSize = FONT_SIZES.includes(saved.auxiliaryFontSize as ContentFontSize)
+            ? saved.auxiliaryFontSize as ContentFontSize
+            : current.auxiliaryFontSize;
           const readingLineHeight = LINE_HEIGHTS.includes(saved.readingLineHeight as ReadingLineHeight)
             ? saved.readingLineHeight as ReadingLineHeight
             : current.readingLineHeight;
-          return { ...current, language, uiLanguage, readingFontSize, readingLineHeight };
+          return { ...current, language, uiLanguage, learningTextFontSize, definitionFontSize, auxiliaryFontSize, readingLineHeight };
         },
       },
     ),

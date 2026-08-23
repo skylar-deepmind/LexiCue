@@ -20,8 +20,9 @@ struct ChineseReadings {
 fn load_readings() -> &'static ChineseReadings {
     static READINGS: OnceLock<ChineseReadings> = OnceLock::new();
     READINGS.get_or_init(|| {
-        let mut decoder =
-            flate2::read::GzDecoder::new(include_bytes!("../../resources/cc-cedict.tsv.gz").as_slice());
+        let mut decoder = flate2::read::GzDecoder::new(
+            include_bytes!("../../resources/cc-cedict.tsv.gz").as_slice(),
+        );
         let mut contents = String::new();
         decoder
             .read_to_string(&mut contents)
@@ -50,8 +51,7 @@ fn is_han(c: char) -> bool {
 }
 
 fn is_content_token(word: &str) -> bool {
-    word.chars()
-        .any(|c| is_han(c) || c.is_ascii_alphanumeric())
+    word.chars().any(|c| is_han(c) || c.is_ascii_alphanumeric())
 }
 
 pub struct ChineseTokenWithOffset {

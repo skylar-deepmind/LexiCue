@@ -56,6 +56,59 @@ function extractChineseWords(line: string): string {
     .trim();
 }
 
+interface BilingualLines {
+  sourceLines: string[];
+  translationLines: string[];
+}
+
+function classifyBilingualLines(lines: string[], language: Language): BilingualLines {
+  const sourceLines: string[] = [];
+  const translationLines: string[] = [];
+
+  if (language === 'ja') {
+    // Han-only Japanese and Chinese lines are ambiguous, so prefer kana and
+    // otherwise use the first CJK line as the learning-language source.
+    const kanaLines = lines.filter((line) => /[\p{Script=Hiragana}\p{Script=Katakana}]/u.test(line));
+    if (kanaLines.length > 0) {
+      sourceLines.push(...kanaLines);
+      translationLines.push(...lines.filter((line) => !/[\p{Script=Hiragana}\p{Script=Katakana}]/u.test(line)));
+    } else {
+      const sourceIndex = lines.findIndex((line) => /\p{Script=Han}/u.test(line));
+      if (sourceIndex >= 0) {
+        sourceLines.push(lines[sourceIndex]);
+        translationLines.push(...lines.filter((_, index) => index !== sourceIndex));
+      }
+    }
+  } else if (language === 'zh') {
+    // Chinese is the learning-language source, Latin lines are the translation.
+    for (const line of lines) {
+      const lineLanguage = detectLineLang(line);
+      if (lineLanguage === 'zh') {
+        sourceLines.push(line);
+      } else if (lineLanguage === 'en') {
+        translationLines.push(line);
+      } else if (lineLanguage === 'mixed') {
+        sourceLines.push(extractChineseWords(line));
+        translationLines.push(line);
+      }
+    }
+  } else {
+    for (const line of lines) {
+      const lineLanguage = detectLineLang(line);
+      if (lineLanguage === 'en') {
+        sourceLines.push(line);
+      } else if (lineLanguage === 'zh') {
+        translationLines.push(line);
+      } else if (lineLanguage === 'mixed') {
+        sourceLines.push(extractEnglishWords(line));
+        translationLines.push(line);
+      }
+    }
+  }
+
+  return { sourceLines, translationLines };
+}
+
 function parseSrtBlocks(content: string, _mode: SubtitleMode, language: Language): ParsedResult {
   const normalized = content
     .replace(/^\uFEFF/, '')
@@ -93,49 +146,11 @@ function parseSrtBlocks(content: string, _mode: SubtitleMode, language: Language
     const contentLines = lines.filter(l => !/^\d+$/.test(l) && !l.includes('-->'));
     if (contentLines.length === 0) continue;
 
-    const enLines: string[] = [];
-    const zhLines: string[] = [];
-
     const cleanedLines = contentLines.map(cleanFormatting).filter((line) => line.length > 0);
-    if (language === 'ja') {
-      // Han-only Japanese and Chinese lines are ambiguous, so prefer kana and
-      // otherwise use the first CJK line as the learning-language source.
-      const kanaIndex = cleanedLines.findIndex((line) => /[\p{Script=Hiragana}\p{Script=Katakana}]/u.test(line));
-      const sourceIndex = kanaIndex >= 0 ? kanaIndex : cleanedLines.findIndex((line) => /\p{Script=Han}/u.test(line));
-      if (sourceIndex >= 0) {
-        enLines.push(cleanedLines[sourceIndex]);
-        zhLines.push(...cleanedLines.filter((_, index) => index !== sourceIndex));
-      }
-    } else if (language === 'zh') {
-      // Chinese is the learning-language source, English lines are the translation.
-      for (const cleaned of cleanedLines) {
-        const lang = detectLineLang(cleaned);
-        if (lang === 'zh') {
-          enLines.push(cleaned);
-        } else if (lang === 'en') {
-          zhLines.push(cleaned);
-        } else if (lang === 'mixed') {
-          enLines.push(extractChineseWords(cleaned));
-          zhLines.push(cleaned);
-        }
-      }
-    } else {
-      for (const cleaned of cleanedLines) {
-        const lang = detectLineLang(cleaned);
-        if (lang === 'en') {
-          enLines.push(cleaned);
-        } else if (lang === 'zh') {
-          zhLines.push(cleaned);
-        } else if (lang === 'mixed') {
-          enLines.push(extractEnglishWords(cleaned));
-          zhLines.push(cleaned);
-        }
-      }
-    }
+    const { sourceLines, translationLines } = classifyBilingualLines(cleanedLines, language);
+    if (sourceLines.length === 0) continue;
 
-    if (enLines.length === 0) continue;
-
-    cues.push({ startTime, endTime, sourceLines: enLines, transLines: zhLines });
+    cues.push({ startTime, endTime, sourceLines, transLines: translationLines });
   }
 
   const units: SentenceMergeUnit[] = [];
@@ -205,14 +220,14 @@ function parseTxtBlocks(content: string, language: Language): ParsedResult {
   const allLemmas: Set<string> = new Set();
   const allOccurrences: OccurrenceInput[] = [];
 
-  paragraphs.forEach((para, i) => {
-    const enText = para.replace(/\s+/g, ' ').trim();
-    const words = tokenizeWithPositionsForLanguage(enText, language);
+  const addSegment = (source: string, translation: string | null) => {
+    const index = segments.length;
+    const words = tokenizeWithPositionsForLanguage(source, language);
 
     segments.push({
-      index: i,
-      en_text: enText,
-      zh_text: null,
+      index,
+      en_text: source,
+      zh_text: translation,
       start_time: null,
       end_time: null,
     });
@@ -222,12 +237,34 @@ function parseTxtBlocks(content: string, language: Language): ParsedResult {
       allLemmas.add(lemma);
       allOccurrences.push({
         lemma,
-        segment_index: i,
+        segment_index: index,
         original_form: w.word,
         position: w.position,
       });
     }
-  });
+  };
+
+  for (const paragraph of paragraphs) {
+    const plainText = paragraph.replace(/\s+/g, ' ').trim();
+    const lines = paragraph.split('\n').map(cleanFormatting).filter((line) => line.length > 0);
+    const { sourceLines, translationLines } = classifyBilingualLines(lines, language);
+
+    // Preserve the existing single-language TXT behavior, including paragraphs
+    // whose selected language cannot be detected from their characters.
+    if (sourceLines.length === 0 || translationLines.length === 0) {
+      addSegment(plainText, null);
+      continue;
+    }
+
+    const translationLanguage = language === 'zh' ? 'en' : 'zh';
+    const sourceStream = sourceLines.flatMap((line) => splitIntoSentences(line, language));
+    const translationStream = translationLines.flatMap((line) => splitIntoSentences(line, translationLanguage));
+    const pairs = alignSentenceStreams(sourceStream, translationStream, language);
+
+    for (const pair of pairs) {
+      addSegment(pair.source, pair.translation);
+    }
+  }
 
   return {
     segments,

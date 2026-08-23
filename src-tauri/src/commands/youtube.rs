@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -13,6 +13,7 @@ const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(60);
 const LIST_TIMEOUT: Duration = Duration::from_secs(30);
 const OPERATION_TIMEOUT: Duration = Duration::from_secs(120);
 const METADATA_TTL: Duration = Duration::from_secs(600);
+const YTDLP_VERSION_TIMEOUT: Duration = Duration::from_secs(3);
 
 #[derive(Serialize, Clone)]
 pub struct SubtitleTrack {
@@ -62,14 +63,12 @@ fn ytdlp_path() -> Option<&'static Path> {
                 candidates.push(home.join(".local/bin/yt-dlp"));
                 candidates.push(home.join(".cargo/bin/yt-dlp"));
             }
-            candidates.into_iter().find(|p| p.is_file())
-            .or_else(|| {
-                Command::new("yt-dlp")
-                    .arg("--version")
-                    .output()
-                    .ok()
-                    .filter(|o| o.status.success())
-                    .map(|_| PathBuf::from("yt-dlp"))
+            candidates.into_iter().find(|p| p.is_file()).or_else(|| {
+                std::env::var_os("PATH").and_then(|paths| {
+                    std::env::split_paths(&paths)
+                        .map(|dir| dir.join("yt-dlp"))
+                        .find(|candidate| candidate.is_file())
+                })
             })
         })
         .as_deref()
@@ -87,6 +86,40 @@ fn ytdlp_version() -> Option<String> {
     } else {
         Some(version)
     }
+}
+
+fn ytdlp_version_from_output(success: bool, output: &[u8]) -> Option<String> {
+    if !success {
+        return None;
+    }
+    let version = String::from_utf8_lossy(output).trim().to_string();
+    (!version.is_empty()).then_some(version)
+}
+
+async fn ytdlp_version_with_timeout() -> Option<String> {
+    let path = ytdlp_path()?.to_path_buf();
+    let mut child = tokio::process::Command::new(path)
+        .arg("--version")
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .ok()?;
+
+    let status = match tokio::time::timeout(YTDLP_VERSION_TIMEOUT, child.wait()).await {
+        Ok(Ok(status)) => status,
+        Ok(Err(_)) => return None,
+        Err(_) => {
+            let _ = child.kill().await;
+            let _ = child.wait().await;
+            return None;
+        }
+    };
+    let mut output = Vec::new();
+    let mut stdout = child.stdout.take()?;
+    tokio::io::AsyncReadExt::read_to_end(&mut stdout, &mut output)
+        .await
+        .ok()?;
+    ytdlp_version_from_output(status.success(), &output)
 }
 
 fn is_valid_video_id(id: &str) -> bool {
@@ -309,7 +342,11 @@ fn friendly_ytdlp_error(stderr: &str) -> String {
         }
     };
     pick(
-        &["sign in to confirm you're not a bot", "not a bot", "bot check"],
+        &[
+            "sign in to confirm you're not a bot",
+            "not a bot",
+            "bot check",
+        ],
         "YouTube 触发了机器人验证，请稍后重试或更换网络环境。",
     )
     .or_else(|| {
@@ -318,14 +355,24 @@ fn friendly_ytdlp_error(stderr: &str) -> String {
             "视频不可用（可能已删除、设为私密或受地区限制）。",
         )
     })
-    .or_else(|| pick(&["video is private", "private video", "is private"], "该视频为私密视频，无法获取字幕。"))
+    .or_else(|| {
+        pick(
+            &["video is private", "private video", "is private"],
+            "该视频为私密视频，无法获取字幕。",
+        )
+    })
     .or_else(|| {
         pick(
             &["only available to premium", "this video is only available"],
             "该视频受地区或会员限制。",
         )
     })
-    .or_else(|| pick(&["http error 429", "too many requests"], "请求过于频繁（HTTP 429），请稍后重试。"))
+    .or_else(|| {
+        pick(
+            &["http error 429", "too many requests"],
+            "请求过于频繁（HTTP 429），请稍后重试。",
+        )
+    })
     .or_else(|| {
         pick(
             &["http error 403"],
@@ -508,8 +555,8 @@ async fn fetch_ytdlp_json(
     if !status.success() {
         return Err(friendly_ytdlp_error(&stderr));
     }
-    let json: serde_json::Value =
-        serde_json::from_slice(&stdout).map_err(|error| format!("解析 yt-dlp 信息失败：{error}"))?;
+    let json: serde_json::Value = serde_json::from_slice(&stdout)
+        .map_err(|error| format!("解析 yt-dlp 信息失败：{error}"))?;
     cache_metadata(&video_id, &json);
     Ok(json)
 }
@@ -581,12 +628,15 @@ async fn list_subs_http(url: &str) -> Result<VideoSubInfo, String> {
     if !status.is_success() {
         return Err(format!("YouTube 页面返回 {status}"));
     }
-    let json_text =
-        extract_initial_player_response(&html).ok_or("无法解析 YouTube 页面（视频可能不可用或需要登录）")?;
+    let json_text = extract_initial_player_response(&html)
+        .ok_or("无法解析 YouTube 页面（视频可能不可用或需要登录）")?;
     let json: serde_json::Value =
         serde_json::from_str(&json_text).map_err(|e| format!("解析页面数据失败：{e}"))?;
 
-    let title = json["videoDetails"]["title"].as_str().unwrap_or("视频").to_string();
+    let title = json["videoDetails"]["title"]
+        .as_str()
+        .unwrap_or("视频")
+        .to_string();
     let thumbnail = json["videoDetails"]["thumbnail"]["thumbnails"]
         .as_array()
         .and_then(|arr| arr.last())
@@ -626,10 +676,7 @@ fn create_temp_dir() -> Result<PathBuf, String> {
         .duration_since(UNIX_EPOCH)
         .map_err(|e| e.to_string())?
         .as_nanos();
-    let dir = std::env::temp_dir().join(format!(
-        "lexicue-ytdlp-{}-{ts}",
-        std::process::id()
-    ));
+    let dir = std::env::temp_dir().join(format!("lexicue-ytdlp-{}-{ts}", std::process::id()));
     std::fs::create_dir_all(&dir).map_err(|e| format!("创建临时目录失败：{e}"))?;
     Ok(dir)
 }
@@ -725,7 +772,11 @@ async fn download_sub_ytdlp(
     );
     let content = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
     let is_vtt = path.extension().and_then(|e| e.to_str()) == Some("vtt");
-    let content = if is_vtt { vtt_to_srt(&content) } else { content };
+    let content = if is_vtt {
+        vtt_to_srt(&content)
+    } else {
+        content
+    };
     let name = format!("{video_id}.{lang}.srt");
     cleanup_dir(&dir);
     if content.trim().is_empty() {
@@ -747,9 +798,10 @@ fn choose_subtitle_format(
     let formats = json[group_name][lang].as_array()?;
     let preference = ["srt", "vtt", "json3", "srv3", "srv2", "srv1", "ttml"];
     for ext in preference {
-        if let Some(format) = formats.iter().find(|item| {
-            item["ext"].as_str() == Some(ext) && item["url"].as_str().is_some()
-        }) {
+        if let Some(format) = formats
+            .iter()
+            .find(|item| item["ext"].as_str() == Some(ext) && item["url"].as_str().is_some())
+        {
             return Some((
                 ext.to_string(),
                 format["url"].as_str().unwrap_or_default().to_string(),
@@ -828,7 +880,9 @@ async fn download_sub_ytdlp_direct(
     let content = body.ok_or_else(|| {
         format!(
             "字幕下载失败（HTTP {}）",
-            last_status.map(|status| status.as_u16()).unwrap_or_default()
+            last_status
+                .map(|status| status.as_u16())
+                .unwrap_or_default()
         )
     })?;
     job.progress(
@@ -883,8 +937,8 @@ async fn download_sub_http(url: &str, lang: &str, is_auto: bool) -> Result<Subti
         .text()
         .await
         .unwrap_or_default();
-    let json_text =
-        extract_initial_player_response(&html).ok_or("无法解析 YouTube 页面（视频可能不可用或需要登录）")?;
+    let json_text = extract_initial_player_response(&html)
+        .ok_or("无法解析 YouTube 页面（视频可能不可用或需要登录）")?;
     let json: serde_json::Value =
         serde_json::from_str(&json_text).map_err(|e| format!("解析页面数据失败：{e}"))?;
 
@@ -958,7 +1012,8 @@ async fn download_sub_with_job(
     let mut ytdlp_error: Option<String> = None;
 
     if ytdlp_version().is_some() {
-        let first = download_sub_ytdlp_preferred(job, base_percent, span_percent, url, lang, is_auto).await;
+        let first =
+            download_sub_ytdlp_preferred(job, base_percent, span_percent, url, lang, is_auto).await;
         match first {
             Ok(result) => return Ok(result),
             Err(error) if error == CANCELLED_MESSAGE => return Err(error),
@@ -975,7 +1030,16 @@ async fn download_sub_with_job(
                     if job.cancelled() {
                         return Err(CANCELLED_MESSAGE.to_string());
                     }
-                    match download_sub_ytdlp_preferred(job, base_percent, span_percent, url, lang, is_auto).await {
+                    match download_sub_ytdlp_preferred(
+                        job,
+                        base_percent,
+                        span_percent,
+                        url,
+                        lang,
+                        is_auto,
+                    )
+                    .await
+                    {
                         Ok(result) => return Ok(result),
                         Err(retry_error) if retry_error == CANCELLED_MESSAGE => {
                             return Err(retry_error);
@@ -1033,7 +1097,10 @@ pub async fn youtube_download_sub(
         Ok(result) => result,
         Err(_) => {
             job.token.store(true, Ordering::Relaxed);
-            finish_progress(&job, &Err("操作超时（超过 2 分钟），请稍后重试。".to_string()));
+            finish_progress(
+                &job,
+                &Err("操作超时（超过 2 分钟），请稍后重试。".to_string()),
+            );
             return Err("操作超时（超过 2 分钟），请稍后重试。".to_string());
         }
     };
@@ -1052,11 +1119,14 @@ pub async fn youtube_merge_subs(
     let job = create_download_job(app, job_id);
     let _guard = JobGuard { job_id };
     let body = async {
-        let sub_a = download_sub_with_job(&job, 5.0, 35.0, &url, &primary.lang, primary.is_auto).await?;
+        let sub_a =
+            download_sub_with_job(&job, 5.0, 35.0, &url, &primary.lang, primary.is_auto).await?;
         if job.cancelled() {
             return Err(CANCELLED_MESSAGE.to_string());
         }
-        let sub_b = download_sub_with_job(&job, 40.0, 35.0, &url, &secondary.lang, secondary.is_auto).await?;
+        let sub_b =
+            download_sub_with_job(&job, 40.0, 35.0, &url, &secondary.lang, secondary.is_auto)
+                .await?;
         job.progress(
             "processing",
             "合并字幕",
@@ -1083,7 +1153,10 @@ pub async fn youtube_merge_subs(
         Ok(result) => result,
         Err(_) => {
             job.token.store(true, Ordering::Relaxed);
-            finish_progress(&job, &Err("操作超时（超过 2 分钟），请稍后重试。".to_string()));
+            finish_progress(
+                &job,
+                &Err("操作超时（超过 2 分钟），请稍后重试。".to_string()),
+            );
             return Err("操作超时（超过 2 分钟），请稍后重试。".to_string());
         }
     };
@@ -1092,8 +1165,8 @@ pub async fn youtube_merge_subs(
 }
 
 #[tauri::command]
-pub fn youtube_ytdlp_status() -> YtDlpStatus {
-    let version = ytdlp_version();
+pub async fn youtube_ytdlp_status() -> YtDlpStatus {
+    let version = ytdlp_version_with_timeout().await;
     YtDlpStatus {
         available: version.is_some(),
         version,
@@ -1112,9 +1185,7 @@ fn ms_to_srt_ts(ms: f64) -> String {
 fn json3_to_srt(content: &str) -> Result<String, String> {
     let json: serde_json::Value =
         serde_json::from_str(content).map_err(|e| format!("解析字幕 JSON 失败：{e}"))?;
-    let events = json["events"]
-        .as_array()
-        .ok_or("字幕数据缺少 events")?;
+    let events = json["events"].as_array().ok_or("字幕数据缺少 events")?;
     let mut out = String::new();
     let mut idx = 1u32;
     for event in events {
@@ -1407,7 +1478,11 @@ fn merge_cues_into_sentences(cues: &[SrtCue]) -> Vec<Sentence> {
         let chars: Vec<char> = text.chars().collect();
         for (index, ch) in chars.iter().enumerate() {
             let prev = if index > 0 { chars[index - 1] } else { ' ' };
-            let next = if index + 1 < chars.len() { chars[index + 1] } else { ' ' };
+            let next = if index + 1 < chars.len() {
+                chars[index + 1]
+            } else {
+                ' '
+            };
             update_quote_depth(&mut quote_depth, *ch, prev, next);
         }
         let text = join_buffer(&buffer);
@@ -1470,7 +1545,11 @@ fn emit_pair(buf_a: &[&SrtCue], buf_b: &[&SrtCue]) -> (Sentence, Option<Sentence
         text: join_buffer(buf),
     };
     let a = build(buf_a);
-    let b = if buf_b.is_empty() { None } else { Some(build(buf_b)) };
+    let b = if buf_b.is_empty() {
+        None
+    } else {
+        Some(build(buf_b))
+    };
     (a, b)
 }
 
@@ -1501,7 +1580,11 @@ fn joint_segment(primary: &[SrtCue], secondary: &[SrtCue]) -> Vec<(Sentence, Opt
             (a_bound && b_bound) || a_cap || b_cap
         } else if primary_signal || secondary_signal {
             let signal_bound = if primary_signal { a_bound } else { b_bound };
-            let other_len = if primary_signal { buf_b.len() } else { buf_a.len() };
+            let other_len = if primary_signal {
+                buf_b.len()
+            } else {
+                buf_a.len()
+            };
             (signal_bound && (other_len >= 2 || (a_bound && b_bound))) || a_cap || b_cap
         } else {
             a_cap || b_cap
@@ -1623,6 +1706,16 @@ mod tests {
     use super::*;
 
     #[test]
+    fn parses_ytdlp_version_output_only_when_command_succeeds() {
+        assert_eq!(
+            ytdlp_version_from_output(true, b" 2026.08.19 "),
+            Some("2026.08.19".to_string())
+        );
+        assert_eq!(ytdlp_version_from_output(false, b"2026.08.19"), None);
+        assert_eq!(ytdlp_version_from_output(true, b" "), None);
+    }
+
+    #[test]
     fn extracts_video_id_from_common_urls() {
         assert_eq!(
             extract_video_id("https://www.youtube.com/watch?v=dQw4w9WgXcQ").as_deref(),
@@ -1657,12 +1750,28 @@ mod tests {
     #[test]
     fn merges_overlapping_secondary_cues() {
         let primary = vec![
-            SrtCue { start_ms: 1000, end_ms: 3000, text: "First.".to_string() },
-            SrtCue { start_ms: 3000, end_ms: 5000, text: "Second.".to_string() },
+            SrtCue {
+                start_ms: 1000,
+                end_ms: 3000,
+                text: "First.".to_string(),
+            },
+            SrtCue {
+                start_ms: 3000,
+                end_ms: 5000,
+                text: "Second.".to_string(),
+            },
         ];
         let secondary = vec![
-            SrtCue { start_ms: 1500, end_ms: 2500, text: "一。".to_string() },
-            SrtCue { start_ms: 6000, end_ms: 7000, text: "无匹配".to_string() },
+            SrtCue {
+                start_ms: 1500,
+                end_ms: 2500,
+                text: "一。".to_string(),
+            },
+            SrtCue {
+                start_ms: 6000,
+                end_ms: 7000,
+                text: "无匹配".to_string(),
+            },
         ];
         let merged = merge_srt_cues(&primary, &secondary);
         assert!(merged.contains("First.\n一。"));
@@ -1673,13 +1782,28 @@ mod tests {
     #[test]
     fn joins_cues_into_complete_sentences() {
         let primary = vec![
-            SrtCue { start_ms: 1000, end_ms: 2000, text: "I went to the store".to_string() },
-            SrtCue { start_ms: 2000, end_ms: 3000, text: "and bought some milk.".to_string() },
-            SrtCue { start_ms: 3000, end_ms: 4000, text: "Then I left.".to_string() },
+            SrtCue {
+                start_ms: 1000,
+                end_ms: 2000,
+                text: "I went to the store".to_string(),
+            },
+            SrtCue {
+                start_ms: 2000,
+                end_ms: 3000,
+                text: "and bought some milk.".to_string(),
+            },
+            SrtCue {
+                start_ms: 3000,
+                end_ms: 4000,
+                text: "Then I left.".to_string(),
+            },
         ];
         let sentences = merge_cues_into_sentences(&primary);
         assert_eq!(sentences.len(), 2);
-        assert_eq!(sentences[0].text, "I went to the store and bought some milk.");
+        assert_eq!(
+            sentences[0].text,
+            "I went to the store and bought some milk."
+        );
         assert_eq!(sentences[0].start_ms, 1000);
         assert_eq!(sentences[0].end_ms, 3000);
         assert_eq!(sentences[1].text, "Then I left.");
@@ -1703,12 +1827,22 @@ mod tests {
     #[test]
     fn attaches_spanning_translation_to_best_overlap() {
         let primary = vec![
-            SrtCue { start_ms: 1000, end_ms: 3000, text: "First sentence.".to_string() },
-            SrtCue { start_ms: 3000, end_ms: 5000, text: "Second sentence.".to_string() },
+            SrtCue {
+                start_ms: 1000,
+                end_ms: 3000,
+                text: "First sentence.".to_string(),
+            },
+            SrtCue {
+                start_ms: 3000,
+                end_ms: 5000,
+                text: "Second sentence.".to_string(),
+            },
         ];
-        let secondary = vec![
-            SrtCue { start_ms: 2800, end_ms: 4800, text: "两句合译。".to_string() },
-        ];
+        let secondary = vec![SrtCue {
+            start_ms: 2800,
+            end_ms: 4800,
+            text: "两句合译。".to_string(),
+        }];
         let merged = merge_srt_cues(&primary, &secondary);
         let cues = parse_srt(&merged);
         assert_eq!(cues.len(), 2);
@@ -1718,12 +1852,16 @@ mod tests {
 
     #[test]
     fn leaves_translation_empty_when_tracks_drift() {
-        let primary = vec![
-            SrtCue { start_ms: 1000, end_ms: 2000, text: "Here.".to_string() },
-        ];
-        let secondary = vec![
-            SrtCue { start_ms: 9000, end_ms: 10000, text: "差距太大。".to_string() },
-        ];
+        let primary = vec![SrtCue {
+            start_ms: 1000,
+            end_ms: 2000,
+            text: "Here.".to_string(),
+        }];
+        let secondary = vec![SrtCue {
+            start_ms: 9000,
+            end_ms: 10000,
+            text: "差距太大。".to_string(),
+        }];
         let merged = merge_srt_cues(&primary, &secondary);
         assert!(merged.contains("Here.\n\n"));
         assert!(!merged.contains("差距太大"));
@@ -1732,8 +1870,16 @@ mod tests {
     #[test]
     fn continues_sentences_across_cue_boundaries_inside_quotes() {
         let primary = vec![
-            SrtCue { start_ms: 1000, end_ms: 2000, text: "He said, \"I'm fine.".to_string() },
-            SrtCue { start_ms: 2000, end_ms: 3000, text: "She left.\"".to_string() },
+            SrtCue {
+                start_ms: 1000,
+                end_ms: 2000,
+                text: "He said, \"I'm fine.".to_string(),
+            },
+            SrtCue {
+                start_ms: 2000,
+                end_ms: 3000,
+                text: "She left.\"".to_string(),
+            },
         ];
         let sentences = merge_cues_into_sentences(&primary);
         assert_eq!(sentences.len(), 1);
@@ -1743,14 +1889,38 @@ mod tests {
     #[test]
     fn anchors_no_punctuation_track_on_translation_boundaries() {
         let primary = vec![
-            SrtCue { start_ms: 0, end_ms: 2000, text: "One two".to_string() },
-            SrtCue { start_ms: 2000, end_ms: 4000, text: "three four".to_string() },
-            SrtCue { start_ms: 4000, end_ms: 6000, text: "five six".to_string() },
-            SrtCue { start_ms: 6000, end_ms: 8000, text: "seven eight".to_string() },
+            SrtCue {
+                start_ms: 0,
+                end_ms: 2000,
+                text: "One two".to_string(),
+            },
+            SrtCue {
+                start_ms: 2000,
+                end_ms: 4000,
+                text: "three four".to_string(),
+            },
+            SrtCue {
+                start_ms: 4000,
+                end_ms: 6000,
+                text: "five six".to_string(),
+            },
+            SrtCue {
+                start_ms: 6000,
+                end_ms: 8000,
+                text: "seven eight".to_string(),
+            },
         ];
         let secondary = vec![
-            SrtCue { start_ms: 0, end_ms: 4000, text: "一二。".to_string() },
-            SrtCue { start_ms: 4000, end_ms: 8000, text: "三四。".to_string() },
+            SrtCue {
+                start_ms: 0,
+                end_ms: 4000,
+                text: "一二。".to_string(),
+            },
+            SrtCue {
+                start_ms: 4000,
+                end_ms: 8000,
+                text: "三四。".to_string(),
+            },
         ];
         let merged = merge_srt_cues(&primary, &secondary);
         let cues = parse_srt(&merged);
@@ -1847,23 +2017,25 @@ mod tests {
         assert!(!auto.content.trim().is_empty());
         let cues = parse_srt(&auto.content);
         assert!(!cues.is_empty());
-        let has_han = auto.content.chars().any(|c| matches!(c, '\u{3400}'..='\u{9FFF}'));
+        let has_han = auto
+            .content
+            .chars()
+            .any(|c| matches!(c, '\u{3400}'..='\u{9FFF}'));
         assert!(has_han, "auto zh-Hans subtitle should contain Chinese text");
     }
 
     #[test]
     fn maps_common_ytdlp_errors_to_friendly_messages() {
         assert!(friendly_ytdlp_error("ERROR: HTTP Error 429: Too Many Requests").contains("429"));
-        assert!(
-            friendly_ytdlp_error("Sign in to confirm you're not a bot").contains("机器人")
-        );
+        assert!(friendly_ytdlp_error("Sign in to confirm you're not a bot").contains("机器人"));
         assert!(friendly_ytdlp_error("ERROR: Video unavailable").contains("不可用"));
         assert!(friendly_ytdlp_error("This video is private").contains("私密"));
-        assert!(friendly_ytdlp_error("There are no subtitles for the requested languages").contains("没有可用字幕"));
-        assert!(friendly_ytdlp_error("Some other weird error").contains("yt-dlp 出错"));
         assert!(
-            friendly_ytdlp_error("HTTP Error 403: Forbidden").contains("403")
+            friendly_ytdlp_error("There are no subtitles for the requested languages")
+                .contains("没有可用字幕")
         );
+        assert!(friendly_ytdlp_error("Some other weird error").contains("yt-dlp 出错"));
+        assert!(friendly_ytdlp_error("HTTP Error 403: Forbidden").contains("403"));
     }
 
     #[test]
@@ -1886,7 +2058,9 @@ mod tests {
         assert!(is_transient_error("yt-dlp 执行超时，已终止。"));
         assert!(is_transient_error("请求 YouTube 失败：connect timeout"));
         assert!(!is_transient_error("该视频没有可用字幕。"));
-        assert!(!is_transient_error("视频不可用（可能已删除、设为私密或受地区限制）。"));
+        assert!(!is_transient_error(
+            "视频不可用（可能已删除、设为私密或受地区限制）。"
+        ));
     }
 
     #[test]

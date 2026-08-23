@@ -3,6 +3,8 @@ import { invoke } from '@tauri-apps/api/core';
 import type { WordInfo, WordDetail, WordStatus } from '../lib/types';
 import { applyStatusUpdates, type RemovedItem } from '../lib/statusList';
 import { usePreferencesStore } from './preferencesStore';
+import { QueryCache } from '../lib/queryCache';
+import { invalidateCaches, registerCacheInvalidator } from '../lib/cacheInvalidation';
 
 interface BatchAction {
   changes: { id: number; status: WordStatus }[];
@@ -21,8 +23,9 @@ interface WordStore {
   detailLoading: boolean;
   detailError: boolean;
   detailErrorId: number | null;
-  refreshKey: number;
-  loadWords: () => Promise<void>;
+  loadedKey: string | null;
+  loadWords: (force?: boolean) => Promise<void>;
+  invalidate: () => void;
   loadDetail: (wordId: number) => Promise<void>;
   closeDetail: () => void;
   setFilter: (f: WordStatus | 'all') => void;
@@ -36,6 +39,13 @@ interface WordStore {
   clearSelection: () => void;
 }
 
+const wordCache = new QueryCache<WordInfo[]>();
+registerCacheInvalidator('words', () => wordCache.invalidate());
+
+function wordQueryKey(filter: WordStore['filter'], sortBy: WordStore['sortBy']): string {
+  return JSON.stringify([usePreferencesStore.getState().language, filter, sortBy]);
+}
+
 export const useWordStore = create<WordStore>((set, get) => ({
   words: [],
   detail: null,
@@ -44,29 +54,35 @@ export const useWordStore = create<WordStore>((set, get) => ({
   selected: new Set(),
   batchUpdating: false,
   lastBatchAction: null,
-  loading: false,
+  loading: true,
   detailLoading: false,
   detailError: false,
   detailErrorId: null,
-  refreshKey: 0,
+  loadedKey: null,
 
-  loadWords: async () => {
+  loadWords: async (force = false) => {
     const { filter, sortBy } = get();
     const language = usePreferencesStore.getState().language;
-    set({ loading: true });
+    const key = wordQueryKey(filter, sortBy);
+    const cached = wordCache.peek(key);
+    if (cached) set({ words: cached, loadedKey: key, loading: false });
+    if (!force && wordCache.isFresh(key)) return;
+    if (!cached) set({ loading: true });
     try {
-      const words: WordInfo[] = await invoke('list_words', {
-        statusFilter: filter === 'all' ? null : filter,
-        sortBy,
-        language: language === 'all' ? null : language,
-      });
-      set({ words, refreshKey: get().refreshKey + 1 });
+      const words = await wordCache.fetch(key, () => invoke<WordInfo[]>('list_words', {
+          statusFilter: filter === 'all' ? null : filter,
+          sortBy,
+          language: language === 'all' ? null : language,
+        }), force);
+      if (wordQueryKey(get().filter, get().sortBy) === key) set({ words, loadedKey: key });
     } catch (e) {
       console.error('Failed to load words:', e);
     } finally {
-      set({ loading: false });
+      if (wordQueryKey(get().filter, get().sortBy) === key) set({ loading: false });
     }
   },
+
+  invalidate: () => wordCache.invalidate(),
 
   loadDetail: async (wordId: number) => {
     set({ detailLoading: true, detailError: false, detailErrorId: wordId });
@@ -105,6 +121,9 @@ export const useWordStore = create<WordStore>((set, get) => ({
       selected: new Set(Array.from(get().selected).filter((id) => keptIds.has(id))),
       lastBatchAction: null,
     });
+    wordCache.invalidate();
+    wordCache.prime(wordQueryKey(get().filter, get().sortBy), result.words);
+    invalidateCaches('files', 'review', 'insights');
     const { detail } = get();
     if (detail && detail.word.id === wordId) {
       get().loadDetail(wordId);
@@ -148,6 +167,9 @@ export const useWordStore = create<WordStore>((set, get) => ({
         selected: new Set(),
         lastBatchAction: { changes, removed: result.removed },
       });
+      wordCache.invalidate();
+      wordCache.prime(wordQueryKey(get().filter, get().sortBy), result.words);
+      invalidateCaches('files', 'review', 'insights');
       return changes.length;
     } finally {
       set({ batchUpdating: false });
@@ -176,8 +198,10 @@ export const useWordStore = create<WordStore>((set, get) => ({
       set({
         words,
         lastBatchAction: null,
-        refreshKey: get().refreshKey + 1,
       });
+      wordCache.invalidate();
+      wordCache.prime(wordQueryKey(get().filter, get().sortBy), words);
+      invalidateCaches('files', 'review', 'insights');
     } finally {
       set({ batchUpdating: false });
     }
@@ -196,13 +220,3 @@ export const useWordStore = create<WordStore>((set, get) => ({
 
   clearSelection: () => set({ selected: new Set() }),
 }));
-
-usePreferencesStore.subscribe(
-  (state) => state.language,
-  () => {
-    const store = useWordStore.getState();
-    store.clearSelection();
-    useWordStore.setState({ detail: null, detailError: false, detailErrorId: null });
-    store.loadWords();
-  },
-);

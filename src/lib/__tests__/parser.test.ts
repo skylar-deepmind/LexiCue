@@ -282,6 +282,39 @@ Second paragraph here.`;
     expect(result.segments[0].start_time).toBeNull();
   });
 
+  it('pairs English source lines with Chinese translations in each paragraph', () => {
+    const txt = `Hello, how are you?
+你好，你怎么样？
+
+I am doing great.
+我很好。`;
+
+    const result = parseFile(txt, 'txt');
+    expect(result.segments).toHaveLength(2);
+    expect(result.segments[0]).toMatchObject({
+      en_text: 'Hello, how are you?',
+      zh_text: '你好，你怎么样？',
+      start_time: null,
+      end_time: null,
+    });
+    expect(result.segments[1]).toMatchObject({
+      en_text: 'I am doing great.',
+      zh_text: '我很好。',
+    });
+  });
+
+  it('aligns multiple source and translation lines in a TXT paragraph', () => {
+    const txt = `Wait.
+I'll be right back.
+等等。
+我马上回来。`;
+
+    const result = parseFile(txt, 'txt');
+    expect(result.segments).toHaveLength(2);
+    expect(result.segments[0]).toMatchObject({ en_text: 'Wait.', zh_text: '等等。' });
+    expect(result.segments[1]).toMatchObject({ en_text: "I'll be right back.", zh_text: '我马上回来。' });
+  });
+
   it('keeps Japanese text and tokenizes it without ASCII filtering', () => {
     const result = parseFile('今日はいい天気です。', 'txt', 'auto', 'ja');
     expect(result.language).toBe('ja');
@@ -335,6 +368,30 @@ The weather is really nice today.`;
     const result = parseFile(srt, 'srt', 'auto', 'zh');
     expect(result.segments[0].en_text).toBe('今天天气真好。');
     expect(result.segments[0].zh_text).toBe('The weather is really nice today.');
+  });
+
+  it('uses Chinese as the TXT source and Latin text as its translation', () => {
+    const txt = `今天天气真好。
+The weather is really nice today.`;
+    const result = parseFile(txt, 'txt', 'auto', 'zh');
+
+    expect(result.segments).toHaveLength(1);
+    expect(result.segments[0]).toMatchObject({
+      en_text: '今天天气真好。',
+      zh_text: 'The weather is really nice today.',
+    });
+  });
+
+  it('uses the Japanese TXT line as the source and the Chinese line as its translation', () => {
+    const txt = `今日はいい天気ですね。
+今天天气真好。`;
+    const result = parseFile(txt, 'txt', 'auto', 'ja');
+
+    expect(result.segments).toHaveLength(1);
+    expect(result.segments[0]).toMatchObject({
+      en_text: '今日はいい天気ですね。',
+      zh_text: '今天天气真好。',
+    });
   });
 
   it('keeps Chinese text in TXT', () => {

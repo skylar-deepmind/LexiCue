@@ -49,4 +49,13 @@ describe('i18n locales', () => {
       expect(walk(resource as Record<string, unknown>, '', []), `${name} empty values`).toEqual([]);
     }
   });
+
+  it('describes file learning stages without exposing the numeric index', () => {
+    for (const [name, resource] of Object.entries(LOCALES)) {
+      const fileCard = (resource as { fileCard: Record<string, string> }).fileCard;
+      expect(fileCard.learningProgress, `${name} progress label`).toBeTruthy();
+      expect(fileCard.learningProgressAria, `${name} progress aria`).toContain('{{stage}}');
+      expect(fileCard.learningProgressAria, `${name} hidden index`).not.toContain('index');
+    }
+  });
 });

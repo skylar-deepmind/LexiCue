@@ -1,26 +1,30 @@
 import { useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { invoke } from '@tauri-apps/api/core';
 import { useTranslation } from 'react-i18next';
 import { Search, X, MoreHorizontal } from 'lucide-react';
 import { useReaderStore } from '../stores/readerStore';
 import { usePreferencesStore } from '../stores/preferencesStore';
 import { useFeedbackStore } from '../stores/feedbackStore';
-import type { FileRecord, WordStatus } from '../lib/types';
+import type { WordStatus } from '../lib/types';
 import type { WordDetail } from '../lib/types';
 import type { ContextMenuItem } from '../components/ContextMenu';
 import ContextMenu from '../components/ContextMenu';
 import SegmentCard from '../components/SegmentCard';
+import DisplaySettingsMenu from '../components/DisplaySettingsMenu';
 import EmptyState from '../components/EmptyState';
 import WordDetailPanel from '../components/WordDetail';
 import PhraseDetailPanel from '../components/PhraseDetail';
 import type { PhraseDetail as PhraseDetailType } from '../lib/types';
+import { occurrenceRoute } from '../lib/fileProgress';
+import { invalidateCaches } from '../lib/cacheInvalidation';
 
 const STATUS_CYCLE: WordStatus[] = ['unprocessed', 'learning', 'known', 'ignored'];
 
-export default function ReadingPage() {
+export default function ReadingPage({ fileId }: { fileId: number }) {
   const { t } = useTranslation();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const {
     currentFileId,
     currentLanguage,
@@ -33,20 +37,18 @@ export default function ReadingPage() {
     setFile,
     setActiveSegmentIndex,
   } = useReaderStore();
-  const globalLanguage = usePreferencesStore((state) => state.language);
-  const readingFontSize = usePreferencesStore((state) => state.readingFontSize);
-  const setReadingFontSize = usePreferencesStore((state) => state.setReadingFontSize);
+  const learningTextFontSize = usePreferencesStore((state) => state.learningTextFontSize);
+  const definitionFontSize = usePreferencesStore((state) => state.definitionFontSize);
+  const auxiliaryFontSize = usePreferencesStore((state) => state.auxiliaryFontSize);
   const readingLineHeight = usePreferencesStore((state) => state.readingLineHeight);
   const setReadingLineHeight = usePreferencesStore((state) => state.setReadingLineHeight);
-  const [files, setFiles] = useState<FileRecord[]>([]);
   const [detail, setDetail] = useState<WordDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [phraseDetail, setPhraseDetail] = useState<PhraseDetailType | null>(null);
   const [phraseDetailLoading, setPhraseDetailLoading] = useState(false);
   const [showTranslation, setShowTranslation] = useState(true);
-  const [quickMode, setQuickMode] = useState(false);
-  const [quickSelected, setQuickSelected] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
+  const [focusQuery, setFocusQuery] = useState('');
   const [activeMatchIndex, setActiveMatchIndex] = useState(0);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [showHint, setShowHint] = useState(true);
@@ -78,42 +80,47 @@ export default function ReadingPage() {
   } | null>(null);
 
   useEffect(() => {
-    invoke<FileRecord[]>('list_files').then(setFiles);
-  }, []);
-
-  const visibleFiles = globalLanguage === 'all'
-    ? files
-    : files.filter((file) => file.language === globalLanguage);
+    setFile(fileId);
+  }, [fileId, setFile]);
 
   useEffect(() => {
-    if (globalLanguage === 'all' || currentFileId === null) return;
-    const current = files.find((file) => file.id === currentFileId);
-    if (current && current.language !== globalLanguage) {
-      setSearchParams({}, { replace: true });
-      useReaderStore.setState({
-        currentFileId: null,
-        segments: [],
-        wordStatusMap: new Map(),
-        phraseMap: new Map(),
-        segmentTokens: new Map(),
-        activeSegmentIndex: 0,
+    const focusType = searchParams.get('focusType');
+    const rawFocusId = searchParams.get('focusId');
+    if (!rawFocusId) return;
+    const focusId = Number(rawFocusId);
+    if (!Number.isInteger(focusId)) return;
+    let timer: number | undefined;
+    const showFocus = (text: string) => {
+      setFocusQuery(text);
+      timer = window.setTimeout(() => setFocusQuery(''), 3000);
+    };
+    if (focusType === 'word') {
+      void invoke<WordDetail>('word_detail', { wordId: focusId }).then((value) => {
+        const segmentIndex = Number(searchParams.get('segment'));
+        const occurrence = value.occurrences.find((item) => item.file_id === currentFileId && item.segment_index === segmentIndex);
+        showFocus(occurrence?.original_form ?? value.word.lemma);
       });
+    } else if (focusType === 'phrase') {
+      void invoke<PhraseDetailType>('phrase_detail', { phraseId: focusId }).then((value) => showFocus(value.phrase.text));
     }
-  }, [globalLanguage, files, currentFileId, setSearchParams]);
-
-  useEffect(() => {
-    const fileId = searchParams.get('fileId');
-    if (fileId) {
-      setFile(Number(fileId));
-    }
-  }, [searchParams, setFile]);
+    return () => { if (timer) window.clearTimeout(timer); };
+  }, [currentFileId, searchParams]);
 
   useEffect(() => {
     if (currentFileId === null || segments.length === 0) return;
+    const rawRequested = searchParams.get('segment');
+    if (rawRequested !== null) {
+      const requested = Number(rawRequested);
+      const requestedIndex = segments.findIndex((segment) => segment.index_num === requested);
+      if (requestedIndex >= 0) {
+        setActiveSegmentIndex(requestedIndex);
+        return;
+      }
+    }
     const saved = Number(localStorage.getItem(`lexicue-reading-position-${currentFileId}`));
     const nextIndex = Number.isInteger(saved) && saved >= 0 && saved < segments.length ? saved : 0;
     setActiveSegmentIndex(nextIndex);
-  }, [currentFileId, segments.length, setActiveSegmentIndex]);
+  }, [currentFileId, searchParams, segments, setActiveSegmentIndex]);
 
   useEffect(() => {
     if (currentFileId !== null && segments.length > 0) {
@@ -188,6 +195,7 @@ export default function ReadingPage() {
       if (status === 'learning') {
         await invoke('create_review_card', { wordId });
       }
+      invalidateCaches('words', 'files', 'review', 'insights');
       updateLocalStatus(lemma, wordId, status);
       setDetail((current) => current
         ? { ...current, word: { ...current.word, status } }
@@ -262,59 +270,9 @@ export default function ReadingPage() {
     setActiveSegmentIndex(matchingSegmentIndexes[next]);
   };
 
-  const fileWordCounts = new Map<string, number>();
-  for (const tokens of segmentTokens.values()) {
-    for (const t of tokens) {
-      fileWordCounts.set(t.lemma, (fileWordCounts.get(t.lemma) ?? 0) + 1);
-    }
-  }
-  const fileWordItems = Array.from(fileWordCounts.entries())
-    .map(([lemma, frequency]) => ({ lemma, frequency, info: wordStatusMap.get(lemma) }))
-    .sort((a, b) => b.frequency - a.frequency || a.lemma.localeCompare(b.lemma));
-
-  useEffect(() => {
-    setQuickSelected(new Set());
-  }, [currentFileId]);
-
-  const applyQuickStatus = async (status: WordStatus, targetItems = fileWordItems.filter((item) => quickSelected.has(item.lemma))) => {
-    const items = targetItems.filter((item) => item.info?.id !== undefined);
-    if (items.length === 0) return;
-    try {
-      const wordIds = items.map((item) => item.info!.id);
-      await invoke('batch_update_status', { wordIds, status });
-      if (status === 'learning') {
-        await Promise.all(wordIds.map((wordId) => invoke('create_review_card', { wordId })));
-      }
-      items.forEach((item) => updateLocalStatus(item.lemma, item.info!.id, status));
-      setQuickSelected(new Set());
-      useFeedbackStore.getState().show(t('reading.markedStatus', { count: items.length, status: t(`status.${status}`) }), 'success');
-    } catch (e) {
-      console.error('Failed to update current file words:', e);
-      useFeedbackStore.getState().show(t('errors.batchUpdateFailed'), 'error');
-    }
-  };
-
   return (
     <div className="h-full flex flex-col">
       <div className="flex flex-wrap items-center gap-3 px-4 sm:px-6 py-4 border-b border-gray-100">
-        <h1 className="text-xl font-semibold text-gray-900 shrink-0">{t('reading.title')}</h1>
-        <select
-          value={currentFileId ?? ''}
-          onChange={(e) => {
-            const id = e.target.value;
-            if (id) {
-              setSearchParams({ fileId: id });
-            }
-          }}
-          className="flex-1 max-w-xs px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="">{t('reading.selectFile')}</option>
-          {visibleFiles.map((f) => (
-            <option key={f.id} value={f.id}>
-              {f.name} ({f.type.toUpperCase()})
-            </option>
-          ))}
-        </select>
         <div className="flex items-center gap-2 ml-auto">
           <button
             onClick={() => setShowTranslation((visible) => !visible)}
@@ -338,35 +296,8 @@ export default function ReadingPage() {
                 role="menu"
                 className="absolute right-0 top-full mt-1 z-50 min-w-[200px] rounded-xl border border-gray-200 bg-white py-1 shadow-lg"
               >
-                <button
-                  role="menuitem"
-                  onClick={() => {
-                    setQuickMode((enabled) => !enabled);
-                    setToolsOpen(false);
-                  }}
-                  className={`flex w-full items-center gap-2 px-4 py-2 text-left text-sm transition-colors hover:bg-gray-50 ${quickMode ? 'text-blue-700' : 'text-gray-700'}`}
-                >
-                  {quickMode ? t('reading.exitQuickMode') : t('reading.quickMode')}
-                </button>
-                <div className="border-t border-gray-100 px-4 py-2.5">
+                <div className="px-4 py-2.5">
                   <div className="flex items-center justify-between gap-3 text-xs">
-                    <span className="text-gray-500">{t('reading.fontSize')}</span>
-                    <div className="flex gap-1">
-                      {(['sm', 'md', 'lg'] as const).map((size) => (
-                        <button
-                          key={size}
-                          onClick={() => setReadingFontSize(size)}
-                          aria-pressed={readingFontSize === size}
-                          className={`rounded px-2 py-1 text-xs transition-colors ${
-                            readingFontSize === size ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                          }`}
-                        >
-                          {t(`reading.font.${size}`)}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="mt-2 flex items-center justify-between gap-3 text-xs">
                     <span className="text-gray-500">{t('reading.lineHeight')}</span>
                     <div className="flex gap-1">
                       {(['compact', 'normal', 'loose'] as const).map((lh) => (
@@ -398,6 +329,7 @@ export default function ReadingPage() {
               </div>
             )}
           </div>
+          <DisplaySettingsMenu />
         </div>
       </div>
 
@@ -452,66 +384,6 @@ export default function ReadingPage() {
         </div>
       )}
 
-      {quickMode && currentFileId !== null && segments.length > 0 && (
-        <div className="border-b border-blue-100 bg-blue-50/50 px-4 py-3 sm:px-6">
-          <div className="mx-auto max-w-2xl">
-            <div className="mb-2 flex flex-wrap items-center gap-2">
-              <span className="text-sm font-medium text-gray-800">{t('reading.quickTitle')}</span>
-              <span className="text-xs text-gray-500">{t('reading.uniqueWords', { count: fileWordItems.length })}</span>
-              <button
-                onClick={() => applyQuickStatus('known', fileWordItems.filter((item) => item.info?.status === 'unprocessed'))}
-                className="ml-auto rounded-md bg-green-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-green-700"
-              >
-                {t('reading.markAllKnown')}
-              </button>
-              <button
-                onClick={() => applyQuickStatus('learning', fileWordItems.filter((item) => item.info?.status === 'unprocessed'))}
-                className="rounded-md bg-blue-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-blue-700"
-              >
-                {t('reading.markAllLearning')}
-              </button>
-            </div>
-            <div className="mb-2 flex items-center gap-2 text-xs text-gray-600">
-              <button
-                onClick={() => setQuickSelected(new Set(fileWordItems.map((item) => item.lemma)))}
-                className="hover:text-blue-700"
-              >
-                {t('reading.selectAll')}
-              </button>
-              <button onClick={() => setQuickSelected(new Set())} className="hover:text-blue-700">{t('reading.clear')}</button>
-              <span>{t('reading.selectedCount', { count: quickSelected.size })}</span>
-              {quickSelected.size > 0 && (
-                <>
-                  <button onClick={() => applyQuickStatus('known')} className="rounded bg-green-100 px-2 py-1 text-green-700">{t('reading.markKnown')}</button>
-                  <button onClick={() => applyQuickStatus('learning')} className="rounded bg-blue-100 px-2 py-1 text-blue-700">{t('reading.addLearning')}</button>
-                </>
-              )}
-            </div>
-            <div className="grid max-h-48 grid-cols-2 gap-x-4 gap-y-1 overflow-y-auto sm:grid-cols-3">
-              {fileWordItems.map((item) => (
-                <label key={item.lemma} className="flex min-w-0 items-center gap-2 rounded px-1 py-1 text-sm hover:bg-white">
-                  <input
-                    type="checkbox"
-                    checked={quickSelected.has(item.lemma)}
-                    onChange={() => setQuickSelected((current) => {
-                      const next = new Set(current);
-                      if (next.has(item.lemma)) next.delete(item.lemma);
-                      else next.add(item.lemma);
-                      return next;
-                    })}
-                    className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600"
-                  />
-                  <span className={`truncate ${item.info?.status === 'known' ? 'text-green-700' : item.info?.status === 'learning' ? 'text-blue-700' : item.info?.status === 'ignored' ? 'text-gray-400' : 'text-gray-700'}`}>
-                    {item.lemma}
-                  </span>
-                  <span className="ml-auto text-xs text-gray-400">×{item.frequency}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="flex-1 overflow-y-auto p-6">
         {loading ? (
           <div className="flex items-center justify-center py-16 text-gray-400">{t('common.loading')}</div>
@@ -532,9 +404,11 @@ export default function ReadingPage() {
                   onWordContextMenu={handleWordContextMenu}
                   onPhraseClick={(phraseId) => handlePhraseClick(phraseId)}
                    showTranslation={showTranslation}
-                  highlightQuery={searchQuery}
+                  highlightQuery={focusQuery || searchQuery}
                   isActive={index === activeSegmentIndex || index === matchingSegmentIndexes[activeMatchIndex]}
-                  fontSize={readingFontSize}
+                  learningFontSize={learningTextFontSize}
+                  definitionFontSize={definitionFontSize}
+                  auxiliaryFontSize={auxiliaryFontSize}
                   lineHeight={readingLineHeight}
                 />
               </div>
@@ -571,6 +445,10 @@ export default function ReadingPage() {
                   : current);
                 useFeedbackStore.getState().show(t('reading.definitionSaved'), 'success');
               }}
+              onOccurrenceOpen={(occurrence) => {
+                setDetail(null);
+                navigate(occurrenceRoute(occurrence, 'word', detail.word.id));
+              }}
             />
           ) : null}
         </>
@@ -592,6 +470,7 @@ export default function ReadingPage() {
                 if (status === 'learning') {
                   await invoke('create_phrase_review_card', { phraseId });
                 }
+                invalidateCaches('phrases', 'files', 'review', 'insights');
                 setPhraseDetail((current) => current
                   ? { ...current, phrase: { ...current.phrase, status } }
                   : current);
@@ -602,6 +481,10 @@ export default function ReadingPage() {
                   ? { ...current, phrase: { ...current.phrase, definition } }
                   : current);
                 useFeedbackStore.getState().show(t('reading.definitionSaved'), 'success');
+              }}
+              onOccurrenceOpen={(occurrence) => {
+                setPhraseDetail(null);
+                navigate(occurrenceRoute(occurrence, 'phrase', phraseDetail.phrase.id));
               }}
             />
           ) : null}

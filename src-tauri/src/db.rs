@@ -1,8 +1,8 @@
 use rusqlite::Connection;
 use std::path::Path;
-use std::sync::Mutex;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use std::sync::Mutex;
 
 pub struct DbState {
     pub conn: Mutex<Connection>,
@@ -36,7 +36,42 @@ pub fn init_db(db_path: &Path) -> Result<Connection, rusqlite::Error> {
     migrate_legacy_constraints(&conn)?;
     backfill_phrase_provider(&conn)?;
     migrate_file_folder(&conn)?;
+    migrate_occurrence_hidden(&conn)?;
+    create_performance_indexes(&conn)?;
     Ok(conn)
+}
+
+fn migrate_occurrence_hidden(conn: &Connection) -> Result<(), rusqlite::Error> {
+    for table in ["occurrences", "phrase_occurrences"] {
+        let has_hidden = conn
+            .prepare(&format!("PRAGMA table_info({table})"))?
+            .query_map([], |row| row.get::<_, String>(1))?
+            .filter_map(|col| col.ok())
+            .any(|col| col == "hidden");
+        if !has_hidden {
+            conn.execute(
+                &format!("ALTER TABLE {table} ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0"),
+                [],
+            )?;
+        }
+    }
+    Ok(())
+}
+
+fn create_performance_indexes(conn: &Connection) -> Result<(), rusqlite::Error> {
+    conn.execute_batch(
+        "CREATE INDEX IF NOT EXISTS idx_segments_file_index ON segments(file_id, index_num);
+         CREATE INDEX IF NOT EXISTS idx_occurrences_segment_word ON occurrences(segment_id, word_id);
+         CREATE INDEX IF NOT EXISTS idx_occurrences_word_hidden ON occurrences(word_id, hidden);
+         CREATE INDEX IF NOT EXISTS idx_phrase_occurrences_segment_phrase ON phrase_occurrences(segment_id, phrase_id);
+         CREATE INDEX IF NOT EXISTS idx_phrase_occurrences_phrase_hidden ON phrase_occurrences(phrase_id, hidden);
+         CREATE INDEX IF NOT EXISTS idx_words_status_language ON words(status, language);
+         CREATE INDEX IF NOT EXISTS idx_phrases_status_language ON phrases(status, language);
+         CREATE INDEX IF NOT EXISTS idx_reviews_due_at ON reviews(due_at);
+         CREATE INDEX IF NOT EXISTS idx_phrase_reviews_due_at ON phrase_reviews(due_at);
+         CREATE INDEX IF NOT EXISTS idx_review_logs_reviewed_at ON review_logs(reviewed_at);
+         CREATE INDEX IF NOT EXISTS idx_phrase_review_logs_reviewed_at ON phrase_review_logs(reviewed_at);",
+    )
 }
 
 fn migrate_file_folder(conn: &Connection) -> Result<(), rusqlite::Error> {
@@ -157,7 +192,12 @@ fn migrate_legacy_constraints(conn: &Connection) -> Result<(), rusqlite::Error> 
             WORDS_NEW_DDL,
             "id, language, lemma, status, definition, reading, part_of_speech",
         )?;
-        rebuild_table(conn, "phrases", PHRASES_NEW_DDL, "id, language, text, status, definition, source")?;
+        rebuild_table(
+            conn,
+            "phrases",
+            PHRASES_NEW_DDL,
+            "id, language, text, status, definition, source",
+        )?;
         rebuild_table(
             conn,
             "dictionary_entries",
@@ -261,12 +301,36 @@ fn create_tables(conn: &Connection) -> Result<(), rusqlite::Error> {
              UNIQUE(language, lemma)
         ) STRICT;
 
+        CREATE TABLE IF NOT EXISTS frequency_baseline_profiles (
+            language TEXT PRIMARY KEY,
+            tier INTEGER NOT NULL,
+            enabled INTEGER NOT NULL DEFAULT 0,
+            updated_at INTEGER NOT NULL
+        ) STRICT;
+        CREATE TABLE IF NOT EXISTS frequency_baseline_marks (
+            word_id INTEGER PRIMARY KEY REFERENCES words(id) ON DELETE CASCADE,
+            language TEXT NOT NULL,
+            tier INTEGER NOT NULL,
+            pack_id TEXT NOT NULL,
+            pack_version TEXT NOT NULL,
+            verification TEXT NOT NULL CHECK(verification IN ('pending','confirmed','corrected')),
+            marked_at INTEGER NOT NULL,
+            last_sampled_day TEXT
+        ) STRICT;
+        CREATE TABLE IF NOT EXISTS frequency_baseline_daily_checks (
+            language TEXT NOT NULL,
+            checked_on TEXT NOT NULL,
+            count INTEGER NOT NULL,
+            PRIMARY KEY(language, checked_on)
+        ) STRICT;
+
         CREATE TABLE IF NOT EXISTS occurrences (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             word_id INTEGER NOT NULL REFERENCES words(id) ON DELETE CASCADE,
             segment_id INTEGER NOT NULL REFERENCES segments(id) ON DELETE CASCADE,
             original_form TEXT NOT NULL,
-            position INTEGER NOT NULL
+            position INTEGER NOT NULL,
+            hidden INTEGER NOT NULL DEFAULT 0
         ) STRICT;
 
         CREATE TABLE IF NOT EXISTS reviews (
@@ -360,7 +424,8 @@ fn create_tables(conn: &Connection) -> Result<(), rusqlite::Error> {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             phrase_id INTEGER NOT NULL REFERENCES phrases(id) ON DELETE CASCADE,
             segment_id INTEGER NOT NULL REFERENCES segments(id) ON DELETE CASCADE,
-            position INTEGER NOT NULL
+            position INTEGER NOT NULL,
+            hidden INTEGER NOT NULL DEFAULT 0
         ) STRICT;
 
         CREATE TABLE IF NOT EXISTS phrase_reviews (
@@ -629,7 +694,15 @@ mod tests {
                 |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
             )
             .unwrap();
-        assert_eq!(row, (word_id, "en".to_string(), "in".to_string(), "known".to_string()));
+        assert_eq!(
+            row,
+            (
+                word_id,
+                "en".to_string(),
+                "in".to_string(),
+                "known".to_string()
+            )
+        );
 
         conn.execute(
             "INSERT OR IGNORE INTO words (language, lemma) VALUES ('en', 'in')",
@@ -743,7 +816,9 @@ mod tests {
         )
         .unwrap();
         let count: i64 = conn
-            .query_row("SELECT COUNT(*) FROM words WHERE lemma = 'in'", [], |row| row.get(0))
+            .query_row("SELECT COUNT(*) FROM words WHERE lemma = 'in'", [], |row| {
+                row.get(0)
+            })
             .unwrap();
         assert_eq!(count, 2);
     }
@@ -769,8 +844,94 @@ mod tests {
         )
         .unwrap();
         let new_id: i64 = conn
-            .query_row("SELECT id FROM words WHERE lemma = 'beta'", [], |row| row.get(0))
+            .query_row("SELECT id FROM words WHERE lemma = 'beta'", [], |row| {
+                row.get(0)
+            })
             .unwrap();
         assert!(new_id > original_max);
+    }
+
+    #[test]
+    fn adds_hidden_column_to_occurrence_tables() {
+        let conn = setup_legacy_db();
+
+        conn.execute(
+            "INSERT INTO files (name, type, content, content_hash, imported_at) VALUES ('test.srt', 'srt', 'content', 'hash', 0)",
+            [],
+        )
+        .unwrap();
+        let file_id = conn.last_insert_rowid();
+        conn.execute(
+            "INSERT INTO segments (file_id, index_num, en_text) VALUES (?1, 0, 'Hello in den')",
+            params![file_id],
+        )
+        .unwrap();
+        let seg_id = conn.last_insert_rowid();
+
+        conn.execute(
+            "INSERT INTO words (lemma, language) VALUES ('book', 'en')",
+            [],
+        )
+        .unwrap();
+        let word_id = conn.last_insert_rowid();
+        conn.execute(
+            "INSERT INTO occurrences (word_id, segment_id, original_form, position) VALUES (?1, ?2, 'book', 0)",
+            params![word_id, seg_id],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO phrases (text, language) VALUES ('in den', 'en')",
+            [],
+        )
+        .unwrap();
+        let phrase_id = conn.last_insert_rowid();
+        conn.execute(
+            "INSERT INTO phrase_occurrences (phrase_id, segment_id, position) VALUES (?1, ?2, 0)",
+            params![phrase_id, seg_id],
+        )
+        .unwrap();
+
+        migrate_occurrence_hidden(&conn).unwrap();
+
+        let occ_sql = table_sql(&conn, "occurrences").unwrap();
+        assert!(occ_sql.contains("hidden INTEGER NOT NULL DEFAULT 0"));
+        let po_sql = table_sql(&conn, "phrase_occurrences").unwrap();
+        assert!(po_sql.contains("hidden INTEGER NOT NULL DEFAULT 0"));
+
+        let hidden: i64 = conn
+            .query_row(
+                "SELECT hidden FROM occurrences WHERE word_id = ?1",
+                params![word_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(hidden, 0);
+    }
+
+    #[test]
+    fn creates_navigation_query_indexes_idempotently() {
+        let conn = setup_legacy_db();
+        create_tables(&conn).unwrap();
+        migrate_occurrence_hidden(&conn).unwrap();
+        create_performance_indexes(&conn).unwrap();
+        create_performance_indexes(&conn).unwrap();
+
+        let has_index = |table: &str, expected: &str| {
+            conn.prepare(&format!("PRAGMA index_list({table})"))
+                .unwrap()
+                .query_map([], |row| row.get::<_, String>(1))
+                .unwrap()
+                .filter_map(Result::ok)
+                .any(|name| name == expected)
+        };
+        assert!(has_index("segments", "idx_segments_file_index"));
+        assert!(has_index("occurrences", "idx_occurrences_segment_word"));
+        assert!(has_index("occurrences", "idx_occurrences_word_hidden"));
+        assert!(has_index(
+            "phrase_occurrences",
+            "idx_phrase_occurrences_segment_phrase"
+        ));
+        assert!(has_index("words", "idx_words_status_language"));
+        assert!(has_index("phrases", "idx_phrases_status_language"));
     }
 }

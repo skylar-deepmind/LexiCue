@@ -2,6 +2,7 @@ use rusqlite::params;
 use serde::Serialize;
 use tauri::State;
 
+use crate::commands::frequency_baseline;
 use crate::db::DbState;
 
 #[derive(Serialize)]
@@ -14,6 +15,7 @@ pub struct WordInfo {
     pub language: String,
     pub reading: Option<String>,
     pub part_of_speech: Option<String>,
+    pub baseline_pending: bool,
 }
 
 #[derive(Serialize)]
@@ -97,6 +99,9 @@ pub fn get_file_segment_tokens(
 #[derive(Serialize)]
 pub struct OccurrenceDetail {
     pub id: i64,
+    pub file_id: i64,
+    pub segment_id: i64,
+    pub segment_index: i32,
     pub original_form: String,
     pub position: i32,
     pub en_text: String,
@@ -104,6 +109,7 @@ pub struct OccurrenceDetail {
     pub start_time: Option<String>,
     pub end_time: Option<String>,
     pub file_name: String,
+    pub hidden: bool,
 }
 
 fn query_words(
@@ -124,9 +130,10 @@ fn query_words(
         Some(s) => {
             let sql = format!(
                 "SELECT w.id, w.lemma, w.status, w.definition, COUNT(o.id) AS frequency,
-                         w.language, w.reading, w.part_of_speech
+                         w.language, w.reading, w.part_of_speech,
+                         EXISTS(SELECT 1 FROM frequency_baseline_marks m WHERE m.word_id=w.id AND m.verification='pending')
                  FROM words w
-                 LEFT JOIN occurrences o ON o.word_id = w.id
+                 LEFT JOIN occurrences o ON o.word_id = w.id AND o.hidden = 0
                  WHERE w.status = ?1 AND (?2 IS NULL OR w.language = ?2)
                  GROUP BY w.id
                  ORDER BY {}",
@@ -143,6 +150,7 @@ fn query_words(
                     language: row.get(5)?,
                     reading: row.get(6)?,
                     part_of_speech: row.get(7)?,
+                    baseline_pending: row.get(8)?,
                 })
             })?;
             for row in mapped {
@@ -152,9 +160,10 @@ fn query_words(
         None => {
             let sql = format!(
                 "SELECT w.id, w.lemma, w.status, w.definition, COUNT(o.id) AS frequency,
-                         w.language, w.reading, w.part_of_speech
+                         w.language, w.reading, w.part_of_speech,
+                         EXISTS(SELECT 1 FROM frequency_baseline_marks m WHERE m.word_id=w.id AND m.verification='pending')
                  FROM words w
-                 LEFT JOIN occurrences o ON o.word_id = w.id
+                 LEFT JOIN occurrences o ON o.word_id = w.id AND o.hidden = 0
                  WHERE (?1 IS NULL OR w.language = ?1)
                  GROUP BY w.id
                  ORDER BY {}",
@@ -171,6 +180,7 @@ fn query_words(
                     language: row.get(5)?,
                     reading: row.get(6)?,
                     part_of_speech: row.get(7)?,
+                    baseline_pending: row.get(8)?,
                 })
             })?;
             for row in mapped {
@@ -207,9 +217,10 @@ pub fn word_detail(state: State<DbState>, word_id: i64) -> Result<WordDetail, St
         let mut stmt = conn
             .prepare(
                 "SELECT w.id, w.lemma, w.status, w.definition, COUNT(o.id) AS frequency,
-                         w.language, w.reading, w.part_of_speech
+                         w.language, w.reading, w.part_of_speech,
+                         EXISTS(SELECT 1 FROM frequency_baseline_marks m WHERE m.word_id=w.id AND m.verification='pending')
                  FROM words w
-                 LEFT JOIN occurrences o ON o.word_id = w.id
+                 LEFT JOIN occurrences o ON o.word_id = w.id AND o.hidden = 0
                  WHERE w.id = ?1
                  GROUP BY w.id",
             )
@@ -225,6 +236,7 @@ pub fn word_detail(state: State<DbState>, word_id: i64) -> Result<WordDetail, St
                 language: row.get(5)?,
                 reading: row.get(6)?,
                 part_of_speech: row.get(7)?,
+                baseline_pending: row.get(8)?,
             })
         })
         .map_err(|e| e.to_string())?
@@ -233,9 +245,9 @@ pub fn word_detail(state: State<DbState>, word_id: i64) -> Result<WordDetail, St
     let occurrences = {
         let mut stmt = conn
             .prepare(
-                "SELECT o.id, o.original_form, o.position,
+                "SELECT o.id, f.id, s.id, s.index_num, o.original_form, o.position,
                         s.en_text, s.zh_text, s.start_time, s.end_time,
-                        f.name AS file_name
+                        f.name AS file_name, o.hidden
                  FROM occurrences o
                  JOIN segments s ON s.id = o.segment_id
                  JOIN files f ON f.id = s.file_id
@@ -248,13 +260,17 @@ pub fn word_detail(state: State<DbState>, word_id: i64) -> Result<WordDetail, St
             .query_map(params![word_id], |row| {
                 Ok(OccurrenceDetail {
                     id: row.get(0)?,
-                    original_form: row.get(1)?,
-                    position: row.get(2)?,
-                    en_text: row.get(3)?,
-                    zh_text: row.get(4)?,
-                    start_time: row.get(5)?,
-                    end_time: row.get(6)?,
-                    file_name: row.get(7)?,
+                    file_id: row.get(1)?,
+                    segment_id: row.get(2)?,
+                    segment_index: row.get(3)?,
+                    original_form: row.get(4)?,
+                    position: row.get(5)?,
+                    en_text: row.get(6)?,
+                    zh_text: row.get(7)?,
+                    start_time: row.get(8)?,
+                    end_time: row.get(9)?,
+                    file_name: row.get(10)?,
+                    hidden: row.get(11)?,
                 })
             })
             .map_err(|e| e.to_string())?;
@@ -267,6 +283,23 @@ pub fn word_detail(state: State<DbState>, word_id: i64) -> Result<WordDetail, St
     };
 
     Ok(WordDetail { word, occurrences })
+}
+
+#[tauri::command]
+pub fn set_occurrence_hidden(
+    state: State<DbState>,
+    occurrence_id: i64,
+    hidden: bool,
+) -> Result<(), String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "UPDATE occurrences SET hidden = ?1 WHERE id = ?2",
+        params![hidden as i32, occurrence_id],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
 }
 
 #[tauri::command]
@@ -290,6 +323,7 @@ pub fn update_word_status(
         params![status, word_id],
     )
     .map_err(|e| e.to_string())?;
+    frequency_baseline::record_manual_status(&conn, word_id, &status).map_err(|e| e.to_string())?;
 
     Ok(())
 }
@@ -333,6 +367,7 @@ pub fn batch_update_status(
             params![status, id],
         )
         .map_err(|e| e.to_string())?;
+        frequency_baseline::record_manual_status(&conn, *id, &status).map_err(|e| e.to_string())?;
     }
 
     Ok(())

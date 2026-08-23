@@ -3,6 +3,8 @@ import { invoke } from '@tauri-apps/api/core';
 import type { PhraseInfo, PhraseDetail, WordStatus } from '../lib/types';
 import { applyStatusUpdates, type RemovedItem } from '../lib/statusList';
 import { usePreferencesStore } from './preferencesStore';
+import { QueryCache } from '../lib/queryCache';
+import { invalidateCaches, registerCacheInvalidator } from '../lib/cacheInvalidation';
 
 interface BatchAction {
   changes: { id: number; status: WordStatus }[];
@@ -21,8 +23,9 @@ interface PhraseStore {
   detailLoading: boolean;
   detailError: boolean;
   detailErrorId: number | null;
-  refreshKey: number;
-  loadPhrases: () => Promise<void>;
+  loadedKey: string | null;
+  loadPhrases: (force?: boolean) => Promise<void>;
+  invalidate: () => void;
   loadDetail: (phraseId: number) => Promise<void>;
   closeDetail: () => void;
   setFilter: (f: WordStatus | 'all') => void;
@@ -36,6 +39,13 @@ interface PhraseStore {
   clearSelection: () => void;
 }
 
+const phraseCache = new QueryCache<PhraseInfo[]>();
+registerCacheInvalidator('phrases', () => phraseCache.invalidate());
+
+function phraseQueryKey(filter: PhraseStore['filter'], sortBy: PhraseStore['sortBy']): string {
+  return JSON.stringify([usePreferencesStore.getState().language, filter, sortBy]);
+}
+
 export const usePhraseStore = create<PhraseStore>((set, get) => ({
   phrases: [],
   detail: null,
@@ -44,29 +54,35 @@ export const usePhraseStore = create<PhraseStore>((set, get) => ({
   selected: new Set(),
   batchUpdating: false,
   lastBatchAction: null,
-  loading: false,
+  loading: true,
   detailLoading: false,
   detailError: false,
   detailErrorId: null,
-  refreshKey: 0,
+  loadedKey: null,
 
-  loadPhrases: async () => {
+  loadPhrases: async (force = false) => {
     const { filter, sortBy } = get();
     const language = usePreferencesStore.getState().language;
-    set({ loading: true });
+    const key = phraseQueryKey(filter, sortBy);
+    const cached = phraseCache.peek(key);
+    if (cached) set({ phrases: cached, loadedKey: key, loading: false });
+    if (!force && phraseCache.isFresh(key)) return;
+    if (!cached) set({ loading: true });
     try {
-      const phrases: PhraseInfo[] = await invoke('list_phrases', {
-        statusFilter: filter === 'all' ? null : filter,
-        sortBy,
-        language: language === 'all' ? null : language,
-      });
-      set({ phrases, refreshKey: get().refreshKey + 1 });
+      const phrases = await phraseCache.fetch(key, () => invoke<PhraseInfo[]>('list_phrases', {
+          statusFilter: filter === 'all' ? null : filter,
+          sortBy,
+          language: language === 'all' ? null : language,
+        }), force);
+      if (phraseQueryKey(get().filter, get().sortBy) === key) set({ phrases, loadedKey: key });
     } catch (e) {
       console.error('Failed to load phrases:', e);
     } finally {
-      set({ loading: false });
+      if (phraseQueryKey(get().filter, get().sortBy) === key) set({ loading: false });
     }
   },
+
+  invalidate: () => phraseCache.invalidate(),
 
   loadDetail: async (phraseId: number) => {
     set({ detailLoading: true, detailError: false, detailErrorId: phraseId });
@@ -105,6 +121,9 @@ export const usePhraseStore = create<PhraseStore>((set, get) => ({
       selected: new Set(Array.from(get().selected).filter((id) => keptIds.has(id))),
       lastBatchAction: null,
     });
+    phraseCache.invalidate();
+    phraseCache.prime(phraseQueryKey(get().filter, get().sortBy), result.words);
+    invalidateCaches('files', 'review', 'insights');
     const { detail } = get();
     if (detail && detail.phrase.id === phraseId) {
       get().loadDetail(phraseId);
@@ -148,6 +167,9 @@ export const usePhraseStore = create<PhraseStore>((set, get) => ({
         selected: new Set(),
         lastBatchAction: { changes, removed: result.removed },
       });
+      phraseCache.invalidate();
+      phraseCache.prime(phraseQueryKey(get().filter, get().sortBy), result.words);
+      invalidateCaches('files', 'review', 'insights');
       return changes.length;
     } finally {
       set({ batchUpdating: false });
@@ -176,8 +198,10 @@ export const usePhraseStore = create<PhraseStore>((set, get) => ({
       set({
         phrases,
         lastBatchAction: null,
-        refreshKey: get().refreshKey + 1,
       });
+      phraseCache.invalidate();
+      phraseCache.prime(phraseQueryKey(get().filter, get().sortBy), phrases);
+      invalidateCaches('files', 'review', 'insights');
     } finally {
       set({ batchUpdating: false });
     }
@@ -196,13 +220,3 @@ export const usePhraseStore = create<PhraseStore>((set, get) => ({
 
   clearSelection: () => set({ selected: new Set() }),
 }));
-
-usePreferencesStore.subscribe(
-  (state) => state.language,
-  () => {
-    const store = usePhraseStore.getState();
-    store.clearSelection();
-    usePhraseStore.setState({ detail: null, detailError: false, detailErrorId: null });
-    store.loadPhrases();
-  },
-);

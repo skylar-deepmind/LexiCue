@@ -14,6 +14,8 @@ import { useFeedbackStore } from './feedbackStore';
 import { usePreferencesStore } from './preferencesStore';
 import i18n from '../i18n';
 import { isCancelledError } from '../lib/errors';
+import { QueryCache } from '../lib/queryCache';
+import { invalidateCaches, registerCacheInvalidator } from '../lib/cacheInvalidation';
 
 interface PendingImport {
   name: string;
@@ -48,8 +50,9 @@ interface FileStore {
   importingYouTube: boolean;
   youtubePhase: YoutubePhase | null;
   confirming: boolean;
-  loadFiles: () => Promise<void>;
-  loadFolders: () => Promise<void>;
+  loadFiles: (force?: boolean) => Promise<void>;
+  loadFolders: (force?: boolean) => Promise<void>;
+  invalidateFiles: () => void;
   setCurrentFolder: (folderId: number | null) => void;
   createFolder: (name: string, parentId: number | null) => Promise<void>;
   renameFolder: (folderId: number, name: string) => Promise<void>;
@@ -206,44 +209,66 @@ async function parseContent(content: string, fileType: 'txt' | 'srt', language: 
   return parsed;
 }
 
+const fileCache = new QueryCache<FileRecord[]>(6);
+const folderCache = new QueryCache<FolderInfo[]>(4);
+registerCacheInvalidator('files', () => fileCache.invalidate());
+
+function fileQueryKey(folderId: number | null): string {
+  return JSON.stringify([usePreferencesStore.getState().language, folderId]);
+}
+
+function folderQueryKey(): string {
+  return usePreferencesStore.getState().language;
+}
+
 export const useFileStore = create<FileStore>((set, get) => ({
   files: [],
   folders: [],
   currentFolderId: null,
-  loading: false,
+  loading: true,
   pendingImport: null,
   importingYouTube: false,
   youtubePhase: null,
   confirming: false,
 
-  loadFiles: async () => {
+  loadFiles: async (force = false) => {
     const language = usePreferencesStore.getState().language;
     const folderId = get().currentFolderId;
-    set({ loading: true });
+    const key = fileQueryKey(folderId);
+    const cached = fileCache.peek(key);
+    if (cached) set({ files: cached, loading: false });
+    if (!force && fileCache.isFresh(key)) return;
+    if (!cached) set({ loading: true });
     try {
-      const files: FileRecord[] = await invoke('list_files', {
-        language: language === 'all' ? null : language,
-        folderId,
-      });
-      set({ files });
+      const files = await fileCache.fetch(key, () => invoke<FileRecord[]>('list_files', {
+          language: language === 'all' ? null : language,
+          folderId,
+        }), force);
+      if (fileQueryKey(get().currentFolderId) === key) set({ files });
     } catch (e) {
       console.error('Failed to load files:', e);
     } finally {
-      set({ loading: false });
+      if (fileQueryKey(get().currentFolderId) === key) set({ loading: false });
     }
   },
 
-  loadFolders: async () => {
+  loadFolders: async (force = false) => {
     const language = usePreferencesStore.getState().language;
+    const key = folderQueryKey();
+    const cached = folderCache.peek(key);
+    if (cached) set({ folders: cached });
+    if (!force && folderCache.isFresh(key)) return;
     try {
-      const folders: FolderInfo[] = await invoke('list_folders', {
-        language: language === 'all' ? null : language,
-      });
-      set({ folders });
+      const folders = await folderCache.fetch(key, () => invoke<FolderInfo[]>('list_folders', {
+          language: language === 'all' ? null : language,
+        }), force);
+      if (folderQueryKey() === key) set({ folders });
     } catch (e) {
       console.error('Failed to load folders:', e);
     }
   },
+
+  invalidateFiles: () => fileCache.invalidate(),
 
   setCurrentFolder: (folderId) => {
     set({ currentFolderId: folderId });
@@ -253,7 +278,8 @@ export const useFileStore = create<FileStore>((set, get) => ({
   createFolder: async (name, parentId) => {
     try {
       await invoke('create_folder', { name, parentId });
-      await get().loadFolders();
+      folderCache.invalidate();
+      await get().loadFolders(true);
     } catch (e) {
       console.error('Failed to create folder:', e);
       useFeedbackStore.getState().show(i18n.t('fileStore.folderOpFailed'), 'error');
@@ -263,7 +289,8 @@ export const useFileStore = create<FileStore>((set, get) => ({
   renameFolder: async (folderId, name) => {
     try {
       await invoke('rename_folder', { folderId, name });
-      await get().loadFolders();
+      folderCache.invalidate();
+      await get().loadFolders(true);
     } catch (e) {
       console.error('Failed to rename folder:', e);
       useFeedbackStore.getState().show(i18n.t('fileStore.folderOpFailed'), 'error');
@@ -273,7 +300,9 @@ export const useFileStore = create<FileStore>((set, get) => ({
   deleteFolder: async (folderId) => {
     try {
       await invoke('delete_folder', { folderId });
-      await Promise.all([get().loadFiles(), get().loadFolders()]);
+      fileCache.invalidate();
+      folderCache.invalidate();
+      await Promise.all([get().loadFiles(true), get().loadFolders(true)]);
     } catch (e) {
       console.error('Failed to delete folder:', e);
       useFeedbackStore.getState().show(i18n.t('fileStore.folderOpFailed'), 'error');
@@ -283,7 +312,8 @@ export const useFileStore = create<FileStore>((set, get) => ({
   moveFolder: async (folderId, targetParentId) => {
     try {
       await invoke('move_folder', { folderId, targetParentId });
-      await get().loadFolders();
+      folderCache.invalidate();
+      await get().loadFolders(true);
     } catch (e) {
       console.error('Failed to move folder:', e);
       useFeedbackStore.getState().show(i18n.t('fileStore.folderOpFailed'), 'error');
@@ -293,7 +323,9 @@ export const useFileStore = create<FileStore>((set, get) => ({
   moveFile: async (fileId, folderId) => {
     try {
       await invoke('move_file', { fileId, folderId });
-      await Promise.all([get().loadFiles(), get().loadFolders()]);
+      fileCache.invalidate();
+      folderCache.invalidate();
+      await Promise.all([get().loadFiles(true), get().loadFolders(true)]);
     } catch (e) {
       console.error('Failed to move file:', e);
       useFeedbackStore.getState().show(i18n.t('fileStore.fileMoveFailed'), 'error');
@@ -393,6 +425,9 @@ export const useFileStore = create<FileStore>((set, get) => ({
           status: 'known',
         });
       }
+      fileCache.invalidate();
+      invalidateCaches('words', 'review', 'insights');
+      await get().loadFiles(true);
       useFeedbackStore.getState().show(
         i18n.t('fileStore.knownWordsImported', {
           matched: matched.length,
@@ -416,6 +451,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
       if (!selected) return;
       const packJson = await readTextFile(selected as string);
       const count = await invoke<number>('import_dictionary_pack', { packJson });
+      invalidateCaches('storage');
       useFeedbackStore.getState().show(i18n.t('fileStore.dictionaryImported', { count }), 'success');
     } catch (e) {
       console.error('Dictionary pack import failed:', e);
@@ -443,9 +479,11 @@ export const useFileStore = create<FileStore>((set, get) => ({
           folderId: get().currentFolderId,
         },
       });
+      invalidateCaches('words', 'phrases', 'review', 'insights', 'storage');
       set({ pendingImport: null });
       if (usePreferencesStore.getState().language === pending.language) {
-        await get().loadFiles();
+        fileCache.invalidate();
+        await get().loadFiles(true);
       } else {
         usePreferencesStore.getState().setLanguage(pending.language);
       }
@@ -556,7 +594,9 @@ export const useFileStore = create<FileStore>((set, get) => ({
       );
       if (!confirmed) return;
       await invoke('delete_file', { fileId: id });
-      await get().loadFiles();
+      invalidateCaches('words', 'phrases', 'review', 'insights', 'storage');
+      fileCache.invalidate();
+      await get().loadFiles(true);
       useFeedbackStore.getState().show(i18n.t('fileStore.fileDeleted'), 'success');
     } catch (e) {
       console.error('Delete failed:', e);
@@ -606,7 +646,10 @@ export const useFileStore = create<FileStore>((set, get) => ({
       if (!confirmed) return;
 
       await invoke('restore_all', { backup });
-      await get().loadFiles();
+      invalidateCaches('words', 'phrases', 'review', 'insights', 'storage');
+      fileCache.invalidate();
+      folderCache.invalidate();
+      await Promise.all([get().loadFiles(true), get().loadFolders(true)]);
       useFeedbackStore.getState().show(i18n.t('fileStore.restored'), 'success');
     } catch (e) {
       console.error('Restore failed:', e);
@@ -614,14 +657,6 @@ export const useFileStore = create<FileStore>((set, get) => ({
     }
   },
 }));
-
-usePreferencesStore.subscribe(
-  (state) => state.language,
-  () => {
-    useFileStore.getState().loadFiles();
-    useFileStore.getState().loadFolders();
-  },
-);
 
 let jobCounter = 0;
 function nextJobId(): number {

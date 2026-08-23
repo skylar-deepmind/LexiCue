@@ -5,6 +5,7 @@ import { deserializeCard, scheduleReview, RATINGS, type ReviewRating } from '../
 import { useFeedbackStore } from './feedbackStore';
 import { usePreferencesStore } from './preferencesStore';
 import i18n from '../i18n';
+import { invalidateCaches, registerCacheInvalidator } from '../lib/cacheInvalidation';
 
 type ReviewType = 'word' | 'phrase';
 
@@ -62,7 +63,7 @@ export const useReviewStore = create<ReviewStore>((set, get) => ({
     const sameIdentity = loadedFor !== null
       && loadedFor.reviewType === reviewType
       && loadedFor.language === selectedLanguage;
-    if (!force && sameIdentity && hasActiveSession(get())) return;
+    if (!force && sameIdentity) return;
 
     set({ loading: true });
     try {
@@ -100,20 +101,16 @@ export const useReviewStore = create<ReviewStore>((set, get) => ({
 
     set({ submitting: true });
     try {
-      const currentCard = deserializeCard({
-        due_at: Date.now(),
-        stability: card.stability,
-        difficulty: card.difficulty,
-        elapsed_days: card.elapsed_days,
-        scheduled_days: card.scheduled_days,
-        reps: card.reps,
-        lapses: card.lapses,
-        state: card.state,
-      });
-
-      const result = scheduleReview(currentCard, ratingEntry.grade);
-
       if (reviewType === 'word' && isWordCard(card)) {
+        if (card.baseline_pending) {
+          await invoke('submit_frequency_baseline_review', { wordId: card.word_id, rating: ratingValue });
+          invalidateCaches('words', 'files', 'review', 'insights');
+        } else {
+          const result = scheduleReview(deserializeCard({
+            due_at: Date.now(), stability: card.stability, difficulty: card.difficulty,
+            elapsed_days: card.elapsed_days, scheduled_days: card.scheduled_days,
+            reps: card.reps, lapses: card.lapses, state: card.state,
+          }), ratingEntry.grade);
         const payload: RatingPayload = {
           word_id: card.word_id,
           rating: ratingValue,
@@ -132,7 +129,13 @@ export const useReviewStore = create<ReviewStore>((set, get) => ({
           new_due_at: result.due_at,
         };
         await invoke('submit_rating', { payload });
+        }
       } else if (reviewType === 'phrase' && isPhraseCard(card)) {
+        const result = scheduleReview(deserializeCard({
+          due_at: Date.now(), stability: card.stability, difficulty: card.difficulty,
+          elapsed_days: card.elapsed_days, scheduled_days: card.scheduled_days,
+          reps: card.reps, lapses: card.lapses, state: card.state,
+        }), ratingEntry.grade);
         const payload: PhraseRatingPayload = {
           phrase_id: card.phrase_id,
           rating: ratingValue,
@@ -152,6 +155,7 @@ export const useReviewStore = create<ReviewStore>((set, get) => ({
         };
         await invoke('submit_phrase_rating', { payload });
       }
+      invalidateCaches('insights', 'storage');
 
       set((state) => ({
         sessionStats: {
@@ -188,12 +192,6 @@ export const useReviewStore = create<ReviewStore>((set, get) => ({
     }
   },
 }));
-
-usePreferencesStore.subscribe(
-  (state) => state.language,
-  () => {
-    useReviewStore.getState().loadDueCards();
-  },
-);
+registerCacheInvalidator('review', () => useReviewStore.setState({ loadedFor: null }));
 
 export { RATINGS };

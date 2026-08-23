@@ -303,7 +303,10 @@ fn repair_json(content: &str) -> String {
 }
 
 fn repair_key(content: &str, spaced: &str, underscored: &str) -> String {
-    content.replace(&format!("\"{}\":", spaced), &format!("\"{}\":", underscored))
+    content.replace(
+        &format!("\"{}\":", spaced),
+        &format!("\"{}\":", underscored),
+    )
 }
 
 fn repair_missing_commas(content: &str) -> String {
@@ -382,7 +385,10 @@ fn parse_phrase_response(content: &str) -> Result<PhraseAnalysisResponse, String
                 Ok(parsed) => Ok(parsed),
                 Err(second) => {
                     let preview: String = content.chars().take(400).collect();
-                    Err(format!("{}。修复后仍失败：{}。原始内容：{}", first, second, preview))
+                    Err(format!(
+                        "{}。修复后仍失败：{}。原始内容：{}",
+                        first, second, preview
+                    ))
                 }
             }
         }
@@ -475,9 +481,16 @@ fn phrase_schema(language: &str) -> serde_json::Value {
         "required": ["phrases"]
     });
     if language == "zh" {
-        if let Some(props) = schema["properties"]["phrases"]["items"]["properties"].as_object_mut() {
-            props.insert("pinyin".to_string(), serde_json::json!({ "type": "string" }));
-            props.insert("translation_en".to_string(), serde_json::json!({ "type": "string" }));
+        if let Some(props) = schema["properties"]["phrases"]["items"]["properties"].as_object_mut()
+        {
+            props.insert(
+                "pinyin".to_string(),
+                serde_json::json!({ "type": "string" }),
+            );
+            props.insert(
+                "translation_en".to_string(),
+                serde_json::json!({ "type": "string" }),
+            );
         }
     }
     schema
@@ -601,7 +614,10 @@ async fn chat_ollama(
         let status = response.status();
         let body = response.text().await.unwrap_or_default();
         if status.is_server_error() {
-            return Err(format!("Ollama 服务暂时不可用（HTTP {}），请稍后重试。服务端返回：{}", status, body));
+            return Err(format!(
+                "Ollama 服务暂时不可用（HTTP {}），请稍后重试。服务端返回：{}",
+                status, body
+            ));
         }
         return Err(format!("Ollama 返回错误 {}：{}", status, body));
     }
@@ -633,22 +649,18 @@ async fn chat_openai(
     if !format.is_null() {
         body["response_format"] = serde_json::json!({ "type": "json_object" });
     }
-    let response = send_retry(
-        token,
-        notifier,
-        || {
-            let mut request = client.post(&url).json(&body);
-            if let Some(key) = config
-                .api_key
-                .as_deref()
-                .map(str::trim)
-                .filter(|key| !key.is_empty())
-            {
-                request = request.bearer_auth(key);
-            }
-            request
-        },
-    )
+    let response = send_retry(token, notifier, || {
+        let mut request = client.post(&url).json(&body);
+        if let Some(key) = config
+            .api_key
+            .as_deref()
+            .map(str::trim)
+            .filter(|key| !key.is_empty())
+        {
+            request = request.bearer_auth(key);
+        }
+        request
+    })
     .await
     .map_err(|error| {
         if error == CANCELLED_MESSAGE {
@@ -682,11 +694,7 @@ async fn chat_openai(
         .ok_or_else(|| "AI 服务未返回任何内容".to_string())
 }
 
-fn build_models_request(
-    client: &Client,
-    config: &AiConfig,
-    url: &str,
-) -> reqwest::RequestBuilder {
+fn build_models_request(client: &Client, config: &AiConfig, url: &str) -> reqwest::RequestBuilder {
     let request = client.get(url);
     if config.is_openai() {
         if let Some(key) = config
@@ -713,24 +721,20 @@ async fn probe_chat(client: &Client, config: &AiConfig) -> Result<(), String> {
             { "role": "user", "content": "ping" }
         ]
     });
-    let response = send_retry(
-        &CancellationToken::default(),
-        None,
-        || {
-            let mut request = client.post(&url).json(&body);
-            if config.is_openai() {
-                if let Some(key) = config
-                    .api_key
-                    .as_deref()
-                    .map(str::trim)
-                    .filter(|key| !key.is_empty())
-                {
-                    request = request.bearer_auth(key);
-                }
+    let response = send_retry(&CancellationToken::default(), None, || {
+        let mut request = client.post(&url).json(&body);
+        if config.is_openai() {
+            if let Some(key) = config
+                .api_key
+                .as_deref()
+                .map(str::trim)
+                .filter(|key| !key.is_empty())
+            {
+                request = request.bearer_auth(key);
             }
-            request
-        },
-    )
+        }
+        request
+    })
     .await
     .map_err(|error| {
         if error == CANCELLED_MESSAGE {
@@ -753,11 +757,9 @@ pub async fn ai_status(config: AiConfig) -> Result<(), String> {
     let client = ai_client(std::time::Duration::from_secs(15), &config.base_url)?;
     let url = models_endpoint(&config);
     let connected = async {
-        send_retry(
-            &CancellationToken::default(),
-            None,
-            || build_models_request(&client, &config, &url),
-        )
+        send_retry(&CancellationToken::default(), None, || {
+            build_models_request(&client, &config, &url)
+        })
         .await
         .map_err(|error| format!("无法连接 AI 服务（{}）：{}", url, error))?
         .error_for_status()
@@ -771,9 +773,9 @@ pub async fn ai_status(config: AiConfig) -> Result<(), String> {
             if config.model.trim().is_empty() {
                 return Err(models_error);
             }
-            probe_chat(&client, &config)
-                .await
-                .map_err(|chat_error| format!("{}；聊天接口探测也失败：{}", models_error, chat_error))
+            probe_chat(&client, &config).await.map_err(|chat_error| {
+                format!("{}；聊天接口探测也失败：{}", models_error, chat_error)
+            })
         }
     }
 }
@@ -782,18 +784,11 @@ pub async fn ai_status(config: AiConfig) -> Result<(), String> {
 pub async fn ai_models(config: AiConfig) -> Result<Vec<OllamaModel>, String> {
     let client = ai_client(std::time::Duration::from_secs(15), &config.base_url)?;
     let url = models_endpoint(&config);
-    let response = send_retry(
-        &CancellationToken::default(),
-        None,
-        || build_models_request(&client, &config, &url),
-    )
+    let response = send_retry(&CancellationToken::default(), None, || {
+        build_models_request(&client, &config, &url)
+    })
     .await
-    .map_err(|error| {
-        format!(
-            "无法连接 AI 服务（{}）：{}",
-            url, error
-        )
-    })?
+    .map_err(|error| format!("无法连接 AI 服务（{}）：{}", url, error))?
     .error_for_status()
     .map_err(|error| format!("AI 服务不可用：{}", error))?;
 
@@ -884,12 +879,12 @@ pub async fn translate_segments(
         .map_err(|error| error.to_string())?
         .insert(job_id, token.clone());
     let _guard = CancelGuard { file_id: job_id };
-    let notifier = RetryNotifier { app: app.clone(), file_id: job_id };
+    let notifier = RetryNotifier {
+        app: app.clone(),
+        file_id: job_id,
+    };
 
-    let pairs: Vec<(i32, String)> = segments
-        .iter()
-        .map(|s| (s.index, s.text.clone()))
-        .collect();
+    let pairs: Vec<(i32, String)> = segments.iter().map(|s| (s.index, s.text.clone())).collect();
     let total_segments = pairs.len();
     let ranges = batch_ranges(&pairs);
     let total_batches = ranges.len();
@@ -921,16 +916,27 @@ pub async fn translate_segments(
             .collect::<Vec<_>>()
             .join("\n");
         let prompt = build_translation_prompt(&language, &input);
-        let content = chat(&client, &config, &token, Some(&notifier), prompt, schema.clone()).await?;
-        let parsed: serde_json::Value = parse_ai_json(&content)
-            .map_err(|error| format!("AI 返回的翻译 JSON 无效：{error}"))?;
+        let content = chat(
+            &client,
+            &config,
+            &token,
+            Some(&notifier),
+            prompt,
+            schema.clone(),
+        )
+        .await?;
+        let parsed: serde_json::Value =
+            parse_ai_json(&content).map_err(|error| format!("AI 返回的翻译 JSON 无效：{error}"))?;
         if let Some(array) = parsed["translations"].as_array() {
             for item in array {
                 let index = item["index"]
                     .as_i64()
                     .or_else(|| item["index"].as_str().and_then(|s| s.trim().parse().ok()))
                     .map(|i| i as i32);
-                let translation = item["translation"].as_str().map(str::trim).map(String::from);
+                let translation = item["translation"]
+                    .as_str()
+                    .map(str::trim)
+                    .map(String::from);
                 if let (Some(i), Some(t)) = (index, translation) {
                     if !t.is_empty() {
                         by_index.insert(i, t);
@@ -1075,7 +1081,10 @@ pub async fn analyze_file_phrases(
         .map_err(|error| error.to_string())?
         .insert(file_id, token.clone());
     let _guard = CancelGuard { file_id };
-    let notifier = RetryNotifier { app: app.clone(), file_id };
+    let notifier = RetryNotifier {
+        app: app.clone(),
+        file_id,
+    };
 
     let client = ai_client(std::time::Duration::from_secs(600), &config.base_url)?;
     let total_segments = segments.len();
@@ -1106,7 +1115,15 @@ pub async fn analyze_file_phrases(
             .collect::<Vec<_>>()
             .join("\n");
         let prompt = build_phrase_prompt(&language, &input);
-        let content = chat(&client, &config, &token, Some(&notifier), prompt, schema.clone()).await?;
+        let content = chat(
+            &client,
+            &config,
+            &token,
+            Some(&notifier),
+            prompt,
+            schema.clone(),
+        )
+        .await?;
         let result = parse_phrase_response(&content)
             .map_err(|error| format!("AI 返回的词组 JSON 无效：{}", error))?;
         analyzed.extend(result.phrases);
@@ -1204,7 +1221,12 @@ pub async fn analyze_file_phrases(
                     .unwrap_or("")
                     .to_string()
             } else {
-                phrase.meaning_zh.as_deref().unwrap_or("").trim().to_string()
+                phrase
+                    .meaning_zh
+                    .as_deref()
+                    .unwrap_or("")
+                    .trim()
+                    .to_string()
             };
             let pinyin = if is_zh {
                 phrase

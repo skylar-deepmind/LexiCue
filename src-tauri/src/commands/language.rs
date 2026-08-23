@@ -25,10 +25,7 @@ pub struct JapaneseTokenWithOffset {
 }
 
 fn is_learning_relevant_pos(pos: &str) -> bool {
-    !matches!(
-        pos,
-        "助詞" | "助動詞" | "記号" | "補助記号" | "空白"
-    )
+    !matches!(pos, "助詞" | "助動詞" | "記号" | "補助記号" | "空白")
 }
 
 fn segmenter() -> &'static Mutex<Segmenter> {
@@ -108,7 +105,11 @@ pub fn tokenize_japanese_with_offsets(text: &str) -> Vec<JapaneseTokenWithOffset
             position: result.len() as i32,
             char_start: text[..byte_start].chars().count(),
             char_end: text[..byte_end].chars().count(),
-            part_of_speech: details.first().copied().filter(|value| *value != "*").map(str::to_string),
+            part_of_speech: details
+                .first()
+                .copied()
+                .filter(|value| *value != "*")
+                .map(str::to_string),
         });
     }
     result
@@ -121,7 +122,10 @@ pub fn tokenize_japanese(text: String) -> Result<Vec<JapaneseToken>, String> {
 
 #[tauri::command]
 pub fn tokenize_japanese_batch(texts: Vec<String>) -> Result<Vec<Vec<JapaneseToken>>, String> {
-    Ok(texts.iter().map(|text| tokenize_japanese_text(text)).collect())
+    Ok(texts
+        .iter()
+        .map(|text| tokenize_japanese_text(text))
+        .collect())
 }
 
 /// Map a phrase found verbatim in a segment back to the token position the
@@ -158,9 +162,7 @@ pub fn map_phrase_position(language: &str, segment: &str, phrase: &str) -> Optio
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        tokenize_japanese, tokenize_japanese_batch, tokenize_japanese_with_offsets,
-    };
+    use super::{tokenize_japanese, tokenize_japanese_batch, tokenize_japanese_with_offsets};
 
     #[test]
     fn conjugates_to_base_form() {
@@ -191,12 +193,14 @@ mod tests {
 
     #[test]
     fn handles_compound_and_conjugation() {
-        let tokens =
-            tokenize_japanese("彼女は日本語の勉強を始めました。".to_string()).unwrap();
+        let tokens = tokenize_japanese("彼女は日本語の勉強を始めました。".to_string()).unwrap();
         let surfaces: Vec<&str> = tokens.iter().map(|t| t.surface.as_str()).collect();
         let lemmas: Vec<&str> = tokens.iter().map(|t| t.lemma.as_str()).collect();
         assert!(lemmas.contains(&"彼女"), "should keep 彼女");
-        assert!(surfaces.contains(&"日本") && surfaces.contains(&"語"), "日本語 should be 日本+語");
+        assert!(
+            surfaces.contains(&"日本") && surfaces.contains(&"語"),
+            "日本語 should be 日本+語"
+        );
         assert!(lemmas.contains(&"勉強"), "should keep 勉強");
         assert!(lemmas.contains(&"始める"), "should keep 始める");
         assert!(!lemmas.contains(&"の"), "particle の should be filtered");

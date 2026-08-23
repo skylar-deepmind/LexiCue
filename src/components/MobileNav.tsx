@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { FileText, Globe, Brain, BarChart3, MoreHorizontal, BookOpen, Layers, Settings } from 'lucide-react';
+import { FileText, Brain, BarChart3, MoreHorizontal, BookOpen, Layers, Settings } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 const CORE_ITEMS = [
   { to: '/files', icon: FileText, labelKey: 'sidebar.files' },
-  { to: '/reading', icon: Globe, labelKey: 'sidebar.reading' },
   { to: '/review', icon: Brain, labelKey: 'sidebar.review' },
   { to: '/insights', icon: BarChart3, labelKey: 'sidebar.insights' },
 ];

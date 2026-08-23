@@ -10,7 +10,6 @@ const NAV_ITEMS = [
   { to: '/files', icon: FileText, labelKey: 'sidebar.files' },
   { to: '/words', icon: BookOpen, labelKey: 'sidebar.words' },
   { to: '/phrases', icon: Layers, labelKey: 'sidebar.phrases' },
-  { to: '/reading', icon: Globe, labelKey: 'sidebar.reading' },
   { to: '/review', icon: Brain, labelKey: 'sidebar.review' },
   { to: '/insights', icon: BarChart3, labelKey: 'sidebar.insights' },
 ];

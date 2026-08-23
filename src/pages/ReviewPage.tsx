@@ -7,6 +7,8 @@ import { deserializeCard, scheduleReview, RATINGS } from '../lib/fsrs';
 import FlashCard from '../components/FlashCard';
 import RatingButtons from '../components/RatingButtons';
 import EmptyState from '../components/EmptyState';
+import DisplaySettingsMenu from '../components/DisplaySettingsMenu';
+import { usePreferencesStore } from '../stores/preferencesStore';
 
 export default function ReviewPage() {
   const { t } = useTranslation();
@@ -23,10 +25,11 @@ export default function ReviewPage() {
   } = useReviewStore();
   const [revealed, setRevealed] = useState(false);
   const navigate = useNavigate();
+  const selectedLanguage = usePreferencesStore((state) => state.language);
 
   useEffect(() => {
     void loadDueCards();
-  }, [loadDueCards]);
+  }, [loadDueCards, selectedLanguage]);
 
   const currentCard = queue[currentIndex] ?? null;
 
@@ -38,7 +41,7 @@ export default function ReviewPage() {
     return t('review.inDays', { count: Math.round(hours / 24) });
   };
 
-  const ratingHints = currentCard
+  const ratingHints = currentCard && !('baseline_pending' in currentCard && currentCard.baseline_pending)
     ? Object.fromEntries(RATINGS.map((rating) => {
       const scheduled = scheduleReview(deserializeCard({
         due_at: Date.now(),
@@ -94,6 +97,7 @@ export default function ReviewPage() {
   return (
     <div className="h-full min-h-0 overflow-y-auto p-4 pb-10 sm:p-6 sm:pb-12">
       <div className="flex min-h-full flex-col items-center justify-start gap-6 pt-2 sm:justify-center sm:pt-0">
+        <div className="flex w-full max-w-lg items-center justify-between gap-3">
         <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
           <button
             onClick={() => setReviewType('word')}
@@ -111,6 +115,8 @@ export default function ReviewPage() {
           >
             {t('review.phraseReview')}
           </button>
+        </div>
+        <DisplaySettingsMenu />
         </div>
 
         {!currentCard ? (

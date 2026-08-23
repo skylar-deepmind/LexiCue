@@ -10,6 +10,16 @@
     "saved": "Saved",
     "retry": "Retry"
   },
+  "display": {
+    "title": "Display",
+    "aria": "Adjust learning content display",
+    "categories": {
+      "learning": "Learning text",
+      "definition": "Definitions & translations",
+      "auxiliary": "Supporting information"
+    },
+    "sizes": { "sm": "Small", "md": "Default", "lg": "Large" }
+  },
   "status": {
     "unprocessed": "Unprocessed",
     "learning": "Learning",
@@ -59,10 +69,13 @@
   "settings": {
     "title": "Settings",
     "navAria": "Settings sections",
+    "expand": "Expand",
+    "collapse": "Collapse",
     "uiLanguage": {
       "title": "Interface Language",
       "description": "Choose the display language of the app interface."
     },
+    "frequencyBaseline": { "title": "Frequency Baseline" },
     "ai": {
       "title": "AI Features",
       "description": "When enabled, can explain paragraphs and detect phrases automatically. Supports local Ollama or your own cloud API key.",
@@ -86,6 +99,8 @@
       "statusError": "Connection failed. Please check your configuration.",
       "statusIdle": "Connection not tested yet",
       "disabledHint": "AI is disabled; AI buttons in the Reading and Files pages are hidden. You can re-enable it here anytime.",
+      "summaryEnabled": "Enabled · {{provider}}",
+      "summaryDisabled": "Disabled",
       "custom": "Custom"
     },
     "youtube": {
@@ -114,6 +129,7 @@
       "loading": "Loading dictionary list...",
       "empty": "No offline dictionaries imported yet",
       "emptyHint": "After importing a JSON dictionary pack, review cards will read its definitions automatically.",
+      "summary": "Manage built-in dictionaries and imported packs.",
       "entries_one": "{{count}} dictionary entry",
       "entries_other": "{{count}} dictionary entries",
       "importedAt": "Imported {{date}}",
@@ -127,6 +143,8 @@
     "storage": {
       "title": "Storage",
       "description": "Disk space used by LexiCue data on this device.",
+      "summaryKnown": "Total usage {{size}}",
+      "summaryUnknown": "Expand to calculate local disk usage.",
       "total": "Total usage",
       "database": "Database",
       "audioCache": "Audio cache",
@@ -194,6 +212,7 @@
     "segments_one": "{{count}} segment",
     "segments_other": "{{count}} segments",
     "aiDone": "AI phrase analysis complete",
+    "analysisFailed": "AI phrase analysis failed",
     "analyzing": "Analyzing phrases",
     "preparing": "Preparing...",
     "segmentsProgress": "{{processed}}/{{total}} segments",
@@ -206,7 +225,56 @@
     "cancelAria": "Interrupt AI phrase analysis",
     "retrying": "AI service temporarily unavailable ({{reason}}), auto-retrying ({{attempt}}/{{maxAttempts}})…",
     "moveAria": "Move {{name}} to a folder",
-    "moveTitle": "Move to folder"
+    "moveTitle": "Move to folder",
+    "learningProgress": "Learning progress",
+    "learningProgressAria": "Learning progress: {{stage}}",
+    "noLearningContent": "No learning content",
+    "wordsOnlyPending": "Words only · phrases pending",
+    "stage": {
+      "notStarted": "Not started",
+      "starting": "Getting started",
+      "progressing": "In progress",
+      "flowing": "Building momentum",
+      "nearlyDone": "Nearly complete",
+      "complete": "Complete"
+    }
+  },
+  "fileDetail": {
+    "back": "Back to files",
+    "notFound": "File not found", "notFoundHint": "It may have been deleted. Return to the file list."
+  },
+  "frequencyBaseline": {
+    "chooseTitle": "Choose a frequency baseline",
+    "chooseDescription": "Review representative words before choosing familiar common words to skip. This is a frequency suggestion, not a CEFR or HSK certification; proficiency varies by person.",
+    "settingsTitle": "Frequency baseline management",
+    "settingsDescription": "Review samples, change a tier, or undo pre-marking. This is a frequency suggestion, not a CEFR or HSK certification; pending words are gradually corrected in daily word review.",
+    "settingsSummaryEnabled": "{{language}}: first {{tier}} frequent words enabled",
+    "settingsSummaryDisabled": "{{language}}: frequency baseline not enabled",
+    "allLanguagesHint": "Manage English and Chinese frequency baselines in Settings.",
+    "manage": "Manage baseline",
+    "currentSummary": "{{language}} baseline: {{tier}}",
+    "currentHint": "Change the tier, review samples, or undo pre-marking in Settings.",
+    "firstRange": "First {{count}} frequent words",
+    "addedRange": "New words {{start}}–{{end}}",
+    "sampleCount": "100 representative words",
+    "nextSample": "Another sample",
+    "loading": "Loading sample…",
+    "impact": "{{matching}} imported words match; {{skipped}} will be newly skipped and {{retained}} left unchanged.",
+    "apply": "Apply first {{count}} words",
+    "applying": "Applying…",
+    "settingsPreview": "Representative sample (100 words)",
+    "settingsImpact": "{{marked}} words were skipped by the baseline; {{pending}} will be gradually corrected in daily review.",
+    "data": "Data: wordfreq v{{version}} · {{license}}",
+    "source": "Source and license",
+    "cefr": "CEFR reference-level descriptions",
+    "disable": "Stop future automatic pre-marking",
+    "revoke": "Undo unconfirmed pre-marking",
+    "tiers": {
+      "1000": { "title": "Foundation", "count": "First 1,000 frequent words", "description": "The most common core words; useful when you are just building a core vocabulary." },
+      "3000": { "title": "Everyday communication", "count": "First 3,000 frequent words", "description": "More common words in everyday conversation and content; use the samples to judge your own knowledge." },
+      "5000": { "title": "Confident use", "count": "First 5,000 frequent words", "description": "More common words in study, work, and general reading; this is not a proficiency certification." },
+      "10000": { "title": "Broad reading", "count": "First 10,000 frequent words", "description": "Common words across a wider range of media and reading; base the choice on actual familiarity." }
+    }
   },
   "words": {
     "title": "Word List",
@@ -255,8 +323,6 @@
     "selectFile": "Select a file...",
     "hideTranslation": "Hide translation",
     "showTranslation": "Show translation",
-    "quickMode": "Quick process",
-    "exitQuickMode": "Exit quick mode",
     "hint": "Click a word for definition · Right-click to mark quickly",
     "prevSegment": "Previous",
     "nextSegment": "Next",
@@ -282,24 +348,12 @@
     "noResults": "No results",
     "prevMatchAria": "Previous search result",
     "nextMatchAria": "Next search result",
-    "quickTitle": "Words in this file",
-    "uniqueWords_one": "{{count}} unique word, sorted by frequency",
-    "uniqueWords_other": "{{count}} unique words, sorted by frequency",
-    "markAllKnown": "Mark all unprocessed as known",
-    "markAllLearning": "Add all unprocessed to learning",
-    "selectAll": "Select all",
-    "clear": "Clear",
-    "selectedCount": "{{count}} selected",
-    "markKnown": "Mark known",
-    "addLearning": "Add to learning",
     "emptyTitle": "Select a file to start reading",
     "emptyDescription": "Choose an imported file from the file list",
     "emptyContent": "No content yet",
     "cannotLoadWord": "Failed to load word details",
     "cannotLoadPhrase": "Failed to load phrase details",
-    "definitionSaved": "Definition saved",
-    "markedStatus_one": "Marked {{count}} word as {{status}}",
-    "markedStatus_other": "Marked {{count}} words as {{status}}"
+    "definitionSaved": "Definition saved"
   },
   "review": {
     "completedTitle": "Session complete",
@@ -324,7 +378,8 @@
     "errorTitle": "Progress temporarily unavailable",
     "errorDescription": "Please try again later",
     "title": "Learning Progress",
-    "subtitle": "Accumulation and review status of your global vocabulary",
+    "subtitle": "Vocabulary and review status",
+    "viewLanguage": "View language",
     "reviewed": "{{count}} reviews completed",
     "totalWords": "Total words",
     "known": "Known",
@@ -366,7 +421,12 @@
     "source": "Source: {{provider}}",
     "definitionLabel": "Chinese definition",
     "definitionPlaceholder": "Enter Chinese definition...",
-    "occurrences": "Occurrences ({{count}})"
+    "occurrences": "Occurrences ({{count}})",
+    "hideOccurrence": "Hide this example",
+    "hideOccurrenceAria": "Hide example",
+    "restoreOccurrence": "Restore this example",
+    "restoreOccurrenceAria": "Restore example",
+    "hiddenOccurrences": "Hidden examples ({{count}})"
   },
   "phraseDetail": {
     "frequency_one": "Appears {{count}} time",
@@ -383,7 +443,12 @@
     "categoryCollocation": "Collocation",
     "definitionLabel": "Chinese definition",
     "definitionPlaceholder": "Enter Chinese definition...",
-    "occurrences": "Occurrences ({{count}})"
+    "occurrences": "Occurrences ({{count}})",
+    "hideOccurrence": "Hide this example",
+    "hideOccurrenceAria": "Hide example",
+    "restoreOccurrence": "Restore this example",
+    "restoreOccurrenceAria": "Restore example",
+    "hiddenOccurrences": "Hidden examples ({{count}})"
   },
   "youtube": {
     "title": "Import from YouTube",

@@ -4,6 +4,7 @@ use std::collections::{HashMap, HashSet};
 use tauri::State;
 
 use crate::commands::chinese;
+use crate::commands::frequency_baseline;
 use crate::commands::language;
 use crate::db::DbState;
 
@@ -319,9 +320,7 @@ pub fn detect_japanese_phrases_in_segments(
                 };
                 let start_pos = token.position as usize;
                 let end_pos = start_pos + phrase_len;
-                if end_pos > tokens.len()
-                    || occupied[start_pos..end_pos].iter().any(|&o| o)
-                {
+                if end_pos > tokens.len() || occupied[start_pos..end_pos].iter().any(|&o| o) {
                     continue;
                 }
                 occupied[start_pos..end_pos].fill(true);
@@ -367,6 +366,10 @@ pub fn import_file(state: State<DbState>, payload: ImportPayload) -> Result<i64,
                     .map_err(|e| e.to_string())?;
             }
         }
+
+        // Apply an enabled high-frequency baseline only after the words exist.
+        // It deliberately touches only previously unprocessed words.
+        frequency_baseline::apply_enabled_baseline(&conn, &payload.language)?;
 
         let mut word_id_map: HashMap<String, i64> = HashMap::new();
         {
@@ -550,7 +553,10 @@ mod tests {
     #[test]
     fn detects_chinese_phrases_in_segments() {
         let conn = phrase_db(&[("举足轻重", "critical"), ("发挥作用", "to play a role")]);
-        let segments = vec![(0, "他的意见举足轻重。".to_string()), (1, "我们要充分发挥每个人的作用。".to_string())];
+        let segments = vec![
+            (0, "他的意见举足轻重。".to_string()),
+            (1, "我们要充分发挥每个人的作用。".to_string()),
+        ];
         let result = detect_chinese_phrases_in_segments(&conn, &segments).unwrap();
         let texts: Vec<&str> = result.iter().map(|p| p.text.as_str()).collect();
         assert!(texts.contains(&"举足轻重"));
@@ -572,12 +578,18 @@ mod tests {
 
     #[test]
     fn longest_match_wins_and_no_overlap() {
-        let conn = phrase_db(&[("发挥", "bring out"), ("发挥重要作用", "play an important role")]);
+        let conn = phrase_db(&[
+            ("发挥", "bring out"),
+            ("发挥重要作用", "play an important role"),
+        ]);
         let segments = vec![(0, "它能发挥重要作用。".to_string())];
         let result = detect_chinese_phrases_in_segments(&conn, &segments).unwrap();
         let texts: Vec<&str> = result.iter().map(|p| p.text.as_str()).collect();
         assert!(texts.contains(&"发挥重要作用"));
-        assert!(!texts.contains(&"发挥"), "short phrase should be shadowed by the longer one");
+        assert!(
+            !texts.contains(&"发挥"),
+            "short phrase should be shadowed by the longer one"
+        );
     }
 
     fn ja_phrase_db(entries: &[&str]) -> rusqlite::Connection {
@@ -633,6 +645,9 @@ mod tests {
         let result = detect_japanese_phrases_in_segments(&conn, &segments).unwrap();
         let texts: Vec<&str> = result.iter().map(|p| p.text.as_str()).collect();
         assert!(texts.contains(&"話が通じない"));
-        assert!(!texts.contains(&"話が通じる"), "overlapping phrase should be shadowed");
+        assert!(
+            !texts.contains(&"話が通じる"),
+            "overlapping phrase should be shadowed"
+        );
     }
 }

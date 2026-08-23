@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePhraseStore } from '../stores/phraseStore';
 import { useFeedbackStore } from '../stores/feedbackStore';
-import type { WordStatus, PhraseInfo } from '../lib/types';
+import type { WordStatus } from '../lib/types';
 import StatusBadge from '../components/StatusBadge';
 import PhraseDetailPanel from '../components/PhraseDetail';
 import ContextMenu from '../components/ContextMenu';
@@ -10,6 +10,12 @@ import type { ContextMenuItem } from '../components/ContextMenu';
 import EmptyState from '../components/EmptyState';
 import Pagination from '../components/Pagination';
 import Skeleton from '../components/Skeleton';
+import DisplaySettingsMenu from '../components/DisplaySettingsMenu';
+import { usePreferencesStore } from '../stores/preferencesStore';
+import { CONTENT_FONT_CLASS } from '../lib/contentTypography';
+import { useNavigate } from 'react-router-dom';
+import { occurrenceRoute } from '../lib/fileProgress';
+import { useShallow } from 'zustand/react/shallow';
 
 const PAGE_SIZE = 50;
 
@@ -31,8 +37,25 @@ const STATUS_CYCLE: WordStatus[] = ['unprocessed', 'learning', 'known', 'ignored
 
 export default function PhrasesPage() {
   const { t } = useTranslation();
-  const store = usePhraseStore();
-  const loadPhrases = usePhraseStore((state) => state.loadPhrases);
+  const navigate = useNavigate();
+  const store = usePhraseStore(useShallow((state) => ({
+    loadPhrases: state.loadPhrases,
+    loadDetail: state.loadDetail,
+    closeDetail: state.closeDetail,
+    setFilter: state.setFilter,
+    setSortBy: state.setSortBy,
+    updateStatus: state.updateStatus,
+    updateDefinition: state.updateDefinition,
+    batchUpdateStatus: state.batchUpdateStatus,
+    undoBatchUpdate: state.undoBatchUpdate,
+    toggleSelected: state.toggleSelected,
+    selectAll: state.selectAll,
+    clearSelection: state.clearSelection,
+  })));
+  const { loadPhrases } = store;
+  const learningTextFontSize = usePreferencesStore((state) => state.learningTextFontSize);
+  const auxiliaryFontSize = usePreferencesStore((state) => state.auxiliaryFontSize);
+  const selectedLanguage = usePreferencesStore((state) => state.language);
   const {
     phrases,
     filter,
@@ -45,11 +68,21 @@ export default function PhrasesPage() {
     detailLoading,
     detailError,
     detailErrorId,
-    refreshKey,
-  } = store;
+  } = usePhraseStore(useShallow((state) => ({
+    phrases: state.phrases,
+    filter: state.filter,
+    sortBy: state.sortBy,
+    selected: state.selected,
+    loading: state.loading,
+    batchUpdating: state.batchUpdating,
+    lastBatchAction: state.lastBatchAction,
+    detail: state.detail,
+    detailLoading: state.detailLoading,
+    detailError: state.detailError,
+    detailErrorId: state.detailErrorId,
+  })));
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
-  const [pageIds, setPageIds] = useState<number[] | null>(null);
   const selectAllRef = useRef<HTMLInputElement>(null);
   const [contextMenu, setContextMenu] = useState<{
     x: number; y: number;
@@ -59,8 +92,10 @@ export default function PhrasesPage() {
   } | null>(null);
 
   useEffect(() => {
+    store.clearSelection();
+    store.closeDetail();
     void loadPhrases();
-  }, [loadPhrases]);
+  }, [loadPhrases, selectedLanguage, store]);
 
   const getContextItems = (phraseId: number, status: WordStatus): ContextMenuItem[] => {
     return STATUS_CYCLE.map(s => ({
@@ -79,37 +114,21 @@ export default function PhrasesPage() {
     }));
   };
 
-  const visiblePhrases = phrases.filter((phrase) =>
-    phrase.text.toLowerCase().includes(query.trim().toLowerCase()),
-  );
+  const normalizedQuery = query.trim().toLowerCase();
+  const visiblePhrases = useMemo(() => phrases.filter((phrase) =>
+    phrase.text.toLowerCase().includes(normalizedQuery),
+  ), [phrases, normalizedQuery]);
   const totalPages = Math.max(1, Math.ceil(visiblePhrases.length / PAGE_SIZE));
-  const phraseById = useMemo(() => new Map(phrases.map((p) => [p.id, p])), [phrases]);
   const pagePhrases = useMemo(
-    () => (pageIds ? pageIds.map((id) => phraseById.get(id)).filter((p): p is PhraseInfo => !!p) : []),
-    [pageIds, phraseById],
+    () => visiblePhrases.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [visiblePhrases, page],
   );
   const allVisibleSelected = pagePhrases.length > 0 && pagePhrases.every((phrase) => selected.has(phrase.id));
   const someVisibleSelected = pagePhrases.some((phrase) => selected.has(phrase.id));
 
   useEffect(() => {
-    const all = usePhraseStore.getState().phrases;
-    const visible = all.filter((phrase) => phrase.text.toLowerCase().includes(query.trim().toLowerCase()));
-    setPageIds(visible.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((p) => p.id));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, query, refreshKey]);
-
-  useEffect(() => {
-    if (pageIds !== null && pagePhrases.length === 0 && visiblePhrases.length > 0) {
-      const target = Math.min(page, totalPages);
-      const all = usePhraseStore.getState().phrases;
-      const visible = all.filter((phrase) =>
-        phrase.text.toLowerCase().includes(query.trim().toLowerCase()),
-      );
-      setPageIds(visible.slice((target - 1) * PAGE_SIZE, target * PAGE_SIZE).map((p) => p.id));
-      if (target !== page) setPage(target);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageIds, pagePhrases.length, visiblePhrases.length, totalPages, page, query]);
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   useEffect(() => {
     setPage(1);
@@ -176,6 +195,7 @@ export default function PhrasesPage() {
       <div className="px-6 py-4 border-b border-gray-100">
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-xl font-semibold text-gray-900">{t('phrases.title')}</h1>
+          <DisplaySettingsMenu />
         </div>
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
@@ -328,11 +348,11 @@ export default function PhrasesPage() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => store.loadDetail(phrase.id)}
-                      className="font-medium text-gray-900 text-sm hover:text-purple-600 transition-colors truncate"
+                      className={`font-medium text-gray-900 hover:text-purple-600 transition-colors truncate ${CONTENT_FONT_CLASS.learning[learningTextFontSize]}`}
                     >
                       {phrase.text}
                     </button>
-                    <span className="text-xs text-gray-400 shrink-0">×{phrase.frequency}</span>
+                    <span className={`${CONTENT_FONT_CLASS.auxiliary[auxiliaryFontSize]} text-gray-400 shrink-0`}>×{phrase.frequency}</span>
                   </div>
                   <div className="mt-1 flex items-center gap-2">
                     <StatusBadge
@@ -381,6 +401,10 @@ export default function PhrasesPage() {
               onClose={store.closeDetail}
               onStatusChange={store.updateStatus}
               onDefinitionSave={store.updateDefinition}
+              onOccurrenceOpen={(occurrence) => {
+                store.closeDetail();
+                navigate(occurrenceRoute(occurrence, 'phrase', detail.phrase.id));
+              }}
             />
           ) : detailLoading ? (
             <div className="fixed inset-y-0 right-0 w-full sm:w-96 bg-white border-l border-gray-200 shadow-xl z-40 flex items-center justify-center text-gray-400">

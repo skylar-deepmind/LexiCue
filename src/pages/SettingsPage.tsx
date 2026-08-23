@@ -14,6 +14,10 @@ import { THEMES } from '../lib/themes';
 import { SELF_NAMES, UI_LANGUAGES, isLanguage } from '../lib/languages';
 import { usePreferencesStore } from '../stores/preferencesStore';
 import { formatBytes } from '../lib/format';
+import { QueryCache } from '../lib/queryCache';
+import { registerCacheInvalidator } from '../lib/cacheInvalidation';
+import FrequencyBaselineSettings from '../components/FrequencyBaselineSettings';
+import SettingsCollapsibleSection from '../components/SettingsCollapsibleSection';
 
 interface YtDlpStatus {
   available: boolean;
@@ -47,6 +51,7 @@ function formatImportedAt(timestamp: number, locale: string) {
 
 const SECTION_NAV = [
   { id: 'ui-language', labelKey: 'settings.uiLanguage.title' },
+  { id: 'frequency-baseline', labelKey: 'settings.frequencyBaseline.title' },
   { id: 'ai', labelKey: 'settings.ai.title' },
   { id: 'youtube', labelKey: 'settings.youtube.title' },
   { id: 'theme', labelKey: 'settings.theme.title' },
@@ -55,17 +60,27 @@ const SECTION_NAV = [
   { id: 'updates', labelKey: 'settings.updates.title' },
 ];
 
+const dictionarySourcesCache = new QueryCache<DictionarySource[]>(1);
+const storageUsageCache = new QueryCache<StorageUsage>(1);
+const ytdlpStatusCache = new QueryCache<YtDlpStatus>(1);
+registerCacheInvalidator('storage', () => storageUsageCache.invalidate('storage'));
+
 export default function SettingsPage() {
   const { t, i18n } = useTranslation();
   const { theme, setTheme } = useTheme();
   const uiLanguage = usePreferencesStore((state) => state.uiLanguage);
   const setUiLanguage = usePreferencesStore((state) => state.setUiLanguage);
   const importDictionaryPack = useFileStore((state) => state.importDictionaryPack);
-  const [sources, setSources] = useState<DictionarySource[]>([]);
-  const [loading, setLoading] = useState(true);
+  const initialSources = dictionarySourcesCache.peek('sources');
+  const [sources, setSources] = useState<DictionarySource[]>(initialSources ?? []);
+  const [loading, setLoading] = useState(initialSources === undefined);
   const [deleting, setDeleting] = useState<string | null>(null);
-  const [storage, setStorage] = useState<StorageUsage | null>(null);
-  const [storageLoading, setStorageLoading] = useState(true);
+  const initialStorage = storageUsageCache.peek('storage') ?? null;
+  const [storage, setStorage] = useState<StorageUsage | null>(initialStorage);
+  const [storageLoading, setStorageLoading] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [dictionaryOpen, setDictionaryOpen] = useState(false);
+  const [storageOpen, setStorageOpen] = useState(false);
   const aiEnabled = useAiStore((state) => state.enabled);
   const aiProvider = useAiStore((state) => state.provider);
   const aiBaseUrl = useAiStore((state) => state.baseUrl);
@@ -86,7 +101,7 @@ export default function SettingsPage() {
   const aiFingerprint = useAiStore((state) => state.aiFingerprint);
   const setAiFingerprint = useAiStore((state) => state.setAiFingerprint);
   const resetAiCheck = useAiStore((state) => state.resetAiCheck);
-  const [ytdlp, setYtdlp] = useState<YtDlpStatus | null>(null);
+  const [ytdlp, setYtdlp] = useState<YtDlpStatus | null>(() => ytdlpStatusCache.peek('status') ?? null);
   const [ytdlpChecking, setYtdlpChecking] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
   const [showYtInstall, setShowYtInstall] = useState(false);
@@ -104,10 +119,17 @@ export default function SettingsPage() {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  const checkYtdlp = async () => {
-    setYtdlpChecking(true);
+  const checkYtdlp = async (force = false) => {
+    const cached = ytdlpStatusCache.peek('status');
+    if (cached) setYtdlp(cached);
+    if (!force && ytdlpStatusCache.isFresh('status')) return;
+    if (!cached) setYtdlpChecking(true);
     try {
-      setYtdlp(await invoke<YtDlpStatus>('youtube_ytdlp_status'));
+      setYtdlp(await ytdlpStatusCache.fetch(
+        'status',
+        () => invoke<YtDlpStatus>('youtube_ytdlp_status'),
+        force,
+      ));
     } catch (error) {
       console.error('Failed to check yt-dlp:', error);
     } finally {
@@ -115,10 +137,17 @@ export default function SettingsPage() {
     }
   };
 
-  const loadSources = async () => {
-    setLoading(true);
+  const loadSources = async (force = false) => {
+    const cached = dictionarySourcesCache.peek('sources');
+    if (cached) setSources(cached);
+    if (!force && dictionarySourcesCache.isFresh('sources')) return;
+    if (!cached) setLoading(true);
     try {
-      setSources(await invoke<DictionarySource[]>('list_dictionary_sources'));
+      setSources(await dictionarySourcesCache.fetch(
+        'sources',
+        () => invoke<DictionarySource[]>('list_dictionary_sources'),
+        force,
+      ));
     } catch (error) {
       console.error('Failed to load dictionary sources:', error);
     } finally {
@@ -126,10 +155,17 @@ export default function SettingsPage() {
     }
   };
 
-  const loadStorage = async () => {
-    setStorageLoading(true);
+  const loadStorage = async (force = false) => {
+    const cached = storageUsageCache.peek('storage');
+    if (cached) setStorage(cached);
+    if (!force && storageUsageCache.isFresh('storage')) return;
+    if (!cached) setStorageLoading(true);
     try {
-      setStorage(await invoke<StorageUsage>('get_storage_usage'));
+      setStorage(await storageUsageCache.fetch(
+        'storage',
+        () => invoke<StorageUsage>('get_storage_usage'),
+        force,
+      ));
     } catch (error) {
       console.error('Failed to load storage usage:', error);
     } finally {
@@ -138,13 +174,19 @@ export default function SettingsPage() {
   };
 
   useEffect(() => {
-    void loadSources();
-    void loadStorage();
     void checkYtdlp();
     void getVersion()
       .then(setCurrentVersion)
       .catch(() => setCurrentVersion(''));
   }, []);
+
+  useEffect(() => {
+    if (dictionaryOpen) void loadSources();
+  }, [dictionaryOpen]);
+
+  useEffect(() => {
+    if (storageOpen) void loadStorage();
+  }, [storageOpen]);
 
   const checkAi = async () => {
     setAiStatus('checking');
@@ -199,7 +241,9 @@ export default function SettingsPage() {
 
   const handleImport = async () => {
     await importDictionaryPack();
-    await loadSources();
+    dictionarySourcesCache.invalidate('sources');
+    storageUsageCache.invalidate('storage');
+    await loadSources(true);
   };
 
   const handleDelete = async (source: DictionarySource) => {
@@ -216,7 +260,9 @@ export default function SettingsPage() {
     setDeleting(source.provider);
     try {
       await invoke('delete_dictionary_source', { provider: source.provider, language: source.language });
-      await loadSources();
+      dictionarySourcesCache.invalidate('sources');
+      storageUsageCache.invalidate('storage');
+      await loadSources(true);
     } catch (error) {
       console.error('Failed to delete dictionary source:', error);
     } finally {
@@ -269,15 +315,20 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        <section id="ai" className="scroll-mt-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <div className="rounded-xl bg-purple-50 p-2 text-purple-600"><Brain size={20} /></div>
-              <div>
-                <h2 className="font-semibold text-gray-900">{t('settings.ai.title')}</h2>
-                <p className="mt-1 text-sm text-gray-500">{t('settings.ai.description')}</p>
-              </div>
-            </div>
+        <FrequencyBaselineSettings />
+
+        <SettingsCollapsibleSection
+          id="ai"
+          icon={<span className="rounded-xl bg-purple-50 p-2 text-purple-600"><Brain size={20} /></span>}
+          title={t('settings.ai.title')}
+          description={t('settings.ai.description')}
+          summary={aiEnabled ? t('settings.ai.summaryEnabled', { provider: aiProvider === 'ollama' ? t('settings.ai.providerLocal') : t('settings.ai.providerCloud') }) : t('settings.ai.summaryDisabled')}
+          open={aiOpen}
+          onOpenChange={setAiOpen}
+          expandLabel={t('settings.expand')}
+          collapseLabel={t('settings.collapse')}
+        >
+          <div className="flex justify-end">
             <button
               type="button"
               role="switch"
@@ -411,7 +462,7 @@ export default function SettingsPage() {
           ) : (
             <p className="mt-4 rounded-lg bg-gray-50 px-4 py-3 text-sm text-gray-500">{t('settings.ai.disabledHint')}</p>
           )}
-        </section>
+        </SettingsCollapsibleSection>
 
         <section id="youtube" className="scroll-mt-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -427,7 +478,7 @@ export default function SettingsPage() {
               </div>
             </div>
             <button
-              onClick={() => void checkYtdlp()}
+              onClick={() => void checkYtdlp(true)}
               disabled={ytdlpChecking}
               className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-50"
             >
@@ -492,17 +543,18 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        <section id="dictionary" className="scroll-mt-6 rounded-2xl border border-gray-200 bg-white shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 p-5">
-            <div className="flex items-start gap-3">
-              <div className="rounded-xl bg-blue-50 p-2 text-blue-600">
-                <BookOpen size={20} />
-              </div>
-              <div>
-                <h2 className="font-semibold text-gray-900">{t('settings.dictionary.title')}</h2>
-                <p className="mt-1 text-sm text-gray-500">{t('settings.dictionary.description')}</p>
-              </div>
-            </div>
+        <SettingsCollapsibleSection
+          id="dictionary"
+          icon={<span className="rounded-xl bg-blue-50 p-2 text-blue-600"><BookOpen size={20} /></span>}
+          title={t('settings.dictionary.title')}
+          description={t('settings.dictionary.description')}
+          summary={t('settings.dictionary.summary')}
+          open={dictionaryOpen}
+          onOpenChange={setDictionaryOpen}
+          expandLabel={t('settings.expand')}
+          collapseLabel={t('settings.collapse')}
+        >
+          <div className="flex justify-end">
             <button
               onClick={() => void handleImport()}
               className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
@@ -526,7 +578,7 @@ export default function SettingsPage() {
           ) : (
             <div className="divide-y divide-gray-100">
               {sources.map((source) => (
-                <div key={`${source.language}-${source.provider}`} className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+                <div key={`${source.language}-${source.provider}`} className="flex flex-col gap-4 py-5 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                        <h3 className="font-medium text-gray-900">{source.provider} · {isLanguage(source.language) ? SELF_NAMES[source.language] : source.language}</h3>
@@ -553,21 +605,22 @@ export default function SettingsPage() {
               ))}
             </div>
           )}
-        </section>
+        </SettingsCollapsibleSection>
 
-        <section id="storage" className="scroll-mt-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="flex items-start gap-3">
-              <div className="rounded-xl bg-cyan-50 p-2 text-cyan-600">
-                <HardDrive size={20} />
-              </div>
-              <div>
-                <h2 className="font-semibold text-gray-900">{t('settings.storage.title')}</h2>
-                <p className="mt-1 max-w-xl text-sm text-gray-500">{t('settings.storage.description')}</p>
-              </div>
-            </div>
+        <SettingsCollapsibleSection
+          id="storage"
+          icon={<span className="rounded-xl bg-cyan-50 p-2 text-cyan-600"><HardDrive size={20} /></span>}
+          title={t('settings.storage.title')}
+          description={t('settings.storage.description')}
+          summary={storage ? t('settings.storage.summaryKnown', { size: formatBytes(storage.total) }) : t('settings.storage.summaryUnknown')}
+          open={storageOpen}
+          onOpenChange={setStorageOpen}
+          expandLabel={t('settings.expand')}
+          collapseLabel={t('settings.collapse')}
+        >
+          <div className="flex justify-end">
             <button
-              onClick={() => void loadStorage()}
+              onClick={() => void loadStorage(true)}
               disabled={storageLoading}
               className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-50"
             >
@@ -617,7 +670,7 @@ export default function SettingsPage() {
               </div>
             </div>
           ) : null}
-        </section>
+        </SettingsCollapsibleSection>
 
         <section id="updates" className="scroll-mt-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-3">

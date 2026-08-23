@@ -2,6 +2,7 @@ use rusqlite::params;
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
+use crate::commands::frequency_baseline;
 use crate::db::DbState;
 
 #[derive(Serialize)]
@@ -20,6 +21,7 @@ pub struct DueCard {
     pub language: String,
     pub reading: Option<String>,
     pub part_of_speech: Option<String>,
+    pub baseline_pending: bool,
 }
 
 #[derive(Serialize)]
@@ -101,7 +103,7 @@ pub fn get_due_cards(
     state: State<DbState>,
     language: Option<String>,
 ) -> Result<Vec<DueCard>, String> {
-    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    let mut conn = state.conn.lock().map_err(|e| e.to_string())?;
     let now = now_ms();
 
     let cards = {
@@ -164,7 +166,7 @@ pub fn get_due_cards(
                          FROM occurrences o
                          JOIN segments s ON s.id = o.segment_id
                          JOIN files f ON f.id = s.file_id
-                         WHERE o.word_id = ?1
+                         WHERE o.word_id = ?1 AND o.hidden = 0
                          ORDER BY f.name, s.index_num
                          LIMIT 20",
                     )
@@ -206,11 +208,59 @@ pub fn get_due_cards(
                 language,
                 reading,
                 part_of_speech,
+                baseline_pending: false,
             });
         }
         result
     };
-
+    let mut cards = cards;
+    let baseline_words =
+        frequency_baseline::take_daily_review_words(&mut conn, language.as_deref())?;
+    for baseline in baseline_words {
+        let row = conn.query_row(
+            "SELECT id, lemma, definition, language, reading, part_of_speech FROM words WHERE id=?1 AND language=?2",
+            params![baseline.id, baseline.language],
+            |row| Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?, row.get::<_, Option<String>>(2)?, row.get::<_, String>(3)?, row.get::<_, Option<String>>(4)?, row.get::<_, Option<String>>(5)?)),
+        ).map_err(|e| e.to_string())?;
+        let (word_id, lemma, definition, language, reading, part_of_speech) = row;
+        let mut ostmt = conn.prepare(
+            "SELECT o.id, s.en_text, s.zh_text, s.start_time, s.end_time, f.name, o.original_form
+             FROM occurrences o JOIN segments s ON s.id=o.segment_id JOIN files f ON f.id=s.file_id
+             WHERE o.word_id=?1 AND o.hidden=0 ORDER BY f.name, s.index_num LIMIT 20",
+        ).map_err(|e| e.to_string())?;
+        let occurrences = ostmt
+            .query_map(params![word_id], |row| {
+                Ok(CardOccurrence {
+                    id: row.get(0)?,
+                    en_text: row.get(1)?,
+                    zh_text: row.get(2)?,
+                    start_time: row.get(3)?,
+                    end_time: row.get(4)?,
+                    file_name: row.get(5)?,
+                    original_form: row.get(6)?,
+                })
+            })
+            .map_err(|e| e.to_string())?
+            .filter_map(Result::ok)
+            .collect();
+        cards.push(DueCard {
+            word_id,
+            lemma,
+            definition,
+            language,
+            reading,
+            part_of_speech,
+            occurrences,
+            stability: 0.0,
+            difficulty: 0.0,
+            elapsed_days: 0,
+            scheduled_days: 0,
+            reps: 0,
+            lapses: 0,
+            state: 0,
+            baseline_pending: true,
+        });
+    }
     Ok(cards)
 }
 
@@ -376,7 +426,7 @@ pub fn get_due_phrase_cards(
                          FROM phrase_occurrences po
                          JOIN segments s ON s.id = po.segment_id
                          JOIN files f ON f.id = s.file_id
-                         WHERE po.phrase_id = ?1
+                         WHERE po.phrase_id = ?1 AND po.hidden = 0
                          ORDER BY f.name, s.index_num
                          LIMIT 20",
                     )

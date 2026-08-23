@@ -10,6 +10,16 @@
     "saved": "Gespeichert",
     "retry": "Erneut versuchen"
   },
+  "display": {
+    "title": "Anzeige",
+    "aria": "Darstellung der Lerninhalte anpassen",
+    "categories": {
+      "learning": "Lerntext",
+      "definition": "Definitionen & Übersetzungen",
+      "auxiliary": "Zusatzinformationen"
+    },
+    "sizes": { "sm": "Klein", "md": "Standard", "lg": "Groß" }
+  },
   "status": {
     "unprocessed": "Unbearbeitet",
     "learning": "Lernt",
@@ -59,10 +69,13 @@
   "settings": {
     "title": "Einstellungen",
     "navAria": "Einstellungsabschnitte",
+    "expand": "Ausklappen",
+    "collapse": "Einklappen",
     "uiLanguage": {
       "title": "Anzeigesprache",
       "description": "Wählen Sie die Anzeigesprache der App-Oberfläche."
     },
+    "frequencyBaseline": { "title": "Häufigkeitsbasis" },
     "ai": {
       "title": "KI-Funktionen",
       "description": "Wenn aktiviert, können Absätze erklärt und Phrasen automatisch erkannt werden. Unterstützt lokales Ollama oder eigene Cloud-API-Schlüssel.",
@@ -86,6 +99,8 @@
       "statusError": "Verbindung fehlgeschlagen. Bitte Konfiguration prüfen.",
       "statusIdle": "Verbindung noch nicht getestet",
       "disabledHint": "KI ist deaktiviert; die KI-Schaltflächen auf den Seiten „Lesen“ und „Dateien“ sind ausgeblendet. Sie können sie hier jederzeit wieder aktivieren.",
+      "summaryEnabled": "Aktiviert · {{provider}}",
+      "summaryDisabled": "Deaktiviert",
       "custom": "Benutzerdefiniert"
     },
     "youtube": {
@@ -114,6 +129,7 @@
       "loading": "Wörterbuchliste wird geladen...",
       "empty": "Noch keine Offline-Wörterbücher importiert",
       "emptyHint": "Nach dem Import eines JSON-Wörterbuchpakets liest die Wiederholungskarte dessen Definitionen automatisch.",
+      "summary": "Integrierte Wörterbücher und importierte Pakete verwalten.",
       "entries_one": "{{count}} Wörterbucheintrag",
       "entries_other": "{{count}} Wörterbucheinträge",
       "importedAt": "Importiert am {{date}}",
@@ -127,6 +143,8 @@
     "storage": {
       "title": "Speicher",
       "description": "Von LexiCue auf diesem Gerät verwendeter Speicherplatz.",
+      "summaryKnown": "Gesamtnutzung {{size}}",
+      "summaryUnknown": "Ausklappen, um den lokalen Speicherbedarf zu berechnen.",
       "total": "Gesamtnutzung",
       "database": "Datenbank",
       "audioCache": "Audio-Cache",
@@ -194,6 +212,7 @@
     "segments_one": "{{count}} Segment",
     "segments_other": "{{count}} Segmente",
     "aiDone": "KI-Phrasenanalyse abgeschlossen",
+    "analysisFailed": "KI-Phrasenanalyse fehlgeschlagen",
     "analyzing": "Phrasen werden analysiert",
     "preparing": "Vorbereitung...",
     "segmentsProgress": "{{processed}}/{{total}} Segmente",
@@ -206,7 +225,56 @@
     "cancelAria": "KI-Phrasenanalyse unterbrechen",
     "retrying": "KI-Dienst vorübergehend nicht verfügbar ({{reason}}), automatischer Neuversuch ({{attempt}}/{{maxAttempts}})…",
     "moveAria": "{{name}} in Ordner verschieben",
-    "moveTitle": "In Ordner verschieben"
+    "moveTitle": "In Ordner verschieben",
+    "learningProgress": "Lernfortschritt",
+    "learningProgressAria": "Lernfortschritt: {{stage}}",
+    "noLearningContent": "Keine Lerninhalte",
+    "wordsOnlyPending": "Nur Wörter · Phrasen ausstehend",
+    "stage": {
+      "notStarted": "Nicht begonnen",
+      "starting": "Einstieg",
+      "progressing": "In Arbeit",
+      "flowing": "Gut unterwegs",
+      "nearlyDone": "Fast fertig",
+      "complete": "Abgeschlossen"
+    }
+  },
+  "fileDetail": {
+    "back": "Zurück zu Dateien",
+    "notFound": "Datei nicht gefunden", "notFoundHint": "Sie wurde möglicherweise gelöscht. Kehren Sie zur Dateiliste zurück."
+  },
+  "frequencyBaseline": {
+    "chooseTitle": "Häufigkeitsbasis wählen",
+    "chooseDescription": "Prüfen Sie Beispielwörter, bevor Sie häufige bekannte Wörter überspringen. Dies ist ein Häufigkeitsvorschlag, keine CEFR- oder HSK-Zertifizierung; Kenntnisse unterscheiden sich individuell.",
+    "settingsTitle": "Häufigkeitsbasis verwalten",
+    "settingsDescription": "Beispiele ansehen, Stufe ändern oder Vormarkierungen zurücknehmen. Dies ist keine CEFR- oder HSK-Zertifizierung; unbestätigte Wörter werden in der täglichen Wiederholung schrittweise korrigiert.",
+    "settingsSummaryEnabled": "{{language}}: erste {{tier}} häufige Wörter aktiviert",
+    "settingsSummaryDisabled": "{{language}}: Häufigkeitsbasis nicht aktiviert",
+    "allLanguagesHint": "Englische und chinesische Häufigkeitsbasen lassen sich in den Einstellungen verwalten.",
+    "manage": "Basis verwalten",
+    "currentSummary": "{{language}}-Basis: {{tier}}",
+    "currentHint": "Stufe ändern, Beispiele ansehen oder Vormarkierungen in den Einstellungen zurücknehmen.",
+    "firstRange": "Erste {{count}} häufige Wörter",
+    "addedRange": "Neue Wörter {{start}}–{{end}}",
+    "sampleCount": "100 Beispielwörter",
+    "nextSample": "Andere Beispiele",
+    "loading": "Beispiele werden geladen…",
+    "impact": "{{matching}} importierte Wörter passen; {{skipped}} werden neu übersprungen, {{retained}} bleiben unverändert.",
+    "apply": "Erste {{count}} Wörter anwenden",
+    "applying": "Wird angewendet…",
+    "settingsPreview": "Beispielauswahl (100 Wörter)",
+    "settingsImpact": "{{marked}} Wörter wurden durch die Basis übersprungen; {{pending}} werden in der täglichen Wiederholung schrittweise korrigiert.",
+    "data": "Daten: wordfreq v{{version}} · {{license}}",
+    "source": "Quelle und Lizenz",
+    "cefr": "CEFR-Referenzbeschreibungen",
+    "disable": "Künftige automatische Vormarkierung stoppen",
+    "revoke": "Unbestätigte Vormarkierungen zurücknehmen",
+    "tiers": {
+      "1000": { "title": "Grundlagen", "count": "Erste 1.000 häufige Wörter", "description": "Die häufigsten Kernwörter; hilfreich beim Aufbau eines Grundwortschatzes." },
+      "3000": { "title": "Alltagskommunikation", "count": "Erste 3.000 häufige Wörter", "description": "Mehr häufige Wörter aus Alltag und typischen Inhalten; beurteilen Sie Ihre Kenntnisse anhand der Beispiele." },
+      "5000": { "title": "Sichere Anwendung", "count": "Erste 5.000 häufige Wörter", "description": "Mehr häufige Wörter aus Lernen, Arbeit und allgemeiner Lektüre; dies ist keine Kompetenzzertifizierung." },
+      "10000": { "title": "Breites Lesen", "count": "Erste 10.000 häufige Wörter", "description": "Häufige Wörter aus einer breiteren Auswahl von Medien und Lektüre; wählen Sie nach tatsächlicher Vertrautheit." }
+    }
   },
   "words": {
     "title": "Wortliste",
@@ -255,8 +323,6 @@
     "selectFile": "Datei auswählen...",
     "hideTranslation": "Übersetzung ausblenden",
     "showTranslation": "Übersetzung anzeigen",
-    "quickMode": "Schnellbearbeitung",
-    "exitQuickMode": "Schnellmodus beenden",
     "hint": "Wort anklicken für Definition · Rechtsklick zum schnellen Markieren",
     "prevSegment": "Zurück",
     "nextSegment": "Weiter",
@@ -282,24 +348,12 @@
     "noResults": "Keine Ergebnisse",
     "prevMatchAria": "Vorheriges Suchergebnis",
     "nextMatchAria": "Nächstes Suchergebnis",
-    "quickTitle": "Wörter in dieser Datei",
-    "uniqueWords_one": "{{count}} eindeutiges Wort, nach Häufigkeit sortiert",
-    "uniqueWords_other": "{{count}} eindeutige Wörter, nach Häufigkeit sortiert",
-    "markAllKnown": "Alle Unbearbeiteten als bekannt markieren",
-    "markAllLearning": "Alle Unbearbeiteten zum Lernen hinzufügen",
-    "selectAll": "Alle auswählen",
-    "clear": "Leeren",
-    "selectedCount": "{{count}} ausgewählt",
-    "markKnown": "Als bekannt markieren",
-    "addLearning": "Zum Lernen hinzufügen",
     "emptyTitle": "Wählen Sie eine Datei zum Lesen",
     "emptyDescription": "Wählen Sie eine importierte Datei aus der Dateiliste",
     "emptyContent": "Noch kein Inhalt",
     "cannotLoadWord": "Wortdetails konnten nicht geladen werden",
     "cannotLoadPhrase": "Phrasendetails konnten nicht geladen werden",
-    "definitionSaved": "Definition gespeichert",
-    "markedStatus_one": "{{count}} Wort als {{status}} markiert",
-    "markedStatus_other": "{{count}} Wörter als {{status}} markiert"
+    "definitionSaved": "Definition gespeichert"
   },
   "review": {
     "completedTitle": "Sitzung abgeschlossen",
@@ -324,7 +378,8 @@
     "errorTitle": "Fortschritt vorübergehend nicht verfügbar",
     "errorDescription": "Bitte später erneut versuchen",
     "title": "Lernfortschritt",
-    "subtitle": "Aufbau und Wiederholungsstatus Ihres gesamten Wortschatzes",
+    "subtitle": "Wortschatz- und Wiederholungsstatus",
+    "viewLanguage": "Anzeigesprache",
     "reviewed": "{{count}} Wiederholungen abgeschlossen",
     "totalWords": "Gesamtwörter",
     "known": "Bekannt",
@@ -366,7 +421,12 @@
     "source": "Quelle: {{provider}}",
     "definitionLabel": "Chinesische Definition",
     "definitionPlaceholder": "Chinesische Definition eingeben...",
-    "occurrences": "Vorkommen ({{count}})"
+    "occurrences": "Vorkommen ({{count}})",
+    "hideOccurrence": "Dieses Beispiel ausblenden",
+    "hideOccurrenceAria": "Beispiel ausblenden",
+    "restoreOccurrence": "Dieses Beispiel wiederherstellen",
+    "restoreOccurrenceAria": "Beispiel wiederherstellen",
+    "hiddenOccurrences": "Ausgeblendete Beispiele ({{count}})"
   },
   "phraseDetail": {
     "frequency_one": "Erscheint {{count}} Mal",
@@ -383,7 +443,12 @@
     "categoryCollocation": "Kollokation",
     "definitionLabel": "Chinesische Definition",
     "definitionPlaceholder": "Chinesische Definition eingeben...",
-    "occurrences": "Vorkommen ({{count}})"
+    "occurrences": "Vorkommen ({{count}})",
+    "hideOccurrence": "Dieses Beispiel ausblenden",
+    "hideOccurrenceAria": "Beispiel ausblenden",
+    "restoreOccurrence": "Dieses Beispiel wiederherstellen",
+    "restoreOccurrenceAria": "Beispiel wiederherstellen",
+    "hiddenOccurrences": "Ausgeblendete Beispiele ({{count}})"
   },
   "youtube": {
     "title": "Von YouTube importieren",

@@ -162,7 +162,10 @@ mod tests {
 
     #[test]
     fn batch_matches_single_calls() {
-        let texts = vec!["Über die Straße gehen wir.".to_string(), "Er ging nach Hause.".to_string()];
+        let texts = vec![
+            "Über die Straße gehen wir.".to_string(),
+            "Er ging nach Hause.".to_string(),
+        ];
         let batch = tokenize_german_batch(texts.clone()).unwrap();
         assert_eq!(batch.len(), 2);
         for (index, tokens) in batch.iter().enumerate() {

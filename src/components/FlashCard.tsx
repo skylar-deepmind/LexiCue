@@ -5,6 +5,8 @@ import { invoke } from '@tauri-apps/api/core';
 import { speakText } from '../lib/tts';
 import type { DictionaryEntry, DueCard, DuePhraseCard, PhraseDictionaryEntry } from '../lib/types';
 import OccurrenceText from './OccurrenceText';
+import { usePreferencesStore } from '../stores/preferencesStore';
+import { CONTENT_FONT_CLASS, FLASHCARD_DEFINITION_FONT_CLASS, FLASHCARD_TERM_FONT_CLASS } from '../lib/contentTypography';
 
 interface FlashCardProps {
   card: DueCard | DuePhraseCard;
@@ -34,6 +36,9 @@ export default function FlashCard({ card, revealed, onReveal }: FlashCardProps) 
   const [audioLoading, setAudioLoading] = useState(false);
   const wordText = getWordText(card);
   const phraseMode = isPhraseCard(card);
+  const learningTextFontSize = usePreferencesStore((state) => state.learningTextFontSize);
+  const definitionFontSize = usePreferencesStore((state) => state.definitionFontSize);
+  const auxiliaryFontSize = usePreferencesStore((state) => state.auxiliaryFontSize);
 
   const playAudio = async () => {
     setAudioLoading(true);
@@ -87,23 +92,23 @@ export default function FlashCard({ card, revealed, onReveal }: FlashCardProps) 
         }`}
       >
         <div className="flex min-h-[190px] flex-col items-center justify-center">
-          <span className={`font-bold text-gray-900 ${phraseMode ? 'text-3xl' : 'text-4xl'}`}>{wordText}</span>
+          <span className={`font-bold text-gray-900 ${FLASHCARD_TERM_FONT_CLASS[phraseMode ? 'phrase' : 'word'][learningTextFontSize]}`}>{wordText}</span>
         </div>
 
         {!revealed ? (
-          <p className="mt-4 text-center text-xs text-gray-400">{t('flashcard.clickToReveal')}</p>
+          <p className={`mt-4 text-center text-gray-400 ${CONTENT_FONT_CLASS.auxiliary[auxiliaryFontSize]}`}>{t('flashcard.clickToReveal')}</p>
         ) : (
           <div className="mt-6 border-t border-gray-100 pt-6">
-            <div className="flex items-center gap-2 text-xs font-medium text-green-700">
+            <div className={`flex items-center gap-2 font-medium text-green-700 ${CONTENT_FONT_CLASS.auxiliary[auxiliaryFontSize]}`}>
               <BookOpen size={14} />
               <span>{t('flashcard.answer')}</span>
             </div>
 
             {card.definition && (
-              <p className="mt-3 text-xl font-semibold text-gray-900">{card.definition}</p>
+              <p className={`mt-3 font-semibold text-gray-900 ${FLASHCARD_DEFINITION_FONT_CLASS[learningTextFontSize]}`}>{card.definition}</p>
             )}
             {isWordCard(card) && (card.reading || card.part_of_speech) && (
-              <p className="mt-2 text-sm text-gray-500">
+              <p className={`mt-2 text-gray-500 ${CONTENT_FONT_CLASS.auxiliary[auxiliaryFontSize]}`}>
                 {card.reading && t('flashcard.reading', { reading: card.reading })}
                 {card.reading && card.part_of_speech && ' · '}
                 {card.part_of_speech && t('flashcard.partOfSpeech', { pos: card.part_of_speech })}
@@ -113,7 +118,7 @@ export default function FlashCard({ card, revealed, onReveal }: FlashCardProps) 
             {phraseMode && phraseDictionary && (
               <div className="mt-3 space-y-2 rounded-xl bg-purple-50/60 p-3">
                 <div className="flex items-center gap-2">
-                  <p className="text-sm text-purple-700">{phraseDictionary.translation}</p>
+                  <p className={`text-purple-700 ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}>{phraseDictionary.translation}</p>
                   <button
                     onClick={() => void playAudio()}
                     disabled={audioLoading}
@@ -125,7 +130,7 @@ export default function FlashCard({ card, revealed, onReveal }: FlashCardProps) 
                   </button>
                 </div>
                 {phraseDictionary.category && (
-                  <p className="text-xs text-purple-500">{phraseDictionary.category}</p>
+                  <p className={`text-purple-500 ${CONTENT_FONT_CLASS.auxiliary[auxiliaryFontSize]}`}>{phraseDictionary.category}</p>
                 )}
               </div>
             )}
@@ -133,7 +138,7 @@ export default function FlashCard({ card, revealed, onReveal }: FlashCardProps) 
             {!phraseMode && dictionary && (
               <div className="mt-3 space-y-2 rounded-xl bg-blue-50/60 p-3">
                 <div className="flex items-center gap-2">
-                  {dictionary.phonetic && <p className="text-sm text-blue-700">{dictionary.phonetic}</p>}
+                  {dictionary.phonetic && <p className={`text-blue-700 ${CONTENT_FONT_CLASS.auxiliary[auxiliaryFontSize]}`}>{dictionary.phonetic}</p>}
                   <button
                     onClick={() => void playAudio()}
                     disabled={audioLoading}
@@ -145,22 +150,22 @@ export default function FlashCard({ card, revealed, onReveal }: FlashCardProps) 
                   </button>
                 </div>
                 {dictionary.definitions.slice(0, 4).map((definition, index) => (
-                  <div key={`${definition.definition}-${index}`} className="text-sm text-gray-700">
-                    {definition.part_of_speech && <span className="mr-1 text-xs text-blue-600">{definition.part_of_speech}</span>}
+                  <div key={`${definition.definition}-${index}`} className={`text-gray-700 ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}>
+                    {definition.part_of_speech && <span className={`mr-1 text-blue-600 ${CONTENT_FONT_CLASS.auxiliary[auxiliaryFontSize]}`}>{definition.part_of_speech}</span>}
                     {definition.definition}
-                    {definition.translation && <p className="mt-0.5 text-xs text-gray-600">{definition.translation}</p>}
+                    {definition.translation && <p className={`mt-0.5 text-gray-600 ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}>{definition.translation}</p>}
                   </div>
                 ))}
               </div>
             )}
 
             {!card.definition && !phraseMode && !dictionary && !phraseDictionary && (
-              <p className="mt-3 text-sm italic text-gray-400">{t('flashcard.noDefinition')}</p>
+              <p className={`mt-3 italic text-gray-400 ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}>{t('flashcard.noDefinition')}</p>
             )}
 
             {occ && (
               <div className="mt-5 rounded-xl bg-gray-50 p-3">
-                <p className="text-sm leading-relaxed text-gray-700">
+                <p className={`leading-relaxed text-gray-700 ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}>
                   <OccurrenceText
                     text={occ.en_text}
                     surface={occ.original_form ?? wordText}
@@ -168,8 +173,8 @@ export default function FlashCard({ card, revealed, onReveal }: FlashCardProps) 
                     mode={phraseMode ? 'phrase' : 'word'}
                   />
                 </p>
-                {occ.zh_text && <p className="mt-1 text-xs text-gray-500">{occ.zh_text}</p>}
-                <p className="mt-2 text-xs text-gray-400">
+                {occ.zh_text && <p className={`mt-1 text-gray-500 ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}>{occ.zh_text}</p>}
+                <p className={`mt-2 text-gray-400 ${CONTENT_FONT_CLASS.auxiliary[auxiliaryFontSize]}`}>
                   {occ.file_name}
                   {occ.start_time && ` [${occ.start_time}]`}
                 </p>

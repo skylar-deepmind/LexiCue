@@ -32,6 +32,8 @@ import { getAiConfig } from '../lib/ai';
 import { isCancelledError } from '../lib/errors';
 import { getFolderPath, getFolderDescendantIds } from '../lib/folderTree';
 import type { FileRecord, FolderInfo } from '../lib/types';
+import { useShallow } from 'zustand/react/shallow';
+import { invalidateCaches } from '../lib/cacheInvalidation';
 
 interface MoveTarget {
   kind: 'file' | 'folder';
@@ -97,7 +99,30 @@ export default function FilesPage() {
     deleteFile,
     exportAll,
     restoreAll,
-  } = useFileStore();
+  } = useFileStore(useShallow((state) => ({
+    files: state.files,
+    folders: state.folders,
+    currentFolderId: state.currentFolderId,
+    loading: state.loading,
+    pendingImport: state.pendingImport,
+    confirming: state.confirming,
+    loadFiles: state.loadFiles,
+    loadFolders: state.loadFolders,
+    setCurrentFolder: state.setCurrentFolder,
+    createFolder: state.createFolder,
+    renameFolder: state.renameFolder,
+    deleteFolder: state.deleteFolder,
+    moveFolder: state.moveFolder,
+    moveFile: state.moveFile,
+    importFile: state.importFile,
+    setImportLanguage: state.setImportLanguage,
+    importKnownWords: state.importKnownWords,
+    confirmImport: state.confirmImport,
+    cancelImport: state.cancelImport,
+    deleteFile: state.deleteFile,
+    exportAll: state.exportAll,
+    restoreAll: state.restoreAll,
+  })));
   const navigate = useNavigate();
   const aiEnabled = useAiStore((state) => state.enabled);
   const analysisProgress = useOllamaStore((state) => state.progress);
@@ -109,7 +134,7 @@ export default function FilesPage() {
   useEffect(() => {
     void loadFiles();
     void loadFolders();
-  }, [loadFiles, loadFolders]);
+  }, [loadFiles, loadFolders, globalLanguage]);
 
   const path = useMemo(
     () => getFolderPath(folders, currentFolderId),
@@ -132,7 +157,7 @@ export default function FilesPage() {
   );
 
   const handleFileClick = (fileId: number) => {
-    navigate(`/reading?fileId=${fileId}`);
+    navigate(`/files/${fileId}`);
   };
 
   const handleAnalyze = async (fileId: number) => {
@@ -145,7 +170,9 @@ export default function FilesPage() {
     try {
       useFeedbackStore.getState().show(t('files.aiAnalyzing'), 'info', 5000);
       const result = await startAnalysis(fileId, config);
-      await loadFiles();
+      invalidateCaches('phrases', 'insights', 'storage');
+      useFileStore.getState().invalidateFiles();
+      await loadFiles(true);
       useFeedbackStore.getState().show(t('files.aiDone', { phrases: result.phrase_count, occurrences: result.occurrence_count }), 'success', 5000);
     } catch (error) {
       console.error('AI phrase analysis failed:', error);

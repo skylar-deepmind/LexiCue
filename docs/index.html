@@ -3,28 +3,29 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>LexiCue — Learn vocabulary from real reading</title>
-  <meta name="description" content="LexiCue — a local-first reading tool that turns what you read into vocabulary you remember. Import articles or subtitles, look words up as you read, and review them with smart scheduling." />
+  <title>LexiCue — Build vocabulary from your own content</title>
+  <meta name="description" content="LexiCue is a local-first vocabulary learning tool. Import text or subtitles, organize words and phrases, review them on schedule, and track your progress." />
   <meta name="author" content="LexiCue" />
   <meta name="robots" content="index, follow" />
   <meta name="theme-color" content="#2563eb" />
   <link rel="canonical" href="https://skylar-deepmind.github.io/LexiCue/" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="LexiCue" />
-  <meta property="og:title" content="LexiCue — Learn vocabulary from real reading" />
-  <meta property="og:description" content="LexiCue — a local-first reading tool that turns what you read into vocabulary you remember." />
+  <meta property="og:title" content="LexiCue — Build vocabulary from your own content" />
+  <meta property="og:description" content="Import content, organize vocabulary and phrases, and review them locally." />
   <meta property="og:url" content="https://skylar-deepmind.github.io/LexiCue/" />
   <meta property="og:image" content="https://skylar-deepmind.github.io/LexiCue/lexicue-icon.png" />
   <meta property="og:locale" content="en_US" />
   <meta property="og:locale:alternate" content="zh_CN" />
   <meta property="og:locale:alternate" content="ja_JP" />
   <meta name="twitter:card" content="summary" />
-  <meta name="twitter:title" content="LexiCue — Learn vocabulary from real reading" />
-  <meta name="twitter:description" content="LexiCue — a local-first reading tool that turns what you read into vocabulary you remember." />
+  <meta name="twitter:title" content="LexiCue — Build vocabulary from your own content" />
+  <meta name="twitter:description" content="Import content, organize vocabulary and phrases, and review them locally." />
   <meta name="twitter:image" content="https://skylar-deepmind.github.io/LexiCue/lexicue-icon.png" />
   <link rel="alternate" hreflang="zh-CN" href="https://skylar-deepmind.github.io/LexiCue/" />
   <link rel="alternate" hreflang="en" href="https://skylar-deepmind.github.io/LexiCue/" />
   <link rel="alternate" hreflang="ja" href="https://skylar-deepmind.github.io/LexiCue/" />
+  <link rel="alternate" hreflang="de" href="https://skylar-deepmind.github.io/LexiCue/" />
   <link rel="alternate" hreflang="x-default" href="https://skylar-deepmind.github.io/LexiCue/" />
   <link rel="icon" type="image/png" href="lexicue-icon.png" />
   <link rel="apple-touch-icon" href="lexicue-icon.png" />
@@ -35,7 +36,7 @@
     "name": "LexiCue",
     "url": "https://skylar-deepmind.github.io/LexiCue/",
     "image": "https://skylar-deepmind.github.io/LexiCue/lexicue-icon.png",
-    "description": "LexiCue — a local-first reading tool that turns what you read into vocabulary you remember. Import articles, subtitles or YouTube captions, look words up as you read, and review them with smart scheduling.",
+    "description": "LexiCue is a local-first vocabulary learning tool. Import text, subtitles or YouTube captions, organize words and phrases, and review them on schedule.",
     "applicationCategory": "EducationApplication",
     "operatingSystem": "macOS, Windows, Android",
     "softwareVersion": "0.2.0",
@@ -48,9 +49,10 @@
     "sameAs": [
       "https://github.com/skylar-deepmind/LexiCue"
     ],
-    "inLanguage": ["en", "zh-CN", "ja"],
+    "inLanguage": ["en", "zh-CN", "ja", "de"],
     "featureList": [
       "Import TXT, SRT, VTT and YouTube subtitles",
+      "Organize vocabulary and phrases by learning status",
       "Offline dictionaries for English, Japanese, German and Chinese",
       "Spaced-repetition review scheduling",
       "Local-first storage, no account required",
@@ -90,9 +92,13 @@
             <button type="button" class="lang-btn" data-lang="zh" aria-label="中文">中</button>
             <button type="button" class="lang-btn" data-lang="en" aria-label="English">EN</button>
             <button type="button" class="lang-btn" data-lang="ja" aria-label="日本語">日</button>
+            <button type="button" class="lang-btn" data-lang="de" aria-label="Deutsch">DE</button>
           </div>
           <a class="nav-support" href="https://www.ifdian.net/a/skylar-lexicue" target="_blank" rel="noreferrer" data-i18n="nav.support">Support</a>
-          <a class="nav-cta" href="https://github.com/skylar-deepmind/LexiCue" target="_blank" rel="noreferrer">GitHub ↗</a>
+          <a class="nav-cta" href="https://github.com/skylar-deepmind/LexiCue" target="_blank" rel="noreferrer" aria-label="GitHub" title="GitHub">
+            <span class="nav-cta-label">GitHub ↗</span>
+            <svg class="nav-cta-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489.5.092.683-.217.683-.483 0-.237-.009-1.026-.013-1.862-2.782.604-3.369-1.18-3.369-1.18-.455-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.004.07 1.532 1.031 1.532 1.031.892 1.529 2.341 1.087 2.91.831.091-.646.349-1.087.635-1.337-2.221-.253-4.556-1.111-4.556-4.944 0-1.092.39-1.985 1.03-2.685-.104-.253-.446-1.271.098-2.65 0 0 .84-.269 2.75 1.026A9.564 9.564 0 0 1 12 6.805a9.59 9.59 0 0 1 2.504.337c1.909-1.295 2.748-1.026 2.748-1.026.546 1.379.203 2.397.1 2.65.64.7 1.028 1.593 1.028 2.685 0 3.842-2.339 4.688-4.566 4.936.359.309.678.915.678 1.846 0 1.334-.012 2.409-.012 2.737 0 .268.18.58.688.481A10.001 10.001 0 0 0 22 12c0-5.523-4.477-10-10-10Z"/></svg>
+          </a>
         </div>
       </nav>
     </div>
@@ -102,15 +108,17 @@
     <section class="hero">
       <div class="container">
         <div class="eyebrow"><span class="dot"></span><span data-i18n="hero.eyebrow">Local-first · Open source · Works offline</span></div>
-        <h1 data-i18n="hero.title">Read what you love.<br><span class="gradient-text">Remember the words.</span></h1>
-        <p class="hero-copy" data-i18n="hero.sub">LexiCue is a local-first reading tool that builds vocabulary as you read. Import an article or subtitles, look words up on the spot, and let smart review make them stick.</p>
+        <h1 data-i18n="hero.title">Import your content.<br><span class="gradient-text">Own the vocabulary.</span></h1>
+        <p class="hero-copy" data-i18n="hero.sub">LexiCue is a local-first vocabulary learning tool. Import text or subtitles, organize words and phrases, then review them on a schedule that fits.</p>
         <div class="hero-actions">
           <a class="btn btn-primary" href="https://github.com/skylar-deepmind/LexiCue/releases/latest" target="_blank" rel="noreferrer" data-open-download data-i18n="hero.ctaDownload">Download free</a>
           <a class="btn btn-secondary" href="https://github.com/skylar-deepmind/LexiCue" target="_blank" rel="noreferrer" data-i18n="hero.ctaGithub">View on GitHub</a>
         </div>
         <div class="microcopy">macOS · Windows · Android ｜ English · 日本語 · Deutsch · 中文</div>
 
-        <div class="hero-stage reveal" aria-label="LexiCue app interface demo — click the tabs on the left to switch modules">
+        <div class="hero-stage demo-stage reveal" id="interactive-demo" aria-live="polite"></div>
+
+        <div class="hero-stage reveal legacy-demo" aria-label="LexiCue app interface demo — click the tabs on the left to switch modules">
           <div class="glow"></div>
           <div class="app-window">
             <div class="window-bar"><span class="window-dot"></span><span class="window-dot"></span><span class="window-dot"></span><span class="window-title">LexiCue</span></div>
@@ -319,14 +327,14 @@
       <div class="container">
         <div class="section-head reveal">
           <div class="section-kicker" data-i18n="features.kicker">Why LexiCue</div>
-          <h2 data-i18n="features.title">Learn while you read,<br>not while you stop to look up.</h2>
-          <p data-i18n="features.sub">Everything revolves around the content you actually read: understand on the fly, collect as you go, and let LexiCue handle the review.</p>
+          <h2 data-i18n="features.title">Turn your content<br>into a vocabulary system.</h2>
+          <p data-i18n="features.sub">Import material you care about, keep its words and phrases organized, and let LexiCue handle the review schedule.</p>
         </div>
         <div class="feature-grid">
           <article class="feature-card wide reveal">
             <div class="feature-icon blue">⌁</div>
-            <h3 data-i18n="f1.title">Start with content you love, not a word list</h3>
-            <p data-i18n="f1.desc">Import TXT, SRT or VTT files, or pull YouTube subtitles — learn from what you actually want to read.</p>
+            <h3 data-i18n="f1.title">Import the material you already use</h3>
+            <p data-i18n="f1.desc">Bring in TXT, SRT or VTT files, or YouTube subtitles. Your files become the source for a focused vocabulary library.</p>
             <div class="lang-chips">
               <span class="lang-chip">.txt</span><span class="lang-chip">.srt</span><span class="lang-chip">.vtt</span>
               <span class="lang-chip" data-i18n="f1.youtube">YouTube subtitles</span>
@@ -334,8 +342,8 @@
           </article>
           <article class="feature-card reveal">
             <div class="feature-icon violet">Aa</div>
-            <h3 data-i18n="f2.title">Look things up without losing your place</h3>
-            <p data-i18n="f2.desc">Tap any word for its meaning, reading and example sentence. It lands in your word list automatically.</p>
+            <h3 data-i18n="f2.title">Keep words and phrases organized</h3>
+            <p data-i18n="f2.desc">Filter, search and update learning states in dedicated word and phrase libraries. Open an imported file whenever you need to check its contents.</p>
           </article>
           <article class="feature-card reveal">
             <div class="feature-icon sage">↻</div>
@@ -370,9 +378,9 @@
         </div>
         <div class="flow">
           <article class="step reveal"><div class="step-num">01</div><div class="step-arrow">→</div><h3 data-i18n="s1.title">Import</h3><p data-i18n="s1.desc">Drop in an article, subtitles, or YouTube captions.</p></article>
-          <article class="step reveal"><div class="step-num">02</div><div class="step-arrow">→</div><h3 data-i18n="s2.title">Read</h3><p data-i18n="s2.desc">Read line by line, tap any word, glance at translations.</p></article>
-          <article class="step reveal"><div class="step-num">03</div><div class="step-arrow">→</div><h3 data-i18n="s3.title">Collect</h3><p data-i18n="s3.desc">New words and phrases pile up in your list automatically.</p></article>
-          <article class="step reveal"><div class="step-num">04</div><h3 data-i18n="s4.title">Review</h3><p data-i18n="s4.desc">A gentle nudge at the right time — a few words, a few minutes.</p></article>
+          <article class="step reveal"><div class="step-num">02</div><div class="step-arrow">→</div><h3 data-i18n="s2.title">Organize</h3><p data-i18n="s2.desc">Manage extracted words and phrases, then set their learning status.</p></article>
+          <article class="step reveal"><div class="step-num">03</div><div class="step-arrow">→</div><h3 data-i18n="s3.title">Review</h3><p data-i18n="s3.desc">Use short, scheduled reviews to move vocabulary forward.</p></article>
+          <article class="step reveal"><div class="step-num">04</div><h3 data-i18n="s4.title">Track</h3><p data-i18n="s4.desc">See your vocabulary, phrase and review progress at a glance.</p></article>
         </div>
       </div>
     </section>
@@ -382,7 +390,7 @@
         <div class="privacy reveal">
           <div>
             <div class="section-kicker" data-i18n="privacy.kicker">Local-first by default</div>
-            <h2 data-i18n="privacy.title">Your reading stays on your computer.</h2>
+            <h2 data-i18n="privacy.title">Your learning data stays on your computer.</h2>
             <p data-i18n="privacy.body">All data lives on your device — no forced sign-ups, no mandatory cloud. If you want AI, point it at local Ollama or your own API.</p>
             <div class="privacy-list">
               <div class="privacy-item"><span class="check">✓</span><span data-i18n="privacy.list.0">Study records saved in a local database</span></div>
@@ -407,7 +415,7 @@
         <div class="section-head reveal">
           <div class="section-kicker" data-i18n="lang.kicker">Languages</div>
           <h2 data-i18n="lang.title">Four languages, one workflow.</h2>
-          <p data-i18n="lang.sub">Pick a language and get its dictionary; reading, lookup and review all feel the same.</p>
+          <p data-i18n="lang.sub">Pick a language and get its dictionary; importing, organizing and reviewing work the same way.</p>
         </div>
         <div class="lang-table reveal">
           <div class="lang-row">
@@ -443,7 +451,7 @@
       <div class="container">
         <div class="cta-box reveal">
           <div class="section-kicker" data-i18n="cta.kicker">Open source · MIT</div>
-          <h2 data-i18n="cta.title">Make every real read<br>a small vocabulary win.</h2>
+          <h2 data-i18n="cta.title">Build a vocabulary library<br>from content that matters to you.</h2>
           <p data-i18n="cta.body">Free and open source, still growing fast. Take a look on GitHub, or just download it.</p>
           <p class="star-ask" data-i18n="cta.starAsk">Enjoying LexiCue? Give it a star on GitHub</p>
           <div class="hero-actions">
@@ -460,7 +468,7 @@
 
   <footer>
     <div class="container footer-inner">
-      <div data-i18n="footer.tagline">LexiCue · Local-first reading & vocabulary tool</div>
+      <div data-i18n="footer.tagline">LexiCue · Local-first vocabulary learning tool</div>
       <div class="footer-links">
         <a href="https://www.ifdian.net/a/skylar-lexicue" target="_blank" rel="noreferrer" data-i18n="footer.support">Support</a>
         <a href="https://github.com/skylar-deepmind/LexiCue" target="_blank" rel="noreferrer" data-i18n="footer.github">GitHub</a>

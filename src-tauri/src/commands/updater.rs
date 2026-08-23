@@ -25,7 +25,11 @@ pub async fn check_github_release() -> Result<Option<LatestRelease>, String> {
         .build()
         .map_err(|e| e.to_string())?;
 
-    let response = client.get(GITHUB_API).send().await.map_err(|e| e.to_string())?;
+    let response = client
+        .get(GITHUB_API)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
     if response.status() == reqwest::StatusCode::NOT_FOUND {
         return Ok(None);
     }

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWordStore } from '../stores/wordStore';
 import { useFeedbackStore } from '../stores/feedbackStore';
-import type { WordStatus, WordInfo } from '../lib/types';
+import type { WordStatus } from '../lib/types';
 import StatusBadge from '../components/StatusBadge';
 import WordDetailPanel from '../components/WordDetail';
 import ContextMenu from '../components/ContextMenu';
@@ -10,6 +10,13 @@ import type { ContextMenuItem } from '../components/ContextMenu';
 import EmptyState from '../components/EmptyState';
 import Pagination from '../components/Pagination';
 import Skeleton from '../components/Skeleton';
+import DisplaySettingsMenu from '../components/DisplaySettingsMenu';
+import FrequencyBaselinePicker from '../components/FrequencyBaselinePicker';
+import { usePreferencesStore } from '../stores/preferencesStore';
+import { CONTENT_FONT_CLASS } from '../lib/contentTypography';
+import { useNavigate } from 'react-router-dom';
+import { occurrenceRoute } from '../lib/fileProgress';
+import { useShallow } from 'zustand/react/shallow';
 
 const PAGE_SIZE = 50;
 
@@ -31,8 +38,25 @@ const STATUS_CYCLE: WordStatus[] = ['unprocessed', 'learning', 'known', 'ignored
 
 export default function WordsPage() {
   const { t } = useTranslation();
-  const store = useWordStore();
-  const loadWords = useWordStore((state) => state.loadWords);
+  const navigate = useNavigate();
+  const store = useWordStore(useShallow((state) => ({
+    loadWords: state.loadWords,
+    loadDetail: state.loadDetail,
+    closeDetail: state.closeDetail,
+    setFilter: state.setFilter,
+    setSortBy: state.setSortBy,
+    updateStatus: state.updateStatus,
+    updateDefinition: state.updateDefinition,
+    batchUpdateStatus: state.batchUpdateStatus,
+    undoBatchUpdate: state.undoBatchUpdate,
+    toggleSelected: state.toggleSelected,
+    selectAll: state.selectAll,
+    clearSelection: state.clearSelection,
+  })));
+  const { loadWords } = store;
+  const learningTextFontSize = usePreferencesStore((state) => state.learningTextFontSize);
+  const auxiliaryFontSize = usePreferencesStore((state) => state.auxiliaryFontSize);
+  const selectedLanguage = usePreferencesStore((state) => state.language);
   const {
     words,
     filter,
@@ -45,11 +69,21 @@ export default function WordsPage() {
     detailLoading,
     detailError,
     detailErrorId,
-    refreshKey,
-  } = store;
+  } = useWordStore(useShallow((state) => ({
+    words: state.words,
+    filter: state.filter,
+    sortBy: state.sortBy,
+    selected: state.selected,
+    loading: state.loading,
+    batchUpdating: state.batchUpdating,
+    lastBatchAction: state.lastBatchAction,
+    detail: state.detail,
+    detailLoading: state.detailLoading,
+    detailError: state.detailError,
+    detailErrorId: state.detailErrorId,
+  })));
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
-  const [pageIds, setPageIds] = useState<number[] | null>(null);
   const selectAllRef = useRef<HTMLInputElement>(null);
   const [contextMenu, setContextMenu] = useState<{
     x: number; y: number;
@@ -59,8 +93,10 @@ export default function WordsPage() {
   } | null>(null);
 
   useEffect(() => {
+    store.clearSelection();
+    store.closeDetail();
     void loadWords();
-  }, [loadWords]);
+  }, [loadWords, selectedLanguage, store]);
 
   const getContextItems = (wordId: number, status: WordStatus): ContextMenuItem[] => {
     return STATUS_CYCLE.map(s => ({
@@ -79,37 +115,21 @@ export default function WordsPage() {
     }));
   };
 
-  const visibleWords = words.filter((word) =>
-    word.lemma.toLowerCase().includes(query.trim().toLowerCase()),
-  );
+  const normalizedQuery = query.trim().toLowerCase();
+  const visibleWords = useMemo(() => words.filter((word) =>
+    word.lemma.toLowerCase().includes(normalizedQuery),
+  ), [words, normalizedQuery]);
   const totalPages = Math.max(1, Math.ceil(visibleWords.length / PAGE_SIZE));
-  const wordById = useMemo(() => new Map(words.map((w) => [w.id, w])), [words]);
   const pageWords = useMemo(
-    () => (pageIds ? pageIds.map((id) => wordById.get(id)).filter((w): w is WordInfo => !!w) : []),
-    [pageIds, wordById],
+    () => visibleWords.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [visibleWords, page],
   );
   const allVisibleSelected = pageWords.length > 0 && pageWords.every((word) => selected.has(word.id));
   const someVisibleSelected = pageWords.some((word) => selected.has(word.id));
 
   useEffect(() => {
-    const all = useWordStore.getState().words;
-    const visible = all.filter((word) => word.lemma.toLowerCase().includes(query.trim().toLowerCase()));
-    setPageIds(visible.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((w) => w.id));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, query, refreshKey]);
-
-  useEffect(() => {
-    if (pageIds !== null && pageWords.length === 0 && visibleWords.length > 0) {
-      const target = Math.min(page, totalPages);
-      const all = useWordStore.getState().words;
-      const visible = all.filter((word) =>
-        word.lemma.toLowerCase().includes(query.trim().toLowerCase()),
-      );
-      setPageIds(visible.slice((target - 1) * PAGE_SIZE, target * PAGE_SIZE).map((w) => w.id));
-      if (target !== page) setPage(target);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageIds, pageWords.length, visibleWords.length, totalPages, page, query]);
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   useEffect(() => {
     setPage(1);
@@ -176,6 +196,7 @@ export default function WordsPage() {
       <div className="px-6 py-4 border-b border-gray-100">
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-xl font-semibold text-gray-900">{t('words.title')}</h1>
+          <DisplaySettingsMenu />
         </div>
           <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
@@ -221,6 +242,8 @@ export default function WordsPage() {
           className="mt-3 w-full max-w-sm px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
+
+      <FrequencyBaselinePicker selectedLanguage={selectedLanguage} />
 
       {(selected.size > 0 || lastBatchAction) && (
         <div className="px-6 py-2 bg-blue-50 border-b border-blue-100 flex flex-wrap items-center gap-2">
@@ -325,11 +348,11 @@ export default function WordsPage() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => store.loadDetail(word.id)}
-                      className="font-medium text-gray-900 text-sm hover:text-blue-600 transition-colors truncate"
+                      className={`font-medium text-gray-900 hover:text-blue-600 transition-colors truncate ${CONTENT_FONT_CLASS.learning[learningTextFontSize]}`}
                     >
                       {word.lemma}
                     </button>
-                    <span className="text-xs text-gray-400 shrink-0">×{word.frequency}</span>
+                    <span className={`${CONTENT_FONT_CLASS.auxiliary[auxiliaryFontSize]} text-gray-400 shrink-0`}>×{word.frequency}</span>
                   </div>
                   <div className="mt-1">
                     <StatusBadge
@@ -342,6 +365,7 @@ export default function WordsPage() {
                         status: word.status as WordStatus,
                       })}
                     />
+                    {word.baseline_pending && <span className="ml-2 text-xs text-emerald-700">高频基线</span>}
                   </div>
                 </div>
               </div>
@@ -373,6 +397,10 @@ export default function WordsPage() {
               onClose={store.closeDetail}
               onStatusChange={store.updateStatus}
               onDefinitionSave={store.updateDefinition}
+              onOccurrenceOpen={(occurrence) => {
+                store.closeDetail();
+                navigate(occurrenceRoute(occurrence, 'word', detail.word.id));
+              }}
             />
           ) : detailLoading ? (
             <div className="fixed inset-y-0 right-0 w-full sm:w-96 bg-white border-l border-gray-200 shadow-xl z-40 flex items-center justify-center text-gray-400">

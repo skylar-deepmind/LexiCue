@@ -2,9 +2,9 @@ use rusqlite::params;
 use serde::Serialize;
 use tauri::State;
 
-use crate::db::DbState;
 use crate::commands::chinese;
 use crate::commands::language;
+use crate::db::DbState;
 
 #[derive(Serialize)]
 pub struct PhraseInfo {
@@ -26,12 +26,16 @@ pub struct PhraseDetail {
 #[derive(Serialize)]
 pub struct PhraseOccurrenceDetail {
     pub id: i64,
+    pub file_id: i64,
+    pub segment_id: i64,
+    pub segment_index: i32,
     pub position: i32,
     pub en_text: String,
     pub zh_text: Option<String>,
     pub start_time: Option<String>,
     pub end_time: Option<String>,
     pub file_name: String,
+    pub hidden: bool,
 }
 
 fn query_phrases(
@@ -53,7 +57,7 @@ fn query_phrases(
             let sql = format!(
                 "SELECT p.id, p.text, p.status, p.definition, p.source, COUNT(po.id) AS frequency, p.language
                  FROM phrases p
-                 LEFT JOIN phrase_occurrences po ON po.phrase_id = p.id
+                 LEFT JOIN phrase_occurrences po ON po.phrase_id = p.id AND po.hidden = 0
                  WHERE p.status = ?1 AND (?2 IS NULL OR p.language = ?2)
                  GROUP BY p.id
                  ORDER BY {}",
@@ -79,7 +83,7 @@ fn query_phrases(
             let sql = format!(
                 "SELECT p.id, p.text, p.status, p.definition, p.source, COUNT(po.id) AS frequency, p.language
                  FROM phrases p
-                 LEFT JOIN phrase_occurrences po ON po.phrase_id = p.id
+                 LEFT JOIN phrase_occurrences po ON po.phrase_id = p.id AND po.hidden = 0
                  WHERE (?1 IS NULL OR p.language = ?1)
                  GROUP BY p.id
                  ORDER BY {}",
@@ -132,7 +136,7 @@ pub fn phrase_detail(state: State<DbState>, phrase_id: i64) -> Result<PhraseDeta
             .prepare(
                 "SELECT p.id, p.text, p.status, p.definition, p.source, COUNT(po.id) AS frequency, p.language
                  FROM phrases p
-                 LEFT JOIN phrase_occurrences po ON po.phrase_id = p.id
+                 LEFT JOIN phrase_occurrences po ON po.phrase_id = p.id AND po.hidden = 0
                  WHERE p.id = ?1
                  GROUP BY p.id",
             )
@@ -155,9 +159,9 @@ pub fn phrase_detail(state: State<DbState>, phrase_id: i64) -> Result<PhraseDeta
     let occurrences = {
         let mut stmt = conn
             .prepare(
-                "SELECT po.id, po.position,
+                "SELECT po.id, f.id, s.id, s.index_num, po.position,
                         s.en_text, s.zh_text, s.start_time, s.end_time,
-                        f.name AS file_name
+                        f.name AS file_name, po.hidden
                  FROM phrase_occurrences po
                  JOIN segments s ON s.id = po.segment_id
                  JOIN files f ON f.id = s.file_id
@@ -170,12 +174,16 @@ pub fn phrase_detail(state: State<DbState>, phrase_id: i64) -> Result<PhraseDeta
             .query_map(params![phrase_id], |row| {
                 Ok(PhraseOccurrenceDetail {
                     id: row.get(0)?,
-                    position: row.get(1)?,
-                    en_text: row.get(2)?,
-                    zh_text: row.get(3)?,
-                    start_time: row.get(4)?,
-                    end_time: row.get(5)?,
-                    file_name: row.get(6)?,
+                    file_id: row.get(1)?,
+                    segment_id: row.get(2)?,
+                    segment_index: row.get(3)?,
+                    position: row.get(4)?,
+                    en_text: row.get(5)?,
+                    zh_text: row.get(6)?,
+                    start_time: row.get(7)?,
+                    end_time: row.get(8)?,
+                    file_name: row.get(9)?,
+                    hidden: row.get(10)?,
                 })
             })
             .map_err(|e| e.to_string())?;
@@ -191,6 +199,23 @@ pub fn phrase_detail(state: State<DbState>, phrase_id: i64) -> Result<PhraseDeta
         phrase,
         occurrences,
     })
+}
+
+#[tauri::command]
+pub fn set_phrase_occurrence_hidden(
+    state: State<DbState>,
+    occurrence_id: i64,
+    hidden: bool,
+) -> Result<(), String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "UPDATE phrase_occurrences SET hidden = ?1 WHERE id = ?2",
+        params![hidden as i32, occurrence_id],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
 }
 
 #[tauri::command]
@@ -340,8 +365,17 @@ pub fn get_file_phrases(state: State<DbState>, file_id: i64) -> Result<Vec<Segme
 
     let mut result = Vec::new();
     for row in rows {
-        let (id, text, status, definition, source, position, segment_index, language, spaced_word_count) =
-            row.map_err(|e| e.to_string())?;
+        let (
+            id,
+            text,
+            status,
+            definition,
+            source,
+            position,
+            segment_index,
+            language,
+            spaced_word_count,
+        ) = row.map_err(|e| e.to_string())?;
         // Chinese and Japanese have no spaces, so the SQL word count is always
         // 1. Re-tokenize with the same tokenizer used during import so the
         // reading page can highlight the full phrase span.

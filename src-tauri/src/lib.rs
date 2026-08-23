@@ -14,7 +14,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             #[cfg(desktop)]
-            app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
+            app.handle()
+                .plugin(tauri_plugin_updater::Builder::new().build())?;
 
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -36,10 +37,6 @@ pub fn run() {
 
             let status = DictionaryStatus::default();
             app.manage(status.clone());
-
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.set_focus();
-            }
 
             let app_handle = app.handle().clone();
             let dict_dir = app_dir.clone();
@@ -87,16 +84,24 @@ pub fn run() {
             commands::words::update_word_status,
             commands::words::update_word_definition,
             commands::words::batch_update_status,
+            commands::words::set_occurrence_hidden,
             commands::words::list_file_word_tokens,
             commands::words::get_file_segment_tokens,
+            commands::frequency_baseline::get_frequency_baseline,
+            commands::frequency_baseline::configure_frequency_baseline,
+            commands::frequency_baseline::revoke_frequency_baseline,
+            commands::frequency_baseline::get_frequency_baseline_preview,
+            commands::frequency_baseline::submit_frequency_baseline_review,
             commands::phrases::list_phrases,
             commands::phrases::phrase_detail,
             commands::phrases::update_phrase_status,
             commands::phrases::update_phrase_definition,
             commands::phrases::batch_update_phrase_status,
+            commands::phrases::set_phrase_occurrence_hidden,
             commands::phrases::create_manual_phrase,
             commands::phrases::get_file_phrases,
             commands::files::list_files,
+            commands::files::get_file_info,
             commands::files::delete_file,
             commands::files::get_file_segments,
             commands::files::list_folders,

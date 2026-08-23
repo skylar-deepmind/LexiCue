@@ -61,7 +61,7 @@ export default function Pagination({ page, pageSize, total, onPageChange }: Pagi
               key={p}
               className={`${btnCls} ${
                 p === page
-                  ? 'bg-gray-900 text-white'
+                  ? 'pagination-page-active bg-gray-900 text-white'
                   : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
               }`}
               onClick={() => onPageChange(p)}

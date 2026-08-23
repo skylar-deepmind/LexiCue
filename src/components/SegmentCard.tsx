@@ -1,9 +1,9 @@
 import type { ReactElement } from 'react';
 import type { Segment } from '../lib/types';
 import type { SegmentPhrase, SegmentToken } from '../stores/readerStore';
-import type { ReadingFontSize, ReadingLineHeight } from '../stores/preferencesStore';
+import type { ContentFontSize, ReadingLineHeight } from '../stores/preferencesStore';
+import { CONTENT_FONT_CLASS } from '../lib/contentTypography';
 
-const FONT_CLASS: Record<ReadingFontSize, string> = { sm: 'text-sm', md: 'text-base', lg: 'text-lg' };
 const LINE_CLASS: Record<ReadingLineHeight, string> = { compact: 'leading-snug', normal: 'leading-relaxed', loose: 'leading-loose' };
 
 interface WordInfo {
@@ -23,7 +23,9 @@ interface SegmentCardProps {
   showTranslation?: boolean;
   highlightQuery?: string;
   isActive?: boolean;
-  fontSize?: ReadingFontSize;
+  learningFontSize?: ContentFontSize;
+  definitionFontSize?: ContentFontSize;
+  auxiliaryFontSize?: ContentFontSize;
   lineHeight?: ReadingLineHeight;
 }
 
@@ -83,7 +85,9 @@ export default function SegmentCard({
   showTranslation = true,
   highlightQuery = '',
   isActive = false,
-  fontSize = 'md',
+  learningFontSize = 'md',
+  definitionFontSize = 'md',
+  auxiliaryFontSize = 'md',
   lineHeight = 'normal',
 }: SegmentCardProps) {
   const useSegmentTokens = segmentTokens !== undefined && segmentTokens.length > 0;
@@ -171,16 +175,16 @@ export default function SegmentCard({
     }`}>
       <div className="flex items-start gap-3">
         {segment.start_time && (
-          <span className="text-xs text-blue-500 font-mono bg-blue-50 px-2 py-0.5 rounded shrink-0 mt-0.5">
+          <span className={`${CONTENT_FONT_CLASS.auxiliary[auxiliaryFontSize]} text-blue-500 font-mono bg-blue-50 px-2 py-0.5 rounded shrink-0 mt-0.5`}>
             {segment.start_time}
           </span>
         )}
         <div className="flex-1 min-w-0">
-          <p className={`text-gray-800 ${LINE_CLASS[lineHeight]} mb-1 ${FONT_CLASS[fontSize]}`}>
+          <p className={`text-gray-800 ${LINE_CLASS[lineHeight]} mb-1 ${CONTENT_FONT_CLASS.learning[learningFontSize]}`}>
             {phraseElements}
           </p>
           {showTranslation && segment.zh_text && (
-            <p className="text-gray-500 text-sm mt-2 border-t border-gray-100 pt-2">{segment.zh_text}</p>
+            <p className={`text-gray-500 mt-2 border-t border-gray-100 pt-2 ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}>{segment.zh_text}</p>
           )}
         </div>
       </div>
