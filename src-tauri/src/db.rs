@@ -68,7 +68,19 @@ fn create_sync_tracking(conn: &Connection) -> Result<(), rusqlite::Error> {
     )?;
     // These are all user-learning entities. Dictionary caches and local device
     // configuration intentionally have no triggers and remain device-local.
-    for (table, key) in [("folders", "id"), ("files", "id"), ("segments", "id"), ("words", "id"), ("occurrences", "id"), ("reviews", "word_id"), ("review_logs", "id"), ("phrases", "id"), ("phrase_occurrences", "id"), ("phrase_reviews", "phrase_id"), ("phrase_review_logs", "id")] {
+    for (table, key) in [
+        ("folders", "id"),
+        ("files", "id"),
+        ("segments", "id"),
+        ("words", "id"),
+        ("occurrences", "id"),
+        ("reviews", "word_id"),
+        ("review_logs", "id"),
+        ("phrases", "id"),
+        ("phrase_occurrences", "id"),
+        ("phrase_reviews", "phrase_id"),
+        ("phrase_review_logs", "id"),
+    ] {
         let trigger = format!(
             "CREATE TRIGGER IF NOT EXISTS sync_{table}_insert AFTER INSERT ON {table} BEGIN
                 INSERT INTO sync_entity_state(table_name,local_id,sync_id,updated_at,deleted_at)
@@ -95,6 +107,15 @@ fn create_sync_tracking(conn: &Connection) -> Result<(), rusqlite::Error> {
         ))?;
     }
     Ok(())
+}
+
+/// Rebuilds local sync identities after an explicit full-library recovery.
+/// Restoring preserves legacy integer IDs, but those IDs are not portable
+/// across devices; stale identity rows must never be reused for restored data.
+pub fn reset_sync_tracking(conn: &Connection) -> Result<(), rusqlite::Error> {
+    conn.execute("DELETE FROM sync_changes", [])?;
+    conn.execute("DELETE FROM sync_entity_state", [])?;
+    create_sync_tracking(conn)
 }
 
 fn migrate_occurrence_hidden(conn: &Connection) -> Result<(), rusqlite::Error> {
@@ -610,9 +631,23 @@ mod tests {
     fn sync_tracking_assigns_stable_identity_and_tombstone() {
         let dir = tempfile::tempdir().unwrap();
         let conn = init_db(&dir.path().join("sync.db")).unwrap();
-        conn.execute("INSERT INTO words(language,lemma) VALUES ('en','syncable')", []).unwrap();
-        let id: i64 = conn.query_row("SELECT id FROM words WHERE lemma='syncable'", [], |r| r.get(0)).unwrap();
-        let sync_id: String = conn.query_row("SELECT sync_id FROM sync_entity_state WHERE table_name='words' AND local_id=?1", [id], |r| r.get(0)).unwrap();
+        conn.execute(
+            "INSERT INTO words(language,lemma) VALUES ('en','syncable')",
+            [],
+        )
+        .unwrap();
+        let id: i64 = conn
+            .query_row("SELECT id FROM words WHERE lemma='syncable'", [], |r| {
+                r.get(0)
+            })
+            .unwrap();
+        let sync_id: String = conn
+            .query_row(
+                "SELECT sync_id FROM sync_entity_state WHERE table_name='words' AND local_id=?1",
+                [id],
+                |r| r.get(0),
+            )
+            .unwrap();
         assert_eq!(sync_id.len(), 32);
         conn.execute("DELETE FROM words WHERE id=?1", [id]).unwrap();
         let (deleted_at, operation): (Option<i64>, String) = conn.query_row(
