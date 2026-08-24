@@ -76,6 +76,7 @@
       "description": "アプリの表示言語を選択します。"
     },
     "frequencyBaseline": { "title": "頻度ベースライン" },
+    "cloudSync": { "title": "クラウド同期" },
     "ai": {
       "title": "AI 機能",
       "description": "有効にすると段落の説明やフレーズの自動認識ができます。ローカルの Ollama またはクラウド API キーに対応しています。",

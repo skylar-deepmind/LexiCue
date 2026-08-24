@@ -30,6 +30,10 @@ tauri-plugin-log = "2"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 tokio = { version = "1", features = ["time", "macros", "process"] }
 base64 = "0.22"
+argon2 = "0.5"
+chacha20poly1305 = "0.10"
+rand = "0.8"
+uuid = { version = "1", features = ["v4"] }
 flate2 = "1.1"
 lindera = { version = "4.0.1", features = ["embed-unidic"] }
 jieba-rs = "0.10"

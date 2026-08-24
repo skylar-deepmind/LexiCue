@@ -140,22 +140,28 @@ fn now_ms() -> i64 {
 #[tauri::command]
 pub fn export_all(state: State<DbState>) -> Result<BackupPayload, String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    backup_payload(&conn)
+}
 
-    let files = query_all(&conn, "files")?;
-    let folders = query_all(&conn, "folders")?;
-    let segments = query_all(&conn, "segments")?;
-    let words = query_all(&conn, "words")?;
-    let occurrences = query_all(&conn, "occurrences")?;
-    let reviews = query_all(&conn, "reviews")?;
-    let review_logs = query_all(&conn, "review_logs")?;
-    let dictionary_entries = query_all(&conn, "dictionary_entries")?;
-    let dictionary_sources = query_all(&conn, "dictionary_sources")?;
-    let phrases = query_all(&conn, "phrases")?;
-    let phrase_occurrences = query_all(&conn, "phrase_occurrences")?;
-    let phrase_reviews = query_all(&conn, "phrase_reviews")?;
-    let phrase_review_logs = query_all(&conn, "phrase_review_logs")?;
-    let phrase_dictionary_entries = query_all(&conn, "phrase_dictionary_entries")?;
-    let file_phrase_analysis = query_all(&conn, "file_phrase_analysis")?;
+/// Builds the portable user-data payload used by manual export and by the
+/// encrypted sync transport. Built-in dictionary tables are deliberately not
+/// included because each app installation owns those resources.
+pub fn backup_payload(conn: &rusqlite::Connection) -> Result<BackupPayload, String> {
+    let files = query_all(conn, "files")?;
+    let folders = query_all(conn, "folders")?;
+    let segments = query_all(conn, "segments")?;
+    let words = query_all(conn, "words")?;
+    let occurrences = query_all(conn, "occurrences")?;
+    let reviews = query_all(conn, "reviews")?;
+    let review_logs = query_all(conn, "review_logs")?;
+    let dictionary_entries = query_all(conn, "dictionary_entries")?;
+    let dictionary_sources = query_all(conn, "dictionary_sources")?;
+    let phrases = query_all(conn, "phrases")?;
+    let phrase_occurrences = query_all(conn, "phrase_occurrences")?;
+    let phrase_reviews = query_all(conn, "phrase_reviews")?;
+    let phrase_review_logs = query_all(conn, "phrase_review_logs")?;
+    let phrase_dictionary_entries = query_all(conn, "phrase_dictionary_entries")?;
+    let file_phrase_analysis = query_all(conn, "file_phrase_analysis")?;
 
     Ok(BackupPayload {
         schema_version: 5,

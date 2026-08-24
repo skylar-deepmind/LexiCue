@@ -76,6 +76,7 @@
       "description": "Wählen Sie die Anzeigesprache der App-Oberfläche."
     },
     "frequencyBaseline": { "title": "Häufigkeitsbasis" },
+    "cloudSync": { "title": "Cloud-Synchronisierung" },
     "ai": {
       "title": "KI-Funktionen",
       "description": "Wenn aktiviert, können Absätze erklärt und Phrasen automatisch erkannt werden. Unterstützt lokales Ollama oder eigene Cloud-API-Schlüssel.",

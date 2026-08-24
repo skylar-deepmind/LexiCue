@@ -3,12 +3,26 @@ name: CI
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - '.github/FUNDING.yml'
   pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - '.github/FUNDING.yml'
+
+# A new commit supersedes an older check run for the same pull request or ref.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   frontend:
     name: Frontend (lint, test, build)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -20,9 +34,10 @@ jobs:
       - run: npm test
       - run: npm run build
 
-  backend:
-    name: Backend (cargo check + test)
+  desktop-rust:
+    name: Desktop Rust (format, clippy, test)
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -35,6 +50,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - name: Check formatting
+        working-directory: src-tauri
+        run: cargo fmt -- --check
       - name: Run clippy
         working-directory: src-tauri
         run: cargo clippy --all-targets --all-features -- -D warnings
@@ -42,13 +60,32 @@ jobs:
         working-directory: src-tauri
         run: cargo test
 
-  tauri-build:
-    name: Tauri build (${{ matrix.platform }})
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: [macos-latest, windows-latest, ubuntu-latest]
-    runs-on: ${{ matrix.platform }}
+  sync-server:
+    name: Sync server (format, clippy, test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: sync-server
+      - name: Check formatting
+        working-directory: sync-server
+        run: cargo fmt -- --check
+      - name: Run clippy
+        working-directory: sync-server
+        run: cargo clippy --all-targets --all-features -- -D warnings
+      - name: Run tests
+        working-directory: sync-server
+        run: cargo test
+
+  tauri-linux:
+    name: Tauri build (Linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -60,12 +97,33 @@ jobs:
         with:
           workspaces: src-tauri
       - name: Install Linux system dependencies
-        if: matrix.platform == 'ubuntu-latest'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
       - run: npm ci
-      - name: Build frontend
-        run: npm run build
-      - name: Build Tauri bundle (verify only)
+      - name: Build Tauri application (verify only)
+        run: npm run tauri build -- --no-bundle
+
+  tauri-cross-platform:
+    name: Tauri build (${{ matrix.platform }})
+    # Keep expensive hosted-macOS and Windows compilation as a post-merge gate.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.platform }}
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: npm ci
+      - name: Build Tauri application (verify only)
         run: npm run tauri build -- --no-bundle

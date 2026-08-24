@@ -497,6 +497,14 @@ fn create_tables(conn: &Connection) -> Result<(), rusqlite::Error> {
             translation TEXT NOT NULL,
             category TEXT
         ) STRICT;
+
+        -- Opaque local state for the optional cloud-sync client. No learning
+        -- data is duplicated here; encrypted payloads are generated on demand.
+        CREATE TABLE IF NOT EXISTS sync_metadata (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            updated_at INTEGER NOT NULL
+        ) STRICT;
     ",
     )?;
 

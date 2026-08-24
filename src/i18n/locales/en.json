@@ -76,6 +76,7 @@
       "description": "Choose the display language of the app interface."
     },
     "frequencyBaseline": { "title": "Frequency Baseline" },
+    "cloudSync": { "title": "Cloud Sync" },
     "ai": {
       "title": "AI Features",
       "description": "When enabled, can explain paragraphs and detect phrases automatically. Supports local Ollama or your own cloud API key.",

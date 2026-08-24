@@ -76,6 +76,7 @@
       "description": "选择应用界面的显示语言。"
     },
     "frequencyBaseline": { "title": "高频词基线" },
+    "cloudSync": { "title": "云同步" },
     "ai": {
       "title": "AI 功能",
       "description": "开启后可解释段落并自动识别词组。支持本地 Ollama 或自填云端 API Key。",

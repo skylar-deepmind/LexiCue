@@ -11,6 +11,7 @@ pub mod ollama;
 pub mod phrases;
 pub mod reviews;
 pub mod stats;
+pub mod sync;
 pub mod updater;
 pub mod words;
 pub mod youtube;
