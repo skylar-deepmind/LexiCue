@@ -5,7 +5,10 @@ COPY Cargo.toml Cargo.lock* ./
 RUN mkdir src && printf 'fn main() {}' > src/main.rs && cargo build --release && rm -rf src
 COPY src ./src
 COPY schema.sql ./schema.sql
-RUN cargo build --release
+# Docker COPY may preserve an older source mtime than the placeholder compiled
+# above. Touching the real entry point prevents Cargo from reusing that empty
+# binary from the dependency-cache layer.
+RUN touch src/main.rs && cargo build --release
 
 FROM alpine:3.21
 RUN addgroup -S lexicue && adduser -S lexicue -G lexicue
