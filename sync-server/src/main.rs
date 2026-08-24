@@ -108,6 +108,11 @@ struct CheckpointInput {
     /// encoded for JSON transport. Checkpoint bytes themselves stay binary.
     manifest: String,
     chunk_hashes: Vec<String>,
+    #[serde(default = "checkpoint_protocol_v2")]
+    protocol_version: i16,
+}
+fn checkpoint_protocol_v2() -> i16 {
+    2
 }
 #[derive(Serialize)]
 struct CheckpointOutput {
@@ -117,6 +122,7 @@ struct CheckpointOutput {
     cursor: i64,
     encrypted_len: i64,
     created_at: String,
+    protocol_version: i16,
 }
 #[derive(Serialize)]
 struct CheckpointDetail {
@@ -267,6 +273,67 @@ async fn pull_events_v2(
         .map_err(internal)
 }
 
+// The v3 wire shape intentionally matches v2's compact binary framing, but
+// persists in a separate feed. This prevents an older full-library event from
+// ever being replayed as a mergeable entity record.
+async fn push_event_v3(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Result<StatusCode, (StatusCode, String)> {
+    if body.is_empty() || body.len() > MAX_EVENT_BYTES {
+        return Err(bad("invalid or oversized encrypted event"));
+    }
+    let event = v2_event_headers(&headers)?;
+    let account_id = account(&headers, &state).await?;
+    let client = db(&state).await?;
+    client.execute("INSERT INTO sync_events_v3(account_id,event_id,device_id,clock,kind,ciphertext) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT(account_id,event_id) DO NOTHING", &[&account_id,&event.event_id,&event.device_id,&event.clock,&event.kind,&body.as_ref()]).await.map_err(internal)?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn pull_events_v3(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Query(query): Query<PullQuery>,
+) -> Result<Response, (StatusCode, String)> {
+    let account_id = account(&headers, &state).await?;
+    let client = db(&state).await?;
+    let after = query.after.unwrap_or(0).max(0);
+    let floor = client
+        .query_opt(
+            "SELECT MIN(cursor) FROM sync_checkpoints WHERE account_id=$1 AND protocol_version=3",
+            &[&account_id],
+        )
+        .await
+        .map_err(internal)?
+        .and_then(|row| row.get::<_, Option<i64>>(0))
+        .unwrap_or(0);
+    if after < floor {
+        if let Some(row) = client.query_opt("SELECT id FROM sync_checkpoints WHERE account_id=$1 AND protocol_version=3 ORDER BY created_at DESC,id DESC LIMIT 1", &[&account_id]).await.map_err(internal)? {
+            return Response::builder().status(StatusCode::GONE).header("x-sync-checkpoint-id", row.get::<_, String>(0)).body(axum::body::Body::empty()).map_err(internal);
+        }
+    }
+    let limit = query.limit.unwrap_or(100).clamp(1, 100);
+    let rows = client.query("SELECT seq,event_id,device_id,clock,kind,ciphertext FROM sync_events_v3 WHERE account_id=$1 AND seq>$2 ORDER BY seq LIMIT $3", &[&account_id,&after,&limit]).await.map_err(internal)?;
+    let mut out = Vec::new();
+    for row in rows {
+        let metadata = serde_json::to_vec(&serde_json::json!({"seq":row.get::<_,i64>(0),"event_id":row.get::<_,String>(1),"device_id":row.get::<_,String>(2),"clock":row.get::<_,String>(3),"kind":row.get::<_,String>(4)})).map_err(internal)?;
+        let ciphertext: Vec<u8> = row.get(5);
+        out.extend_from_slice(&(metadata.len() as u32).to_be_bytes());
+        out.extend_from_slice(&metadata);
+        out.extend_from_slice(&(ciphertext.len() as u32).to_be_bytes());
+        out.extend_from_slice(&ciphertext);
+    }
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(
+            header::CONTENT_TYPE,
+            "application/vnd.lexicue.sync-events+binary;v=3",
+        )
+        .body(axum::body::Body::from(out))
+        .map_err(internal)
+}
+
 fn checkpoint_id(value: &str) -> Result<(), (StatusCode, String)> {
     Uuid::parse_str(value)
         .map(|_| ())
@@ -288,6 +355,9 @@ async fn put_checkpoint_v2(
     Json(body): Json<CheckpointInput>,
 ) -> Result<StatusCode, (StatusCode, String)> {
     checkpoint_id(&body.id)?;
+    if body.protocol_version != 2 && body.protocol_version != 3 {
+        return Err(bad("unsupported checkpoint protocol"));
+    }
     if body.encrypted_len <= 0
         || body.encrypted_len > 20_i64 * 1024 * 1024 * 1024
         || !chunk_hashes_are_valid(&body.chunk_hashes)
@@ -342,8 +412,8 @@ async fn put_checkpoint_v2(
     }
     transaction
         .execute(
-            "INSERT INTO sync_checkpoints(id,account_id,device_id,cursor,encrypted_len,manifest) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(id) DO NOTHING",
-            &[&body.id, &account_id, &device_id, &body.cursor, &body.encrypted_len, &manifest],
+            "INSERT INTO sync_checkpoints(id,account_id,device_id,cursor,encrypted_len,manifest,protocol_version) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(id) DO NOTHING",
+            &[&body.id, &account_id, &device_id, &body.cursor, &body.encrypted_len, &manifest, &body.protocol_version],
         )
         .await
         .map_err(internal)?;
@@ -359,8 +429,8 @@ async fn put_checkpoint_v2(
 
     let old = transaction
         .query(
-            "SELECT id FROM sync_checkpoints WHERE account_id=$1 ORDER BY created_at DESC, id DESC OFFSET $2",
-            &[&account_id, &CHECKPOINT_RETENTION],
+            "SELECT id FROM sync_checkpoints WHERE account_id=$1 AND protocol_version=$2 ORDER BY created_at DESC, id DESC OFFSET $3",
+            &[&account_id, &body.protocol_version, &CHECKPOINT_RETENTION],
         )
         .await
         .map_err(internal)?;
@@ -370,6 +440,29 @@ async fn put_checkpoint_v2(
             .execute("DELETE FROM sync_checkpoints WHERE id=$1", &[&id])
             .await
             .map_err(internal)?;
+    }
+    if body.protocol_version == 3 {
+        // Every retained v3 baseline contains all state up to its cursor. Keep
+        // the feed only after the oldest retained baseline so any device that
+        // restores one can still consume a complete suffix.
+        if let Some(row) = transaction
+            .query_opt(
+                "SELECT MIN(cursor) FROM sync_checkpoints WHERE account_id=$1 AND protocol_version=3",
+                &[&account_id],
+            )
+            .await
+            .map_err(internal)?
+        {
+            if let Some(cursor) = row.get::<_, Option<i64>>(0) {
+                transaction
+                    .execute(
+                        "DELETE FROM sync_events_v3 WHERE account_id=$1 AND seq <= $2",
+                        &[&account_id, &cursor],
+                    )
+                    .await
+                    .map_err(internal)?;
+            }
+        }
     }
     // A chunk may be shared by retained checkpoints, so collect only blocks
     // that no checkpoint references after retention has run.
@@ -392,7 +485,7 @@ async fn list_checkpoints_v2(
     let client = db(&state).await?;
     let rows = client
         .query(
-            "SELECT c.id,c.device_id,COALESCE(d.name,'Unknown device'),c.cursor,c.encrypted_len,c.created_at::TEXT FROM sync_checkpoints c LEFT JOIN devices d ON d.id=c.device_id AND d.account_id=c.account_id WHERE c.account_id=$1 ORDER BY c.created_at DESC,c.id DESC",
+            "SELECT c.id,c.device_id,COALESCE(d.name,'Unknown device'),c.cursor,c.encrypted_len,c.created_at::TEXT,c.protocol_version FROM sync_checkpoints c LEFT JOIN devices d ON d.id=c.device_id AND d.account_id=c.account_id WHERE c.account_id=$1 ORDER BY c.created_at DESC,c.id DESC",
             &[&account_id],
         )
         .await
@@ -406,6 +499,7 @@ async fn list_checkpoints_v2(
                 cursor: row.get(3),
                 encrypted_len: row.get(4),
                 created_at: row.get(5),
+                protocol_version: row.get(6),
             })
             .collect(),
     ))
@@ -420,7 +514,7 @@ async fn get_checkpoint_v2(
     let account_id = account(&headers, &state).await?;
     let client = db(&state).await?;
     let row = client.query_opt(
-        "SELECT c.id,c.device_id,COALESCE(d.name,'Unknown device'),c.cursor,c.encrypted_len,c.created_at::TEXT,c.manifest FROM sync_checkpoints c LEFT JOIN devices d ON d.id=c.device_id AND d.account_id=c.account_id WHERE c.account_id=$1 AND c.id=$2",
+        "SELECT c.id,c.device_id,COALESCE(d.name,'Unknown device'),c.cursor,c.encrypted_len,c.created_at::TEXT,c.manifest,c.protocol_version FROM sync_checkpoints c LEFT JOIN devices d ON d.id=c.device_id AND d.account_id=c.account_id WHERE c.account_id=$1 AND c.id=$2",
         &[&account_id, &id],
     ).await.map_err(internal)?.ok_or((StatusCode::NOT_FOUND, "checkpoint not found".into()))?;
     let chunk_rows = client.query(
@@ -435,6 +529,7 @@ async fn get_checkpoint_v2(
             cursor: row.get(3),
             encrypted_len: row.get(4),
             created_at: row.get(5),
+            protocol_version: row.get(7),
         },
         manifest: URL_SAFE_NO_PAD.encode(row.get::<_, Vec<u8>>(6)),
         chunk_hashes: chunk_rows.into_iter().map(|item| item.get(0)).collect(),
@@ -868,6 +963,7 @@ async fn main() {
             put(put_chunk_v2).get(get_chunk_v2).head(head_chunk_v2),
         )
         .route("/v2/events", post(push_event_v2).get(pull_events_v2))
+        .route("/v3/events", post(push_event_v3).get(pull_events_v3))
         .route(
             "/v2/checkpoints",
             post(put_checkpoint_v2).get(list_checkpoints_v2),

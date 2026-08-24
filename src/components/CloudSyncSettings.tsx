@@ -8,9 +8,10 @@ interface SyncStatus {
   configured: boolean; email: string | null; endpoint: string | null; last_synced_at: number | null;
   device_id: string | null;
   phase: string; pending_uploads: number; pending_downloads: number; conflicts: number; last_error: string | null;
+  v3_initialized: boolean; last_uploaded: number; last_downloaded: number;
 }
 interface SyncDevice { id: string; name: string; last_seen_at: string }
-interface SyncCheckpoint { id: string; device_id: string; device_name: string; cursor: number; encrypted_len: number; created_at: string }
+interface SyncCheckpoint { id: string; device_id: string; device_name: string; cursor: number; encrypted_len: number; created_at: string; protocol_version: number }
 interface SyncCheckpointPreview {
   checkpoint: SyncCheckpoint; files: number; folders: number; words: number; phrases: number; review_logs: number;
   local_files: number; local_has_data: boolean;
@@ -70,6 +71,12 @@ export default function CloudSyncSettings() {
     } catch (value) { setError(String(value)); } finally { setBusy(false); }
   };
   const sync = async () => { setBusy(true); setError(''); setNotice(''); try { await invoke('sync_now'); await refresh(); await refreshRemote(); } catch (value) { setError(String(value)); } finally { setBusy(false); } };
+  const initializeV3 = async () => {
+    const confirmed = await ask('此设备会成为旧资料的唯一同步源，并创建一份新的加密 v3 基线。其他旧设备需要先恢复该版本，才能开始双向合并。', { title: '设为云同步源', kind: 'warning', okLabel: '创建 v3 基线', cancelLabel: '取消' });
+    if (!confirmed) return;
+    setBusy(true); setError(''); setNotice('');
+    try { await invoke('sync_initialize_v3'); await refresh(); await refreshRemote(); setNotice('v3 同步基线已创建。请在其他旧设备上预览并恢复此版本后再同步。'); } catch (value) { setError(String(value)); } finally { setBusy(false); }
+  };
   const disconnect = async () => { setBusy(true); try { await invoke('sync_disconnect'); setRecoveryCode(''); await refresh(); } catch (value) { setError(String(value)); } finally { setBusy(false); } };
   const revokeDevice = async (deviceId: string) => { setBusy(true); setError(''); try { await invoke('sync_revoke_device', { deviceId }); setDevices((items) => items.filter((item) => item.id !== deviceId)); } catch (value) { setError(String(value)); } finally { setBusy(false); } };
   const loadPreview = async (checkpointId: string) => { setBusy(true); setError(''); setConfirmRestore(false); try { setPreview(await invoke<SyncCheckpointPreview>('sync_preview_checkpoint', { checkpointId })); } catch (value) { setError(String(value)); } finally { setBusy(false); } };
@@ -101,18 +108,20 @@ export default function CloudSyncSettings() {
       <div className="rounded-lg bg-gray-50 px-4 py-3 text-sm text-gray-600">
         <p className="font-medium text-gray-900">已连接至 {status.endpoint}</p>
         <p className="mt-1">{status.last_synced_at ? `上次成功同步：${new Date(status.last_synced_at).toLocaleString()}` : '尚未同步。'}</p>
-        <p className="mt-1">{status.pending_uploads ? `待同步变更：${status.pending_uploads}` : '所有本地变更均已同步。'}{status.pending_downloads ? ` · 待下载：${status.pending_downloads}` : ''}</p>
+        <p className="mt-1">{status.v3_initialized ? (status.pending_uploads ? `待同步变更：${status.pending_uploads}` : '所有本地变更均已同步。') : '尚未加入 v3 双向同步。'}{status.pending_downloads ? ` · 待下载：${status.pending_downloads}` : ''}</p>
+        {status.v3_initialized && (status.last_uploaded > 0 || status.last_downloaded > 0) && <p className="mt-1 text-xs">最近一次：上传 {status.last_uploaded} 项，下载 {status.last_downloaded} 项。</p>}
         {status.conflicts > 0 && <p className="mt-1 text-amber-700">有 {status.conflicts} 项内容需要处理冲突。</p>}
       </div>
+      {!status.v3_initialized && <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800"><p className="font-semibold">开始双向同步前需要建立统一基线</p><p className="mt-1">若这里是资料最完整的设备，请将它设为同步源；否则在下方选择另一台设备创建的 v3 云端版本，预览后恢复。</p><button type="button" onClick={() => void initializeV3()} disabled={busy} className="mt-3 rounded-lg bg-blue-600 px-3 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-50">将此设备设为同步源</button></div>}
       <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={() => void sync()} disabled={busy} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"><RefreshCw size={15} className={busy ? 'animate-spin' : ''} />立即同步</button>
+        <button type="button" onClick={() => void sync()} disabled={busy || !status.v3_initialized} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"><RefreshCw size={15} className={busy ? 'animate-spin' : ''} />立即同步</button>
         <button type="button" onClick={() => void disconnect()} disabled={busy} className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50">退出本机同步</button>
       </div>
       <p className="-mt-2 text-xs text-gray-500">退出只会移除本机登录状态；不会删除云端密文或撤销其他设备。</p>
       <div className="rounded-lg border border-gray-200 text-sm">
         <p className="flex items-center gap-2 px-3 py-2 font-medium text-gray-900"><HardDriveDownload size={16} />云端版本（保留最近 5 个）</p>
         {checkpoints.length === 0 ? <p className="border-t border-gray-100 px-3 py-3 text-gray-500">尚无可恢复的云端版本。完成一次同步后会出现在这里。</p> : checkpoints.map((checkpoint) => <div key={checkpoint.id} className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 px-3 py-2 text-gray-600">
-          <span><span className="font-medium text-gray-900">{checkpoint.device_name}</span><span className="ml-2 text-xs">{new Date(checkpoint.created_at).toLocaleString()} · {formatBytes(checkpoint.encrypted_len)}</span></span>
+          <span><span className="font-medium text-gray-900">{checkpoint.device_name}</span><span className="ml-2 text-xs">{new Date(checkpoint.created_at).toLocaleString()} · {formatBytes(checkpoint.encrypted_len)} · v{checkpoint.protocol_version}</span></span>
           <button type="button" disabled={busy} onClick={() => void loadPreview(checkpoint.id)} className="inline-flex items-center gap-1 text-xs text-blue-700 hover:text-blue-800 disabled:opacity-50"><Download size={14} />预览并恢复</button>
         </div>)}
       </div>

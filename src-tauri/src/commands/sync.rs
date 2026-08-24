@@ -37,6 +37,8 @@ struct LocalConfig {
     last_synced_at: Option<i64>,
     #[serde(default)]
     last_remote_cursor: i64,
+    #[serde(default)]
+    v3_initialized: bool,
 }
 
 #[derive(Serialize)]
@@ -51,6 +53,9 @@ pub struct SyncStatus {
     pub pending_downloads: u32,
     pub conflicts: u32,
     pub last_error: Option<String>,
+    pub v3_initialized: bool,
+    pub last_uploaded: u32,
+    pub last_downloaded: u32,
 }
 #[derive(Serialize)]
 pub struct RegisterResult {
@@ -70,6 +75,11 @@ pub struct SyncCheckpoint {
     pub cursor: i64,
     pub encrypted_len: i64,
     pub created_at: String,
+    #[serde(default = "checkpoint_protocol_v2")]
+    pub protocol_version: i16,
+}
+fn checkpoint_protocol_v2() -> i16 {
+    2
 }
 #[derive(Serialize)]
 pub struct SyncCheckpointPreview {
@@ -132,6 +142,7 @@ struct CheckpointUpload {
     encrypted_len: i64,
     manifest: String,
     chunk_hashes: Vec<String>,
+    protocol_version: i16,
 }
 #[derive(Deserialize)]
 struct CheckpointDetail {
@@ -151,6 +162,34 @@ struct KeyPackage {
     password: WrappedKey,
     recovery: WrappedKey,
 }
+
+/// The first v3 checkpoint carries the existing portable library together
+/// with its stable identities. From that point forward remote events can refer
+/// to records without depending on SQLite's per-device integer IDs.
+#[derive(Serialize, Deserialize)]
+struct V3Baseline {
+    version: u8,
+    backup: export::BackupPayload,
+    entity_state: Vec<db::SyncEntityStateExport>,
+}
+#[derive(Serialize, Deserialize)]
+struct EntityEvent {
+    version: u8,
+    table_name: String,
+    sync_id: String,
+    operation: String,
+    record: Option<serde_json::Value>,
+}
+#[derive(Deserialize)]
+struct RemoteEventMeta {
+    seq: i64,
+    event_id: String,
+    #[serde(rename = "device_id")]
+    _device_id: String,
+    clock: String,
+    kind: String,
+}
+type OutboxRow = (String, String, String, Vec<u8>);
 
 fn config(conn: &rusqlite::Connection) -> Result<Option<LocalConfig>, String> {
     let raw: Option<String> = conn
@@ -333,7 +372,14 @@ async fn fetch_checkpoint_backup(
     local: &LocalConfig,
     data_key: &[u8; 32],
     checkpoint_id: &str,
-) -> Result<(SyncCheckpoint, export::BackupPayload), String> {
+) -> Result<
+    (
+        SyncCheckpoint,
+        export::BackupPayload,
+        Option<Vec<db::SyncEntityStateExport>>,
+    ),
+    String,
+> {
     let response = client
         .get(format!("{}/v2/checkpoints/{checkpoint_id}", local.endpoint))
         .bearer_auth(&local.access_token)
@@ -353,8 +399,9 @@ async fn fetch_checkpoint_backup(
     let manifest: CheckpointManifest =
         serde_json::from_slice(&decrypt_bytes(data_key, &manifest_ciphertext)?)
             .map_err(|_| "Invalid encrypted checkpoint manifest")?;
-    if manifest.version != 2
+    if (manifest.version != 2 && manifest.version != 3)
         || manifest.compression != "zstd"
+        || manifest.version as i16 != detail.checkpoint.protocol_version
         || manifest.chunks != detail.chunk_hashes
     {
         return Err("Checkpoint manifest does not match its encrypted chunk list".into());
@@ -390,9 +437,18 @@ async fn fetch_checkpoint_backup(
     }
     let compressed = decrypt_bytes(data_key, &encrypted)?;
     let plaintext = decompress(&compressed)?;
-    let backup =
-        serde_json::from_slice(&plaintext).map_err(|_| "Invalid decrypted checkpoint payload")?;
-    Ok((detail.checkpoint, backup))
+    let (backup, state) = if manifest.version == 3 {
+        let baseline = serde_json::from_slice::<V3Baseline>(&plaintext)
+            .map_err(|_| "Invalid decrypted v3 checkpoint payload")?;
+        (baseline.backup, Some(baseline.entity_state))
+    } else {
+        (
+            serde_json::from_slice(&plaintext)
+                .map_err(|_| "Invalid decrypted checkpoint payload")?,
+            None,
+        )
+    };
+    Ok((detail.checkpoint, backup, state))
 }
 
 fn write_safety_backup(conn: &rusqlite::Connection) -> Result<String, String> {
@@ -412,6 +468,735 @@ fn write_safety_backup(conn: &rusqlite::Connection) -> Result<String, String> {
     Ok(path.to_string_lossy().into_owned())
 }
 
+fn sync_id_for(conn: &rusqlite::Connection, table: &str, local_id: i64) -> Result<String, String> {
+    conn.query_row(
+        "SELECT sync_id FROM sync_entity_state WHERE table_name=?1 AND local_id=?2",
+        rusqlite::params![table, local_id],
+        |row| row.get(0),
+    )
+    .map_err(|e| e.to_string())
+}
+fn local_id_for(
+    conn: &rusqlite::Connection,
+    table: &str,
+    sync_id: &str,
+) -> Result<Option<i64>, String> {
+    let canonical: String = conn.query_row("SELECT canonical_sync_id FROM sync_identity_aliases WHERE table_name=?1 AND alias_sync_id=?2", rusqlite::params![table,sync_id], |row| row.get(0)).optional().map_err(|e| e.to_string())?.unwrap_or_else(|| sync_id.to_string());
+    conn.query_row("SELECT local_id FROM sync_entity_state WHERE table_name=?1 AND sync_id=?2 AND deleted_at IS NULL", rusqlite::params![table,canonical], |row| row.get(0)).optional().map_err(|e| e.to_string())
+}
+fn clock_now(conn: &rusqlite::Connection, device_id: &str) -> Result<String, String> {
+    let previous: Option<String> = conn
+        .query_row(
+            "SELECT value FROM sync_runtime WHERE key='hlc'",
+            [],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+    let previous_wall = previous
+        .as_deref()
+        .and_then(|value| value.split(':').next())
+        .and_then(|value| value.parse::<i64>().ok())
+        .unwrap_or(0);
+    let previous_counter = previous
+        .as_deref()
+        .and_then(|value| value.split(':').nth(1))
+        .and_then(|value| value.parse::<u32>().ok())
+        .unwrap_or(0);
+    let wall = now_ms().max(previous_wall);
+    let counter = if wall == previous_wall {
+        previous_counter + 1
+    } else {
+        0
+    };
+    let clock = format!("{wall:020}:{counter:08}:{device_id}");
+    conn.execute("INSERT INTO sync_runtime(key,value) VALUES('hlc',?1) ON CONFLICT(key) DO UPDATE SET value=excluded.value",[&clock]).map_err(|e|e.to_string())?;
+    Ok(clock)
+}
+fn json_value(value: rusqlite::types::Value) -> serde_json::Value {
+    match value {
+        rusqlite::types::Value::Null => serde_json::Value::Null,
+        rusqlite::types::Value::Integer(v) => serde_json::json!(v),
+        rusqlite::types::Value::Real(v) => serde_json::json!(v),
+        rusqlite::types::Value::Text(v) => serde_json::json!(v),
+        rusqlite::types::Value::Blob(_) => serde_json::Value::Null,
+    }
+}
+fn row_record(
+    conn: &rusqlite::Connection,
+    table: &str,
+    local_id: i64,
+) -> Result<Option<serde_json::Value>, String> {
+    let key = if matches!(table, "reviews" | "phrase_reviews") {
+        if table == "reviews" {
+            "word_id"
+        } else {
+            "phrase_id"
+        }
+    } else {
+        "id"
+    };
+    let mut statement = conn
+        .prepare(&format!("SELECT * FROM {table} WHERE {key}=?1"))
+        .map_err(|e| e.to_string())?;
+    let names: Vec<String> = (0..statement.column_count())
+        .map(|i| statement.column_name(i).unwrap_or("").to_string())
+        .collect();
+    let mut rows = statement.query([local_id]).map_err(|e| e.to_string())?;
+    let Some(row) = rows.next().map_err(|e| e.to_string())? else {
+        return Ok(None);
+    };
+    let mut value = serde_json::Map::new();
+    for (index, name) in names.iter().enumerate() {
+        if name != "id" {
+            value.insert(
+                name.clone(),
+                json_value(row.get(index).map_err(|e| e.to_string())?),
+            );
+        }
+    }
+    // Foreign keys must never cross the network as a local integer.
+    let references: &[(&str, &str)] = match table {
+        "folders" => &[("parent_id", "folders")],
+        "files" => &[("folder_id", "folders")],
+        "segments" => &[("file_id", "files")],
+        "occurrences" => &[("word_id", "words"), ("segment_id", "segments")],
+        "phrase_occurrences" => &[("phrase_id", "phrases"), ("segment_id", "segments")],
+        "review_logs" => &[("word_id", "words")],
+        "phrase_review_logs" => &[("phrase_id", "phrases")],
+        _ => &[],
+    };
+    for (column, target) in references {
+        if let Some(id) = value.remove(*column).and_then(|v| v.as_i64()) {
+            value.insert(
+                format!("{column}_sync_id"),
+                serde_json::json!(sync_id_for(conn, target, id)?),
+            );
+        }
+    }
+    Ok(Some(serde_json::Value::Object(value)))
+}
+fn set_runtime(conn: &rusqlite::Connection, applying: bool) -> Result<(), String> {
+    conn.execute("INSERT INTO sync_runtime(key,value) VALUES('applying',?1) ON CONFLICT(key) DO UPDATE SET value=excluded.value", [if applying { "1" } else { "0" }]).map(|_|()).map_err(|e| e.to_string())
+}
+fn mark_state(
+    conn: &rusqlite::Connection,
+    table: &str,
+    local_id: i64,
+    sync_id: &str,
+    clock: &str,
+    deleted: bool,
+) -> Result<(), String> {
+    let time = clock
+        .split(':')
+        .next()
+        .and_then(|v| v.parse::<i64>().ok())
+        .unwrap_or_else(now_ms);
+    conn.execute("INSERT INTO sync_entity_state(table_name,local_id,sync_id,updated_at,deleted_at,clock) VALUES(?1,?2,?3,?4,?5,?6) ON CONFLICT(table_name,local_id) DO UPDATE SET sync_id=excluded.sync_id,updated_at=excluded.updated_at,deleted_at=excluded.deleted_at,clock=excluded.clock", rusqlite::params![table,local_id,sync_id,time,if deleted {Some(time)} else {None::<i64>},clock]).map_err(|e| e.to_string())?;
+    Ok(())
+}
+fn string(
+    record: &serde_json::Map<String, serde_json::Value>,
+    key: &str,
+) -> Result<String, String> {
+    record
+        .get(key)
+        .and_then(|v| v.as_str())
+        .map(str::to_owned)
+        .ok_or_else(|| format!("missing {key} in sync event"))
+}
+fn integer(record: &serde_json::Map<String, serde_json::Value>, key: &str) -> Result<i64, String> {
+    record
+        .get(key)
+        .and_then(|v| v.as_i64())
+        .ok_or_else(|| format!("missing {key} in sync event"))
+}
+fn optional_string(
+    record: &serde_json::Map<String, serde_json::Value>,
+    key: &str,
+) -> Option<String> {
+    record.get(key).and_then(|v| v.as_str()).map(str::to_owned)
+}
+
+fn apply_entity_event(
+    conn: &rusqlite::Connection,
+    event: &EntityEvent,
+    clock: &str,
+) -> Result<bool, String> {
+    let canonical = conn.query_row("SELECT canonical_sync_id FROM sync_identity_aliases WHERE table_name=?1 AND alias_sync_id=?2", rusqlite::params![event.table_name,event.sync_id], |r|r.get::<_,String>(0)).optional().map_err(|e|e.to_string())?.unwrap_or_else(||event.sync_id.clone());
+    let existing_clock: Option<String> = conn
+        .query_row(
+            "SELECT clock FROM sync_entity_state WHERE table_name=?1 AND sync_id=?2",
+            rusqlite::params![event.table_name, canonical],
+            |r| r.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+    if existing_clock.is_some_and(|value| !value.is_empty() && value.as_str() >= clock) {
+        return Ok(false);
+    }
+    if event.operation == "delete" {
+        if let Some(local_id) = local_id_for(conn, &event.table_name, &canonical)? {
+            set_runtime(conn, true)?;
+            let key = if matches!(event.table_name.as_str(), "reviews" | "phrase_reviews") {
+                if event.table_name == "reviews" {
+                    "word_id"
+                } else {
+                    "phrase_id"
+                }
+            } else {
+                "id"
+            };
+            conn.execute(
+                &format!("DELETE FROM {} WHERE {}=?1", event.table_name, key),
+                [local_id],
+            )
+            .map_err(|e| e.to_string())?;
+            set_runtime(conn, false)?;
+            mark_state(conn, &event.table_name, local_id, &canonical, clock, true)?;
+        }
+        return Ok(true);
+    }
+    let record = event
+        .record
+        .as_ref()
+        .and_then(|v| v.as_object())
+        .ok_or("sync upsert missing record")?;
+    set_runtime(conn, true)?;
+    let result = apply_record(conn, &event.table_name, &canonical, record);
+    set_runtime(conn, false)?;
+    let local_id = result?;
+    let final_sync: String = conn.query_row("SELECT canonical_sync_id FROM sync_identity_aliases WHERE table_name=?1 AND alias_sync_id=?2",rusqlite::params![event.table_name,event.sync_id],|row|row.get(0)).optional().map_err(|e|e.to_string())?.unwrap_or(canonical);
+    mark_state(conn, &event.table_name, local_id, &final_sync, clock, false)?;
+    if event.table_name == "review_logs" {
+        if let Some(word) = record
+            .get("word_id_sync_id")
+            .and_then(|value| value.as_str())
+            .and_then(|value| local_id_for(conn, "words", value).ok().flatten())
+        {
+            rebuild_review_cache(conn, "review_logs", "reviews", "word_id", word)?;
+        }
+    } else if event.table_name == "phrase_review_logs" {
+        if let Some(phrase) = record
+            .get("phrase_id_sync_id")
+            .and_then(|value| value.as_str())
+            .and_then(|value| local_id_for(conn, "phrases", value).ok().flatten())
+        {
+            rebuild_review_cache(
+                conn,
+                "phrase_review_logs",
+                "phrase_reviews",
+                "phrase_id",
+                phrase,
+            )?;
+        }
+    }
+    Ok(true)
+}
+
+/// Review logs are immutable. Card rows are a cache rebuilt from the same
+/// canonical ordering everywhere, so a late remote log never blindly
+/// overwrites a locally scheduled card.
+fn rebuild_review_cache(
+    conn: &rusqlite::Connection,
+    logs: &str,
+    cards: &str,
+    foreign_key: &str,
+    entity_id: i64,
+) -> Result<(), String> {
+    let sql=format!("SELECT l.stability_after,l.difficulty_after,l.elapsed_days,l.scheduled_days,l.state_after,COALESCE(l.due_at_after,l.reviewed_at),l.reviewed_at,(SELECT clock FROM sync_entity_state s WHERE s.table_name=?1 AND s.local_id=l.id) FROM {logs} l WHERE l.{foreign_key}=?2 ORDER BY l.reviewed_at ASC, COALESCE((SELECT clock FROM sync_entity_state s WHERE s.table_name=?1 AND s.local_id=l.id),'') ASC, l.id ASC");
+    let mut statement = conn.prepare(&sql).map_err(|e| e.to_string())?;
+    let rows = statement
+        .query_map(rusqlite::params![logs, entity_id], |row| {
+            Ok((
+                row.get::<_, Option<f64>>(0)?,
+                row.get::<_, Option<f64>>(1)?,
+                row.get::<_, Option<i64>>(2)?,
+                row.get::<_, Option<i64>>(3)?,
+                row.get::<_, Option<i64>>(4)?,
+                row.get::<_, i64>(5)?,
+                row.get::<_, i64>(6)?,
+            ))
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+    let Some(last) = rows.last() else {
+        return Ok(());
+    };
+    let reps = rows.len() as i64;
+    let lapses = conn
+        .query_row(
+            &format!("SELECT COUNT(*) FROM {logs} WHERE {foreign_key}=?1 AND rating=1"),
+            [entity_id],
+            |row| row.get::<_, i64>(0),
+        )
+        .map_err(|e| e.to_string())?;
+    conn.execute(&format!("INSERT INTO {cards}({foreign_key},due_at,stability,difficulty,elapsed_days,scheduled_days,reps,lapses,state,last_review_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10) ON CONFLICT({foreign_key}) DO UPDATE SET due_at=excluded.due_at,stability=excluded.stability,difficulty=excluded.difficulty,elapsed_days=excluded.elapsed_days,scheduled_days=excluded.scheduled_days,reps=excluded.reps,lapses=excluded.lapses,state=excluded.state,last_review_at=excluded.last_review_at"),rusqlite::params![entity_id,last.5,last.0.unwrap_or(0.0),last.1.unwrap_or(0.0),last.2.unwrap_or(0),last.3.unwrap_or(0),reps,lapses,last.4.unwrap_or(0),last.6]).map_err(|e|e.to_string())?;
+    Ok(())
+}
+
+fn apply_record(
+    conn: &rusqlite::Connection,
+    table: &str,
+    sync_id: &str,
+    r: &serde_json::Map<String, serde_json::Value>,
+) -> Result<i64, String> {
+    if let Some(id) = local_id_for(conn, table, sync_id)? {
+        match table {
+            "folders" => {
+                conn.execute(
+                    "UPDATE folders SET name=?1,created_at=?2 WHERE id=?3",
+                    rusqlite::params![string(r, "name")?, integer(r, "created_at")?, id],
+                )
+                .map_err(|e| e.to_string())?;
+            }
+            "files" => {
+                let folder = optional_string(r, "folder_id_sync_id")
+                    .map(|value| local_id_for(conn, "folders", &value))
+                    .transpose()?
+                    .flatten();
+                conn.execute("UPDATE files SET name=?1,type=?2,content=?3,content_hash=?4,imported_at=?5,language=?6,folder_id=?7 WHERE id=?8",rusqlite::params![string(r,"name")?,string(r,"type")?,string(r,"content")?,string(r,"content_hash")?,integer(r,"imported_at")?,string(r,"language")?,folder,id]).map_err(|e|e.to_string())?;
+            }
+            "segments" => {
+                let file = optional_string(r, "file_id_sync_id")
+                    .map(|value| local_id_for(conn, "files", &value))
+                    .transpose()?
+                    .flatten()
+                    .ok_or("sync segment is waiting for its file")?;
+                conn.execute("UPDATE segments SET file_id=?1,index_num=?2,en_text=?3,zh_text=?4,start_time=?5,end_time=?6 WHERE id=?7",rusqlite::params![file,integer(r,"index_num")?,string(r,"en_text")?,optional_string(r,"zh_text"),optional_string(r,"start_time"),optional_string(r,"end_time"),id]).map_err(|e|e.to_string())?;
+            }
+            "words" => {
+                conn.execute("UPDATE words SET status=?1,definition=?2,reading=?3,part_of_speech=?4 WHERE id=?5",rusqlite::params![string(r,"status")?,optional_string(r,"definition"),optional_string(r,"reading"),optional_string(r,"part_of_speech"),id]).map_err(|e|e.to_string())?;
+            }
+            "phrases" => {
+                conn.execute(
+                    "UPDATE phrases SET status=?1,definition=?2,source=?3 WHERE id=?4",
+                    rusqlite::params![
+                        string(r, "status")?,
+                        optional_string(r, "definition"),
+                        string(r, "source")?,
+                        id
+                    ],
+                )
+                .map_err(|e| e.to_string())?;
+            }
+            "occurrences" => {
+                conn.execute(
+                    "UPDATE occurrences SET hidden=?1 WHERE id=?2",
+                    rusqlite::params![integer(r, "hidden").unwrap_or(0), id],
+                )
+                .map_err(|e| e.to_string())?;
+            }
+            "phrase_occurrences" => {
+                conn.execute(
+                    "UPDATE phrase_occurrences SET hidden=?1 WHERE id=?2",
+                    rusqlite::params![integer(r, "hidden").unwrap_or(0), id],
+                )
+                .map_err(|e| e.to_string())?;
+            }
+            _ => {}
+        }
+        return Ok(id);
+    }
+    // Natural-key convergence is essential when two offline imports discover
+    // the same vocabulary or source document independently.
+    let natural = match table {
+        "words" => conn
+            .query_row(
+                "SELECT id FROM words WHERE language=?1 AND lemma=?2",
+                rusqlite::params![string(r, "language")?, string(r, "lemma")?],
+                |x| x.get(0),
+            )
+            .optional(),
+        "phrases" => conn
+            .query_row(
+                "SELECT id FROM phrases WHERE language=?1 AND text=?2",
+                rusqlite::params![string(r, "language")?, string(r, "text")?],
+                |x| x.get(0),
+            )
+            .optional(),
+        "files" => conn
+            .query_row(
+                "SELECT id FROM files WHERE language=?1 AND content_hash=?2",
+                rusqlite::params![string(r, "language")?, string(r, "content_hash")?],
+                |x| x.get(0),
+            )
+            .optional(),
+        _ => Ok(None),
+    }
+    .map_err(|e| e.to_string())?;
+    if let Some(id) = natural {
+        match table {
+            "words" => {
+                conn.execute("UPDATE words SET status=?1,definition=?2,reading=?3,part_of_speech=?4 WHERE id=?5",rusqlite::params![string(r,"status")?,optional_string(r,"definition"),optional_string(r,"reading"),optional_string(r,"part_of_speech"),id]).map_err(|e|e.to_string())?;
+            }
+            "phrases" => {
+                conn.execute(
+                    "UPDATE phrases SET status=?1,definition=?2,source=?3 WHERE id=?4",
+                    rusqlite::params![
+                        string(r, "status")?,
+                        optional_string(r, "definition"),
+                        string(r, "source")?,
+                        id
+                    ],
+                )
+                .map_err(|e| e.to_string())?;
+            }
+            "files" => {
+                let folder = optional_string(r, "folder_id_sync_id")
+                    .map(|value| local_id_for(conn, "folders", &value))
+                    .transpose()?
+                    .flatten();
+                conn.execute(
+                    "UPDATE files SET name=?1,folder_id=?2 WHERE id=?3",
+                    rusqlite::params![string(r, "name")?, folder, id],
+                )
+                .map_err(|e| e.to_string())?;
+            }
+            _ => {}
+        }
+        let canonical = sync_id_for(conn, table, id)?;
+        conn.execute("INSERT INTO sync_identity_aliases(table_name,alias_sync_id,canonical_sync_id) VALUES(?1,?2,?3) ON CONFLICT(table_name,alias_sync_id) DO UPDATE SET canonical_sync_id=excluded.canonical_sync_id",rusqlite::params![table,sync_id,canonical]).map_err(|e|e.to_string())?;
+        return Ok(id);
+    }
+    let fk = |name: &str, target: &str| -> Result<Option<i64>, String> {
+        match optional_string(r, &format!("{name}_sync_id")) {
+            Some(value) => local_id_for(conn, target, &value),
+            None => Ok(None),
+        }
+    };
+    let id = match table {
+        "folders" => {
+            let parent = fk("parent_id", "folders")?;
+            conn.execute(
+                "INSERT INTO folders(name,parent_id,created_at) VALUES(?1,?2,?3)",
+                rusqlite::params![string(r, "name")?, parent, integer(r, "created_at")?],
+            )
+            .map_err(|e| e.to_string())?;
+            conn.last_insert_rowid()
+        }
+        "files" => {
+            let folder = fk("folder_id", "folders")?;
+            conn.execute("INSERT INTO files(name,type,content,content_hash,imported_at,language,folder_id) VALUES(?1,?2,?3,?4,?5,?6,?7)",rusqlite::params![string(r,"name")?,string(r,"type")?,string(r,"content")?,string(r,"content_hash")?,integer(r,"imported_at")?,string(r,"language")?,folder]).map_err(|e|e.to_string())?;
+            conn.last_insert_rowid()
+        }
+        "segments" => {
+            let file = fk("file_id", "files")?.ok_or("sync segment is waiting for its file")?;
+            conn.execute("INSERT INTO segments(file_id,index_num,en_text,zh_text,start_time,end_time) VALUES(?1,?2,?3,?4,?5,?6)",rusqlite::params![file,integer(r,"index_num")?,string(r,"en_text")?,optional_string(r,"zh_text"),optional_string(r,"start_time"),optional_string(r,"end_time")]).map_err(|e|e.to_string())?;
+            conn.last_insert_rowid()
+        }
+        "words" => {
+            conn.execute("INSERT INTO words(language,lemma,status,definition,reading,part_of_speech) VALUES(?1,?2,?3,?4,?5,?6)",rusqlite::params![string(r,"language")?,string(r,"lemma")?,string(r,"status")?,optional_string(r,"definition"),optional_string(r,"reading"),optional_string(r,"part_of_speech")]).map_err(|e|e.to_string())?;
+            conn.last_insert_rowid()
+        }
+        "phrases" => {
+            conn.execute("INSERT INTO phrases(language,text,status,definition,source) VALUES(?1,?2,?3,?4,?5)",rusqlite::params![string(r,"language")?,string(r,"text")?,string(r,"status")?,optional_string(r,"definition"),string(r,"source")?]).map_err(|e|e.to_string())?;
+            conn.last_insert_rowid()
+        }
+        "occurrences" => {
+            let word = fk("word_id", "words")?.ok_or("sync occurrence is waiting for its word")?;
+            let segment = fk("segment_id", "segments")?
+                .ok_or("sync occurrence is waiting for its segment")?;
+            conn.execute("INSERT INTO occurrences(word_id,segment_id,original_form,position,hidden) VALUES(?1,?2,?3,?4,?5)",rusqlite::params![word,segment,string(r,"original_form")?,integer(r,"position")?,integer(r,"hidden").unwrap_or(0)]).map_err(|e|e.to_string())?;
+            conn.last_insert_rowid()
+        }
+        "phrase_occurrences" => {
+            let phrase = fk("phrase_id", "phrases")?
+                .ok_or("sync phrase occurrence is waiting for its phrase")?;
+            let segment = fk("segment_id", "segments")?
+                .ok_or("sync phrase occurrence is waiting for its segment")?;
+            conn.execute("INSERT INTO phrase_occurrences(phrase_id,segment_id,position,hidden) VALUES(?1,?2,?3,?4)",rusqlite::params![phrase,segment,integer(r,"position")?,integer(r,"hidden").unwrap_or(0)]).map_err(|e|e.to_string())?;
+            conn.last_insert_rowid()
+        }
+        "review_logs" => {
+            let word = fk("word_id", "words")?.ok_or("sync review is waiting for its word")?;
+            conn.execute("INSERT INTO review_logs(word_id,rating,reviewed_at,stability_before,stability_after,difficulty_before,difficulty_after,elapsed_days,scheduled_days,state_before,state_after,due_at_after) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12)",rusqlite::params![word,integer(r,"rating")?,integer(r,"reviewed_at")?,r.get("stability_before").and_then(|v|v.as_f64()),r.get("stability_after").and_then(|v|v.as_f64()),r.get("difficulty_before").and_then(|v|v.as_f64()),r.get("difficulty_after").and_then(|v|v.as_f64()),r.get("elapsed_days").and_then(|v|v.as_i64()),r.get("scheduled_days").and_then(|v|v.as_i64()),r.get("state_before").and_then(|v|v.as_i64()),r.get("state_after").and_then(|v|v.as_i64()),r.get("due_at_after").and_then(|v|v.as_i64())]).map_err(|e|e.to_string())?;
+            conn.last_insert_rowid()
+        }
+        "phrase_review_logs" => {
+            let phrase = fk("phrase_id", "phrases")?
+                .ok_or("sync phrase review is waiting for its phrase")?;
+            conn.execute("INSERT INTO phrase_review_logs(phrase_id,rating,reviewed_at,stability_before,stability_after,difficulty_before,difficulty_after,elapsed_days,scheduled_days,state_before,state_after,due_at_after) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12)",rusqlite::params![phrase,integer(r,"rating")?,integer(r,"reviewed_at")?,r.get("stability_before").and_then(|v|v.as_f64()),r.get("stability_after").and_then(|v|v.as_f64()),r.get("difficulty_before").and_then(|v|v.as_f64()),r.get("difficulty_after").and_then(|v|v.as_f64()),r.get("elapsed_days").and_then(|v|v.as_i64()),r.get("scheduled_days").and_then(|v|v.as_i64()),r.get("state_before").and_then(|v|v.as_i64()),r.get("state_after").and_then(|v|v.as_i64()),r.get("due_at_after").and_then(|v|v.as_i64())]).map_err(|e|e.to_string())?;
+            conn.last_insert_rowid()
+        }
+        _ => return Err(format!("unsupported sync entity {table}")),
+    };
+    Ok(id)
+}
+
+async fn upload_checkpoint_payload(
+    local: &LocalConfig,
+    data_key: &[u8; 32],
+    payload: &[u8],
+    protocol_version: i16,
+) -> Result<(), String> {
+    let checkpoint = crypt_bytes(data_key, &compress(payload)?)?;
+    let client = reqwest::Client::new();
+    let mut chunk_hashes = Vec::new();
+    for chunk in chunks(&checkpoint) {
+        let chunk_hash = hash(chunk);
+        let response = client
+            .put(format!("{}/v2/chunks/{chunk_hash}", local.endpoint))
+            .bearer_auth(&local.access_token)
+            .header("content-type", "application/octet-stream")
+            .body(chunk.to_vec())
+            .send()
+            .await
+            .map_err(|e| format!("Sync upload failed: {e}"))?;
+        if !response.status().is_success() {
+            return Err(response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Sync chunk upload failed".into()));
+        }
+        chunk_hashes.push(chunk_hash);
+    }
+    let manifest = crypt_bytes(
+        data_key,
+        &serde_json::to_vec(&CheckpointManifest {
+            version: protocol_version as u8,
+            compression: "zstd".into(),
+            encrypted_len: checkpoint.len(),
+            chunks: chunk_hashes.clone(),
+        })
+        .map_err(|e| e.to_string())?,
+    )?;
+    let response = client
+        .post(format!("{}/v2/checkpoints", local.endpoint))
+        .bearer_auth(&local.access_token)
+        .header("x-sync-device-id", &local.device_id)
+        .json(&CheckpointUpload {
+            id: Uuid::new_v4().to_string(),
+            cursor: local.last_remote_cursor,
+            encrypted_len: checkpoint.len() as i64,
+            manifest: URL_SAFE_NO_PAD.encode(manifest),
+            chunk_hashes,
+            protocol_version,
+        })
+        .send()
+        .await
+        .map_err(|e| format!("Checkpoint upload failed: {e}"))?;
+    if !response.status().is_success() {
+        return Err(response
+            .text()
+            .await
+            .unwrap_or_else(|_| "Checkpoint upload failed".into()));
+    }
+    Ok(())
+}
+
+fn prepare_outbox(
+    conn: &rusqlite::Connection,
+    local: &LocalConfig,
+    data_key: &[u8; 32],
+) -> Result<u32, String> {
+    let mut statement=conn.prepare("SELECT id,table_name,sync_id,operation FROM sync_changes WHERE uploaded_at IS NULL ORDER BY id").map_err(|e|e.to_string())?;
+    let changes = statement
+        .query_map([], |r| {
+            Ok((
+                r.get::<_, i64>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, String>(2)?,
+                r.get::<_, String>(3)?,
+            ))
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+    let mut made = 0;
+    for (change_id, table, sync_id, operation) in changes {
+        // Card rows are deterministic caches rebuilt from append-only logs.
+        if matches!(table.as_str(), "reviews" | "phrase_reviews") {
+            conn.execute(
+                "UPDATE sync_changes SET uploaded_at=?1 WHERE id=?2",
+                rusqlite::params![now_ms(), change_id],
+            )
+            .map_err(|e| e.to_string())?;
+            continue;
+        }
+        let exists: Option<String> = conn
+            .query_row(
+                "SELECT event_id FROM sync_outbox WHERE change_id=?1",
+                [change_id],
+                |r| r.get(0),
+            )
+            .optional()
+            .map_err(|e| e.to_string())?;
+        if exists.is_some() {
+            continue;
+        }
+        let record = if operation == "upsert" {
+            let id = local_id_for(conn, &table, &sync_id)?
+                .ok_or("sync record disappeared before it could be sent")?;
+            row_record(conn, &table, id)?
+        } else {
+            None
+        };
+        let event = EntityEvent {
+            version: 3,
+            table_name: table.clone(),
+            sync_id: sync_id.clone(),
+            operation: operation.clone(),
+            record,
+        };
+        let ciphertext = crypt_bytes(
+            data_key,
+            &serde_json::to_vec(&event).map_err(|e| e.to_string())?,
+        )?;
+        let clock = clock_now(conn, &local.device_id)?;
+        if let Some(local_id) = local_id_for(conn, &table, &sync_id)? {
+            mark_state(
+                conn,
+                &table,
+                local_id,
+                &sync_id,
+                &clock,
+                operation == "delete",
+            )?;
+        }
+        conn.execute("INSERT INTO sync_outbox(event_id,change_id,device_id,clock,kind,ciphertext) VALUES(?1,?2,?3,?4,?5,?6)",rusqlite::params![Uuid::new_v4().to_string(),change_id,local.device_id,clock,table,ciphertext]).map_err(|e|e.to_string())?;
+        made += 1;
+    }
+    Ok(made)
+}
+fn pending_outbox(conn: &rusqlite::Connection) -> Result<Vec<OutboxRow>, String> {
+    let mut statement=conn.prepare("SELECT event_id,clock,kind,ciphertext FROM sync_outbox WHERE uploaded_at IS NULL ORDER BY change_id").map_err(|e|e.to_string())?;
+    let rows = statement
+        .query_map([], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, String>(2)?,
+                r.get::<_, Vec<u8>>(3)?,
+            ))
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+    Ok(rows)
+}
+async fn push_outbox(local: &LocalConfig, rows: Vec<OutboxRow>) -> Result<Vec<String>, String> {
+    let client = reqwest::Client::new();
+    let mut sent = Vec::new();
+    for (event_id, clock, kind, ciphertext) in rows {
+        let response = client
+            .post(format!("{}/v3/events", local.endpoint))
+            .bearer_auth(&local.access_token)
+            .header("x-sync-event-id", &event_id)
+            .header("x-sync-device-id", &local.device_id)
+            .header("x-sync-clock", clock)
+            .header("x-sync-kind", kind)
+            .body(ciphertext)
+            .send()
+            .await
+            .map_err(|e| format!("Event upload failed: {e}"))?;
+        if !response.status().is_success() {
+            return Err(response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Event upload failed".into()));
+        }
+        sent.push(event_id);
+    }
+    Ok(sent)
+}
+fn parse_event_frames(bytes: &[u8]) -> Result<Vec<(RemoteEventMeta, Vec<u8>)>, String> {
+    let mut at = 0;
+    let mut events = Vec::new();
+    while at < bytes.len() {
+        if at + 4 > bytes.len() {
+            return Err("truncated sync event frame".into());
+        }
+        let meta_len = u32::from_be_bytes(bytes[at..at + 4].try_into().unwrap()) as usize;
+        at += 4;
+        if at + meta_len + 4 > bytes.len() {
+            return Err("truncated sync event metadata".into());
+        }
+        let meta: RemoteEventMeta = serde_json::from_slice(&bytes[at..at + meta_len])
+            .map_err(|_| "invalid sync event metadata")?;
+        at += meta_len;
+        let payload_len = u32::from_be_bytes(bytes[at..at + 4].try_into().unwrap()) as usize;
+        at += 4;
+        if at + payload_len > bytes.len() {
+            return Err("truncated sync event payload".into());
+        }
+        events.push((meta, bytes[at..at + payload_len].to_vec()));
+        at += payload_len;
+    }
+    Ok(events)
+}
+async fn pull_apply_events(
+    state: &DbState,
+    local: &mut LocalConfig,
+    data_key: &[u8; 32],
+) -> Result<u32, String> {
+    let client = reqwest::Client::new();
+    let mut applied = 0;
+    loop {
+        let response = client
+            .get(format!(
+                "{}/v3/events?after={}&limit=100",
+                local.endpoint, local.last_remote_cursor
+            ))
+            .bearer_auth(&local.access_token)
+            .send()
+            .await
+            .map_err(|e| format!("Event download failed: {e}"))?;
+        if response.status() == reqwest::StatusCode::GONE {
+            return Err("This device is behind the retained event history. Restore the latest v3 cloud version before syncing.".into());
+        }
+        if !response.status().is_success() {
+            return Err(response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Event download failed".into()));
+        }
+        let frames = parse_event_frames(&response.bytes().await.map_err(|e| e.to_string())?)?;
+        if frames.is_empty() {
+            break;
+        }
+        let conn = state.conn.lock().map_err(|e| e.to_string())?;
+        conn.execute("BEGIN IMMEDIATE", [])
+            .map_err(|e| e.to_string())?;
+        let result = (|| -> Result<(), String> {
+            for (meta, ciphertext) in &frames {
+                let done: Option<String> = conn
+                    .query_row(
+                        "SELECT event_id FROM sync_applied_events WHERE event_id=?1",
+                        [&meta.event_id],
+                        |r| r.get(0),
+                    )
+                    .optional()
+                    .map_err(|e| e.to_string())?;
+                if done.is_none() {
+                    let event: EntityEvent =
+                        serde_json::from_slice(&decrypt_bytes(data_key, ciphertext)?)
+                            .map_err(|_| "invalid decrypted sync event")?;
+                    if event.version != 3 || event.table_name != meta.kind {
+                        return Err("sync event metadata did not authenticate".into());
+                    }
+                    apply_entity_event(&conn, &event, &meta.clock)?;
+                    conn.execute("INSERT INTO sync_applied_events(event_id,server_seq,applied_at) VALUES(?1,?2,?3)",rusqlite::params![meta.event_id,meta.seq,now_ms()]).map_err(|e|e.to_string())?;
+                    applied += 1;
+                }
+                local.last_remote_cursor = meta.seq;
+            }
+            Ok(())
+        })();
+        match result {
+            Ok(()) => {
+                conn.execute("COMMIT", []).map_err(|e| e.to_string())?;
+            }
+            Err(error) => {
+                let _ = conn.execute("ROLLBACK", []);
+                return Err(error);
+            }
+        }
+    }
+    Ok(applied)
+}
+
 #[tauri::command]
 pub fn sync_status(state: State<DbState>) -> Result<SyncStatus, String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
@@ -423,6 +1208,18 @@ pub fn sync_status(state: State<DbState>) -> Result<SyncStatus, String> {
             |r| r.get(0),
         )
         .unwrap_or(0);
+    let runtime_count = |key: &str| {
+        conn.query_row(
+            "SELECT value FROM sync_runtime WHERE key=?1",
+            [key],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()
+        .ok()
+        .flatten()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(0)
+    };
     Ok(match value {
         Some(c) => SyncStatus {
             configured: true,
@@ -435,6 +1232,9 @@ pub fn sync_status(state: State<DbState>) -> Result<SyncStatus, String> {
             pending_downloads: 0,
             conflicts: 0,
             last_error: None,
+            v3_initialized: c.v3_initialized,
+            last_uploaded: runtime_count("last_uploaded"),
+            last_downloaded: runtime_count("last_downloaded"),
         },
         None => SyncStatus {
             configured: false,
@@ -447,6 +1247,9 @@ pub fn sync_status(state: State<DbState>) -> Result<SyncStatus, String> {
             pending_downloads: 0,
             conflicts: 0,
             last_error: None,
+            v3_initialized: false,
+            last_uploaded: 0,
+            last_downloaded: 0,
         },
     })
 }
@@ -510,6 +1313,7 @@ pub async fn sync_register(
             data_key: URL_SAFE_NO_PAD.encode(data_key),
             last_synced_at: None,
             last_remote_cursor: 0,
+            v3_initialized: false,
         },
     )?;
     Ok(RegisterResult { recovery_code })
@@ -565,6 +1369,7 @@ pub async fn sync_login(
             data_key: URL_SAFE_NO_PAD.encode(data_key),
             last_synced_at: None,
             last_remote_cursor: 0,
+            v3_initialized: false,
         },
     )?;
     Ok(())
@@ -652,85 +1457,116 @@ pub async fn sync_reset_password(
             data_key: URL_SAFE_NO_PAD.encode(data_key),
             last_synced_at: None,
             last_remote_cursor: 0,
+            v3_initialized: false,
         },
     )?;
     Ok(())
 }
 #[tauri::command]
 pub async fn sync_now(state: State<'_, DbState>) -> Result<(), String> {
-    // Build a portable checkpoint outside of the HTTP phase. Compression is
-    // intentionally before encryption; encrypted bytes are incompressible.
-    let (mut local, data_key, checkpoint) = {
+    let (mut local, data_key) = {
         let conn = state.conn.lock().map_err(|e| e.to_string())?;
         let local = config(&conn)?.ok_or("Cloud sync is not configured.")?;
-        let backup = export::backup_payload(&conn)?;
-        let serialized = serde_json::to_vec(&backup).map_err(|e| e.to_string())?;
-        let data_key = key(&local)?;
-        (
-            local,
-            data_key,
-            crypt_bytes(&data_key, &compress(&serialized)?)?,
-        )
-    };
-    let client = reqwest::Client::new();
-    let mut chunk_hashes = Vec::new();
-    for chunk in chunks(&checkpoint) {
-        let chunk_hash = hash(chunk);
-        let response = client
-            .put(format!("{}/v2/chunks/{chunk_hash}", local.endpoint))
-            .bearer_auth(&local.access_token)
-            .header("content-type", "application/octet-stream")
-            .body(chunk.to_vec())
-            .send()
-            .await
-            .map_err(|e| format!("Sync upload failed: {e}"))?;
-        if !response.status().is_success() {
-            return Err(response
-                .text()
-                .await
-                .unwrap_or_else(|_| "Sync chunk upload failed".into()));
+        if !local.v3_initialized {
+            return Err("Select this device as the v3 sync source, or restore a v3 cloud version before syncing.".into());
         }
-        chunk_hashes.push(chunk_hash);
-    }
-    let manifest = CheckpointManifest {
-        version: 2,
-        compression: "zstd".into(),
-        encrypted_len: checkpoint.len(),
-        chunks: chunk_hashes.clone(),
+        let data_key = key(&local)?;
+        (local, data_key)
     };
-    let manifest = crypt_bytes(
-        &data_key,
-        &serde_json::to_vec(&manifest).map_err(|e| e.to_string())?,
-    )?;
-    let response = client
-        .post(format!("{}/v2/checkpoints", local.endpoint))
-        .bearer_auth(&local.access_token)
-        .header("x-sync-device-id", &local.device_id)
-        .json(&CheckpointUpload {
-            id: Uuid::new_v4().to_string(),
-            cursor: local.last_remote_cursor,
-            encrypted_len: checkpoint.len() as i64,
-            manifest: URL_SAFE_NO_PAD.encode(manifest),
-            chunk_hashes,
-        })
-        .send()
-        .await
-        .map_err(|e| format!("Checkpoint upload failed: {e}"))?;
-    if !response.status().is_success() {
-        return Err(response
-            .text()
-            .await
-            .unwrap_or_else(|_| "Checkpoint upload failed".into()));
+    pull_apply_events(&state, &mut local, &data_key).await?;
+    let outbox = {
+        let conn = state.conn.lock().map_err(|e| e.to_string())?;
+        prepare_outbox(&conn, &local, &data_key)?;
+        pending_outbox(&conn)?
+    };
+    let sent = push_outbox(&local, outbox).await?;
+    let uploaded = sent.len() as u32;
+    {
+        let conn = state.conn.lock().map_err(|e| e.to_string())?;
+        for event_id in &sent {
+            conn.execute(
+                "UPDATE sync_outbox SET uploaded_at=?1 WHERE event_id=?2",
+                rusqlite::params![now_ms(), event_id],
+            )
+            .map_err(|e| e.to_string())?;
+            conn.execute("UPDATE sync_changes SET uploaded_at=?1 WHERE id=(SELECT change_id FROM sync_outbox WHERE event_id=?2)",rusqlite::params![now_ms(),event_id]).map_err(|e|e.to_string())?;
+        }
+    }
+    let downloaded = pull_apply_events(&state, &mut local, &data_key).await?;
+    let checkpoint_payload = {
+        let conn = state.conn.lock().map_err(|e| e.to_string())?;
+        let since: u32 = conn
+            .query_row(
+                "SELECT value FROM sync_runtime WHERE key='events_since_checkpoint'",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()
+            .ok()
+            .flatten()
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(0);
+        let next = since.saturating_add(uploaded).saturating_add(downloaded);
+        conn.execute("INSERT INTO sync_runtime(key,value) VALUES('events_since_checkpoint',?1) ON CONFLICT(key) DO UPDATE SET value=excluded.value",[next.to_string()]).map_err(|e|e.to_string())?;
+        if next >= 200 {
+            Some(
+                serde_json::to_vec(&V3Baseline {
+                    version: 3,
+                    backup: export::backup_payload(&conn)?,
+                    entity_state: db::export_sync_entity_state(&conn)?,
+                })
+                .map_err(|e| e.to_string())?,
+            )
+        } else {
+            None
+        }
+    };
+    if let Some(payload) = checkpoint_payload {
+        upload_checkpoint_payload(&local, &data_key, &payload, 3).await?;
+        let conn = state.conn.lock().map_err(|e| e.to_string())?;
+        conn.execute(
+            "UPDATE sync_runtime SET value='0' WHERE key='events_since_checkpoint'",
+            [],
+        )
+        .map_err(|e| e.to_string())?;
     }
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
     local.last_synced_at = Some(now_ms());
     save_config(&conn, &local)?;
+    conn.execute("INSERT INTO sync_runtime(key,value) VALUES('last_uploaded',?1) ON CONFLICT(key) DO UPDATE SET value=excluded.value",[uploaded.to_string()]).map_err(|e|e.to_string())?;
+    conn.execute("INSERT INTO sync_runtime(key,value) VALUES('last_downloaded',?1) ON CONFLICT(key) DO UPDATE SET value=excluded.value",[downloaded.to_string()]).map_err(|e|e.to_string())?;
+    Ok(())
+}
+
+/// Makes this installation the explicit v3 source of truth. Other legacy
+/// devices must restore this encrypted baseline before merging events.
+#[tauri::command]
+pub async fn sync_initialize_v3(state: State<'_, DbState>) -> Result<(), String> {
+    let (mut local, data_key, payload) = {
+        let conn = state.conn.lock().map_err(|e| e.to_string())?;
+        let local = config(&conn)?.ok_or("Cloud sync is not configured.")?;
+        let data_key = key(&local)?;
+        let baseline = V3Baseline {
+            version: 3,
+            backup: export::backup_payload(&conn)?,
+            entity_state: db::export_sync_entity_state(&conn)?,
+        };
+        (
+            local,
+            data_key,
+            serde_json::to_vec(&baseline).map_err(|e| e.to_string())?,
+        )
+    };
+    upload_checkpoint_payload(&local, &data_key, &payload, 3).await?;
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    local.v3_initialized = true;
+    local.last_synced_at = Some(now_ms());
     conn.execute(
         "UPDATE sync_changes SET uploaded_at=?1 WHERE uploaded_at IS NULL",
         [now_ms()],
     )
     .map_err(|e| e.to_string())?;
-    Ok(())
+    save_config(&conn, &local)
 }
 
 #[tauri::command]
@@ -770,7 +1606,7 @@ pub async fn sync_preview_checkpoint(
             .map_err(|error| error.to_string())? as usize;
         (local.clone(), key(&local)?, count)
     };
-    let (checkpoint, backup) =
+    let (checkpoint, backup, _) =
         fetch_checkpoint_backup(&reqwest::Client::new(), &local, &data_key, &checkpoint_id).await?;
     Ok(SyncCheckpointPreview {
         checkpoint,
@@ -794,14 +1630,19 @@ pub async fn sync_restore_checkpoint(
         let local = config(&conn)?.ok_or("Cloud sync is not configured.")?;
         (local.clone(), key(&local)?)
     };
-    let (checkpoint, backup) =
+    let (checkpoint, backup, entity_state) =
         fetch_checkpoint_backup(&reqwest::Client::new(), &local, &data_key, &checkpoint_id).await?;
     let mut local = local;
     let conn = state.conn.lock().map_err(|error| error.to_string())?;
     let path = write_safety_backup(&conn)?;
     export::restore_backup(&conn, &backup)?;
-    db::reset_sync_tracking(&conn).map_err(|error| error.to_string())?;
+    if let Some(entity_state) = entity_state {
+        db::import_sync_entity_state(&conn, &entity_state)?;
+    } else {
+        db::reset_sync_tracking(&conn).map_err(|error| error.to_string())?;
+    }
     local.last_remote_cursor = checkpoint.cursor;
+    local.v3_initialized = checkpoint.protocol_version == 3;
     local.last_synced_at = Some(now_ms());
     save_config(&conn, &local)?;
     Ok(path)
@@ -948,5 +1789,108 @@ mod tests {
         assert_ne!(recovery_verifier(code), code);
         assert_eq!(recovery_verifier(code), recovery_verifier(code));
         assert_ne!(recovery_verifier(code), recovery_verifier("wrong"));
+    }
+
+    #[test]
+    fn entity_event_merges_natural_word_key_and_newer_clock_wins() {
+        let directory = tempfile::tempdir().unwrap();
+        let connection = crate::db::init_db(&directory.path().join("lexicue.db")).unwrap();
+        connection
+            .execute(
+                "INSERT INTO words(language,lemma,status) VALUES('en','merge','known')",
+                [],
+            )
+            .unwrap();
+        let local_id: i64 = connection
+            .query_row("SELECT id FROM words WHERE lemma='merge'", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        let local_sync = sync_id_for(&connection, "words", local_id).unwrap();
+        let event = EntityEvent {
+            version: 3,
+            table_name: "words".into(),
+            sync_id: "remote-identity".into(),
+            operation: "upsert".into(),
+            record: Some(
+                serde_json::json!({"language":"en","lemma":"merge","status":"learning","definition":null,"reading":null,"part_of_speech":null}),
+            ),
+        };
+        assert!(apply_entity_event(
+            &connection,
+            &event,
+            "00000000000000000010:00000000:device-b"
+        )
+        .unwrap());
+        assert_eq!(
+            connection
+                .query_row("SELECT status FROM words WHERE id=?1", [local_id], |row| {
+                    row.get::<_, String>(0)
+                })
+                .unwrap(),
+            "learning"
+        );
+        let alias: String = connection.query_row("SELECT canonical_sync_id FROM sync_identity_aliases WHERE table_name='words' AND alias_sync_id='remote-identity'", [], |row| row.get(0)).unwrap();
+        assert_eq!(alias, local_sync);
+        assert!(!apply_entity_event(
+            &connection,
+            &event,
+            "00000000000000000009:00000000:device-z"
+        )
+        .unwrap());
+    }
+
+    #[test]
+    fn tombstone_prevents_older_remote_resurrection() {
+        let directory = tempfile::tempdir().unwrap();
+        let connection = crate::db::init_db(&directory.path().join("lexicue.db")).unwrap();
+        connection
+            .execute(
+                "INSERT INTO words(language,lemma,status) VALUES('en','grave','known')",
+                [],
+            )
+            .unwrap();
+        let id: i64 = connection
+            .query_row("SELECT id FROM words WHERE lemma='grave'", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        let sync_id = sync_id_for(&connection, "words", id).unwrap();
+        let delete = EntityEvent {
+            version: 3,
+            table_name: "words".into(),
+            sync_id: sync_id.clone(),
+            operation: "delete".into(),
+            record: None,
+        };
+        assert!(apply_entity_event(
+            &connection,
+            &delete,
+            "00000000000000000020:00000000:device-a"
+        )
+        .unwrap());
+        let old = EntityEvent {
+            version: 3,
+            table_name: "words".into(),
+            sync_id,
+            operation: "upsert".into(),
+            record: Some(
+                serde_json::json!({"language":"en","lemma":"grave","status":"learning","definition":null,"reading":null,"part_of_speech":null}),
+            ),
+        };
+        assert!(
+            !apply_entity_event(&connection, &old, "00000000000000000019:00000000:device-z")
+                .unwrap()
+        );
+        assert_eq!(
+            connection
+                .query_row(
+                    "SELECT COUNT(*) FROM words WHERE lemma='grave'",
+                    [],
+                    |row| row.get::<_, i64>(0)
+                )
+                .unwrap(),
+            0
+        );
     }
 }

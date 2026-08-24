@@ -301,8 +301,8 @@ pub fn submit_rating(state: State<DbState>, payload: RatingPayload) -> Result<()
               stability_before, stability_after,
               difficulty_before, difficulty_after,
               elapsed_days, scheduled_days,
-              state_before, state_after)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+              state_before, state_after, due_at_after)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
             params![
                 payload.word_id,
                 payload.rating,
@@ -315,6 +315,7 @@ pub fn submit_rating(state: State<DbState>, payload: RatingPayload) -> Result<()
                 payload.new_scheduled_days,
                 payload.card_state,
                 payload.new_state,
+                payload.new_due_at,
             ],
         )
         .map_err(|e| e.to_string())?;
@@ -514,8 +515,8 @@ pub fn submit_phrase_rating(
               stability_before, stability_after,
               difficulty_before, difficulty_after,
               elapsed_days, scheduled_days,
-              state_before, state_after)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+              state_before, state_after, due_at_after)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
             params![
                 payload.phrase_id,
                 payload.rating,
@@ -528,6 +529,7 @@ pub fn submit_phrase_rating(
                 payload.new_scheduled_days,
                 payload.card_state,
                 payload.new_state,
+                payload.new_due_at,
             ],
         )
         .map_err(|e| e.to_string())?;

@@ -84,6 +84,7 @@ pub fn run() {
             commands::sync::sync_login,
             commands::sync::sync_reset_password,
             commands::sync::sync_now,
+            commands::sync::sync_initialize_v3,
             commands::sync::sync_checkpoints,
             commands::sync::sync_preview_checkpoint,
             commands::sync::sync_restore_checkpoint,

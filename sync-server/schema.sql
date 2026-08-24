@@ -50,6 +50,22 @@ CREATE TABLE IF NOT EXISTS sync_events_v2 (
 );
 CREATE INDEX IF NOT EXISTS sync_events_v2_cursor_idx ON sync_events_v2(account_id, seq);
 
+-- v3 is the entity-event feed.  It is separate from the prototype v2 feed
+-- so an upgraded client can never accidentally interpret a v2 full backup as
+-- a mergeable entity change.
+CREATE TABLE IF NOT EXISTS sync_events_v3 (
+  seq BIGSERIAL PRIMARY KEY,
+  account_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  event_id TEXT NOT NULL,
+  device_id TEXT NOT NULL,
+  clock TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  ciphertext BYTEA NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(account_id, event_id)
+);
+CREATE INDEX IF NOT EXISTS sync_events_v3_cursor_idx ON sync_events_v3(account_id, seq);
+
 -- A checkpoint is an opaque encrypted manifest plus the ciphertext chunks it
 -- references. Chunk hashes are safe to expose to the service: they are hashes
 -- of encrypted bytes, not of learning data. Keeping the relation separately
@@ -63,6 +79,7 @@ CREATE TABLE IF NOT EXISTS sync_checkpoints (
   manifest BYTEA NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+ALTER TABLE sync_checkpoints ADD COLUMN IF NOT EXISTS protocol_version SMALLINT NOT NULL DEFAULT 2;
 CREATE INDEX IF NOT EXISTS sync_checkpoints_account_created_idx
   ON sync_checkpoints(account_id, created_at DESC);
 CREATE TABLE IF NOT EXISTS sync_checkpoint_chunks (

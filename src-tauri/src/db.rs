@@ -38,6 +38,7 @@ pub fn init_db(db_path: &Path) -> Result<Connection, rusqlite::Error> {
     backfill_phrase_provider(&conn)?;
     migrate_file_folder(&conn)?;
     migrate_occurrence_hidden(&conn)?;
+    migrate_review_log_schedule(&conn)?;
     create_performance_indexes(&conn)?;
     Ok(conn)
 }
@@ -53,6 +54,7 @@ fn create_sync_tracking(conn: &Connection) -> Result<(), rusqlite::Error> {
             sync_id TEXT NOT NULL,
             updated_at INTEGER NOT NULL,
             deleted_at INTEGER,
+            clock TEXT NOT NULL DEFAULT '',
             PRIMARY KEY(table_name, local_id),
             UNIQUE(table_name, sync_id)
         ) STRICT;
@@ -65,6 +67,48 @@ fn create_sync_tracking(conn: &Connection) -> Result<(), rusqlite::Error> {
             uploaded_at INTEGER
         ) STRICT;
         CREATE INDEX IF NOT EXISTS sync_changes_pending_idx ON sync_changes(uploaded_at, id);",
+    )?;
+    let has_clock = conn
+        .prepare("PRAGMA table_info(sync_entity_state)")?
+        .query_map([], |row| row.get::<_, String>(1))?
+        .filter_map(Result::ok)
+        .any(|column| column == "clock");
+    if !has_clock {
+        conn.execute(
+            "ALTER TABLE sync_entity_state ADD COLUMN clock TEXT NOT NULL DEFAULT ''",
+            [],
+        )?;
+    }
+    // v3 keeps an immutable, retryable encrypted event for every queued
+    // change.  `sync_changes` is intentionally still the trigger target: it
+    // makes the user write and the fact that it needs syncing one SQLite
+    // transaction, even for legacy command code that does not know sync.
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS sync_outbox (
+            event_id TEXT PRIMARY KEY,
+            change_id INTEGER NOT NULL UNIQUE REFERENCES sync_changes(id) ON DELETE CASCADE,
+            device_id TEXT NOT NULL,
+            clock TEXT NOT NULL,
+            kind TEXT NOT NULL,
+            ciphertext BLOB NOT NULL,
+            uploaded_at INTEGER
+        ) STRICT;
+        CREATE INDEX IF NOT EXISTS sync_outbox_pending_idx ON sync_outbox(uploaded_at, change_id);
+        CREATE TABLE IF NOT EXISTS sync_applied_events (
+            event_id TEXT PRIMARY KEY,
+            server_seq INTEGER NOT NULL,
+            applied_at INTEGER NOT NULL
+        ) STRICT;
+        CREATE TABLE IF NOT EXISTS sync_identity_aliases (
+            table_name TEXT NOT NULL,
+            alias_sync_id TEXT NOT NULL,
+            canonical_sync_id TEXT NOT NULL,
+            PRIMARY KEY(table_name, alias_sync_id)
+        ) STRICT;
+        CREATE TABLE IF NOT EXISTS sync_runtime (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        ) STRICT;",
     )?;
     // These are all user-learning entities. Dictionary caches and local device
     // configuration intentionally have no triggers and remain device-local.
@@ -82,19 +126,25 @@ fn create_sync_tracking(conn: &Connection) -> Result<(), rusqlite::Error> {
         ("phrase_review_logs", "id"),
     ] {
         let trigger = format!(
-            "CREATE TRIGGER IF NOT EXISTS sync_{table}_insert AFTER INSERT ON {table} BEGIN
+            "DROP TRIGGER IF EXISTS sync_{table}_insert;
+            DROP TRIGGER IF EXISTS sync_{table}_update;
+            DROP TRIGGER IF EXISTS sync_{table}_delete;
+            CREATE TRIGGER sync_{table}_insert AFTER INSERT ON {table}
+              WHEN COALESCE((SELECT value FROM sync_runtime WHERE key='applying'),'0') <> '1' BEGIN
                 INSERT INTO sync_entity_state(table_name,local_id,sync_id,updated_at,deleted_at)
                   VALUES ('{table}', NEW.{key}, lower(hex(randomblob(16))), CAST(strftime('%s','now') AS INTEGER)*1000, NULL)
                   ON CONFLICT(table_name,local_id) DO UPDATE SET deleted_at=NULL, updated_at=excluded.updated_at;
                 INSERT INTO sync_changes(table_name,sync_id,operation,changed_at)
                   SELECT '{table}',sync_id,'upsert',CAST(strftime('%s','now') AS INTEGER)*1000 FROM sync_entity_state WHERE table_name='{table}' AND local_id=NEW.{key};
             END;
-            CREATE TRIGGER IF NOT EXISTS sync_{table}_update AFTER UPDATE ON {table} BEGIN
+            CREATE TRIGGER sync_{table}_update AFTER UPDATE ON {table}
+              WHEN COALESCE((SELECT value FROM sync_runtime WHERE key='applying'),'0') <> '1' BEGIN
                 UPDATE sync_entity_state SET updated_at=CAST(strftime('%s','now') AS INTEGER)*1000,deleted_at=NULL WHERE table_name='{table}' AND local_id=NEW.{key};
                 INSERT OR IGNORE INTO sync_entity_state(table_name,local_id,sync_id,updated_at,deleted_at) VALUES ('{table}',NEW.{key},lower(hex(randomblob(16))),CAST(strftime('%s','now') AS INTEGER)*1000,NULL);
                 INSERT INTO sync_changes(table_name,sync_id,operation,changed_at) SELECT '{table}',sync_id,'upsert',CAST(strftime('%s','now') AS INTEGER)*1000 FROM sync_entity_state WHERE table_name='{table}' AND local_id=NEW.{key};
             END;
-            CREATE TRIGGER IF NOT EXISTS sync_{table}_delete AFTER DELETE ON {table} BEGIN
+            CREATE TRIGGER sync_{table}_delete AFTER DELETE ON {table}
+              WHEN COALESCE((SELECT value FROM sync_runtime WHERE key='applying'),'0') <> '1' BEGIN
                 UPDATE sync_entity_state SET updated_at=CAST(strftime('%s','now') AS INTEGER)*1000,deleted_at=CAST(strftime('%s','now') AS INTEGER)*1000 WHERE table_name='{table}' AND local_id=OLD.{key};
                 INSERT INTO sync_changes(table_name,sync_id,operation,changed_at) SELECT '{table}',sync_id,'delete',CAST(strftime('%s','now') AS INTEGER)*1000 FROM sync_entity_state WHERE table_name='{table}' AND local_id=OLD.{key};
             END;"
@@ -115,7 +165,66 @@ fn create_sync_tracking(conn: &Connection) -> Result<(), rusqlite::Error> {
 pub fn reset_sync_tracking(conn: &Connection) -> Result<(), rusqlite::Error> {
     conn.execute("DELETE FROM sync_changes", [])?;
     conn.execute("DELETE FROM sync_entity_state", [])?;
+    conn.execute("DELETE FROM sync_outbox", [])?;
+    conn.execute("DELETE FROM sync_applied_events", [])?;
+    conn.execute("DELETE FROM sync_identity_aliases", [])?;
     create_sync_tracking(conn)
+}
+
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+pub struct SyncEntityStateExport {
+    pub table_name: String,
+    pub local_id: i64,
+    pub sync_id: String,
+    pub updated_at: i64,
+    pub deleted_at: Option<i64>,
+    #[serde(default)]
+    pub clock: String,
+}
+
+pub fn export_sync_entity_state(conn: &Connection) -> Result<Vec<SyncEntityStateExport>, String> {
+    let mut statement = conn.prepare("SELECT table_name,local_id,sync_id,updated_at,deleted_at,clock FROM sync_entity_state ORDER BY table_name,local_id").map_err(|e| e.to_string())?;
+    let states = statement
+        .query_map([], |row| {
+            Ok(SyncEntityStateExport {
+                table_name: row.get(0)?,
+                local_id: row.get(1)?,
+                sync_id: row.get(2)?,
+                updated_at: row.get(3)?,
+                deleted_at: row.get(4)?,
+                clock: row.get(5)?,
+            })
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+    Ok(states)
+}
+
+pub fn import_sync_entity_state(
+    conn: &Connection,
+    states: &[SyncEntityStateExport],
+) -> Result<(), String> {
+    conn.execute("DELETE FROM sync_entity_state", [])
+        .map_err(|e| e.to_string())?;
+    let mut statement = conn.prepare("INSERT INTO sync_entity_state(table_name,local_id,sync_id,updated_at,deleted_at,clock) VALUES(?1,?2,?3,?4,?5,?6)").map_err(|e| e.to_string())?;
+    for state in states {
+        statement
+            .execute(rusqlite::params![
+                state.table_name,
+                state.local_id,
+                state.sync_id,
+                state.updated_at,
+                state.deleted_at,
+                state.clock
+            ])
+            .map_err(|e| e.to_string())?;
+    }
+    conn.execute("DELETE FROM sync_changes", [])
+        .map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM sync_outbox", [])
+        .map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 fn migrate_occurrence_hidden(conn: &Connection) -> Result<(), rusqlite::Error> {
@@ -128,6 +237,23 @@ fn migrate_occurrence_hidden(conn: &Connection) -> Result<(), rusqlite::Error> {
         if !has_hidden {
             conn.execute(
                 &format!("ALTER TABLE {table} ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0"),
+                [],
+            )?;
+        }
+    }
+    Ok(())
+}
+
+fn migrate_review_log_schedule(conn: &Connection) -> Result<(), rusqlite::Error> {
+    for table in ["review_logs", "phrase_review_logs"] {
+        let has_due = conn
+            .prepare(&format!("PRAGMA table_info({table})"))?
+            .query_map([], |row| row.get::<_, String>(1))?
+            .filter_map(Result::ok)
+            .any(|column| column == "due_at_after");
+        if !has_due {
+            conn.execute(
+                &format!("ALTER TABLE {table} ADD COLUMN due_at_after INTEGER"),
                 [],
             )?;
         }
@@ -435,7 +561,8 @@ fn create_tables(conn: &Connection) -> Result<(), rusqlite::Error> {
             elapsed_days INTEGER,
             scheduled_days INTEGER,
             state_before INTEGER,
-            state_after INTEGER
+            state_after INTEGER,
+            due_at_after INTEGER
         ) STRICT;
 
         CREATE TABLE IF NOT EXISTS dictionary_entries (
@@ -530,7 +657,8 @@ fn create_tables(conn: &Connection) -> Result<(), rusqlite::Error> {
             elapsed_days INTEGER,
             scheduled_days INTEGER,
             state_before INTEGER,
-            state_after INTEGER
+            state_after INTEGER,
+            due_at_after INTEGER
         ) STRICT;
 
         CREATE TABLE IF NOT EXISTS builtin_phrase_dictionary (
