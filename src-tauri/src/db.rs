@@ -33,12 +33,68 @@ pub fn init_db(db_path: &Path) -> Result<Connection, rusqlite::Error> {
     )?;
 
     create_tables(&conn)?;
+    create_sync_tracking(&conn)?;
     migrate_legacy_constraints(&conn)?;
     backfill_phrase_provider(&conn)?;
     migrate_file_folder(&conn)?;
     migrate_occurrence_hidden(&conn)?;
     create_performance_indexes(&conn)?;
     Ok(conn)
+}
+
+/// Stable sync identities live alongside the legacy integer primary keys. This
+/// keeps existing SQL and foreign keys intact while providing a portable ID,
+/// timestamp and deletion tombstone for the v2 sync engine.
+fn create_sync_tracking(conn: &Connection) -> Result<(), rusqlite::Error> {
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS sync_entity_state (
+            table_name TEXT NOT NULL,
+            local_id INTEGER NOT NULL,
+            sync_id TEXT NOT NULL,
+            updated_at INTEGER NOT NULL,
+            deleted_at INTEGER,
+            PRIMARY KEY(table_name, local_id),
+            UNIQUE(table_name, sync_id)
+        ) STRICT;
+        CREATE TABLE IF NOT EXISTS sync_changes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            table_name TEXT NOT NULL,
+            sync_id TEXT NOT NULL,
+            operation TEXT NOT NULL CHECK(operation IN ('upsert','delete')),
+            changed_at INTEGER NOT NULL,
+            uploaded_at INTEGER
+        ) STRICT;
+        CREATE INDEX IF NOT EXISTS sync_changes_pending_idx ON sync_changes(uploaded_at, id);",
+    )?;
+    // These are all user-learning entities. Dictionary caches and local device
+    // configuration intentionally have no triggers and remain device-local.
+    for (table, key) in [("folders", "id"), ("files", "id"), ("segments", "id"), ("words", "id"), ("occurrences", "id"), ("reviews", "word_id"), ("review_logs", "id"), ("phrases", "id"), ("phrase_occurrences", "id"), ("phrase_reviews", "phrase_id"), ("phrase_review_logs", "id")] {
+        let trigger = format!(
+            "CREATE TRIGGER IF NOT EXISTS sync_{table}_insert AFTER INSERT ON {table} BEGIN
+                INSERT INTO sync_entity_state(table_name,local_id,sync_id,updated_at,deleted_at)
+                  VALUES ('{table}', NEW.{key}, lower(hex(randomblob(16))), CAST(strftime('%s','now') AS INTEGER)*1000, NULL)
+                  ON CONFLICT(table_name,local_id) DO UPDATE SET deleted_at=NULL, updated_at=excluded.updated_at;
+                INSERT INTO sync_changes(table_name,sync_id,operation,changed_at)
+                  SELECT '{table}',sync_id,'upsert',CAST(strftime('%s','now') AS INTEGER)*1000 FROM sync_entity_state WHERE table_name='{table}' AND local_id=NEW.{key};
+            END;
+            CREATE TRIGGER IF NOT EXISTS sync_{table}_update AFTER UPDATE ON {table} BEGIN
+                UPDATE sync_entity_state SET updated_at=CAST(strftime('%s','now') AS INTEGER)*1000,deleted_at=NULL WHERE table_name='{table}' AND local_id=NEW.{key};
+                INSERT OR IGNORE INTO sync_entity_state(table_name,local_id,sync_id,updated_at,deleted_at) VALUES ('{table}',NEW.{key},lower(hex(randomblob(16))),CAST(strftime('%s','now') AS INTEGER)*1000,NULL);
+                INSERT INTO sync_changes(table_name,sync_id,operation,changed_at) SELECT '{table}',sync_id,'upsert',CAST(strftime('%s','now') AS INTEGER)*1000 FROM sync_entity_state WHERE table_name='{table}' AND local_id=NEW.{key};
+            END;
+            CREATE TRIGGER IF NOT EXISTS sync_{table}_delete AFTER DELETE ON {table} BEGIN
+                UPDATE sync_entity_state SET updated_at=CAST(strftime('%s','now') AS INTEGER)*1000,deleted_at=CAST(strftime('%s','now') AS INTEGER)*1000 WHERE table_name='{table}' AND local_id=OLD.{key};
+                INSERT INTO sync_changes(table_name,sync_id,operation,changed_at) SELECT '{table}',sync_id,'delete',CAST(strftime('%s','now') AS INTEGER)*1000 FROM sync_entity_state WHERE table_name='{table}' AND local_id=OLD.{key};
+            END;"
+        );
+        conn.execute_batch(&trigger)?;
+        // Backfill records created before sync tracking was introduced.
+        conn.execute_batch(&format!(
+            "INSERT OR IGNORE INTO sync_entity_state(table_name,local_id,sync_id,updated_at,deleted_at)
+             SELECT '{table}',{key},lower(hex(randomblob(16))),CAST(strftime('%s','now') AS INTEGER)*1000,NULL FROM {table};"
+        ))?;
+    }
+    Ok(())
 }
 
 fn migrate_occurrence_hidden(conn: &Connection) -> Result<(), rusqlite::Error> {
@@ -549,6 +605,22 @@ fn create_tables(conn: &Connection) -> Result<(), rusqlite::Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sync_tracking_assigns_stable_identity_and_tombstone() {
+        let dir = tempfile::tempdir().unwrap();
+        let conn = init_db(&dir.path().join("sync.db")).unwrap();
+        conn.execute("INSERT INTO words(language,lemma) VALUES ('en','syncable')", []).unwrap();
+        let id: i64 = conn.query_row("SELECT id FROM words WHERE lemma='syncable'", [], |r| r.get(0)).unwrap();
+        let sync_id: String = conn.query_row("SELECT sync_id FROM sync_entity_state WHERE table_name='words' AND local_id=?1", [id], |r| r.get(0)).unwrap();
+        assert_eq!(sync_id.len(), 32);
+        conn.execute("DELETE FROM words WHERE id=?1", [id]).unwrap();
+        let (deleted_at, operation): (Option<i64>, String) = conn.query_row(
+            "SELECT s.deleted_at,c.operation FROM sync_entity_state s JOIN sync_changes c ON c.sync_id=s.sync_id WHERE s.table_name='words' AND s.local_id=?1 ORDER BY c.id DESC LIMIT 1", [id], |r| Ok((r.get(0)?, r.get(1)?))
+        ).unwrap();
+        assert!(deleted_at.is_some());
+        assert_eq!(operation, "delete");
+    }
     use rusqlite::params;
 
     fn setup_legacy_db() -> Connection {

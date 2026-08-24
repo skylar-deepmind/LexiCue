@@ -10,6 +10,7 @@ import { useYoutubeStore } from '../stores/youtubeStore';
 import { useAiStore } from '../stores/aiStore';
 import { useUpdateStore } from '../stores/updateStore';
 import { useFeedbackStore } from '../stores/feedbackStore';
+import { invoke } from '@tauri-apps/api/core';
 
 export default function Layout() {
   const { t } = useTranslation();
@@ -39,6 +40,21 @@ export default function Layout() {
       }
     })();
   }, [checkUpdate, showFeedback, t]);
+
+  // Sync is opportunistic: a failed background attempt remains non-blocking,
+  // while the settings page exposes the detailed error on a manual retry.
+  useEffect(() => {
+    const syncIfConfigured = async () => {
+      try {
+        const status = await invoke<{ configured: boolean }>('sync_status');
+        if (status.configured) await invoke('sync_now');
+      } catch { /* Offline and expired-session errors are recoverable. */ }
+    };
+    void syncIfConfigured();
+    const onVisibility = () => { if (document.visibilityState === 'visible') void syncIfConfigured(); };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, []);
 
   return (
     <div className="h-screen flex overflow-hidden">

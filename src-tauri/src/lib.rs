@@ -84,6 +84,8 @@ pub fn run() {
             commands::sync::sync_login,
             commands::sync::sync_now,
             commands::sync::sync_disconnect,
+            commands::sync::sync_devices,
+            commands::sync::sync_revoke_device,
             commands::words::list_words,
             commands::words::word_detail,
             commands::words::update_word_status,

@@ -1,18 +1,24 @@
 use argon2::password_hash::{rand_core::OsRng, SaltString};
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use axum::{
-    extract::{Query, State},
+    body::Bytes,
+    extract::{DefaultBodyLimit, Path, Query, State},
     http::{header, HeaderMap, StatusCode},
-    routing::{get, post},
+    response::Response,
+    routing::{get, post, put},
     Json, Router,
 };
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use std::{env, net::SocketAddr};
+use sha2::{Digest, Sha256};
 use tokio_postgres::{Client, NoTls};
-use tower_http::{cors::CorsLayer, trace::TraceLayer};
+use tower_http::trace::TraceLayer;
 use uuid::Uuid;
+
+const MAX_CHUNK_BYTES: usize = 512 * 1024;
+const MAX_EVENT_BYTES: usize = 768 * 1024;
 
 #[derive(Clone)]
 struct AppState {
@@ -70,6 +76,120 @@ struct SnapshotOutput {
     ciphertext: String,
     cursor: i64,
 }
+#[derive(Serialize)]
+struct DeviceOutput { id: String, name: String, last_seen_at: String }
+
+/// Metadata travels in headers while encrypted bytes remain a binary body.
+/// This keeps the v2 transport free of base64 expansion.
+struct V2EventHeaders {
+    event_id: String,
+    device_id: String,
+    clock: String,
+    kind: String,
+}
+
+fn v2_event_headers(headers: &HeaderMap) -> Result<V2EventHeaders, (StatusCode, String)> {
+    let value = |name: &'static str| -> Result<String, (StatusCode, String)> {
+        headers.get(name).and_then(|v| v.to_str().ok())
+            .filter(|v| !v.is_empty() && v.len() <= 256)
+            .map(ToOwned::to_owned)
+            .ok_or_else(|| bad("missing or invalid v2 event header"))
+    };
+    Ok(V2EventHeaders {
+        event_id: value("x-sync-event-id")?,
+        device_id: value("x-sync-device-id")?,
+        clock: value("x-sync-clock")?,
+        kind: value("x-sync-kind")?,
+    })
+}
+
+async fn put_chunk_v2(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(hash): Path<String>,
+    body: Bytes,
+) -> Result<StatusCode, (StatusCode, String)> {
+    if hash.len() != 64 || !hash.bytes().all(|b| b.is_ascii_hexdigit()) || body.len() > MAX_CHUNK_BYTES {
+        return Err(bad("invalid or oversized encrypted chunk"));
+    }
+    let calculated = format!("{:x}", Sha256::digest(&body));
+    if calculated != hash {
+        return Err(bad("encrypted chunk hash mismatch"));
+    }
+    let account_id = account(&headers, &state).await?;
+    let client = db(&state).await?;
+    client.execute("INSERT INTO sync_chunks(account_id,hash,ciphertext) VALUES ($1,$2,$3) ON CONFLICT(account_id,hash) DO NOTHING", &[&account_id, &hash, &body.as_ref()]).await.map_err(internal)?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn get_chunk_v2(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(hash): Path<String>,
+) -> Result<Response, (StatusCode, String)> {
+    let account_id = account(&headers, &state).await?;
+    let client = db(&state).await?;
+    let bytes: Vec<u8> = client.query_opt("SELECT ciphertext FROM sync_chunks WHERE account_id=$1 AND hash=$2", &[&account_id, &hash]).await.map_err(internal)?
+        .map(|row| row.get(0)).ok_or((StatusCode::NOT_FOUND, "encrypted chunk not found".into()))?;
+    Response::builder().status(StatusCode::OK).header(header::CONTENT_TYPE, "application/octet-stream")
+        .body(axum::body::Body::from(bytes)).map_err(internal)
+}
+
+async fn head_chunk_v2(
+    State(state): State<AppState>, headers: HeaderMap, Path(hash): Path<String>,
+) -> Result<StatusCode, (StatusCode, String)> {
+    let account_id = account(&headers, &state).await?;
+    let client = db(&state).await?;
+    if client.query_opt("SELECT 1 FROM sync_chunks WHERE account_id=$1 AND hash=$2", &[&account_id, &hash]).await.map_err(internal)?.is_some() { Ok(StatusCode::NO_CONTENT) } else { Err((StatusCode::NOT_FOUND, "encrypted chunk not found".into())) }
+}
+
+async fn push_event_v2(
+    State(state): State<AppState>, headers: HeaderMap, body: Bytes,
+) -> Result<StatusCode, (StatusCode, String)> {
+    if body.is_empty() || body.len() > MAX_EVENT_BYTES { return Err(bad("invalid or oversized encrypted event")); }
+    let event = v2_event_headers(&headers)?;
+    let account_id = account(&headers, &state).await?;
+    let client = db(&state).await?;
+    client.execute("INSERT INTO sync_events_v2(account_id,event_id,device_id,clock,kind,ciphertext) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT(account_id,event_id) DO NOTHING", &[&account_id,&event.event_id,&event.device_id,&event.clock,&event.kind,&body.as_ref()]).await.map_err(internal)?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn pull_events_v2(
+    State(state): State<AppState>, headers: HeaderMap, Query(query): Query<PullQuery>,
+) -> Result<Response, (StatusCode, String)> {
+    let account_id = account(&headers, &state).await?;
+    let client = db(&state).await?;
+    let limit = query.limit.unwrap_or(100).clamp(1, 100);
+    let after = query.after.unwrap_or(0);
+    let rows = client.query("SELECT seq,event_id,device_id,clock,kind,ciphertext FROM sync_events_v2 WHERE account_id=$1 AND seq>$2 ORDER BY seq LIMIT $3", &[&account_id,&after,&limit]).await.map_err(internal)?;
+    // Binary framing: u32 metadata-json length, metadata JSON, u32 ciphertext length, ciphertext.
+    let mut out = Vec::new();
+    for row in rows {
+        let metadata = serde_json::json!({"seq": row.get::<_, i64>(0), "event_id": row.get::<_, String>(1), "device_id": row.get::<_, String>(2), "clock": row.get::<_, String>(3), "kind": row.get::<_, String>(4)});
+        let metadata = serde_json::to_vec(&metadata).map_err(internal)?;
+        let ciphertext: Vec<u8> = row.get(5);
+        out.extend_from_slice(&(metadata.len() as u32).to_be_bytes()); out.extend_from_slice(&metadata);
+        out.extend_from_slice(&(ciphertext.len() as u32).to_be_bytes()); out.extend_from_slice(&ciphertext);
+    }
+    Response::builder().status(StatusCode::OK).header(header::CONTENT_TYPE, "application/vnd.lexicue.sync-events+binary;v=2")
+        .body(axum::body::Body::from(out)).map_err(internal)
+}
+
+async fn list_devices_v2(State(state): State<AppState>, headers: HeaderMap) -> Result<Json<Vec<DeviceOutput>>, (StatusCode, String)> {
+    let account_id = account(&headers, &state).await?;
+    let client = db(&state).await?;
+    let rows = client.query("SELECT id,name,last_seen_at::TEXT FROM devices WHERE account_id=$1 ORDER BY last_seen_at DESC", &[&account_id]).await.map_err(internal)?;
+    Ok(Json(rows.into_iter().map(|r| DeviceOutput { id: r.get(0), name: r.get(1), last_seen_at: r.get(2) }).collect()))
+}
+
+async fn revoke_device_v2(State(state): State<AppState>, headers: HeaderMap, Path(device_id): Path<String>) -> Result<StatusCode, (StatusCode, String)> {
+    let account_id = account(&headers, &state).await?;
+    let client = db(&state).await?;
+    let changed = client.execute("DELETE FROM devices WHERE id=$1 AND account_id=$2", &[&device_id, &account_id]).await.map_err(internal)?;
+    if changed == 0 { return Err((StatusCode::NOT_FOUND, "device not found".into())); }
+    client.execute("UPDATE sessions SET revoked_at=NOW() WHERE account_id=$1 AND device_id=$2", &[&account_id, &device_id]).await.map_err(internal)?;
+    Ok(StatusCode::NO_CONTENT)
+}
 
 async fn db(state: &AppState) -> Result<Client, (StatusCode, String)> {
     let (client, connection) = tokio_postgres::connect(&state.database_url, NoTls)
@@ -113,9 +233,9 @@ async fn upsert_device(
     client.execute("INSERT INTO devices (id, account_id, name, last_seen_at) VALUES ($1,$2,$3,NOW()) ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name, last_seen_at=NOW() WHERE devices.account_id=EXCLUDED.account_id", &[&device_id, &account_id, &name]).await.map_err(internal)?;
     Ok(())
 }
-async fn issue_session(client: &Client, account_id: &str) -> Result<String, (StatusCode, String)> {
+async fn issue_session(client: &Client, account_id: &str, device_id: &str) -> Result<String, (StatusCode, String)> {
     let token = new_token();
-    client.execute("INSERT INTO sessions (token, account_id, expires_at) VALUES ($1,$2,NOW() + INTERVAL '30 days')", &[&token, &account_id]).await.map_err(internal)?;
+    client.execute("INSERT INTO sessions (token, account_id, device_id, expires_at) VALUES ($1,$2,$3,NOW() + INTERVAL '30 days')", &[&token, &account_id, &device_id]).await.map_err(internal)?;
     Ok(token)
 }
 async fn register(
@@ -152,7 +272,7 @@ async fn register(
         })?;
     upsert_device(&client, &account_id, &body.device_id, &body.device_name).await?;
     Ok(Json(AuthResponse {
-        access_token: issue_session(&client, &account_id).await?,
+        access_token: issue_session(&client, &account_id, &body.device_id).await?,
         key_package: body.key_package,
     }))
 }
@@ -177,7 +297,7 @@ async fn login(
     let account_id: String = row.get(0);
     upsert_device(&client, &account_id, &body.device_id, &body.device_name).await?;
     Ok(Json(AuthResponse {
-        access_token: issue_session(&client, &account_id).await?,
+        access_token: issue_session(&client, &account_id, &body.device_id).await?,
         key_package: row.get(2),
     }))
 }
@@ -280,7 +400,13 @@ async fn main() {
         .route("/v1/auth/login", post(login))
         .route("/v1/events", post(push_events).get(pull_events))
         .route("/v1/snapshot", post(put_snapshot).get(get_snapshot))
-        .layer(CorsLayer::permissive())
+        .route("/v2/chunks/{hash}", put(put_chunk_v2).get(get_chunk_v2).head(head_chunk_v2))
+        .route("/v2/events", post(push_event_v2).get(pull_events_v2))
+        .route("/v2/devices", get(list_devices_v2))
+        .route("/v2/devices/{device_id}", axum::routing::delete(revoke_device_v2))
+        // Axum defaults JSON extraction to 2 MiB. The legacy endpoint remains
+        // available during migration, so set an explicit, documented cap.
+        .layer(DefaultBodyLimit::max(32 * 1024 * 1024))
         .layer(TraceLayer::new_for_http())
         .with_state(state);
     let addr: SocketAddr = env::var("BIND_ADDR")
