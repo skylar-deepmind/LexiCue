@@ -13,6 +13,7 @@
     "fs:allow-write-text-file",
     "updater:default",
     "process:default",
-    "opener:default"
+    "opener:default",
+    "stronghold:default"
   ]
 }

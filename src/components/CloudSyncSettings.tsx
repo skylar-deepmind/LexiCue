@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Cloud, Copy, Download, HardDriveDownload, LogIn, RefreshCw, UserPlus } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { ask } from '@tauri-apps/plugin-dialog';
+import { clearSyncSecrets, loadSyncSecrets, migrateLegacySyncSecrets, saveSyncSecrets, type SyncSecrets } from '../lib/syncVault';
+import { syncCoordinator } from '../lib/syncCoordinator';
 import SettingsCollapsibleSection from './SettingsCollapsibleSection';
 
 interface SyncStatus {
@@ -9,6 +11,7 @@ interface SyncStatus {
   device_id: string | null;
   phase: string; pending_uploads: number; pending_downloads: number; conflicts: number; last_error: string | null;
   v3_initialized: boolean; last_uploaded: number; last_downloaded: number;
+  auto_sync_enabled: boolean; next_retry_at: number | null;
 }
 interface SyncDevice { id: string; name: string; last_seen_at: string }
 interface SyncCheckpoint { id: string; device_id: string; device_name: string; cursor: number; encrypted_len: number; created_at: string; protocol_version: number }
@@ -16,6 +19,7 @@ interface SyncCheckpointPreview {
   checkpoint: SyncCheckpoint; files: number; folders: number; words: number; phrases: number; review_logs: number;
   local_files: number; local_has_data: boolean;
 }
+interface AuthResult { recovery_code: string | null; secrets: SyncSecrets }
 
 function formatBytes(value: number): string {
   if (value < 1024 * 1024) return `${Math.max(1, Math.round(value / 1024))} KB`;
@@ -44,13 +48,14 @@ export default function CloudSyncSettings() {
   };
   const refreshRemote = async () => {
     if (!status?.configured) return;
+    const secrets = await loadSyncSecrets();
     const [nextDevices, nextCheckpoints] = await Promise.all([
-      invoke<SyncDevice[]>('sync_devices'),
-      invoke<SyncCheckpoint[]>('sync_checkpoints'),
+      invoke<SyncDevice[]>('sync_devices', { secrets }),
+      invoke<SyncCheckpoint[]>('sync_checkpoints', { secrets }),
     ]);
     setDevices(nextDevices); setCheckpoints(nextCheckpoints);
   };
-  useEffect(() => { void refresh(); }, []);
+  useEffect(() => { void (async () => { await migrateLegacySyncSecrets(); await refresh(); })().catch((value) => setError(String(value))); }, []);
   useEffect(() => {
     if (!status?.configured) { setDevices([]); setCheckpoints([]); return; }
     void refreshRemote().catch(() => { setDevices([]); setCheckpoints([]); });
@@ -60,31 +65,40 @@ export default function CloudSyncSettings() {
     setBusy(true); setError('');
     try {
       if (mode === 'register') {
-        const result = await invoke<{ recovery_code: string }>('sync_register', { endpoint, email, password, deviceName: '' });
-        setRecoveryCode(result.recovery_code);
+        const result = await invoke<AuthResult>('sync_register', { endpoint, email, password, deviceName: '' });
+        await saveSyncSecrets(result.secrets);
+        setRecoveryCode(result.recovery_code ?? '');
       } else if (mode === 'login') {
-        await invoke('sync_login', { endpoint, email, password, deviceName: '' });
+        const result = await invoke<AuthResult>('sync_login', { endpoint, email, password, deviceName: '' });
+        await saveSyncSecrets(result.secrets);
       } else {
-        await invoke('sync_reset_password', { endpoint, email, password, recoveryCode: recoveryInput.trim(), deviceName: '' });
+        const result = await invoke<AuthResult>('sync_reset_password', { endpoint, email, password, recoveryCode: recoveryInput.trim(), deviceName: '' });
+        await saveSyncSecrets(result.secrets);
       }
       setPassword(''); setRecoveryInput(''); await refresh();
     } catch (value) { setError(String(value)); } finally { setBusy(false); }
   };
-  const sync = async () => { setBusy(true); setError(''); setNotice(''); try { await invoke('sync_now'); await refresh(); await refreshRemote(); } catch (value) { setError(String(value)); } finally { setBusy(false); } };
+  const sync = async () => { setBusy(true); setError(''); setNotice(''); try { await syncCoordinator.runNow(true); await refresh(); await refreshRemote(); } catch (value) { setError(String(value)); } finally { setBusy(false); } };
   const initializeV3 = async () => {
     const confirmed = await ask('此设备会成为旧资料的唯一同步源，并创建一份新的加密 v3 基线。其他旧设备需要先恢复该版本，才能开始双向合并。', { title: '设为云同步源', kind: 'warning', okLabel: '创建 v3 基线', cancelLabel: '取消' });
     if (!confirmed) return;
     setBusy(true); setError(''); setNotice('');
-    try { await invoke('sync_initialize_v3'); await refresh(); await refreshRemote(); setNotice('v3 同步基线已创建。请在其他旧设备上预览并恢复此版本后再同步。'); } catch (value) { setError(String(value)); } finally { setBusy(false); }
+    try { await invoke('sync_initialize_v3', { secrets: await loadSyncSecrets() }); await refresh(); await refreshRemote(); setNotice('v3 同步基线已创建。请在其他旧设备上预览并恢复此版本后再同步。'); } catch (value) { setError(String(value)); } finally { setBusy(false); }
   };
-  const disconnect = async () => { setBusy(true); try { await invoke('sync_disconnect'); setRecoveryCode(''); await refresh(); } catch (value) { setError(String(value)); } finally { setBusy(false); } };
-  const revokeDevice = async (deviceId: string) => { setBusy(true); setError(''); try { await invoke('sync_revoke_device', { deviceId }); setDevices((items) => items.filter((item) => item.id !== deviceId)); } catch (value) { setError(String(value)); } finally { setBusy(false); } };
-  const loadPreview = async (checkpointId: string) => { setBusy(true); setError(''); setConfirmRestore(false); try { setPreview(await invoke<SyncCheckpointPreview>('sync_preview_checkpoint', { checkpointId })); } catch (value) { setError(String(value)); } finally { setBusy(false); } };
+  const disconnect = async () => { setBusy(true); setError(''); try {
+    // Clear this device even while offline; the queued server revocation is a
+    // best effort, while removing the vault credentials is immediate.
+    try { await invoke('sync_logout', { secrets: await loadSyncSecrets() }); } catch (value) { setNotice(`已退出本机同步；服务器撤销将在下次登录时确认：${String(value)}`); }
+    await invoke('sync_disconnect'); await clearSyncSecrets(); setRecoveryCode(''); await refresh();
+  } catch (value) { setError(String(value)); } finally { setBusy(false); } };
+  const toggleAutoSync = async () => { if (!status) return; setBusy(true); setError(''); try { await invoke('sync_set_auto_sync', { enabled: !status.auto_sync_enabled }); await refresh(); if (!status.auto_sync_enabled) void syncCoordinator.runNow(); } catch (value) { setError(String(value)); } finally { setBusy(false); } };
+  const revokeDevice = async (deviceId: string) => { setBusy(true); setError(''); try { await invoke('sync_revoke_device', { deviceId, secrets: await loadSyncSecrets() }); setDevices((items) => items.filter((item) => item.id !== deviceId)); } catch (value) { setError(String(value)); } finally { setBusy(false); } };
+  const loadPreview = async (checkpointId: string) => { setBusy(true); setError(''); setConfirmRestore(false); try { setPreview(await invoke<SyncCheckpointPreview>('sync_preview_checkpoint', { checkpointId, secrets: await loadSyncSecrets() })); } catch (value) { setError(String(value)); } finally { setBusy(false); } };
   const restore = async () => {
     if (!preview || (preview.local_has_data && !confirmRestore)) return;
     setBusy(true); setError(''); setNotice('');
     try {
-      const path = await invoke<string>('sync_restore_checkpoint', { checkpointId: preview.checkpoint.id });
+      const path = await invoke<string>('sync_restore_checkpoint', { checkpointId: preview.checkpoint.id, secrets: await loadSyncSecrets() });
       setPreview(null); setConfirmRestore(false); await refresh();
       setNotice(`已恢复云端版本。本机恢复前备份已保存到：${path}`);
     } catch (value) { setError(String(value)); } finally { setBusy(false); }
@@ -93,7 +107,7 @@ export default function CloudSyncSettings() {
     const confirmed = await ask('这会永久删除服务器上的全部加密检查点、同步事件和设备授权。本机资料不会被删除，且此操作无法撤销。', { title: '删除云同步账户', kind: 'warning', okLabel: '永久删除', cancelLabel: '取消' });
     if (!confirmed) return;
     setBusy(true); setError(''); setNotice('');
-    try { await invoke('sync_delete_account'); setRecoveryCode(''); setPreview(null); await refresh(); setNotice('云端账户及其加密同步数据已删除；本机资料仍然保留。'); } catch (value) { setError(String(value)); } finally { setBusy(false); }
+    try { await invoke('sync_delete_account', { secrets: await loadSyncSecrets() }); await clearSyncSecrets(); setRecoveryCode(''); setPreview(null); await refresh(); setNotice('云端账户及其加密同步数据已删除；本机资料仍然保留。'); } catch (value) { setError(String(value)); } finally { setBusy(false); }
   };
 
   return <SettingsCollapsibleSection
@@ -109,12 +123,14 @@ export default function CloudSyncSettings() {
         <p className="font-medium text-gray-900">已连接至 {status.endpoint}</p>
         <p className="mt-1">{status.last_synced_at ? `上次成功同步：${new Date(status.last_synced_at).toLocaleString()}` : '尚未同步。'}</p>
         <p className="mt-1">{status.v3_initialized ? (status.pending_uploads ? `待同步变更：${status.pending_uploads}` : '所有本地变更均已同步。') : '尚未加入 v3 双向同步。'}{status.pending_downloads ? ` · 待下载：${status.pending_downloads}` : ''}</p>
+        <p className="mt-1">{status.v3_initialized ? (status.auto_sync_enabled ? '自动同步已开启（仅在前台运行）。' : '自动同步已暂停；仍可使用“立即同步”。') : '完成 v3 基线后可启用自动同步。'}{status.next_retry_at ? ` 下次重试：${new Date(status.next_retry_at).toLocaleTimeString()}。` : ''}</p>
         {status.v3_initialized && (status.last_uploaded > 0 || status.last_downloaded > 0) && <p className="mt-1 text-xs">最近一次：上传 {status.last_uploaded} 项，下载 {status.last_downloaded} 项。</p>}
         {status.conflicts > 0 && <p className="mt-1 text-amber-700">有 {status.conflicts} 项内容需要处理冲突。</p>}
       </div>
       {!status.v3_initialized && <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800"><p className="font-semibold">开始双向同步前需要建立统一基线</p><p className="mt-1">若这里是资料最完整的设备，请将它设为同步源；否则在下方选择另一台设备创建的 v3 云端版本，预览后恢复。</p><button type="button" onClick={() => void initializeV3()} disabled={busy} className="mt-3 rounded-lg bg-blue-600 px-3 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-50">将此设备设为同步源</button></div>}
       <div className="flex flex-wrap gap-2">
         <button type="button" onClick={() => void sync()} disabled={busy || !status.v3_initialized} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"><RefreshCw size={15} className={busy ? 'animate-spin' : ''} />立即同步</button>
+        <button type="button" onClick={() => void toggleAutoSync()} disabled={busy || !status.v3_initialized} aria-pressed={status.auto_sync_enabled} className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50">{status.auto_sync_enabled ? '暂停自动同步' : '开启自动同步'}</button>
         <button type="button" onClick={() => void disconnect()} disabled={busy} className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50">退出本机同步</button>
       </div>
       <p className="-mt-2 text-xs text-gray-500">退出只会移除本机登录状态；不会删除云端密文或撤销其他设备。</p>

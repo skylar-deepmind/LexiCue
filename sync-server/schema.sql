@@ -18,6 +18,15 @@ CREATE TABLE IF NOT EXISTS sessions (
 ALTER TABLE sessions ADD COLUMN IF NOT EXISTS device_id TEXT;
 CREATE INDEX IF NOT EXISTS sessions_account_idx ON sessions(account_id);
 CREATE INDEX IF NOT EXISTS sessions_device_idx ON sessions(account_id, device_id);
+CREATE TABLE IF NOT EXISTS refresh_sessions (
+  token_hash TEXT PRIMARY KEY,
+  account_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  device_id TEXT NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  revoked_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS refresh_sessions_account_device_idx ON refresh_sessions(account_id, device_id);
 CREATE TABLE IF NOT EXISTS sync_events (
   seq BIGSERIAL PRIMARY KEY, account_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   event_id TEXT NOT NULL, device_id TEXT NOT NULL, clock TEXT NOT NULL, kind TEXT NOT NULL,

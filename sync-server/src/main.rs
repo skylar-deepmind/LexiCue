@@ -12,7 +12,13 @@ use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::{collections::HashSet, env, net::SocketAddr};
+use std::{
+    collections::{HashMap, HashSet},
+    env,
+    net::SocketAddr,
+    sync::{Arc, Mutex},
+    time::{Duration, Instant},
+};
 use tokio_postgres::{Client, NoTls};
 use tower_http::trace::TraceLayer;
 use uuid::Uuid;
@@ -23,6 +29,19 @@ const MAX_EVENT_BYTES: usize = 768 * 1024;
 #[derive(Clone)]
 struct AppState {
     database_url: String,
+    limits: Arc<Mutex<HashMap<String, RateBucket>>>,
+    metrics: Arc<Metrics>,
+    metrics_token: Option<String>,
+}
+struct RateBucket {
+    started: Instant,
+    count: u32,
+}
+#[derive(Default)]
+struct Metrics {
+    requests: std::sync::atomic::AtomicU64,
+    rejected: std::sync::atomic::AtomicU64,
+    auth_failures: std::sync::atomic::AtomicU64,
 }
 #[derive(Deserialize)]
 struct RegisterRequest {
@@ -54,9 +73,20 @@ struct PasswordResetRequest {
     device_id: String,
     device_name: String,
 }
+#[derive(Deserialize)]
+struct RefreshRequest {
+    refresh_token: String,
+}
+#[derive(Deserialize)]
+struct ChangePasswordRequest {
+    current_password: String,
+    new_password: String,
+    key_package: String,
+}
 #[derive(Serialize)]
 struct AuthResponse {
     access_token: String,
+    refresh_token: String,
     key_package: String,
     device_id: String,
 }
@@ -166,6 +196,7 @@ async fn put_chunk_v2(
     Path(hash): Path<String>,
     body: Bytes,
 ) -> Result<StatusCode, (StatusCode, String)> {
+    limited(&state, &format!("chunk:{}", client_ip(&headers)), 360)?;
     if hash.len() != 64
         || !hash.bytes().all(|b| b.is_ascii_hexdigit())
         || body.len() > MAX_CHUNK_BYTES
@@ -281,6 +312,7 @@ async fn push_event_v3(
     headers: HeaderMap,
     body: Bytes,
 ) -> Result<StatusCode, (StatusCode, String)> {
+    limited(&state, &format!("event:{}", client_ip(&headers)), 240)?;
     if body.is_empty() || body.len() > MAX_EVENT_BYTES {
         return Err(bad("invalid or oversized encrypted event"));
     }
@@ -354,6 +386,7 @@ async fn put_checkpoint_v2(
     headers: HeaderMap,
     Json(body): Json<CheckpointInput>,
 ) -> Result<StatusCode, (StatusCode, String)> {
+    limited(&state, &format!("checkpoint:{}", client_ip(&headers)), 30)?;
     checkpoint_id(&body.id)?;
     if body.protocol_version != 2 && body.protocol_version != 3 {
         return Err(bad("unsupported checkpoint protocol"));
@@ -611,6 +644,47 @@ fn internal<E: std::fmt::Display>(error: E) -> (StatusCode, String) {
 fn bad(message: &str) -> (StatusCode, String) {
     (StatusCode::BAD_REQUEST, message.to_string())
 }
+fn client_ip(headers: &HeaderMap) -> String {
+    headers
+        .get("x-forwarded-for")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.split(',').next())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or("unknown")
+        .to_string()
+}
+fn limited(state: &AppState, scope: &str, maximum: u32) -> Result<(), (StatusCode, String)> {
+    let mut limits = state
+        .limits
+        .lock()
+        .map_err(|_| internal("rate limiter unavailable"))?;
+    let now = Instant::now();
+    let bucket = limits.entry(scope.to_string()).or_insert(RateBucket {
+        started: now,
+        count: 0,
+    });
+    if now.duration_since(bucket.started) >= Duration::from_secs(60) {
+        bucket.started = now;
+        bucket.count = 0;
+    }
+    bucket.count += 1;
+    state
+        .metrics
+        .requests
+        .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    if bucket.count > maximum {
+        state
+            .metrics
+            .rejected
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        return Err((
+            StatusCode::TOO_MANY_REQUESTS,
+            "rate limit exceeded; retry shortly".into(),
+        ));
+    }
+    Ok(())
+}
 
 async fn account(headers: &HeaderMap, state: &AppState) -> Result<String, (StatusCode, String)> {
     let value = headers
@@ -621,8 +695,10 @@ async fn account(headers: &HeaderMap, state: &AppState) -> Result<String, (Statu
         .strip_prefix("Bearer ")
         .ok_or((StatusCode::UNAUTHORIZED, "invalid access token".into()))?;
     let client = db(state).await?;
-    client.query_opt("SELECT account_id FROM sessions WHERE token = $1 AND revoked_at IS NULL AND expires_at > NOW()", &[&token]).await
-        .map_err(internal)?.map(|row| row.get(0)).ok_or((StatusCode::UNAUTHORIZED, "expired access token".into()))
+    let account_id: String = client.query_opt("SELECT account_id FROM sessions WHERE token = $1 AND revoked_at IS NULL AND expires_at > NOW()", &[&token]).await
+        .map_err(internal)?.map(|row| row.get(0)).ok_or_else(|| { state.metrics.auth_failures.fetch_add(1,std::sync::atomic::Ordering::Relaxed); (StatusCode::UNAUTHORIZED, "expired access token".into()) })?;
+    limited(state, &format!("account:{account_id}"), 600)?;
+    Ok(account_id)
 }
 fn new_token() -> String {
     let mut bytes = [0u8; 32];
@@ -669,13 +745,33 @@ async fn issue_session(
     device_id: &str,
 ) -> Result<String, (StatusCode, String)> {
     let token = new_token();
-    client.execute("INSERT INTO sessions (token, account_id, device_id, expires_at) VALUES ($1,$2,$3,NOW() + INTERVAL '30 days')", &[&token, &account_id, &device_id]).await.map_err(internal)?;
+    client.execute("INSERT INTO sessions (token, account_id, device_id, expires_at) VALUES ($1,$2,$3,NOW() + INTERVAL '15 minutes')", &[&token, &account_id, &device_id]).await.map_err(internal)?;
     Ok(token)
+}
+fn token_hash(token: &str) -> String {
+    format!("{:x}", Sha256::digest(token.as_bytes()))
+}
+async fn issue_tokens(
+    client: &Client,
+    account_id: &str,
+    device_id: &str,
+) -> Result<(String, String), (StatusCode, String)> {
+    let access_token = issue_session(client, account_id, device_id).await?;
+    let refresh_token = new_token();
+    let hash = token_hash(&refresh_token);
+    client.execute("INSERT INTO refresh_sessions(token_hash,account_id,device_id,expires_at) VALUES($1,$2,$3,NOW() + INTERVAL '30 days')", &[&hash,&account_id,&device_id]).await.map_err(internal)?;
+    Ok((access_token, refresh_token))
 }
 async fn register(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Json(body): Json<RegisterRequest>,
 ) -> Result<Json<AuthResponse>, (StatusCode, String)> {
+    limited(
+        &state,
+        &format!("auth:register:{}", client_ip(&headers)),
+        20,
+    )?;
     let valid_recovery_verifier = body
         .recovery_verifier
         .as_deref()
@@ -726,8 +822,10 @@ async fn register(
             }
         })?;
     let device_id = upsert_device(&client, &account_id, &body.device_id, &body.device_name).await?;
+    let (access_token, refresh_token) = issue_tokens(&client, &account_id, &device_id).await?;
     Ok(Json(AuthResponse {
-        access_token: issue_session(&client, &account_id, &device_id).await?,
+        access_token,
+        refresh_token,
         key_package: body.key_package,
         device_id,
     }))
@@ -767,8 +865,14 @@ async fn verify_recovery(
 
 async fn recovery_package(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Json(body): Json<RecoveryPackageRequest>,
 ) -> Result<Json<AuthResponse>, (StatusCode, String)> {
+    limited(
+        &state,
+        &format!("auth:recovery:{}", client_ip(&headers)),
+        20,
+    )?;
     let client = db(&state).await?;
     let (account_id, key_package) =
         verify_recovery(&client, &body.email, &body.recovery_verifier).await?;
@@ -776,6 +880,7 @@ async fn recovery_package(
     // opaque key package, but cannot access encrypted sync data.
     Ok(Json(AuthResponse {
         access_token: String::new(),
+        refresh_token: String::new(),
         key_package,
         device_id: account_id,
     }))
@@ -783,8 +888,10 @@ async fn recovery_package(
 
 async fn reset_password(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Json(body): Json<PasswordResetRequest>,
 ) -> Result<Json<AuthResponse>, (StatusCode, String)> {
+    limited(&state, &format!("auth:reset:{}", client_ip(&headers)), 10)?;
     if body.password.len() < 10 || body.key_package.len() > 32_768 {
         return Err(bad("invalid password reset payload"));
     }
@@ -810,16 +917,27 @@ async fn reset_password(
         .await
         .map_err(internal)?;
     let device_id = upsert_device(&client, &account_id, &body.device_id, &body.device_name).await?;
+    client
+        .execute(
+            "UPDATE refresh_sessions SET revoked_at=NOW() WHERE account_id=$1",
+            &[&account_id],
+        )
+        .await
+        .map_err(internal)?;
+    let (access_token, refresh_token) = issue_tokens(&client, &account_id, &device_id).await?;
     Ok(Json(AuthResponse {
-        access_token: issue_session(&client, &account_id, &device_id).await?,
+        access_token,
+        refresh_token,
         key_package: body.key_package,
         device_id,
     }))
 }
 async fn login(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Json(body): Json<LoginRequest>,
 ) -> Result<Json<AuthResponse>, (StatusCode, String)> {
+    limited(&state, &format!("auth:login:{}", client_ip(&headers)), 30)?;
     let client = db(&state).await?;
     let row = client
         .query_opt(
@@ -836,11 +954,125 @@ async fn login(
         .map_err(|_| (StatusCode::UNAUTHORIZED, "invalid email or password".into()))?;
     let account_id: String = row.get(0);
     let device_id = upsert_device(&client, &account_id, &body.device_id, &body.device_name).await?;
+    let (access_token, refresh_token) = issue_tokens(&client, &account_id, &device_id).await?;
     Ok(Json(AuthResponse {
-        access_token: issue_session(&client, &account_id, &device_id).await?,
+        access_token,
+        refresh_token,
         key_package: row.get(2),
         device_id,
     }))
+}
+
+async fn refresh_access(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(body): Json<RefreshRequest>,
+) -> Result<Json<AuthResponse>, (StatusCode, String)> {
+    limited(&state, &format!("refresh:{}", client_ip(&headers)), 30)?;
+    if body.refresh_token.len() < 32 {
+        return Err((StatusCode::UNAUTHORIZED, "invalid refresh token".into()));
+    }
+    let mut client = db(&state).await?;
+    let hash = token_hash(&body.refresh_token);
+    let transaction = client.transaction().await.map_err(internal)?;
+    let row=transaction.query_opt("SELECT account_id,device_id FROM refresh_sessions WHERE token_hash=$1 AND revoked_at IS NULL AND expires_at>NOW() FOR UPDATE", &[&hash]).await.map_err(internal)?.ok_or((StatusCode::UNAUTHORIZED,"expired refresh token".into()))?;
+    let account_id: String = row.get(0);
+    let device_id: String = row.get(1);
+    transaction
+        .execute(
+            "UPDATE refresh_sessions SET revoked_at=NOW() WHERE token_hash=$1",
+            &[&hash],
+        )
+        .await
+        .map_err(internal)?;
+    transaction.commit().await.map_err(internal)?;
+    let (access_token, refresh_token) = issue_tokens(&client, &account_id, &device_id).await?;
+    let package: String = client
+        .query_one("SELECT key_package FROM users WHERE id=$1", &[&account_id])
+        .await
+        .map_err(internal)?
+        .get(0);
+    Ok(Json(AuthResponse {
+        access_token,
+        refresh_token,
+        key_package: package,
+        device_id,
+    }))
+}
+
+/// Best-effort local sign-out invalidates both the rotating refresh token and
+/// all short access tokens for that device. No account identity is exposed.
+async fn logout(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(body): Json<RefreshRequest>,
+) -> Result<StatusCode, (StatusCode, String)> {
+    limited(&state, &format!("auth:logout:{}", client_ip(&headers)), 30)?;
+    let client = db(&state).await?;
+    let hash = token_hash(&body.refresh_token);
+    if let Some(row) = client.query_opt("SELECT account_id,device_id FROM refresh_sessions WHERE token_hash=$1 AND revoked_at IS NULL", &[&hash]).await.map_err(internal)? {
+        let account_id: String = row.get(0);
+        let device_id: String = row.get(1);
+        client.execute("UPDATE refresh_sessions SET revoked_at=NOW() WHERE token_hash=$1", &[&hash]).await.map_err(internal)?;
+        client.execute("UPDATE sessions SET revoked_at=NOW() WHERE account_id=$1 AND device_id=$2", &[&account_id, &device_id]).await.map_err(internal)?;
+    }
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn change_password(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(body): Json<ChangePasswordRequest>,
+) -> Result<StatusCode, (StatusCode, String)> {
+    if body.new_password.len() < 10 || body.key_package.len() > 32_768 {
+        return Err(bad("invalid password change payload"));
+    }
+    let account_id = account(&headers, &state).await?;
+    let client = db(&state).await?;
+    let row = client
+        .query_one(
+            "SELECT password_hash FROM users WHERE id=$1",
+            &[&account_id],
+        )
+        .await
+        .map_err(internal)?;
+    let stored: String = row.get(0);
+    let parsed = PasswordHash::new(&stored).map_err(internal)?;
+    Argon2::default()
+        .verify_password(body.current_password.as_bytes(), &parsed)
+        .map_err(|_| {
+            (
+                StatusCode::UNAUTHORIZED,
+                "current password is incorrect".into(),
+            )
+        })?;
+    let salt = SaltString::generate(&mut OsRng);
+    let password_hash = Argon2::default()
+        .hash_password(body.new_password.as_bytes(), &salt)
+        .map_err(internal)?
+        .to_string();
+    client
+        .execute(
+            "UPDATE users SET password_hash=$1,key_package=$2 WHERE id=$3",
+            &[&password_hash, &body.key_package, &account_id],
+        )
+        .await
+        .map_err(internal)?;
+    client
+        .execute(
+            "UPDATE sessions SET revoked_at=NOW() WHERE account_id=$1",
+            &[&account_id],
+        )
+        .await
+        .map_err(internal)?;
+    client
+        .execute(
+            "UPDATE refresh_sessions SET revoked_at=NOW() WHERE account_id=$1",
+            &[&account_id],
+        )
+        .await
+        .map_err(internal)?;
+    Ok(StatusCode::NO_CONTENT)
 }
 async fn push_events(
     State(state): State<AppState>,
@@ -920,8 +1152,32 @@ async fn get_snapshot(
             }),
     ))
 }
-async fn health() -> &'static str {
-    "ok"
+async fn health(State(state): State<AppState>) -> Result<&'static str, (StatusCode, String)> {
+    db(&state)
+        .await?
+        .query_one("SELECT 1", &[])
+        .await
+        .map_err(internal)?;
+    Ok("ok")
+}
+async fn metrics(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<String, (StatusCode, String)> {
+    let expected = state
+        .metrics_token
+        .as_deref()
+        .ok_or((StatusCode::NOT_FOUND, "metrics disabled".into()))?;
+    let supplied = headers
+        .get("x-sync-metrics-token")
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or("");
+    if supplied != expected {
+        return Err((StatusCode::UNAUTHORIZED, "invalid metrics token".into()));
+    }
+    let client = db(&state).await?;
+    let row=client.query_one("SELECT COALESCE(SUM(octet_length(ciphertext)),0)::BIGINT, COUNT(*)::BIGINT FROM sync_chunks",&[]).await.map_err(internal)?;
+    Ok(format!("lexicue_sync_requests_total {}\nlexicue_sync_rate_limited_total {}\nlexicue_sync_auth_failures_total {}\nlexicue_sync_encrypted_bytes {}\nlexicue_sync_chunks {}\n",state.metrics.requests.load(std::sync::atomic::Ordering::Relaxed),state.metrics.rejected.load(std::sync::atomic::Ordering::Relaxed),state.metrics.auth_failures.load(std::sync::atomic::Ordering::Relaxed),row.get::<_,i64>(0),row.get::<_,i64>(1)))
 }
 
 #[cfg(test)]
@@ -941,9 +1197,17 @@ mod tests {
 
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::fmt().with_env_filter("info").init();
+    tracing_subscriber::fmt()
+        .json()
+        .with_env_filter("info")
+        .init();
     let state = AppState {
         database_url: env::var("DATABASE_URL").expect("DATABASE_URL is required"),
+        limits: Arc::new(Mutex::new(HashMap::new())),
+        metrics: Arc::new(Metrics::default()),
+        metrics_token: env::var("SYNC_METRICS_TOKEN")
+            .ok()
+            .filter(|value| !value.is_empty()),
     };
     let client = db(&state).await.expect("database unavailable");
     client
@@ -952,10 +1216,14 @@ async fn main() {
         .expect("schema migration failed");
     let app = Router::new()
         .route("/health", get(health))
+        .route("/metrics", get(metrics))
         .route("/v1/auth/register", post(register))
         .route("/v1/auth/login", post(login))
         .route("/v1/auth/recovery-package", post(recovery_package))
         .route("/v1/auth/reset-password", post(reset_password))
+        .route("/v1/auth/refresh", post(refresh_access))
+        .route("/v1/auth/logout", post(logout))
+        .route("/v1/auth/change-password", post(change_password))
         .route("/v1/events", post(push_events).get(pull_events))
         .route("/v1/snapshot", post(put_snapshot).get(get_snapshot))
         .route(

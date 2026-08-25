@@ -39,6 +39,8 @@ zstd = "0.13"
 sha2 = "0.10"
 lindera = { version = "4.0.1", features = ["embed-unidic"] }
 jieba-rs = "0.10"
+tauri-plugin-stronghold = "2"
+keyring = { version = "4.1.6", features = ["android-native-keyring-store"] }
 
 [dev-dependencies]
 tempfile = "3"

@@ -26,19 +26,67 @@ const CONFIG_KEY: &str = "cloud_sync_config_v1";
 const DEVICE_KEY: &str = "cloud_sync_device_id_v1";
 const AAD: &[u8] = b"lexicue/cloud-sync/v1";
 const CHUNK_SIZE: usize = 512 * 1024;
+const VAULT_SERVICE: &str = "com.lexicue.cloud-sync";
+const VAULT_ACCOUNT: &str = "stronghold-unlock-key-v1";
+
+/// Returns the random Stronghold unlock key kept by the operating system.
+/// macOS uses Keychain; Android uses the native encrypted-keyring backend
+/// backed by Android Keystore. It is never stored in SQLite or logged.
+#[tauri::command]
+pub fn sync_vault_key() -> Result<String, String> {
+    let entry = keyring::Entry::new(VAULT_SERVICE, VAULT_ACCOUNT).map_err(|e| e.to_string())?;
+    match entry.get_secret() {
+        Ok(secret) => Ok(URL_SAFE_NO_PAD.encode(secret)),
+        Err(keyring::Error::NoEntry) => {
+            let mut secret = [0u8; 32];
+            OsRng.fill_bytes(&mut secret);
+            entry
+                .set_secret(&secret)
+                .map_err(|e| format!("Could not save the device vault key: {e}"))?;
+            Ok(URL_SAFE_NO_PAD.encode(secret))
+        }
+        Err(error) => Err(format!(
+            "Could not access the device security store: {error}"
+        )),
+    }
+}
 
 #[derive(Clone, Serialize, Deserialize)]
 struct LocalConfig {
     endpoint: String,
     email: String,
     device_id: String,
+    /// Legacy-only fields. They are deliberately omitted on the next config
+    /// write after being copied into Stronghold by the frontend migration.
+    #[serde(default, skip_serializing)]
     access_token: String,
+    #[serde(default, skip_serializing)]
     data_key: String,
     last_synced_at: Option<i64>,
     #[serde(default)]
     last_remote_cursor: i64,
     #[serde(default)]
     v3_initialized: bool,
+    #[serde(default = "default_auto_sync")]
+    auto_sync_enabled: bool,
+}
+fn default_auto_sync() -> bool {
+    true
+}
+
+/// The opaque values held by the Stronghold vault. They intentionally travel
+/// only over Tauri IPC and are never serialized into the local SQLite config.
+#[derive(Clone, Serialize, Deserialize)]
+pub struct SyncSecrets {
+    pub access_token: String,
+    pub refresh_token: String,
+    pub data_key: String,
+}
+
+#[derive(Serialize)]
+pub struct AuthResult {
+    pub recovery_code: Option<String>,
+    pub secrets: SyncSecrets,
 }
 
 #[derive(Serialize)]
@@ -56,10 +104,8 @@ pub struct SyncStatus {
     pub v3_initialized: bool,
     pub last_uploaded: u32,
     pub last_downloaded: u32,
-}
-#[derive(Serialize)]
-pub struct RegisterResult {
-    pub recovery_code: String,
+    pub auto_sync_enabled: bool,
+    pub next_retry_at: Option<i64>,
 }
 #[derive(Serialize, Deserialize)]
 pub struct SyncDevice {
@@ -95,8 +141,19 @@ pub struct SyncCheckpointPreview {
 #[derive(Deserialize)]
 struct AuthResponse {
     access_token: String,
+    #[serde(default)]
+    refresh_token: String,
     key_package: String,
     device_id: String,
+}
+#[derive(Deserialize)]
+struct RefreshResponse {
+    access_token: String,
+    refresh_token: String,
+}
+#[derive(Serialize)]
+struct RefreshRequest {
+    refresh_token: String,
 }
 #[derive(Serialize)]
 struct RegisterRequest {
@@ -205,6 +262,37 @@ fn config(conn: &rusqlite::Connection) -> Result<Option<LocalConfig>, String> {
 }
 fn save_config(conn: &rusqlite::Connection, config: &LocalConfig) -> Result<(), String> {
     conn.execute("INSERT INTO sync_metadata(key,value,updated_at) VALUES(?1,?2,?3) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at", rusqlite::params![CONFIG_KEY, serde_json::to_string(config).map_err(|e| e.to_string())?, now_ms()]).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+fn apply_secrets(mut config: LocalConfig, secrets: &SyncSecrets) -> LocalConfig {
+    config.access_token = secrets.access_token.clone();
+    config.data_key = secrets.data_key.clone();
+    config
+}
+
+/// Returns pre-Stronghold credentials without deleting them. The frontend
+/// saves first, then calls `sync_finalize_legacy_credentials` so a crash can
+/// never discard a user's only copy of the encrypted data key.
+#[tauri::command]
+pub fn sync_legacy_credentials(state: State<DbState>) -> Result<Option<SyncSecrets>, String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    Ok(config(&conn)?.and_then(|config| {
+        (!config.access_token.is_empty() && !config.data_key.is_empty()).then_some(SyncSecrets {
+            access_token: config.access_token,
+            refresh_token: String::new(),
+            data_key: config.data_key,
+        })
+    }))
+}
+
+#[tauri::command]
+pub fn sync_finalize_legacy_credentials(state: State<DbState>) -> Result<(), String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    if let Some(config) = config(&conn)? {
+        // save_config skips the two legacy fields.
+        save_config(&conn, &config)?;
+    }
     Ok(())
 }
 fn device_id(conn: &rusqlite::Connection) -> Result<String, String> {
@@ -1220,6 +1308,16 @@ pub fn sync_status(state: State<DbState>) -> Result<SyncStatus, String> {
         .and_then(|value| value.parse().ok())
         .unwrap_or(0)
     };
+    let runtime_value = |key: &str| {
+        conn.query_row(
+            "SELECT value FROM sync_runtime WHERE key=?1",
+            [key],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()
+        .ok()
+        .flatten()
+    };
     Ok(match value {
         Some(c) => SyncStatus {
             configured: true,
@@ -1227,14 +1325,16 @@ pub fn sync_status(state: State<DbState>) -> Result<SyncStatus, String> {
             endpoint: Some(c.endpoint),
             device_id: Some(c.device_id),
             last_synced_at: c.last_synced_at,
-            phase: "idle".into(),
+            phase: runtime_value("phase").unwrap_or_else(|| "idle".into()),
             pending_uploads,
             pending_downloads: 0,
             conflicts: 0,
-            last_error: None,
+            last_error: runtime_value("last_error").filter(|value| !value.is_empty()),
             v3_initialized: c.v3_initialized,
             last_uploaded: runtime_count("last_uploaded"),
             last_downloaded: runtime_count("last_downloaded"),
+            auto_sync_enabled: c.auto_sync_enabled,
+            next_retry_at: runtime_value("next_retry_at").and_then(|value| value.parse().ok()),
         },
         None => SyncStatus {
             configured: false,
@@ -1250,8 +1350,37 @@ pub fn sync_status(state: State<DbState>) -> Result<SyncStatus, String> {
             v3_initialized: false,
             last_uploaded: 0,
             last_downloaded: 0,
+            auto_sync_enabled: false,
+            next_retry_at: None,
         },
     })
+}
+#[tauri::command]
+pub fn sync_set_auto_sync(state: State<DbState>, enabled: bool) -> Result<(), String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    let mut local = config(&conn)?.ok_or("Cloud sync is not configured.")?;
+    local.auto_sync_enabled = enabled;
+    save_config(&conn, &local)
+}
+#[tauri::command]
+pub fn sync_set_diagnostic(
+    state: State<DbState>,
+    phase: String,
+    last_error: Option<String>,
+    next_retry_at: Option<i64>,
+) -> Result<(), String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    for (key, value) in [
+        ("phase", phase),
+        ("last_error", last_error.unwrap_or_default()),
+        (
+            "next_retry_at",
+            next_retry_at.map(|v| v.to_string()).unwrap_or_default(),
+        ),
+    ] {
+        conn.execute("INSERT INTO sync_runtime(key,value) VALUES(?1,?2) ON CONFLICT(key) DO UPDATE SET value=excluded.value", rusqlite::params![key, value]).map_err(|e| e.to_string())?;
+    }
+    Ok(())
 }
 #[tauri::command]
 pub async fn sync_register(
@@ -1260,7 +1389,7 @@ pub async fn sync_register(
     email: String,
     password: String,
     device_name: String,
-) -> Result<RegisterResult, String> {
+) -> Result<AuthResult, String> {
     if password.len() < 10 {
         return Err("Password must contain at least 10 characters.".into());
     }
@@ -1303,20 +1432,29 @@ pub async fn sync_register(
     }
     let auth: AuthResponse = response.json().await.map_err(|e| e.to_string())?;
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    let secrets = SyncSecrets {
+        access_token: auth.access_token,
+        refresh_token: auth.refresh_token,
+        data_key: URL_SAFE_NO_PAD.encode(data_key),
+    };
     save_config(
         &conn,
         &LocalConfig {
             endpoint,
             email,
             device_id: auth.device_id,
-            access_token: auth.access_token,
-            data_key: URL_SAFE_NO_PAD.encode(data_key),
+            access_token: secrets.access_token.clone(),
+            data_key: secrets.data_key.clone(),
             last_synced_at: None,
             last_remote_cursor: 0,
             v3_initialized: false,
+            auto_sync_enabled: true,
         },
     )?;
-    Ok(RegisterResult { recovery_code })
+    Ok(AuthResult {
+        recovery_code: Some(recovery_code),
+        secrets,
+    })
 }
 #[tauri::command]
 pub async fn sync_login(
@@ -1325,7 +1463,7 @@ pub async fn sync_login(
     email: String,
     password: String,
     device_name: String,
-) -> Result<(), String> {
+) -> Result<AuthResult, String> {
     let endpoint = normalized_endpoint(&endpoint)?;
     let device_id = {
         let conn = state.conn.lock().map_err(|error| error.to_string())?;
@@ -1359,20 +1497,29 @@ pub async fn sync_login(
         .map_err(|_| "Invalid encrypted key package from server")?;
     let data_key = unwrap(&package.password, &password)?;
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    let secrets = SyncSecrets {
+        access_token: auth.access_token,
+        refresh_token: auth.refresh_token,
+        data_key: URL_SAFE_NO_PAD.encode(data_key),
+    };
     save_config(
         &conn,
         &LocalConfig {
             endpoint,
             email,
             device_id: auth.device_id,
-            access_token: auth.access_token,
-            data_key: URL_SAFE_NO_PAD.encode(data_key),
+            access_token: secrets.access_token.clone(),
+            data_key: secrets.data_key.clone(),
             last_synced_at: None,
             last_remote_cursor: 0,
             v3_initialized: false,
+            auto_sync_enabled: true,
         },
     )?;
-    Ok(())
+    Ok(AuthResult {
+        recovery_code: None,
+        secrets,
+    })
 }
 
 /// Recovers the encrypted data key with the one-time recovery code and then
@@ -1386,7 +1533,7 @@ pub async fn sync_reset_password(
     recovery_code: String,
     password: String,
     device_name: String,
-) -> Result<(), String> {
+) -> Result<AuthResult, String> {
     if password.len() < 10 {
         return Err("Password must contain at least 10 characters.".into());
     }
@@ -1447,26 +1594,38 @@ pub async fn sync_reset_password(
     }
     let auth: AuthResponse = response.json().await.map_err(|error| error.to_string())?;
     let conn = state.conn.lock().map_err(|error| error.to_string())?;
+    let secrets = SyncSecrets {
+        access_token: auth.access_token,
+        refresh_token: auth.refresh_token,
+        data_key: URL_SAFE_NO_PAD.encode(data_key),
+    };
     save_config(
         &conn,
         &LocalConfig {
             endpoint,
             email,
             device_id: auth.device_id,
-            access_token: auth.access_token,
-            data_key: URL_SAFE_NO_PAD.encode(data_key),
+            access_token: secrets.access_token.clone(),
+            data_key: secrets.data_key.clone(),
             last_synced_at: None,
             last_remote_cursor: 0,
             v3_initialized: false,
+            auto_sync_enabled: true,
         },
     )?;
-    Ok(())
+    Ok(AuthResult {
+        recovery_code: None,
+        secrets,
+    })
 }
 #[tauri::command]
-pub async fn sync_now(state: State<'_, DbState>) -> Result<(), String> {
+pub async fn sync_now(state: State<'_, DbState>, secrets: SyncSecrets) -> Result<(), String> {
     let (mut local, data_key) = {
         let conn = state.conn.lock().map_err(|e| e.to_string())?;
-        let local = config(&conn)?.ok_or("Cloud sync is not configured.")?;
+        let local = apply_secrets(
+            config(&conn)?.ok_or("Cloud sync is not configured.")?,
+            &secrets,
+        );
         if !local.v3_initialized {
             return Err("Select this device as the v3 sync source, or restore a v3 cloud version before syncing.".into());
         }
@@ -1538,13 +1697,86 @@ pub async fn sync_now(state: State<'_, DbState>) -> Result<(), String> {
     Ok(())
 }
 
+/// Exchanges the single-use refresh token and returns a new vault payload.
+/// The caller persists it in Stronghold before issuing another sync request.
+#[tauri::command]
+pub async fn sync_refresh_token(
+    state: State<'_, DbState>,
+    secrets: SyncSecrets,
+) -> Result<SyncSecrets, String> {
+    if secrets.refresh_token.is_empty() {
+        return Err("此设备缺少刷新令牌，请重新登录。".into());
+    }
+    let endpoint = {
+        let conn = state.conn.lock().map_err(|e| e.to_string())?;
+        config(&conn)?
+            .ok_or("Cloud sync is not configured.")?
+            .endpoint
+    };
+    let response = reqwest::Client::new()
+        .post(format!("{endpoint}/v1/auth/refresh"))
+        .json(&RefreshRequest {
+            refresh_token: secrets.refresh_token.clone(),
+        })
+        .send()
+        .await
+        .map_err(|e| format!("Could not refresh sync session: {e}"))?;
+    if !response.status().is_success() {
+        return Err(response
+            .text()
+            .await
+            .unwrap_or_else(|_| "重新认证同步账户后再试。".into()));
+    }
+    let tokens: RefreshResponse = response.json().await.map_err(|e| e.to_string())?;
+    Ok(SyncSecrets {
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token,
+        data_key: secrets.data_key,
+    })
+}
+
+#[tauri::command]
+pub async fn sync_logout(state: State<'_, DbState>, secrets: SyncSecrets) -> Result<(), String> {
+    if secrets.refresh_token.is_empty() {
+        return Ok(());
+    }
+    let endpoint = {
+        let conn = state.conn.lock().map_err(|e| e.to_string())?;
+        config(&conn)?
+            .ok_or("Cloud sync is not configured.")?
+            .endpoint
+    };
+    let response = reqwest::Client::new()
+        .post(format!("{endpoint}/v1/auth/logout"))
+        .json(&RefreshRequest {
+            refresh_token: secrets.refresh_token,
+        })
+        .send()
+        .await
+        .map_err(|e| format!("Could not revoke the device session: {e}"))?;
+    if response.status().is_success() {
+        Ok(())
+    } else {
+        Err(response
+            .text()
+            .await
+            .unwrap_or_else(|_| "Could not revoke the device session".into()))
+    }
+}
+
 /// Makes this installation the explicit v3 source of truth. Other legacy
 /// devices must restore this encrypted baseline before merging events.
 #[tauri::command]
-pub async fn sync_initialize_v3(state: State<'_, DbState>) -> Result<(), String> {
+pub async fn sync_initialize_v3(
+    state: State<'_, DbState>,
+    secrets: SyncSecrets,
+) -> Result<(), String> {
     let (mut local, data_key, payload) = {
         let conn = state.conn.lock().map_err(|e| e.to_string())?;
-        let local = config(&conn)?.ok_or("Cloud sync is not configured.")?;
+        let local = apply_secrets(
+            config(&conn)?.ok_or("Cloud sync is not configured.")?,
+            &secrets,
+        );
         let data_key = key(&local)?;
         let baseline = V3Baseline {
             version: 3,
@@ -1570,10 +1802,16 @@ pub async fn sync_initialize_v3(state: State<'_, DbState>) -> Result<(), String>
 }
 
 #[tauri::command]
-pub async fn sync_checkpoints(state: State<'_, DbState>) -> Result<Vec<SyncCheckpoint>, String> {
+pub async fn sync_checkpoints(
+    state: State<'_, DbState>,
+    secrets: SyncSecrets,
+) -> Result<Vec<SyncCheckpoint>, String> {
     let local = {
         let conn = state.conn.lock().map_err(|error| error.to_string())?;
-        config(&conn)?.ok_or("Cloud sync is not configured.")?
+        apply_secrets(
+            config(&conn)?.ok_or("Cloud sync is not configured.")?,
+            &secrets,
+        )
     };
     let response = reqwest::Client::new()
         .get(format!("{}/v2/checkpoints", local.endpoint))
@@ -1597,10 +1835,14 @@ pub async fn sync_checkpoints(state: State<'_, DbState>) -> Result<Vec<SyncCheck
 pub async fn sync_preview_checkpoint(
     state: State<'_, DbState>,
     checkpoint_id: String,
+    secrets: SyncSecrets,
 ) -> Result<SyncCheckpointPreview, String> {
     let (local, data_key, local_files) = {
         let conn = state.conn.lock().map_err(|error| error.to_string())?;
-        let local = config(&conn)?.ok_or("Cloud sync is not configured.")?;
+        let local = apply_secrets(
+            config(&conn)?.ok_or("Cloud sync is not configured.")?,
+            &secrets,
+        );
         let count: usize = conn
             .query_row("SELECT COUNT(*) FROM files", [], |row| row.get::<_, i64>(0))
             .map_err(|error| error.to_string())? as usize;
@@ -1624,10 +1866,14 @@ pub async fn sync_preview_checkpoint(
 pub async fn sync_restore_checkpoint(
     state: State<'_, DbState>,
     checkpoint_id: String,
+    secrets: SyncSecrets,
 ) -> Result<String, String> {
     let (local, data_key) = {
         let conn = state.conn.lock().map_err(|error| error.to_string())?;
-        let local = config(&conn)?.ok_or("Cloud sync is not configured.")?;
+        let local = apply_secrets(
+            config(&conn)?.ok_or("Cloud sync is not configured.")?,
+            &secrets,
+        );
         (local.clone(), key(&local)?)
     };
     let (checkpoint, backup, entity_state) =
@@ -1655,10 +1901,16 @@ pub fn sync_disconnect(state: State<DbState>) -> Result<(), String> {
     Ok(())
 }
 #[tauri::command]
-pub async fn sync_devices(state: State<'_, DbState>) -> Result<Vec<SyncDevice>, String> {
+pub async fn sync_devices(
+    state: State<'_, DbState>,
+    secrets: SyncSecrets,
+) -> Result<Vec<SyncDevice>, String> {
     let local = {
         let conn = state.conn.lock().map_err(|e| e.to_string())?;
-        config(&conn)?.ok_or("Cloud sync is not configured.")?
+        apply_secrets(
+            config(&conn)?.ok_or("Cloud sync is not configured.")?,
+            &secrets,
+        )
     };
     let response = reqwest::Client::new()
         .get(format!("{}/v2/devices", local.endpoint))
@@ -1681,10 +1933,14 @@ pub async fn sync_devices(state: State<'_, DbState>) -> Result<Vec<SyncDevice>, 
 pub async fn sync_revoke_device(
     state: State<'_, DbState>,
     device_id: String,
+    secrets: SyncSecrets,
 ) -> Result<(), String> {
     let local = {
         let conn = state.conn.lock().map_err(|e| e.to_string())?;
-        config(&conn)?.ok_or("Cloud sync is not configured.")?
+        apply_secrets(
+            config(&conn)?.ok_or("Cloud sync is not configured.")?,
+            &secrets,
+        )
     };
     if device_id == local.device_id {
         return Err(
@@ -1707,10 +1963,16 @@ pub async fn sync_revoke_device(
 }
 
 #[tauri::command]
-pub async fn sync_delete_account(state: State<'_, DbState>) -> Result<(), String> {
+pub async fn sync_delete_account(
+    state: State<'_, DbState>,
+    secrets: SyncSecrets,
+) -> Result<(), String> {
     let local = {
         let conn = state.conn.lock().map_err(|error| error.to_string())?;
-        config(&conn)?.ok_or("Cloud sync is not configured.")?
+        apply_secrets(
+            config(&conn)?.ok_or("Cloud sync is not configured.")?,
+            &secrets,
+        )
     };
     let response = reqwest::Client::new()
         .delete(format!("{}/v2/account", local.endpoint))
