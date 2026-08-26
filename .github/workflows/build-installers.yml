@@ -231,52 +231,41 @@ jobs:
             exit 1
           fi
           grep -nE 'import java\.(io\.FileInputStream|util\.Properties)|signingConfigs|buildTypes|getByName\("release"\)|signingConfig' "$gradle_path"
-      - uses: tauri-apps/tauri-action@v1
+      - name: Build Android release APK
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/lexicue-release.keystore
-          TAURI_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          TAURI_ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          TAURI_ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           NODE_OPTIONS: --use-system-ca
-        with:
-          tagName: v__VERSION__
-          releaseName: 'LexiCue v__VERSION__'
-          releaseDraft: ${{ inputs.draft }}
-          prerelease: false
-          retryAttempts: 1
-          mobile: android
-          args: --apk --target aarch64
-      - name: Verify and checksum signed APK
+        run: npx tauri android build --apk --target aarch64
+      - name: Sign, verify, and publish Android APK
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           set -euo pipefail
           version="$(node -p "require('./src-tauri/tauri.conf.json').version")"
           tag="v${version}"
+          keystore_path="$RUNNER_TEMP/lexicue-release.keystore"
+          apk_output_dir="src-tauri/gen/android/app/build/outputs/apk"
+          signed_apk="$RUNNER_TEMP/LexiCue_${version}_universal.apk"
+          checksum_file="$RUNNER_TEMP/LexiCue_${version}_universal.apk.sha256"
           download_dir="$(mktemp -d)"
-          checksum_dir="$(mktemp -d)"
-          trap 'rm -rf "$download_dir" "$checksum_dir"' EXIT
+          trap 'rm -rf "$download_dir" "$signed_apk" "$checksum_file"' EXIT
 
-          echo "Verifying Android assets from Release: ${tag}"
-          mapfile -t apk_names < <(
-            gh release view "$tag" --json assets \
-              --jq '.assets[] | select(.name | endswith(".apk")) | .name'
-          )
-          if [ "${#apk_names[@]}" -eq 0 ]; then
-            echo "No APK assets were found in Release ${tag}. Current assets:"
-            gh release view "$tag" --json assets \
-              --jq '.assets[] | "- \(.name) (\(.size) bytes)"' || true
+          if [ ! -s "$keystore_path" ]; then
+            echo "Android keystore is missing or empty: $keystore_path"
             exit 1
           fi
-
-          gh release download "$tag" --pattern '*.apk' --dir "$download_dir" --clobber
-
           apksigner="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner -perm -u+x | sort -V | tail -n 1)"
+          zipalign="$(find "$ANDROID_HOME/build-tools" -type f -name zipalign -perm -u+x | sort -V | tail -n 1)"
           apkanalyzer="$(find "$ANDROID_HOME/cmdline-tools" -type f -path '*/bin/apkanalyzer' -perm -u+x | sort -V | tail -n 1)"
           if [ -z "$apksigner" ] || [ ! -x "$apksigner" ]; then
             echo "Unable to locate apksigner under $ANDROID_HOME/build-tools"
+            exit 1
+          fi
+          if [ -z "$zipalign" ] || [ ! -x "$zipalign" ]; then
+            echo "Unable to locate zipalign under $ANDROID_HOME/build-tools"
             exit 1
           fi
           if [ -z "$apkanalyzer" ] || [ ! -x "$apkanalyzer" ]; then
@@ -284,31 +273,99 @@ jobs:
             exit 1
           fi
 
-          mapfile -t apks < <(find "$download_dir" -type f -name '*.apk' -print | sort)
-          if [ "${#apks[@]}" -eq 0 ]; then
-            echo "Release ${tag} listed APK assets, but none could be downloaded"
+          if [ ! -d "$apk_output_dir" ]; then
+            echo "Android APK output directory does not exist: $apk_output_dir"
+            exit 1
+          fi
+          echo "Android APK outputs:"
+          find "$apk_output_dir" -type f -name '*.apk' -print | sort
+
+          mapfile -t unsigned_apks < <(
+            find "$apk_output_dir" -type f -name '*universal-release-unsigned.apk' -print | sort
+          )
+          if [ "${#unsigned_apks[@]}" -gt 0 ]; then
+            input_apk="${unsigned_apks[0]}"
+          else
+            mapfile -t release_apks < <(
+              find "$apk_output_dir" -type f -name '*universal-release.apk' -print | sort
+            )
+            if [ "${#release_apks[@]}" -eq 0 ]; then
+              echo "No universal release APK was produced"
+              exit 1
+            fi
+            input_apk="${release_apks[0]}"
+          fi
+          echo "Signing local APK: $input_apk"
+
+          aligned_apk="$RUNNER_TEMP/lexicue-aligned.apk"
+          if "$zipalign" -c -P 16 -v 4 "$input_apk" > /dev/null 2>&1; then
+            aligned_apk="$input_apk"
+          else
+            "$zipalign" -P 16 -f 4 "$input_apk" "$aligned_apk"
+          fi
+
+          "$apksigner" sign \
+            --ks "$keystore_path" \
+            --ks-key-alias "$ANDROID_KEY_ALIAS" \
+            --ks-pass "env:ANDROID_KEYSTORE_PASSWORD" \
+            --key-pass "env:ANDROID_KEY_PASSWORD" \
+            --out "$signed_apk" \
+            "$aligned_apk"
+
+          echo "Local APK signature verification:"
+          "$apksigner" verify --verbose --print-certs "$signed_apk"
+          echo "Local APK summary:"
+          "$apkanalyzer" apk summary "$signed_apk"
+          application_id="$($apkanalyzer manifest application-id "$signed_apk")"
+          version_code="$($apkanalyzer manifest version-code "$signed_apk")"
+          version_name="$($apkanalyzer manifest version-name "$signed_apk")"
+          abis="$($apkanalyzer files list "$signed_apk" | awk -F/ '$1 == "lib" && $2 != "" { print $2 }' | sort -u | paste -sd, -)"
+          echo "Application ID: $application_id"
+          echo "Version code: $version_code"
+          echo "Version name: $version_name"
+          echo "ABIs: ${abis:-universal/resource-only}"
+          if [ "$application_id" != "com.lexicue.app" ]; then
+            echo "Unexpected Android application ID: $application_id"
+            exit 1
+          fi
+          if ! printf '%s\n' "$abis" | tr ',' '\n' | grep -qx 'arm64-v8a'; then
+            echo "The signed APK does not contain the arm64-v8a ABI"
             exit 1
           fi
 
-          checksums=()
-          for apk in "${apks[@]}"; do
-            apk_name="$(basename "$apk")"
-            echo "Verifying $apk_name"
-            echo "Path: $apk"
-            echo "Size: $(stat -c '%s' "$apk") bytes"
-            "$apksigner" verify --verbose "$apk"
-            echo "APK summary:"
-            "$apkanalyzer" apk summary "$apk"
-            echo "Application ID: $($apkanalyzer manifest application-id "$apk")"
-            echo "Version code: $($apkanalyzer manifest version-code "$apk")"
-            echo "Version name: $($apkanalyzer manifest version-name "$apk")"
-            abis="$($apkanalyzer files list "$apk" | awk -F/ '$1 == "lib" && $2 != "" { print $2 }' | sort -u | paste -sd, -)"
-            echo "ABIs: ${abis:-universal/resource-only}"
+          apk_name="LexiCue_${version}_universal.apk"
+          staged_apk="$RUNNER_TEMP/$apk_name"
+          cp "$signed_apk" "$staged_apk"
+          checksum="$(sha256sum "$staged_apk" | awk '{print $1}')"
+          printf '%s  %s\n' "$checksum" "$apk_name" | tee "$checksum_file"
 
-            checksum_file="$checksum_dir/${apk_name}.sha256"
-            checksum="$(sha256sum "$apk" | awk '{print $1}')"
-            printf '%s  %s\n' "$checksum" "$apk_name" | tee "$checksum_file"
-            checksums+=("$checksum_file")
-          done
+          create_args=(--target "$GITHUB_SHA" --title "LexiCue v${version}" --notes "Android release ${version}")
+          if [ "${{ inputs.draft }}" = "true" ]; then
+            create_args+=(--draft)
+          fi
+          if ! gh release view "$tag" > /dev/null 2>&1; then
+            if ! gh release create "$tag" "${create_args[@]}"; then
+              gh release view "$tag" > /dev/null 2>&1 || {
+                echo "Unable to create or locate Release ${tag}"
+                exit 1
+              }
+            fi
+          fi
 
-          gh release upload "$tag" "${checksums[@]}" --clobber
+          echo "Uploading verified APK to Release ${tag}"
+          gh release upload "$tag" "$staged_apk" "$checksum_file" --clobber
+
+          echo "Downloading published APK for final verification"
+          gh release download "$tag" --pattern "$apk_name" --dir "$download_dir" --clobber
+          published_apk="$download_dir/$apk_name"
+          if [ ! -s "$published_apk" ]; then
+            echo "Published APK could not be downloaded: $published_apk"
+            exit 1
+          fi
+          "$apksigner" verify --verbose --print-certs "$published_apk"
+          published_checksum="$(sha256sum "$published_apk" | awk '{print $1}')"
+          if [ "$published_checksum" != "$checksum" ]; then
+            echo "Published APK checksum does not match the locally verified APK"
+            exit 1
+          fi
+          echo "Published APK verified successfully (${published_checksum})"
