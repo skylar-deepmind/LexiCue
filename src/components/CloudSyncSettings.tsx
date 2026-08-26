@@ -40,42 +40,57 @@ export default function CloudSyncSettings() {
   const [recoveryCode, setRecoveryCode] = useState('');
   const [devices, setDevices] = useState<SyncDevice[]>([]);
   const [checkpoints, setCheckpoints] = useState<SyncCheckpoint[]>([]);
+  const [remoteLoading, setRemoteLoading] = useState(false);
+  const [remoteError, setRemoteError] = useState('');
   const [preview, setPreview] = useState<SyncCheckpointPreview | null>(null);
   const [confirmRestore, setConfirmRestore] = useState(false);
 
   const refresh = async () => {
     try { setStatus(await invoke<SyncStatus>('sync_status')); } catch (value) { setError(String(value)); }
   };
-  const refreshRemote = async () => {
-    if (!status?.configured) return;
-    const secrets = await loadSyncSecrets();
-    const [nextDevices, nextCheckpoints] = await Promise.all([
-      invoke<SyncDevice[]>('sync_devices', { secrets }),
-      invoke<SyncCheckpoint[]>('sync_checkpoints', { secrets }),
-    ]);
-    setDevices(nextDevices); setCheckpoints(nextCheckpoints);
+  const refreshRemote = async (providedSecrets?: SyncSecrets) => {
+    if (!providedSecrets && !status?.configured) return;
+    setRemoteLoading(true); setRemoteError('');
+    try {
+      const secrets = providedSecrets ?? await loadSyncSecrets();
+      const [nextDevices, nextCheckpoints] = await Promise.all([
+        invoke<SyncDevice[]>('sync_devices', { secrets }),
+        invoke<SyncCheckpoint[]>('sync_checkpoints', { secrets }),
+      ]);
+      setDevices(nextDevices); setCheckpoints(nextCheckpoints);
+    } catch (value) {
+      setRemoteError(String(value));
+    } finally {
+      setRemoteLoading(false);
+    }
   };
   useEffect(() => { void (async () => { await migrateLegacySyncSecrets(); await refresh(); })().catch((value) => setError(String(value))); }, []);
   useEffect(() => {
     if (!status?.configured) { setDevices([]); setCheckpoints([]); return; }
-    void refreshRemote().catch(() => { setDevices([]); setCheckpoints([]); });
+    void refreshRemote();
   }, [status?.configured]);
 
   const authenticate = async () => {
     setBusy(true); setError('');
     try {
+      let authenticatedSecrets: SyncSecrets;
       if (mode === 'register') {
         const result = await invoke<AuthResult>('sync_register', { endpoint, email, password, deviceName: '' });
         await saveSyncSecrets(result.secrets);
+        authenticatedSecrets = result.secrets;
         setRecoveryCode(result.recovery_code ?? '');
       } else if (mode === 'login') {
         const result = await invoke<AuthResult>('sync_login', { endpoint, email, password, deviceName: '' });
         await saveSyncSecrets(result.secrets);
+        authenticatedSecrets = result.secrets;
       } else {
         const result = await invoke<AuthResult>('sync_reset_password', { endpoint, email, password, recoveryCode: recoveryInput.trim(), deviceName: '' });
         await saveSyncSecrets(result.secrets);
+        authenticatedSecrets = result.secrets;
       }
-      setPassword(''); setRecoveryInput(''); await refresh();
+      setPassword(''); setRecoveryInput('');
+      await refresh();
+      await refreshRemote(authenticatedSecrets);
     } catch (value) { setError(String(value)); } finally { setBusy(false); }
   };
   const sync = async () => { setBusy(true); setError(''); setNotice(''); try { await syncCoordinator.runNow(true); await refresh(); await refreshRemote(); } catch (value) { setError(String(value)); } finally { setBusy(false); } };
@@ -100,6 +115,8 @@ export default function CloudSyncSettings() {
     try {
       const path = await invoke<string>('sync_restore_checkpoint', { checkpointId: preview.checkpoint.id, secrets: await loadSyncSecrets() });
       setPreview(null); setConfirmRestore(false); await refresh();
+      await syncCoordinator.runNow(true);
+      await refresh();
       setNotice(`已恢复云端版本。本机恢复前备份已保存到：${path}`);
     } catch (value) { setError(String(value)); } finally { setBusy(false); }
   };
@@ -123,7 +140,7 @@ export default function CloudSyncSettings() {
         <p className="font-medium text-gray-900">已连接至 {status.endpoint}</p>
         <p className="mt-1">{status.last_synced_at ? `上次成功同步：${new Date(status.last_synced_at).toLocaleString()}` : '尚未同步。'}</p>
         <p className="mt-1">{status.v3_initialized ? (status.pending_uploads ? `待同步变更：${status.pending_uploads}` : '所有本地变更均已同步。') : '尚未加入 v3 双向同步。'}{status.pending_downloads ? ` · 待下载：${status.pending_downloads}` : ''}</p>
-        <p className="mt-1">{status.v3_initialized ? (status.auto_sync_enabled ? '自动同步已开启（仅在前台运行）。' : '自动同步已暂停；仍可使用“立即同步”。') : '完成 v3 基线后可启用自动同步。'}{status.next_retry_at ? ` 下次重试：${new Date(status.next_retry_at).toLocaleTimeString()}。` : ''}</p>
+        <p className="mt-1">{status.v3_initialized ? (status.auto_sync_enabled ? '自动同步已开启（仅在前台运行）。' : '自动同步已暂停；仍可使用“立即同步”。') : '完成 v3 基线后可启用自动同步。'}{status.phase !== 'idle' ? ` 当前状态：${status.phase}。` : ''}{status.next_retry_at ? ` 下次重试：${new Date(status.next_retry_at).toLocaleTimeString()}。` : ''}</p>
         {status.v3_initialized && (status.last_uploaded > 0 || status.last_downloaded > 0) && <p className="mt-1 text-xs">最近一次：上传 {status.last_uploaded} 项，下载 {status.last_downloaded} 项。</p>}
         {status.conflicts > 0 && <p className="mt-1 text-amber-700">有 {status.conflicts} 项内容需要处理冲突。</p>}
       </div>
@@ -135,8 +152,13 @@ export default function CloudSyncSettings() {
       </div>
       <p className="-mt-2 text-xs text-gray-500">退出只会移除本机登录状态；不会删除云端密文或撤销其他设备。</p>
       <div className="rounded-lg border border-gray-200 text-sm">
-        <p className="flex items-center gap-2 px-3 py-2 font-medium text-gray-900"><HardDriveDownload size={16} />云端版本（保留最近 5 个）</p>
-        {checkpoints.length === 0 ? <p className="border-t border-gray-100 px-3 py-3 text-gray-500">尚无可恢复的云端版本。完成一次同步后会出现在这里。</p> : checkpoints.map((checkpoint) => <div key={checkpoint.id} className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 px-3 py-2 text-gray-600">
+        <div className="flex items-center justify-between gap-3 px-3 py-2">
+          <p className="flex items-center gap-2 font-medium text-gray-900"><HardDriveDownload size={16} aria-hidden="true" />云端版本（保留最近 5 个）</p>
+          <button type="button" onClick={() => void refreshRemote()} disabled={busy || remoteLoading} className="inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-xs text-blue-700 hover:bg-gray-50 disabled:opacity-50" aria-label="重新加载云端版本"><RefreshCw size={14} className={remoteLoading ? 'animate-spin' : ''} />刷新</button>
+        </div>
+        {remoteLoading && <p className="border-t border-gray-100 px-3 py-3 text-gray-500" role="status">正在加载云端版本…</p>}
+        {!remoteLoading && remoteError && <div className="flex items-center justify-between gap-3 border-t border-gray-100 px-3 py-3 text-sm text-red-600" role="alert"><span className="break-words">云端版本加载失败：{remoteError}</span><button type="button" onClick={() => void refreshRemote()} className="min-h-11 shrink-0 rounded-lg border border-red-200 px-2 py-1 text-xs hover:bg-red-50">重试</button></div>}
+        {!remoteLoading && !remoteError && checkpoints.length === 0 ? <p className="border-t border-gray-100 px-3 py-3 text-gray-500">尚无可恢复的云端版本。完成一次同步后会出现在这里。</p> : !remoteLoading && checkpoints.map((checkpoint) => <div key={checkpoint.id} className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 px-3 py-2 text-gray-600">
           <span><span className="font-medium text-gray-900">{checkpoint.device_name}</span><span className="ml-2 text-xs">{new Date(checkpoint.created_at).toLocaleString()} · {formatBytes(checkpoint.encrypted_len)} · v{checkpoint.protocol_version}</span></span>
           <button type="button" disabled={busy} onClick={() => void loadPreview(checkpoint.id)} className="inline-flex items-center gap-1 text-xs text-blue-700 hover:text-blue-800 disabled:opacity-50"><Download size={14} />预览并恢复</button>
         </div>)}

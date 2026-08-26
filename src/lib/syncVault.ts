@@ -13,7 +13,7 @@ const RECORD = 'credentials-v1';
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
-async function vault() {
+async function openVault() {
   // The password is a random value returned by Rust from the platform security
   // service (Keychain on macOS / Android Keystore-backed storage on Android).
   // It never enters SQLite, and Stronghold encrypts the actual credential set.
@@ -26,6 +26,19 @@ async function vault() {
   try { client = await hold.loadClient(CLIENT); }
   catch { client = await hold.createClient(CLIENT); }
   return { hold, store: client.getStore() };
+}
+
+type Vault = Awaited<ReturnType<typeof openVault>>;
+let cachedVault: Promise<Vault> | null = null;
+
+async function vault(): Promise<Vault> {
+  if (!cachedVault) {
+    cachedVault = openVault().catch((error) => {
+      cachedVault = null;
+      throw error;
+    });
+  }
+  return cachedVault;
 }
 
 export async function loadSyncSecrets(): Promise<SyncSecrets> {

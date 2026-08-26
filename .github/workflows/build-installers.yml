@@ -132,9 +132,31 @@ jobs:
       - run: npm ci
       - name: Generate Android project
         run: npx tauri android init
+      - name: Configure Android release signing
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ] || [ -z "$ANDROID_KEYSTORE_PASSWORD" ] || [ -z "$ANDROID_KEY_ALIAS" ] || [ -z "$ANDROID_KEY_PASSWORD" ]; then
+            echo "Missing Android release signing secrets: ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD"
+            exit 1
+          fi
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/lexicue-release.keystore"
+          {
+            echo "storeFile=$RUNNER_TEMP/lexicue-release.keystore"
+            echo "password=$ANDROID_KEYSTORE_PASSWORD"
+            echo "keyAlias=$ANDROID_KEY_ALIAS"
+            echo "keyPassword=$ANDROID_KEY_PASSWORD"
+          } > src-tauri/gen/android/keystore.properties
       - uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/lexicue-release.keystore
+          TAURI_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          TAURI_ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          TAURI_ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           NODE_OPTIONS: --use-system-ca
         with:
           tagName: v__VERSION__
@@ -144,3 +166,18 @@ jobs:
           retryAttempts: 1
           mobile: android
           args: --apk --target aarch64
+      - name: Verify and checksum signed APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t apks < <(find src-tauri/gen/android -type f -name '*.apk' -path '*release*' -print)
+          if [ "${#apks[@]}" -eq 0 ]; then
+            echo "No release APK was produced"
+            exit 1
+          fi
+          for apk in "${apks[@]}"; do
+            echo "Verifying $apk"
+            "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$apk"
+            "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" apk summary "$apk"
+            sha256sum "$apk" | tee "$apk.sha256"
+          done

@@ -28,7 +28,7 @@ serde_json = "1.0"
 log = "0.4"
 tauri-plugin-log = "2"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
-tokio = { version = "1", features = ["time", "macros", "process"] }
+tokio = { version = "1", features = ["time", "macros", "process", "sync"] }
 base64 = "0.22"
 argon2 = "0.5"
 chacha20poly1305 = "0.10"

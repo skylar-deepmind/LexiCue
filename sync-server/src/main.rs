@@ -166,12 +166,16 @@ const CHECKPOINT_RETENTION: i64 = 5;
 
 /// Metadata travels in headers while encrypted bytes remain a binary body.
 /// This keeps the v2 transport free of base64 expansion.
+#[derive(Deserialize)]
 struct V2EventHeaders {
     event_id: String,
     device_id: String,
     clock: String,
     kind: String,
 }
+
+const MAX_BATCH_EVENTS: usize = 100;
+const MAX_BATCH_BYTES: usize = 16 * 1024 * 1024;
 
 fn v2_event_headers(headers: &HeaderMap) -> Result<V2EventHeaders, (StatusCode, String)> {
     let value = |name: &'static str| -> Result<String, (StatusCode, String)> {
@@ -320,6 +324,50 @@ async fn push_event_v3(
     let account_id = account(&headers, &state).await?;
     let client = db(&state).await?;
     client.execute("INSERT INTO sync_events_v3(account_id,event_id,device_id,clock,kind,ciphertext) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT(account_id,event_id) DO NOTHING", &[&account_id,&event.event_id,&event.device_id,&event.clock,&event.kind,&body.as_ref()]).await.map_err(internal)?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn push_events_v3_batch(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Result<StatusCode, (StatusCode, String)> {
+    limited(&state, &format!("event-batch:{}", client_ip(&headers)), 60)?;
+    if body.is_empty() || body.len() > MAX_BATCH_BYTES {
+        return Err(bad("invalid or oversized encrypted event batch"));
+    }
+    let account_id = account(&headers, &state).await?;
+    let client = db(&state).await?;
+    let mut offset = 0usize;
+    let mut count = 0usize;
+    while offset < body.len() {
+        if count >= MAX_BATCH_EVENTS || offset + 4 > body.len() {
+            return Err(bad("invalid event batch framing"));
+        }
+        let metadata_len =
+            u32::from_be_bytes(body[offset..offset + 4].try_into().unwrap()) as usize;
+        offset += 4;
+        if metadata_len == 0 || metadata_len > 16 * 1024 || offset + metadata_len + 4 > body.len() {
+            return Err(bad("invalid event batch metadata"));
+        }
+        let event: V2EventHeaders = serde_json::from_slice(&body[offset..offset + metadata_len])
+            .map_err(|_| bad("invalid event batch metadata"))?;
+        offset += metadata_len;
+        let payload_len = u32::from_be_bytes(body[offset..offset + 4].try_into().unwrap()) as usize;
+        offset += 4;
+        if payload_len == 0 || payload_len > MAX_EVENT_BYTES || offset + payload_len > body.len() {
+            return Err(bad("invalid event batch payload"));
+        }
+        client
+            .execute(
+                "INSERT INTO sync_events_v3(account_id,event_id,device_id,clock,kind,ciphertext) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT(account_id,event_id) DO NOTHING",
+                &[&account_id, &event.event_id, &event.device_id, &event.clock, &event.kind, &&body[offset..offset + payload_len]],
+            )
+            .await
+            .map_err(internal)?;
+        offset += payload_len;
+        count += 1;
+    }
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -1232,6 +1280,7 @@ async fn main() {
         )
         .route("/v2/events", post(push_event_v2).get(pull_events_v2))
         .route("/v3/events", post(push_event_v3).get(pull_events_v3))
+        .route("/v3/events/batch", post(push_events_v3_batch))
         .route(
             "/v2/checkpoints",
             post(put_checkpoint_v2).get(list_checkpoints_v2),

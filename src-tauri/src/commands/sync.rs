@@ -14,6 +14,7 @@ use rand::{rngs::OsRng, RngCore};
 use rusqlite::OptionalExtension;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::sync::{Arc, OnceLock};
 use tauri::State;
 use uuid::Uuid;
 
@@ -26,6 +27,8 @@ const CONFIG_KEY: &str = "cloud_sync_config_v1";
 const DEVICE_KEY: &str = "cloud_sync_device_id_v1";
 const AAD: &[u8] = b"lexicue/cloud-sync/v1";
 const CHUNK_SIZE: usize = 512 * 1024;
+const TRANSFER_CONCURRENCY: usize = 6;
+const HTTP_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(45);
 const VAULT_SERVICE: &str = "com.lexicue.cloud-sync";
 const VAULT_ACCOUNT: &str = "stronghold-unlock-key-v1";
 
@@ -191,6 +194,16 @@ struct CheckpointManifest {
     compression: String,
     encrypted_len: usize,
     chunks: Vec<String>,
+    #[serde(default)]
+    summary: Option<CheckpointSummary>,
+}
+#[derive(Clone, Serialize, Deserialize)]
+struct CheckpointSummary {
+    files: usize,
+    folders: usize,
+    words: usize,
+    phrases: usize,
+    review_logs: usize,
 }
 #[derive(Serialize)]
 struct CheckpointUpload {
@@ -331,6 +344,15 @@ fn now_ms() -> i64 {
         .unwrap_or_default()
         .as_millis() as i64
 }
+
+fn set_runtime_phase(conn: &rusqlite::Connection, phase: &str) -> Result<(), String> {
+    conn.execute(
+        "INSERT INTO sync_runtime(key,value) VALUES('phase',?1) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+        [phase],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
 fn normalized_endpoint(endpoint: &str) -> Result<String, String> {
     let value = endpoint.trim().trim_end_matches('/');
     if value.starts_with("https://") || value.starts_with("http://localhost") {
@@ -455,19 +477,72 @@ fn key(config: &LocalConfig) -> Result<[u8; 32], String> {
         .map_err(|_| "invalid local sync key".into())
 }
 
-async fn fetch_checkpoint_backup(
+fn sync_http_client() -> &'static reqwest::Client {
+    static CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+    CLIENT.get_or_init(|| {
+        reqwest::Client::builder()
+            .connect_timeout(std::time::Duration::from_secs(15))
+            .timeout(HTTP_TIMEOUT)
+            .build()
+            .expect("sync HTTP client configuration is valid")
+    })
+}
+
+async fn download_chunks(
+    client: &reqwest::Client,
+    local: &LocalConfig,
+    hashes: &[String],
+) -> Result<Vec<u8>, String> {
+    let semaphore = Arc::new(tokio::sync::Semaphore::new(TRANSFER_CONCURRENCY));
+    let mut tasks = Vec::with_capacity(hashes.len());
+    for (position, expected_hash) in hashes.iter().cloned().enumerate() {
+        let permit = semaphore
+            .clone()
+            .acquire_owned()
+            .await
+            .map_err(|e| e.to_string())?;
+        let client = client.clone();
+        let endpoint = local.endpoint.clone();
+        let token = local.access_token.clone();
+        tasks.push(tokio::spawn(async move {
+            let _permit = permit;
+            let response = client
+                .get(format!("{endpoint}/v2/chunks/{expected_hash}"))
+                .bearer_auth(token)
+                .send()
+                .await
+                .map_err(|error| format!("Encrypted chunk download failed: {error}"))?;
+            if !response.status().is_success() {
+                return Err(response
+                    .text()
+                    .await
+                    .unwrap_or_else(|_| "Encrypted chunk download failed".into()));
+            }
+            let bytes = response
+                .bytes()
+                .await
+                .map_err(|error| error.to_string())?
+                .to_vec();
+            if hash(&bytes) != expected_hash {
+                return Err("Encrypted chunk hash verification failed".into());
+            }
+            Ok::<_, String>((position, bytes))
+        }));
+    }
+    let mut ordered = vec![Vec::new(); hashes.len()];
+    for task in tasks {
+        let (position, bytes) = task.await.map_err(|e| e.to_string())??;
+        ordered[position] = bytes;
+    }
+    Ok(ordered.into_iter().flatten().collect())
+}
+
+async fn fetch_checkpoint_manifest(
     client: &reqwest::Client,
     local: &LocalConfig,
     data_key: &[u8; 32],
     checkpoint_id: &str,
-) -> Result<
-    (
-        SyncCheckpoint,
-        export::BackupPayload,
-        Option<Vec<db::SyncEntityStateExport>>,
-    ),
-    String,
-> {
+) -> Result<(SyncCheckpoint, CheckpointManifest), String> {
     let response = client
         .get(format!("{}/v2/checkpoints/{checkpoint_id}", local.endpoint))
         .bearer_auth(&local.access_token)
@@ -494,32 +569,27 @@ async fn fetch_checkpoint_backup(
     {
         return Err("Checkpoint manifest does not match its encrypted chunk list".into());
     }
-    let mut encrypted = Vec::with_capacity(manifest.encrypted_len);
-    for expected_hash in &detail.chunk_hashes {
-        let response = client
-            .get(format!("{}/v2/chunks/{expected_hash}", local.endpoint))
-            .bearer_auth(&local.access_token)
-            .send()
-            .await
-            .map_err(|error| format!("Encrypted chunk download failed: {error}"))?;
-        if !response.status().is_success() {
-            return Err(response
-                .text()
-                .await
-                .unwrap_or_else(|_| "Encrypted chunk download failed".into()));
-        }
-        let bytes = response
-            .bytes()
-            .await
-            .map_err(|error| error.to_string())?
-            .to_vec();
-        if hash(&bytes) != *expected_hash {
-            return Err("Encrypted chunk hash verification failed".into());
-        }
-        encrypted.extend_from_slice(&bytes);
-    }
+    Ok((detail.checkpoint, manifest))
+}
+
+async fn fetch_checkpoint_backup(
+    client: &reqwest::Client,
+    local: &LocalConfig,
+    data_key: &[u8; 32],
+    checkpoint_id: &str,
+) -> Result<
+    (
+        SyncCheckpoint,
+        export::BackupPayload,
+        Option<Vec<db::SyncEntityStateExport>>,
+    ),
+    String,
+> {
+    let (checkpoint, manifest) =
+        fetch_checkpoint_manifest(client, local, data_key, checkpoint_id).await?;
+    let encrypted = download_chunks(client, local, &manifest.chunks).await?;
     if encrypted.len() != manifest.encrypted_len
-        || encrypted.len() as i64 != detail.checkpoint.encrypted_len
+        || encrypted.len() as i64 != checkpoint.encrypted_len
     {
         return Err("Checkpoint encrypted length verification failed".into());
     }
@@ -536,7 +606,7 @@ async fn fetch_checkpoint_backup(
             None,
         )
     };
-    Ok((detail.checkpoint, backup, state))
+    Ok((checkpoint, backup, state))
 }
 
 fn write_safety_backup(conn: &rusqlite::Connection) -> Result<String, String> {
@@ -1020,26 +1090,68 @@ async fn upload_checkpoint_payload(
     protocol_version: i16,
 ) -> Result<(), String> {
     let checkpoint = crypt_bytes(data_key, &compress(payload)?)?;
-    let client = reqwest::Client::new();
-    let mut chunk_hashes = Vec::new();
-    for chunk in chunks(&checkpoint) {
-        let chunk_hash = hash(chunk);
-        let response = client
-            .put(format!("{}/v2/chunks/{chunk_hash}", local.endpoint))
-            .bearer_auth(&local.access_token)
-            .header("content-type", "application/octet-stream")
-            .body(chunk.to_vec())
-            .send()
+    let client = sync_http_client().clone();
+    let chunk_list: Vec<(usize, String, Vec<u8>)> = chunks(&checkpoint)
+        .enumerate()
+        .map(|(position, chunk)| (position, hash(chunk), chunk.to_vec()))
+        .collect();
+    let semaphore = Arc::new(tokio::sync::Semaphore::new(TRANSFER_CONCURRENCY));
+    let mut tasks = Vec::with_capacity(chunk_list.len());
+    for (position, chunk_hash, bytes) in chunk_list {
+        let permit = semaphore
+            .clone()
+            .acquire_owned()
             .await
-            .map_err(|e| format!("Sync upload failed: {e}"))?;
-        if !response.status().is_success() {
-            return Err(response
-                .text()
+            .map_err(|e| e.to_string())?;
+        let client = client.clone();
+        let endpoint = local.endpoint.clone();
+        let token = local.access_token.clone();
+        tasks.push(tokio::spawn(async move {
+            let _permit = permit;
+            let response = client
+                .put(format!("{endpoint}/v2/chunks/{chunk_hash}"))
+                .bearer_auth(token)
+                .header("content-type", "application/octet-stream")
+                .body(bytes)
+                .send()
                 .await
-                .unwrap_or_else(|_| "Sync chunk upload failed".into()));
-        }
-        chunk_hashes.push(chunk_hash);
+                .map_err(|e| format!("Sync upload failed: {e}"))?;
+            if !response.status().is_success() {
+                return Err(response
+                    .text()
+                    .await
+                    .unwrap_or_else(|_| "Sync chunk upload failed".into()));
+            }
+            Ok::<_, String>((position, chunk_hash))
+        }));
     }
+    let mut ordered_hashes = vec![String::new(); tasks.len()];
+    for task in tasks {
+        let (position, chunk_hash) = task.await.map_err(|e| e.to_string())??;
+        ordered_hashes[position] = chunk_hash;
+    }
+    let chunk_hashes = ordered_hashes;
+    let summary = if protocol_version == 3 {
+        serde_json::from_slice::<V3Baseline>(payload)
+            .ok()
+            .map(|baseline| CheckpointSummary {
+                files: baseline.backup.data.files.len(),
+                folders: baseline.backup.data.folders.len(),
+                words: baseline.backup.data.words.len(),
+                phrases: baseline.backup.data.phrases.len(),
+                review_logs: baseline.backup.data.review_logs.len(),
+            })
+    } else {
+        serde_json::from_slice::<export::BackupPayload>(payload)
+            .ok()
+            .map(|backup| CheckpointSummary {
+                files: backup.data.files.len(),
+                folders: backup.data.folders.len(),
+                words: backup.data.words.len(),
+                phrases: backup.data.phrases.len(),
+                review_logs: backup.data.review_logs.len(),
+            })
+    };
     let manifest = crypt_bytes(
         data_key,
         &serde_json::to_vec(&CheckpointManifest {
@@ -1047,6 +1159,7 @@ async fn upload_checkpoint_payload(
             compression: "zstd".into(),
             encrypted_len: checkpoint.len(),
             chunks: chunk_hashes.clone(),
+            summary,
         })
         .map_err(|e| e.to_string())?,
     )?;
@@ -1165,17 +1278,46 @@ fn pending_outbox(conn: &rusqlite::Connection) -> Result<Vec<OutboxRow>, String>
     Ok(rows)
 }
 async fn push_outbox(local: &LocalConfig, rows: Vec<OutboxRow>) -> Result<Vec<String>, String> {
-    let client = reqwest::Client::new();
+    let client = sync_http_client();
     let mut sent = Vec::new();
-    for (event_id, clock, kind, ciphertext) in rows {
+    let mut start = 0usize;
+    while start < rows.len() {
+        let mut end = start;
+        let mut estimated_size = 0usize;
+        while end < rows.len()
+            && end - start < 100
+            && (end == start || estimated_size + rows[end].3.len() + 512 <= 12 * 1024 * 1024)
+        {
+            estimated_size += rows[end].3.len() + 512;
+            end += 1;
+        }
+        if end == start {
+            end += 1;
+        }
+        let batch = &rows[start..end];
+        let mut body = Vec::new();
+        for (event_id, clock, kind, ciphertext) in batch {
+            let metadata = serde_json::to_vec(&serde_json::json!({
+                "event_id": event_id,
+                "device_id": local.device_id,
+                "clock": clock,
+                "kind": kind,
+            }))
+            .map_err(|e| e.to_string())?;
+            body.extend_from_slice(&(metadata.len() as u32).to_be_bytes());
+            body.extend_from_slice(&metadata);
+            body.extend_from_slice(&(ciphertext.len() as u32).to_be_bytes());
+            body.extend_from_slice(ciphertext);
+            sent.push(event_id.clone());
+        }
         let response = client
-            .post(format!("{}/v3/events", local.endpoint))
+            .post(format!("{}/v3/events/batch", local.endpoint))
             .bearer_auth(&local.access_token)
-            .header("x-sync-event-id", &event_id)
-            .header("x-sync-device-id", &local.device_id)
-            .header("x-sync-clock", clock)
-            .header("x-sync-kind", kind)
-            .body(ciphertext)
+            .header(
+                "content-type",
+                "application/vnd.lexicue.sync-events+binary;v=3",
+            )
+            .body(body)
             .send()
             .await
             .map_err(|e| format!("Event upload failed: {e}"))?;
@@ -1185,7 +1327,7 @@ async fn push_outbox(local: &LocalConfig, rows: Vec<OutboxRow>) -> Result<Vec<St
                 .await
                 .unwrap_or_else(|_| "Event upload failed".into()));
         }
-        sent.push(event_id);
+        start = end;
     }
     Ok(sent)
 }
@@ -1219,7 +1361,7 @@ async fn pull_apply_events(
     local: &mut LocalConfig,
     data_key: &[u8; 32],
 ) -> Result<u32, String> {
-    let client = reqwest::Client::new();
+    let client = sync_http_client();
     let mut applied = 0;
     loop {
         let response = client
@@ -1410,7 +1552,7 @@ pub async fn sync_register(
     } else {
         device_name
     };
-    let client = reqwest::Client::new();
+    let client = sync_http_client();
     let response = client
         .post(format!("{endpoint}/v1/auth/register"))
         .json(&RegisterRequest {
@@ -1474,7 +1616,7 @@ pub async fn sync_login(
     } else {
         device_name
     };
-    let client = reqwest::Client::new();
+    let client = sync_http_client();
     let response = client
         .post(format!("{endpoint}/v1/auth/login"))
         .json(&LoginRequest {
@@ -1548,7 +1690,7 @@ pub async fn sync_reset_password(
         device_name
     };
     let verifier = recovery_verifier(&recovery_code);
-    let client = reqwest::Client::new();
+    let client = sync_http_client();
     let response = client
         .post(format!("{endpoint}/v1/auth/recovery-package"))
         .json(&RecoveryPackageRequest {
@@ -1632,12 +1774,20 @@ pub async fn sync_now(state: State<'_, DbState>, secrets: SyncSecrets) -> Result
         let data_key = key(&local)?;
         (local, data_key)
     };
+    {
+        let conn = state.conn.lock().map_err(|e| e.to_string())?;
+        set_runtime_phase(&conn, "downloading")?;
+    }
     pull_apply_events(&state, &mut local, &data_key).await?;
     let outbox = {
         let conn = state.conn.lock().map_err(|e| e.to_string())?;
         prepare_outbox(&conn, &local, &data_key)?;
         pending_outbox(&conn)?
     };
+    {
+        let conn = state.conn.lock().map_err(|e| e.to_string())?;
+        set_runtime_phase(&conn, "uploading")?;
+    }
     let sent = push_outbox(&local, outbox).await?;
     let uploaded = sent.len() as u32;
     {
@@ -1650,6 +1800,10 @@ pub async fn sync_now(state: State<'_, DbState>, secrets: SyncSecrets) -> Result
             .map_err(|e| e.to_string())?;
             conn.execute("UPDATE sync_changes SET uploaded_at=?1 WHERE id=(SELECT change_id FROM sync_outbox WHERE event_id=?2)",rusqlite::params![now_ms(),event_id]).map_err(|e|e.to_string())?;
         }
+    }
+    {
+        let conn = state.conn.lock().map_err(|e| e.to_string())?;
+        set_runtime_phase(&conn, "downloading")?;
     }
     let downloaded = pull_apply_events(&state, &mut local, &data_key).await?;
     let checkpoint_payload = {
@@ -1681,6 +1835,10 @@ pub async fn sync_now(state: State<'_, DbState>, secrets: SyncSecrets) -> Result
         }
     };
     if let Some(payload) = checkpoint_payload {
+        {
+            let conn = state.conn.lock().map_err(|e| e.to_string())?;
+            set_runtime_phase(&conn, "uploading")?;
+        }
         upload_checkpoint_payload(&local, &data_key, &payload, 3).await?;
         let conn = state.conn.lock().map_err(|e| e.to_string())?;
         conn.execute(
@@ -1694,6 +1852,7 @@ pub async fn sync_now(state: State<'_, DbState>, secrets: SyncSecrets) -> Result
     save_config(&conn, &local)?;
     conn.execute("INSERT INTO sync_runtime(key,value) VALUES('last_uploaded',?1) ON CONFLICT(key) DO UPDATE SET value=excluded.value",[uploaded.to_string()]).map_err(|e|e.to_string())?;
     conn.execute("INSERT INTO sync_runtime(key,value) VALUES('last_downloaded',?1) ON CONFLICT(key) DO UPDATE SET value=excluded.value",[downloaded.to_string()]).map_err(|e|e.to_string())?;
+    set_runtime_phase(&conn, "idle")?;
     Ok(())
 }
 
@@ -1713,7 +1872,7 @@ pub async fn sync_refresh_token(
             .ok_or("Cloud sync is not configured.")?
             .endpoint
     };
-    let response = reqwest::Client::new()
+    let response = sync_http_client()
         .post(format!("{endpoint}/v1/auth/refresh"))
         .json(&RefreshRequest {
             refresh_token: secrets.refresh_token.clone(),
@@ -1746,7 +1905,7 @@ pub async fn sync_logout(state: State<'_, DbState>, secrets: SyncSecrets) -> Res
             .ok_or("Cloud sync is not configured.")?
             .endpoint
     };
-    let response = reqwest::Client::new()
+    let response = sync_http_client()
         .post(format!("{endpoint}/v1/auth/logout"))
         .json(&RefreshRequest {
             refresh_token: secrets.refresh_token,
@@ -1813,7 +1972,7 @@ pub async fn sync_checkpoints(
             &secrets,
         )
     };
-    let response = reqwest::Client::new()
+    let response = sync_http_client()
         .get(format!("{}/v2/checkpoints", local.endpoint))
         .bearer_auth(local.access_token)
         .send()
@@ -1848,15 +2007,30 @@ pub async fn sync_preview_checkpoint(
             .map_err(|error| error.to_string())? as usize;
         (local.clone(), key(&local)?, count)
     };
-    let (checkpoint, backup, _) =
-        fetch_checkpoint_backup(&reqwest::Client::new(), &local, &data_key, &checkpoint_id).await?;
+    let (checkpoint, manifest) =
+        fetch_checkpoint_manifest(sync_http_client(), &local, &data_key, &checkpoint_id).await?;
+    let summary = if let Some(summary) = manifest.summary {
+        summary
+    } else {
+        // Legacy v2 checkpoints did not carry a summary. Keep them usable;
+        // only this legacy path needs the old full-payload preview.
+        let (_, backup, _) =
+            fetch_checkpoint_backup(sync_http_client(), &local, &data_key, &checkpoint_id).await?;
+        CheckpointSummary {
+            files: backup.data.files.len(),
+            folders: backup.data.folders.len(),
+            words: backup.data.words.len(),
+            phrases: backup.data.phrases.len(),
+            review_logs: backup.data.review_logs.len(),
+        }
+    };
     Ok(SyncCheckpointPreview {
         checkpoint,
-        files: backup.data.files.len(),
-        folders: backup.data.folders.len(),
-        words: backup.data.words.len(),
-        phrases: backup.data.phrases.len(),
-        review_logs: backup.data.review_logs.len(),
+        files: summary.files,
+        folders: summary.folders,
+        words: summary.words,
+        phrases: summary.phrases,
+        review_logs: summary.review_logs,
         local_files,
         local_has_data: local_files > 0,
     })
@@ -1877,7 +2051,7 @@ pub async fn sync_restore_checkpoint(
         (local.clone(), key(&local)?)
     };
     let (checkpoint, backup, entity_state) =
-        fetch_checkpoint_backup(&reqwest::Client::new(), &local, &data_key, &checkpoint_id).await?;
+        fetch_checkpoint_backup(sync_http_client(), &local, &data_key, &checkpoint_id).await?;
     let mut local = local;
     let conn = state.conn.lock().map_err(|error| error.to_string())?;
     let path = write_safety_backup(&conn)?;
@@ -1912,7 +2086,7 @@ pub async fn sync_devices(
             &secrets,
         )
     };
-    let response = reqwest::Client::new()
+    let response = sync_http_client()
         .get(format!("{}/v2/devices", local.endpoint))
         .bearer_auth(local.access_token)
         .send()
@@ -1947,7 +2121,7 @@ pub async fn sync_revoke_device(
             "Use ‘退出本机同步’ for the current device; it cannot revoke itself here.".into(),
         );
     }
-    let response = reqwest::Client::new()
+    let response = sync_http_client()
         .delete(format!("{}/v2/devices/{device_id}", local.endpoint))
         .bearer_auth(local.access_token)
         .send()
@@ -1974,7 +2148,7 @@ pub async fn sync_delete_account(
             &secrets,
         )
     };
-    let response = reqwest::Client::new()
+    let response = sync_http_client()
         .delete(format!("{}/v2/account", local.endpoint))
         .bearer_auth(local.access_token)
         .send()
