@@ -46,11 +46,12 @@ export default function Layout() {
   useEffect(() => syncCoordinator.start(), []);
 
   return (
-    <div className="h-screen flex overflow-hidden">
+    <div className="app-shell h-screen flex overflow-hidden">
+      <a className="skip-link" href="#main-content">{t('layout.skipToContent', 'Skip to content')}</a>
       <Sidebar />
-      <main className="min-w-0 flex-1 overflow-hidden flex flex-col">
+      <main id="main-content" className="app-main min-w-0 flex-1 overflow-hidden flex flex-col" tabIndex={-1}>
         {!dictReady && (
-          <div className="pointer-events-none fixed right-4 top-4 z-[90] rounded border px-3 py-1.5 text-xs text-amber-600">
+          <div className="app-status pointer-events-none fixed right-4 top-4 z-[90] rounded-full border px-3 py-1.5 text-xs">
             {t('layout.dictInit')}
           </div>
         )}

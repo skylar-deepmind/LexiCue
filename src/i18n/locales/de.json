@@ -52,6 +52,8 @@
     "detailLoadFailed": "Details konnten nicht geladen werden. Bitte erneut versuchen."
   },
   "sidebar": {
+    "today": "Heute",
+    "library": "Bibliothek",
     "files": "Dateien",
     "words": "Wörter",
     "phrases": "Phrasen",
@@ -65,6 +67,10 @@
     "switchLanguageTitle": "Sprache wechseln",
     "switchLanguageConfirm": "Beim Wechseln der Sprache wird die aktuelle Wiederholungssitzung neu gestartet und der Fortschritt zurückgesetzt. Fortfahren?",
     "switch": "Wechseln"
+  },
+  "library": { "tabsAria": "Bibliotheksansichten", "materials": "Materialien", "words": "Wörter", "phrases": "Phrasen" },
+  "today": {
+    "title": "Heute mit echten Inhalten lernen", "subtitle": "Mach aus dem, was du liest, Wörter, die du behältst.", "emptyTitle": "Mit etwas beginnen, das dir gefällt", "emptyDescription": "Importiere einen Artikel, Buchtext oder Untertitel und lerne beim Lesen.", "importAction": "Material importieren", "readyEyebrow": "Heutige Aufgabe", "completeEyebrow": "Heute erledigt", "readyTitle": "{{count}} Einträge warten auf Wiederholung", "completeTitle": "Die heutige Wiederholung ist erledigt", "readyDescription": "Nimm dir ein paar Minuten, solange die Erinnerung noch frisch ist.", "completeDescription": "Im Moment ist nichts fällig. Erkunde deine Bibliothek oder komm später wieder.", "reviewAction": "Wiederholung starten", "reviewAgainAction": "Wiederholung ansehen", "dueLabel": "Jetzt fällig", "learningLabel": "Lernt", "weeklyLabel": "Diese Woche wiederholt", "recentTitle": "Zuletzt hinzugefügt", "recentDescription": "Öffne ein Material und lerne im echten Kontext.", "libraryAction": "Bibliothek öffnen", "openAction": "Lesen", "localTitle": "Deine Lerndaten bleiben lokal", "localDescription": "Standardmäßig offline und ohne Konto; externe Dienste nur bei Aktivierung.", "addTitle": "Lernmaterial hinzufügen", "addDescription": "Text, Untertitel oder YouTube-Untertitel importieren."
   },
   "settings": {
     "title": "Einstellungen",
@@ -210,6 +216,7 @@
     "emptyFolderDescription": "Erstellen Sie einen Unterordner oder ziehen Sie Dateien hierher"
   },
   "fileCard": {
+    "openAria": "{{name}} öffnen",
     "segments_one": "{{count}} Segment",
     "segments_other": "{{count}} Segmente",
     "aiDone": "KI-Phrasenanalyse abgeschlossen",

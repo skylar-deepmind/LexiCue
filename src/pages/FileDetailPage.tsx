@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, BookOpen } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -7,6 +7,7 @@ import EmptyState from '../components/EmptyState';
 import ReadingPage from './ReadingPage';
 import { useFileStore } from '../stores/fileStore';
 import type { FileRecord } from '../lib/types';
+import { LoadingSpinner } from '../components/Skeleton';
 
 export default function FileDetailPage() {
   const { t } = useTranslation();
@@ -41,16 +42,17 @@ export default function FileDetailPage() {
     navigate('/files');
   };
 
-  if (loading) return <div className="flex h-full items-center justify-center text-gray-400">{t('common.loading')}</div>;
+  if (loading) return <div className="flex h-full items-center justify-center gap-2 text-gray-500" role="status" aria-label={t('common.loading')}><LoadingSpinner />{t('common.loading')}</div>;
   if (error || !file) return <EmptyState icon="📭" title={t('fileDetail.notFound')} description={t('fileDetail.notFoundHint')} />;
 
   return (
     <div className="flex h-full flex-col">
-      <header className="flex items-center gap-2 border-b border-gray-100 bg-white px-4 py-3 sm:px-6">
-        <button onClick={backToFiles} className="rounded-lg p-2 text-gray-500 hover:bg-gray-100" aria-label={t('fileDetail.back')}>
+      <header className="flex items-center gap-3 border-b border-gray-100 bg-white px-4 py-3 sm:px-6">
+        <button onClick={backToFiles} className="ui-icon-button" aria-label={t('fileDetail.back')}>
           <ArrowLeft size={18} />
         </button>
-        <h1 className="min-w-0 flex-1 truncate text-base font-medium text-gray-900" title={file.name}>{file.name}</h1>
+        <span className="file-card-icon grid size-10 shrink-0 place-items-center rounded-xl"><BookOpen size={19} aria-hidden="true" /></span>
+        <div className="min-w-0 flex-1"><p className="text-xs font-semibold uppercase tracking-wide text-gray-400">{t('sidebar.files')}</p><h1 className="truncate text-base font-semibold text-gray-900" title={file.name}>{file.name}</h1></div>
       </header>
       <div className="min-h-0 flex-1">
         <ReadingPage fileId={fileId} />

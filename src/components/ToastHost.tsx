@@ -20,8 +20,9 @@ export default function ToastHost() {
         return (
           <div
             key={item.id}
-            role="status"
-            className={`pointer-events-auto flex items-start gap-2.5 rounded-lg border px-3 py-2.5 text-sm shadow-lg ${style.container}`}
+            role={item.type === 'error' ? 'alert' : 'status'}
+            aria-atomic="true"
+            className={`pointer-events-auto flex items-start gap-2.5 rounded-xl border px-3 py-3 text-sm shadow-lg ${style.container}`}
           >
             <Icon size={17} className={`mt-0.5 shrink-0 ${style.iconColor}`} />
             <span className="flex-1 break-words">{item.message}</span>
@@ -30,7 +31,7 @@ export default function ToastHost() {
                 onClick={() => navigator.clipboard.writeText(item.message)}
                 aria-label={t('toast.copyErrorAria')}
                 title={t('toast.copyErrorAria')}
-                className="shrink-0 cursor-pointer rounded p-0.5 opacity-60 hover:bg-black/5 hover:opacity-100"
+                className="ui-icon-button size-9 min-h-9 min-w-9 shrink-0 opacity-70 hover:bg-black/5 hover:opacity-100"
               >
                 <Copy size={15} />
               </button>
@@ -38,7 +39,7 @@ export default function ToastHost() {
             <button
               onClick={() => dismiss(item.id)}
               aria-label={t('toast.closeAria')}
-              className="shrink-0 cursor-pointer rounded p-0.5 opacity-60 hover:bg-black/5 hover:opacity-100"
+              className="ui-icon-button size-9 min-h-9 min-w-9 shrink-0 opacity-70 hover:bg-black/5 hover:opacity-100"
             >
               <X size={15} />
             </button>

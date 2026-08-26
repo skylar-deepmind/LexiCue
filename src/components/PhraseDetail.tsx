@@ -35,6 +35,9 @@ export default function PhraseDetailPanel({ detail, onClose, onStatusChange, onD
   const [hideSaving, setHideSaving] = useState(false);
   const [page, setPage] = useState(1);
   const savedTimerRef = useRef<number | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => { closeButtonRef.current?.focus(); }, []);
 
   useEffect(() => () => {
     if (savedTimerRef.current) window.clearTimeout(savedTimerRef.current);
@@ -129,12 +132,12 @@ export default function PhraseDetailPanel({ detail, onClose, onStatusChange, onD
   };
 
   return (
-    <div className="fixed inset-y-0 right-0 w-full sm:w-96 bg-white border-l border-gray-200 shadow-xl z-40 flex flex-col">
+    <aside role="dialog" aria-modal="true" aria-labelledby="phrase-detail-title" className="ui-sheet fixed inset-y-0 right-0 z-40 flex w-full flex-col border-l sm:w-96">
       <div className="flex items-center justify-between p-4 border-b border-gray-100">
-        <h2 className={`font-semibold text-gray-900 ${CONTENT_FONT_CLASS.learning[learningTextFontSize]}`}>{detail.phrase.text}</h2>
+        <h2 id="phrase-detail-title" className={`font-semibold text-gray-900 ${CONTENT_FONT_CLASS.learning[learningTextFontSize]}`}>{detail.phrase.text}</h2>
         <div className="flex items-center gap-1">
           <DisplaySettingsMenu />
-          <button onClick={onClose} aria-label={t('common.close')} className="text-gray-400 hover:text-gray-600 p-1"><X size={20} /></button>
+          <button ref={closeButtonRef} onClick={onClose} aria-label={t('common.close')} className="ui-icon-button"><X size={20} /></button>
         </div>
       </div>
 
@@ -316,6 +319,6 @@ export default function PhraseDetailPanel({ detail, onClose, onStatusChange, onD
           )}
         </div>
       </div>
-    </div>
+    </aside>
   );
 }

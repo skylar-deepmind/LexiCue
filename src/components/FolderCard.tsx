@@ -36,7 +36,7 @@ export default function FolderCard({
   const canDrop = drag !== null && !invalidDrop;
 
   return (
-    <div
+    <article
       draggable
       onDragStart={(event) => onDragStart(event, { kind: 'folder', id: folder.id })}
       onDragEnd={onDragEnd}
@@ -47,20 +47,21 @@ export default function FolderCard({
         event.preventDefault();
         if (canDrop) onDrop(folder.id);
       }}
-      onClick={() => onSelect(folder.id)}
-      className={`group flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-4 transition-all hover:border-blue-300 hover:shadow-sm ${
-        invalidDrop ? 'opacity-40' : 'cursor-pointer'
+      className={`group folder-card flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-4 transition-all hover:border-blue-300 hover:shadow-sm ${
+        invalidDrop ? 'opacity-40' : ''
       }`}
     >
-      <Folder size={28} className="shrink-0 text-amber-500" />
-      <div className="min-w-0 flex-1">
-        <h3 className="truncate text-sm font-medium text-gray-900" title={folder.name}>
+      <button onClick={() => onSelect(folder.id)} className="flex min-w-0 flex-1 items-center gap-3 rounded-lg text-left" aria-label={`${t('files.openFolder', 'Open folder')}: ${folder.name}`}>
+        <Folder size={25} className="folder-card-icon shrink-0" strokeWidth={1.7} aria-hidden="true" />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium text-gray-900" title={folder.name}>
           {folder.name}
-        </h3>
-        <p className="text-xs text-gray-500">
+          </span>
+          <span className="block text-xs text-gray-500">
           {t('files.folderCount', { count: folder.file_count })}
-        </p>
-      </div>
+          </span>
+        </span>
+      </button>
       <div className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100">
         <FolderActionsMenu
           folder={folder}
@@ -70,6 +71,6 @@ export default function FolderCard({
           onDelete={onDelete}
         />
       </div>
-    </div>
+    </article>
   );
 }

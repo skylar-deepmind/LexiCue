@@ -52,6 +52,8 @@
     "detailLoadFailed": "Failed to load details. Please retry."
   },
   "sidebar": {
+    "today": "Today",
+    "library": "Library",
     "files": "Files",
     "words": "Words",
     "phrases": "Phrases",
@@ -65,6 +67,10 @@
     "switchLanguageTitle": "Switch Language",
     "switchLanguageConfirm": "Switching language will restart the current review session and reset progress. Continue?",
     "switch": "Switch"
+  },
+  "library": { "tabsAria": "Library views", "materials": "Materials", "words": "Words", "phrases": "Phrases" },
+  "today": {
+    "title": "Learn a little from real content today", "subtitle": "Turn the things you read into words you remember.", "emptyTitle": "Start with something you enjoy", "emptyDescription": "Import an article, book text, or subtitles, and LexiCue will help you learn as you read.", "importAction": "Import material", "readyEyebrow": "Today’s task", "completeEyebrow": "Today complete", "readyTitle_one": "{{count}} item is ready for review", "readyTitle_other": "{{count}} items are ready for review", "completeTitle": "You’re done with reviews today", "readyDescription": "Take a few minutes to strengthen them while they are still fresh.", "completeDescription": "Nothing is due right now. Explore your library or return later.", "reviewAction": "Start review", "reviewAgainAction": "View review", "dueLabel": "Due now", "learningLabel": "Learning", "weeklyLabel": "Reviews this week", "recentTitle": "Recently added", "recentDescription": "Open any material and learn in real context.", "libraryAction": "Open library", "openAction": "Read", "localTitle": "Your learning data stays local", "localDescription": "Offline by default and account-free; external services are only used when you enable them.", "addTitle": "Add learning material", "addDescription": "Import text, subtitles, or YouTube captions."
   },
   "settings": {
     "title": "Settings",
@@ -210,6 +216,7 @@
     "emptyFolderDescription": "Create a subfolder, or drag files here"
   },
   "fileCard": {
+    "openAria": "Open {{name}}",
     "segments_one": "{{count}} segment",
     "segments_other": "{{count}} segments",
     "aiDone": "AI phrase analysis complete",

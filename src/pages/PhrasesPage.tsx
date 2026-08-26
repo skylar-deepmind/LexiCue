@@ -192,18 +192,19 @@ export default function PhrasesPage() {
 
   return (
     <div className="h-full flex flex-col relative">
-      <div className="px-6 py-4 border-b border-gray-100">
+      <div className="border-b border-gray-100 px-4 py-4 sm:px-6">
         <div className="flex items-center justify-between mb-3">
-          <h1 className="text-xl font-semibold text-gray-900">{t('phrases.title')}</h1>
+          <h1 className="ui-page-title">{t('phrases.title')}</h1>
           <DisplaySettingsMenu />
         </div>
         <div className="flex items-center justify-between flex-wrap gap-2">
-          <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+          <div className="flex max-w-full gap-1 overflow-x-auto rounded-lg bg-gray-100 p-1" aria-label={t('phrases.title')} role="group">
             {FILTER_TABS.map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => store.setFilter(tab.key)}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                aria-pressed={filter === tab.key}
+                className={`min-h-10 shrink-0 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                   filter === tab.key
                     ? 'bg-white text-gray-900 shadow-sm'
                     : 'text-gray-500 hover:text-gray-700'
@@ -238,12 +239,12 @@ export default function PhrasesPage() {
           }}
           placeholder={t('phrases.searchPlaceholder')}
           aria-label={t('phrases.searchAria')}
-          className="mt-3 w-full max-w-sm px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+          className="ui-input mt-3 w-full max-w-sm"
         />
       </div>
 
       {(selected.size > 0 || lastBatchAction) && (
-        <div className="px-6 py-2 bg-purple-50 border-b border-purple-100 flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 border-b border-purple-100 bg-purple-50 px-4 py-2 sm:px-6">
           <span className="text-sm text-purple-700 mr-2">
             {selected.size > 0 ? t('phrases.batchSelected', { count: selected.size }) : t('phrases.undoAvailable')}
           </span>
@@ -308,7 +309,7 @@ export default function PhrasesPage() {
           <EmptyState icon="🔎" title={t('phrases.noMatchTitle')} description={t('phrases.noMatchDescription')} />
         ) : (
           <div>
-            <div className="flex items-center gap-3 px-4 sm:px-6 py-2 bg-gray-50 text-xs text-gray-500">
+            <div className="flex items-center gap-3 bg-gray-50 px-4 py-2 text-sm text-gray-500 sm:px-6">
               <input
                 ref={selectAllRef}
                 type="checkbox"

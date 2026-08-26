@@ -9,6 +9,9 @@ import RatingButtons from '../components/RatingButtons';
 import EmptyState from '../components/EmptyState';
 import DisplaySettingsMenu from '../components/DisplaySettingsMenu';
 import { usePreferencesStore } from '../stores/preferencesStore';
+import { CheckCircle2 } from 'lucide-react';
+import { Button, Progress } from '../components/ui';
+import { LoadingSpinner } from '../components/Skeleton';
 
 export default function ReviewPage() {
   const { t } = useTranslation();
@@ -89,7 +92,7 @@ export default function ReviewPage() {
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
-        <div className="text-gray-400">{t('common.loading')}</div>
+        <div className="flex items-center gap-2 text-gray-500" role="status" aria-label={t('common.loading')}><LoadingSpinner />{t('common.loading')}</div>
       </div>
     );
   }
@@ -98,10 +101,11 @@ export default function ReviewPage() {
     <div className="h-full min-h-0 overflow-y-auto p-4 pb-10 sm:p-6 sm:pb-12">
       <div className="flex min-h-full flex-col items-center justify-start gap-6 pt-2 sm:justify-center sm:pt-0">
         <div className="flex w-full max-w-lg items-center justify-between gap-3">
-        <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+        <div className="flex gap-1 rounded-lg bg-gray-100 p-1" role="group" aria-label={t('review.title', 'Review')}>
           <button
             onClick={() => setReviewType('word')}
-            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            aria-pressed={reviewType === 'word'}
+            className={`min-h-10 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
               reviewType === 'word' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
             }`}
           >
@@ -109,7 +113,8 @@ export default function ReviewPage() {
           </button>
           <button
             onClick={() => setReviewType('phrase')}
-            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            aria-pressed={reviewType === 'phrase'}
+            className={`min-h-10 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
               reviewType === 'phrase' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
             }`}
           >
@@ -121,8 +126,8 @@ export default function ReviewPage() {
 
         {!currentCard ? (
           sessionStats.reviewed > 0 ? (
-            <div className="mx-auto flex max-w-lg flex-col items-center rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm">
-              <div className="text-5xl">🎉</div>
+            <div className="ui-card mx-auto flex max-w-lg flex-col items-center p-8 text-center">
+              <div className="grid size-16 place-items-center rounded-full bg-emerald-50 text-emerald-600"><CheckCircle2 size={32} aria-hidden="true" /></div>
               <h2 className="mt-4 text-xl font-semibold text-gray-900">{t('review.completedTitle')}</h2>
               <p className="mt-1 text-sm text-gray-500">{t('review.reviewed', { count: sessionStats.reviewed })}</p>
               <div className="mt-6 grid w-full grid-cols-4 gap-2 text-sm">
@@ -138,9 +143,9 @@ export default function ReviewPage() {
                   </div>
                 ))}
               </div>
-              <div className="mt-6 flex gap-2">
-                <button onClick={() => void loadDueCards(true)} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">{t('review.reload')}</button>
-                <button onClick={() => navigate('/files')} className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">{t('review.backToFiles')}</button>
+              <div className="mt-6 flex flex-wrap justify-center gap-2">
+                <Button onClick={() => void loadDueCards(true)}>{t('review.reload')}</Button>
+                <Button variant="secondary" onClick={() => navigate('/files')}>{t('review.backToFiles')}</Button>
               </div>
             </div>
           ) : (
@@ -157,12 +162,7 @@ export default function ReviewPage() {
                 <span>{t('review.progress', { current: currentIndex + 1, total: queue.length })}</span>
                 <span>{Math.round(((currentIndex + 1) / queue.length) * 100)}%</span>
               </div>
-              <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
-                <div
-                  className="h-full rounded-full bg-blue-500 transition-[width] duration-300"
-                  style={{ width: `${((currentIndex + 1) / queue.length) * 100}%` }}
-                />
-              </div>
+              <div className="mt-1.5 h-2"><Progress value={((currentIndex + 1) / queue.length) * 100} label={t('review.progress', { current: currentIndex + 1, total: queue.length })} /></div>
             </div>
 
             <FlashCard

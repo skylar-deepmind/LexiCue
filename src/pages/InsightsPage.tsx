@@ -6,6 +6,7 @@ import { learningIndex, learningStage } from '../lib/fileProgress';
 import { LANGUAGES, type Language } from '../lib/languages';
 import { useInsightsStore } from '../stores/insightsStore';
 import { usePreferencesStore } from '../stores/preferencesStore';
+import Skeleton from '../components/Skeleton';
 
 const FILE_COVERAGE_PAGE_SIZE = 20;
 
@@ -56,7 +57,7 @@ export default function InsightsPage() {
     if (fileCoveragePage > totalFileCoveragePages) setFileCoveragePage(totalFileCoveragePages);
   }, [fileCoveragePage, totalFileCoveragePages]);
 
-  if (loading) return <div className="flex h-full items-center justify-center text-gray-400">{t('insights.loading')}</div>;
+  if (loading) return <div className="h-full overflow-y-auto p-4 sm:p-6" role="status" aria-busy="true" aria-label={t('insights.loading')}><div className="mx-auto max-w-5xl space-y-4"><Skeleton className="h-10 w-56" /><div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{Array.from({ length: 4 }).map((_, index) => <Skeleton key={index} className="h-24" />)}</div><div className="grid gap-4 lg:grid-cols-2"><Skeleton className="h-56" /><Skeleton className="h-56" /></div></div></div>;
   if (error || !stats) return <EmptyState icon="📊" title={t('insights.errorTitle')} description={t('insights.errorDescription')} />;
 
   const locale = i18n.resolvedLanguage ?? 'zh';
@@ -66,18 +67,18 @@ export default function InsightsPage() {
   return (
     <div className="h-full overflow-y-auto p-4 sm:p-6">
       <div className="mx-auto max-w-5xl">
-        <div className="mb-6 flex items-end justify-between">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="text-xl font-semibold text-gray-900">{t('insights.title')}</h1>
+            <h1 className="ui-page-title">{t('insights.title')}</h1>
             <p className="mt-1 text-sm text-gray-500">{t('insights.subtitle')}</p>
           </div>
           <div className="flex items-center gap-3">
-            <label className="flex items-center gap-2 text-xs text-gray-500">
+            <label className="flex items-center gap-2 text-sm text-gray-500">
               <span>{t('insights.viewLanguage')}</span>
               <select
                 value={insightsLanguage}
                 onChange={(event) => setInsightsLanguage(event.target.value as Language | 'all')}
-                className="rounded-md border border-gray-200 bg-white px-2 py-1 text-sm text-gray-700 focus:border-blue-500 focus:outline-none"
+                className="ui-input min-h-11 py-1 text-sm"
               >
                 <option value="all">{t('common.all')}</option>
                 {LANGUAGES.map((language) => <option key={language.id} value={language.id}>{language.label}</option>)}
@@ -87,32 +88,32 @@ export default function InsightsPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <section aria-label={t('insights.title')} className="grid grid-cols-1 gap-3 min-[440px]:grid-cols-2 lg:grid-cols-4">
           {STAT_CARDS.map((card) => (
-            <div key={card.key} className="rounded-xl border border-gray-200 bg-white p-4">
-              <p className="text-xs text-gray-500">{t(card.labelKey)}</p>
+            <div key={card.key} className="ui-card p-4">
+              <p className="text-sm text-gray-500">{t(card.labelKey)}</p>
               <p className={`mt-2 text-2xl font-semibold ${card.color}`}>{stats[card.key]}</p>
             </div>
           ))}
-        </div>
+        </section>
 
-        <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <section aria-label={t('insights.totalPhrases')} className="mt-3 grid grid-cols-1 gap-3 min-[440px]:grid-cols-2 lg:grid-cols-4">
           {PHRASE_STAT_CARDS.map((card) => (
-            <div key={card.key} className="rounded-xl border border-purple-200 bg-purple-50/30 p-4">
-              <p className="text-xs text-gray-500">{t(card.labelKey)}</p>
+            <div key={card.key} className="ui-card border-purple-200 bg-purple-50/30 p-4">
+              <p className="text-sm text-gray-500">{t(card.labelKey)}</p>
               <p className={`mt-2 text-2xl font-semibold ${card.color}`}>{stats[card.key]}</p>
             </div>
           ))}
-        </div>
+        </section>
 
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
-          <section className="rounded-xl border border-gray-200 bg-white p-4">
+          <section className="ui-card p-4">
             <div className="flex items-center justify-between">
-              <h2 className="font-medium text-gray-900">{t('insights.wordDistribution')}</h2>
+              <h2 className="ui-section-title">{t('insights.wordDistribution')}</h2>
               <span className="text-sm text-green-700">{masteredRatio}%</span>
             </div>
-            <div className="mt-4 h-3 overflow-hidden rounded-full bg-gray-100">
-              <div className="h-full bg-green-500" style={{ width: `${masteredRatio}%` }} />
+            <div className="ui-progress mt-4 h-3" role="progressbar" aria-label={t('insights.wordDistribution')} aria-valuemin={0} aria-valuemax={100} aria-valuenow={masteredRatio}>
+              <div className="ui-progress__value" style={{ width: `${masteredRatio}%` }} />
             </div>
             <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
               <div className="text-gray-500">{t('status.unprocessed')} <strong className="float-right text-gray-800">{stats.unprocessed}</strong></div>
@@ -123,13 +124,13 @@ export default function InsightsPage() {
             <p className="mt-4 text-xs text-gray-400">{t('insights.knownNote')}</p>
           </section>
 
-          <section className="rounded-xl border border-purple-200 bg-purple-50/30 p-4">
+          <section className="ui-card border-purple-200 bg-purple-50/30 p-4">
             <div className="flex items-center justify-between">
-              <h2 className="font-medium text-gray-900">{t('insights.phraseDistribution')}</h2>
+              <h2 className="ui-section-title">{t('insights.phraseDistribution')}</h2>
               <span className="text-sm text-purple-700">{Math.round((stats.phrases_known / Math.max(1, stats.total_phrases)) * 100)}%</span>
             </div>
-            <div className="mt-4 h-3 overflow-hidden rounded-full bg-gray-100">
-              <div className="h-full bg-purple-500" style={{ width: `${Math.round((stats.phrases_known / Math.max(1, stats.total_phrases)) * 100)}%` }} />
+            <div className="ui-progress mt-4 h-3" role="progressbar" aria-label={t('insights.phraseDistribution')} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round((stats.phrases_known / Math.max(1, stats.total_phrases)) * 100)}>
+              <div className="h-full rounded-full bg-purple-500" style={{ width: `${Math.round((stats.phrases_known / Math.max(1, stats.total_phrases)) * 100)}%` }} />
             </div>
             <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
               <div className="text-gray-500">{t('status.unprocessed')} <strong className="float-right text-gray-800">{stats.phrases_unprocessed}</strong></div>
@@ -139,13 +140,13 @@ export default function InsightsPage() {
             </div>
           </section>
 
-          <section className="rounded-xl border border-gray-200 bg-white p-4">
-            <h2 className="font-medium text-gray-900">{t('insights.last7Days')}</h2>
+          <section className="ui-card p-4">
+            <h2 className="ui-section-title">{t('insights.last7Days')}</h2>
             <div className="mt-4 flex h-36 items-end gap-2">
               {stats.daily_reviews.map((item) => (
-                <div key={item.day_start} className="flex h-full flex-1 flex-col items-center justify-end gap-1">
+                <div key={item.day_start} className="flex h-full flex-1 flex-col items-center justify-end gap-1" aria-label={`${new Date(item.day_start).toLocaleDateString(locale, { weekday: 'long' })}: ${item.count}`}>
                   <span className="text-xs text-gray-500">{item.count || ''}</span>
-                  <div className="w-full rounded-t bg-blue-500" style={{ height: `${Math.max(4, (item.count / maxDailyReviews) * 100)}%` }} />
+                  <div className="w-full rounded-t bg-blue-500" aria-hidden="true" style={{ height: `${Math.max(4, (item.count / maxDailyReviews) * 100)}%` }} />
                   <span className="text-[10px] text-gray-400">{new Date(item.day_start).toLocaleDateString(locale, { weekday: 'short' })}</span>
                 </div>
               ))}
@@ -153,8 +154,8 @@ export default function InsightsPage() {
           </section>
         </div>
 
-        <section className="mt-4 rounded-xl border border-gray-200 bg-white p-4">
-          <h2 className="font-medium text-gray-900">{t('insights.fileCoverage')}</h2>
+        <section className="ui-card mt-4 p-4">
+          <h2 className="ui-section-title">{t('insights.fileCoverage')}</h2>
           <p className="mt-1 text-xs text-gray-500">{t('insights.fileCoverageHint')}</p>
           <div className="mt-4 space-y-4">
             {totalFiles === 0 ? <p className="text-sm text-gray-400">{t('insights.noFilesYet')}</p> : fileCoverageFiles.map((file) => {
@@ -190,8 +191,8 @@ export default function InsightsPage() {
                       </span>
                     )}
                   </div>
-                  <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-gray-100">
-                    <div className="h-full rounded-full bg-green-500" style={{ width: `${knownRatio}%` }} />
+                  <div className="ui-progress mt-1.5 h-2" role="progressbar" aria-label={`${file.name}: ${knownRatio}%`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={knownRatio}>
+                    <div className="ui-progress__value" style={{ width: `${knownRatio}%` }} />
                   </div>
                   <div className="mt-1 text-xs text-gray-400">{t('insights.fileStatusSummary', { unprocessed: file.unprocessed, learning: file.learning, ignored: file.ignored })}</div>
                   {!file.phrase_analyzed && <div className="mt-1 text-xs text-gray-400">{t('fileCard.wordsOnlyPending')}</div>}

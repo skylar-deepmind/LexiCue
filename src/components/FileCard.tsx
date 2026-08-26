@@ -1,4 +1,4 @@
-import { Brain, Trash2, FolderInput } from 'lucide-react';
+import { Brain, Trash2, FolderInput, FileText, Captions } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { FileRecord } from '../lib/types';
 import type { OllamaRetry } from '../stores/ollamaStore';
@@ -25,19 +25,16 @@ interface FileCardProps {
 
 export default function FileCard({ file, folderPath, onDelete, onAnalyze, onCancel, onMove, aiEnabled, analysisProgress, analysisCompleted, retrying, onClick }: FileCardProps) {
   const { t, i18n } = useTranslation();
-  const icon = file.type === 'srt' ? '🎬' : '📄';
+  const TypeIcon = file.type === 'srt' ? Captions : FileText;
   const date = new Date(file.imported_at).toLocaleDateString(i18n.resolvedLanguage ?? 'zh');
   const index = learningIndex(file.word_progress, file.phrase_progress, analysisCompleted);
   const stage = learningStage(index);
 
   return (
-    <div
-      onClick={onClick}
-      className="bg-white rounded-lg border border-gray-200 p-4 hover:border-blue-300 hover:shadow-sm transition-all cursor-pointer"
-    >
+    <article className="ui-card file-card p-4 transition-all hover:border-blue-300 hover:shadow-sm" aria-busy={analysisProgress?.status === 'processing' || undefined}>
       <div className="flex min-w-0 items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-1 items-start gap-3">
-          <span className="shrink-0 text-2xl">{icon}</span>
+        <button onClick={onClick} className="flex min-w-0 flex-1 items-start gap-3 rounded-lg text-left" aria-label={t('fileCard.openAria', { name: file.name })}>
+          <span className="file-card-icon grid size-10 shrink-0 place-items-center rounded-xl"><TypeIcon size={19} strokeWidth={1.7} aria-hidden="true" /></span>
           <div className="min-w-0 flex-1">
             <h3 className="break-words font-medium text-gray-900 text-sm" title={file.name}>{file.name}</h3>
             <p className="text-xs text-gray-500 mt-0.5">
@@ -50,7 +47,7 @@ export default function FileCard({ file, folderPath, onDelete, onAnalyze, onCanc
               </p>
             )}
           </div>
-        </div>
+        </button>
         <div className="flex shrink-0 items-center gap-1">
           {aiEnabled && (
             <button
@@ -59,7 +56,7 @@ export default function FileCard({ file, folderPath, onDelete, onAnalyze, onCanc
                 onAnalyze(file.id);
               }}
               disabled={analysisCompleted || Boolean(analysisProgress)}
-              className="p-1 text-gray-400 transition-colors hover:text-purple-600 disabled:cursor-wait disabled:opacity-50"
+              className="ui-icon-button size-9 min-h-9 min-w-9 text-gray-400 hover:text-purple-600 disabled:cursor-wait disabled:opacity-50"
               aria-label={t('fileCard.analyzeAria', { name: file.name })}
               title={analysisCompleted ? t('fileCard.analyzedTitle') : t('fileCard.analyzeTitle')}
             >
@@ -71,7 +68,7 @@ export default function FileCard({ file, folderPath, onDelete, onAnalyze, onCanc
               e.stopPropagation();
               onMove(file);
             }}
-            className="p-1 text-gray-400 transition-colors hover:text-blue-600"
+            className="ui-icon-button size-9 min-h-9 min-w-9 text-gray-400 hover:text-blue-600"
             aria-label={t('fileCard.moveAria', { name: file.name })}
             title={t('fileCard.moveTitle')}
           >
@@ -82,7 +79,7 @@ export default function FileCard({ file, folderPath, onDelete, onAnalyze, onCanc
               e.stopPropagation();
               onDelete(file.id);
             }}
-            className="text-gray-400 hover:text-red-500 transition-colors p-1"
+            className="ui-icon-button size-9 min-h-9 min-w-9 text-gray-400 hover:text-red-500"
             aria-label={t('fileCard.deleteAria', { name: file.name })}
             title={t('fileCard.deleteTitle')}
           >
@@ -115,7 +112,7 @@ export default function FileCard({ file, folderPath, onDelete, onAnalyze, onCanc
         <p className="mt-3 text-xs text-green-700">{t('fileCard.aiDone')}</p>
       )}
       {aiEnabled && analysisProgress?.status === 'processing' && (
-        <div className="mt-3" onClick={(event) => event.stopPropagation()}>
+        <div className="mt-3">
           <div className="mb-1 flex items-center justify-between gap-2 text-xs text-purple-700">
             <span>{t('fileCard.analyzing')}</span>
             <span className="flex items-center gap-2">
@@ -143,6 +140,6 @@ export default function FileCard({ file, folderPath, onDelete, onAnalyze, onCanc
           )}
         </div>
       )}
-    </div>
+    </article>
   );
 }

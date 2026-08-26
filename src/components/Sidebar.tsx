@@ -22,16 +22,16 @@ function NavLinkItem({ to, icon: Icon, labelKey, t }: { to: string; icon: typeof
     <NavLink
       to={to}
       className={({ isActive }) =>
-        `w-10 sm:w-full h-10 flex flex-col sm:flex-row items-center sm:justify-start sm:gap-3 sm:px-3 justify-center rounded-xl transition-colors ${
+        `nav-item w-10 sm:w-full h-10 flex flex-col sm:flex-row items-center sm:justify-start sm:gap-3 sm:px-3 justify-center rounded-xl transition-colors ${
           isActive
-            ? 'bg-blue-50 text-blue-600'
+            ? 'nav-item-active'
             : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
         }`
       }
       title={label}
     >
       <Icon size={20} />
-      <span className="hidden sm:inline text-sm">{label}</span>
+      <span className="hidden lg:inline text-sm">{label}</span>
     </NavLink>
   );
 }
@@ -42,13 +42,13 @@ export default function Sidebar() {
   const setLanguage = usePreferencesStore((state) => state.setLanguage);
 
   return (
-    <aside className="hidden sm:flex w-16 sm:w-48 bg-white border-r border-gray-200 flex-col items-center sm:items-stretch py-4 px-2 gap-1 shrink-0">
-      <div className="mb-4 px-3 text-lg font-bold text-blue-600 select-none">
+    <aside className="app-sidebar hidden sm:flex w-16 sm:w-48 flex-col items-center sm:items-stretch py-5 px-3 gap-1 shrink-0">
+      <div className="brand-mark mb-7 px-2 select-none">
         <span className="sm:hidden">L</span>
         <span className="hidden sm:inline">LexiCue</span>
       </div>
       {NAV_ITEMS.map((item) => <NavLinkItem key={item.to} {...item} t={t} />)}
-      <div className="w-full mt-auto hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl transition-colors hover:bg-gray-50">
+      <div className="language-control w-full mt-auto hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl transition-colors hover:bg-gray-50">
         <Globe size={20} className="text-gray-400 shrink-0" />
         <select
           value={language}

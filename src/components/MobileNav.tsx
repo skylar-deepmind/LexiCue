@@ -5,13 +5,13 @@ import { useTranslation } from 'react-i18next';
 
 const CORE_ITEMS = [
   { to: '/files', icon: FileText, labelKey: 'sidebar.files' },
+  { to: '/words', icon: BookOpen, labelKey: 'sidebar.words' },
   { to: '/review', icon: Brain, labelKey: 'sidebar.review' },
-  { to: '/insights', icon: BarChart3, labelKey: 'sidebar.insights' },
 ];
 
 const MORE_ITEMS = [
-  { to: '/words', icon: BookOpen, labelKey: 'sidebar.words' },
   { to: '/phrases', icon: Layers, labelKey: 'sidebar.phrases' },
+  { to: '/insights', icon: BarChart3, labelKey: 'sidebar.insights' },
   { to: '/settings', icon: Settings, labelKey: 'sidebar.settings' },
 ];
 
@@ -45,12 +45,12 @@ export default function MobileNav() {
   };
 
   const itemClass = ({ isActive }: { isActive: boolean }) =>
-    `flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] transition-colors ${
-      isActive ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'
+    `mobile-nav-item min-h-16 flex-1 flex flex-col items-center justify-center gap-1 py-2 text-xs font-medium transition-colors ${
+      isActive ? 'mobile-nav-item-active' : 'text-gray-400 hover:text-gray-600'
     }`;
 
   return (
-    <nav className="sm:hidden flex items-stretch border-t border-gray-200 bg-white shrink-0" aria-label={t('sidebar.navAria')}>
+    <nav className="mobile-nav sm:hidden flex min-h-16 items-stretch border-t pb-[env(safe-area-inset-bottom)] shrink-0" aria-label={t('sidebar.navAria')}>
       {CORE_ITEMS.map((item) => (
         <NavLink key={item.to} to={item.to} className={itemClass}>
           <item.icon size={20} />
@@ -63,7 +63,7 @@ export default function MobileNav() {
           aria-expanded={moreOpen}
           aria-haspopup="menu"
           aria-label={t('sidebar.more')}
-          className="w-full flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] text-gray-400 hover:text-gray-600 transition-colors"
+          className="min-h-16 w-full flex flex-col items-center justify-center gap-1 py-2 text-xs font-medium text-gray-400 hover:text-gray-600 transition-colors"
         >
           <MoreHorizontal size={20} />
           <span>{t('sidebar.more')}</span>

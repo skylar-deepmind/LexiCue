@@ -52,6 +52,8 @@
     "detailLoadFailed": "详情加载失败，请重试"
   },
   "sidebar": {
+    "today": "今日",
+    "library": "资料库",
     "files": "文件",
     "words": "单词",
     "phrases": "词组",
@@ -65,6 +67,10 @@
     "switchLanguageTitle": "切换语言",
     "switchLanguageConfirm": "切换语言将重新开始当前复习并重置进度，确定继续吗？",
     "switch": "切换"
+  },
+  "library": { "tabsAria": "资料库视图", "materials": "资料", "words": "单词", "phrases": "词组" },
+  "today": {
+    "title": "今天，学一点真实内容", "subtitle": "从你的资料出发，把阅读慢慢变成记得住的词汇。", "emptyTitle": "从一份喜欢的内容开始", "emptyDescription": "导入文章、书籍文本或字幕，LexiCue 会在阅读中帮你积累词汇。", "importAction": "导入资料", "readyEyebrow": "今日任务", "completeEyebrow": "今日完成", "readyTitle": "有 {{count}} 项等待复习", "completeTitle": "今天的复习已完成", "readyDescription": "花几分钟，趁记忆还清晰时巩固它们。", "completeDescription": "没有到期项目了。可以继续探索你的资料库，或稍后再回来。", "reviewAction": "开始复习", "reviewAgainAction": "查看复习", "dueLabel": "待复习", "learningLabel": "学习中", "weeklyLabel": "本周复习", "recentTitle": "最近加入的资料", "recentDescription": "打开任意资料，在真实语境中继续学习。", "libraryAction": "打开资料库", "openAction": "阅读", "localTitle": "学习数据留在本机", "localDescription": "默认离线、无需账户；只有你主动开启时才使用外部服务。", "addTitle": "添加新的学习材料", "addDescription": "导入文本、字幕或 YouTube 字幕。"
   },
   "settings": {
     "title": "设置",
@@ -205,6 +211,7 @@
     "emptyFolderDescription": "新建子文件夹，或把文件拖到这里"
   },
   "fileCard": {
+    "openAria": "打开 {{name}}",
     "segments": "{{count}} 段",
     "aiDone": "已完成 AI 词组分析",
     "analysisFailed": "AI 词组分析失败",

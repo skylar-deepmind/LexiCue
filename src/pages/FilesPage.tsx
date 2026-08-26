@@ -247,8 +247,16 @@ export default function FilesPage() {
 
   return (
     <div className="h-full flex flex-col">
-      <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-gray-100">
-        <nav className="flex min-w-0 items-center gap-1.5 text-sm" aria-label={t('files.breadcrumbAria')}>
+      <div className="files-toolbar border-b border-gray-100 px-4 py-4 sm:px-6">
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <div>
+            <h1 className="ui-page-title">{t('files.title')}</h1>
+            <p className="mt-1 text-sm text-gray-500">{t('files.description', 'Keep your learning materials close at hand.')}</p>
+          </div>
+          <span className="hidden rounded-full border border-gray-200 px-3 py-1 text-xs text-gray-500 sm:inline-flex">{t('files.localBadge', 'Local library')}</span>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <nav className="flex min-w-0 items-center gap-1.5 text-sm" aria-label={t('files.breadcrumbAria')}>
           <button
             onClick={() => setCurrentFolder(null)}
             className={`flex shrink-0 items-center gap-1 rounded px-1 py-0.5 transition-colors ${
@@ -275,25 +283,25 @@ export default function FilesPage() {
               </button>
             </span>
           ))}
-        </nav>
+          </nav>
         <div className="flex shrink-0 gap-2">
           <button
             onClick={() => setPromptTarget({ mode: 'create', parentId: currentFolderId })}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 transition-colors hover:bg-gray-50"
+            className="ui-button ui-button-secondary hidden items-center gap-1.5 sm:flex"
           >
             <FolderPlus size={16} />
             {t('files.newFolder')}
           </button>
           <button
             onClick={() => setYoutubeDialogOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 transition-colors hover:bg-gray-50"
+            className="ui-button ui-button-secondary hidden items-center gap-1.5 lg:flex"
           >
             <Clapperboard size={16} />
             {t('files.importFromYoutube')}
           </button>
           <button
             onClick={importFile}
-            className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+            className="ui-button ui-button-primary flex items-center gap-1.5"
           >
             <Upload size={16} />
             {t('files.importFile')}
@@ -304,7 +312,7 @@ export default function FilesPage() {
               aria-expanded={moreOpen}
               aria-haspopup="menu"
               aria-label={t('files.moreAria')}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 transition-colors hover:bg-gray-50"
+            className="ui-icon-button sm:w-auto sm:px-3"
             >
               <MoreHorizontal size={16} />
               <span className="hidden sm:inline">{t('files.more')}</span>
@@ -352,6 +360,7 @@ export default function FilesPage() {
             )}
           </div>
         </div>
+      </div>
       </div>
 
       {youtubeDialogOpen && <YouTubeDialog onClose={() => setYoutubeDialogOpen(false)} />}
@@ -472,7 +481,7 @@ export default function FilesPage() {
 
         <div className="min-w-0 flex-1 overflow-y-auto p-6">
           {loading ? (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3" role="status" aria-busy="true" aria-label={t('common.loading')}>
               {Array.from({ length: 6 }).map((_, index) => (
                 <div key={index} className="rounded-lg border border-gray-200 p-4">
                   <div className="flex items-start gap-3">

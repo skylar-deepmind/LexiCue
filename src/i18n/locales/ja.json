@@ -52,6 +52,8 @@
     "detailLoadFailed": "詳細の読み込みに失敗しました。もう一度お試しください。"
   },
   "sidebar": {
+    "today": "今日",
+    "library": "ライブラリ",
     "files": "ファイル",
     "words": "単語",
     "phrases": "フレーズ",
@@ -65,6 +67,10 @@
     "switchLanguageTitle": "言語の切り替え",
     "switchLanguageConfirm": "言語を切り替えると現在の復習セッションが再開され、進捗がリセットされます。続行しますか？",
     "switch": "切り替え"
+  },
+  "library": { "tabsAria": "ライブラリ表示", "materials": "資料", "words": "単語", "phrases": "フレーズ" },
+  "today": {
+    "title": "今日、実際のコンテンツから少し学ぶ", "subtitle": "読んでいる内容を、覚えておける語彙に変えましょう。", "emptyTitle": "好きなコンテンツから始めましょう", "emptyDescription": "記事、本のテキスト、字幕を読み込むと、LexiCue が読書中の学習を助けます。", "importAction": "資料を読み込む", "readyEyebrow": "今日のタスク", "completeEyebrow": "今日完了", "readyTitle": "{{count}} 件が復習待ちです", "completeTitle": "今日の復習は完了しました", "readyDescription": "記憶が新しいうちに、数分かけて定着させましょう。", "completeDescription": "今は復習予定がありません。ライブラリを探索するか、後で戻ってきてください。", "reviewAction": "復習を始める", "reviewAgainAction": "復習を見る", "dueLabel": "復習待ち", "learningLabel": "学習中", "weeklyLabel": "今週の復習", "recentTitle": "最近追加した資料", "recentDescription": "資料を開いて、実際の文脈で学びましょう。", "libraryAction": "ライブラリを開く", "openAction": "読む", "localTitle": "学習データは端末に残ります", "localDescription": "既定ではオフラインかつアカウント不要です。外部サービスは有効にした場合のみ利用します。", "addTitle": "学習資料を追加", "addDescription": "テキスト、字幕、YouTube 字幕を読み込みます。"
   },
   "settings": {
     "title": "設定",
@@ -205,6 +211,7 @@
     "emptyFolderDescription": "サブフォルダを作成するか、ファイルをここにドラッグしてください"
   },
   "fileCard": {
+    "openAria": "{{name}} を開く",
     "segments": "{{count}} セグメント",
     "aiDone": "AI フレーズ分析が完了しました",
     "analysisFailed": "AI フレーズ分析に失敗しました",
