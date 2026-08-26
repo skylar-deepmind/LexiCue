@@ -168,16 +168,66 @@ jobs:
           args: --apk --target aarch64
       - name: Verify and checksum signed APK
         shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          mapfile -t apks < <(find src-tauri/gen/android -type f -name '*.apk' -path '*release*' -print)
-          if [ "${#apks[@]}" -eq 0 ]; then
-            echo "No release APK was produced"
+          version="$(node -p "require('./src-tauri/tauri.conf.json').version")"
+          tag="v${version}"
+          download_dir="$(mktemp -d)"
+          checksum_dir="$(mktemp -d)"
+          trap 'rm -rf "$download_dir" "$checksum_dir"' EXIT
+
+          echo "Verifying Android assets from Release: ${tag}"
+          mapfile -t apk_names < <(
+            gh release view "$tag" --json assets \
+              --jq '.assets[] | select(.name | endswith(".apk")) | .name'
+          )
+          if [ "${#apk_names[@]}" -eq 0 ]; then
+            echo "No APK assets were found in Release ${tag}. Current assets:"
+            gh release view "$tag" --json assets \
+              --jq '.assets[] | "- \(.name) (\(.size) bytes)"' || true
             exit 1
           fi
+
+          gh release download "$tag" --pattern '*.apk' --dir "$download_dir" --clobber
+
+          apksigner="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner -perm -u+x | sort -V | tail -n 1)"
+          apkanalyzer="$(find "$ANDROID_HOME/cmdline-tools" -type f -path '*/bin/apkanalyzer' -perm -u+x | sort -V | tail -n 1)"
+          if [ -z "$apksigner" ] || [ ! -x "$apksigner" ]; then
+            echo "Unable to locate apksigner under $ANDROID_HOME/build-tools"
+            exit 1
+          fi
+          if [ -z "$apkanalyzer" ] || [ ! -x "$apkanalyzer" ]; then
+            echo "Unable to locate apkanalyzer under $ANDROID_HOME/cmdline-tools"
+            exit 1
+          fi
+
+          mapfile -t apks < <(find "$download_dir" -type f -name '*.apk' -print | sort)
+          if [ "${#apks[@]}" -eq 0 ]; then
+            echo "Release ${tag} listed APK assets, but none could be downloaded"
+            exit 1
+          fi
+
+          checksums=()
           for apk in "${apks[@]}"; do
-            echo "Verifying $apk"
-            "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$apk"
-            "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" apk summary "$apk"
-            sha256sum "$apk" | tee "$apk.sha256"
+            apk_name="$(basename "$apk")"
+            echo "Verifying $apk_name"
+            echo "Path: $apk"
+            echo "Size: $(stat -c '%s' "$apk") bytes"
+            "$apksigner" verify --verbose "$apk"
+            echo "APK summary:"
+            "$apkanalyzer" apk summary "$apk"
+            echo "Application ID: $($apkanalyzer manifest application-id "$apk")"
+            echo "Version code: $($apkanalyzer manifest version-code "$apk")"
+            echo "Version name: $($apkanalyzer manifest version-name "$apk")"
+            abis="$($apkanalyzer files list "$apk" | awk -F/ '$1 == "lib" && $2 != "" { print $2 }' | sort -u | paste -sd, -)"
+            echo "ABIs: ${abis:-universal/resource-only}"
+
+            checksum_file="$checksum_dir/${apk_name}.sha256"
+            checksum="$(sha256sum "$apk" | awk '{print $1}')"
+            printf '%s  %s\n' "$checksum" "$apk_name" | tee "$checksum_file"
+            checksums+=("$checksum_file")
           done
+
+          gh release upload "$tag" "${checksums[@]}" --clobber
