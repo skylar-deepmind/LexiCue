@@ -139,17 +139,98 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
+          set -euo pipefail
           if [ -z "$ANDROID_KEYSTORE_BASE64" ] || [ -z "$ANDROID_KEYSTORE_PASSWORD" ] || [ -z "$ANDROID_KEY_ALIAS" ] || [ -z "$ANDROID_KEY_PASSWORD" ]; then
             echo "Missing Android release signing secrets: ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD"
             exit 1
           fi
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/lexicue-release.keystore"
+          umask 077
+          keystore_path="$RUNNER_TEMP/lexicue-release.keystore"
+          properties_path="src-tauri/gen/android/keystore.properties"
+          gradle_path="src-tauri/gen/android/app/build.gradle.kts"
+
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$keystore_path"
+          keystore_size="$(stat -c '%s' "$keystore_path")"
+          if [ "$keystore_size" -le 0 ]; then
+            echo "Decoded Android keystore is empty"
+            exit 1
+          fi
+          echo "Android keystore decoded successfully (${keystore_size} bytes); alias is configured"
+
           {
-            echo "storeFile=$RUNNER_TEMP/lexicue-release.keystore"
-            echo "password=$ANDROID_KEYSTORE_PASSWORD"
-            echo "keyAlias=$ANDROID_KEY_ALIAS"
+            echo "storeFile=$keystore_path"
+            echo "storePassword=$ANDROID_KEYSTORE_PASSWORD"
             echo "keyPassword=$ANDROID_KEY_PASSWORD"
-          } > src-tauri/gen/android/keystore.properties
+            echo "keyAlias=$ANDROID_KEY_ALIAS"
+          } > "$properties_path"
+          echo "Android keystore.properties generated"
+
+          if [ ! -f "$gradle_path" ]; then
+            echo "Generated Android app Gradle file was not found: $gradle_path"
+            exit 1
+          fi
+
+          python3 - "$gradle_path" <<'PY'
+          from pathlib import Path
+          import sys
+
+          gradle_path = Path(sys.argv[1])
+          text = gradle_path.read_text()
+          release_signing_line = 'signingConfig = signingConfigs.getByName("release")'
+
+          if release_signing_line in text and 'keystore.properties' in text:
+              print('Android Gradle release signing is already configured')
+              raise SystemExit(0)
+
+          if 'signingConfigs {' in text or 'signingConfigs.create("release")' in text:
+              raise SystemExit('Unexpected existing signingConfigs block; refusing to patch ambiguously')
+
+          build_types_marker = '    buildTypes {'
+          release_marker = '        getByName("release") {'
+          if build_types_marker not in text or release_marker not in text:
+              print('Generated app/build.gradle.kts does not contain the expected buildTypes/release structure:', file=sys.stderr)
+              print('\n'.join(text.splitlines()[:140]), file=sys.stderr)
+              raise SystemExit(1)
+
+          imports = []
+          if 'import java.io.FileInputStream' not in text:
+              imports.append('import java.io.FileInputStream')
+          if 'import java.util.Properties' not in text:
+              imports.append('import java.util.Properties')
+          if imports:
+              text = '\n'.join(imports) + '\n\n' + text
+
+          signing_config = '''    signingConfigs {
+              create("release") {
+                  val keystorePropertiesFile = rootProject.file("keystore.properties")
+                  val keystoreProperties = Properties()
+                  if (keystorePropertiesFile.exists()) {
+                      keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+                  }
+
+                  keyAlias = keystoreProperties["keyAlias"] as String
+                  keyPassword = keystoreProperties["keyPassword"] as String
+                  storeFile = file(keystoreProperties["storeFile"] as String)
+                  storePassword = keystoreProperties["storePassword"] as String
+              }
+          }
+
+          '''
+          text = text.replace(build_types_marker, signing_config + build_types_marker, 1)
+          text = text.replace(
+              release_marker,
+              release_marker + '\n' + '            ' + release_signing_line,
+              1,
+          )
+          gradle_path.write_text(text)
+          print('Android Gradle release signing configured')
+          PY
+
+          if ! grep -q 'signingConfig = signingConfigs.getByName("release")' "$gradle_path"; then
+            echo "Release build is not wired to the Android signing config"
+            exit 1
+          fi
+          grep -nE 'import java\.(io\.FileInputStream|util\.Properties)|signingConfigs|buildTypes|getByName\("release"\)|signingConfig' "$gradle_path"
       - uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
