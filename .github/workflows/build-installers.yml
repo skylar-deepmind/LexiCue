@@ -260,6 +260,7 @@ jobs:
           apksigner="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner -perm -u+x | sort -V | tail -n 1)"
           zipalign="$(find "$ANDROID_HOME/build-tools" -type f -name zipalign -perm -u+x | sort -V | tail -n 1)"
           apkanalyzer="$(find "$ANDROID_HOME/cmdline-tools" -type f -path '*/bin/apkanalyzer' -perm -u+x | sort -V | tail -n 1)"
+          unzip_bin="$(command -v unzip || true)"
           if [ -z "$apksigner" ] || [ ! -x "$apksigner" ]; then
             echo "Unable to locate apksigner under $ANDROID_HOME/build-tools"
             exit 1
@@ -270,6 +271,10 @@ jobs:
           fi
           if [ -z "$apkanalyzer" ] || [ ! -x "$apkanalyzer" ]; then
             echo "Unable to locate apkanalyzer under $ANDROID_HOME/cmdline-tools"
+            exit 1
+          fi
+          if [ -z "$unzip_bin" ] || [ ! -x "$unzip_bin" ]; then
+            echo "Unable to locate unzip for APK ABI inspection"
             exit 1
           fi
 
@@ -319,17 +324,20 @@ jobs:
           application_id="$($apkanalyzer manifest application-id "$signed_apk")"
           version_code="$($apkanalyzer manifest version-code "$signed_apk")"
           version_name="$($apkanalyzer manifest version-name "$signed_apk")"
-          abis="$($apkanalyzer files list "$signed_apk" | awk -F/ '$1 == "lib" && $2 != "" { print $2 }' | sort -u | paste -sd, -)"
+          abi_entries="$($unzip_bin -Z1 "$signed_apk" | awk -F/ '$1 == "lib" && $2 != "" { print $2 }' | sort -u)"
+          abis="$(printf '%s\n' "$abi_entries" | sed '/^$/d' | paste -sd, -)"
           echo "Application ID: $application_id"
           echo "Version code: $version_code"
           echo "Version name: $version_name"
-          echo "ABIs: ${abis:-universal/resource-only}"
+          echo "ABIs from APK ZIP entries: ${abis:-none}"
           if [ "$application_id" != "com.lexicue.app" ]; then
             echo "Unexpected Android application ID: $application_id"
             exit 1
           fi
           if ! printf '%s\n' "$abis" | tr ',' '\n' | grep -qx 'arm64-v8a'; then
             echo "The signed APK does not contain the arm64-v8a ABI"
+            echo "APK lib/ entries:"
+            "$unzip_bin" -Z1 "$signed_apk" | grep '^lib/' || true
             exit 1
           fi
 
