@@ -248,7 +248,7 @@ jobs:
           tag="v${version}"
           keystore_path="$RUNNER_TEMP/lexicue-release.keystore"
           apk_output_dir="src-tauri/gen/android/app/build/outputs/apk"
-          signed_apk="$RUNNER_TEMP/LexiCue_${version}_universal.apk"
+          signed_apk="$RUNNER_TEMP/lexicue-signed.apk"
           checksum_file="$RUNNER_TEMP/LexiCue_${version}_universal.apk.sha256"
           download_dir="$(mktemp -d)"
           trap 'rm -rf "$download_dir" "$signed_apk" "$checksum_file"' EXIT
