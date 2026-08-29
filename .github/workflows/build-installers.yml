@@ -1,5 +1,8 @@
 name: Build Installers
 
+env:
+  LEXICUE_SYNC_ENDPOINT: ${{ vars.LEXICUE_SYNC_ENDPOINT }}
+
 on:
   workflow_dispatch:
     inputs:
@@ -36,6 +39,9 @@ jobs:
           - target: x86_64-apple-darwin
     steps:
       - uses: actions/checkout@v4
+      - name: Verify official sync endpoint
+        shell: bash
+        run: test -n "$LEXICUE_SYNC_ENDPOINT" && [[ "$LEXICUE_SYNC_ENDPOINT" == https://* ]]
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -75,6 +81,9 @@ jobs:
       RUSTC_WRAPPER: "sccache"
     steps:
       - uses: actions/checkout@v4
+      - name: Verify official sync endpoint
+        shell: bash
+        run: test -n "$LEXICUE_SYNC_ENDPOINT" && [[ "$LEXICUE_SYNC_ENDPOINT" == https://* ]]
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -110,6 +119,9 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+      - name: Verify official sync endpoint
+        shell: bash
+        run: test -n "$LEXICUE_SYNC_ENDPOINT" && [[ "$LEXICUE_SYNC_ENDPOINT" == https://* ]]
       - uses: actions/setup-java@v4
         with:
           distribution: temurin

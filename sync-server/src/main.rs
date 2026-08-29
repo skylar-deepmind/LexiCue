@@ -1,11 +1,11 @@
 use argon2::password_hash::{rand_core::OsRng, SaltString};
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use axum::{
-    body::Bytes,
+    body::{Body, Bytes},
     extract::{DefaultBodyLimit, Path, Query, State},
     http::{header, HeaderMap, StatusCode},
-    response::Response,
-    routing::{get, post, put},
+    response::{IntoResponse, Response},
+    routing::{delete, get, post, put},
     Json, Router,
 };
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
@@ -13,18 +13,20 @@ use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     env,
     net::SocketAddr,
     sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
-use tokio_postgres::{Client, NoTls};
+use tokio_postgres::{Client, GenericClient, NoTls, Row};
 use tower_http::trace::TraceLayer;
 use uuid::Uuid;
 
-const MAX_CHUNK_BYTES: usize = 512 * 1024;
-const MAX_EVENT_BYTES: usize = 768 * 1024;
+const MAX_RECORD_BYTES: usize = 768 * 1024;
+const MAX_BLOB_BYTES: usize = 512 * 1024;
+const MAX_BATCH_RECORDS: usize = 100;
+const PROTOCOL_VERSION: i16 = 1;
 
 #[derive(Clone)]
 struct AppState {
@@ -33,665 +35,49 @@ struct AppState {
     metrics: Arc<Metrics>,
     metrics_token: Option<String>,
 }
+
 struct RateBucket {
     started: Instant,
     count: u32,
 }
+
 #[derive(Default)]
 struct Metrics {
     requests: std::sync::atomic::AtomicU64,
     rejected: std::sync::atomic::AtomicU64,
     auth_failures: std::sync::atomic::AtomicU64,
+    accepted_records: std::sync::atomic::AtomicU64,
+    record_conflicts: std::sync::atomic::AtomicU64,
 }
-#[derive(Deserialize)]
-struct RegisterRequest {
-    email: String,
-    password: String,
-    device_id: String,
-    device_name: String,
-    key_package: String,
-    recovery_verifier: Option<String>,
+
+#[derive(Debug)]
+struct ApiError {
+    status: StatusCode,
+    code: &'static str,
 }
-#[derive(Deserialize)]
-struct LoginRequest {
-    email: String,
-    password: String,
-    device_id: String,
-    device_name: String,
-}
-#[derive(Deserialize)]
-struct RecoveryPackageRequest {
-    email: String,
-    recovery_verifier: String,
-}
-#[derive(Deserialize)]
-struct PasswordResetRequest {
-    email: String,
-    recovery_verifier: String,
-    password: String,
-    key_package: String,
-    device_id: String,
-    device_name: String,
-}
-#[derive(Deserialize)]
-struct RefreshRequest {
-    refresh_token: String,
-}
-#[derive(Deserialize)]
-struct ChangePasswordRequest {
-    current_password: String,
-    new_password: String,
-    key_package: String,
-}
+
 #[derive(Serialize)]
-struct AuthResponse {
-    access_token: String,
-    refresh_token: String,
-    key_package: String,
-    device_id: String,
-}
-#[derive(Deserialize)]
-struct EventInput {
-    event_id: String,
-    device_id: String,
-    clock: String,
-    kind: String,
-    ciphertext: String,
-}
-#[derive(Serialize)]
-struct EventOutput {
-    seq: i64,
-    event_id: String,
-    device_id: String,
-    clock: String,
-    kind: String,
-    ciphertext: String,
-}
-#[derive(Deserialize)]
-struct PullQuery {
-    after: Option<i64>,
-    limit: Option<i64>,
-}
-#[derive(Deserialize)]
-struct SnapshotInput {
-    ciphertext: String,
-    cursor: i64,
-}
-#[derive(Serialize)]
-struct SnapshotOutput {
-    ciphertext: String,
-    cursor: i64,
-}
-#[derive(Serialize)]
-struct DeviceOutput {
-    id: String,
-    name: String,
-    last_seen_at: String,
+struct ErrorBody {
+    code: &'static str,
 }
 
-#[derive(Deserialize)]
-struct CheckpointInput {
-    id: String,
-    cursor: i64,
-    encrypted_len: i64,
-    /// The encrypted manifest is small (it only describes the chunks) and is
-    /// encoded for JSON transport. Checkpoint bytes themselves stay binary.
-    manifest: String,
-    chunk_hashes: Vec<String>,
-    #[serde(default = "checkpoint_protocol_v2")]
-    protocol_version: i16,
-}
-fn checkpoint_protocol_v2() -> i16 {
-    2
-}
-#[derive(Serialize)]
-struct CheckpointOutput {
-    id: String,
-    device_id: String,
-    device_name: String,
-    cursor: i64,
-    encrypted_len: i64,
-    created_at: String,
-    protocol_version: i16,
-}
-#[derive(Serialize)]
-struct CheckpointDetail {
-    #[serde(flatten)]
-    checkpoint: CheckpointOutput,
-    manifest: String,
-    chunk_hashes: Vec<String>,
-}
-
-const CHECKPOINT_RETENTION: i64 = 5;
-
-/// Metadata travels in headers while encrypted bytes remain a binary body.
-/// This keeps the v2 transport free of base64 expansion.
-#[derive(Deserialize)]
-struct V2EventHeaders {
-    event_id: String,
-    device_id: String,
-    clock: String,
-    kind: String,
-}
-
-const MAX_BATCH_EVENTS: usize = 100;
-const MAX_BATCH_BYTES: usize = 16 * 1024 * 1024;
-
-fn v2_event_headers(headers: &HeaderMap) -> Result<V2EventHeaders, (StatusCode, String)> {
-    let value = |name: &'static str| -> Result<String, (StatusCode, String)> {
-        headers
-            .get(name)
-            .and_then(|v| v.to_str().ok())
-            .filter(|v| !v.is_empty() && v.len() <= 256)
-            .map(ToOwned::to_owned)
-            .ok_or_else(|| bad("missing or invalid v2 event header"))
-    };
-    Ok(V2EventHeaders {
-        event_id: value("x-sync-event-id")?,
-        device_id: value("x-sync-device-id")?,
-        clock: value("x-sync-clock")?,
-        kind: value("x-sync-kind")?,
-    })
-}
-
-async fn put_chunk_v2(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-    Path(hash): Path<String>,
-    body: Bytes,
-) -> Result<StatusCode, (StatusCode, String)> {
-    limited(&state, &format!("chunk:{}", client_ip(&headers)), 360)?;
-    if hash.len() != 64
-        || !hash.bytes().all(|b| b.is_ascii_hexdigit())
-        || body.len() > MAX_CHUNK_BYTES
-    {
-        return Err(bad("invalid or oversized encrypted chunk"));
-    }
-    let calculated = format!("{:x}", Sha256::digest(&body));
-    if calculated != hash {
-        return Err(bad("encrypted chunk hash mismatch"));
-    }
-    let account_id = account(&headers, &state).await?;
-    let client = db(&state).await?;
-    client.execute("INSERT INTO sync_chunks(account_id,hash,ciphertext) VALUES ($1,$2,$3) ON CONFLICT(account_id,hash) DO NOTHING", &[&account_id, &hash, &body.as_ref()]).await.map_err(internal)?;
-    Ok(StatusCode::NO_CONTENT)
-}
-
-async fn get_chunk_v2(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-    Path(hash): Path<String>,
-) -> Result<Response, (StatusCode, String)> {
-    let account_id = account(&headers, &state).await?;
-    let client = db(&state).await?;
-    let bytes: Vec<u8> = client
-        .query_opt(
-            "SELECT ciphertext FROM sync_chunks WHERE account_id=$1 AND hash=$2",
-            &[&account_id, &hash],
-        )
-        .await
-        .map_err(internal)?
-        .map(|row| row.get(0))
-        .ok_or((StatusCode::NOT_FOUND, "encrypted chunk not found".into()))?;
-    Response::builder()
-        .status(StatusCode::OK)
-        .header(header::CONTENT_TYPE, "application/octet-stream")
-        .body(axum::body::Body::from(bytes))
-        .map_err(internal)
-}
-
-async fn head_chunk_v2(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-    Path(hash): Path<String>,
-) -> Result<StatusCode, (StatusCode, String)> {
-    let account_id = account(&headers, &state).await?;
-    let client = db(&state).await?;
-    if client
-        .query_opt(
-            "SELECT 1 FROM sync_chunks WHERE account_id=$1 AND hash=$2",
-            &[&account_id, &hash],
-        )
-        .await
-        .map_err(internal)?
-        .is_some()
-    {
-        Ok(StatusCode::NO_CONTENT)
-    } else {
-        Err((StatusCode::NOT_FOUND, "encrypted chunk not found".into()))
+impl IntoResponse for ApiError {
+    fn into_response(self) -> Response {
+        (self.status, Json(ErrorBody { code: self.code })).into_response()
     }
 }
 
-async fn push_event_v2(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-    body: Bytes,
-) -> Result<StatusCode, (StatusCode, String)> {
-    if body.is_empty() || body.len() > MAX_EVENT_BYTES {
-        return Err(bad("invalid or oversized encrypted event"));
-    }
-    let event = v2_event_headers(&headers)?;
-    let account_id = account(&headers, &state).await?;
-    let client = db(&state).await?;
-    client.execute("INSERT INTO sync_events_v2(account_id,event_id,device_id,clock,kind,ciphertext) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT(account_id,event_id) DO NOTHING", &[&account_id,&event.event_id,&event.device_id,&event.clock,&event.kind,&body.as_ref()]).await.map_err(internal)?;
-    Ok(StatusCode::NO_CONTENT)
+type ApiResult<T> = Result<T, ApiError>;
+
+fn error(status: StatusCode, code: &'static str) -> ApiError {
+    ApiError { status, code }
 }
 
-async fn pull_events_v2(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-    Query(query): Query<PullQuery>,
-) -> Result<Response, (StatusCode, String)> {
-    let account_id = account(&headers, &state).await?;
-    let client = db(&state).await?;
-    let limit = query.limit.unwrap_or(100).clamp(1, 100);
-    let after = query.after.unwrap_or(0);
-    let rows = client.query("SELECT seq,event_id,device_id,clock,kind,ciphertext FROM sync_events_v2 WHERE account_id=$1 AND seq>$2 ORDER BY seq LIMIT $3", &[&account_id,&after,&limit]).await.map_err(internal)?;
-    // Binary framing: u32 metadata-json length, metadata JSON, u32 ciphertext length, ciphertext.
-    let mut out = Vec::new();
-    for row in rows {
-        let metadata = serde_json::json!({"seq": row.get::<_, i64>(0), "event_id": row.get::<_, String>(1), "device_id": row.get::<_, String>(2), "clock": row.get::<_, String>(3), "kind": row.get::<_, String>(4)});
-        let metadata = serde_json::to_vec(&metadata).map_err(internal)?;
-        let ciphertext: Vec<u8> = row.get(5);
-        out.extend_from_slice(&(metadata.len() as u32).to_be_bytes());
-        out.extend_from_slice(&metadata);
-        out.extend_from_slice(&(ciphertext.len() as u32).to_be_bytes());
-        out.extend_from_slice(&ciphertext);
-    }
-    Response::builder()
-        .status(StatusCode::OK)
-        .header(
-            header::CONTENT_TYPE,
-            "application/vnd.lexicue.sync-events+binary;v=2",
-        )
-        .body(axum::body::Body::from(out))
-        .map_err(internal)
+fn internal<E: std::fmt::Display>(value: E) -> ApiError {
+    tracing::error!(error = %value, "sync service operation failed");
+    error(StatusCode::INTERNAL_SERVER_ERROR, "server_internal")
 }
 
-// The v3 wire shape intentionally matches v2's compact binary framing, but
-// persists in a separate feed. This prevents an older full-library event from
-// ever being replayed as a mergeable entity record.
-async fn push_event_v3(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-    body: Bytes,
-) -> Result<StatusCode, (StatusCode, String)> {
-    limited(&state, &format!("event:{}", client_ip(&headers)), 240)?;
-    if body.is_empty() || body.len() > MAX_EVENT_BYTES {
-        return Err(bad("invalid or oversized encrypted event"));
-    }
-    let event = v2_event_headers(&headers)?;
-    let account_id = account(&headers, &state).await?;
-    let client = db(&state).await?;
-    client.execute("INSERT INTO sync_events_v3(account_id,event_id,device_id,clock,kind,ciphertext) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT(account_id,event_id) DO NOTHING", &[&account_id,&event.event_id,&event.device_id,&event.clock,&event.kind,&body.as_ref()]).await.map_err(internal)?;
-    Ok(StatusCode::NO_CONTENT)
-}
-
-async fn push_events_v3_batch(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-    body: Bytes,
-) -> Result<StatusCode, (StatusCode, String)> {
-    limited(&state, &format!("event-batch:{}", client_ip(&headers)), 60)?;
-    if body.is_empty() || body.len() > MAX_BATCH_BYTES {
-        return Err(bad("invalid or oversized encrypted event batch"));
-    }
-    let account_id = account(&headers, &state).await?;
-    let client = db(&state).await?;
-    let mut offset = 0usize;
-    let mut count = 0usize;
-    while offset < body.len() {
-        if count >= MAX_BATCH_EVENTS || offset + 4 > body.len() {
-            return Err(bad("invalid event batch framing"));
-        }
-        let metadata_len =
-            u32::from_be_bytes(body[offset..offset + 4].try_into().unwrap()) as usize;
-        offset += 4;
-        if metadata_len == 0 || metadata_len > 16 * 1024 || offset + metadata_len + 4 > body.len() {
-            return Err(bad("invalid event batch metadata"));
-        }
-        let event: V2EventHeaders = serde_json::from_slice(&body[offset..offset + metadata_len])
-            .map_err(|_| bad("invalid event batch metadata"))?;
-        offset += metadata_len;
-        let payload_len = u32::from_be_bytes(body[offset..offset + 4].try_into().unwrap()) as usize;
-        offset += 4;
-        if payload_len == 0 || payload_len > MAX_EVENT_BYTES || offset + payload_len > body.len() {
-            return Err(bad("invalid event batch payload"));
-        }
-        client
-            .execute(
-                "INSERT INTO sync_events_v3(account_id,event_id,device_id,clock,kind,ciphertext) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT(account_id,event_id) DO NOTHING",
-                &[&account_id, &event.event_id, &event.device_id, &event.clock, &event.kind, &&body[offset..offset + payload_len]],
-            )
-            .await
-            .map_err(internal)?;
-        offset += payload_len;
-        count += 1;
-    }
-    Ok(StatusCode::NO_CONTENT)
-}
-
-async fn pull_events_v3(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-    Query(query): Query<PullQuery>,
-) -> Result<Response, (StatusCode, String)> {
-    let account_id = account(&headers, &state).await?;
-    let client = db(&state).await?;
-    let after = query.after.unwrap_or(0).max(0);
-    let floor = client
-        .query_opt(
-            "SELECT MIN(cursor) FROM sync_checkpoints WHERE account_id=$1 AND protocol_version=3",
-            &[&account_id],
-        )
-        .await
-        .map_err(internal)?
-        .and_then(|row| row.get::<_, Option<i64>>(0))
-        .unwrap_or(0);
-    if after < floor {
-        if let Some(row) = client.query_opt("SELECT id FROM sync_checkpoints WHERE account_id=$1 AND protocol_version=3 ORDER BY created_at DESC,id DESC LIMIT 1", &[&account_id]).await.map_err(internal)? {
-            return Response::builder().status(StatusCode::GONE).header("x-sync-checkpoint-id", row.get::<_, String>(0)).body(axum::body::Body::empty()).map_err(internal);
-        }
-    }
-    let limit = query.limit.unwrap_or(100).clamp(1, 100);
-    let rows = client.query("SELECT seq,event_id,device_id,clock,kind,ciphertext FROM sync_events_v3 WHERE account_id=$1 AND seq>$2 ORDER BY seq LIMIT $3", &[&account_id,&after,&limit]).await.map_err(internal)?;
-    let mut out = Vec::new();
-    for row in rows {
-        let metadata = serde_json::to_vec(&serde_json::json!({"seq":row.get::<_,i64>(0),"event_id":row.get::<_,String>(1),"device_id":row.get::<_,String>(2),"clock":row.get::<_,String>(3),"kind":row.get::<_,String>(4)})).map_err(internal)?;
-        let ciphertext: Vec<u8> = row.get(5);
-        out.extend_from_slice(&(metadata.len() as u32).to_be_bytes());
-        out.extend_from_slice(&metadata);
-        out.extend_from_slice(&(ciphertext.len() as u32).to_be_bytes());
-        out.extend_from_slice(&ciphertext);
-    }
-    Response::builder()
-        .status(StatusCode::OK)
-        .header(
-            header::CONTENT_TYPE,
-            "application/vnd.lexicue.sync-events+binary;v=3",
-        )
-        .body(axum::body::Body::from(out))
-        .map_err(internal)
-}
-
-fn checkpoint_id(value: &str) -> Result<(), (StatusCode, String)> {
-    Uuid::parse_str(value)
-        .map(|_| ())
-        .map_err(|_| bad("invalid checkpoint id"))
-}
-
-fn chunk_hashes_are_valid(hashes: &[String]) -> bool {
-    !hashes.is_empty()
-        && hashes.len() <= 20_000
-        && hashes
-            .iter()
-            .all(|hash| hash.len() == 64 && hash.bytes().all(|byte| byte.is_ascii_hexdigit()))
-        && hashes.iter().collect::<HashSet<_>>().len() == hashes.len()
-}
-
-async fn put_checkpoint_v2(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-    Json(body): Json<CheckpointInput>,
-) -> Result<StatusCode, (StatusCode, String)> {
-    limited(&state, &format!("checkpoint:{}", client_ip(&headers)), 30)?;
-    checkpoint_id(&body.id)?;
-    if body.protocol_version != 2 && body.protocol_version != 3 {
-        return Err(bad("unsupported checkpoint protocol"));
-    }
-    if body.encrypted_len <= 0
-        || body.encrypted_len > 20_i64 * 1024 * 1024 * 1024
-        || !chunk_hashes_are_valid(&body.chunk_hashes)
-    {
-        return Err(bad("invalid checkpoint metadata"));
-    }
-    let manifest = URL_SAFE_NO_PAD
-        .decode(&body.manifest)
-        .map_err(|_| bad("invalid encrypted checkpoint manifest"))?;
-    if manifest.is_empty() || manifest.len() > MAX_EVENT_BYTES {
-        return Err(bad("invalid encrypted checkpoint manifest"));
-    }
-    let account_id = account(&headers, &state).await?;
-    let device_id = headers
-        .get("x-sync-device-id")
-        .and_then(|value| value.to_str().ok())
-        .filter(|value| !value.is_empty() && value.len() <= 256)
-        .ok_or_else(|| bad("missing device id"))?;
-    let mut client = db(&state).await?;
-    let transaction = client.transaction().await.map_err(internal)?;
-
-    if transaction
-        .query_opt(
-            "SELECT 1 FROM devices WHERE id=$1 AND account_id=$2",
-            &[&device_id, &account_id],
-        )
-        .await
-        .map_err(internal)?
-        .is_none()
-    {
-        return Err((
-            StatusCode::UNAUTHORIZED,
-            "device is not authorized for this account".into(),
-        ));
-    }
-
-    // Do not accept references to another account's chunks, or manifests with
-    // fabricated length. The latter keeps the directory useful for UI only.
-    let rows = transaction
-        .query(
-            "SELECT hash, octet_length(ciphertext) FROM sync_chunks WHERE account_id=$1 AND hash = ANY($2)",
-            &[&account_id, &body.chunk_hashes],
-        )
-        .await
-        .map_err(internal)?;
-    if rows.len() != body.chunk_hashes.len() {
-        return Err(bad("checkpoint references missing encrypted chunks"));
-    }
-    let actual_len: i64 = rows.iter().map(|row| row.get::<_, i32>(1) as i64).sum();
-    if actual_len != body.encrypted_len {
-        return Err(bad("checkpoint encrypted length mismatch"));
-    }
-    transaction
-        .execute(
-            "INSERT INTO sync_checkpoints(id,account_id,device_id,cursor,encrypted_len,manifest,protocol_version) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(id) DO NOTHING",
-            &[&body.id, &account_id, &device_id, &body.cursor, &body.encrypted_len, &manifest, &body.protocol_version],
-        )
-        .await
-        .map_err(internal)?;
-    for (position, hash) in body.chunk_hashes.iter().enumerate() {
-        transaction
-            .execute(
-                "INSERT INTO sync_checkpoint_chunks(checkpoint_id,account_id,hash,position) VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING",
-                &[&body.id, &account_id, hash, &(position as i32)],
-            )
-            .await
-            .map_err(internal)?;
-    }
-
-    let old = transaction
-        .query(
-            "SELECT id FROM sync_checkpoints WHERE account_id=$1 AND protocol_version=$2 ORDER BY created_at DESC, id DESC OFFSET $3",
-            &[&account_id, &body.protocol_version, &CHECKPOINT_RETENTION],
-        )
-        .await
-        .map_err(internal)?;
-    for row in old {
-        let id: String = row.get(0);
-        transaction
-            .execute("DELETE FROM sync_checkpoints WHERE id=$1", &[&id])
-            .await
-            .map_err(internal)?;
-    }
-    if body.protocol_version == 3 {
-        // Every retained v3 baseline contains all state up to its cursor. Keep
-        // the feed only after the oldest retained baseline so any device that
-        // restores one can still consume a complete suffix.
-        if let Some(row) = transaction
-            .query_opt(
-                "SELECT MIN(cursor) FROM sync_checkpoints WHERE account_id=$1 AND protocol_version=3",
-                &[&account_id],
-            )
-            .await
-            .map_err(internal)?
-        {
-            if let Some(cursor) = row.get::<_, Option<i64>>(0) {
-                transaction
-                    .execute(
-                        "DELETE FROM sync_events_v3 WHERE account_id=$1 AND seq <= $2",
-                        &[&account_id, &cursor],
-                    )
-                    .await
-                    .map_err(internal)?;
-            }
-        }
-    }
-    // A chunk may be shared by retained checkpoints, so collect only blocks
-    // that no checkpoint references after retention has run.
-    transaction
-        .execute(
-            "DELETE FROM sync_chunks c WHERE c.account_id=$1 AND c.created_at < NOW() - INTERVAL '1 hour' AND NOT EXISTS (SELECT 1 FROM sync_checkpoint_chunks r WHERE r.account_id=c.account_id AND r.hash=c.hash)",
-            &[&account_id],
-        )
-        .await
-        .map_err(internal)?;
-    transaction.commit().await.map_err(internal)?;
-    Ok(StatusCode::NO_CONTENT)
-}
-
-async fn list_checkpoints_v2(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-) -> Result<Json<Vec<CheckpointOutput>>, (StatusCode, String)> {
-    let account_id = account(&headers, &state).await?;
-    let client = db(&state).await?;
-    let rows = client
-        .query(
-            "SELECT c.id,c.device_id,COALESCE(d.name,'Unknown device'),c.cursor,c.encrypted_len,c.created_at::TEXT,c.protocol_version FROM sync_checkpoints c LEFT JOIN devices d ON d.id=c.device_id AND d.account_id=c.account_id WHERE c.account_id=$1 ORDER BY c.created_at DESC,c.id DESC",
-            &[&account_id],
-        )
-        .await
-        .map_err(internal)?;
-    Ok(Json(
-        rows.into_iter()
-            .map(|row| CheckpointOutput {
-                id: row.get(0),
-                device_id: row.get(1),
-                device_name: row.get(2),
-                cursor: row.get(3),
-                encrypted_len: row.get(4),
-                created_at: row.get(5),
-                protocol_version: row.get(6),
-            })
-            .collect(),
-    ))
-}
-
-async fn get_checkpoint_v2(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-    Path(id): Path<String>,
-) -> Result<Json<CheckpointDetail>, (StatusCode, String)> {
-    checkpoint_id(&id)?;
-    let account_id = account(&headers, &state).await?;
-    let client = db(&state).await?;
-    let row = client.query_opt(
-        "SELECT c.id,c.device_id,COALESCE(d.name,'Unknown device'),c.cursor,c.encrypted_len,c.created_at::TEXT,c.manifest,c.protocol_version FROM sync_checkpoints c LEFT JOIN devices d ON d.id=c.device_id AND d.account_id=c.account_id WHERE c.account_id=$1 AND c.id=$2",
-        &[&account_id, &id],
-    ).await.map_err(internal)?.ok_or((StatusCode::NOT_FOUND, "checkpoint not found".into()))?;
-    let chunk_rows = client.query(
-        "SELECT hash FROM sync_checkpoint_chunks WHERE account_id=$1 AND checkpoint_id=$2 ORDER BY position ASC",
-        &[&account_id, &id],
-    ).await.map_err(internal)?;
-    Ok(Json(CheckpointDetail {
-        checkpoint: CheckpointOutput {
-            id: row.get(0),
-            device_id: row.get(1),
-            device_name: row.get(2),
-            cursor: row.get(3),
-            encrypted_len: row.get(4),
-            created_at: row.get(5),
-            protocol_version: row.get(7),
-        },
-        manifest: URL_SAFE_NO_PAD.encode(row.get::<_, Vec<u8>>(6)),
-        chunk_hashes: chunk_rows.into_iter().map(|item| item.get(0)).collect(),
-    }))
-}
-
-async fn list_devices_v2(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-) -> Result<Json<Vec<DeviceOutput>>, (StatusCode, String)> {
-    let account_id = account(&headers, &state).await?;
-    let client = db(&state).await?;
-    let rows = client.query("SELECT id,name,last_seen_at::TEXT FROM devices WHERE account_id=$1 ORDER BY last_seen_at DESC", &[&account_id]).await.map_err(internal)?;
-    Ok(Json(
-        rows.into_iter()
-            .map(|r| DeviceOutput {
-                id: r.get(0),
-                name: r.get(1),
-                last_seen_at: r.get(2),
-            })
-            .collect(),
-    ))
-}
-
-async fn revoke_device_v2(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-    Path(device_id): Path<String>,
-) -> Result<StatusCode, (StatusCode, String)> {
-    let account_id = account(&headers, &state).await?;
-    let client = db(&state).await?;
-    let changed = client
-        .execute(
-            "DELETE FROM devices WHERE id=$1 AND account_id=$2",
-            &[&device_id, &account_id],
-        )
-        .await
-        .map_err(internal)?;
-    if changed == 0 {
-        return Err((StatusCode::NOT_FOUND, "device not found".into()));
-    }
-    client
-        .execute(
-            "UPDATE sessions SET revoked_at=NOW() WHERE account_id=$1 AND device_id=$2",
-            &[&account_id, &device_id],
-        )
-        .await
-        .map_err(internal)?;
-    Ok(StatusCode::NO_CONTENT)
-}
-
-async fn delete_account_v2(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-) -> Result<StatusCode, (StatusCode, String)> {
-    let account_id = account(&headers, &state).await?;
-    let client = db(&state).await?;
-    // All sync tables have account foreign keys with cascade deletion. This is
-    // intentionally irreversible; callers must present a live access token.
-    client
-        .execute("DELETE FROM users WHERE id=$1", &[&account_id])
-        .await
-        .map_err(internal)?;
-    Ok(StatusCode::NO_CONTENT)
-}
-
-async fn db(state: &AppState) -> Result<Client, (StatusCode, String)> {
-    let (client, connection) = tokio_postgres::connect(&state.database_url, NoTls)
-        .await
-        .map_err(internal)?;
-    tokio::spawn(async move {
-        let _ = connection.await;
-    });
-    Ok(client)
-}
-fn internal<E: std::fmt::Display>(error: E) -> (StatusCode, String) {
-    (StatusCode::INTERNAL_SERVER_ERROR, error.to_string())
-}
-fn bad(message: &str) -> (StatusCode, String) {
-    (StatusCode::BAD_REQUEST, message.to_string())
-}
 fn client_ip(headers: &HeaderMap) -> String {
     headers
         .get("x-forwarded-for")
@@ -702,11 +88,9 @@ fn client_ip(headers: &HeaderMap) -> String {
         .unwrap_or("unknown")
         .to_string()
 }
-fn limited(state: &AppState, scope: &str, maximum: u32) -> Result<(), (StatusCode, String)> {
-    let mut limits = state
-        .limits
-        .lock()
-        .map_err(|_| internal("rate limiter unavailable"))?;
+
+fn limited(state: &AppState, scope: &str, maximum: u32) -> ApiResult<()> {
+    let mut limits = state.limits.lock().map_err(internal)?;
     let now = Instant::now();
     let bucket = limits.entry(scope.to_string()).or_insert(RateBucket {
         started: now,
@@ -726,43 +110,72 @@ fn limited(state: &AppState, scope: &str, maximum: u32) -> Result<(), (StatusCod
             .metrics
             .rejected
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        return Err((
-            StatusCode::TOO_MANY_REQUESTS,
-            "rate limit exceeded; retry shortly".into(),
-        ));
+        return Err(error(StatusCode::TOO_MANY_REQUESTS, "rate_limited"));
     }
     Ok(())
 }
 
-async fn account(headers: &HeaderMap, state: &AppState) -> Result<String, (StatusCode, String)> {
-    let value = headers
-        .get(header::AUTHORIZATION)
-        .and_then(|v| v.to_str().ok())
-        .ok_or((StatusCode::UNAUTHORIZED, "missing access token".into()))?;
-    let token = value
-        .strip_prefix("Bearer ")
-        .ok_or((StatusCode::UNAUTHORIZED, "invalid access token".into()))?;
-    let client = db(state).await?;
-    let account_id: String = client.query_opt("SELECT account_id FROM sessions WHERE token = $1 AND revoked_at IS NULL AND expires_at > NOW()", &[&token]).await
-        .map_err(internal)?.map(|row| row.get(0)).ok_or_else(|| { state.metrics.auth_failures.fetch_add(1,std::sync::atomic::Ordering::Relaxed); (StatusCode::UNAUTHORIZED, "expired access token".into()) })?;
-    limited(state, &format!("account:{account_id}"), 600)?;
-    Ok(account_id)
+async fn db(state: &AppState) -> ApiResult<Client> {
+    let (client, connection) = tokio_postgres::connect(&state.database_url, NoTls)
+        .await
+        .map_err(internal)?;
+    tokio::spawn(async move {
+        if let Err(value) = connection.await {
+            tracing::error!(error = %value, "postgres connection ended");
+        }
+    });
+    Ok(client)
 }
+
 fn new_token() -> String {
     let mut bytes = [0u8; 32];
     rand::thread_rng().fill_bytes(&mut bytes);
     URL_SAFE_NO_PAD.encode(bytes)
 }
+
+fn token_hash(value: &str) -> String {
+    format!("{:x}", Sha256::digest(value.as_bytes()))
+}
+
+async fn account(headers: &HeaderMap, state: &AppState) -> ApiResult<(String, String)> {
+    let token = headers
+        .get(header::AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.strip_prefix("Bearer "))
+        .ok_or_else(|| error(StatusCode::UNAUTHORIZED, "auth_required"))?;
+    let client = db(state).await?;
+    let row = client
+        .query_opt(
+            "SELECT account_id,device_id FROM access_sessions WHERE token_hash=$1 AND revoked_at IS NULL AND expires_at>NOW()",
+            &[&token_hash(token)],
+        )
+        .await
+        .map_err(internal)?
+        .ok_or_else(|| {
+            state
+                .metrics
+                .auth_failures
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            error(StatusCode::UNAUTHORIZED, "session_expired")
+        })?;
+    let account_id: String = row.get(0);
+    limited(state, &format!("account:{account_id}"), 600)?;
+    Ok((account_id, row.get(1)))
+}
+
 async fn upsert_device(
     client: &Client,
     account_id: &str,
-    device_id: &str,
+    install_id: &str,
     name: &str,
-) -> Result<String, (StatusCode, String)> {
+) -> ApiResult<String> {
+    if install_id.is_empty() || install_id.len() > 256 || name.len() > 256 {
+        return Err(error(StatusCode::BAD_REQUEST, "invalid_device"));
+    }
     if let Some(row) = client
         .query_opt(
             "SELECT id FROM devices WHERE account_id=$1 AND install_id=$2",
-            &[&account_id, &device_id],
+            &[&account_id, &install_id],
         )
         .await
         .map_err(internal)?
@@ -770,8 +183,8 @@ async fn upsert_device(
         let id: String = row.get(0);
         client
             .execute(
-                "UPDATE devices SET name=$1,last_seen_at=NOW() WHERE id=$2 AND account_id=$3",
-                &[&name, &id, &account_id],
+                "UPDATE devices SET name=$1,last_seen_at=NOW() WHERE id=$2",
+                &[&name, &id],
             )
             .await
             .map_err(internal)?;
@@ -780,116 +193,182 @@ async fn upsert_device(
     let id = Uuid::new_v4().to_string();
     client
         .execute(
-            "INSERT INTO devices(id,account_id,install_id,name,last_seen_at) VALUES ($1,$2,$3,$4,NOW())",
-            &[&id, &account_id, &device_id, &name],
+            "INSERT INTO devices(id,account_id,install_id,name) VALUES($1,$2,$3,$4)",
+            &[&id, &account_id, &install_id, &name],
         )
         .await
         .map_err(internal)?;
     Ok(id)
 }
-async fn issue_session(
-    client: &Client,
+
+async fn issue_tokens<C: GenericClient + Sync>(
+    client: &C,
     account_id: &str,
     device_id: &str,
-) -> Result<String, (StatusCode, String)> {
-    let token = new_token();
-    client.execute("INSERT INTO sessions (token, account_id, device_id, expires_at) VALUES ($1,$2,$3,NOW() + INTERVAL '15 minutes')", &[&token, &account_id, &device_id]).await.map_err(internal)?;
-    Ok(token)
+) -> ApiResult<(String, String)> {
+    let access = new_token();
+    let refresh = new_token();
+    client
+        .execute(
+            "INSERT INTO access_sessions(token_hash,account_id,device_id,expires_at) VALUES($1,$2,$3,NOW()+INTERVAL '15 minutes')",
+            &[&token_hash(&access), &account_id, &device_id],
+        )
+        .await
+        .map_err(internal)?;
+    client
+        .execute(
+            "INSERT INTO refresh_sessions(token_hash,account_id,device_id,expires_at) VALUES($1,$2,$3,NOW()+INTERVAL '30 days')",
+            &[&token_hash(&refresh), &account_id, &device_id],
+        )
+        .await
+        .map_err(internal)?;
+    Ok((access, refresh))
 }
-fn token_hash(token: &str) -> String {
-    format!("{:x}", Sha256::digest(token.as_bytes()))
+
+#[derive(Deserialize)]
+struct RegisterRequest {
+    email: String,
+    password: String,
+    install_id: String,
+    device_name: String,
+    key_package: String,
+    recovery_verifier: String,
 }
-async fn issue_tokens(
-    client: &Client,
-    account_id: &str,
-    device_id: &str,
-) -> Result<(String, String), (StatusCode, String)> {
-    let access_token = issue_session(client, account_id, device_id).await?;
-    let refresh_token = new_token();
-    let hash = token_hash(&refresh_token);
-    client.execute("INSERT INTO refresh_sessions(token_hash,account_id,device_id,expires_at) VALUES($1,$2,$3,NOW() + INTERVAL '30 days')", &[&hash,&account_id,&device_id]).await.map_err(internal)?;
-    Ok((access_token, refresh_token))
+
+#[derive(Deserialize)]
+struct LoginRequest {
+    email: String,
+    password: String,
+    install_id: String,
+    device_name: String,
 }
+
+#[derive(Deserialize)]
+struct RecoveryPackageRequest {
+    email: String,
+    recovery_verifier: String,
+}
+
+#[derive(Deserialize)]
+struct RecoverRequest {
+    email: String,
+    recovery_verifier: String,
+    password: String,
+    key_package: String,
+    install_id: String,
+    device_name: String,
+}
+
+#[derive(Deserialize)]
+struct RefreshRequest {
+    refresh_token: String,
+}
+
+#[derive(Serialize, Deserialize)]
+struct AuthResponse {
+    access_token: String,
+    refresh_token: String,
+    key_package: String,
+    device_id: String,
+    account_id: String,
+}
+
+fn valid_email(value: &str) -> bool {
+    value.len() <= 320 && value.contains('@')
+}
+
 async fn register(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(body): Json<RegisterRequest>,
-) -> Result<Json<AuthResponse>, (StatusCode, String)> {
-    limited(
-        &state,
-        &format!("auth:register:{}", client_ip(&headers)),
-        20,
-    )?;
-    let valid_recovery_verifier = body
-        .recovery_verifier
-        .as_deref()
-        .map(|value| value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit()))
-        .unwrap_or(true);
-    if !body.email.contains('@')
-        || body.password.len() < 10
-        || body.key_package.len() > 32_768
-        || !valid_recovery_verifier
-    {
-        return Err(bad("invalid registration payload"));
+) -> ApiResult<Json<AuthResponse>> {
+    limited(&state, &format!("register:{}", client_ip(&headers)), 10)?;
+    if !valid_email(&body.email) {
+        return Err(error(StatusCode::BAD_REQUEST, "invalid_email"));
     }
-    let salt = SaltString::generate(&mut OsRng);
+    if body.password.len() < 10 || body.password.len() > 1024 {
+        return Err(error(StatusCode::BAD_REQUEST, "invalid_password"));
+    }
+    if body.key_package.len() > 32_768 || body.recovery_verifier.len() != 64 {
+        return Err(error(StatusCode::BAD_REQUEST, "invalid_registration"));
+    }
+    let password_salt = SaltString::generate(&mut OsRng);
     let password_hash = Argon2::default()
-        .hash_password(body.password.as_bytes(), &salt)
+        .hash_password(body.password.as_bytes(), &password_salt)
         .map_err(internal)?
         .to_string();
-    let recovery_verifier_hash = if let Some(verifier) = body.recovery_verifier.as_deref() {
-        let recovery_salt = SaltString::generate(&mut OsRng);
-        Some(
-            Argon2::default()
-                .hash_password(verifier.as_bytes(), &recovery_salt)
-                .map_err(internal)?
-                .to_string(),
-        )
-    } else {
-        None
-    };
+    let recovery_salt = SaltString::generate(&mut OsRng);
+    let recovery_hash = Argon2::default()
+        .hash_password(body.recovery_verifier.as_bytes(), &recovery_salt)
+        .map_err(internal)?
+        .to_string();
     let account_id = Uuid::new_v4().to_string();
     let client = db(&state).await?;
     client
         .execute(
-            "INSERT INTO users (id,email,password_hash,key_package,recovery_verifier_hash) VALUES ($1,$2,$3,$4,$5)",
-            &[
-                &account_id,
-                &body.email.to_lowercase(),
-                &password_hash,
-                &body.key_package,
-                &recovery_verifier_hash,
-            ],
+            "INSERT INTO users(id,email,password_hash,key_package,recovery_verifier_hash) VALUES($1,$2,$3,$4,$5)",
+            &[&account_id, &body.email.to_lowercase(), &password_hash, &body.key_package, &recovery_hash],
         )
         .await
-        .map_err(|e| {
-            if e.code().map(|c| c.code()) == Some("23505") {
-                (StatusCode::CONFLICT, "email already registered".into())
+        .map_err(|value| {
+            if value.code().map(|code| code.code()) == Some("23505") {
+                error(StatusCode::CONFLICT, "email_exists")
             } else {
-                internal(e)
+                internal(value)
             }
         })?;
-    let device_id = upsert_device(&client, &account_id, &body.device_id, &body.device_name).await?;
+    let device_id =
+        upsert_device(&client, &account_id, &body.install_id, &body.device_name).await?;
     let (access_token, refresh_token) = issue_tokens(&client, &account_id, &device_id).await?;
     Ok(Json(AuthResponse {
         access_token,
         refresh_token,
         key_package: body.key_package,
         device_id,
+        account_id,
+    }))
+}
+
+async fn login(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(body): Json<LoginRequest>,
+) -> ApiResult<Json<AuthResponse>> {
+    limited(&state, &format!("login:{}", client_ip(&headers)), 20)?;
+    let client = db(&state).await?;
+    let row = client
+        .query_opt(
+            "SELECT id,password_hash,key_package FROM users WHERE email=$1",
+            &[&body.email.to_lowercase()],
+        )
+        .await
+        .map_err(internal)?
+        .ok_or_else(|| error(StatusCode::UNAUTHORIZED, "invalid_credentials"))?;
+    let stored_password_hash: String = row.get(1);
+    let parsed = PasswordHash::new(&stored_password_hash).map_err(internal)?;
+    Argon2::default()
+        .verify_password(body.password.as_bytes(), &parsed)
+        .map_err(|_| error(StatusCode::UNAUTHORIZED, "invalid_credentials"))?;
+    let account_id: String = row.get(0);
+    let device_id =
+        upsert_device(&client, &account_id, &body.install_id, &body.device_name).await?;
+    let (access_token, refresh_token) = issue_tokens(&client, &account_id, &device_id).await?;
+    Ok(Json(AuthResponse {
+        access_token,
+        refresh_token,
+        key_package: row.get(2),
+        device_id,
+        account_id,
     }))
 }
 
 async fn verify_recovery(
     client: &Client,
     email: &str,
-    recovery_verifier: &str,
-) -> Result<(String, String), (StatusCode, String)> {
-    if recovery_verifier.len() != 64
-        || !recovery_verifier
-            .bytes()
-            .all(|byte| byte.is_ascii_hexdigit())
-    {
-        return Err((StatusCode::UNAUTHORIZED, "invalid recovery code".into()));
+    verifier: &str,
+) -> ApiResult<(String, String)> {
+    if verifier.len() != 64 {
+        return Err(error(StatusCode::UNAUTHORIZED, "invalid_recovery_code"));
     }
     let row = client
         .query_opt(
@@ -898,16 +377,12 @@ async fn verify_recovery(
         )
         .await
         .map_err(internal)?
-        .ok_or((StatusCode::UNAUTHORIZED, "invalid recovery code".into()))?;
-    let stored: Option<String> = row.get(2);
-    let stored = stored.ok_or((
-        StatusCode::UNAUTHORIZED,
-        "recovery is unavailable for this legacy account".into(),
-    ))?;
-    let parsed = PasswordHash::new(&stored).map_err(internal)?;
+        .ok_or_else(|| error(StatusCode::UNAUTHORIZED, "invalid_recovery_code"))?;
+    let stored_recovery_hash: String = row.get(2);
+    let parsed = PasswordHash::new(&stored_recovery_hash).map_err(internal)?;
     Argon2::default()
-        .verify_password(recovery_verifier.as_bytes(), &parsed)
-        .map_err(|_| (StatusCode::UNAUTHORIZED, "invalid recovery code".into()))?;
+        .verify_password(verifier.as_bytes(), &parsed)
+        .map_err(|_| error(StatusCode::UNAUTHORIZED, "invalid_recovery_code"))?;
     Ok((row.get(0), row.get(1)))
 }
 
@@ -915,33 +390,28 @@ async fn recovery_package(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(body): Json<RecoveryPackageRequest>,
-) -> Result<Json<AuthResponse>, (StatusCode, String)> {
-    limited(
-        &state,
-        &format!("auth:recovery:{}", client_ip(&headers)),
-        20,
-    )?;
+) -> ApiResult<Json<AuthResponse>> {
+    limited(&state, &format!("recover:{}", client_ip(&headers)), 10)?;
     let client = db(&state).await?;
     let (account_id, key_package) =
         verify_recovery(&client, &body.email, &body.recovery_verifier).await?;
-    // No session is issued here: possession of the verifier may retrieve an
-    // opaque key package, but cannot access encrypted sync data.
     Ok(Json(AuthResponse {
         access_token: String::new(),
         refresh_token: String::new(),
         key_package,
-        device_id: account_id,
+        device_id: String::new(),
+        account_id,
     }))
 }
 
-async fn reset_password(
+async fn recover(
     State(state): State<AppState>,
     headers: HeaderMap,
-    Json(body): Json<PasswordResetRequest>,
-) -> Result<Json<AuthResponse>, (StatusCode, String)> {
-    limited(&state, &format!("auth:reset:{}", client_ip(&headers)), 10)?;
+    Json(body): Json<RecoverRequest>,
+) -> ApiResult<Json<AuthResponse>> {
+    limited(&state, &format!("recover:{}", client_ip(&headers)), 10)?;
     if body.password.len() < 10 || body.key_package.len() > 32_768 {
-        return Err(bad("invalid password reset payload"));
+        return Err(error(StatusCode::BAD_REQUEST, "invalid_password"));
     }
     let client = db(&state).await?;
     let (account_id, _) = verify_recovery(&client, &body.email, &body.recovery_verifier).await?;
@@ -959,12 +429,11 @@ async fn reset_password(
         .map_err(internal)?;
     client
         .execute(
-            "UPDATE sessions SET revoked_at=NOW() WHERE account_id=$1",
+            "UPDATE access_sessions SET revoked_at=NOW() WHERE account_id=$1",
             &[&account_id],
         )
         .await
         .map_err(internal)?;
-    let device_id = upsert_device(&client, &account_id, &body.device_id, &body.device_name).await?;
     client
         .execute(
             "UPDATE refresh_sessions SET revoked_at=NOW() WHERE account_id=$1",
@@ -972,42 +441,15 @@ async fn reset_password(
         )
         .await
         .map_err(internal)?;
+    let device_id =
+        upsert_device(&client, &account_id, &body.install_id, &body.device_name).await?;
     let (access_token, refresh_token) = issue_tokens(&client, &account_id, &device_id).await?;
     Ok(Json(AuthResponse {
         access_token,
         refresh_token,
         key_package: body.key_package,
         device_id,
-    }))
-}
-async fn login(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-    Json(body): Json<LoginRequest>,
-) -> Result<Json<AuthResponse>, (StatusCode, String)> {
-    limited(&state, &format!("auth:login:{}", client_ip(&headers)), 30)?;
-    let client = db(&state).await?;
-    let row = client
-        .query_opt(
-            "SELECT id,password_hash,key_package FROM users WHERE email=$1",
-            &[&body.email.to_lowercase()],
-        )
-        .await
-        .map_err(internal)?
-        .ok_or((StatusCode::UNAUTHORIZED, "invalid email or password".into()))?;
-    let hash: String = row.get(1);
-    let parsed = PasswordHash::new(&hash).map_err(internal)?;
-    Argon2::default()
-        .verify_password(body.password.as_bytes(), &parsed)
-        .map_err(|_| (StatusCode::UNAUTHORIZED, "invalid email or password".into()))?;
-    let account_id: String = row.get(0);
-    let device_id = upsert_device(&client, &account_id, &body.device_id, &body.device_name).await?;
-    let (access_token, refresh_token) = issue_tokens(&client, &account_id, &device_id).await?;
-    Ok(Json(AuthResponse {
-        access_token,
-        refresh_token,
-        key_package: row.get(2),
-        device_id,
+        account_id,
     }))
 }
 
@@ -1015,17 +457,19 @@ async fn refresh_access(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(body): Json<RefreshRequest>,
-) -> Result<Json<AuthResponse>, (StatusCode, String)> {
+) -> ApiResult<Json<AuthResponse>> {
     limited(&state, &format!("refresh:{}", client_ip(&headers)), 30)?;
-    if body.refresh_token.len() < 32 {
-        return Err((StatusCode::UNAUTHORIZED, "invalid refresh token".into()));
-    }
     let mut client = db(&state).await?;
-    let hash = token_hash(&body.refresh_token);
     let transaction = client.transaction().await.map_err(internal)?;
-    let row=transaction.query_opt("SELECT account_id,device_id FROM refresh_sessions WHERE token_hash=$1 AND revoked_at IS NULL AND expires_at>NOW() FOR UPDATE", &[&hash]).await.map_err(internal)?.ok_or((StatusCode::UNAUTHORIZED,"expired refresh token".into()))?;
-    let account_id: String = row.get(0);
-    let device_id: String = row.get(1);
+    let hash = token_hash(&body.refresh_token);
+    let row = transaction
+        .query_opt(
+            "SELECT account_id,device_id FROM refresh_sessions WHERE token_hash=$1 AND revoked_at IS NULL AND expires_at>NOW() FOR UPDATE",
+            &[&hash],
+        )
+        .await
+        .map_err(internal)?
+        .ok_or_else(|| error(StatusCode::UNAUTHORIZED, "session_expired"))?;
     transaction
         .execute(
             "UPDATE refresh_sessions SET revoked_at=NOW() WHERE token_hash=$1",
@@ -1033,174 +477,444 @@ async fn refresh_access(
         )
         .await
         .map_err(internal)?;
+    let account_id: String = row.get(0);
+    let device_id: String = row.get(1);
+    let (access_token, refresh_token) = issue_tokens(&transaction, &account_id, &device_id).await?;
     transaction.commit().await.map_err(internal)?;
-    let (access_token, refresh_token) = issue_tokens(&client, &account_id, &device_id).await?;
-    let package: String = client
-        .query_one("SELECT key_package FROM users WHERE id=$1", &[&account_id])
-        .await
-        .map_err(internal)?
-        .get(0);
     Ok(Json(AuthResponse {
         access_token,
         refresh_token,
-        key_package: package,
+        key_package: String::new(),
         device_id,
+        account_id,
     }))
 }
 
-/// Best-effort local sign-out invalidates both the rotating refresh token and
-/// all short access tokens for that device. No account identity is exposed.
 async fn logout(
     State(state): State<AppState>,
-    headers: HeaderMap,
     Json(body): Json<RefreshRequest>,
-) -> Result<StatusCode, (StatusCode, String)> {
-    limited(&state, &format!("auth:logout:{}", client_ip(&headers)), 30)?;
+) -> ApiResult<StatusCode> {
     let client = db(&state).await?;
     let hash = token_hash(&body.refresh_token);
-    if let Some(row) = client.query_opt("SELECT account_id,device_id FROM refresh_sessions WHERE token_hash=$1 AND revoked_at IS NULL", &[&hash]).await.map_err(internal)? {
+    if let Some(row) = client
+        .query_opt(
+            "SELECT account_id,device_id FROM refresh_sessions WHERE token_hash=$1 AND revoked_at IS NULL",
+            &[&hash],
+        )
+        .await
+        .map_err(internal)?
+    {
         let account_id: String = row.get(0);
         let device_id: String = row.get(1);
-        client.execute("UPDATE refresh_sessions SET revoked_at=NOW() WHERE token_hash=$1", &[&hash]).await.map_err(internal)?;
-        client.execute("UPDATE sessions SET revoked_at=NOW() WHERE account_id=$1 AND device_id=$2", &[&account_id, &device_id]).await.map_err(internal)?;
+        client
+            .execute(
+                "UPDATE refresh_sessions SET revoked_at=NOW() WHERE account_id=$1 AND device_id=$2",
+                &[&account_id, &device_id],
+            )
+            .await
+            .map_err(internal)?;
+        client
+            .execute(
+                "UPDATE access_sessions SET revoked_at=NOW() WHERE account_id=$1 AND device_id=$2",
+                &[&account_id, &device_id],
+            )
+            .await
+            .map_err(internal)?;
     }
     Ok(StatusCode::NO_CONTENT)
 }
 
-async fn change_password(
+#[derive(Serialize)]
+struct Capabilities {
+    protocol_version: i16,
+    max_batch_records: usize,
+    max_record_bytes: usize,
+    max_blob_bytes: usize,
+}
+
+async fn capabilities() -> Json<Capabilities> {
+    Json(Capabilities {
+        protocol_version: PROTOCOL_VERSION,
+        max_batch_records: MAX_BATCH_RECORDS,
+        max_record_bytes: MAX_RECORD_BYTES,
+        max_blob_bytes: MAX_BLOB_BYTES,
+    })
+}
+
+#[derive(Serialize)]
+struct HeadResponse {
+    cursor: i64,
+}
+
+async fn sync_head(
     State(state): State<AppState>,
     headers: HeaderMap,
-    Json(body): Json<ChangePasswordRequest>,
-) -> Result<StatusCode, (StatusCode, String)> {
-    if body.new_password.len() < 10 || body.key_package.len() > 32_768 {
-        return Err(bad("invalid password change payload"));
-    }
-    let account_id = account(&headers, &state).await?;
+) -> ApiResult<Json<HeadResponse>> {
+    let (account_id, _) = account(&headers, &state).await?;
     let client = db(&state).await?;
     let row = client
         .query_one(
-            "SELECT password_hash FROM users WHERE id=$1",
+            "SELECT COALESCE(MAX(seq),0) FROM sync_records WHERE account_id=$1",
             &[&account_id],
         )
         .await
         .map_err(internal)?;
-    let stored: String = row.get(0);
-    let parsed = PasswordHash::new(&stored).map_err(internal)?;
-    Argon2::default()
-        .verify_password(body.current_password.as_bytes(), &parsed)
-        .map_err(|_| {
-            (
-                StatusCode::UNAUTHORIZED,
-                "current password is incorrect".into(),
+    Ok(Json(HeadResponse { cursor: row.get(0) }))
+}
+
+#[derive(Deserialize)]
+struct RecordsQuery {
+    after: Option<i64>,
+    until: Option<i64>,
+    limit: Option<i64>,
+}
+
+#[derive(Clone, Serialize)]
+struct RecordOutput {
+    entity_type: String,
+    entity_id: String,
+    etag: String,
+    seq: i64,
+    schema_version: i16,
+    deleted: bool,
+    nonce: String,
+    ciphertext: String,
+}
+
+fn record_output(row: &Row) -> RecordOutput {
+    RecordOutput {
+        entity_type: row.get(0),
+        entity_id: row.get(1),
+        etag: row.get(2),
+        seq: row.get(3),
+        schema_version: row.get(4),
+        deleted: row.get(5),
+        nonce: URL_SAFE_NO_PAD.encode(row.get::<_, Vec<u8>>(6)),
+        ciphertext: URL_SAFE_NO_PAD.encode(row.get::<_, Vec<u8>>(7)),
+    }
+}
+
+async fn list_records(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Query(query): Query<RecordsQuery>,
+) -> ApiResult<Json<Vec<RecordOutput>>> {
+    let (account_id, _) = account(&headers, &state).await?;
+    let after = query.after.unwrap_or(0).max(0);
+    let until = query.until.unwrap_or(i64::MAX).max(after);
+    let limit = query.limit.unwrap_or(100).clamp(1, 100);
+    let client = db(&state).await?;
+    let rows = client
+        .query(
+            "SELECT entity_type,entity_id,etag,seq,schema_version,deleted,nonce,ciphertext FROM sync_records WHERE account_id=$1 AND seq>$2 AND seq<=$3 ORDER BY seq LIMIT $4",
+            &[&account_id, &after, &until, &limit],
+        )
+        .await
+        .map_err(internal)?;
+    Ok(Json(rows.iter().map(record_output).collect()))
+}
+
+#[derive(Deserialize)]
+struct RecordInput {
+    entity_type: String,
+    entity_id: String,
+    base_etag: Option<String>,
+    schema_version: i16,
+    deleted: bool,
+    nonce: String,
+    ciphertext: String,
+}
+
+#[derive(Deserialize)]
+struct BatchInput {
+    records: Vec<RecordInput>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "snake_case")]
+enum RecordResultStatus {
+    Accepted,
+    Conflict,
+}
+
+#[derive(Serialize)]
+struct RecordResult {
+    entity_type: String,
+    entity_id: String,
+    status: RecordResultStatus,
+    etag: String,
+    seq: i64,
+    current: Option<RecordOutput>,
+}
+
+#[derive(Serialize)]
+struct BatchOutput {
+    results: Vec<RecordResult>,
+}
+
+fn valid_identifier(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 128
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
+}
+
+async fn push_records(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(body): Json<BatchInput>,
+) -> ApiResult<Json<BatchOutput>> {
+    let (account_id, _) = account(&headers, &state).await?;
+    if body.records.is_empty() || body.records.len() > MAX_BATCH_RECORDS {
+        return Err(error(StatusCode::BAD_REQUEST, "invalid_record_batch"));
+    }
+    let mut decoded = Vec::with_capacity(body.records.len());
+    for record in body.records {
+        let nonce = URL_SAFE_NO_PAD
+            .decode(&record.nonce)
+            .map_err(|_| error(StatusCode::BAD_REQUEST, "invalid_record"))?;
+        let ciphertext = URL_SAFE_NO_PAD
+            .decode(&record.ciphertext)
+            .map_err(|_| error(StatusCode::BAD_REQUEST, "invalid_record"))?;
+        if !valid_identifier(&record.entity_type)
+            || !valid_identifier(&record.entity_id)
+            || nonce.len() != 24
+            || ciphertext.is_empty()
+            || ciphertext.len() > MAX_RECORD_BYTES
+            || record.schema_version != PROTOCOL_VERSION
+        {
+            return Err(error(StatusCode::BAD_REQUEST, "invalid_record"));
+        }
+        decoded.push((record, nonce, ciphertext));
+    }
+
+    let mut client = db(&state).await?;
+    let transaction = client.transaction().await.map_err(internal)?;
+    let mut results = Vec::with_capacity(decoded.len());
+    for (record, nonce, ciphertext) in decoded {
+        let current = transaction
+            .query_opt(
+                "SELECT entity_type,entity_id,etag,seq,schema_version,deleted,nonce,ciphertext FROM sync_records WHERE account_id=$1 AND entity_type=$2 AND entity_id=$3 FOR UPDATE",
+                &[&account_id, &record.entity_type, &record.entity_id],
             )
-        })?;
-    let salt = SaltString::generate(&mut OsRng);
-    let password_hash = Argon2::default()
-        .hash_password(body.new_password.as_bytes(), &salt)
-        .map_err(internal)?
-        .to_string();
-    client
+            .await
+            .map_err(internal)?;
+        let matches = match (&current, record.base_etag.as_deref()) {
+            (None, None) => true,
+            (Some(row), Some(base)) => row.get::<_, String>(2) == base,
+            _ => false,
+        };
+        if !matches {
+            let output = current
+                .as_ref()
+                .map(record_output)
+                .ok_or_else(|| error(StatusCode::CONFLICT, "record_precondition_failed"))?;
+            state
+                .metrics
+                .record_conflicts
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            results.push(RecordResult {
+                entity_type: record.entity_type,
+                entity_id: record.entity_id,
+                status: RecordResultStatus::Conflict,
+                etag: output.etag.clone(),
+                seq: output.seq,
+                current: Some(output),
+            });
+            continue;
+        }
+        if let Some(row) = &current {
+            transaction
+                .execute(
+                    "INSERT INTO sync_record_history(account_id,entity_type,entity_id,etag,seq,schema_version,deleted,nonce,ciphertext) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)",
+                    &[&account_id, &row.get::<_, String>(0), &row.get::<_, String>(1), &row.get::<_, String>(2), &row.get::<_, i64>(3), &row.get::<_, i16>(4), &row.get::<_, bool>(5), &row.get::<_, Vec<u8>>(6), &row.get::<_, Vec<u8>>(7)],
+                )
+                .await
+                .map_err(internal)?;
+        }
+        let etag = Uuid::new_v4().to_string();
+        let seq: i64 = transaction
+            .query_one("SELECT nextval('sync_record_seq')", &[])
+            .await
+            .map_err(internal)?
+            .get(0);
+        transaction
+            .execute(
+                "INSERT INTO sync_records(account_id,entity_type,entity_id,etag,seq,schema_version,deleted,nonce,ciphertext) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(account_id,entity_type,entity_id) DO UPDATE SET etag=EXCLUDED.etag,seq=EXCLUDED.seq,schema_version=EXCLUDED.schema_version,deleted=EXCLUDED.deleted,nonce=EXCLUDED.nonce,ciphertext=EXCLUDED.ciphertext,updated_at=NOW()",
+                &[&account_id, &record.entity_type, &record.entity_id, &etag, &seq, &record.schema_version, &record.deleted, &nonce, &ciphertext],
+            )
+            .await
+            .map_err(internal)?;
+        state
+            .metrics
+            .accepted_records
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        results.push(RecordResult {
+            entity_type: record.entity_type,
+            entity_id: record.entity_id,
+            status: RecordResultStatus::Accepted,
+            etag,
+            seq,
+            current: None,
+        });
+    }
+    transaction
         .execute(
-            "UPDATE users SET password_hash=$1,key_package=$2 WHERE id=$3",
-            &[&password_hash, &body.key_package, &account_id],
+            "DELETE FROM sync_record_history WHERE replaced_at < NOW()-INTERVAL '30 days'",
+            &[],
         )
         .await
         .map_err(internal)?;
+    transaction.commit().await.map_err(internal)?;
+    Ok(Json(BatchOutput { results }))
+}
+
+fn valid_hash(value: &str) -> bool {
+    value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+}
+
+async fn put_blob(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(hash): Path<String>,
+    body: Bytes,
+) -> ApiResult<StatusCode> {
+    limited(&state, &format!("blob:{}", client_ip(&headers)), 360)?;
+    if !valid_hash(&hash) || body.is_empty() || body.len() > MAX_BLOB_BYTES {
+        return Err(error(StatusCode::BAD_REQUEST, "invalid_blob"));
+    }
+    if format!("{:x}", Sha256::digest(&body)) != hash {
+        return Err(error(StatusCode::BAD_REQUEST, "blob_hash_mismatch"));
+    }
+    let (account_id, _) = account(&headers, &state).await?;
+    let client = db(&state).await?;
     client
         .execute(
-            "UPDATE sessions SET revoked_at=NOW() WHERE account_id=$1",
-            &[&account_id],
-        )
-        .await
-        .map_err(internal)?;
-    client
-        .execute(
-            "UPDATE refresh_sessions SET revoked_at=NOW() WHERE account_id=$1",
-            &[&account_id],
+            "INSERT INTO sync_blobs(account_id,hash,ciphertext) VALUES($1,$2,$3) ON CONFLICT DO NOTHING",
+            &[&account_id, &hash, &body.as_ref()],
         )
         .await
         .map_err(internal)?;
     Ok(StatusCode::NO_CONTENT)
 }
-async fn push_events(
+
+async fn get_blob(
     State(state): State<AppState>,
     headers: HeaderMap,
-    Json(events): Json<Vec<EventInput>>,
-) -> Result<Json<Vec<String>>, (StatusCode, String)> {
-    if events.len() > 100 {
-        return Err(bad("maximum 100 events per request"));
-    }
-    let account_id = account(&headers, &state).await?;
+    Path(hash): Path<String>,
+) -> ApiResult<Response> {
+    let (account_id, _) = account(&headers, &state).await?;
     let client = db(&state).await?;
-    let mut accepted = Vec::new();
-    for event in events {
-        if event.ciphertext.len() > 1_500_000 {
-            return Err(bad("event too large"));
-        }
-        let count = client.execute("INSERT INTO sync_events (account_id,event_id,device_id,clock,kind,ciphertext) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (account_id,event_id) DO NOTHING", &[&account_id,&event.event_id,&event.device_id,&event.clock,&event.kind,&event.ciphertext]).await.map_err(internal)?;
-        if count == 1 {
-            accepted.push(event.event_id);
-        }
-    }
-    Ok(Json(accepted))
+    let bytes: Vec<u8> = client
+        .query_opt(
+            "SELECT ciphertext FROM sync_blobs WHERE account_id=$1 AND hash=$2",
+            &[&account_id, &hash],
+        )
+        .await
+        .map_err(internal)?
+        .map(|row| row.get(0))
+        .ok_or_else(|| error(StatusCode::NOT_FOUND, "blob_not_found"))?;
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "application/octet-stream")
+        .body(Body::from(bytes))
+        .map_err(internal)
 }
-async fn pull_events(
+
+async fn head_blob(
     State(state): State<AppState>,
     headers: HeaderMap,
-    Query(query): Query<PullQuery>,
-) -> Result<Json<Vec<EventOutput>>, (StatusCode, String)> {
-    let account_id = account(&headers, &state).await?;
+    Path(hash): Path<String>,
+) -> ApiResult<StatusCode> {
+    let (account_id, _) = account(&headers, &state).await?;
     let client = db(&state).await?;
-    let limit = query.limit.unwrap_or(100).clamp(1, 100);
-    let after = query.after.unwrap_or(0);
-    let rows = client.query("SELECT seq,event_id,device_id,clock,kind,ciphertext FROM sync_events WHERE account_id=$1 AND seq>$2 ORDER BY seq LIMIT $3", &[&account_id,&after,&limit]).await.map_err(internal)?;
+    let found = client
+        .query_opt(
+            "SELECT 1 FROM sync_blobs WHERE account_id=$1 AND hash=$2",
+            &[&account_id, &hash],
+        )
+        .await
+        .map_err(internal)?
+        .is_some();
+    Ok(if found {
+        StatusCode::OK
+    } else {
+        StatusCode::NOT_FOUND
+    })
+}
+
+#[derive(Serialize)]
+struct DeviceOutput {
+    id: String,
+    name: String,
+    last_seen_at: String,
+}
+
+async fn list_devices(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> ApiResult<Json<Vec<DeviceOutput>>> {
+    let (account_id, _) = account(&headers, &state).await?;
+    let client = db(&state).await?;
+    let rows = client
+        .query(
+            "SELECT id,name,last_seen_at::TEXT FROM devices WHERE account_id=$1 ORDER BY last_seen_at DESC",
+            &[&account_id],
+        )
+        .await
+        .map_err(internal)?;
     Ok(Json(
         rows.into_iter()
-            .map(|r| EventOutput {
-                seq: r.get(0),
-                event_id: r.get(1),
-                device_id: r.get(2),
-                clock: r.get(3),
-                kind: r.get(4),
-                ciphertext: r.get(5),
+            .map(|row| DeviceOutput {
+                id: row.get(0),
+                name: row.get(1),
+                last_seen_at: row.get(2),
             })
             .collect(),
     ))
 }
-async fn put_snapshot(
+
+async fn revoke_device(
     State(state): State<AppState>,
     headers: HeaderMap,
-    Json(body): Json<SnapshotInput>,
-) -> Result<StatusCode, (StatusCode, String)> {
-    if body.ciphertext.len() > 20_000_000 {
-        return Err(bad("snapshot too large"));
+    Path(device_id): Path<String>,
+) -> ApiResult<StatusCode> {
+    let (account_id, current_device) = account(&headers, &state).await?;
+    if device_id == current_device {
+        return Err(error(
+            StatusCode::BAD_REQUEST,
+            "cannot_revoke_current_device",
+        ));
     }
-    let account_id = account(&headers, &state).await?;
     let client = db(&state).await?;
-    client.execute("INSERT INTO snapshots (account_id,ciphertext,cursor,created_at) VALUES ($1,$2,$3,NOW()) ON CONFLICT (account_id) DO UPDATE SET ciphertext=EXCLUDED.ciphertext,cursor=EXCLUDED.cursor,created_at=NOW()", &[&account_id,&body.ciphertext,&body.cursor]).await.map_err(internal)?;
+    let changed = client
+        .execute(
+            "DELETE FROM devices WHERE account_id=$1 AND id=$2",
+            &[&account_id, &device_id],
+        )
+        .await
+        .map_err(internal)?;
+    if changed == 0 {
+        return Err(error(StatusCode::NOT_FOUND, "device_not_found"));
+    }
     Ok(StatusCode::NO_CONTENT)
 }
-async fn get_snapshot(
+
+async fn delete_account(
     State(state): State<AppState>,
     headers: HeaderMap,
-) -> Result<Json<Option<SnapshotOutput>>, (StatusCode, String)> {
-    let account_id = account(&headers, &state).await?;
+) -> ApiResult<StatusCode> {
+    let (account_id, _) = account(&headers, &state).await?;
     let client = db(&state).await?;
-    Ok(Json(
-        client
-            .query_opt(
-                "SELECT ciphertext,cursor FROM snapshots WHERE account_id=$1",
-                &[&account_id],
-            )
-            .await
-            .map_err(internal)?
-            .map(|r| SnapshotOutput {
-                ciphertext: r.get(0),
-                cursor: r.get(1),
-            }),
-    ))
+    client
+        .execute("DELETE FROM users WHERE id=$1", &[&account_id])
+        .await
+        .map_err(internal)?;
+    Ok(StatusCode::NO_CONTENT)
 }
-async fn health(State(state): State<AppState>) -> Result<&'static str, (StatusCode, String)> {
+
+async fn health(State(state): State<AppState>) -> ApiResult<&'static str> {
     db(&state)
         .await?
         .query_one("SELECT 1", &[])
@@ -1208,24 +922,28 @@ async fn health(State(state): State<AppState>) -> Result<&'static str, (StatusCo
         .map_err(internal)?;
     Ok("ok")
 }
-async fn metrics(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-) -> Result<String, (StatusCode, String)> {
+
+async fn metrics(State(state): State<AppState>, headers: HeaderMap) -> ApiResult<String> {
     let expected = state
         .metrics_token
         .as_deref()
-        .ok_or((StatusCode::NOT_FOUND, "metrics disabled".into()))?;
-    let supplied = headers
+        .ok_or_else(|| error(StatusCode::NOT_FOUND, "metrics_disabled"))?;
+    if headers
         .get("x-sync-metrics-token")
         .and_then(|value| value.to_str().ok())
-        .unwrap_or("");
-    if supplied != expected {
-        return Err((StatusCode::UNAUTHORIZED, "invalid metrics token".into()));
+        .unwrap_or_default()
+        != expected
+    {
+        return Err(error(StatusCode::UNAUTHORIZED, "metrics_unauthorized"));
     }
-    let client = db(&state).await?;
-    let row=client.query_one("SELECT COALESCE(SUM(octet_length(ciphertext)),0)::BIGINT, COUNT(*)::BIGINT FROM sync_chunks",&[]).await.map_err(internal)?;
-    Ok(format!("lexicue_sync_requests_total {}\nlexicue_sync_rate_limited_total {}\nlexicue_sync_auth_failures_total {}\nlexicue_sync_encrypted_bytes {}\nlexicue_sync_chunks {}\n",state.metrics.requests.load(std::sync::atomic::Ordering::Relaxed),state.metrics.rejected.load(std::sync::atomic::Ordering::Relaxed),state.metrics.auth_failures.load(std::sync::atomic::Ordering::Relaxed),row.get::<_,i64>(0),row.get::<_,i64>(1)))
+    Ok(format!(
+        "lexicue_sync_requests_total {}\nlexicue_sync_rate_limited_total {}\nlexicue_sync_auth_failures_total {}\nlexicue_sync_records_accepted_total {}\nlexicue_sync_record_conflicts_total {}\n",
+        state.metrics.requests.load(std::sync::atomic::Ordering::Relaxed),
+        state.metrics.rejected.load(std::sync::atomic::Ordering::Relaxed),
+        state.metrics.auth_failures.load(std::sync::atomic::Ordering::Relaxed),
+        state.metrics.accepted_records.load(std::sync::atomic::Ordering::Relaxed),
+        state.metrics.record_conflicts.load(std::sync::atomic::Ordering::Relaxed),
+    ))
 }
 
 #[cfg(test)]
@@ -1233,13 +951,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn checkpoint_metadata_rejects_duplicate_or_invalid_hashes() {
-        let hash = "a".repeat(64);
-        assert!(chunk_hashes_are_valid(std::slice::from_ref(&hash)));
-        assert!(!chunk_hashes_are_valid(&[hash.clone(), hash]));
-        assert!(!chunk_hashes_are_valid(&["not-a-hash".into()]));
-        assert!(checkpoint_id(&Uuid::new_v4().to_string()).is_ok());
-        assert!(checkpoint_id("not-a-uuid").is_err());
+    fn validates_opaque_identifiers_and_blob_hashes() {
+        assert!(valid_identifier("word"));
+        assert!(valid_identifier("abc_DEF-123"));
+        assert!(!valid_identifier("../word"));
+        assert!(valid_hash(&"a".repeat(64)));
+        assert!(!valid_hash("not-a-hash"));
+    }
+
+    #[test]
+    fn tokens_are_not_stored_verbatim() {
+        let token = new_token();
+        assert_ne!(token, token_hash(&token));
+        assert_eq!(token_hash(&token).len(), 64);
     }
 }
 
@@ -1257,51 +981,42 @@ async fn main() {
             .ok()
             .filter(|value| !value.is_empty()),
     };
-    let client = db(&state).await.expect("database unavailable");
-    client
+    db(&state)
+        .await
+        .expect("database unavailable")
         .batch_execute(include_str!("../schema.sql"))
         .await
-        .expect("schema migration failed");
+        .expect("schema initialization failed");
+
     let app = Router::new()
         .route("/health", get(health))
         .route("/metrics", get(metrics))
+        .route("/v1/capabilities", get(capabilities))
         .route("/v1/auth/register", post(register))
         .route("/v1/auth/login", post(login))
         .route("/v1/auth/recovery-package", post(recovery_package))
-        .route("/v1/auth/reset-password", post(reset_password))
+        .route("/v1/auth/recover", post(recover))
         .route("/v1/auth/refresh", post(refresh_access))
         .route("/v1/auth/logout", post(logout))
-        .route("/v1/auth/change-password", post(change_password))
-        .route("/v1/events", post(push_events).get(pull_events))
-        .route("/v1/snapshot", post(put_snapshot).get(get_snapshot))
+        .route("/v1/sync/head", get(sync_head))
+        .route("/v1/sync/records", get(list_records))
+        .route("/v1/sync/records/batch", post(push_records))
         .route(
-            "/v2/chunks/{hash}",
-            put(put_chunk_v2).get(get_chunk_v2).head(head_chunk_v2),
+            "/v1/sync/blobs/{hash}",
+            put(put_blob).get(get_blob).head(head_blob),
         )
-        .route("/v2/events", post(push_event_v2).get(pull_events_v2))
-        .route("/v3/events", post(push_event_v3).get(pull_events_v3))
-        .route("/v3/events/batch", post(push_events_v3_batch))
-        .route(
-            "/v2/checkpoints",
-            post(put_checkpoint_v2).get(list_checkpoints_v2),
-        )
-        .route("/v2/checkpoints/{id}", get(get_checkpoint_v2))
-        .route("/v2/devices", get(list_devices_v2))
-        .route(
-            "/v2/devices/{device_id}",
-            axum::routing::delete(revoke_device_v2),
-        )
-        .route("/v2/account", axum::routing::delete(delete_account_v2))
-        // Axum defaults JSON extraction to 2 MiB. The legacy endpoint remains
-        // available during migration, so set an explicit, documented cap.
-        .layer(DefaultBodyLimit::max(32 * 1024 * 1024))
+        .route("/v1/devices", get(list_devices))
+        .route("/v1/devices/{device_id}", delete(revoke_device))
+        .route("/v1/account", delete(delete_account))
+        .layer(DefaultBodyLimit::max(16 * 1024 * 1024))
         .layer(TraceLayer::new_for_http())
         .with_state(state);
-    let addr: SocketAddr = env::var("BIND_ADDR")
+
+    let address: SocketAddr = env::var("BIND_ADDR")
         .unwrap_or_else(|_| "0.0.0.0:8080".into())
         .parse()
         .expect("invalid BIND_ADDR");
-    let listener = tokio::net::TcpListener::bind(addr)
+    let listener = tokio::net::TcpListener::bind(address)
         .await
         .expect("bind failed");
     axum::serve(listener, app).await.expect("server failed");

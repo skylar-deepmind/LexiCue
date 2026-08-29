@@ -43,9 +43,9 @@ pub fn init_db(db_path: &Path) -> Result<Connection, rusqlite::Error> {
     Ok(conn)
 }
 
-/// Stable sync identities live alongside the legacy integer primary keys. This
+/// Stable sync identities live alongside the local integer primary keys. This
 /// keeps existing SQL and foreign keys intact while providing a portable ID,
-/// timestamp and deletion tombstone for the v2 sync engine.
+/// timestamp and deletion tombstone for the encrypted record sync engine.
 fn create_sync_tracking(conn: &Connection) -> Result<(), rusqlite::Error> {
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS sync_entity_state (
@@ -79,10 +79,10 @@ fn create_sync_tracking(conn: &Connection) -> Result<(), rusqlite::Error> {
             [],
         )?;
     }
-    // v3 keeps an immutable, retryable encrypted event for every queued
+    // The record protocol keeps an immutable, retryable encrypted envelope for every queued
     // change.  `sync_changes` is intentionally still the trigger target: it
     // makes the user write and the fact that it needs syncing one SQLite
-    // transaction, even for legacy command code that does not know sync.
+    // transaction, even for command code that does not know about sync.
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS sync_outbox (
             event_id TEXT PRIMARY KEY,
@@ -104,6 +104,22 @@ fn create_sync_tracking(conn: &Connection) -> Result<(), rusqlite::Error> {
             alias_sync_id TEXT NOT NULL,
             canonical_sync_id TEXT NOT NULL,
             PRIMARY KEY(table_name, alias_sync_id)
+        ) STRICT;
+        CREATE TABLE IF NOT EXISTS sync_remote_state (
+            table_name TEXT NOT NULL,
+            sync_id TEXT NOT NULL,
+            etag TEXT NOT NULL,
+            server_seq INTEGER NOT NULL,
+            PRIMARY KEY(table_name, sync_id)
+        ) STRICT;
+        CREATE TABLE IF NOT EXISTS sync_conflicts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            table_name TEXT NOT NULL,
+            sync_id TEXT NOT NULL,
+            local_value TEXT,
+            remote_value TEXT,
+            created_at INTEGER NOT NULL,
+            resolved_at INTEGER
         ) STRICT;
         CREATE TABLE IF NOT EXISTS sync_runtime (
             key TEXT PRIMARY KEY,
@@ -156,74 +172,6 @@ fn create_sync_tracking(conn: &Connection) -> Result<(), rusqlite::Error> {
              SELECT '{table}',{key},lower(hex(randomblob(16))),CAST(strftime('%s','now') AS INTEGER)*1000,NULL FROM {table};"
         ))?;
     }
-    Ok(())
-}
-
-/// Rebuilds local sync identities after an explicit full-library recovery.
-/// Restoring preserves legacy integer IDs, but those IDs are not portable
-/// across devices; stale identity rows must never be reused for restored data.
-pub fn reset_sync_tracking(conn: &Connection) -> Result<(), rusqlite::Error> {
-    conn.execute("DELETE FROM sync_changes", [])?;
-    conn.execute("DELETE FROM sync_entity_state", [])?;
-    conn.execute("DELETE FROM sync_outbox", [])?;
-    conn.execute("DELETE FROM sync_applied_events", [])?;
-    conn.execute("DELETE FROM sync_identity_aliases", [])?;
-    create_sync_tracking(conn)
-}
-
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
-pub struct SyncEntityStateExport {
-    pub table_name: String,
-    pub local_id: i64,
-    pub sync_id: String,
-    pub updated_at: i64,
-    pub deleted_at: Option<i64>,
-    #[serde(default)]
-    pub clock: String,
-}
-
-pub fn export_sync_entity_state(conn: &Connection) -> Result<Vec<SyncEntityStateExport>, String> {
-    let mut statement = conn.prepare("SELECT table_name,local_id,sync_id,updated_at,deleted_at,clock FROM sync_entity_state ORDER BY table_name,local_id").map_err(|e| e.to_string())?;
-    let states = statement
-        .query_map([], |row| {
-            Ok(SyncEntityStateExport {
-                table_name: row.get(0)?,
-                local_id: row.get(1)?,
-                sync_id: row.get(2)?,
-                updated_at: row.get(3)?,
-                deleted_at: row.get(4)?,
-                clock: row.get(5)?,
-            })
-        })
-        .map_err(|e| e.to_string())?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| e.to_string())?;
-    Ok(states)
-}
-
-pub fn import_sync_entity_state(
-    conn: &Connection,
-    states: &[SyncEntityStateExport],
-) -> Result<(), String> {
-    conn.execute("DELETE FROM sync_entity_state", [])
-        .map_err(|e| e.to_string())?;
-    let mut statement = conn.prepare("INSERT INTO sync_entity_state(table_name,local_id,sync_id,updated_at,deleted_at,clock) VALUES(?1,?2,?3,?4,?5,?6)").map_err(|e| e.to_string())?;
-    for state in states {
-        statement
-            .execute(rusqlite::params![
-                state.table_name,
-                state.local_id,
-                state.sync_id,
-                state.updated_at,
-                state.deleted_at,
-                state.clock
-            ])
-            .map_err(|e| e.to_string())?;
-    }
-    conn.execute("DELETE FROM sync_changes", [])
-        .map_err(|e| e.to_string())?;
-    conn.execute("DELETE FROM sync_outbox", [])
-        .map_err(|e| e.to_string())?;
     Ok(())
 }
 

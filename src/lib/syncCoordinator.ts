@@ -1,7 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
-import { loadSyncSecrets, migrateLegacySyncSecrets, saveSyncSecrets, type SyncSecrets } from './syncVault';
 
-type Status = { configured: boolean; v3_initialized: boolean; auto_sync_enabled: boolean; pending_uploads: number };
+type Status = { configured: boolean; auto_sync_enabled: boolean; pending_uploads: number };
 const now = () => Date.now();
 
 /**
@@ -26,26 +25,16 @@ class SyncCoordinator {
 
   private async run(force: boolean): Promise<void> {
     const status = await invoke<Status>('sync_status');
-    if (!status.configured || !status.v3_initialized || (!force && !status.auto_sync_enabled) || document.visibilityState !== 'visible') return;
+    if (!status.configured || (!force && !status.auto_sync_enabled) || document.visibilityState !== 'visible') return;
     try {
       await invoke('sync_set_diagnostic', { phase: 'syncing', lastError: null, nextRetryAt: null });
-      await invoke('sync_now', { secrets: await loadSyncSecrets() });
+      await invoke('sync_run');
       await invoke('sync_set_diagnostic', { phase: 'idle', lastError: null, nextRetryAt: null });
       this.retrySeconds = 10;
       this.hadPending = false;
     } catch (error) {
-      if (/unauthorized|401|expired|invalid token/i.test(String(error))) {
-        const refreshed = await invoke<SyncSecrets>('sync_refresh_token', { secrets: await loadSyncSecrets() });
-        await saveSyncSecrets(refreshed);
-        await invoke('sync_now', { secrets: refreshed });
-        await invoke('sync_set_diagnostic', { phase: 'idle', lastError: null, nextRetryAt: null });
-        this.retrySeconds = 10;
-        return;
-      }
-      // Authentication/vault errors are not retried blindly: the user must
-      // explicitly re-authenticate. Network failures back off to five minutes.
       const message = String(error);
-      if (!/安全保险库|凭据|unauthorized|401|token/i.test(message)) this.scheduleRetry(message);
+      if (!/credential_|auth_required|session_expired/i.test(message)) this.scheduleRetry(message);
       else await invoke('sync_set_diagnostic', { phase: 'paused', lastError: message, nextRetryAt: null });
       throw error;
     }
@@ -87,7 +76,7 @@ class SyncCoordinator {
     document.addEventListener('visibilitychange', resume);
     window.addEventListener('online', online);
     window.addEventListener('lexicue-sync-changed', changed);
-    void migrateLegacySyncSecrets().then(() => this.runNow()).catch(() => undefined);
+    void this.runNow().catch(() => undefined);
     return () => {
       window.clearInterval(pendingPoll); window.clearInterval(foregroundPoll);
       document.removeEventListener('visibilitychange', resume);

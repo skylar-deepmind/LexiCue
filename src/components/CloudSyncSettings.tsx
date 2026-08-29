@@ -1,196 +1,288 @@
-import { useEffect, useState } from 'react';
-import { Cloud, Copy, Download, HardDriveDownload, LogIn, RefreshCw, UserPlus } from 'lucide-react';
+import { useEffect, useId, useState, type FormEvent } from 'react';
+import { ask, save } from '@tauri-apps/plugin-dialog';
+import { writeTextFile } from '@tauri-apps/plugin-fs';
 import { invoke } from '@tauri-apps/api/core';
-import { ask } from '@tauri-apps/plugin-dialog';
-import { clearSyncSecrets, loadSyncSecrets, migrateLegacySyncSecrets, saveSyncSecrets, type SyncSecrets } from '../lib/syncVault';
+import { useTranslation } from 'react-i18next';
+import {
+  ChevronDown, Cloud, Copy, Download, Eye, EyeOff, Laptop, LogIn,
+  RefreshCw, ShieldCheck, Trash2, UserPlus,
+} from 'lucide-react';
 import { syncCoordinator } from '../lib/syncCoordinator';
 import SettingsCollapsibleSection from './SettingsCollapsibleSection';
 
 interface SyncStatus {
-  configured: boolean; email: string | null; endpoint: string | null; last_synced_at: number | null;
+  configured: boolean;
+  email: string | null;
   device_id: string | null;
-  phase: string; pending_uploads: number; pending_downloads: number; conflicts: number; last_error: string | null;
-  v3_initialized: boolean; last_uploaded: number; last_downloaded: number;
-  auto_sync_enabled: boolean; next_retry_at: number | null;
+  last_synced_at: number | null;
+  phase: string;
+  pending_uploads: number;
+  pending_downloads: number;
+  conflicts: number;
+  last_error: string | null;
+  last_uploaded: number;
+  last_downloaded: number;
+  auto_sync_enabled: boolean;
+  next_retry_at: number | null;
 }
-interface SyncDevice { id: string; name: string; last_seen_at: string }
-interface SyncCheckpoint { id: string; device_id: string; device_name: string; cursor: number; encrypted_len: number; created_at: string; protocol_version: number }
-interface SyncCheckpointPreview {
-  checkpoint: SyncCheckpoint; files: number; folders: number; words: number; phrases: number; review_logs: number;
-  local_files: number; local_has_data: boolean;
-}
-interface AuthResult { recovery_code: string | null; secrets: SyncSecrets }
 
-function formatBytes(value: number): string {
-  if (value < 1024 * 1024) return `${Math.max(1, Math.round(value / 1024))} KB`;
-  return `${(value / (1024 * 1024)).toFixed(2)} MB`;
+interface SyncDevice { id: string; name: string; last_seen_at: string }
+interface AuthResult { recovery_code: string | null }
+type Mode = 'register' | 'login' | 'recover';
+
+const ERROR_CODES = [
+  'auth_required', 'session_expired', 'invalid_credentials', 'invalid_email', 'invalid_password',
+  'invalid_recovery_code', 'email_exists', 'network_unavailable',
+  'credential_store_unavailable', 'credential_store_write_failed', 'credential_missing',
+  'credential_corrupted', 'sync_service_not_configured', 'unsupported_sync_protocol',
+  'record_authentication_failed', 'sync_service_error',
+] as const;
+
+function errorCode(value: unknown): string {
+  const text = String(value);
+  return ERROR_CODES.find((code) => text.includes(code)) ?? 'unknown';
 }
 
 export default function CloudSyncSettings() {
+  const { t } = useTranslation();
+  const emailId = useId();
+  const passwordId = useId();
+  const recoveryId = useId();
   const [status, setStatus] = useState<SyncStatus | null>(null);
-  const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<'register' | 'login' | 'recovery'>('register');
-  const [endpoint, setEndpoint] = useState('');
+  const [sectionOpen, setSectionOpen] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [mode, setMode] = useState<Mode>('register');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [recoveryInput, setRecoveryInput] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [recoveryCode, setRecoveryCode] = useState('');
   const [devices, setDevices] = useState<SyncDevice[]>([]);
-  const [checkpoints, setCheckpoints] = useState<SyncCheckpoint[]>([]);
-  const [remoteLoading, setRemoteLoading] = useState(false);
-  const [remoteError, setRemoteError] = useState('');
-  const [preview, setPreview] = useState<SyncCheckpointPreview | null>(null);
-  const [confirmRestore, setConfirmRestore] = useState(false);
 
   const refresh = async () => {
-    try { setStatus(await invoke<SyncStatus>('sync_status')); } catch (value) { setError(String(value)); }
+    try { setStatus(await invoke<SyncStatus>('sync_status')); }
+    catch (value) { setError(errorCode(value)); }
   };
-  const refreshRemote = async (providedSecrets?: SyncSecrets) => {
-    if (!providedSecrets && !status?.configured) return;
-    setRemoteLoading(true); setRemoteError('');
-    try {
-      const secrets = providedSecrets ?? await loadSyncSecrets();
-      const [nextDevices, nextCheckpoints] = await Promise.all([
-        invoke<SyncDevice[]>('sync_devices', { secrets }),
-        invoke<SyncCheckpoint[]>('sync_checkpoints', { secrets }),
-      ]);
-      setDevices(nextDevices); setCheckpoints(nextCheckpoints);
-    } catch (value) {
-      setRemoteError(String(value));
-    } finally {
-      setRemoteLoading(false);
-    }
-  };
-  useEffect(() => { void (async () => { await migrateLegacySyncSecrets(); await refresh(); })().catch((value) => setError(String(value))); }, []);
-  useEffect(() => {
-    if (!status?.configured) { setDevices([]); setCheckpoints([]); return; }
-    void refreshRemote();
-  }, [status?.configured]);
 
-  const authenticate = async () => {
-    setBusy(true); setError('');
+  const refreshDevices = async () => {
+    try { setDevices(await invoke<SyncDevice[]>('sync_devices')); }
+    catch (value) { setError(errorCode(value)); }
+  };
+
+  useEffect(() => { void refresh(); }, []);
+  useEffect(() => {
+    if (advancedOpen && status?.configured) void refreshDevices();
+  }, [advancedOpen, status?.configured]);
+
+  const authenticate = async (event: FormEvent) => {
+    event.preventDefault();
+    setBusy(true); setError(''); setNotice('');
     try {
-      let authenticatedSecrets: SyncSecrets;
+      let result: AuthResult;
       if (mode === 'register') {
-        const result = await invoke<AuthResult>('sync_register', { endpoint, email, password, deviceName: '' });
-        await saveSyncSecrets(result.secrets);
-        authenticatedSecrets = result.secrets;
-        setRecoveryCode(result.recovery_code ?? '');
+        result = await invoke<AuthResult>('sync_register', { email: email.trim(), password });
       } else if (mode === 'login') {
-        const result = await invoke<AuthResult>('sync_login', { endpoint, email, password, deviceName: '' });
-        await saveSyncSecrets(result.secrets);
-        authenticatedSecrets = result.secrets;
+        result = await invoke<AuthResult>('sync_login', { email: email.trim(), password });
       } else {
-        const result = await invoke<AuthResult>('sync_reset_password', { endpoint, email, password, recoveryCode: recoveryInput.trim(), deviceName: '' });
-        await saveSyncSecrets(result.secrets);
-        authenticatedSecrets = result.secrets;
+        result = await invoke<AuthResult>('sync_recover', {
+          email: email.trim(), password, recoveryCode: recoveryInput.trim(),
+        });
       }
+      setRecoveryCode(result.recovery_code ?? '');
       setPassword(''); setRecoveryInput('');
       await refresh();
-      await refreshRemote(authenticatedSecrets);
-    } catch (value) { setError(String(value)); } finally { setBusy(false); }
+      setNotice(mode === 'register' ? 'accountCreated' : 'connected');
+    } catch (value) {
+      setError(errorCode(value));
+    } finally { setBusy(false); }
   };
-  const sync = async () => { setBusy(true); setError(''); setNotice(''); try { await syncCoordinator.runNow(true); await refresh(); await refreshRemote(); } catch (value) { setError(String(value)); } finally { setBusy(false); } };
-  const initializeV3 = async () => {
-    const confirmed = await ask('此设备会成为旧资料的唯一同步源，并创建一份新的加密 v3 基线。其他旧设备需要先恢复该版本，才能开始双向合并。', { title: '设为云同步源', kind: 'warning', okLabel: '创建 v3 基线', cancelLabel: '取消' });
-    if (!confirmed) return;
-    setBusy(true); setError(''); setNotice('');
-    try { await invoke('sync_initialize_v3', { secrets: await loadSyncSecrets() }); await refresh(); await refreshRemote(); setNotice('v3 同步基线已创建。请在其他旧设备上预览并恢复此版本后再同步。'); } catch (value) { setError(String(value)); } finally { setBusy(false); }
-  };
-  const disconnect = async () => { setBusy(true); setError(''); try {
-    // Clear this device even while offline; the queued server revocation is a
-    // best effort, while removing the vault credentials is immediate.
-    try { await invoke('sync_logout', { secrets: await loadSyncSecrets() }); } catch (value) { setNotice(`已退出本机同步；服务器撤销将在下次登录时确认：${String(value)}`); }
-    await invoke('sync_disconnect'); await clearSyncSecrets(); setRecoveryCode(''); await refresh();
-  } catch (value) { setError(String(value)); } finally { setBusy(false); } };
-  const toggleAutoSync = async () => { if (!status) return; setBusy(true); setError(''); try { await invoke('sync_set_auto_sync', { enabled: !status.auto_sync_enabled }); await refresh(); if (!status.auto_sync_enabled) void syncCoordinator.runNow(); } catch (value) { setError(String(value)); } finally { setBusy(false); } };
-  const revokeDevice = async (deviceId: string) => { setBusy(true); setError(''); try { await invoke('sync_revoke_device', { deviceId, secrets: await loadSyncSecrets() }); setDevices((items) => items.filter((item) => item.id !== deviceId)); } catch (value) { setError(String(value)); } finally { setBusy(false); } };
-  const loadPreview = async (checkpointId: string) => { setBusy(true); setError(''); setConfirmRestore(false); try { setPreview(await invoke<SyncCheckpointPreview>('sync_preview_checkpoint', { checkpointId, secrets: await loadSyncSecrets() })); } catch (value) { setError(String(value)); } finally { setBusy(false); } };
-  const restore = async () => {
-    if (!preview || (preview.local_has_data && !confirmRestore)) return;
+
+  const runSync = async () => {
     setBusy(true); setError(''); setNotice('');
     try {
-      const path = await invoke<string>('sync_restore_checkpoint', { checkpointId: preview.checkpoint.id, secrets: await loadSyncSecrets() });
-      setPreview(null); setConfirmRestore(false); await refresh();
       await syncCoordinator.runNow(true);
       await refresh();
-      setNotice(`已恢复云端版本。本机恢复前备份已保存到：${path}`);
-    } catch (value) { setError(String(value)); } finally { setBusy(false); }
+      setNotice('synced');
+    } catch (value) { setError(errorCode(value)); }
+    finally { setBusy(false); }
   };
+
+  const toggleAutoSync = async () => {
+    if (!status) return;
+    setBusy(true); setError('');
+    try {
+      await invoke('sync_set_auto_sync', { enabled: !status.auto_sync_enabled });
+      await refresh();
+      if (!status.auto_sync_enabled) void syncCoordinator.runNow();
+    } catch (value) { setError(errorCode(value)); }
+    finally { setBusy(false); }
+  };
+
+  const disconnect = async () => {
+    setBusy(true); setError('');
+    try {
+      try { await invoke('sync_logout'); } catch { /* local sign-out must work offline */ }
+      await invoke('sync_disconnect');
+      setRecoveryCode(''); setDevices([]); setAdvancedOpen(false);
+      await refresh();
+    } catch (value) { setError(errorCode(value)); }
+    finally { setBusy(false); }
+  };
+
+  const revokeDevice = async (deviceId: string) => {
+    setBusy(true); setError('');
+    try {
+      await invoke('sync_revoke_device', { deviceId });
+      setDevices((items) => items.filter((item) => item.id !== deviceId));
+    } catch (value) { setError(errorCode(value)); }
+    finally { setBusy(false); }
+  };
+
   const deleteAccount = async () => {
-    const confirmed = await ask('这会永久删除服务器上的全部加密检查点、同步事件和设备授权。本机资料不会被删除，且此操作无法撤销。', { title: '删除云同步账户', kind: 'warning', okLabel: '永久删除', cancelLabel: '取消' });
+    const confirmed = await ask(t('settings.cloudSync.deleteConfirm'), {
+      title: t('settings.cloudSync.deleteAccount'),
+      kind: 'warning',
+    });
     if (!confirmed) return;
-    setBusy(true); setError(''); setNotice('');
-    try { await invoke('sync_delete_account', { secrets: await loadSyncSecrets() }); await clearSyncSecrets(); setRecoveryCode(''); setPreview(null); await refresh(); setNotice('云端账户及其加密同步数据已删除；本机资料仍然保留。'); } catch (value) { setError(String(value)); } finally { setBusy(false); }
+    setBusy(true); setError('');
+    try {
+      await invoke('sync_delete_account');
+      setRecoveryCode(''); setDevices([]); setAdvancedOpen(false);
+      await refresh();
+      setNotice('accountDeleted');
+    } catch (value) { setError(errorCode(value)); }
+    finally { setBusy(false); }
   };
+
+  const saveRecoveryKey = async () => {
+    const path = await save({ defaultPath: 'lexicue-recovery-key.txt', filters: [{ name: 'Text', extensions: ['txt'] }] });
+    if (!path) return;
+    await writeTextFile(path, `${t('settings.cloudSync.recoveryFileTitle')}\n${recoveryCode}\n`);
+    setNotice('recoverySaved');
+  };
+
+  const stateKey = status?.phase === 'syncing' || status?.phase === 'uploading' || status?.phase === 'downloading'
+    ? 'syncing'
+    : status?.phase === 'offline' || status?.phase === 'retrying'
+      ? 'offline'
+      : status?.phase === 'paused' || status?.last_error?.includes('auth_') || status?.last_error?.includes('session_')
+        ? 'authRequired'
+        : status?.last_error ? 'error' : 'synced';
+  const emailError = error === 'invalid_email' || error === 'email_exists';
+  const passwordError = error === 'invalid_credentials' || error === 'invalid_password';
+  const recoveryError = error === 'invalid_recovery_code';
+  const fieldError = emailError || passwordError || recoveryError;
 
   return <SettingsCollapsibleSection
     id="cloud-sync"
-    icon={<span className="rounded-xl bg-blue-50 p-2 text-blue-600"><Cloud size={20} /></span>}
-    title="云同步"
-    description="端到端加密：服务器只保存密文，离线学习始终可用。"
-    summary={status?.configured ? `已连接：${status.email}` : '未配置'}
-    open={open} onOpenChange={setOpen} expandLabel="展开" collapseLabel="收起"
+    icon={<span className="rounded-xl bg-blue-50 p-2 text-blue-600"><Cloud size={20} aria-hidden="true" /></span>}
+    title={t('settings.cloudSync.title')}
+    description={t('settings.cloudSync.description')}
+    summary={status?.configured ? t(`settings.cloudSync.state.${stateKey}`) : t('settings.cloudSync.notConnected')}
+    open={sectionOpen} onOpenChange={setSectionOpen}
+    expandLabel={t('settings.expand')} collapseLabel={t('settings.collapse')}
   >
     {status?.configured ? <div className="space-y-4">
-      <div className="rounded-lg bg-gray-50 px-4 py-3 text-sm text-gray-600">
-        <p className="font-medium text-gray-900">已连接至 {status.endpoint}</p>
-        <p className="mt-1">{status.last_synced_at ? `上次成功同步：${new Date(status.last_synced_at).toLocaleString()}` : '尚未同步。'}</p>
-        <p className="mt-1">{status.v3_initialized ? (status.pending_uploads ? `待同步变更：${status.pending_uploads}` : '所有本地变更均已同步。') : '尚未加入 v3 双向同步。'}{status.pending_downloads ? ` · 待下载：${status.pending_downloads}` : ''}</p>
-        <p className="mt-1">{status.v3_initialized ? (status.auto_sync_enabled ? '自动同步已开启（仅在前台运行）。' : '自动同步已暂停；仍可使用“立即同步”。') : '完成 v3 基线后可启用自动同步。'}{status.phase !== 'idle' ? ` 当前状态：${status.phase}。` : ''}{status.next_retry_at ? ` 下次重试：${new Date(status.next_retry_at).toLocaleTimeString()}。` : ''}</p>
-        {status.v3_initialized && (status.last_uploaded > 0 || status.last_downloaded > 0) && <p className="mt-1 text-xs">最近一次：上传 {status.last_uploaded} 项，下载 {status.last_downloaded} 项。</p>}
-        {status.conflicts > 0 && <p className="mt-1 text-amber-700">有 {status.conflicts} 项内容需要处理冲突。</p>}
-      </div>
-      {!status.v3_initialized && <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800"><p className="font-semibold">开始双向同步前需要建立统一基线</p><p className="mt-1">若这里是资料最完整的设备，请将它设为同步源；否则在下方选择另一台设备创建的 v3 云端版本，预览后恢复。</p><button type="button" onClick={() => void initializeV3()} disabled={busy} className="mt-3 rounded-lg bg-blue-600 px-3 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-50">将此设备设为同步源</button></div>}
-      <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={() => void sync()} disabled={busy || !status.v3_initialized} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"><RefreshCw size={15} className={busy ? 'animate-spin' : ''} />立即同步</button>
-        <button type="button" onClick={() => void toggleAutoSync()} disabled={busy || !status.v3_initialized} aria-pressed={status.auto_sync_enabled} className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50">{status.auto_sync_enabled ? '暂停自动同步' : '开启自动同步'}</button>
-        <button type="button" onClick={() => void disconnect()} disabled={busy} className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50">退出本机同步</button>
-      </div>
-      <p className="-mt-2 text-xs text-gray-500">退出只会移除本机登录状态；不会删除云端密文或撤销其他设备。</p>
-      <div className="rounded-lg border border-gray-200 text-sm">
-        <div className="flex items-center justify-between gap-3 px-3 py-2">
-          <p className="flex items-center gap-2 font-medium text-gray-900"><HardDriveDownload size={16} aria-hidden="true" />云端版本（保留最近 5 个）</p>
-          <button type="button" onClick={() => void refreshRemote()} disabled={busy || remoteLoading} className="inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-xs text-blue-700 hover:bg-gray-50 disabled:opacity-50" aria-label="重新加载云端版本"><RefreshCw size={14} className={remoteLoading ? 'animate-spin' : ''} />刷新</button>
+      <div className={`sync-status sync-status--${stateKey}`} role="status" aria-live="polite">
+        <div className="flex min-w-0 items-start gap-3">
+          <ShieldCheck className="mt-0.5 shrink-0" size={20} aria-hidden="true" />
+          <div className="min-w-0">
+            <p className="font-semibold">{t(`settings.cloudSync.state.${stateKey}`)}</p>
+            <p className="mt-1 break-words text-sm">{status.email}</p>
+            <p className="mt-1 text-sm">
+              {status.last_synced_at
+                ? t('settings.cloudSync.lastSynced', { time: new Date(status.last_synced_at).toLocaleString() })
+                : t('settings.cloudSync.preparing')}
+            </p>
+            {status.pending_uploads > 0 && <p className="mt-1 text-sm">{t('settings.cloudSync.pending', { count: status.pending_uploads })}</p>}
+            {status.conflicts > 0 && <p className="mt-1 text-sm">{t('settings.cloudSync.conflicts', { count: status.conflicts })}</p>}
+          </div>
         </div>
-        {remoteLoading && <p className="border-t border-gray-100 px-3 py-3 text-gray-500" role="status">正在加载云端版本…</p>}
-        {!remoteLoading && remoteError && <div className="flex items-center justify-between gap-3 border-t border-gray-100 px-3 py-3 text-sm text-red-600" role="alert"><span className="break-words">云端版本加载失败：{remoteError}</span><button type="button" onClick={() => void refreshRemote()} className="min-h-11 shrink-0 rounded-lg border border-red-200 px-2 py-1 text-xs hover:bg-red-50">重试</button></div>}
-        {!remoteLoading && !remoteError && checkpoints.length === 0 ? <p className="border-t border-gray-100 px-3 py-3 text-gray-500">尚无可恢复的云端版本。完成一次同步后会出现在这里。</p> : !remoteLoading && checkpoints.map((checkpoint) => <div key={checkpoint.id} className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 px-3 py-2 text-gray-600">
-          <span><span className="font-medium text-gray-900">{checkpoint.device_name}</span><span className="ml-2 text-xs">{new Date(checkpoint.created_at).toLocaleString()} · {formatBytes(checkpoint.encrypted_len)} · v{checkpoint.protocol_version}</span></span>
-          <button type="button" disabled={busy} onClick={() => void loadPreview(checkpoint.id)} className="inline-flex items-center gap-1 text-xs text-blue-700 hover:text-blue-800 disabled:opacity-50"><Download size={14} />预览并恢复</button>
-        </div>)}
       </div>
-      {preview && <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800">
-        <p className="font-semibold">恢复前预览</p>
-        <p className="mt-1">云端版本包含 {preview.files} 个文件、{preview.folders} 个文件夹、{preview.words} 个单词、{preview.phrases} 个词组和 {preview.review_logs} 条复习记录。</p>
-        {preview.local_has_data ? <label className="mt-3 flex items-start gap-2 text-amber-900"><input checked={confirmRestore} onChange={(event) => setConfirmRestore(event.target.checked)} type="checkbox" className="mt-0.5 accent-blue-600" /><span>我理解这会替换本机现有的 {preview.local_files} 个文件；LexiCue 会先创建本地安全备份。</span></label> : <p className="mt-3 text-amber-900">本机没有已导入资料，可以安全恢复。</p>}
-        <div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={() => void restore()} disabled={busy || (preview.local_has_data && !confirmRestore)} className="rounded-lg bg-blue-600 px-3 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-50">恢复并替换本机资料</button><button type="button" onClick={() => { setPreview(null); setConfirmRestore(false); }} disabled={busy} className="rounded-lg border border-amber-300 px-3 py-2 text-amber-800 hover:bg-amber-100 disabled:opacity-50">取消</button></div>
-      </div>}
-      {devices.length > 0 && <div className="rounded-lg border border-gray-200 text-sm">
-        <p className="px-3 py-2 font-medium text-gray-900">已连接设备</p>
-        {devices.map((device) => <div key={device.id} className="flex items-center justify-between gap-3 border-t border-gray-100 px-3 py-2 text-gray-600">
-          <span><span className="font-medium text-gray-900">{device.name}</span>{device.id === status.device_id && <span className="ml-2 text-xs text-blue-700">当前设备</span>}<span className="ml-2 text-xs">{new Date(device.last_seen_at).toLocaleString()}</span></span>
-          {device.id !== status.device_id && <button type="button" disabled={busy} onClick={() => void revokeDevice(device.id)} className="text-xs text-red-600 hover:text-red-700 disabled:opacity-50">撤销授权</button>}
-        </div>)}
-      </div>}
-      <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-        <p className="font-medium">危险操作</p><p className="mt-1">删除云端账户会清除服务器上的全部密文、版本和设备授权，但不会删除本机资料。</p>
-        <button type="button" onClick={() => void deleteAccount()} disabled={busy} className="mt-3 rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-100 disabled:opacity-50">删除云端账户</button>
+
+      <div className="flex flex-wrap gap-2">
+        <button type="button" onClick={() => void runSync()} disabled={busy} className="sync-primary-button">
+          <RefreshCw size={17} className={busy ? 'animate-spin' : ''} aria-hidden="true" />
+          {t('settings.cloudSync.syncNow')}
+        </button>
+        <button type="button" onClick={() => void toggleAutoSync()} disabled={busy} aria-pressed={status.auto_sync_enabled} className="sync-secondary-button">
+          {status.auto_sync_enabled ? t('settings.cloudSync.pauseAuto') : t('settings.cloudSync.enableAuto')}
+        </button>
       </div>
-    </div> : <div className="space-y-3">
-      <div className="flex flex-wrap gap-2"><button type="button" onClick={() => setMode('register')} className={`rounded-lg px-3 py-1.5 text-sm ${mode === 'register' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}><UserPlus size={14} className="mr-1 inline" />创建账户</button><button type="button" onClick={() => setMode('login')} className={`rounded-lg px-3 py-1.5 text-sm ${mode === 'login' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}><LogIn size={14} className="mr-1 inline" />登录</button><button type="button" onClick={() => setMode('recovery')} className={`rounded-lg px-3 py-1.5 text-sm ${mode === 'recovery' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}>恢复密码</button></div>
-      <input value={endpoint} onChange={(event) => setEndpoint(event.target.value)} placeholder="https://sync.example.com" aria-label="同步服务器地址" className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100" />
-      <input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="邮箱" type="email" autoComplete="email" className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100" />
-      {mode === 'recovery' && <input value={recoveryInput} onChange={(event) => setRecoveryInput(event.target.value)} placeholder="恢复代码（XXXX-XXXX-XXXX-XXXX）" type="text" autoComplete="off" className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 font-mono text-sm text-gray-900 placeholder:font-sans placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100" />}
-      <input value={password} onChange={(event) => setPassword(event.target.value)} placeholder={mode === 'recovery' ? '新密码（至少 10 位）' : '密码（至少 10 位）'} type="password" autoComplete={mode === 'register' || mode === 'recovery' ? 'new-password' : 'current-password'} className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100" />
-      <button type="button" onClick={() => void authenticate()} disabled={busy || !endpoint || !email || !password || (mode === 'recovery' && !recoveryInput.trim())} className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">{busy ? '正在连接…' : mode === 'register' ? '创建加密账户' : mode === 'recovery' ? '用恢复代码重设密码' : '登录'}</button>
+
+      <div className="sync-advanced">
+        <button type="button" className="sync-advanced__trigger" onClick={() => setAdvancedOpen((value) => !value)} aria-expanded={advancedOpen}>
+          <span>{t('settings.cloudSync.advanced')}</span>
+          <ChevronDown size={18} className={advancedOpen ? 'rotate-180' : ''} aria-hidden="true" />
+        </button>
+        {advancedOpen && <div className="sync-advanced__content space-y-4">
+          <div>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <h4 className="flex items-center gap-2 font-medium text-gray-900"><Laptop size={17} aria-hidden="true" />{t('settings.cloudSync.devices')}</h4>
+              <button type="button" onClick={() => void refreshDevices()} disabled={busy} className="sync-text-button">{t('settings.cloudSync.refresh')}</button>
+            </div>
+            {devices.map((device) => <div key={device.id} className="sync-device-row">
+              <span className="min-w-0 break-words"><span className="font-medium text-gray-900">{device.name}</span>{device.id === status.device_id && <span className="ml-2 text-xs text-blue-700">{t('settings.cloudSync.currentDevice')}</span>}<span className="mt-0.5 block text-xs text-gray-500">{new Date(device.last_seen_at).toLocaleString()}</span></span>
+              {device.id !== status.device_id && <button type="button" disabled={busy} onClick={() => void revokeDevice(device.id)} className="sync-danger-text">{t('settings.cloudSync.revoke')}</button>}
+            </div>)}
+          </div>
+          <div className="border-t border-gray-100 pt-4">
+            <button type="button" onClick={() => void disconnect()} disabled={busy} className="sync-secondary-button">{t('settings.cloudSync.disconnect')}</button>
+          </div>
+          <div className="sync-danger-zone">
+            <p className="font-medium">{t('settings.cloudSync.dangerTitle')}</p>
+            <p className="mt-1 text-sm">{t('settings.cloudSync.deleteHint')}</p>
+            <button type="button" onClick={() => void deleteAccount()} disabled={busy} className="sync-danger-button"><Trash2 size={16} aria-hidden="true" />{t('settings.cloudSync.deleteAccount')}</button>
+          </div>
+        </div>}
+      </div>
+    </div> : <form className="space-y-4" onSubmit={(event) => void authenticate(event)} noValidate>
+      <div className="grid grid-cols-2 gap-2" role="group" aria-label={t('settings.cloudSync.accountMode')}>
+        <button type="button" aria-pressed={mode === 'register'} onClick={() => { setMode('register'); setError(''); }} className="sync-mode-button"><UserPlus size={17} aria-hidden="true" />{t('settings.cloudSync.createAccount')}</button>
+        <button type="button" aria-pressed={mode === 'login'} onClick={() => { setMode('login'); setError(''); }} className="sync-mode-button"><LogIn size={17} aria-hidden="true" />{t('settings.cloudSync.login')}</button>
+      </div>
+      <div>
+        <label htmlFor={emailId} className="sync-label">{t('settings.cloudSync.email')}</label>
+        <input id={emailId} value={email} onChange={(event) => setEmail(event.target.value)} type="email" inputMode="email" autoComplete="email" required aria-invalid={emailError} aria-describedby={emailError ? `${emailId}-error` : undefined} className="sync-input" />
+        {emailError && <p id={`${emailId}-error`} role="alert" className="sync-field-error">{t(`settings.cloudSync.errors.${error}`)}</p>}
+      </div>
+      {mode === 'recover' && <div>
+        <label htmlFor={recoveryId} className="sync-label">{t('settings.cloudSync.recoveryKey')}</label>
+        <input id={recoveryId} value={recoveryInput} onChange={(event) => setRecoveryInput(event.target.value)} autoComplete="off" required aria-invalid={recoveryError} aria-describedby={recoveryError ? `${recoveryId}-error` : undefined} className="sync-input font-mono" />
+        {recoveryError && <p id={`${recoveryId}-error`} role="alert" className="sync-field-error">{t(`settings.cloudSync.errors.${error}`)}</p>}
+      </div>}
+      <div>
+        <label htmlFor={passwordId} className="sync-label">{mode === 'recover' ? t('settings.cloudSync.newPassword') : t('settings.cloudSync.password')}</label>
+        <div className="relative">
+          <input id={passwordId} value={password} onChange={(event) => setPassword(event.target.value)} type={showPassword ? 'text' : 'password'} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} minLength={10} required aria-invalid={passwordError} aria-describedby={passwordError ? `${passwordId}-error` : undefined} className="sync-input pr-12" />
+          <button type="button" className="sync-password-toggle" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? t('settings.cloudSync.hidePassword') : t('settings.cloudSync.showPassword')}>
+            {showPassword ? <EyeOff size={19} aria-hidden="true" /> : <Eye size={19} aria-hidden="true" />}
+          </button>
+        </div>
+        {passwordError && <p id={`${passwordId}-error`} role="alert" className="sync-field-error">{t(`settings.cloudSync.errors.${error}`)}</p>}
+        <p className="mt-1 text-xs text-gray-500">{t('settings.cloudSync.passwordHint')}</p>
+      </div>
+      <button type="submit" disabled={busy || !email.trim() || password.length < 10 || (mode === 'recover' && !recoveryInput.trim())} className="sync-primary-button w-full justify-center">
+        {busy && <RefreshCw size={17} className="animate-spin" aria-hidden="true" />}
+        {busy ? t('settings.cloudSync.preparing') : mode === 'register' ? t('settings.cloudSync.createAndSync') : mode === 'recover' ? t('settings.cloudSync.recoverAction') : t('settings.cloudSync.loginAndSync')}
+      </button>
+      {mode === 'login' && <button type="button" className="sync-text-button mx-auto block" onClick={() => { setMode('recover'); setError(''); }}>{t('settings.cloudSync.forgotPassword')}</button>}
+      {mode === 'recover' && <button type="button" className="sync-text-button mx-auto block" onClick={() => { setMode('login'); setError(''); }}>{t('settings.cloudSync.backToLogin')}</button>}
+    </form>}
+
+    {recoveryCode && <div className="sync-recovery" role="status">
+      <p className="flex items-center gap-2 font-semibold"><ShieldCheck size={18} aria-hidden="true" />{t('settings.cloudSync.saveRecoveryTitle')}</p>
+      <p className="mt-1 text-sm">{t('settings.cloudSync.saveRecoveryDescription')}</p>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <code className="min-w-0 flex-1 break-all rounded-lg bg-white px-3 py-3 text-sm text-gray-900">{recoveryCode}</code>
+        <button type="button" onClick={() => void navigator.clipboard.writeText(recoveryCode)} className="sync-icon-button" aria-label={t('settings.cloudSync.copyRecovery')}><Copy size={18} aria-hidden="true" /></button>
+        <button type="button" onClick={() => void saveRecoveryKey()} className="sync-icon-button" aria-label={t('settings.cloudSync.downloadRecovery')}><Download size={18} aria-hidden="true" /></button>
+      </div>
     </div>}
-    {status?.last_error && <p role="alert" className="mt-3 break-words text-sm text-red-600">{status.last_error}</p>}
-    {recoveryCode && <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800"><p className="font-semibold">保存恢复代码</p><p className="mt-1">仅显示这一次。忘记密码时，只有它能恢复你的加密数据。</p><div className="mt-3 flex items-center justify-between gap-2 rounded bg-white px-3 py-2 font-mono text-xs text-gray-900"><span>{recoveryCode}</span><button type="button" onClick={() => void navigator.clipboard.writeText(recoveryCode)} aria-label="复制恢复代码" className="rounded p-1 text-gray-600 hover:bg-gray-50"><Copy size={15} /></button></div></div>}
-    {error && <p role="alert" className="mt-3 break-words text-sm text-red-600">{error}</p>}
-    {notice && <p role="status" className="mt-3 break-words text-sm text-green-700">{notice}</p>}
+    {error && !fieldError && <p role="alert" className="sync-error-message">{t(`settings.cloudSync.errors.${error}`)}</p>}
+    {notice && <p role="status" className="sync-success-message">{t(`settings.cloudSync.notices.${notice}`)}</p>}
   </SettingsCollapsibleSection>;
 }

@@ -76,7 +76,23 @@
       "description": "选择应用界面的显示语言。"
     },
     "frequencyBaseline": { "title": "高频词基线" },
-    "cloudSync": { "title": "云同步" },
+    "cloudSync": {
+      "title": "云同步",
+      "description": "以端到端加密方式，在多台设备间同步资料库和学习进度。",
+      "notConnected": "尚未连接",
+      "state": { "synced": "已同步", "syncing": "正在同步", "offline": "离线等待", "authRequired": "需要重新登录", "error": "同步需要处理" },
+      "lastSynced": "上次成功同步：{{time}}", "preparing": "正在准备同步…", "pending": "{{count}} 项等待上传", "conflicts": "已保存 {{count}} 个文本冲突供稍后处理",
+      "syncNow": "立即同步", "pauseAuto": "暂停自动同步", "enableAuto": "开启自动同步",
+      "advanced": "高级选项", "devices": "设备管理", "refresh": "刷新", "currentDevice": "本机", "revoke": "撤销", "disconnect": "在本机退出登录",
+      "dangerTitle": "删除同步账户", "deleteHint": "将删除云端加密副本并退出所有设备，本机资料不会被删除。", "deleteAccount": "删除账户", "deleteConfirm": "确定删除同步账户及其云端加密资料吗？本机资料不会被删除。",
+      "accountMode": "账户操作", "createAccount": "创建账户", "login": "已有账户，登录", "email": "邮箱", "recoveryKey": "恢复密钥", "newPassword": "新密码", "password": "密码", "hidePassword": "隐藏密码", "showPassword": "显示密码", "passwordHint": "密码至少需要 10 个字符。",
+      "createAndSync": "创建账户并同步", "recoverAction": "恢复账户", "loginAndSync": "登录并同步", "forgotPassword": "忘记密码？使用恢复密钥", "backToLogin": "返回登录",
+      "saveRecoveryTitle": "请保存恢复密钥", "saveRecoveryDescription": "忘记密码后，这是恢复加密资料的唯一方式。LexiCue 无法替你找回。", "copyRecovery": "复制恢复密钥", "downloadRecovery": "将恢复密钥保存为文件", "recoveryFileTitle": "LexiCue 恢复密钥——请妥善保管并勿与他人分享",
+      "errors": {
+        "auth_required": "请重新登录后继续同步。", "session_expired": "登录已过期，请重新登录。", "invalid_credentials": "邮箱或密码不正确。", "invalid_email": "请输入有效的邮箱地址。", "invalid_password": "密码至少需要 10 个字符。", "invalid_recovery_code": "恢复密钥无效。", "email_exists": "该邮箱已创建同步账户。", "network_unavailable": "当前无网络，LexiCue 会自动重试。", "credential_store_unavailable": "安全凭据存储不可用。请先启用设备锁屏，然后重启 LexiCue。", "credential_store_write_failed": "无法安全保存登录凭据，请检查设备锁定设置后重试。", "credential_missing": "未找到已保存的登录凭据，请重新登录。", "credential_corrupted": "登录凭据已损坏，请退出后重新登录。", "sync_service_not_configured": "此版本未配置官方同步服务地址。", "unsupported_sync_protocol": "请更新 LexiCue 后继续同步。", "record_authentication_failed": "一条加密记录未通过校验，已拒绝应用。", "sync_service_error": "同步服务暂时不可用，LexiCue 会自动重试。", "unknown": "同步失败，请重试。"
+      },
+      "notices": { "accountCreated": "账户已创建，资料正在自动同步。", "connected": "登录成功，正在准备资料。", "synced": "同步完成。", "accountDeleted": "同步账户已删除，本机资料已保留。", "recoverySaved": "恢复密钥已保存。" }
+    },
     "ai": {
       "title": "AI 功能",
       "description": "开启后可解释段落并自动识别词组。支持本地 Ollama 或自填云端 API Key。",

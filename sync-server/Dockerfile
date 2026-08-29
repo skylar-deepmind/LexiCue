@@ -1,4 +1,4 @@
-FROM rust:1.85-alpine AS build
+FROM rust:1.89-alpine AS build
 RUN apk add --no-cache musl-dev pkgconfig
 WORKDIR /app
 COPY Cargo.toml Cargo.lock* ./
@@ -11,7 +11,9 @@ COPY schema.sql ./schema.sql
 RUN touch src/main.rs && cargo build --release
 
 FROM alpine:3.21
-RUN addgroup -S lexicue && adduser -S lexicue -G lexicue
+RUN apk add --no-cache wget \
+    && addgroup -S lexicue \
+    && adduser -S lexicue -G lexicue
 COPY --from=build /app/target/release/lexicue-sync-server /usr/local/bin/lexicue-sync-server
 USER lexicue
 EXPOSE 8080

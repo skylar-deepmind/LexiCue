@@ -2,7 +2,6 @@ mod commands;
 mod db;
 
 use db::{init_db, DbState, DictionaryStatus};
-use sha2::{Digest, Sha256};
 use std::sync::Mutex;
 use tauri::{Emitter, Manager};
 
@@ -13,12 +12,6 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_opener::init())
-        .plugin(
-            tauri_plugin_stronghold::Builder::new(|password| {
-                Sha256::digest(password.as_bytes()).to_vec()
-            })
-            .build(),
-        )
         .setup(|app| {
             #[cfg(desktop)]
             app.handle()
@@ -37,6 +30,12 @@ pub fn run() {
 
             let app_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&app_dir)?;
+            // Sync remains optional: a damaged or unavailable platform store
+            // must not prevent access to local learning data. Sync commands
+            // return the cached structured error for translated recovery UI.
+            if let Err(error) = commands::sync::init_secret_store() {
+                log::error!("secure credential store initialization failed: {error}");
+            }
             let conn = init_db(&app_dir.join("lexicue.db")).expect("Failed to initialize database");
             app.manage(DbState {
                 conn: Mutex::new(conn),
@@ -89,19 +88,11 @@ pub fn run() {
             commands::sync::sync_status,
             commands::sync::sync_set_auto_sync,
             commands::sync::sync_set_diagnostic,
-            commands::sync::sync_vault_key,
-            commands::sync::sync_legacy_credentials,
-            commands::sync::sync_finalize_legacy_credentials,
             commands::sync::sync_register,
             commands::sync::sync_login,
-            commands::sync::sync_reset_password,
-            commands::sync::sync_now,
-            commands::sync::sync_refresh_token,
+            commands::sync::sync_recover,
+            commands::sync::sync_run,
             commands::sync::sync_logout,
-            commands::sync::sync_initialize_v3,
-            commands::sync::sync_checkpoints,
-            commands::sync::sync_preview_checkpoint,
-            commands::sync::sync_restore_checkpoint,
             commands::sync::sync_disconnect,
             commands::sync::sync_devices,
             commands::sync::sync_revoke_device,

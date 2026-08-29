@@ -18,6 +18,8 @@ dist
 dist-ssr
 target
 *.local
+deploy/backups/
+*.sql.gz.age
 
 # Local development artifacts
 assets
