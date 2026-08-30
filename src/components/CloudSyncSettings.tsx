@@ -8,6 +8,7 @@ import {
   RefreshCw, ShieldCheck, Trash2, UserPlus,
 } from 'lucide-react';
 import { syncCoordinator } from '../lib/syncCoordinator';
+import { errorCode, type SyncErrorCode } from '../lib/syncErrors';
 import SettingsCollapsibleSection from './SettingsCollapsibleSection';
 
 interface SyncStatus {
@@ -30,19 +31,6 @@ interface SyncDevice { id: string; name: string; last_seen_at: string }
 interface AuthResult { recovery_code: string | null }
 type Mode = 'register' | 'login' | 'recover';
 
-const ERROR_CODES = [
-  'auth_required', 'session_expired', 'invalid_credentials', 'invalid_email', 'invalid_password',
-  'invalid_recovery_code', 'email_exists', 'network_unavailable',
-  'credential_store_unavailable', 'credential_store_write_failed', 'credential_missing',
-  'credential_corrupted', 'sync_service_not_configured', 'unsupported_sync_protocol',
-  'record_authentication_failed', 'sync_service_error',
-] as const;
-
-function errorCode(value: unknown): string {
-  const text = String(value);
-  return ERROR_CODES.find((code) => text.includes(code)) ?? 'unknown';
-}
-
 export default function CloudSyncSettings() {
   const { t } = useTranslation();
   const emailId = useId();
@@ -57,7 +45,7 @@ export default function CloudSyncSettings() {
   const [recoveryInput, setRecoveryInput] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<SyncErrorCode | ''>('');
   const [notice, setNotice] = useState('');
   const [recoveryCode, setRecoveryCode] = useState('');
   const [devices, setDevices] = useState<SyncDevice[]>([]);
@@ -199,6 +187,11 @@ export default function CloudSyncSettings() {
             </p>
             {status.pending_uploads > 0 && <p className="mt-1 text-sm">{t('settings.cloudSync.pending', { count: status.pending_uploads })}</p>}
             {status.conflicts > 0 && <p className="mt-1 text-sm">{t('settings.cloudSync.conflicts', { count: status.conflicts })}</p>}
+            {status.last_error && (stateKey === 'error' || stateKey === 'authRequired') && (
+              <p className="sync-error-message mt-3" role="alert">
+                {t(`settings.cloudSync.errors.${errorCode(status.last_error)}`)}
+              </p>
+            )}
           </div>
         </div>
       </div>

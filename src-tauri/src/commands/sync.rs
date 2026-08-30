@@ -427,13 +427,16 @@ fn wrap(key: &[u8; 32], secret: &str) -> Result<WrappedKey, String> {
 fn unwrap(wrapped: &WrappedKey, secret: &str) -> Result<[u8; 32], String> {
     let salt = URL_SAFE_NO_PAD
         .decode(&wrapped.salt)
-        .map_err(|_| "invalid encryption package")?;
+        .map_err(|_| "invalid_key_package".to_string())?;
     let nonce = URL_SAFE_NO_PAD
         .decode(&wrapped.nonce)
-        .map_err(|_| "invalid encryption package")?;
+        .map_err(|_| "invalid_key_package".to_string())?;
     let encrypted = URL_SAFE_NO_PAD
         .decode(&wrapped.ciphertext)
-        .map_err(|_| "invalid encryption package")?;
+        .map_err(|_| "invalid_key_package".to_string())?;
+    if salt.len() != 16 || nonce.len() != 24 || encrypted.is_empty() {
+        return Err("invalid_key_package".into());
+    }
     let wrapping = derive(secret, &salt)?;
     let plaintext = XChaCha20Poly1305::new((&wrapping).into())
         .decrypt(
@@ -443,8 +446,10 @@ fn unwrap(wrapped: &WrappedKey, secret: &str) -> Result<[u8; 32], String> {
                 aad: AAD,
             },
         )
-        .map_err(|_| "incorrect password or corrupted key package")?;
-    plaintext.try_into().map_err(|_| "invalid data key".into())
+        .map_err(|_| "invalid_key_package".to_string())?;
+    plaintext
+        .try_into()
+        .map_err(|_| "invalid_key_package".to_string())
 }
 fn recovery_code() -> String {
     let mut raw = [0u8; 16];
@@ -529,9 +534,9 @@ fn decrypt_record(
 fn key(config: &LocalConfig) -> Result<[u8; 32], String> {
     URL_SAFE_NO_PAD
         .decode(&config.data_key)
-        .map_err(|_| "invalid local sync key")?
+        .map_err(|_| "invalid_local_sync_key".to_string())?
         .try_into()
-        .map_err(|_| "invalid local sync key".into())
+        .map_err(|_| "invalid_local_sync_key".to_string())
 }
 
 fn sync_http_client() -> &'static reqwest::Client {
@@ -1613,7 +1618,7 @@ pub fn sync_status(state: State<DbState>) -> Result<SyncStatus, String> {
 #[tauri::command]
 pub fn sync_set_auto_sync(state: State<DbState>, enabled: bool) -> Result<(), String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
-    let mut local = config(&conn)?.ok_or("Cloud sync is not configured.")?;
+    let mut local = config(&conn)?.ok_or("sync_service_not_configured")?;
     local.auto_sync_enabled = enabled;
     save_config(&conn, &local)
 }
@@ -1914,7 +1919,10 @@ pub async fn sync_recover(
     if !response.status().is_success() {
         return Err(server_error(response).await);
     }
-    let recovery: AuthResponse = response.json().await.map_err(|error| error.to_string())?;
+    let recovery: AuthResponse = response
+        .json()
+        .await
+        .map_err(|_| "invalid_server_response".to_string())?;
     let old_package: KeyPackage =
         serde_json::from_str(&recovery.key_package).map_err(|_| "invalid_key_package")?;
     let data_key = unwrap(&old_package.recovery, &recovery_code)?;
@@ -1970,7 +1978,7 @@ async fn sync_now_inner(state: &DbState) -> Result<(), String> {
     let (mut local, data_key) = {
         let conn = state.conn.lock().map_err(|e| e.to_string())?;
         let local = apply_secrets(
-            config(&conn)?.ok_or("Cloud sync is not configured.")?,
+            config(&conn)?.ok_or("sync_service_not_configured")?,
             &secrets,
         );
         let data_key = key(&local)?;
@@ -2048,7 +2056,7 @@ async fn refresh_native_session(state: &DbState) -> Result<(), String> {
     let endpoint = {
         let conn = state.conn.lock().map_err(|e| e.to_string())?;
         config(&conn)?
-            .ok_or("Cloud sync is not configured.")?
+            .ok_or("sync_service_not_configured")?
             .endpoint
     };
     let response = sync_http_client()
@@ -2083,7 +2091,7 @@ pub async fn sync_logout(state: State<'_, DbState>) -> Result<(), String> {
     let endpoint = {
         let conn = state.conn.lock().map_err(|e| e.to_string())?;
         config(&conn)?
-            .ok_or("Cloud sync is not configured.")?
+            .ok_or("sync_service_not_configured")?
             .endpoint
     };
     let response = sync_http_client()
@@ -2117,7 +2125,7 @@ pub async fn sync_devices(state: State<'_, DbState>) -> Result<Vec<SyncDevice>, 
     let local = {
         let conn = state.conn.lock().map_err(|e| e.to_string())?;
         apply_secrets(
-            config(&conn)?.ok_or("Cloud sync is not configured.")?,
+            config(&conn)?.ok_or("sync_service_not_configured")?,
             &secrets,
         )
     };
@@ -2133,7 +2141,7 @@ pub async fn sync_devices(state: State<'_, DbState>) -> Result<Vec<SyncDevice>, 
     response
         .json()
         .await
-        .map_err(|e| format!("Invalid device response: {e}"))
+        .map_err(|_| "invalid_server_response".to_string())
 }
 #[tauri::command]
 pub async fn sync_revoke_device(
@@ -2144,7 +2152,7 @@ pub async fn sync_revoke_device(
     let local = {
         let conn = state.conn.lock().map_err(|e| e.to_string())?;
         apply_secrets(
-            config(&conn)?.ok_or("Cloud sync is not configured.")?,
+            config(&conn)?.ok_or("sync_service_not_configured")?,
             &secrets,
         )
     };
@@ -2169,7 +2177,7 @@ pub async fn sync_delete_account(state: State<'_, DbState>) -> Result<(), String
     let local = {
         let conn = state.conn.lock().map_err(|error| error.to_string())?;
         apply_secrets(
-            config(&conn)?.ok_or("Cloud sync is not configured.")?,
+            config(&conn)?.ok_or("sync_service_not_configured")?,
             &secrets,
         )
     };
@@ -2232,7 +2240,19 @@ mod tests {
             unwrap(&wrapped, "correct horse battery staple").unwrap(),
             key
         );
-        assert!(unwrap(&wrapped, "wrong").is_err());
+        assert_eq!(
+            unwrap(&wrapped, "wrong").unwrap_err(),
+            "invalid_key_package"
+        );
+        let malformed = WrappedKey {
+            salt: "not-base64".into(),
+            nonce: wrapped.nonce,
+            ciphertext: wrapped.ciphertext,
+        };
+        assert_eq!(
+            unwrap(&malformed, "correct horse battery staple").unwrap_err(),
+            "invalid_key_package"
+        );
     }
     #[test]
     fn record_aad_rejects_substitution_and_account_copy() {

@@ -3,6 +3,7 @@ import zh from '../locales/zh.json';
 import en from '../locales/en.json';
 import ja from '../locales/ja.json';
 import de from '../locales/de.json';
+import { ERROR_CODES } from '../../lib/syncErrors';
 
 const PLURAL_SUFFIX = /_(one|other|few|many|zero)$/;
 
@@ -47,6 +48,15 @@ describe('i18n locales', () => {
     };
     for (const [name, resource] of Object.entries(LOCALES)) {
       expect(walk(resource as Record<string, unknown>, '', []), `${name} empty values`).toEqual([]);
+    }
+  });
+
+  it('contains a translated message for every sync error code', () => {
+    for (const [name, resource] of Object.entries(LOCALES)) {
+      const errors = (resource as { settings: { cloudSync: { errors: Record<string, string> } } }).settings.cloudSync.errors;
+      for (const code of ERROR_CODES) {
+        expect(errors[code], `${name} ${code}`).toBeTruthy();
+      }
     }
   });
 
