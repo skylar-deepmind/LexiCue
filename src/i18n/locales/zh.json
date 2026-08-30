@@ -81,7 +81,7 @@
       "description": "以端到端加密方式，在多台设备间同步资料库和学习进度。",
       "notConnected": "尚未连接",
       "state": { "synced": "已同步", "syncing": "正在同步", "offline": "离线等待", "authRequired": "需要重新登录", "error": "同步需要处理" },
-      "lastSynced": "上次成功同步：{{time}}", "preparing": "正在准备同步…", "pending": "{{count}} 项等待上传", "conflicts": "已保存 {{count}} 个文本冲突供稍后处理", "progressLabel": "同步进度", "eta": "预计剩余 {{seconds}} 秒", "progress": { "preparing": "准备本地资料", "downloading": "下载云端资料", "applying": "应用云端资料", "uploading": "上传本地资料", "retrying": "等待重试" },
+      "lastSynced": "上次成功同步：{{time}}", "preparing": "正在准备同步…", "pending": "{{count}} 项等待上传", "conflicts": "已保存 {{count}} 个文本冲突供稍后处理", "progressLabel": "同步进度", "downloadedBytes": "已下载 {{size}}", "eta": "预计剩余 {{seconds}} 秒", "progress": { "preparing": "准备本地资料", "downloading": "下载云端资料", "applying": "应用云端资料", "uploading": "上传本地资料", "retrying": "等待重试" },
       "syncNow": "立即同步", "pauseAuto": "暂停自动同步", "enableAuto": "开启自动同步",
       "advanced": "高级选项", "devices": "设备管理", "refresh": "刷新", "currentDevice": "本机", "revoke": "撤销", "disconnect": "在本机退出登录",
       "dangerTitle": "删除同步账户", "deleteHint": "将删除云端加密副本并退出所有设备，本机资料不会被删除。", "deleteAccount": "删除账户", "deleteConfirm": "确定删除同步账户及其云端加密资料吗？本机资料不会被删除。",

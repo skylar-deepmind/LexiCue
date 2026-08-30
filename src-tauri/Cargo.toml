@@ -1,6 +1,6 @@
 [package]
 name = "lexicue"
-version = "0.3.5"
+version = "0.3.6"
 description = "LexiCue - Local-first vocabulary learning tool"
 authors = ["skylar-deepmind"]
 license = "MIT"

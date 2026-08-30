@@ -72,6 +72,17 @@ export default function CloudSyncSettings() {
   const [notice, setNotice] = useState('');
   const [recoveryCode, setRecoveryCode] = useState('');
   const [devices, setDevices] = useState<SyncDevice[]>([]);
+  const syncProgress = status?.progress ?? null;
+  const progressUsesBytes = (syncProgress?.total_bytes ?? 0) > 0;
+  const progressMaximum = progressUsesBytes
+    ? syncProgress?.total_bytes ?? 0
+    : syncProgress?.total_items ?? 0;
+  const progressCurrent = progressUsesBytes
+    ? syncProgress?.completed_bytes ?? 0
+    : syncProgress?.completed_items ?? 0;
+  const progressPercent = progressMaximum > 0
+    ? Math.min(100, (progressCurrent / progressMaximum) * 100)
+    : 5;
 
   const refresh = async () => {
     try { setStatus(await invoke<SyncStatus>('sync_status')); }
@@ -215,19 +226,31 @@ export default function CloudSyncSettings() {
             </p>
             {status.pending_uploads > 0 && <p className="mt-1 text-sm">{t('settings.cloudSync.pending', { count: status.pending_uploads })}</p>}
             {status.conflicts > 0 && <p className="mt-1 text-sm">{t('settings.cloudSync.conflicts', { count: status.conflicts })}</p>}
-            {status.progress && status.progress.phase !== 'idle' && (
+            {syncProgress && syncProgress.phase !== 'idle' && (
               <div className="sync-progress mt-3" aria-label={t('settings.cloudSync.progressLabel')}>
                 <div className="mb-1 flex flex-wrap items-center justify-between gap-2 text-sm">
-                  <span>{t(`settings.cloudSync.progress.${status.progress.phase}`, { defaultValue: status.progress.phase })}</span>
-                  <span>{status.progress.completed_items}/{status.progress.total_items || '—'}</span>
+                  <span>{t(`settings.cloudSync.progress.${syncProgress.phase}`, { defaultValue: syncProgress.phase })}</span>
+                  <span>{syncProgress.completed_items}/{syncProgress.total_items || '—'}</span>
                 </div>
-                <div className="sync-progress__track" role="progressbar" aria-valuemin={0} aria-valuemax={status.progress.total_bytes || 1} aria-valuenow={Math.min(status.progress.completed_bytes, status.progress.total_bytes || 1)}>
-                  <div className="sync-progress__bar" style={{ width: `${status.progress.total_bytes > 0 ? Math.min(100, (status.progress.completed_bytes / status.progress.total_bytes) * 100) : 5}%` }} />
+                <div
+                  className="sync-progress__track"
+                  role="progressbar"
+                  aria-valuemin={0}
+                  aria-valuemax={progressMaximum || 1}
+                  aria-valuenow={Math.min(progressCurrent, progressMaximum || 1)}
+                  aria-valuetext={progressUsesBytes
+                    ? `${formatBytes(syncProgress.completed_bytes)} / ${formatBytes(syncProgress.total_bytes)}`
+                    : `${syncProgress.completed_items} / ${syncProgress.total_items || '—'}`}
+                >
+                  <div className="sync-progress__bar" style={{ width: `${progressPercent}%` }} />
                 </div>
                 <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs">
-                  <span>{formatBytes(status.progress.completed_bytes)} / {formatBytes(status.progress.total_bytes)}</span>
-                  {status.progress.bytes_per_second > 0 && <span>{formatBytes(status.progress.bytes_per_second)}/s</span>}
-                  {status.progress.eta_seconds !== null && <span>{t('settings.cloudSync.eta', { seconds: status.progress.eta_seconds })}</span>}
+                  <span>{progressUsesBytes
+                    ? `${formatBytes(syncProgress.completed_bytes)} / ${formatBytes(syncProgress.total_bytes)}`
+                    : t('settings.cloudSync.downloadedBytes', { size: formatBytes(syncProgress.completed_bytes) })}
+                  </span>
+                  {syncProgress.bytes_per_second > 0 && <span>{formatBytes(syncProgress.bytes_per_second)}/s</span>}
+                  {syncProgress.eta_seconds !== null && <span>{t('settings.cloudSync.eta', { seconds: syncProgress.eta_seconds })}</span>}
                 </div>
               </div>
             )}
