@@ -13,6 +13,7 @@ use rand::{rngs::OsRng, RngCore};
 use rusqlite::OptionalExtension;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::collections::HashSet;
 use std::sync::OnceLock;
 use tauri::State;
 use uuid::Uuid;
@@ -323,12 +324,12 @@ fn config(conn: &rusqlite::Connection) -> Result<Option<LocalConfig>, String> {
             |r| r.get(0),
         )
         .optional()
-        .map_err(|e| e.to_string())?;
-    raw.map(|v| serde_json::from_str(&v).map_err(|e| e.to_string()))
+        .map_err(|_| "local_sync_storage_error".to_string())?;
+    raw.map(|v| serde_json::from_str(&v).map_err(|_| "local_sync_storage_error".to_string()))
         .transpose()
 }
 fn save_config(conn: &rusqlite::Connection, config: &LocalConfig) -> Result<(), String> {
-    conn.execute("INSERT INTO sync_metadata(key,value,updated_at) VALUES(?1,?2,?3) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at", rusqlite::params![CONFIG_KEY, serde_json::to_string(config).map_err(|e| e.to_string())?, now_ms()]).map_err(|e| e.to_string())?;
+    conn.execute("INSERT INTO sync_metadata(key,value,updated_at) VALUES(?1,?2,?3) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at", rusqlite::params![CONFIG_KEY, serde_json::to_string(config).map_err(|_| "local_sync_storage_error")?, now_ms()]).map_err(|_| "local_sync_storage_error")?;
     Ok(())
 }
 
@@ -346,7 +347,7 @@ fn device_id(conn: &rusqlite::Connection) -> Result<String, String> {
             |row| row.get(0),
         )
         .optional()
-        .map_err(|error| error.to_string())?;
+        .map_err(|_| "local_sync_storage_error".to_string())?;
     if let Some(value) = existing {
         return Ok(value);
     }
@@ -359,7 +360,7 @@ fn device_id(conn: &rusqlite::Connection) -> Result<String, String> {
         "INSERT INTO sync_metadata(key,value,updated_at) VALUES(?1,?2,?3)",
         rusqlite::params![DEVICE_KEY, value, now_ms()],
     )
-    .map_err(|error| error.to_string())?;
+    .map_err(|_| "local_sync_storage_error".to_string())?;
     Ok(value)
 }
 fn default_device_name() -> String {
@@ -551,19 +552,17 @@ fn sync_http_client() -> &'static reqwest::Client {
 }
 
 fn write_safety_backup(conn: &rusqlite::Connection) -> Result<String, String> {
-    let backup = export::backup_payload(conn)?;
-    let database_path = conn
-        .path()
-        .ok_or("Could not determine local database path")?;
+    let backup = export::backup_payload(conn).map_err(|_| "local_backup_failed".to_string())?;
+    let database_path = conn.path().ok_or("local_backup_failed")?;
     let directory = std::path::Path::new(database_path)
         .parent()
-        .ok_or("Could not determine local backup directory")?;
+        .ok_or("local_backup_failed")?;
     let path = directory.join(format!("lexicue-before-cloud-restore-{}.json", now_ms()));
     std::fs::write(
         &path,
-        serde_json::to_vec_pretty(&backup).map_err(|error| error.to_string())?,
+        serde_json::to_vec_pretty(&backup).map_err(|_| "local_backup_failed")?,
     )
-    .map_err(|error| format!("Could not create local safety backup: {error}"))?;
+    .map_err(|_| "local_backup_failed")?;
     Ok(path.to_string_lossy().into_owned())
 }
 
@@ -1692,11 +1691,39 @@ fn stable_entity_id(key: &[u8; 32], kind: &str, parts: &[&str]) -> String {
         .collect()
 }
 
-/// Existing local rows were created before an account key existed. On first
-/// enrollment, identities with a durable natural key are rewritten to an
-/// account-scoped HMAC so independent devices converge without revealing the
-/// lemma, phrase text, or content hash to the service.
-fn stabilize_sync_ids(conn: &rusqlite::Connection, key: &[u8; 32]) -> Result<(), String> {
+/// German capitalisation distinguishes valid words (for example, `Ihr` and
+/// `ihr`), so word identities for German retain it. Other languages preserve
+/// the original case-insensitive matching contract.
+fn stable_word_entity_id(key: &[u8; 32], language: &str, lemma: &str) -> String {
+    let normalized_language = language.trim().to_ascii_lowercase();
+    if normalized_language.split('-').next() != Some("de") {
+        return stable_entity_id(key, "word", &[language, lemma]);
+    }
+
+    let mut value = b"word".to_vec();
+    value.push(0);
+    value.extend_from_slice(normalized_language.as_bytes());
+    value.push(0);
+    value.extend_from_slice(lemma.trim().as_bytes());
+    let id_key = derived_key(key, b"stable-id");
+    hmac_sha256(&id_key, &value)
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
+}
+
+#[derive(Debug)]
+struct StableIdentityUpdate {
+    table: &'static str,
+    local_id: i64,
+    sync_id: String,
+}
+
+fn stable_identity_updates(
+    conn: &rusqlite::Connection,
+    key: &[u8; 32],
+) -> Result<Vec<StableIdentityUpdate>, String> {
+    let mut updates = Vec::new();
     for (table, query, kind) in [
         ("words", "SELECT id,language,lemma FROM words", "word"),
         ("phrases", "SELECT id,language,text FROM phrases", "phrase"),
@@ -1706,7 +1733,9 @@ fn stabilize_sync_ids(conn: &rusqlite::Connection, key: &[u8; 32]) -> Result<(),
             "file",
         ),
     ] {
-        let mut statement = conn.prepare(query).map_err(|e| e.to_string())?;
+        let mut statement = conn
+            .prepare(query)
+            .map_err(|_| "local_sync_storage_error".to_string())?;
         let rows = statement
             .query_map([], |row| {
                 Ok((
@@ -1715,19 +1744,84 @@ fn stabilize_sync_ids(conn: &rusqlite::Connection, key: &[u8; 32]) -> Result<(),
                     row.get::<_, String>(2)?,
                 ))
             })
-            .map_err(|e| e.to_string())?
+            .map_err(|_| "local_sync_storage_error".to_string())?
             .collect::<Result<Vec<_>, _>>()
-            .map_err(|e| e.to_string())?;
+            .map_err(|_| "local_sync_storage_error".to_string())?;
+        let mut ids = HashSet::new();
         for (local_id, first, second) in rows {
-            let sync_id = stable_entity_id(key, kind, &[&first, &second]);
-            conn.execute(
-                "UPDATE sync_entity_state SET sync_id=?1 WHERE table_name=?2 AND local_id=?3",
-                rusqlite::params![sync_id, table, local_id],
-            )
-            .map_err(|e| e.to_string())?;
+            let sync_id = if table == "words" {
+                stable_word_entity_id(key, &first, &second)
+            } else {
+                stable_entity_id(key, kind, &[&first, &second])
+            };
+            if !ids.insert(sync_id.clone()) {
+                return Err("local_identity_conflict".into());
+            }
+            updates.push(StableIdentityUpdate {
+                table,
+                local_id,
+                sync_id,
+            });
         }
     }
-    Ok(())
+    Ok(updates)
+}
+
+/// Existing local rows were created before an account key existed. Derive and
+/// validate every identity before a single write, so a retry can always repair
+/// an interrupted prior enrollment without leaving a partially rewritten set.
+fn stabilize_sync_ids(conn: &rusqlite::Connection, key: &[u8; 32]) -> Result<(), String> {
+    let updates = stable_identity_updates(conn, key)?;
+    let target_rows: HashSet<(&str, i64)> = updates
+        .iter()
+        .map(|item| (item.table, item.local_id))
+        .collect();
+
+    for update in &updates {
+        let existing: Option<i64> = conn
+            .query_row(
+                "SELECT local_id FROM sync_entity_state WHERE table_name=?1 AND sync_id=?2",
+                rusqlite::params![update.table, update.sync_id],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(|_| "local_sync_storage_error".to_string())?;
+        if let Some(local_id) = existing {
+            if !target_rows.contains(&(update.table, local_id)) {
+                return Err("local_identity_conflict".into());
+            }
+        }
+    }
+
+    let transaction = conn
+        .unchecked_transaction()
+        .map_err(|_| "local_sync_storage_error".to_string())?;
+    transaction
+        .execute("DELETE FROM sync_changes WHERE uploaded_at IS NULL", [])
+        .map_err(|_| "local_sync_storage_error".to_string())?;
+    for update in &updates {
+        let temporary_id = format!("pending-stable-id:{}", Uuid::new_v4());
+        let changed = transaction
+            .execute(
+                "UPDATE sync_entity_state SET sync_id=?1 WHERE table_name=?2 AND local_id=?3",
+                rusqlite::params![temporary_id, update.table, update.local_id],
+            )
+            .map_err(|_| "local_sync_storage_error".to_string())?;
+        if changed != 1 {
+            return Err("local_sync_storage_error".into());
+        }
+    }
+    for update in &updates {
+        transaction
+            .execute(
+                "UPDATE sync_entity_state SET sync_id=?1 WHERE table_name=?2 AND local_id=?3",
+                rusqlite::params![update.sync_id, update.table, update.local_id],
+            )
+            .map_err(|_| "local_sync_storage_error".to_string())?;
+    }
+    transaction
+        .commit()
+        .map_err(|_| "local_sync_storage_error".to_string())
 }
 
 fn save_account(
@@ -1737,6 +1831,7 @@ fn save_account(
     auth: AuthResponse,
     data_key: [u8; 32],
 ) -> Result<(), String> {
+    write_safety_backup(conn)?;
     stabilize_sync_ids(conn, &data_key)?;
     let secrets = SyncSecrets {
         access_token: auth.access_token,
@@ -1744,21 +1839,34 @@ fn save_account(
         data_key: URL_SAFE_NO_PAD.encode(data_key),
         account_id: auth.account_id,
     };
-    save_native_secrets(&secrets)?;
-    save_config(
-        conn,
-        &LocalConfig {
-            endpoint,
-            email,
-            device_id: auth.device_id,
-            access_token: String::new(),
-            data_key: String::new(),
-            last_synced_at: None,
-            last_remote_cursor: 0,
-            auto_sync_enabled: true,
-        },
-    )?;
-    queue_all_local_records(conn)
+    let config = LocalConfig {
+        endpoint,
+        email,
+        device_id: auth.device_id,
+        access_token: String::new(),
+        data_key: String::new(),
+        last_synced_at: None,
+        last_remote_cursor: 0,
+        auto_sync_enabled: true,
+    };
+    let transaction = conn
+        .unchecked_transaction()
+        .map_err(|_| "local_sync_storage_error".to_string())?;
+    if let Err(error) = save_native_secrets(&secrets) {
+        return Err(error);
+    }
+    let result = save_config(&transaction, &config)
+        .and_then(|_| queue_all_local_records(&transaction))
+        .and_then(|_| {
+            transaction
+                .commit()
+                .map_err(|_| "local_sync_storage_error".to_string())
+        });
+    if let Err(error) = result {
+        let _ = clear_native_secrets();
+        return Err(error);
+    }
+    Ok(())
 }
 
 fn record_setup_sync_error(state: &DbState, value: &str) {
@@ -1868,12 +1976,6 @@ pub async fn sync_login(
     let data_key = unwrap(&package.password, &password)?;
     {
         let conn = state.conn.lock().map_err(|e| e.to_string())?;
-        let local_files: i64 = conn
-            .query_row("SELECT COUNT(*) FROM files", [], |row| row.get(0))
-            .unwrap_or(0);
-        if local_files > 0 {
-            let _ = write_safety_backup(&conn)?;
-        }
         save_account(&conn, endpoint, email, auth, data_key)?;
     }
     if let Err(value) = sync_now_inner(&state).await {
@@ -2295,6 +2397,102 @@ mod tests {
         assert_ne!(
             derived_key(&key, b"stable-id"),
             derived_key(&key, b"record-encryption")
+        );
+    }
+
+    #[test]
+    fn german_word_ids_preserve_case_while_other_languages_remain_case_insensitive() {
+        let key = [9; 32];
+        assert_ne!(
+            stable_word_entity_id(&key, "de", "Ihr"),
+            stable_word_entity_id(&key, "de", "ihr")
+        );
+        assert_ne!(
+            stable_word_entity_id(&key, "de-DE", "Muss"),
+            stable_word_entity_id(&key, "de-DE", "muss")
+        );
+        assert_eq!(
+            stable_word_entity_id(&key, "EN", " Word "),
+            stable_word_entity_id(&key, "en", "word")
+        );
+    }
+
+    #[test]
+    fn stabilization_repairs_partially_rewritten_german_case_variants() {
+        let directory = tempfile::tempdir().unwrap();
+        let connection = crate::db::init_db(&directory.path().join("lexicue.db")).unwrap();
+        connection
+            .execute(
+                "INSERT INTO words(language,lemma,status) VALUES ('de','Ihr','learning'), ('de','ihr','known')",
+                [],
+            )
+            .unwrap();
+        let ihr_id: i64 = connection
+            .query_row("SELECT id FROM words WHERE lemma='Ihr'", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        let ihr_sync_id = stable_word_entity_id(&[5; 32], "de", "Ihr");
+        connection
+            .execute(
+                "UPDATE sync_entity_state SET sync_id=?1 WHERE table_name='words' AND local_id=?2",
+                rusqlite::params![ihr_sync_id, ihr_id],
+            )
+            .unwrap();
+
+        stabilize_sync_ids(&connection, &[5; 32]).unwrap();
+
+        let ids: Vec<String> = connection
+            .prepare(
+                "SELECT sync_id FROM sync_entity_state WHERE table_name='words' ORDER BY local_id",
+            )
+            .unwrap()
+            .query_map([], |row| row.get(0))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap();
+        assert_eq!(ids.len(), 2);
+        assert_ne!(ids[0], ids[1]);
+        assert!(ids.iter().all(|id| id.len() == 64));
+        assert_eq!(
+            connection
+                .query_row("SELECT COUNT(*) FROM words", [], |row| row.get::<_, i64>(0))
+                .unwrap(),
+            2
+        );
+    }
+
+    #[test]
+    fn stabilization_rejects_an_existing_tombstone_identity_without_writing() {
+        let directory = tempfile::tempdir().unwrap();
+        let connection = crate::db::init_db(&directory.path().join("lexicue.db")).unwrap();
+        connection
+            .execute(
+                "INSERT INTO words(language,lemma,status) VALUES ('en','conflict','learning')",
+                [],
+            )
+            .unwrap();
+        let word_id: i64 = connection
+            .query_row("SELECT id FROM words WHERE lemma='conflict'", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        let original = sync_id_for(&connection, "words", word_id).unwrap();
+        let conflicting_id = stable_word_entity_id(&[6; 32], "en", "conflict");
+        connection
+            .execute(
+                "INSERT INTO sync_entity_state(table_name,local_id,sync_id,updated_at,deleted_at,clock) VALUES ('words',999,?1,0,0,'')",
+                [conflicting_id],
+            )
+            .unwrap();
+
+        assert_eq!(
+            stabilize_sync_ids(&connection, &[6; 32]).unwrap_err(),
+            "local_identity_conflict"
+        );
+        assert_eq!(
+            sync_id_for(&connection, "words", word_id).unwrap(),
+            original
         );
     }
 

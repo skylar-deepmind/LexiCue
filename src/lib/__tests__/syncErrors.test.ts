@@ -8,6 +8,12 @@ describe('sync error mapping', () => {
     }
   });
 
+  it('maps local safety and identity errors to stable codes', () => {
+    expect(errorCode('local_backup_failed')).toBe('local_backup_failed');
+    expect(errorCode('local_sync_storage_error')).toBe('local_sync_storage_error');
+    expect(errorCode('local_identity_conflict')).toBe('local_identity_conflict');
+  });
+
   it('matches the most specific blob and record codes first', () => {
     expect(errorCode('invalid_blob_manifest')).toBe('invalid_blob_manifest');
     expect(errorCode('invalid_record_batch')).toBe('invalid_record_batch');
