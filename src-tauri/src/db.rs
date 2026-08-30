@@ -313,7 +313,21 @@ fn create_sync_tracking(conn: &Connection) -> Result<(), rusqlite::Error> {
             |row| row.get(0),
         )
         .optional()?;
-    if layout.as_deref() != Some("2") {
+    // Do not trust the marker alone. Builds shipped during the first Draft
+    // rollout could leave it at `2` while retaining the old 100k row-level
+    // queue. Looking at the queued entity kinds makes this migration
+    // self-healing and is safe to repeat: it only discards derived pending
+    // envelopes and requeues the current local source-of-truth state.
+    let has_legacy_pending: bool = conn.query_row(
+        "SELECT EXISTS(
+             SELECT 1 FROM sync_changes
+             WHERE uploaded_at IS NULL
+               AND table_name IN ('segments','occurrences','phrase_occurrences','reviews','phrase_reviews')
+         )",
+        [],
+        |row| row.get(0),
+    )?;
+    if layout.as_deref() != Some("3") || has_legacy_pending {
         conn.execute("DELETE FROM sync_changes WHERE uploaded_at IS NULL", [])?;
         conn.execute(
             "INSERT INTO sync_changes(table_name,sync_id,operation,changed_at)
@@ -323,7 +337,7 @@ fn create_sync_tracking(conn: &Connection) -> Result<(), rusqlite::Error> {
             [now_ms_for_sync_tracking()],
         )?;
         conn.execute(
-            "INSERT INTO sync_runtime(key,value) VALUES('sync_layout_version','2')
+            "INSERT INTO sync_runtime(key,value) VALUES('sync_layout_version','3')
              ON CONFLICT(key) DO UPDATE SET value=excluded.value",
             [],
         )?;
@@ -894,6 +908,63 @@ mod tests {
         ).unwrap();
         assert!(deleted_at.is_some());
         assert_eq!(operation, "delete");
+    }
+
+    #[test]
+    fn sync_layout_self_heals_a_stale_legacy_pending_queue() {
+        let dir = tempfile::tempdir().unwrap();
+        let conn = init_db(&dir.path().join("sync.db")).unwrap();
+        conn.execute(
+            "INSERT INTO words(language,lemma) VALUES ('en','queue')",
+            [],
+        )
+        .unwrap();
+        conn.execute("INSERT INTO files(name,type,content,content_hash,imported_at,language) VALUES ('one.txt','txt','one','hash',1,'en')", [])
+            .unwrap();
+        let file_id = conn.last_insert_rowid();
+        conn.execute(
+            "INSERT INTO segments(file_id,index_num,en_text) VALUES(?1,0,'one')",
+            [file_id],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO sync_runtime(key,value) VALUES('sync_layout_version','3')
+             ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO sync_changes(table_name,sync_id,operation,changed_at) VALUES('occurrences','legacy','upsert',0)",
+            [],
+        )
+        .unwrap();
+
+        create_sync_tracking(&conn).unwrap();
+
+        let legacy: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sync_changes WHERE uploaded_at IS NULL AND table_name IN ('segments','occurrences','phrase_occurrences','reviews','phrase_reviews')",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let compact: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sync_changes WHERE uploaded_at IS NULL AND table_name IN ('files','words')",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let layout: String = conn
+            .query_row(
+                "SELECT value FROM sync_runtime WHERE key='sync_layout_version'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(legacy, 0);
+        assert_eq!(compact, 2);
+        assert_eq!(layout, "3");
     }
     use rusqlite::params;
 
