@@ -14,8 +14,20 @@ import { useFeedbackStore } from './feedbackStore';
 import { usePreferencesStore } from './preferencesStore';
 import i18n from '../i18n';
 import { isCancelledError } from '../lib/errors';
+import { errorCode } from '../lib/syncErrors';
 import { QueryCache } from '../lib/queryCache';
 import { invalidateCaches, registerCacheInvalidator } from '../lib/cacheInvalidation';
+
+export interface DeleteJobStatus {
+  job_id: string;
+  file_id: number;
+  phase: string;
+  completed_items: number;
+  total_items: number;
+  completed_bytes: number;
+  total_bytes: number;
+  error_code: string | null;
+}
 
 interface PendingImport {
   name: string;
@@ -50,6 +62,7 @@ interface FileStore {
   importingYouTube: boolean;
   youtubePhase: YoutubePhase | null;
   confirming: boolean;
+  deletingFiles: Record<number, DeleteJobStatus>;
   loadFiles: (force?: boolean) => Promise<void>;
   loadFolders: (force?: boolean) => Promise<void>;
   invalidateFiles: () => void;
@@ -223,6 +236,7 @@ function folderQueryKey(): string {
 
 export const useFileStore = create<FileStore>((set, get) => ({
   files: [],
+  deletingFiles: {},
   folders: [],
   currentFolderId: null,
   loading: true,
@@ -593,14 +607,29 @@ export const useFileStore = create<FileStore>((set, get) => ({
         },
       );
       if (!confirmed) return;
-      await invoke('delete_file', { fileId: id });
+      const started = await invoke<DeleteJobStatus>('delete_file_start', { fileId: id });
+      set((state) => ({ deletingFiles: { ...state.deletingFiles, [id]: started } }));
+      let current = started;
+      while (current.phase !== 'done' && current.phase !== 'failed') {
+        await new Promise((resolve) => window.setTimeout(resolve, 500));
+        current = await invoke<DeleteJobStatus>('delete_file_status', { jobId: current.job_id });
+        set((state) => ({ deletingFiles: { ...state.deletingFiles, [id]: current } }));
+      }
+      if (current.phase === 'failed') throw new Error(current.error_code ?? 'local_delete_failed');
+      set((state) => {
+        const deletingFiles = { ...state.deletingFiles };
+        delete deletingFiles[id];
+        return { deletingFiles };
+      });
       invalidateCaches('words', 'phrases', 'review', 'insights', 'storage');
       fileCache.invalidate();
       await get().loadFiles(true);
       useFeedbackStore.getState().show(i18n.t('fileStore.fileDeleted'), 'success');
     } catch (e) {
       console.error('Delete failed:', e);
-      useFeedbackStore.getState().show(i18n.t('fileStore.deleteFailed'), 'error');
+      const code = errorCode(e);
+      const messageKey = code === 'unknown' ? 'fileStore.deleteFailed' : `settings.cloudSync.errors.${code}`;
+      useFeedbackStore.getState().show(i18n.t(messageKey), 'error', 6000);
     }
   },
 

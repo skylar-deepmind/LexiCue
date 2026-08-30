@@ -1,8 +1,9 @@
-use rusqlite::params;
+use rusqlite::{params, OptionalExtension};
 use serde::Serialize;
+use std::sync::{Arc, Mutex};
 use tauri::State;
 
-use crate::db::DbState;
+use crate::{commands::export, db::DbState};
 
 #[derive(Serialize)]
 pub struct LearningProgress {
@@ -356,15 +357,224 @@ fn now_ms() -> i64 {
 }
 
 #[tauri::command]
-pub fn delete_file(state: State<DbState>, file_id: i64) -> Result<(), String> {
-    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+pub fn delete_file_start(state: State<DbState>, file_id: i64) -> Result<DeleteJobStatus, String> {
+    let conn = state.conn.lock().map_err(|_| "local_delete_failed")?;
+    let existing: Option<String> = conn
+        .query_row(
+            "SELECT job_id FROM sync_delete_jobs WHERE file_id=?1 AND phase NOT IN ('done','failed') ORDER BY created_at DESC LIMIT 1",
+            [file_id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|_| "local_delete_failed")?;
+    if let Some(job_id) = existing {
+        return delete_job_status(&conn, &job_id);
+    }
+    let file_sync_id: String = conn
+        .query_row(
+            "SELECT sync_id FROM sync_entity_state WHERE table_name='files' AND local_id=?1",
+            [file_id],
+            |row| row.get(0),
+        )
+        .map_err(|_| "local_delete_failed")?;
+    let total_segments: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM segments WHERE file_id=?1",
+            [file_id],
+            |row| row.get(0),
+        )
+        .map_err(|_| "local_delete_failed")?;
+    let total_occurrences: i64 = conn
+        .query_row(
+            "SELECT (SELECT COUNT(*) FROM occurrences o JOIN segments s ON s.id=o.segment_id WHERE s.file_id=?1) + (SELECT COUNT(*) FROM phrase_occurrences p JOIN segments s ON s.id=p.segment_id WHERE s.file_id=?1)",
+            [file_id],
+            |row| row.get(0),
+        )
+        .map_err(|_| "local_delete_failed")?;
+    let total_bytes: i64 = conn
+        .query_row(
+            "SELECT COALESCE((SELECT length(content) FROM files WHERE id=?1),0) + COALESCE((SELECT SUM(length(en_text)+COALESCE(length(zh_text),0)) FROM segments WHERE file_id=?1),0)",
+            [file_id],
+            |row| row.get(0),
+        )
+        .map_err(|_| "local_delete_failed")?;
+    write_delete_backup(&conn)?;
+    let job_id = uuid::Uuid::new_v4().to_string();
+    let now = now_ms();
+    conn.execute(
+        "INSERT INTO sync_delete_jobs(job_id,file_id,file_sync_id,phase,total_segments,total_occurrences,total_bytes,created_at,updated_at) VALUES(?1,?2,?3,'queued',?4,?5,?6,?7,?7)",
+        params![job_id, file_id, file_sync_id, total_segments, total_occurrences, total_bytes, now],
+    )
+    .map_err(|_| "local_delete_failed")?;
+    let status = delete_job_status(&conn, &job_id)?;
+    let worker_conn = state.conn.clone();
+    let worker_job = job_id.clone();
+    tauri::async_runtime::spawn_blocking(move || run_delete_job(worker_conn, worker_job));
+    Ok(status)
+}
 
-    conn.execute("PRAGMA foreign_keys = ON", [])
-        .map_err(|e| e.to_string())?;
-    conn.execute("DELETE FROM files WHERE id = ?1", params![file_id])
-        .map_err(|e| e.to_string())?;
+#[derive(Serialize, Clone)]
+pub struct DeleteJobStatus {
+    pub job_id: String,
+    pub file_id: i64,
+    pub phase: String,
+    pub completed_items: i64,
+    pub total_items: i64,
+    pub completed_bytes: i64,
+    pub total_bytes: i64,
+    pub error_code: Option<String>,
+}
 
-    Ok(())
+#[tauri::command]
+pub fn delete_file_status(
+    state: State<DbState>,
+    job_id: String,
+) -> Result<DeleteJobStatus, String> {
+    let conn = state.conn.lock().map_err(|_| "local_delete_failed")?;
+    delete_job_status(&conn, &job_id)
+}
+
+fn delete_job_status(conn: &rusqlite::Connection, job_id: &str) -> Result<DeleteJobStatus, String> {
+    conn.query_row(
+        "SELECT job_id,file_id,phase,deleted_segments+deleted_occurrences,total_segments+total_occurrences,deleted_bytes,total_bytes,error_code FROM sync_delete_jobs WHERE job_id=?1",
+        [job_id],
+        |row| Ok(DeleteJobStatus {
+            job_id: row.get(0)?, file_id: row.get(1)?, phase: row.get(2)?, completed_items: row.get(3)?, total_items: row.get(4)?, completed_bytes: row.get(5)?, total_bytes: row.get(6)?, error_code: row.get(7)?,
+        }),
+    )
+    .map_err(|_| "local_delete_failed".to_string())
+}
+
+fn write_delete_backup(conn: &rusqlite::Connection) -> Result<(), String> {
+    let backup = export::backup_payload(conn).map_err(|_| "local_backup_failed")?;
+    let path = conn
+        .path()
+        .and_then(|value| {
+            std::path::Path::new(value)
+                .parent()
+                .map(|dir| dir.join(format!("lexicue-before-delete-{}.json", now_ms())))
+        })
+        .ok_or("local_backup_failed")?;
+    let bytes = serde_json::to_vec_pretty(&backup).map_err(|_| "local_backup_failed")?;
+    std::fs::write(path, bytes).map_err(|_| "local_backup_failed".to_string())
+}
+
+fn run_delete_job(conn: Arc<Mutex<rusqlite::Connection>>, job_id: String) {
+    loop {
+        match delete_job_step(&conn, &job_id) {
+            Ok(true) => continue,
+            Ok(false) => break,
+            Err(_) => {
+                if let Ok(connection) = conn.lock() {
+                    let _ = connection.execute("UPDATE sync_delete_jobs SET phase='failed',error_code='local_delete_failed',updated_at=?1 WHERE job_id=?2 AND phase NOT IN ('done','failed')", params![now_ms(), job_id]);
+                }
+                break;
+            }
+        }
+    }
+}
+
+fn delete_job_step(conn: &Arc<Mutex<rusqlite::Connection>>, job_id: &str) -> Result<bool, String> {
+    let connection = conn.lock().map_err(|_| "local_delete_failed")?;
+    let job: (i64, String, String, i64, i64, i64, i64, i64, i64) = connection
+        .query_row(
+            "SELECT file_id,file_sync_id,phase,deleted_segments,deleted_occurrences,total_segments,total_occurrences,deleted_bytes,total_bytes FROM sync_delete_jobs WHERE job_id=?1",
+            [job_id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?, row.get(6)?, row.get(7)?, row.get(8)?)),
+        )
+        .map_err(|_| "local_delete_failed")?;
+    let (
+        file_id,
+        file_sync_id,
+        phase,
+        deleted_segments,
+        deleted_occurrences,
+        total_segments,
+        total_occurrences,
+        _deleted_bytes,
+        total_bytes,
+    ): (i64, String, String, i64, i64, i64, i64, i64, i64) = job;
+    if phase == "done" || phase == "failed" {
+        return Ok(false);
+    }
+    let tx = connection
+        .unchecked_transaction()
+        .map_err(|_| "local_delete_failed")?;
+    tx.execute("INSERT INTO sync_runtime(key,value) VALUES('applying','1') ON CONFLICT(key) DO UPDATE SET value='1'", [])
+        .map_err(|_| "local_delete_failed")?;
+    let result = (|| -> Result<bool, String> {
+        if phase == "queued" || phase == "deleting_occurrences" {
+            let occurrences = tx.execute(
+                "DELETE FROM occurrences WHERE id IN (SELECT o.id FROM occurrences o JOIN segments s ON s.id=o.segment_id WHERE s.file_id=?1 LIMIT 500)",
+                [file_id],
+            ).map_err(|_| "local_delete_failed")? as i64;
+            let phrase_occurrences = tx.execute(
+                "DELETE FROM phrase_occurrences WHERE id IN (SELECT p.id FROM phrase_occurrences p JOIN segments s ON s.id=p.segment_id WHERE s.file_id=?1 LIMIT 500)",
+                [file_id],
+            ).map_err(|_| "local_delete_failed")? as i64;
+            let deleted = deleted_occurrences + occurrences + phrase_occurrences;
+            let next = if deleted >= total_occurrences {
+                "deleting_segments"
+            } else {
+                "deleting_occurrences"
+            };
+            tx.execute("UPDATE sync_delete_jobs SET phase=?1,deleted_occurrences=?2,updated_at=?3 WHERE job_id=?4", params![next, deleted, now_ms(), job_id]).map_err(|_| "local_delete_failed")?;
+            return Ok(true);
+        }
+        if phase == "deleting_segments" {
+            let segment_bytes: i64 = tx.query_row(
+                "SELECT COALESCE(SUM(length(en_text)+COALESCE(length(zh_text),0)),0) FROM (SELECT en_text,zh_text FROM segments WHERE file_id=?1 LIMIT 500)",
+                [file_id],
+                |row| row.get(0),
+            ).map_err(|_| "local_delete_failed")?;
+            let deleted = tx.execute(
+                "DELETE FROM segments WHERE id IN (SELECT id FROM segments WHERE file_id=?1 LIMIT 500)",
+                [file_id],
+            ).map_err(|_| "local_delete_failed")? as i64;
+            let total = deleted_segments + deleted;
+            let next = if total >= total_segments {
+                "finalizing"
+            } else {
+                "deleting_segments"
+            };
+            tx.execute("UPDATE sync_delete_jobs SET phase=?1,deleted_segments=?2,deleted_bytes=deleted_bytes+?3,updated_at=?4 WHERE job_id=?5", params![next, total, segment_bytes, now_ms(), job_id]).map_err(|_| "local_delete_failed")?;
+            return Ok(true);
+        }
+        tx.execute("DELETE FROM sync_changes WHERE uploaded_at IS NULL AND ((table_name IN ('files','library_item') AND sync_id=?1) OR table_name='library_item' AND sync_id=?1)", [file_sync_id.as_str()]).map_err(|_| "local_delete_failed")?;
+        tx.execute("DELETE FROM files WHERE id=?1", [file_id])
+            .map_err(|_| "local_delete_failed")?;
+        tx.execute("UPDATE sync_entity_state SET deleted_at=?1,updated_at=?1 WHERE table_name='files' AND local_id=?2", params![now_ms(), file_id]).map_err(|_| "local_delete_failed")?;
+        tx.execute("INSERT INTO sync_changes(table_name,sync_id,operation,changed_at) VALUES('library_item',?1,'delete',?2)", params![file_sync_id, now_ms()]).map_err(|_| "local_delete_failed")?;
+        tx.execute("UPDATE sync_delete_jobs SET phase='done',deleted_bytes=?1,updated_at=?2 WHERE job_id=?3", params![total_bytes, now_ms(), job_id]).map_err(|_| "local_delete_failed")?;
+        Ok(false)
+    })();
+    tx.execute("INSERT INTO sync_runtime(key,value) VALUES('applying','0') ON CONFLICT(key) DO UPDATE SET value='0'", [])
+        .map_err(|_| "local_delete_failed")?;
+    match result {
+        Ok(value) => {
+            tx.commit().map_err(|_| "local_delete_failed")?;
+            Ok(value)
+        }
+        Err(error) => {
+            let _ = tx.rollback();
+            Err(error)
+        }
+    }
+}
+
+pub fn resume_pending_delete_jobs(conn: Arc<Mutex<rusqlite::Connection>>) {
+    let jobs: Vec<String> = conn.lock().ok().and_then(|connection| {
+        connection.prepare("SELECT job_id FROM sync_delete_jobs WHERE phase NOT IN ('done','failed') ORDER BY created_at").ok().and_then(|mut statement| statement.query_map([], |row| row.get(0)).ok().map(|rows| rows.filter_map(Result::ok).collect()))
+    }).unwrap_or_default();
+    for job_id in jobs {
+        let worker_conn = conn.clone();
+        tauri::async_runtime::spawn_blocking(move || run_delete_job(worker_conn, job_id));
+    }
+}
+
+#[tauri::command]
+pub fn delete_file(state: State<DbState>, file_id: i64) -> Result<DeleteJobStatus, String> {
+    delete_file_start(state, file_id)
 }
 
 #[tauri::command]
@@ -402,8 +612,9 @@ pub fn get_file_segments(state: State<DbState>, file_id: i64) -> Result<Vec<Segm
 
 #[cfg(test)]
 mod tests {
-    use super::{query_file_info, query_files};
+    use super::{query_file_info, query_files, run_delete_job};
     use rusqlite::Connection;
+    use std::sync::{Arc, Mutex};
 
     #[test]
     fn file_progress_is_unique_isolated_and_includes_hidden_occurrences() {
@@ -463,5 +674,57 @@ mod tests {
         assert_eq!(empty[0].segment_count, 0);
         assert_eq!(empty[0].word_progress.total, 0);
         assert_eq!(empty[0].phrase_progress.total, 0);
+    }
+
+    #[test]
+    fn background_delete_batches_cascade_and_emits_one_library_tombstone() {
+        let directory = tempfile::tempdir().unwrap();
+        let connection = crate::db::init_db(&directory.path().join("lexicue.db")).unwrap();
+        connection.execute("INSERT INTO files(name,type,content,content_hash,imported_at,language) VALUES('large.txt','txt','content','hash',1,'en')", []).unwrap();
+        let file_id = connection.last_insert_rowid();
+        let file_sync_id: String = connection
+            .query_row(
+                "SELECT sync_id FROM sync_entity_state WHERE table_name='files' AND local_id=?1",
+                [file_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        connection
+            .execute("INSERT INTO words(language,lemma) VALUES('en','word')", [])
+            .unwrap();
+        let word_id = connection.last_insert_rowid();
+        for index in 0..1200 {
+            connection
+                .execute(
+                    "INSERT INTO segments(file_id,index_num,en_text) VALUES(?1,?2,?3)",
+                    rusqlite::params![file_id, index, "text"],
+                )
+                .unwrap();
+            let segment_id = connection.last_insert_rowid();
+            connection.execute("INSERT INTO occurrences(word_id,segment_id,original_form,position) VALUES(?1,?2,'word',0)", rusqlite::params![word_id, segment_id]).unwrap();
+        }
+        let job_id = "delete-test";
+        connection.execute("INSERT INTO sync_delete_jobs(job_id,file_id,file_sync_id,phase,total_segments,total_occurrences,total_bytes,created_at,updated_at) SELECT ?1,?2,?3,'queued',COUNT(*),(SELECT COUNT(*) FROM occurrences o JOIN segments s ON s.id=o.segment_id WHERE s.file_id=?2),0,1,1 FROM segments WHERE file_id=?2", rusqlite::params![job_id, file_id, file_sync_id]).unwrap();
+        let shared = Arc::new(Mutex::new(connection));
+        run_delete_job(shared.clone(), job_id.into());
+        let connection = shared.lock().unwrap();
+        let remaining: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM segments WHERE file_id=?1",
+                [file_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(remaining, 0);
+        let tombstones: i64 = connection.query_row("SELECT COUNT(*) FROM sync_changes WHERE table_name='library_item' AND sync_id=?1 AND operation='delete' AND uploaded_at IS NULL", [file_sync_id], |row| row.get(0)).unwrap();
+        assert_eq!(tombstones, 1);
+        let phase: String = connection
+            .query_row(
+                "SELECT phase FROM sync_delete_jobs WHERE job_id=?1",
+                [job_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(phase, "done");
     }
 }

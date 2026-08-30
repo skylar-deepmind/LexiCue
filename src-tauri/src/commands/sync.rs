@@ -28,6 +28,12 @@ const BLOB_CHUNK_SIZE: usize = 512 * 1024;
 const BLOB_MANIFEST_MAGIC: &[u8] = b"LEXICUE-BLOB-V1\n";
 const COMPRESSED_EVENT_MAGIC: &[u8] = b"LEXICUE-ZSTD-V1\n";
 const HTTP_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(45);
+const SYNC_PAGE_LIMIT: i64 = 50;
+const SYNC_SMALL_PAGE_LIMIT: i64 = 25;
+const SYNC_PAGE_MAX_BYTES: usize = 16 * 1024 * 1024;
+const SYNC_PAGE_REDUCE_BYTES: usize = 8 * 1024 * 1024;
+const SYNC_APPLY_BATCH: i64 = 500;
+const MAX_LIBRARY_ITEM_BYTES: usize = 100 * 1024 * 1024;
 const VAULT_SERVICE: &str = "com.lexicue.cloud-sync";
 const VAULT_ACCOUNT: &str = "credentials-v1";
 
@@ -167,6 +173,19 @@ pub struct SyncStatus {
     pub last_downloaded: u32,
     pub auto_sync_enabled: bool,
     pub next_retry_at: Option<i64>,
+    pub progress: Option<SyncProgress>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct SyncProgress {
+    pub phase: String,
+    pub completed_items: u64,
+    pub total_items: u64,
+    pub completed_bytes: u64,
+    pub total_bytes: u64,
+    pub bytes_per_second: u64,
+    pub eta_seconds: Option<u64>,
+    pub retry_at: Option<i64>,
 }
 #[derive(Serialize, Deserialize)]
 pub struct SyncDevice {
@@ -432,6 +451,48 @@ fn now_ms() -> i64 {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis() as i64
+}
+
+fn set_progress(
+    conn: &rusqlite::Connection,
+    phase: &str,
+    completed_items: u64,
+    total_items: u64,
+    completed_bytes: u64,
+    total_bytes: u64,
+    started_at: i64,
+    retry_at: Option<i64>,
+) -> Result<(), String> {
+    let elapsed_ms = now_ms().saturating_sub(started_at).max(1) as u64;
+    let bytes_per_second = completed_bytes.saturating_mul(1000) / elapsed_ms;
+    let eta_seconds = if bytes_per_second > 0 && total_bytes > completed_bytes {
+        Some((total_bytes - completed_bytes).div_ceil(bytes_per_second))
+    } else {
+        None
+    };
+    let progress = SyncProgress {
+        phase: phase.to_string(),
+        completed_items,
+        total_items,
+        completed_bytes,
+        total_bytes,
+        bytes_per_second,
+        eta_seconds,
+        retry_at,
+    };
+    let value = serde_json::to_string(&progress).map_err(|_| "local_sync_storage_error")?;
+    conn.execute(
+        "INSERT INTO sync_runtime(key,value) VALUES('progress',?1) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+        [value],
+    )
+    .map_err(|_| "local_sync_storage_error".to_string())?;
+    Ok(())
+}
+
+fn clear_progress(conn: &rusqlite::Connection) -> Result<(), String> {
+    conn.execute("DELETE FROM sync_runtime WHERE key='progress'", [])
+        .map_err(|_| "local_sync_storage_error".to_string())?;
+    Ok(())
 }
 
 fn set_runtime_phase(conn: &rusqlite::Connection, phase: &str) -> Result<(), String> {
@@ -1389,6 +1450,21 @@ fn prepare_outbox(
     data_key: &[u8; 32],
     account_id: &str,
 ) -> Result<u32, String> {
+    // Fold repeated edits from a large import/analysis run into one current
+    // state per entity. Foreign-key cascades remove superseded envelopes too.
+    conn.execute(
+        "DELETE FROM sync_changes WHERE uploaded_at IS NULL AND id NOT IN (SELECT MAX(id) FROM sync_changes WHERE uploaded_at IS NULL GROUP BY CASE WHEN table_name='files' THEN 'library_item' ELSE table_name END,sync_id)",
+        [],
+    )
+    .map_err(|_| "local_sync_storage_error".to_string())?;
+    // A file cascade can enqueue a library snapshot before the parent delete
+    // trigger runs. Remove those stale upserts before constructing envelopes;
+    // a deleted file is represented by exactly one tombstone.
+    conn.execute(
+        "DELETE FROM sync_changes WHERE uploaded_at IS NULL AND table_name='library_item' AND operation='upsert' AND NOT EXISTS(SELECT 1 FROM sync_entity_state WHERE table_name='files' AND sync_id=sync_changes.sync_id AND deleted_at IS NULL)",
+        [],
+    )
+    .map_err(|_| "local_sync_storage_error".to_string())?;
     let mut statement=conn.prepare("SELECT id,table_name,sync_id,operation FROM sync_changes WHERE uploaded_at IS NULL ORDER BY id").map_err(|e|e.to_string())?;
     let changes = statement
         .query_map([], |r| {
@@ -1408,6 +1484,13 @@ fn prepare_outbox(
         // queued type keeps the existing idempotent outbox machinery and uses
         // the file's stable identity as the library item's stable identity.
         if table == "files" {
+            if operation == "delete" {
+                conn.execute(
+                    "DELETE FROM sync_changes WHERE uploaded_at IS NULL AND table_name='library_item' AND sync_id=?1 AND operation='upsert'",
+                    [sync_id.as_str()],
+                )
+                .map_err(|_| "local_sync_storage_error")?;
+            }
             conn.execute(
                 "UPDATE sync_changes SET table_name='library_item' WHERE id=?1",
                 [change_id],
@@ -1540,9 +1623,20 @@ async fn upload_blob_chunk(local: &LocalConfig, hash: &str, bytes: &[u8]) -> Res
     }
 }
 
-async fn record_upload(local: &LocalConfig, row: &OutboxRow) -> Result<RecordUpload, String> {
+async fn record_upload(
+    state: &DbState,
+    local: &LocalConfig,
+    row: &OutboxRow,
+    started_at: i64,
+    total_items: u64,
+    total_bytes: u64,
+    completed_bytes: &mut u64,
+) -> Result<RecordUpload, String> {
     if row.ciphertext.len() <= 24 {
         return Err("invalid_encrypted_record".into());
+    }
+    if row.entity_type == "library_item" && row.ciphertext.len() > MAX_LIBRARY_ITEM_BYTES {
+        return Err("record_too_large".into());
     }
     let encoded_ciphertext = if row.ciphertext.len() > BLOB_CHUNK_SIZE {
         let mut hashes = Vec::new();
@@ -1550,6 +1644,19 @@ async fn record_upload(local: &LocalConfig, row: &OutboxRow) -> Result<RecordUpl
             let hash = blob_hash(chunk);
             upload_blob_chunk(local, &hash, chunk).await?;
             hashes.push(hash);
+            *completed_bytes = (*completed_bytes).saturating_add(chunk.len() as u64);
+            if let Ok(conn) = state.conn.lock() {
+                let _ = set_progress(
+                    &conn,
+                    "uploading",
+                    0,
+                    total_items,
+                    *completed_bytes,
+                    total_bytes,
+                    started_at,
+                    None,
+                );
+            }
         }
         let manifest = BlobManifest {
             version: 1,
@@ -1560,6 +1667,7 @@ async fn record_upload(local: &LocalConfig, row: &OutboxRow) -> Result<RecordUpl
         bytes.extend(serde_json::to_vec(&manifest).map_err(|_| "invalid_blob_manifest")?);
         URL_SAFE_NO_PAD.encode(bytes)
     } else {
+        *completed_bytes = (*completed_bytes).saturating_add(row.ciphertext.len() as u64);
         URL_SAFE_NO_PAD.encode(&row.ciphertext[24..])
     };
     Ok(RecordUpload {
@@ -1573,7 +1681,14 @@ async fn record_upload(local: &LocalConfig, row: &OutboxRow) -> Result<RecordUpl
     })
 }
 
-async fn push_outbox(local: &LocalConfig, rows: Vec<OutboxRow>) -> Result<PushResult, String> {
+async fn push_outbox(
+    state: &DbState,
+    local: &LocalConfig,
+    rows: Vec<OutboxRow>,
+    started_at: i64,
+    total_items: u64,
+    total_bytes: u64,
+) -> Result<PushResult, String> {
     let client = sync_http_client();
     let mut latest = std::collections::BTreeMap::<(String, String), &OutboxRow>::new();
     for row in &rows {
@@ -1586,8 +1701,18 @@ async fn push_outbox(local: &LocalConfig, rows: Vec<OutboxRow>) -> Result<PushRe
     let mut batches = Vec::<Vec<RecordUpload>>::new();
     let mut current = Vec::new();
     let mut current_bytes = 0usize;
+    let mut completed_bytes = 0u64;
     for row in selected {
-        let upload = record_upload(local, row).await?;
+        let upload = record_upload(
+            state,
+            local,
+            row,
+            started_at,
+            total_items,
+            total_bytes,
+            &mut completed_bytes,
+        )
+        .await?;
         let upload_bytes = upload.nonce.len()
             + upload.ciphertext.len()
             + upload.entity_type.len()
@@ -1606,7 +1731,9 @@ async fn push_outbox(local: &LocalConfig, rows: Vec<OutboxRow>) -> Result<PushRe
     if !current.is_empty() {
         batches.push(current);
     }
+    let mut completed_items = 0u64;
     for uploads in batches {
+        let batch_items = uploads.len() as u64;
         let response = client
             .post(format!("{}/v1/sync/records/batch", local.endpoint))
             .bearer_auth(&local.access_token)
@@ -1621,6 +1748,19 @@ async fn push_outbox(local: &LocalConfig, rows: Vec<OutboxRow>) -> Result<PushRe
             .json()
             .await
             .map_err(|_| "invalid_server_response".to_string())?;
+        completed_items = completed_items.saturating_add(batch_items);
+        if let Ok(conn) = state.conn.lock() {
+            let _ = set_progress(
+                &conn,
+                "uploading",
+                completed_items,
+                total_items,
+                completed_bytes,
+                total_bytes,
+                started_at,
+                None,
+            );
+        }
         for result in reply.results {
             if result.status == "accepted" {
                 for row in &rows {
@@ -1829,17 +1969,80 @@ async fn pull_apply_events(
     if !response.status().is_success() {
         return Err(server_error(response).await);
     }
-    let head: SyncHead = response
-        .json()
+    let head_body = response
+        .bytes()
         .await
         .map_err(|_| "invalid_server_response".to_string())?;
-    let mut after = local.last_remote_cursor;
-    let mut records = Vec::new();
-    while after < head.cursor {
+    let head: SyncHead =
+        serde_json::from_slice(&head_body).map_err(|_| "invalid_server_response".to_string())?;
+
+    let started_at = now_ms();
+    let (mut after, mut page_limit, mut records_done, mut bytes_done, target_head) = {
+        let conn = state.conn.lock().map_err(|e| e.to_string())?;
+        let existing: Option<(i64, i64, i64, i64, String)> = conn
+            .query_row(
+                "SELECT target_head,after_cursor,page_limit,records_done,phase FROM sync_download_state WHERE account_id=?1",
+                [account_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
+            )
+            .optional()
+            .map_err(|_| "local_sync_storage_error".to_string())?;
+        if let Some((target, cursor, limit, done, _phase)) =
+            existing.filter(|(_, _, _, _, phase)| phase != "idle")
+        {
+            if target > head.cursor {
+                return Err("invalid_server_response".into());
+            }
+            let pending_bytes: i64 = conn
+                .query_row(
+                    "SELECT COALESCE(SUM(length(ciphertext)+length(nonce)),0) FROM sync_download_staging WHERE account_id=?1",
+                    [account_id],
+                    |row| row.get(0),
+                )
+                .unwrap_or(0);
+            (
+                cursor,
+                limit.clamp(SYNC_SMALL_PAGE_LIMIT, SYNC_PAGE_LIMIT),
+                done,
+                pending_bytes,
+                target,
+            )
+        } else {
+            let tx = conn
+                .unchecked_transaction()
+                .map_err(|_| "local_sync_storage_error")?;
+            tx.execute(
+                "DELETE FROM sync_download_staging WHERE account_id=?1",
+                [account_id],
+            )
+            .map_err(|_| "local_sync_storage_error")?;
+            tx.execute(
+                "INSERT INTO sync_download_state(account_id,target_head,after_cursor,page_limit,phase,records_done,bytes_done,updated_at,last_error) VALUES(?1,?2,?3,?4,'downloading',0,0,?5,NULL) ON CONFLICT(account_id) DO UPDATE SET target_head=excluded.target_head,after_cursor=excluded.after_cursor,page_limit=excluded.page_limit,phase='downloading',records_done=0,bytes_done=0,updated_at=excluded.updated_at,last_error=NULL",
+                rusqlite::params![account_id, head.cursor, local.last_remote_cursor, SYNC_PAGE_LIMIT, now_ms()],
+            )
+            .map_err(|_| "local_sync_storage_error")?;
+            tx.commit().map_err(|_| "local_sync_storage_error")?;
+            (local.last_remote_cursor, SYNC_PAGE_LIMIT, 0, 0, head.cursor)
+        }
+    };
+    {
+        let conn = state.conn.lock().map_err(|e| e.to_string())?;
+        set_progress(
+            &conn,
+            "downloading",
+            records_done as u64,
+            (target_head - local.last_remote_cursor).max(0) as u64,
+            bytes_done as u64,
+            0,
+            started_at,
+            None,
+        )?;
+    }
+    while after < target_head {
         let response = client
             .get(format!(
-                "{}/v1/sync/records?after={after}&until={}&limit=100",
-                local.endpoint, head.cursor
+                "{}/v1/sync/records?after={after}&until={target_head}&limit={page_limit}",
+                local.endpoint
             ))
             .bearer_auth(&local.access_token)
             .send()
@@ -1848,25 +2051,180 @@ async fn pull_apply_events(
         if !response.status().is_success() {
             return Err(server_error(response).await);
         }
-        let page: Vec<RemoteRecord> = response
-            .json()
+        let body = response
+            .bytes()
             .await
             .map_err(|_| "invalid_server_response".to_string())?;
+        if body.len() > SYNC_PAGE_MAX_BYTES {
+            return Err("invalid_server_response".into());
+        }
+        if body.len() > SYNC_PAGE_REDUCE_BYTES && page_limit > SYNC_SMALL_PAGE_LIMIT {
+            page_limit = SYNC_SMALL_PAGE_LIMIT;
+            let conn = state.conn.lock().map_err(|e| e.to_string())?;
+            conn.execute(
+                "UPDATE sync_download_state SET page_limit=?,updated_at=? WHERE account_id=?",
+                rusqlite::params![page_limit, now_ms(), account_id],
+            )
+            .map_err(|_| "local_sync_storage_error")?;
+            continue;
+        }
+        let page: Vec<RemoteRecord> =
+            serde_json::from_slice(&body).map_err(|_| "invalid_server_response".to_string())?;
         if page.is_empty() {
+            return Err("invalid_server_response".into());
+        }
+        let next_after = page.last().map(|record| record.seq).unwrap_or(after);
+        if next_after <= after
+            || next_after > target_head
+            || page.iter().any(|record| record.seq <= after)
+        {
+            return Err("invalid_server_response".into());
+        }
+        let page_count = page.len() as i64;
+        let page_bytes = body.len() as i64;
+        let conn = state.conn.lock().map_err(|e| e.to_string())?;
+        let tx = conn
+            .unchecked_transaction()
+            .map_err(|_| "local_sync_storage_error")?;
+        for record in &page {
+            tx.execute(
+                "INSERT OR REPLACE INTO sync_download_staging(account_id,seq,entity_type,entity_id,etag,schema_version,deleted,nonce,ciphertext,received_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)",
+                rusqlite::params![account_id, record.seq, record.entity_type, record.entity_id, record.etag, record.schema_version, if record.deleted { 1 } else { 0 }, record.nonce, record.ciphertext, now_ms()],
+            )
+            .map_err(|_| "local_sync_storage_error")?;
+        }
+        tx.execute(
+            "UPDATE sync_download_state SET after_cursor=?1,records_done=records_done+?2,bytes_done=bytes_done+?3,updated_at=?4,last_error=NULL WHERE account_id=?5",
+            rusqlite::params![next_after, page_count, page_bytes, now_ms(), account_id],
+        )
+        .map_err(|_| "local_sync_storage_error")?;
+        tx.commit().map_err(|_| "local_sync_storage_error")?;
+        after = next_after;
+        records_done += page_count;
+        bytes_done += page_bytes;
+        {
+            let conn = state.conn.lock().map_err(|e| e.to_string())?;
+            set_progress(
+                &conn,
+                "downloading",
+                records_done as u64,
+                (target_head - local.last_remote_cursor).max(0) as u64,
+                bytes_done as u64,
+                0,
+                started_at,
+                None,
+            )?;
+        }
+    }
+
+    {
+        let conn = state.conn.lock().map_err(|e| e.to_string())?;
+        conn.execute(
+            "UPDATE sync_download_state SET phase='applying',updated_at=?1 WHERE account_id=?2",
+            rusqlite::params![now_ms(), account_id],
+        )
+        .map_err(|_| "local_sync_storage_error")?;
+        set_progress(
+            &conn,
+            "applying",
+            0,
+            records_done as u64,
+            0,
+            bytes_done as u64,
+            started_at,
+            None,
+        )?;
+    }
+
+    let mut applied = 0u32;
+    let mut backup_written = false;
+    loop {
+        let rows = {
+            let conn = state.conn.lock().map_err(|e| e.to_string())?;
+            let mut statement = conn.prepare(
+                "SELECT entity_type,entity_id,etag,seq,schema_version,deleted,nonce,ciphertext FROM sync_download_staging WHERE account_id=?1 ORDER BY deleted ASC, CASE entity_type WHEN 'folders' THEN 0 WHEN 'words' THEN 1 WHEN 'phrases' THEN 1 WHEN 'library_item' THEN 2 WHEN 'files' THEN 3 WHEN 'segments' THEN 4 WHEN 'occurrences' THEN 5 WHEN 'phrase_occurrences' THEN 5 WHEN 'review_logs' THEN 6 WHEN 'phrase_review_logs' THEN 6 ELSE 7 END, seq LIMIT ?2",
+            ).map_err(|_| "local_sync_storage_error")?;
+            let values = statement
+                .query_map(rusqlite::params![account_id, SYNC_APPLY_BATCH], |row| {
+                    Ok(RemoteRecord {
+                        entity_type: row.get(0)?,
+                        entity_id: row.get(1)?,
+                        etag: row.get(2)?,
+                        seq: row.get(3)?,
+                        schema_version: row.get(4)?,
+                        deleted: row.get::<_, i64>(5)? != 0,
+                        nonce: row.get(6)?,
+                        ciphertext: row.get(7)?,
+                    })
+                })
+                .map_err(|_| "local_sync_storage_error")?
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|_| "local_sync_storage_error")?;
+            values
+        };
+        if rows.is_empty() {
             break;
         }
-        after = page.last().map(|record| record.seq).unwrap_or(after);
-        records.extend(page);
-    }
-    let applied = if records.is_empty() {
-        0
-    } else {
-        let mut staged = stage_remote_records(local, data_key, account_id, records).await?;
+        let seqs: Vec<i64> = rows.iter().map(|record| record.seq).collect();
+        let mut staged = stage_remote_records(local, data_key, account_id, rows).await?;
         let conn = state.conn.lock().map_err(|e| e.to_string())?;
-        write_safety_backup(&conn)?;
-        apply_remote_records(&conn, &mut staged)?
-    };
-    local.last_remote_cursor = head.cursor;
+        if !backup_written {
+            write_safety_backup(&conn)?;
+            backup_written = true;
+        }
+        applied = applied.saturating_add(apply_remote_records(&conn, &mut staged)?);
+        let tx = conn
+            .unchecked_transaction()
+            .map_err(|_| "local_sync_storage_error")?;
+        for seq in seqs {
+            tx.execute(
+                "DELETE FROM sync_download_staging WHERE account_id=?1 AND seq=?2",
+                rusqlite::params![account_id, seq],
+            )
+            .map_err(|_| "local_sync_storage_error")?;
+        }
+        tx.execute(
+            "UPDATE sync_download_state SET updated_at=?1 WHERE account_id=?2",
+            rusqlite::params![now_ms(), account_id],
+        )
+        .map_err(|_| "local_sync_storage_error")?;
+        tx.commit().map_err(|_| "local_sync_storage_error")?;
+        let conn = state.conn.lock().map_err(|e| e.to_string())?;
+        let remaining: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sync_download_staging WHERE account_id=?1",
+                [account_id],
+                |row| row.get(0),
+            )
+            .unwrap_or(0);
+        set_progress(
+            &conn,
+            "applying",
+            records_done.saturating_sub(remaining) as u64,
+            records_done as u64,
+            bytes_done.max(0) as u64,
+            bytes_done.max(0) as u64,
+            started_at,
+            None,
+        )?;
+    }
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    conn.execute(
+        "DELETE FROM sync_download_state WHERE account_id=?1",
+        [account_id],
+    )
+    .map_err(|_| "local_sync_storage_error")?;
+    local.last_remote_cursor = target_head;
+    set_progress(
+        &conn,
+        "applying",
+        records_done as u64,
+        records_done as u64,
+        bytes_done as u64,
+        bytes_done as u64,
+        started_at,
+        None,
+    )?;
     Ok(applied)
 }
 
@@ -1880,6 +2238,11 @@ pub fn sync_status(state: State<DbState>) -> Result<SyncStatus, String> {
             [],
             |r| r.get(0),
         )
+        .unwrap_or(0);
+    let pending_downloads: u32 = conn
+        .query_row("SELECT COUNT(*) FROM sync_download_staging", [], |row| {
+            row.get(0)
+        })
         .unwrap_or(0);
     let conflict_count: u32 = conn
         .query_row(
@@ -1910,6 +2273,8 @@ pub fn sync_status(state: State<DbState>) -> Result<SyncStatus, String> {
         .ok()
         .flatten()
     };
+    let progress = runtime_value("progress")
+        .and_then(|value| serde_json::from_str::<SyncProgress>(&value).ok());
     Ok(match value {
         Some(c) => SyncStatus {
             configured: true,
@@ -1918,13 +2283,14 @@ pub fn sync_status(state: State<DbState>) -> Result<SyncStatus, String> {
             last_synced_at: c.last_synced_at,
             phase: runtime_value("phase").unwrap_or_else(|| "idle".into()),
             pending_uploads,
-            pending_downloads: 0,
+            pending_downloads,
             conflicts: conflict_count,
             last_error: runtime_value("last_error").filter(|value| !value.is_empty()),
             last_uploaded: runtime_count("last_uploaded"),
             last_downloaded: runtime_count("last_downloaded"),
             auto_sync_enabled: c.auto_sync_enabled,
             next_retry_at: runtime_value("next_retry_at").and_then(|value| value.parse().ok()),
+            progress,
         },
         None => SyncStatus {
             configured: false,
@@ -1940,6 +2306,7 @@ pub fn sync_status(state: State<DbState>) -> Result<SyncStatus, String> {
             last_downloaded: 0,
             auto_sync_enabled: false,
             next_retry_at: None,
+            progress: None,
         },
     })
 }
@@ -2185,6 +2552,24 @@ fn save_account(
         return Err(error);
     }
     let result = save_config(&transaction, &config)
+        .and_then(|_| {
+            transaction
+                .execute("DELETE FROM sync_remote_state", [])
+                .map(|_| ())
+                .map_err(|_| "local_sync_storage_error".to_string())
+        })
+        .and_then(|_| {
+            transaction
+                .execute("DELETE FROM sync_download_state", [])
+                .map(|_| ())
+                .map_err(|_| "local_sync_storage_error".to_string())
+        })
+        .and_then(|_| {
+            transaction
+                .execute("DELETE FROM sync_download_staging", [])
+                .map(|_| ())
+                .map_err(|_| "local_sync_storage_error".to_string())
+        })
         .and_then(|_| queue_all_local_records(&transaction))
         .and_then(|_| {
             transaction
@@ -2405,6 +2790,7 @@ pub async fn sync_run(state: State<'_, DbState>) -> Result<(), String> {
 }
 
 async fn sync_now_inner(state: &DbState) -> Result<(), String> {
+    let started_at = now_ms();
     let secrets = load_native_secrets()?;
     let (mut local, data_key) = {
         let conn = state.conn.lock().map_err(|e| e.to_string())?;
@@ -2424,6 +2810,23 @@ async fn sync_now_inner(state: &DbState) -> Result<(), String> {
     {
         let conn = state.conn.lock().map_err(|e| e.to_string())?;
         prepare_outbox(&conn, &local, &data_key, &secrets.account_id)?;
+        let (total_items, total_bytes): (i64, i64) = conn
+            .query_row(
+                "SELECT COUNT(*), COALESCE(SUM((length(ciphertext)*4)/3 + 64 + 256),0) FROM sync_outbox WHERE uploaded_at IS NULL",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .map_err(|_| "local_sync_storage_error".to_string())?;
+        set_progress(
+            &conn,
+            "uploading",
+            0,
+            total_items.max(0) as u64,
+            0,
+            total_bytes.max(0) as u64,
+            started_at,
+            None,
+        )?;
     }
     {
         let conn = state.conn.lock().map_err(|e| e.to_string())?;
@@ -2438,7 +2841,24 @@ async fn sync_now_inner(state: &DbState) -> Result<(), String> {
         if outbox.is_empty() {
             break;
         }
-        let pushed = push_outbox(&local, outbox).await?;
+        let (total_items, total_bytes): (i64, i64) = {
+            let conn = state.conn.lock().map_err(|e| e.to_string())?;
+            conn.query_row(
+                "SELECT COUNT(*), COALESCE(SUM((length(ciphertext)*4)/3 + 64 + 256),0) FROM sync_outbox WHERE uploaded_at IS NULL",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .map_err(|_| "local_sync_storage_error".to_string())?
+        };
+        let pushed = push_outbox(
+            state,
+            &local,
+            outbox,
+            started_at,
+            total_items.max(0) as u64,
+            total_bytes.max(0) as u64,
+        )
+        .await?;
         let had_conflicts = !pushed.conflicts.is_empty();
         let mut staged_conflicts =
             stage_remote_records(&local, &data_key, &secrets.account_id, pushed.conflicts).await?;
@@ -2476,6 +2896,7 @@ async fn sync_now_inner(state: &DbState) -> Result<(), String> {
     conn.execute("INSERT INTO sync_runtime(key,value) VALUES('last_uploaded',?1) ON CONFLICT(key) DO UPDATE SET value=excluded.value",[uploaded.to_string()]).map_err(|e|e.to_string())?;
     conn.execute("INSERT INTO sync_runtime(key,value) VALUES('last_downloaded',?1) ON CONFLICT(key) DO UPDATE SET value=excluded.value",[downloaded.to_string()]).map_err(|e|e.to_string())?;
     set_runtime_phase(&conn, "idle")?;
+    clear_progress(&conn)?;
     Ok(())
 }
 
@@ -2546,6 +2967,11 @@ pub fn sync_disconnect(state: State<DbState>) -> Result<(), String> {
         let conn = state.conn.lock().map_err(|e| e.to_string())?;
         conn.execute("DELETE FROM sync_metadata WHERE key=?1", [CONFIG_KEY])
             .map_err(|e| e.to_string())?;
+        conn.execute("DELETE FROM sync_download_state", [])
+            .map_err(|_| "local_sync_storage_error")?;
+        conn.execute("DELETE FROM sync_download_staging", [])
+            .map_err(|_| "local_sync_storage_error")?;
+        clear_progress(&conn)?;
     }
     clear_native_secrets()?;
     Ok(())

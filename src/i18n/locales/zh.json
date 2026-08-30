@@ -81,7 +81,7 @@
       "description": "以端到端加密方式，在多台设备间同步资料库和学习进度。",
       "notConnected": "尚未连接",
       "state": { "synced": "已同步", "syncing": "正在同步", "offline": "离线等待", "authRequired": "需要重新登录", "error": "同步需要处理" },
-      "lastSynced": "上次成功同步：{{time}}", "preparing": "正在准备同步…", "pending": "{{count}} 项等待上传", "conflicts": "已保存 {{count}} 个文本冲突供稍后处理",
+      "lastSynced": "上次成功同步：{{time}}", "preparing": "正在准备同步…", "pending": "{{count}} 项等待上传", "conflicts": "已保存 {{count}} 个文本冲突供稍后处理", "progressLabel": "同步进度", "eta": "预计剩余 {{seconds}} 秒", "progress": { "preparing": "准备本地资料", "downloading": "下载云端资料", "applying": "应用云端资料", "uploading": "上传本地资料", "retrying": "等待重试" },
       "syncNow": "立即同步", "pauseAuto": "暂停自动同步", "enableAuto": "开启自动同步",
       "advanced": "高级选项", "devices": "设备管理", "refresh": "刷新", "currentDevice": "本机", "revoke": "撤销", "disconnect": "在本机退出登录",
       "dangerTitle": "删除同步账户", "deleteHint": "将删除云端加密副本并退出所有设备，本机资料不会被删除。", "deleteAccount": "删除账户", "deleteConfirm": "确定删除同步账户及其云端加密资料吗？本机资料不会被删除。",
@@ -90,7 +90,7 @@
       "saveRecoveryTitle": "请保存恢复密钥", "saveRecoveryDescription": "忘记密码后，这是恢复加密资料的唯一方式。LexiCue 无法替你找回。", "copyRecovery": "复制恢复密钥", "downloadRecovery": "将恢复密钥保存为文件", "recoveryFileTitle": "LexiCue 恢复密钥——请妥善保管并勿与他人分享",
       "errors": {
         "auth_required": "请重新登录后继续同步。", "session_expired": "登录已过期，请重新登录。", "invalid_credentials": "邮箱或密码不正确。", "invalid_email": "请输入有效的邮箱地址。", "invalid_password": "密码至少需要 10 个字符。", "invalid_recovery_code": "恢复密钥无效。", "email_exists": "该邮箱已创建同步账户。", "invalid_registration": "注册信息无效，请检查后重试。", "invalid_device": "设备信息无效，请重试。", "network_unavailable": "当前无网络，LexiCue 会自动重试。", "rate_limited": "同步请求过于频繁，请稍后再试。", "server_internal": "同步服务遇到内部错误，请稍后重试。", "credential_store_unavailable": "安全凭据存储不可用。请先启用设备锁屏，然后重启 LexiCue。", "credential_store_write_failed": "无法安全保存登录凭据，请检查设备锁定设置后重试。", "credential_missing": "未找到已保存的登录凭据，请重新登录。", "credential_corrupted": "登录凭据已损坏，请退出后重新登录。", "sync_service_not_configured": "此版本未配置官方同步服务地址。", "unsupported_sync_protocol": "请更新 LexiCue 后继续同步。", "invalid_server_response": "同步服务返回了无法识别的数据，请更新 LexiCue 或稍后重试。", "invalid_key_package": "登录加密资料无法验证，密码可能不正确或资料已损坏。请重试或使用恢复密钥。", "invalid_local_sync_key": "本机同步密钥无效，请退出后重新登录。", "record_encryption_failed": "无法加密本地记录，资料未上传，请重试。", "invalid_encrypted_record": "加密记录无效，已拒绝应用，请重试。", "record_authentication_failed": "一条加密记录未通过校验，已拒绝应用。", "invalid_record_batch": "云端记录批次无效，未应用这些记录，请重试。", "invalid_record": "云端记录格式无效，未应用该记录，请重试。", "record_precondition_failed": "云端记录版本冲突，LexiCue 将重新获取并合并后重试。", "invalid_blob_manifest": "同步文件块清单无效，未应用云端资料，请重试。", "invalid_blob": "同步文件块无效，未应用云端资料，请重试。", "blob_hash_mismatch": "同步文件块完整性校验失败，未应用云端资料，请重试。", "blob_not_found": "找不到同步文件块，云端资料可能不完整，请重试。", "cannot_revoke_current_device": "不能撤销当前设备，请从其他设备操作。", "device_not_found": "找不到该设备，可能已被撤销，请刷新设备列表。", "metrics_disabled": "同步服务监控未启用，请联系管理员。", "metrics_unauthorized": "无权访问同步服务监控，请联系管理员。", "sync_service_error": "同步服务暂时不可用，LexiCue 会自动重试。", "unknown": "发生未识别的同步错误，请重试；如果持续发生，请更新 LexiCue。"
-        ,"local_backup_failed": "无法创建本机安全备份，原始资料未修改。请检查可用存储空间后重试。", "local_sync_storage_error": "无法安全写入本机同步资料，原始资料未修改。请重启 LexiCue 后重试。", "local_identity_conflict": "本机存在无法安全处理的重复同步身份，原始资料未修改且备份已保留。请联系支持团队。"
+        ,"local_backup_failed": "无法创建本机安全备份，原始资料未修改。请检查可用存储空间后重试。", "local_sync_storage_error": "无法安全写入本机同步资料，原始资料未修改。请重启 LexiCue 后重试。", "local_identity_conflict": "本机存在无法安全处理的重复同步身份，原始资料未修改且备份已保留。请联系支持团队。", "local_delete_failed": "无法安全删除本机文件，原始资料可能仍保留且备份已保留。请重试或重启 LexiCue。", "record_too_large": "本地记录超过单条同步大小限制，未上传。请拆分文件或减少资料后重试。"
       },
       "notices": { "accountCreated": "账户已创建，资料正在自动同步。", "connected": "登录成功，正在准备资料。", "synced": "同步完成。", "accountDeleted": "同步账户已删除，本机资料已保留。", "recoverySaved": "恢复密钥已保存。" }
     },
@@ -553,6 +553,8 @@
     "deleteTitle": "删除文件",
     "fileDeleted": "文件已删除",
     "deleteFailed": "文件删除失败",
+    "deleting": "删除中...",
+    "deleteProgress": "正在删除：{{completed}}/{{total}} 条关联记录",
     "backupExported": "备份已导出",
     "backupExportFailed": "备份导出失败",
     "backupVersionError": "不支持的备份版本: {{version}}",

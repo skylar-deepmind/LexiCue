@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 
 pub struct DbState {
-    pub conn: Mutex<Connection>,
+    pub conn: Arc<Mutex<Connection>>,
 }
 
 #[derive(Clone, Default)]
@@ -124,7 +124,48 @@ fn create_sync_tracking(conn: &Connection) -> Result<(), rusqlite::Error> {
         CREATE TABLE IF NOT EXISTS sync_runtime (
             key TEXT PRIMARY KEY,
             value TEXT NOT NULL
-        ) STRICT;",
+        ) STRICT;
+        CREATE TABLE IF NOT EXISTS sync_download_state (
+            account_id TEXT PRIMARY KEY,
+            target_head INTEGER NOT NULL DEFAULT 0,
+            after_cursor INTEGER NOT NULL DEFAULT 0,
+            page_limit INTEGER NOT NULL DEFAULT 50,
+            phase TEXT NOT NULL DEFAULT 'idle',
+            records_done INTEGER NOT NULL DEFAULT 0,
+            bytes_done INTEGER NOT NULL DEFAULT 0,
+            updated_at INTEGER NOT NULL DEFAULT 0,
+            last_error TEXT
+        ) STRICT;
+        CREATE TABLE IF NOT EXISTS sync_download_staging (
+            account_id TEXT NOT NULL,
+            seq INTEGER NOT NULL,
+            entity_type TEXT NOT NULL,
+            entity_id TEXT NOT NULL,
+            etag TEXT NOT NULL,
+            schema_version INTEGER NOT NULL,
+            deleted INTEGER NOT NULL,
+            nonce TEXT NOT NULL,
+            ciphertext TEXT NOT NULL,
+            received_at INTEGER NOT NULL,
+            PRIMARY KEY(account_id, seq)
+        ) STRICT;
+        CREATE INDEX IF NOT EXISTS sync_download_staging_entity_idx ON sync_download_staging(account_id, entity_type, entity_id);
+        CREATE TABLE IF NOT EXISTS sync_delete_jobs (
+            job_id TEXT PRIMARY KEY,
+            file_id INTEGER NOT NULL,
+            file_sync_id TEXT NOT NULL,
+            phase TEXT NOT NULL,
+            total_segments INTEGER NOT NULL DEFAULT 0,
+            deleted_segments INTEGER NOT NULL DEFAULT 0,
+            total_occurrences INTEGER NOT NULL DEFAULT 0,
+            deleted_occurrences INTEGER NOT NULL DEFAULT 0,
+            total_bytes INTEGER NOT NULL DEFAULT 0,
+            deleted_bytes INTEGER NOT NULL DEFAULT 0,
+            error_code TEXT,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL
+        ) STRICT;
+        CREATE INDEX IF NOT EXISTS sync_delete_jobs_pending_idx ON sync_delete_jobs(phase, updated_at);",
     )?;
     // Only independently mergeable user state gets a row-level event.  A
     // library item is synchronised as one encrypted snapshot (see sync.rs),

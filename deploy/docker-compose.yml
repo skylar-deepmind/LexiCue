@@ -12,6 +12,7 @@ services:
       BIND_ADDR: 0.0.0.0:8080
       RUST_LOG: info
       SYNC_METRICS_TOKEN: ${SYNC_METRICS_TOKEN:?Set SYNC_METRICS_TOKEN in .env}
+      SYNC_READ_REQUESTS_PER_MINUTE: ${SYNC_READ_REQUESTS_PER_MINUTE:-3000}
     depends_on:
       db:
         condition: service_healthy

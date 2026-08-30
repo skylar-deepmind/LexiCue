@@ -154,6 +154,12 @@ body { margin: 0; background: var(--app-bg); color: var(--text-body); }
 .sync-input[aria-invalid='true'] { border-color: var(--sync-error-border); }
 .sync-error-message { background: var(--sync-error-bg); color: var(--sync-error-text); border-color: var(--sync-error-border); }
 .sync-success-message { background: var(--sync-success-bg); color: var(--sync-success-text); border-color: var(--sync-success-border); }
+.sync-progress { color: var(--sync-progress-text); }
+.sync-progress__track { height: 0.375rem; overflow: hidden; border-radius: 9999px; background: var(--sync-progress-border); }
+.sync-progress__bar { height: 100%; border-radius: inherit; background: var(--accent-600); transition: width 300ms ease; }
+@media (prefers-reduced-motion: reduce) {
+  .sync-progress__bar { transition: none; }
+}
 
 .learning-stage { color: var(--text-body); }
 .learning-stage-notStarted { --stage-color: var(--stage-not-started); }

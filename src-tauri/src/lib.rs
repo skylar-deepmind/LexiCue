@@ -2,7 +2,7 @@ mod commands;
 mod db;
 
 use db::{init_db, DbState, DictionaryStatus};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -37,9 +37,11 @@ pub fn run() {
                 log::error!("secure credential store initialization failed: {error}");
             }
             let conn = init_db(&app_dir.join("lexicue.db")).expect("Failed to initialize database");
-            app.manage(DbState {
-                conn: Mutex::new(conn),
-            });
+            let db_state = DbState {
+                conn: Arc::new(Mutex::new(conn)),
+            };
+            commands::files::resume_pending_delete_jobs(db_state.conn.clone());
+            app.manage(db_state);
 
             let status = DictionaryStatus::default();
             app.manage(status.clone());
@@ -121,6 +123,8 @@ pub fn run() {
             commands::files::list_files,
             commands::files::get_file_info,
             commands::files::delete_file,
+            commands::files::delete_file_start,
+            commands::files::delete_file_status,
             commands::files::get_file_segments,
             commands::files::list_folders,
             commands::files::create_folder,

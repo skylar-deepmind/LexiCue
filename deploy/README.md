@@ -22,6 +22,10 @@ chmod 600 .env
 Generate independent random values for `POSTGRES_PASSWORD` and
 `SYNC_METRICS_TOKEN`. Configure `BACKUP_AGE_RECIPIENT` with an age public key
 whose private identity is stored offline. Never commit `.env` or the identity.
+For production sync traffic, keep `SYNC_READ_REQUESTS_PER_MINUTE` at its
+default of `3000` (or set an explicit value appropriate for the account size).
+This read-only limit is separate from the stricter authenticated management
+endpoint limit.
 
 ## 2. Start PostgreSQL and the API
 

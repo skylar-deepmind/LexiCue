@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { FileRecord } from '../lib/types';
 import type { OllamaRetry } from '../stores/ollamaStore';
 import { learningIndex, learningStage } from '../lib/fileProgress';
+import type { DeleteJobStatus } from '../stores/fileStore';
 
 interface FileCardProps {
   file: FileRecord;
@@ -20,10 +21,11 @@ interface FileCardProps {
   };
   analysisCompleted: boolean;
   retrying?: OllamaRetry;
+  deleteProgress?: DeleteJobStatus;
   onClick: () => void;
 }
 
-export default function FileCard({ file, folderPath, onDelete, onAnalyze, onCancel, onMove, aiEnabled, analysisProgress, analysisCompleted, retrying, onClick }: FileCardProps) {
+export default function FileCard({ file, folderPath, onDelete, onAnalyze, onCancel, onMove, aiEnabled, analysisProgress, analysisCompleted, retrying, deleteProgress, onClick }: FileCardProps) {
   const { t, i18n } = useTranslation();
   const icon = file.type === 'srt' ? '🎬' : '📄';
   const date = new Date(file.imported_at).toLocaleDateString(i18n.resolvedLanguage ?? 'zh');
@@ -82,7 +84,8 @@ export default function FileCard({ file, folderPath, onDelete, onAnalyze, onCanc
               e.stopPropagation();
               onDelete(file.id);
             }}
-            className="text-gray-400 hover:text-red-500 transition-colors p-1"
+            disabled={Boolean(deleteProgress)}
+            className="text-gray-400 hover:text-red-500 transition-colors p-2 disabled:cursor-wait disabled:opacity-50"
             aria-label={t('fileCard.deleteAria', { name: file.name })}
             title={t('fileCard.deleteTitle')}
           >
@@ -90,6 +93,17 @@ export default function FileCard({ file, folderPath, onDelete, onAnalyze, onCanc
           </button>
         </div>
       </div>
+      {deleteProgress && (
+        <div className="mt-3 border-t border-gray-100 pt-3" onClick={(event) => event.stopPropagation()}>
+          <div className="mb-1 flex items-center justify-between gap-2 text-xs text-amber-700">
+            <span>{t('fileStore.deleting')}</span>
+            <span>{t('fileStore.deleteProgress', { completed: deleteProgress.completed_items, total: deleteProgress.total_items })}</span>
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-amber-100" role="progressbar" aria-valuemin={0} aria-valuemax={deleteProgress.total_items || 1} aria-valuenow={Math.min(deleteProgress.completed_items, deleteProgress.total_items || 1)}>
+            <div className="h-full rounded-full bg-amber-500 transition-[width] duration-300" style={{ width: `${deleteProgress.total_items > 0 ? Math.min(100, (deleteProgress.completed_items / deleteProgress.total_items) * 100) : 5}%` }} />
+          </div>
+        </div>
+      )}
       <div
         className="mt-3 flex items-center justify-between gap-3 border-t border-gray-100 pt-3"
         aria-label={index === null ? t('fileCard.noLearningContent') : t('fileCard.learningProgressAria', { stage: t(`fileCard.stage.${stage}`) })}

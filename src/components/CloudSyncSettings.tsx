@@ -25,11 +25,34 @@ interface SyncStatus {
   last_downloaded: number;
   auto_sync_enabled: boolean;
   next_retry_at: number | null;
+  progress: {
+    phase: string;
+    completed_items: number;
+    total_items: number;
+    completed_bytes: number;
+    total_bytes: number;
+    bytes_per_second: number;
+    eta_seconds: number | null;
+    retry_at: number | null;
+  } | null;
 }
 
 interface SyncDevice { id: string; name: string; last_seen_at: string }
 interface AuthResult { recovery_code: string | null }
 type Mode = 'register' | 'login' | 'recover';
+
+function formatBytes(value: number): string {
+  if (!Number.isFinite(value) || value < 1024) return `${Math.max(0, Math.round(value))} B`;
+  const units = ['KiB', 'MiB', 'GiB'];
+  let amount = value;
+  let unit = 'B';
+  for (const next of units) {
+    amount /= 1024;
+    unit = next;
+    if (amount < 1024) break;
+  }
+  return `${amount.toFixed(amount >= 10 ? 0 : 1)} ${unit}`;
+}
 
 export default function CloudSyncSettings() {
   const { t } = useTranslation();
@@ -61,6 +84,11 @@ export default function CloudSyncSettings() {
   };
 
   useEffect(() => { void refresh(); }, []);
+  useEffect(() => {
+    if (!sectionOpen || !status?.configured) return;
+    const timer = window.setInterval(() => { void refresh(); }, 1000);
+    return () => window.clearInterval(timer);
+  }, [sectionOpen, status?.configured]);
   useEffect(() => {
     if (advancedOpen && status?.configured) void refreshDevices();
   }, [advancedOpen, status?.configured]);
@@ -152,7 +180,7 @@ export default function CloudSyncSettings() {
     setNotice('recoverySaved');
   };
 
-  const stateKey = status?.phase === 'syncing' || status?.phase === 'uploading' || status?.phase === 'downloading'
+  const stateKey = status?.phase === 'syncing' || status?.phase === 'preparing' || status?.phase === 'applying' || status?.phase === 'uploading' || status?.phase === 'downloading'
     ? 'syncing'
     : status?.phase === 'offline' || status?.phase === 'retrying'
       ? 'offline'
@@ -187,6 +215,22 @@ export default function CloudSyncSettings() {
             </p>
             {status.pending_uploads > 0 && <p className="mt-1 text-sm">{t('settings.cloudSync.pending', { count: status.pending_uploads })}</p>}
             {status.conflicts > 0 && <p className="mt-1 text-sm">{t('settings.cloudSync.conflicts', { count: status.conflicts })}</p>}
+            {status.progress && status.progress.phase !== 'idle' && (
+              <div className="sync-progress mt-3" aria-label={t('settings.cloudSync.progressLabel')}>
+                <div className="mb-1 flex flex-wrap items-center justify-between gap-2 text-sm">
+                  <span>{t(`settings.cloudSync.progress.${status.progress.phase}`, { defaultValue: status.progress.phase })}</span>
+                  <span>{status.progress.completed_items}/{status.progress.total_items || '—'}</span>
+                </div>
+                <div className="sync-progress__track" role="progressbar" aria-valuemin={0} aria-valuemax={status.progress.total_bytes || 1} aria-valuenow={Math.min(status.progress.completed_bytes, status.progress.total_bytes || 1)}>
+                  <div className="sync-progress__bar" style={{ width: `${status.progress.total_bytes > 0 ? Math.min(100, (status.progress.completed_bytes / status.progress.total_bytes) * 100) : 5}%` }} />
+                </div>
+                <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                  <span>{formatBytes(status.progress.completed_bytes)} / {formatBytes(status.progress.total_bytes)}</span>
+                  {status.progress.bytes_per_second > 0 && <span>{formatBytes(status.progress.bytes_per_second)}/s</span>}
+                  {status.progress.eta_seconds !== null && <span>{t('settings.cloudSync.eta', { seconds: status.progress.eta_seconds })}</span>}
+                </div>
+              </div>
+            )}
             {status.last_error && (stateKey === 'error' || stateKey === 'authRequired') && (
               <p className="sync-error-message mt-3" role="alert">
                 {t(`settings.cloudSync.errors.${errorCode(status.last_error)}`)}

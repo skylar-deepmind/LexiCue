@@ -27,6 +27,7 @@ const MAX_RECORD_BYTES: usize = 768 * 1024;
 const MAX_BLOB_BYTES: usize = 512 * 1024;
 const MAX_BATCH_RECORDS: usize = 100;
 const PROTOCOL_VERSION: i16 = 1;
+const DEFAULT_SYNC_READ_LIMIT: u32 = 3000;
 
 #[derive(Clone)]
 struct AppState {
@@ -63,7 +64,15 @@ struct ErrorBody {
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
-        (self.status, Json(ErrorBody { code: self.code })).into_response()
+        let status = self.status;
+        let mut response = (status, Json(ErrorBody { code: self.code })).into_response();
+        if status == StatusCode::TOO_MANY_REQUESTS {
+            response.headers_mut().insert(
+                header::RETRY_AFTER,
+                axum::http::HeaderValue::from_static("10"),
+            );
+        }
+        response
     }
 }
 
@@ -137,7 +146,10 @@ fn token_hash(value: &str) -> String {
     format!("{:x}", Sha256::digest(value.as_bytes()))
 }
 
-async fn account(headers: &HeaderMap, state: &AppState) -> ApiResult<(String, String)> {
+async fn authenticated_account(
+    headers: &HeaderMap,
+    state: &AppState,
+) -> ApiResult<(String, String)> {
     let token = headers
         .get(header::AUTHORIZATION)
         .and_then(|value| value.to_str().ok())
@@ -158,9 +170,23 @@ async fn account(headers: &HeaderMap, state: &AppState) -> ApiResult<(String, St
                 .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             error(StatusCode::UNAUTHORIZED, "session_expired")
         })?;
-    let account_id: String = row.get(0);
+    Ok((row.get(0), row.get(1)))
+}
+
+async fn account(headers: &HeaderMap, state: &AppState) -> ApiResult<(String, String)> {
+    let (account_id, device_id) = authenticated_account(headers, state).await?;
     limited(state, &format!("account:{account_id}"), 600)?;
-    Ok((account_id, row.get(1)))
+    Ok((account_id, device_id))
+}
+
+async fn sync_account(headers: &HeaderMap, state: &AppState) -> ApiResult<(String, String)> {
+    let (account_id, device_id) = authenticated_account(headers, state).await?;
+    let maximum = env::var("SYNC_READ_REQUESTS_PER_MINUTE")
+        .ok()
+        .and_then(|value| value.parse::<u32>().ok())
+        .unwrap_or(DEFAULT_SYNC_READ_LIMIT);
+    limited(state, &format!("sync-read:{account_id}"), maximum)?;
+    Ok((account_id, device_id))
 }
 
 async fn upsert_device(
@@ -550,7 +576,7 @@ async fn sync_head(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> ApiResult<Json<HeadResponse>> {
-    let (account_id, _) = account(&headers, &state).await?;
+    let (account_id, _) = sync_account(&headers, &state).await?;
     let client = db(&state).await?;
     let row = client
         .query_one(
@@ -599,10 +625,10 @@ async fn list_records(
     headers: HeaderMap,
     Query(query): Query<RecordsQuery>,
 ) -> ApiResult<Json<Vec<RecordOutput>>> {
-    let (account_id, _) = account(&headers, &state).await?;
+    let (account_id, _) = sync_account(&headers, &state).await?;
     let after = query.after.unwrap_or(0).max(0);
     let until = query.until.unwrap_or(i64::MAX).max(after);
-    let limit = query.limit.unwrap_or(100).clamp(1, 100);
+    let limit = query.limit.unwrap_or(50).clamp(1, 50);
     let client = db(&state).await?;
     let rows = client
         .query(
