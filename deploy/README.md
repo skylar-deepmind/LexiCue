@@ -4,6 +4,10 @@ The production topology is intentionally small: Docker Compose runs PostgreSQL
 and the sync API; the host's existing Nginx terminates HTTPS. The API only binds
 to `127.0.0.1:8080`, and PostgreSQL has no host port.
 
+The Compose project name is fixed as `lexicue_sync`. Do not override it with a
+directory-derived project name: doing so creates a separate network, volume,
+and API that the production proxy does not use.
+
 ## 1. Prepare the server
 
 Install Docker Engine with the Compose plugin, Nginx, Certbot, `curl`, and
@@ -56,7 +60,8 @@ The example forwards required proxy headers, allows 16 MiB requests and
 the host through `http://127.0.0.1:8080/metrics` with the
 `x-sync-metrics-token` header.
 
-Verify the public endpoint after DNS and TLS are active:
+Verify the public endpoint after DNS and TLS are active. `verify.sh` retries by
+default to tolerate a reverse proxy reconnecting after an API replacement:
 
 ```sh
 ./verify.sh https://sync.example.com
@@ -69,7 +74,8 @@ The capabilities response must advertise `"protocol_version":1`.
 ## 4. Encrypted daily backups
 
 Run `./backup.sh` once and verify the encrypted output. It never writes a
-plaintext dump and retains 30 days by default. To install the supplied systemd
+plaintext dump, stops before encryption if `pg_dump` fails, and retains 30 days
+by default. To install the supplied systemd
 timer, adjust `/opt/lexicue` in both unit files if the checkout lives elsewhere,
 then copy and enable them:
 

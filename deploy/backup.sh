@@ -15,10 +15,25 @@ umask 077
 timestamp="$(date +%Y%m%d-%H%M%S)"
 target="$backup_dir/lexicue-$timestamp.sql.gz.age"
 partial="$target.partial"
-trap 'rm -f "$partial"' EXIT HUP INT TERM
-docker compose exec -T db pg_dump --clean --if-exists -U lexicue lexicue | gzip | age -r "$BACKUP_AGE_RECIPIENT" -o "$partial"
+dump_tmp="$(mktemp)"
+gzip_tmp="$(mktemp)"
+trap 'rm -f "$partial" "$dump_tmp" "$gzip_tmp"' EXIT HUP INT TERM
+
+if ! docker compose exec -T db pg_dump --clean --if-exists -U lexicue lexicue >"$dump_tmp"; then
+  echo "database dump failed; no backup was created" >&2
+  exit 1
+fi
+if ! gzip -c "$dump_tmp" >"$gzip_tmp"; then
+  echo "database compression failed; no backup was created" >&2
+  exit 1
+fi
+if ! age -r "$BACKUP_AGE_RECIPIENT" -o "$partial" "$gzip_tmp"; then
+  echo "backup encryption failed; no backup was created" >&2
+  exit 1
+fi
 test -s "$partial" || { echo "encrypted backup is empty" >&2; exit 1; }
 mv "$partial" "$target"
 trap - EXIT HUP INT TERM
+rm -f "$dump_tmp" "$gzip_tmp"
 find "$backup_dir" -type f -name 'lexicue-*.sql.gz.age' -mtime "+$retention_days" -delete
 echo "Encrypted backup created: $target"

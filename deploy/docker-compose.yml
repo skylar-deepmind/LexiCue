@@ -1,3 +1,5 @@
+name: lexicue_sync
+
 services:
   api:
     build:
