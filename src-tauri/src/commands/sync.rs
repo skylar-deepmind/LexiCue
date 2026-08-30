@@ -14,6 +14,7 @@ use rusqlite::OptionalExtension;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashSet;
+use std::io::Cursor;
 use std::sync::OnceLock;
 use tauri::State;
 use uuid::Uuid;
@@ -25,6 +26,7 @@ const DEVICE_KEY: &str = "cloud_sync_device_id_v1";
 const AAD: &[u8] = b"lexicue/cloud-sync/v1";
 const BLOB_CHUNK_SIZE: usize = 512 * 1024;
 const BLOB_MANIFEST_MAGIC: &[u8] = b"LEXICUE-BLOB-V1\n";
+const COMPRESSED_EVENT_MAGIC: &[u8] = b"LEXICUE-ZSTD-V1\n";
 const HTTP_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(45);
 const VAULT_SERVICE: &str = "com.lexicue.cloud-sync";
 const VAULT_ACCOUNT: &str = "credentials-v1";
@@ -234,6 +236,62 @@ struct EntityEvent {
     sync_id: String,
     operation: String,
     record: Option<serde_json::Value>,
+}
+
+/// One portable reading item.  It deliberately groups all file-scoped data
+/// that users can see, including AI output, so one imported subtitle does not
+/// produce one cloud record per segment or occurrence.
+#[derive(Serialize, Deserialize)]
+struct LibraryItemRecord {
+    version: u8,
+    file: serde_json::Value,
+    segments: Vec<LibrarySegment>,
+    phrase_analysis: Option<LibraryAnalysis>,
+    phrase_dictionary_entries: Vec<LibraryPhraseDictionaryEntry>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct LibrarySegment {
+    index_num: i64,
+    en_text: String,
+    zh_text: Option<String>,
+    start_time: Option<String>,
+    end_time: Option<String>,
+    occurrences: Vec<LibraryOccurrence>,
+    phrase_occurrences: Vec<LibraryPhraseOccurrence>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct LibraryOccurrence {
+    word_sync_id: String,
+    original_form: String,
+    position: i64,
+    hidden: i64,
+}
+
+#[derive(Serialize, Deserialize)]
+struct LibraryPhraseOccurrence {
+    phrase_sync_id: String,
+    position: i64,
+    hidden: i64,
+}
+
+#[derive(Serialize, Deserialize)]
+struct LibraryAnalysis {
+    model: String,
+    completed_at: i64,
+}
+
+#[derive(Serialize, Deserialize)]
+struct LibraryPhraseDictionaryEntry {
+    language: String,
+    text: String,
+    translation: String,
+    pinyin: Option<String>,
+    usage_zh: Option<String>,
+    category: Option<String>,
+    provider: String,
+    updated_at: i64,
 }
 struct OutboxRow {
     event_id: String,
@@ -674,6 +732,156 @@ fn row_record(
     }
     Ok(Some(serde_json::Value::Object(value)))
 }
+
+fn library_item_record(
+    conn: &rusqlite::Connection,
+    file_id: i64,
+) -> Result<LibraryItemRecord, String> {
+    let file = row_record(conn, "files", file_id)?
+        .ok_or("sync record disappeared before it could be sent")?;
+    let mut segment_statement = conn
+        .prepare(
+            "SELECT id,index_num,en_text,zh_text,start_time,end_time
+             FROM segments WHERE file_id=?1 ORDER BY index_num,id",
+        )
+        .map_err(|_| "local_sync_storage_error".to_string())?;
+    let segment_rows = segment_statement
+        .query_map([file_id], |row| {
+            Ok((
+                row.get::<_, i64>(0)?,
+                row.get::<_, i64>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, Option<String>>(3)?,
+                row.get::<_, Option<String>>(4)?,
+                row.get::<_, Option<String>>(5)?,
+            ))
+        })
+        .map_err(|_| "local_sync_storage_error".to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|_| "local_sync_storage_error".to_string())?;
+    drop(segment_statement);
+
+    let mut segments = Vec::with_capacity(segment_rows.len());
+    for (segment_id, index_num, en_text, zh_text, start_time, end_time) in segment_rows {
+        let mut occurrence_statement = conn
+            .prepare(
+                "SELECT state.sync_id,occurrence.original_form,occurrence.position,occurrence.hidden
+                 FROM occurrences occurrence
+                 JOIN sync_entity_state state ON state.table_name='words' AND state.local_id=occurrence.word_id
+                 WHERE occurrence.segment_id=?1 ORDER BY occurrence.position,occurrence.id",
+            )
+            .map_err(|_| "local_sync_storage_error".to_string())?;
+        let occurrences = occurrence_statement
+            .query_map([segment_id], |row| {
+                Ok(LibraryOccurrence {
+                    word_sync_id: row.get(0)?,
+                    original_form: row.get(1)?,
+                    position: row.get(2)?,
+                    hidden: row.get(3)?,
+                })
+            })
+            .map_err(|_| "local_sync_storage_error".to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|_| "local_sync_storage_error".to_string())?;
+        let mut phrase_occurrence_statement = conn
+            .prepare(
+                "SELECT state.sync_id,occurrence.position,occurrence.hidden
+                 FROM phrase_occurrences occurrence
+                 JOIN sync_entity_state state ON state.table_name='phrases' AND state.local_id=occurrence.phrase_id
+                 WHERE occurrence.segment_id=?1 ORDER BY occurrence.position,occurrence.id",
+            )
+            .map_err(|_| "local_sync_storage_error".to_string())?;
+        let phrase_occurrences = phrase_occurrence_statement
+            .query_map([segment_id], |row| {
+                Ok(LibraryPhraseOccurrence {
+                    phrase_sync_id: row.get(0)?,
+                    position: row.get(1)?,
+                    hidden: row.get(2)?,
+                })
+            })
+            .map_err(|_| "local_sync_storage_error".to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|_| "local_sync_storage_error".to_string())?;
+        segments.push(LibrarySegment {
+            index_num,
+            en_text,
+            zh_text,
+            start_time,
+            end_time,
+            occurrences,
+            phrase_occurrences,
+        });
+    }
+    let phrase_analysis = conn
+        .query_row(
+            "SELECT model,completed_at FROM file_phrase_analysis WHERE file_id=?1",
+            [file_id],
+            |row| {
+                Ok(LibraryAnalysis {
+                    model: row.get(0)?,
+                    completed_at: row.get(1)?,
+                })
+            },
+        )
+        .optional()
+        .map_err(|_| "local_sync_storage_error".to_string())?;
+    let mut dictionary_statement = conn
+        .prepare(
+            "SELECT DISTINCT entry.language,entry.text,entry.translation,entry.pinyin,entry.usage_zh,entry.category,entry.provider,entry.updated_at
+             FROM phrase_dictionary_entries entry
+             JOIN phrases phrase ON phrase.language=entry.language AND phrase.text=entry.text
+             JOIN phrase_occurrences occurrence ON occurrence.phrase_id=phrase.id
+             JOIN segments segment ON segment.id=occurrence.segment_id
+             WHERE segment.file_id=?1 ORDER BY entry.language,entry.text",
+        )
+        .map_err(|_| "local_sync_storage_error".to_string())?;
+    let phrase_dictionary_entries = dictionary_statement
+        .query_map([file_id], |row| {
+            Ok(LibraryPhraseDictionaryEntry {
+                language: row.get(0)?,
+                text: row.get(1)?,
+                translation: row.get(2)?,
+                pinyin: row.get(3)?,
+                usage_zh: row.get(4)?,
+                category: row.get(5)?,
+                provider: row.get(6)?,
+                updated_at: row.get(7)?,
+            })
+        })
+        .map_err(|_| "local_sync_storage_error".to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|_| "local_sync_storage_error".to_string())?;
+    Ok(LibraryItemRecord {
+        version: 1,
+        file,
+        segments,
+        phrase_analysis,
+        phrase_dictionary_entries,
+    })
+}
+
+fn encode_event(event: &EntityEvent) -> Result<Vec<u8>, String> {
+    let serialized =
+        serde_json::to_vec(event).map_err(|_| "local_sync_storage_error".to_string())?;
+    if event.table_name != "library_item" {
+        return Ok(serialized);
+    }
+    let compressed = zstd::stream::encode_all(Cursor::new(serialized), 3)
+        .map_err(|_| "local_sync_storage_error".to_string())?;
+    let mut encoded = COMPRESSED_EVENT_MAGIC.to_vec();
+    encoded.extend(compressed);
+    Ok(encoded)
+}
+
+fn decode_event(plaintext: &[u8]) -> Result<EntityEvent, String> {
+    let decoded = if plaintext.starts_with(COMPRESSED_EVENT_MAGIC) {
+        zstd::stream::decode_all(Cursor::new(&plaintext[COMPRESSED_EVENT_MAGIC.len()..]))
+            .map_err(|_| "invalid_encrypted_record".to_string())?
+    } else {
+        plaintext.to_vec()
+    };
+    serde_json::from_slice(&decoded).map_err(|_| "invalid_encrypted_record".to_string())
+}
 fn set_runtime(conn: &rusqlite::Connection, applying: bool) -> Result<(), String> {
     conn.execute("INSERT INTO sync_runtime(key,value) VALUES('applying',?1) ON CONFLICT(key) DO UPDATE SET value=excluded.value", [if applying { "1" } else { "0" }]).map(|_|()).map_err(|e| e.to_string())
 }
@@ -716,11 +924,109 @@ fn optional_string(
     record.get(key).and_then(|v| v.as_str()).map(str::to_owned)
 }
 
+fn apply_library_item_event(
+    conn: &rusqlite::Connection,
+    sync_id: &str,
+    operation: &str,
+    record: Option<&serde_json::Value>,
+    clock: &str,
+) -> Result<bool, String> {
+    let pending_local: bool = conn
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM sync_changes WHERE table_name='library_item' AND sync_id=?1 AND operation='upsert' AND uploaded_at IS NULL)",
+            [sync_id],
+            |row| row.get(0),
+        )
+        .map_err(|_| "local_sync_storage_error".to_string())?;
+    if pending_local {
+        return Ok(false);
+    }
+    if operation == "delete" {
+        if let Some(file_id) = local_id_for(conn, "files", sync_id)? {
+            conn.execute("DELETE FROM files WHERE id=?1", [file_id])
+                .map_err(|_| "local_sync_storage_error".to_string())?;
+            mark_state(conn, "files", file_id, sync_id, clock, true)?;
+        }
+        return Ok(true);
+    }
+    let snapshot: LibraryItemRecord =
+        serde_json::from_value(record.cloned().ok_or("invalid_encrypted_record")?)
+            .map_err(|_| "invalid_encrypted_record".to_string())?;
+    if snapshot.version != 1 {
+        return Err("unsupported_sync_protocol".into());
+    }
+    let file_record = snapshot
+        .file
+        .as_object()
+        .ok_or("invalid_encrypted_record")?;
+    let file_id = apply_record(conn, "files", sync_id, file_record)?;
+    conn.execute("DELETE FROM segments WHERE file_id=?1", [file_id])
+        .map_err(|_| "local_sync_storage_error".to_string())?;
+    for segment in snapshot.segments {
+        conn.execute(
+            "INSERT INTO segments(file_id,index_num,en_text,zh_text,start_time,end_time) VALUES(?1,?2,?3,?4,?5,?6)",
+            rusqlite::params![file_id, segment.index_num, segment.en_text, segment.zh_text, segment.start_time, segment.end_time],
+        )
+        .map_err(|_| "local_sync_storage_error".to_string())?;
+        let segment_id = conn.last_insert_rowid();
+        for occurrence in segment.occurrences {
+            let word_id = local_id_for(conn, "words", &occurrence.word_sync_id)?
+                .ok_or("invalid_encrypted_record")?;
+            conn.execute(
+                "INSERT INTO occurrences(word_id,segment_id,original_form,position,hidden) VALUES(?1,?2,?3,?4,?5)",
+                rusqlite::params![word_id, segment_id, occurrence.original_form, occurrence.position, occurrence.hidden],
+            )
+            .map_err(|_| "local_sync_storage_error".to_string())?;
+        }
+        for occurrence in segment.phrase_occurrences {
+            let phrase_id = local_id_for(conn, "phrases", &occurrence.phrase_sync_id)?
+                .ok_or("invalid_encrypted_record")?;
+            conn.execute(
+                "INSERT INTO phrase_occurrences(phrase_id,segment_id,position,hidden) VALUES(?1,?2,?3,?4)",
+                rusqlite::params![phrase_id, segment_id, occurrence.position, occurrence.hidden],
+            )
+            .map_err(|_| "local_sync_storage_error".to_string())?;
+        }
+    }
+    conn.execute(
+        "DELETE FROM file_phrase_analysis WHERE file_id=?1",
+        [file_id],
+    )
+    .map_err(|_| "local_sync_storage_error".to_string())?;
+    if let Some(analysis) = snapshot.phrase_analysis {
+        conn.execute(
+            "INSERT INTO file_phrase_analysis(file_id,model,completed_at) VALUES(?1,?2,?3)",
+            rusqlite::params![file_id, analysis.model, analysis.completed_at],
+        )
+        .map_err(|_| "local_sync_storage_error".to_string())?;
+    }
+    for entry in snapshot.phrase_dictionary_entries {
+        conn.execute(
+            "INSERT INTO phrase_dictionary_entries(language,text,translation,pinyin,usage_zh,category,provider,updated_at)
+             VALUES(?1,?2,?3,?4,?5,?6,?7,?8)
+             ON CONFLICT(language,text) DO UPDATE SET translation=excluded.translation,pinyin=excluded.pinyin,usage_zh=excluded.usage_zh,category=excluded.category,provider=excluded.provider,updated_at=excluded.updated_at",
+            rusqlite::params![entry.language, entry.text, entry.translation, entry.pinyin, entry.usage_zh, entry.category, entry.provider, entry.updated_at],
+        )
+        .map_err(|_| "local_sync_storage_error".to_string())?;
+    }
+    mark_state(conn, "files", file_id, sync_id, clock, false)?;
+    Ok(true)
+}
+
 fn apply_entity_event(
     conn: &rusqlite::Connection,
     event: &EntityEvent,
     clock: &str,
 ) -> Result<bool, String> {
+    if event.table_name == "library_item" {
+        return apply_library_item_event(
+            conn,
+            &event.sync_id,
+            &event.operation,
+            event.record.as_ref(),
+            clock,
+        );
+    }
     let canonical = conn.query_row("SELECT canonical_sync_id FROM sync_identity_aliases WHERE table_name=?1 AND alias_sync_id=?2", rusqlite::params![event.table_name,event.sync_id], |r|r.get::<_,String>(0)).optional().map_err(|e|e.to_string())?.unwrap_or_else(||event.sync_id.clone());
     let existing_clock: Option<String> = conn
         .query_row(
@@ -1097,7 +1403,18 @@ fn prepare_outbox(
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| e.to_string())?;
     let mut made = 0;
-    for (change_id, table, sync_id, operation) in changes {
+    for (change_id, mut table, sync_id, operation) in changes {
+        // Files are carried by a compact library snapshot.  Rewriting the
+        // queued type keeps the existing idempotent outbox machinery and uses
+        // the file's stable identity as the library item's stable identity.
+        if table == "files" {
+            conn.execute(
+                "UPDATE sync_changes SET table_name='library_item' WHERE id=?1",
+                [change_id],
+            )
+            .map_err(|_| "local_sync_storage_error".to_string())?;
+            table = "library_item".to_string();
+        }
         // Card rows are deterministic caches rebuilt from append-only logs.
         if matches!(table.as_str(), "reviews" | "phrase_reviews") {
             conn.execute(
@@ -1119,9 +1436,18 @@ fn prepare_outbox(
             continue;
         }
         let mut record = if operation == "upsert" {
-            let id = local_id_for(conn, &table, &sync_id)?
-                .ok_or("sync record disappeared before it could be sent")?;
-            row_record(conn, &table, id)?
+            if table == "library_item" {
+                let id = local_id_for(conn, "files", &sync_id)?
+                    .ok_or("sync record disappeared before it could be sent")?;
+                Some(
+                    serde_json::to_value(library_item_record(conn, id)?)
+                        .map_err(|_| "local_sync_storage_error".to_string())?,
+                )
+            } else {
+                let id = local_id_for(conn, &table, &sync_id)?
+                    .ok_or("sync record disappeared before it could be sent")?;
+                row_record(conn, &table, id)?
+            }
         } else {
             None
         };
@@ -1142,17 +1468,19 @@ fn prepare_outbox(
             &table,
             &sync_id,
             operation == "delete",
-            &serde_json::to_vec(&event).map_err(|e| e.to_string())?,
+            &encode_event(&event)?,
         )?;
-        if let Some(local_id) = local_id_for(conn, &table, &sync_id)? {
-            mark_state(
-                conn,
-                &table,
-                local_id,
-                &sync_id,
-                &clock,
-                operation == "delete",
-            )?;
+        if table != "library_item" {
+            if let Some(local_id) = local_id_for(conn, &table, &sync_id)? {
+                mark_state(
+                    conn,
+                    &table,
+                    local_id,
+                    &sync_id,
+                    &clock,
+                    operation == "delete",
+                )?;
+            }
         }
         conn.execute("INSERT INTO sync_outbox(event_id,change_id,device_id,clock,kind,ciphertext) VALUES(?1,?2,?3,?4,?5,?6)",rusqlite::params![Uuid::new_v4().to_string(),change_id,local.device_id,clock,table,ciphertext]).map_err(|e|e.to_string())?;
         made += 1;
@@ -1160,7 +1488,7 @@ fn prepare_outbox(
     Ok(made)
 }
 fn pending_outbox(conn: &rusqlite::Connection) -> Result<Vec<OutboxRow>, String> {
-    let mut statement=conn.prepare("SELECT o.event_id,o.kind,c.sync_id,o.ciphertext,r.etag,c.operation FROM sync_outbox o JOIN sync_changes c ON c.id=o.change_id LEFT JOIN sync_remote_state r ON r.table_name=c.table_name AND r.sync_id=c.sync_id WHERE o.uploaded_at IS NULL ORDER BY o.change_id").map_err(|e|e.to_string())?;
+    let mut statement=conn.prepare("SELECT o.event_id,o.kind,c.sync_id,o.ciphertext,r.etag,c.operation FROM sync_outbox o JOIN sync_changes c ON c.id=o.change_id LEFT JOIN sync_remote_state r ON r.table_name=o.kind AND r.sync_id=c.sync_id WHERE o.uploaded_at IS NULL ORDER BY o.change_id").map_err(|e|e.to_string())?;
     let rows = statement
         .query_map([], |r| {
             Ok(OutboxRow {
@@ -1353,12 +1681,15 @@ async fn ensure_capabilities(endpoint: &str) -> Result<(), String> {
 fn entity_order(kind: &str) -> usize {
     match kind {
         "folders" => 0,
-        "files" => 1,
-        "segments" => 2,
-        "words" | "phrases" => 3,
-        "occurrences" | "phrase_occurrences" => 4,
-        "review_logs" | "phrase_review_logs" => 5,
-        _ => 6,
+        "words" | "phrases" => 1,
+        // A library snapshot references the stable identities above and is
+        // therefore applied only after they exist locally.
+        "library_item" => 2,
+        "files" => 3,
+        "segments" => 4,
+        "occurrences" | "phrase_occurrences" => 5,
+        "review_logs" | "phrase_review_logs" => 6,
+        _ => 7,
     }
 }
 
@@ -1423,10 +1754,8 @@ async fn stage_remote_records(
             return Err("unsupported_sync_protocol".into());
         }
         let encrypted = encrypted_remote_payload(local, &remote).await?;
-        let event: EntityEvent =
-            serde_json::from_slice(&decrypt_record(data_key, account_id, &remote, &encrypted)?)
-                .map_err(|_| "invalid_encrypted_record")?;
-        if event.version != 3
+        let event = decode_event(&decrypt_record(data_key, account_id, &remote, &encrypted)?)?;
+        if !(event.version == 3 || event.version == 4)
             || event.table_name != remote.entity_type
             || event.sync_id != remote.entity_id
             || (event.operation == "delete") != remote.deleted
@@ -2333,6 +2662,127 @@ mod tests {
         assert_eq!(store.load().unwrap(), b"secret");
         store.clear().unwrap();
         assert_eq!(store.load().unwrap_err(), "credential_missing");
+    }
+
+    #[test]
+    fn library_snapshot_preserves_ai_output_and_occurrences_in_one_compressed_event() {
+        let source_file = tempfile::NamedTempFile::new().unwrap();
+        let source = crate::db::init_db(source_file.path()).unwrap();
+        source
+            .execute("INSERT INTO words(language,lemma) VALUES('en','hello')", [])
+            .unwrap();
+        let word_id = source.last_insert_rowid();
+        source
+            .execute(
+                "INSERT INTO phrases(language,text) VALUES('en','hello world')",
+                [],
+            )
+            .unwrap();
+        let phrase_id = source.last_insert_rowid();
+        source
+            .execute(
+                "INSERT INTO files(name,type,content,content_hash,imported_at,language) VALUES('demo.srt','srt','source','hash',1,'en')",
+                [],
+            )
+            .unwrap();
+        let file_id = source.last_insert_rowid();
+        source
+            .execute(
+                "INSERT INTO segments(file_id,index_num,en_text,zh_text,start_time,end_time) VALUES(?1,0,'Hello world','你好，世界','00:00','00:01')",
+                [file_id],
+            )
+            .unwrap();
+        let segment_id = source.last_insert_rowid();
+        source
+            .execute(
+                "INSERT INTO occurrences(word_id,segment_id,original_form,position,hidden) VALUES(?1,?2,'Hello',0,0)",
+                rusqlite::params![word_id, segment_id],
+            )
+            .unwrap();
+        source
+            .execute(
+                "INSERT INTO phrase_occurrences(phrase_id,segment_id,position,hidden) VALUES(?1,?2,0,1)",
+                rusqlite::params![phrase_id, segment_id],
+            )
+            .unwrap();
+        source
+            .execute(
+                "INSERT INTO file_phrase_analysis(file_id,model,completed_at) VALUES(?1,'local-model',2)",
+                [file_id],
+            )
+            .unwrap();
+        source
+            .execute(
+                "INSERT INTO phrase_dictionary_entries(language,text,translation,provider,updated_at) VALUES('en','hello world','你好世界','local-model',2)",
+                [],
+            )
+            .unwrap();
+        let source_word_sync = sync_id_for(&source, "words", word_id).unwrap();
+        let source_phrase_sync = sync_id_for(&source, "phrases", phrase_id).unwrap();
+        let source_file_sync = sync_id_for(&source, "files", file_id).unwrap();
+        let snapshot = library_item_record(&source, file_id).unwrap();
+        assert_eq!(snapshot.segments.len(), 1);
+        assert_eq!(snapshot.segments[0].occurrences.len(), 1);
+        assert_eq!(snapshot.segments[0].phrase_occurrences[0].hidden, 1);
+
+        let event = EntityEvent {
+            version: 3,
+            table_name: "library_item".into(),
+            sync_id: source_file_sync.clone(),
+            operation: "upsert".into(),
+            record: Some(serde_json::to_value(&snapshot).unwrap()),
+        };
+        let encoded = encode_event(&event).unwrap();
+        assert!(encoded.starts_with(COMPRESSED_EVENT_MAGIC));
+        let decoded = decode_event(&encoded).unwrap();
+        assert_eq!(decoded.table_name, "library_item");
+
+        let target_file = tempfile::NamedTempFile::new().unwrap();
+        let target = crate::db::init_db(target_file.path()).unwrap();
+        target
+            .execute("INSERT INTO words(language,lemma) VALUES('en','hello')", [])
+            .unwrap();
+        let target_word = target.last_insert_rowid();
+        target
+            .execute(
+                "INSERT INTO phrases(language,text) VALUES('en','hello world')",
+                [],
+            )
+            .unwrap();
+        let target_phrase = target.last_insert_rowid();
+        target
+            .execute(
+                "UPDATE sync_entity_state SET sync_id=?1 WHERE table_name='words' AND local_id=?2",
+                rusqlite::params![source_word_sync, target_word],
+            )
+            .unwrap();
+        target
+            .execute(
+                "UPDATE sync_entity_state SET sync_id=?1 WHERE table_name='phrases' AND local_id=?2",
+                rusqlite::params![source_phrase_sync, target_phrase],
+            )
+            .unwrap();
+        set_runtime(&target, true).unwrap();
+        apply_library_item_event(
+            &target,
+            &source_file_sync,
+            "upsert",
+            decoded.record.as_ref(),
+            "00000000000000000001:00000000:test",
+        )
+        .unwrap();
+        set_runtime(&target, false).unwrap();
+        let restored: (String, String, i64, i64) = target
+            .query_row(
+                "SELECT s.zh_text,p.translation,
+                 (SELECT COUNT(*) FROM occurrences),
+                 (SELECT COUNT(*) FROM phrase_occurrences)
+                 FROM segments s JOIN phrase_dictionary_entries p ON p.text='hello world' LIMIT 1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .unwrap();
+        assert_eq!(restored, ("你好，世界".into(), "你好世界".into(), 1, 1));
     }
     #[test]
     fn key_package_requires_correct_secret() {
