@@ -2082,23 +2082,28 @@ async fn pull_apply_events(
         }
         let page_count = page.len() as i64;
         let page_bytes = body.len() as i64;
-        let conn = state.conn.lock().map_err(|e| e.to_string())?;
-        let tx = conn
-            .unchecked_transaction()
-            .map_err(|_| "local_sync_storage_error")?;
-        for record in &page {
+        // Keep the SQLite guard scoped to this write.  The progress update below
+        // obtains the same mutex, so retaining `conn` until the end of the loop
+        // would deadlock after the first downloaded page.
+        {
+            let conn = state.conn.lock().map_err(|e| e.to_string())?;
+            let tx = conn
+                .unchecked_transaction()
+                .map_err(|_| "local_sync_storage_error")?;
+            for record in &page {
+                tx.execute(
+                    "INSERT OR REPLACE INTO sync_download_staging(account_id,seq,entity_type,entity_id,etag,schema_version,deleted,nonce,ciphertext,received_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)",
+                    rusqlite::params![account_id, record.seq, record.entity_type, record.entity_id, record.etag, record.schema_version, if record.deleted { 1 } else { 0 }, record.nonce, record.ciphertext, now_ms()],
+                )
+                .map_err(|_| "local_sync_storage_error")?;
+            }
             tx.execute(
-                "INSERT OR REPLACE INTO sync_download_staging(account_id,seq,entity_type,entity_id,etag,schema_version,deleted,nonce,ciphertext,received_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)",
-                rusqlite::params![account_id, record.seq, record.entity_type, record.entity_id, record.etag, record.schema_version, if record.deleted { 1 } else { 0 }, record.nonce, record.ciphertext, now_ms()],
+                "UPDATE sync_download_state SET after_cursor=?1,records_done=records_done+?2,bytes_done=bytes_done+?3,updated_at=?4,last_error=NULL WHERE account_id=?5",
+                rusqlite::params![next_after, page_count, page_bytes, now_ms(), account_id],
             )
             .map_err(|_| "local_sync_storage_error")?;
+            tx.commit().map_err(|_| "local_sync_storage_error")?;
         }
-        tx.execute(
-            "UPDATE sync_download_state SET after_cursor=?1,records_done=records_done+?2,bytes_done=bytes_done+?3,updated_at=?4,last_error=NULL WHERE account_id=?5",
-            rusqlite::params![next_after, page_count, page_bytes, now_ms(), account_id],
-        )
-        .map_err(|_| "local_sync_storage_error")?;
-        tx.commit().map_err(|_| "local_sync_storage_error")?;
         after = next_after;
         records_done += page_count;
         bytes_done += page_bytes;
