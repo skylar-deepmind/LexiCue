@@ -2172,28 +2172,33 @@ async fn pull_apply_events(
         }
         let seqs: Vec<i64> = rows.iter().map(|record| record.seq).collect();
         let mut staged = stage_remote_records(local, data_key, account_id, rows).await?;
-        let conn = state.conn.lock().map_err(|e| e.to_string())?;
-        if !backup_written {
-            write_safety_backup(&conn)?;
-            backup_written = true;
-        }
-        applied = applied.saturating_add(apply_remote_records(&conn, &mut staged)?);
-        let tx = conn
-            .unchecked_transaction()
-            .map_err(|_| "local_sync_storage_error")?;
-        for seq in seqs {
+        // Release the SQLite guard before the remaining-record/progress query
+        // below.  This mirrors the download path: keeping it alive here would
+        // self-deadlock after the first apply batch.
+        {
+            let conn = state.conn.lock().map_err(|e| e.to_string())?;
+            if !backup_written {
+                write_safety_backup(&conn)?;
+                backup_written = true;
+            }
+            applied = applied.saturating_add(apply_remote_records(&conn, &mut staged)?);
+            let tx = conn
+                .unchecked_transaction()
+                .map_err(|_| "local_sync_storage_error")?;
+            for seq in seqs {
+                tx.execute(
+                    "DELETE FROM sync_download_staging WHERE account_id=?1 AND seq=?2",
+                    rusqlite::params![account_id, seq],
+                )
+                .map_err(|_| "local_sync_storage_error")?;
+            }
             tx.execute(
-                "DELETE FROM sync_download_staging WHERE account_id=?1 AND seq=?2",
-                rusqlite::params![account_id, seq],
+                "UPDATE sync_download_state SET updated_at=?1 WHERE account_id=?2",
+                rusqlite::params![now_ms(), account_id],
             )
             .map_err(|_| "local_sync_storage_error")?;
+            tx.commit().map_err(|_| "local_sync_storage_error")?;
         }
-        tx.execute(
-            "UPDATE sync_download_state SET updated_at=?1 WHERE account_id=?2",
-            rusqlite::params![now_ms(), account_id],
-        )
-        .map_err(|_| "local_sync_storage_error")?;
-        tx.commit().map_err(|_| "local_sync_storage_error")?;
         let conn = state.conn.lock().map_err(|e| e.to_string())?;
         let remaining: i64 = conn
             .query_row(
