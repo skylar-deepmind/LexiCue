@@ -570,22 +570,29 @@ async fn capabilities() -> Json<Capabilities> {
 #[derive(Serialize)]
 struct HeadResponse {
     cursor: i64,
+    record_count: i64,
+}
+
+#[derive(Deserialize)]
+struct HeadQuery {
+    after: Option<i64>,
 }
 
 async fn sync_head(
     State(state): State<AppState>,
     headers: HeaderMap,
+    Query(query): Query<HeadQuery>,
 ) -> ApiResult<Json<HeadResponse>> {
     let (account_id, _) = sync_account(&headers, &state).await?;
     let client = db(&state).await?;
     let row = client
         .query_one(
-            "SELECT COALESCE(MAX(seq),0) FROM sync_records WHERE account_id=$1",
-            &[&account_id],
+            "SELECT COALESCE(MAX(seq),0), COUNT(*) FILTER (WHERE seq>$2) FROM sync_records WHERE account_id=$1",
+            &[&account_id, &query.after.unwrap_or(0).max(0)],
         )
         .await
         .map_err(internal)?;
-    Ok(Json(HeadResponse { cursor: row.get(0) }))
+    Ok(Json(HeadResponse { cursor: row.get(0), record_count: row.get(1) }))
 }
 
 #[derive(Deserialize)]

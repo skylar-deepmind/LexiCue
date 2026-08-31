@@ -367,6 +367,10 @@ struct RecordUploadResult {
 #[derive(Deserialize)]
 struct SyncHead {
     cursor: i64,
+    // New servers provide an exact count for an initial pull.  Older servers
+    // only have a cursor, so keep this optional during the rollout.
+    #[serde(default)]
+    record_count: Option<i64>,
 }
 
 #[derive(Deserialize)]
@@ -502,6 +506,28 @@ fn set_runtime_phase(conn: &rusqlite::Connection, phase: &str) -> Result<(), Str
     )
     .map_err(|e| e.to_string())?;
     Ok(())
+}
+
+fn stable_sync_error(value: String) -> String {
+    // Never surface SQLite/OS text to the UI. Keep protocol codes intact and
+    // classify the remaining local failures into actionable, stable buckets.
+    if value.contains("_error") || value.contains("_failed") || value == "unsupported_sync_protocol"
+    {
+        return value;
+    }
+    let normalized = value.to_ascii_lowercase();
+    if normalized.contains("unique constraint") && normalized.contains("sync_entity_state") {
+        "local_identity_conflict".into()
+    } else if normalized.contains("waiting for its ") || normalized.contains("missing ") {
+        "invalid_encrypted_record".into()
+    } else if normalized.contains("database")
+        || normalized.contains("sqlite")
+        || normalized.contains("locked")
+    {
+        "local_sync_storage_error".into()
+    } else {
+        "local_sync_storage_error".into()
+    }
 }
 fn normalized_endpoint(endpoint: &str) -> Result<String, String> {
     let value = endpoint.trim().trim_end_matches('/');
@@ -1985,7 +2011,10 @@ async fn pull_apply_events(
 ) -> Result<u32, String> {
     let client = sync_http_client();
     let response = client
-        .get(format!("{}/v1/sync/head", local.endpoint))
+        .get(format!(
+            "{}/v1/sync/head?after={}",
+            local.endpoint, local.last_remote_cursor
+        ))
         .bearer_auth(&local.access_token)
         .send()
         .await
@@ -2001,7 +2030,7 @@ async fn pull_apply_events(
         serde_json::from_slice(&head_body).map_err(|_| "invalid_server_response".to_string())?;
 
     let started_at = now_ms();
-    let (mut after, mut page_limit, mut records_done, mut bytes_done, target_head) = {
+    let (mut after, mut page_limit, mut records_done, mut bytes_done, target_head, planned_records) = {
         let conn = state.conn.lock().map_err(|e| e.to_string())?;
         let existing: Option<(i64, i64, i64, i64, String)> = conn
             .query_row(
@@ -2030,6 +2059,16 @@ async fn pull_apply_events(
                 done,
                 pending_bytes,
                 target,
+                // A resumed operation may have been created by an older
+                // client. Never let its displayed total fall below the
+                // deduplicated staging count.
+                conn.query_row(
+                    "SELECT COUNT(*) FROM sync_download_staging WHERE account_id=?1",
+                    [account_id],
+                    |row| row.get::<_, i64>(0),
+                )
+                .unwrap_or(0)
+                .max(done),
             )
         } else {
             let tx = conn
@@ -2046,7 +2085,16 @@ async fn pull_apply_events(
             )
             .map_err(|_| "local_sync_storage_error")?;
             tx.commit().map_err(|_| "local_sync_storage_error")?;
-            (local.last_remote_cursor, SYNC_PAGE_LIMIT, 0, 0, head.cursor)
+            (
+                local.last_remote_cursor,
+                SYNC_PAGE_LIMIT,
+                0,
+                0,
+                head.cursor,
+                head.record_count
+                    .unwrap_or_else(|| (head.cursor - local.last_remote_cursor).max(0))
+                    .max(0),
+            )
         }
     };
     {
@@ -2055,7 +2103,7 @@ async fn pull_apply_events(
             &conn,
             "downloading",
             records_done as u64,
-            (target_head - local.last_remote_cursor).max(0) as u64,
+            planned_records.max(records_done) as u64,
             bytes_done as u64,
             0,
             started_at,
@@ -2104,7 +2152,6 @@ async fn pull_apply_events(
         {
             return Err("invalid_server_response".into());
         }
-        let page_count = page.len() as i64;
         let page_bytes = body.len() as i64;
         // Keep the SQLite guard scoped to this write.  The progress update below
         // obtains the same mutex, so retaining `conn` until the end of the loop
@@ -2121,15 +2168,33 @@ async fn pull_apply_events(
                 )
                 .map_err(|_| "local_sync_storage_error")?;
             }
+            let staged_count: i64 = tx
+                .query_row(
+                    "SELECT COUNT(*) FROM sync_download_staging WHERE account_id=?1",
+                    [account_id],
+                    |row| row.get(0),
+                )
+                .map_err(|_| "local_sync_storage_error")?;
             tx.execute(
-                "UPDATE sync_download_state SET after_cursor=?1,records_done=records_done+?2,bytes_done=bytes_done+?3,updated_at=?4,last_error=NULL WHERE account_id=?5",
-                rusqlite::params![next_after, page_count, page_bytes, now_ms(), account_id],
+                "UPDATE sync_download_state SET after_cursor=?1,records_done=?2,bytes_done=bytes_done+?3,updated_at=?4,last_error=NULL WHERE account_id=?5",
+                rusqlite::params![next_after, staged_count, page_bytes, now_ms(), account_id],
             )
             .map_err(|_| "local_sync_storage_error")?;
             tx.commit().map_err(|_| "local_sync_storage_error")?;
         }
         after = next_after;
-        records_done += page_count;
+        // The staging table is keyed by sequence. Its count is the source of
+        // truth across retries, process restarts and INSERT OR REPLACE pages;
+        // never accumulate a display counter independently of it.
+        records_done = {
+            let conn = state.conn.lock().map_err(|_| "local_sync_storage_error")?;
+            conn.query_row(
+                "SELECT COUNT(*) FROM sync_download_staging WHERE account_id=?1",
+                [account_id],
+                |row| row.get(0),
+            )
+            .map_err(|_| "local_sync_storage_error")?
+        };
         bytes_done += page_bytes;
         {
             let conn = state.conn.lock().map_err(|e| e.to_string())?;
@@ -2137,7 +2202,7 @@ async fn pull_apply_events(
                 &conn,
                 "downloading",
                 records_done as u64,
-                (target_head - local.last_remote_cursor).max(0) as u64,
+                planned_records.max(records_done) as u64,
                 bytes_done as u64,
                 0,
                 started_at,
@@ -2814,13 +2879,14 @@ pub async fn sync_recover(
 }
 #[tauri::command]
 pub async fn sync_run(state: State<'_, DbState>) -> Result<(), String> {
-    match sync_now_inner(&state).await {
+    let result = match sync_now_inner(&state).await {
         Err(value) if value == "session_expired" || value == "auth_required" => {
             refresh_native_session(&state).await?;
             sync_now_inner(&state).await
         }
         result => result,
-    }
+    };
+    result.map_err(|value| stable_sync_error(value))
 }
 
 async fn sync_now_inner(state: &DbState) -> Result<(), String> {
@@ -3596,6 +3662,25 @@ mod tests {
                 })
                 .unwrap(),
             "local note"
+        );
+    }
+
+    #[test]
+    fn native_storage_failures_are_never_exposed_as_unknown_errors() {
+        assert_eq!(
+            stable_sync_error("database is locked".into()),
+            "local_sync_storage_error"
+        );
+        assert_eq!(
+            stable_sync_error(
+                "UNIQUE constraint failed: sync_entity_state.table_name, sync_entity_state.sync_id"
+                    .into()
+            ),
+            "local_identity_conflict"
+        );
+        assert_eq!(
+            stable_sync_error("sync occurrence is waiting for its word".into()),
+            "invalid_encrypted_record"
         );
     }
 }

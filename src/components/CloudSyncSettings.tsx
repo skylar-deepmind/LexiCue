@@ -80,9 +80,17 @@ export default function CloudSyncSettings() {
   const progressCurrent = progressUsesBytes
     ? syncProgress?.completed_bytes ?? 0
     : syncProgress?.completed_items ?? 0;
-  const progressPercent = progressMaximum > 0
+  const stageProgressPercent = progressMaximum > 0
     ? Math.min(100, (progressCurrent / progressMaximum) * 100)
     : 5;
+  // Download and apply are two halves of one restore operation. Keeping the
+  // visual bar in one coordinate system prevents the bar from jumping back to
+  // zero just because the phase label changes.
+  const progressPercent = syncProgress?.phase === 'applying'
+    ? 50 + stageProgressPercent / 2
+    : syncProgress?.phase === 'downloading'
+      ? stageProgressPercent / 2
+      : stageProgressPercent;
 
   const refresh = async () => {
     try { setStatus(await invoke<SyncStatus>('sync_status')); }
@@ -192,13 +200,13 @@ export default function CloudSyncSettings() {
   };
 
   const hasPendingSyncWork = (status?.pending_uploads ?? 0) > 0 || (status?.pending_downloads ?? 0) > 0;
-  const stateKey = status?.phase === 'syncing' || status?.phase === 'preparing' || status?.phase === 'applying' || status?.phase === 'uploading' || status?.phase === 'downloading' || hasPendingSyncWork
+  const stateKey = status?.phase === 'syncing' || status?.phase === 'preparing' || status?.phase === 'applying' || status?.phase === 'uploading' || status?.phase === 'downloading'
     ? 'syncing'
     : status?.phase === 'offline' || status?.phase === 'retrying'
       ? 'offline'
       : status?.phase === 'paused' || status?.last_error?.includes('auth_') || status?.last_error?.includes('session_')
         ? 'authRequired'
-        : status?.last_error ? 'error' : 'synced';
+        : status?.last_error ? 'error' : hasPendingSyncWork ? 'syncing' : 'synced';
   const emailError = error === 'invalid_email' || error === 'email_exists';
   const passwordError = error === 'invalid_credentials' || error === 'invalid_password';
   const recoveryError = error === 'invalid_recovery_code';
@@ -255,7 +263,7 @@ export default function CloudSyncSettings() {
                 </div>
               </div>
             )}
-            {status.last_error && (stateKey === 'error' || stateKey === 'authRequired') && (
+            {status.last_error && (
               <p className="sync-error-message mt-3" role="alert">
                 {t(`settings.cloudSync.errors.${errorCode(status.last_error)}`)}
               </p>
