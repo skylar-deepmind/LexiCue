@@ -1198,6 +1198,17 @@ fn apply_entity_event(
     event: &EntityEvent,
     clock: &str,
 ) -> Result<bool, String> {
+    // Library snapshots are the canonical representation of files, subtitle
+    // segments and their word/phrase occurrences. Older development builds
+    // uploaded those tables independently; applying them after a snapshot can
+    // recreate stale foreign-key references (and duplicate a library). Keep
+    // their remote cursor/etag acknowledgement, but never apply them again.
+    if matches!(
+        event.table_name.as_str(),
+        "files" | "segments" | "occurrences" | "phrase_occurrences"
+    ) {
+        return Ok(false);
+    }
     if event.table_name == "library_item" {
         return with_remote_apply_guard(conn, || {
             apply_library_item_event(
@@ -3764,5 +3775,20 @@ mod tests {
             stable_sync_error("sync occurrence is waiting for its word".into()),
             "invalid_encrypted_record"
         );
+    }
+
+    #[test]
+    fn legacy_library_child_events_are_acknowledged_without_local_writes() {
+        let connection = rusqlite::Connection::open_in_memory().unwrap();
+        // The routing rule itself is independent of an existing library and
+        // prevents obsolete row-level occurrence payloads from violating FKs.
+        let event = EntityEvent {
+            version: 3,
+            table_name: "occurrences".into(),
+            sync_id: "legacy".into(),
+            operation: "upsert".into(),
+            record: None,
+        };
+        assert!(!apply_entity_event(&connection, &event, "1:0:test").unwrap());
     }
 }

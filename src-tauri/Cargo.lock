@@ -2500,7 +2500,7 @@ dependencies = [
 
 [[package]]
 name = "lexicue"
-version = "0.3.10"
+version = "0.3.11"
 dependencies = [
  "android-native-keyring-store",
  "argon2",
