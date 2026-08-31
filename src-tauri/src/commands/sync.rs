@@ -182,6 +182,7 @@ pub struct SyncDiagnostic {
     pub code: String,
     pub stage: String,
     pub kind: String,
+    pub entity_type: Option<String>,
     pub occurred_at: i64,
 }
 
@@ -570,10 +571,16 @@ fn record_sync_diagnostic(state: &DbState, raw: &str, code: &str) {
         .ok()
         .flatten()
         .unwrap_or_else(|| "preparing".into());
+    let entity_type = raw
+        .strip_prefix("sync_apply::")
+        .and_then(|value| value.split("::").next())
+        .filter(|value| !value.is_empty())
+        .map(str::to_owned);
     let diagnostic = SyncDiagnostic {
         code: code.into(),
         stage,
         kind: diagnostic_kind(raw).into(),
+        entity_type,
         occurred_at: now_ms(),
     };
     let Ok(serialized) = serde_json::to_string(&diagnostic) else {
@@ -586,8 +593,9 @@ fn record_sync_diagnostic(state: &DbState, raw: &str, code: &str) {
             .map(|parent| parent.join("lexicue-sync-diagnostic.txt"))
     }) {
         let report = format!(
-            "LexiCue sync diagnostic\nversion=0.3.9\nstage={}\ncode={}\nkind={}\noccurred_at={}\n",
-            diagnostic.stage, diagnostic.code, diagnostic.kind, diagnostic.occurred_at
+            "LexiCue sync diagnostic\nversion=0.3.10\nstage={}\ncode={}\nkind={}\nentity_type={}\noccurred_at={}\n",
+            diagnostic.stage, diagnostic.code, diagnostic.kind,
+            diagnostic.entity_type.as_deref().unwrap_or("none"), diagnostic.occurred_at
         );
         let _ = std::fs::write(path, report);
     }
@@ -2048,7 +2056,9 @@ fn apply_remote_records(
         let mut applied = 0;
         for staged_record in records {
             let remote = &staged_record.remote;
-            if apply_entity_event(conn, &staged_record.event, &staged_record.clock)? {
+            if apply_entity_event(conn, &staged_record.event, &staged_record.clock).map_err(
+                |error| format!("sync_apply::{}::{error}", staged_record.event.table_name),
+            )? {
                 applied += 1;
             }
             conn.execute("INSERT INTO sync_remote_state(table_name,sync_id,etag,server_seq) VALUES(?1,?2,?3,?4) ON CONFLICT(table_name,sync_id) DO UPDATE SET etag=excluded.etag,server_seq=excluded.server_seq", rusqlite::params![remote.entity_type,remote.entity_id,remote.etag,remote.seq]).map_err(|e|e.to_string())?;
@@ -2281,6 +2291,7 @@ async fn pull_apply_events(
             rusqlite::params![now_ms(), account_id],
         )
         .map_err(|_| "local_sync_storage_error")?;
+        set_runtime_phase(&conn, "applying")?;
         set_progress(
             &conn,
             "applying",

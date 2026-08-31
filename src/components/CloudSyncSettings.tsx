@@ -35,7 +35,7 @@ interface SyncStatus {
     eta_seconds: number | null;
     retry_at: number | null;
   } | null;
-  diagnostic: { code: string; stage: string; kind: string; occurred_at: number } | null;
+  diagnostic: { code: string; stage: string; kind: string; entity_type: string | null; occurred_at: number } | null;
 }
 
 interface SyncDevice { id: string; name: string; last_seen_at: string }
@@ -149,13 +149,14 @@ export default function CloudSyncSettings() {
 
   const copyDiagnostic = async () => {
     if (!status?.diagnostic) return;
-    const { code, stage, kind, occurred_at } = status.diagnostic;
+    const { code, stage, kind, entity_type, occurred_at } = status.diagnostic;
     await navigator.clipboard.writeText([
       'LexiCue sync diagnostic',
       'client=LexiCue',
       `stage=${stage}`,
       `code=${code}`,
       `kind=${kind}`,
+      `entity_type=${entity_type ?? 'none'}`,
       `occurred_at=${new Date(occurred_at).toISOString()}`,
     ].join('\n'));
     setDiagnosticCopied(true);
