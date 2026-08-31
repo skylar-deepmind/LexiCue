@@ -946,6 +946,28 @@ fn decode_event(plaintext: &[u8]) -> Result<EntityEvent, String> {
 fn set_runtime(conn: &rusqlite::Connection, applying: bool) -> Result<(), String> {
     conn.execute("INSERT INTO sync_runtime(key,value) VALUES('applying',?1) ON CONFLICT(key) DO UPDATE SET value=excluded.value", [if applying { "1" } else { "0" }]).map(|_|()).map_err(|e| e.to_string())
 }
+
+fn with_remote_apply_guard<T>(
+    conn: &rusqlite::Connection,
+    apply: impl FnOnce() -> Result<T, String>,
+) -> Result<T, String> {
+    let already_applying: bool = conn
+        .query_row(
+            "SELECT COALESCE((SELECT value='1' FROM sync_runtime WHERE key='applying'),0)",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|_| "local_sync_storage_error".to_string())?;
+    if !already_applying {
+        set_runtime(conn, true)?;
+    }
+    let result = apply();
+    if !already_applying {
+        set_runtime(conn, false)?;
+    }
+    result
+}
+
 fn mark_state(
     conn: &rusqlite::Connection,
     table: &str,
@@ -1080,13 +1102,15 @@ fn apply_entity_event(
     clock: &str,
 ) -> Result<bool, String> {
     if event.table_name == "library_item" {
-        return apply_library_item_event(
-            conn,
-            &event.sync_id,
-            &event.operation,
-            event.record.as_ref(),
-            clock,
-        );
+        return with_remote_apply_guard(conn, || {
+            apply_library_item_event(
+                conn,
+                &event.sync_id,
+                &event.operation,
+                event.record.as_ref(),
+                clock,
+            )
+        });
     }
     let canonical = conn.query_row("SELECT canonical_sync_id FROM sync_identity_aliases WHERE table_name=?1 AND alias_sync_id=?2", rusqlite::params![event.table_name,event.sync_id], |r|r.get::<_,String>(0)).optional().map_err(|e|e.to_string())?.unwrap_or_else(||event.sync_id.clone());
     let existing_clock: Option<String> = conn
@@ -3198,16 +3222,10 @@ mod tests {
                 rusqlite::params![source_phrase_sync, target_phrase],
             )
             .unwrap();
-        set_runtime(&target, true).unwrap();
-        apply_library_item_event(
-            &target,
-            &source_file_sync,
-            "upsert",
-            decoded.record.as_ref(),
-            "00000000000000000001:00000000:test",
-        )
-        .unwrap();
-        set_runtime(&target, false).unwrap();
+        target
+            .execute("UPDATE sync_changes SET uploaded_at=1", [])
+            .unwrap();
+        apply_entity_event(&target, &decoded, "00000000000000000001:00000000:test").unwrap();
         let restored: (String, String, i64, i64) = target
             .query_row(
                 "SELECT s.zh_text,p.translation,
@@ -3219,6 +3237,53 @@ mod tests {
             )
             .unwrap();
         assert_eq!(restored, ("你好，世界".into(), "你好世界".into(), 1, 1));
+        let pending_after_remote_apply: i64 = target
+            .query_row(
+                "SELECT COUNT(*) FROM sync_changes WHERE uploaded_at IS NULL",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(pending_after_remote_apply, 0);
+
+        target
+            .execute("UPDATE segments SET zh_text='更新后的本机内容'", [])
+            .unwrap();
+        let local_library_changes: i64 = target
+            .query_row(
+                "SELECT COUNT(*) FROM sync_changes WHERE table_name='library_item' AND uploaded_at IS NULL",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(local_library_changes, 1);
+        target
+            .execute(
+                "UPDATE sync_changes SET uploaded_at=1 WHERE uploaded_at IS NULL",
+                [],
+            )
+            .unwrap();
+
+        let delete_event = EntityEvent {
+            version: 3,
+            table_name: "library_item".into(),
+            sync_id: source_file_sync,
+            operation: "delete".into(),
+            record: None,
+        };
+        apply_entity_event(&target, &delete_event, "00000000000000000002:00000000:test").unwrap();
+        let remaining_files: i64 = target
+            .query_row("SELECT COUNT(*) FROM files", [], |row| row.get(0))
+            .unwrap();
+        let pending_after_remote_delete: i64 = target
+            .query_row(
+                "SELECT COUNT(*) FROM sync_changes WHERE uploaded_at IS NULL",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(remaining_files, 0);
+        assert_eq!(pending_after_remote_delete, 0);
     }
     #[test]
     fn key_package_requires_correct_secret() {

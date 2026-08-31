@@ -191,7 +191,8 @@ export default function CloudSyncSettings() {
     setNotice('recoverySaved');
   };
 
-  const stateKey = status?.phase === 'syncing' || status?.phase === 'preparing' || status?.phase === 'applying' || status?.phase === 'uploading' || status?.phase === 'downloading'
+  const hasPendingSyncWork = (status?.pending_uploads ?? 0) > 0 || (status?.pending_downloads ?? 0) > 0;
+  const stateKey = status?.phase === 'syncing' || status?.phase === 'preparing' || status?.phase === 'applying' || status?.phase === 'uploading' || status?.phase === 'downloading' || hasPendingSyncWork
     ? 'syncing'
     : status?.phase === 'offline' || status?.phase === 'retrying'
       ? 'offline'
