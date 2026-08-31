@@ -174,6 +174,15 @@ pub struct SyncStatus {
     pub auto_sync_enabled: bool,
     pub next_retry_at: Option<i64>,
     pub progress: Option<SyncProgress>,
+    pub diagnostic: Option<SyncDiagnostic>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct SyncDiagnostic {
+    pub code: String,
+    pub stage: String,
+    pub kind: String,
+    pub occurred_at: i64,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -527,6 +536,60 @@ fn stable_sync_error(value: String) -> String {
         "local_sync_storage_error".into()
     } else {
         "local_sync_storage_error".into()
+    }
+}
+
+fn diagnostic_kind(value: &str) -> &'static str {
+    let value = value.to_ascii_lowercase();
+    if value.contains("locked") || value.contains("busy") {
+        "sqlite_busy"
+    } else if value.contains("unique constraint") {
+        "sqlite_constraint"
+    } else if value.contains("foreign key") {
+        "sqlite_foreign_key"
+    } else if value.contains("disk") || value.contains("space") || value.contains("readonly") {
+        "storage_write"
+    } else if value.contains("waiting for its ") || value.contains("missing ") {
+        "missing_reference"
+    } else {
+        "local_write"
+    }
+}
+
+fn record_sync_diagnostic(state: &DbState, raw: &str, code: &str) {
+    let Ok(conn) = state.conn.lock() else {
+        return;
+    };
+    let stage = conn
+        .query_row(
+            "SELECT value FROM sync_runtime WHERE key='phase'",
+            [],
+            |r| r.get::<_, String>(0),
+        )
+        .optional()
+        .ok()
+        .flatten()
+        .unwrap_or_else(|| "preparing".into());
+    let diagnostic = SyncDiagnostic {
+        code: code.into(),
+        stage,
+        kind: diagnostic_kind(raw).into(),
+        occurred_at: now_ms(),
+    };
+    let Ok(serialized) = serde_json::to_string(&diagnostic) else {
+        return;
+    };
+    let _ = conn.execute("INSERT INTO sync_runtime(key,value) VALUES('diagnostic',?1) ON CONFLICT(key) DO UPDATE SET value=excluded.value", [&serialized]);
+    if let Some(path) = conn.path().and_then(|path| {
+        std::path::Path::new(path)
+            .parent()
+            .map(|parent| parent.join("lexicue-sync-diagnostic.txt"))
+    }) {
+        let report = format!(
+            "LexiCue sync diagnostic\nversion=0.3.9\nstage={}\ncode={}\nkind={}\noccurred_at={}\n",
+            diagnostic.stage, diagnostic.code, diagnostic.kind, diagnostic.occurred_at
+        );
+        let _ = std::fs::write(path, report);
     }
 }
 fn normalized_endpoint(endpoint: &str) -> Result<String, String> {
@@ -2374,6 +2437,8 @@ pub fn sync_status(state: State<DbState>) -> Result<SyncStatus, String> {
     };
     let progress = runtime_value("progress")
         .and_then(|value| serde_json::from_str::<SyncProgress>(&value).ok());
+    let diagnostic = runtime_value("diagnostic")
+        .and_then(|value| serde_json::from_str::<SyncDiagnostic>(&value).ok());
     Ok(match value {
         Some(c) => SyncStatus {
             configured: true,
@@ -2390,6 +2455,7 @@ pub fn sync_status(state: State<DbState>) -> Result<SyncStatus, String> {
             auto_sync_enabled: c.auto_sync_enabled,
             next_retry_at: runtime_value("next_retry_at").and_then(|value| value.parse().ok()),
             progress,
+            diagnostic,
         },
         None => SyncStatus {
             configured: false,
@@ -2406,6 +2472,7 @@ pub fn sync_status(state: State<DbState>) -> Result<SyncStatus, String> {
             auto_sync_enabled: false,
             next_retry_at: None,
             progress: None,
+            diagnostic: None,
         },
     })
 }
@@ -2886,7 +2953,11 @@ pub async fn sync_run(state: State<'_, DbState>) -> Result<(), String> {
         }
         result => result,
     };
-    result.map_err(|value| stable_sync_error(value))
+    result.map_err(|value| {
+        let code = stable_sync_error(value.clone());
+        record_sync_diagnostic(&state, &value, &code);
+        code
+    })
 }
 
 async fn sync_now_inner(state: &DbState) -> Result<(), String> {

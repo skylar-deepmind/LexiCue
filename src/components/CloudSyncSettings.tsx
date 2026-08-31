@@ -35,6 +35,7 @@ interface SyncStatus {
     eta_seconds: number | null;
     retry_at: number | null;
   } | null;
+  diagnostic: { code: string; stage: string; kind: string; occurred_at: number } | null;
 }
 
 interface SyncDevice { id: string; name: string; last_seen_at: string }
@@ -71,6 +72,7 @@ export default function CloudSyncSettings() {
   const [error, setError] = useState<SyncErrorCode | ''>('');
   const [notice, setNotice] = useState('');
   const [recoveryCode, setRecoveryCode] = useState('');
+  const [diagnosticCopied, setDiagnosticCopied] = useState(false);
   const [devices, setDevices] = useState<SyncDevice[]>([]);
   const syncProgress = status?.progress ?? null;
   const progressUsesBytes = (syncProgress?.total_bytes ?? 0) > 0;
@@ -143,6 +145,20 @@ export default function CloudSyncSettings() {
       setNotice('synced');
     } catch (value) { setError(errorCode(value)); }
     finally { setBusy(false); }
+  };
+
+  const copyDiagnostic = async () => {
+    if (!status?.diagnostic) return;
+    const { code, stage, kind, occurred_at } = status.diagnostic;
+    await navigator.clipboard.writeText([
+      'LexiCue sync diagnostic',
+      'client=LexiCue',
+      `stage=${stage}`,
+      `code=${code}`,
+      `kind=${kind}`,
+      `occurred_at=${new Date(occurred_at).toISOString()}`,
+    ].join('\n'));
+    setDiagnosticCopied(true);
   };
 
   const toggleAutoSync = async () => {
@@ -267,6 +283,14 @@ export default function CloudSyncSettings() {
               <p className="sync-error-message mt-3" role="alert">
                 {t(`settings.cloudSync.errors.${errorCode(status.last_error)}`)}
               </p>
+            )}
+            {status.diagnostic && status.last_error && (
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-current">
+                <span>{t('settings.cloudSync.diagnostic.summary', { stage: t(`settings.cloudSync.progress.${status.diagnostic.stage}`, { defaultValue: status.diagnostic.stage }), kind: t(`settings.cloudSync.diagnostic.kinds.${status.diagnostic.kind}`, { defaultValue: status.diagnostic.kind }) })}</span>
+                <button type="button" className="sync-text-button" onClick={() => void copyDiagnostic()}>
+                  <Copy size={15} aria-hidden="true" />{diagnosticCopied ? t('settings.cloudSync.diagnostic.copied') : t('settings.cloudSync.diagnostic.copy')}
+                </button>
+              </div>
             )}
           </div>
         </div>
