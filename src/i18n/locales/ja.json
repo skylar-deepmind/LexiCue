@@ -80,6 +80,7 @@
       "title": "クラウド同期", "description": "ライブラリと学習履歴をエンドツーエンド暗号化して端末間で同期します。", "notConnected": "未接続",
       "state": { "synced": "同期済み", "syncing": "同期中", "offline": "ネットワーク待機中", "authRequired": "再ログインが必要", "error": "同期を確認してください" },
       "lastSynced": "最終同期：{{time}}", "preparing": "同期を準備中…", "pending": "{{count}} 件がアップロード待ち", "conflicts": "確認用に {{count}} 件のテキスト競合を保存しました", "progressLabel": "同期の進捗", "downloadedBytes": "{{size}} をダウンロード済み", "eta": "残り約 {{seconds}} 秒", "progress": { "preparing": "ローカルデータを準備中", "downloading": "クラウドデータをダウンロード中", "applying": "クラウドデータを適用中", "uploading": "ローカルデータをアップロード中", "retrying": "再試行を待機中" },
+      "restoreProgress": "復元 {{completed}}/{{total}}",
       "syncNow": "今すぐ同期", "pauseAuto": "自動同期を停止", "enableAuto": "自動同期を有効化", "advanced": "詳細オプション", "devices": "端末", "refresh": "更新", "currentDevice": "この端末", "revoke": "無効化", "disconnect": "この端末からログアウト",
       "dangerTitle": "同期アカウントを削除", "deleteHint": "暗号化されたクラウドコピーを削除し、全端末をログアウトします。この端末のデータは残ります。", "deleteAccount": "アカウントを削除", "deleteConfirm": "同期アカウントと暗号化クラウドデータを削除しますか？この端末のデータは削除されません。",
       "accountMode": "アカウント操作", "createAccount": "アカウント作成", "login": "ログイン", "email": "メールアドレス", "recoveryKey": "復旧キー", "newPassword": "新しいパスワード", "password": "パスワード", "hidePassword": "パスワードを隠す", "showPassword": "パスワードを表示", "passwordHint": "10文字以上で入力してください。",

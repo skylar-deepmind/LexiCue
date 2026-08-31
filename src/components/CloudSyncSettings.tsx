@@ -82,17 +82,21 @@ export default function CloudSyncSettings() {
   const progressCurrent = progressUsesBytes
     ? syncProgress?.completed_bytes ?? 0
     : syncProgress?.completed_items ?? 0;
-  const stageProgressPercent = progressMaximum > 0
-    ? Math.min(100, (progressCurrent / progressMaximum) * 100)
+  const isRestorePhase = syncProgress?.phase === 'downloading' || syncProgress?.phase === 'applying';
+  const restoreTotalItems = isRestorePhase ? (syncProgress?.total_items ?? 0) * 2 : 0;
+  const restoreCompletedItems = syncProgress?.phase === 'applying'
+    ? (syncProgress?.total_items ?? 0) + (syncProgress?.completed_items ?? 0)
+    : syncProgress?.completed_items ?? 0;
+  const visualMaximum = isRestorePhase && restoreTotalItems > 0 ? restoreTotalItems : progressMaximum;
+  const visualCurrent = isRestorePhase && restoreTotalItems > 0 ? restoreCompletedItems : progressCurrent;
+  const progressPercent = visualMaximum > 0
+    ? Math.min(100, (visualCurrent / visualMaximum) * 100)
     : 5;
-  // Download and apply are two halves of one restore operation. Keeping the
-  // visual bar in one coordinate system prevents the bar from jumping back to
-  // zero just because the phase label changes.
-  const progressPercent = syncProgress?.phase === 'applying'
-    ? 50 + stageProgressPercent / 2
-    : syncProgress?.phase === 'downloading'
-      ? stageProgressPercent / 2
-      : stageProgressPercent;
+  const progressAriaText = isRestorePhase && restoreTotalItems > 0
+    ? t('settings.cloudSync.restoreProgress', { completed: restoreCompletedItems, total: restoreTotalItems })
+    : progressUsesBytes
+      ? `${formatBytes(syncProgress?.completed_bytes ?? 0)} / ${formatBytes(syncProgress?.total_bytes ?? 0)}`
+      : `${syncProgress?.completed_items ?? 0} / ${syncProgress?.total_items || '—'}`;
 
   const refresh = async () => {
     try { setStatus(await invoke<SyncStatus>('sync_status')); }
@@ -256,17 +260,17 @@ export default function CloudSyncSettings() {
               <div className="sync-progress mt-3" aria-label={t('settings.cloudSync.progressLabel')}>
                 <div className="mb-1 flex flex-wrap items-center justify-between gap-2 text-sm">
                   <span>{t(`settings.cloudSync.progress.${syncProgress.phase}`, { defaultValue: syncProgress.phase })}</span>
-                  <span>{syncProgress.completed_items}/{syncProgress.total_items || '—'}</span>
+                  <span>{isRestorePhase && restoreTotalItems > 0
+                    ? t('settings.cloudSync.restoreProgress', { completed: restoreCompletedItems, total: restoreTotalItems })
+                    : `${syncProgress.completed_items}/${syncProgress.total_items || '—'}`}</span>
                 </div>
                 <div
                   className="sync-progress__track"
                   role="progressbar"
                   aria-valuemin={0}
-                  aria-valuemax={progressMaximum || 1}
-                  aria-valuenow={Math.min(progressCurrent, progressMaximum || 1)}
-                  aria-valuetext={progressUsesBytes
-                    ? `${formatBytes(syncProgress.completed_bytes)} / ${formatBytes(syncProgress.total_bytes)}`
-                    : `${syncProgress.completed_items} / ${syncProgress.total_items || '—'}`}
+                  aria-valuemax={visualMaximum || 1}
+                  aria-valuenow={Math.min(visualCurrent, visualMaximum || 1)}
+                  aria-valuetext={progressAriaText}
                 >
                   <div className="sync-progress__bar" style={{ width: `${progressPercent}%` }} />
                 </div>

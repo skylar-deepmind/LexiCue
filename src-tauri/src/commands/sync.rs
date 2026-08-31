@@ -593,7 +593,8 @@ fn record_sync_diagnostic(state: &DbState, raw: &str, code: &str) {
             .map(|parent| parent.join("lexicue-sync-diagnostic.txt"))
     }) {
         let report = format!(
-            "LexiCue sync diagnostic\nversion=0.3.10\nstage={}\ncode={}\nkind={}\nentity_type={}\noccurred_at={}\n",
+            "LexiCue sync diagnostic\nversion={}\nstage={}\ncode={}\nkind={}\nentity_type={}\noccurred_at={}\n",
+            env!("CARGO_PKG_VERSION"),
             diagnostic.stage, diagnostic.code, diagnostic.kind,
             diagnostic.entity_type.as_deref().unwrap_or("none"), diagnostic.occurred_at
         );

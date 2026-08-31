@@ -82,6 +82,7 @@
       "notConnected": "Not connected",
       "state": { "synced": "Up to date", "syncing": "Syncing", "offline": "Waiting for network", "authRequired": "Sign in again", "error": "Sync needs attention" },
       "lastSynced": "Last synced {{time}}", "preparing": "Preparing sync…", "pending": "{{count}} items waiting to upload", "conflicts": "{{count}} text conflicts saved for review", "progressLabel": "Sync progress", "downloadedBytes": "{{size}} downloaded", "eta": "About {{seconds}} seconds remaining", "progress": { "preparing": "Preparing local data", "downloading": "Downloading cloud data", "applying": "Applying cloud data", "uploading": "Uploading local data", "retrying": "Waiting to retry" },
+      "restoreProgress": "Restore {{completed}}/{{total}}",
       "syncNow": "Sync now", "pauseAuto": "Pause automatic sync", "enableAuto": "Enable automatic sync",
       "advanced": "Advanced options", "devices": "Devices", "refresh": "Refresh", "currentDevice": "This device", "revoke": "Revoke", "disconnect": "Sign out on this device",
       "dangerTitle": "Delete sync account", "deleteHint": "Deletes the encrypted cloud copy and signs out every device. Local data stays on this device.", "deleteAccount": "Delete account", "deleteConfirm": "Delete this sync account and its encrypted cloud data? Local data on this device will not be deleted.",
