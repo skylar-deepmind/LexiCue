@@ -144,6 +144,13 @@ jobs:
       - run: npm ci
       - name: Generate Android project
         run: npx tauri android init
+      - name: Initialize Android secure credential context
+        run: |
+          set -euo pipefail
+          source_dir="src-tauri/android-template"
+          java_dir="src-tauri/gen/android/app/src/main/java"
+          install -D -m 0644 "$source_dir/MainActivity.kt" "$java_dir/com/lexicue/app/MainActivity.kt"
+          install -D -m 0644 "$source_dir/Keyring.kt" "$java_dir/io/crates/keyring/Keyring.kt"
       - name: Configure Android release signing
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
