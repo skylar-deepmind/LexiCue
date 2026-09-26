@@ -18,6 +18,7 @@ import { QueryCache } from '../lib/queryCache';
 import { registerCacheInvalidator } from '../lib/cacheInvalidation';
 import FrequencyBaselineSettings from '../components/FrequencyBaselineSettings';
 import SettingsCollapsibleSection from '../components/SettingsCollapsibleSection';
+import CloudSyncSettings from '../components/CloudSyncSettings';
 
 interface YtDlpStatus {
   available: boolean;
@@ -52,6 +53,7 @@ function formatImportedAt(timestamp: number, locale: string) {
 const SECTION_NAV = [
   { id: 'ui-language', labelKey: 'settings.uiLanguage.title' },
   { id: 'frequency-baseline', labelKey: 'settings.frequencyBaseline.title' },
+  { id: 'cloud-sync', labelKey: 'settings.cloudSync.title' },
   { id: 'ai', labelKey: 'settings.ai.title' },
   { id: 'youtube', labelKey: 'settings.youtube.title' },
   { id: 'theme', labelKey: 'settings.theme.title' },
@@ -316,6 +318,8 @@ export default function SettingsPage() {
         </section>
 
         <FrequencyBaselineSettings />
+
+        <CloudSyncSettings />
 
         <SettingsCollapsibleSection
           id="ai"

@@ -1,11 +1,11 @@
-use rusqlite::Connection;
+use rusqlite::{Connection, OptionalExtension};
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::sync::Mutex;
 
 pub struct DbState {
-    pub conn: Mutex<Connection>,
+    pub conn: Arc<Mutex<Connection>>,
 }
 
 #[derive(Clone, Default)]
@@ -33,12 +33,364 @@ pub fn init_db(db_path: &Path) -> Result<Connection, rusqlite::Error> {
     )?;
 
     create_tables(&conn)?;
+    create_sync_tracking(&conn)?;
     migrate_legacy_constraints(&conn)?;
     backfill_phrase_provider(&conn)?;
     migrate_file_folder(&conn)?;
     migrate_occurrence_hidden(&conn)?;
+    migrate_review_log_schedule(&conn)?;
     create_performance_indexes(&conn)?;
     Ok(conn)
+}
+
+/// Stable sync identities live alongside the local integer primary keys. This
+/// keeps existing SQL and foreign keys intact while providing a portable ID,
+/// timestamp and deletion tombstone for the encrypted record sync engine.
+fn create_sync_tracking(conn: &Connection) -> Result<(), rusqlite::Error> {
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS sync_entity_state (
+            table_name TEXT NOT NULL,
+            local_id INTEGER NOT NULL,
+            sync_id TEXT NOT NULL,
+            updated_at INTEGER NOT NULL,
+            deleted_at INTEGER,
+            clock TEXT NOT NULL DEFAULT '',
+            PRIMARY KEY(table_name, local_id),
+            UNIQUE(table_name, sync_id)
+        ) STRICT;
+        CREATE TABLE IF NOT EXISTS sync_changes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            table_name TEXT NOT NULL,
+            sync_id TEXT NOT NULL,
+            operation TEXT NOT NULL CHECK(operation IN ('upsert','delete')),
+            changed_at INTEGER NOT NULL,
+            uploaded_at INTEGER
+        ) STRICT;
+        CREATE INDEX IF NOT EXISTS sync_changes_pending_idx ON sync_changes(uploaded_at, id);",
+    )?;
+    let has_clock = conn
+        .prepare("PRAGMA table_info(sync_entity_state)")?
+        .query_map([], |row| row.get::<_, String>(1))?
+        .filter_map(Result::ok)
+        .any(|column| column == "clock");
+    if !has_clock {
+        conn.execute(
+            "ALTER TABLE sync_entity_state ADD COLUMN clock TEXT NOT NULL DEFAULT ''",
+            [],
+        )?;
+    }
+    // The record protocol keeps an immutable, retryable encrypted envelope for every queued
+    // change.  `sync_changes` is intentionally still the trigger target: it
+    // makes the user write and the fact that it needs syncing one SQLite
+    // transaction, even for command code that does not know about sync.
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS sync_outbox (
+            event_id TEXT PRIMARY KEY,
+            change_id INTEGER NOT NULL UNIQUE REFERENCES sync_changes(id) ON DELETE CASCADE,
+            device_id TEXT NOT NULL,
+            clock TEXT NOT NULL,
+            kind TEXT NOT NULL,
+            ciphertext BLOB NOT NULL,
+            uploaded_at INTEGER
+        ) STRICT;
+        CREATE INDEX IF NOT EXISTS sync_outbox_pending_idx ON sync_outbox(uploaded_at, change_id);
+        CREATE TABLE IF NOT EXISTS sync_applied_events (
+            event_id TEXT PRIMARY KEY,
+            server_seq INTEGER NOT NULL,
+            applied_at INTEGER NOT NULL
+        ) STRICT;
+        CREATE TABLE IF NOT EXISTS sync_identity_aliases (
+            table_name TEXT NOT NULL,
+            alias_sync_id TEXT NOT NULL,
+            canonical_sync_id TEXT NOT NULL,
+            PRIMARY KEY(table_name, alias_sync_id)
+        ) STRICT;
+        CREATE TABLE IF NOT EXISTS sync_remote_state (
+            table_name TEXT NOT NULL,
+            sync_id TEXT NOT NULL,
+            etag TEXT NOT NULL,
+            server_seq INTEGER NOT NULL,
+            PRIMARY KEY(table_name, sync_id)
+        ) STRICT;
+        CREATE TABLE IF NOT EXISTS sync_conflicts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            table_name TEXT NOT NULL,
+            sync_id TEXT NOT NULL,
+            local_value TEXT,
+            remote_value TEXT,
+            created_at INTEGER NOT NULL,
+            resolved_at INTEGER
+        ) STRICT;
+        CREATE TABLE IF NOT EXISTS sync_runtime (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        ) STRICT;
+        CREATE TABLE IF NOT EXISTS sync_download_state (
+            account_id TEXT PRIMARY KEY,
+            target_head INTEGER NOT NULL DEFAULT 0,
+            after_cursor INTEGER NOT NULL DEFAULT 0,
+            page_limit INTEGER NOT NULL DEFAULT 50,
+            phase TEXT NOT NULL DEFAULT 'idle',
+            records_done INTEGER NOT NULL DEFAULT 0,
+            bytes_done INTEGER NOT NULL DEFAULT 0,
+            updated_at INTEGER NOT NULL DEFAULT 0,
+            last_error TEXT
+        ) STRICT;
+        CREATE TABLE IF NOT EXISTS sync_download_staging (
+            account_id TEXT NOT NULL,
+            seq INTEGER NOT NULL,
+            entity_type TEXT NOT NULL,
+            entity_id TEXT NOT NULL,
+            etag TEXT NOT NULL,
+            schema_version INTEGER NOT NULL,
+            deleted INTEGER NOT NULL,
+            nonce TEXT NOT NULL,
+            ciphertext TEXT NOT NULL,
+            received_at INTEGER NOT NULL,
+            PRIMARY KEY(account_id, seq)
+        ) STRICT;
+        CREATE INDEX IF NOT EXISTS sync_download_staging_entity_idx ON sync_download_staging(account_id, entity_type, entity_id);
+        CREATE TABLE IF NOT EXISTS sync_delete_jobs (
+            job_id TEXT PRIMARY KEY,
+            file_id INTEGER NOT NULL,
+            file_sync_id TEXT NOT NULL,
+            phase TEXT NOT NULL,
+            total_segments INTEGER NOT NULL DEFAULT 0,
+            deleted_segments INTEGER NOT NULL DEFAULT 0,
+            total_occurrences INTEGER NOT NULL DEFAULT 0,
+            deleted_occurrences INTEGER NOT NULL DEFAULT 0,
+            total_bytes INTEGER NOT NULL DEFAULT 0,
+            deleted_bytes INTEGER NOT NULL DEFAULT 0,
+            error_code TEXT,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL
+        ) STRICT;
+        CREATE INDEX IF NOT EXISTS sync_delete_jobs_pending_idx ON sync_delete_jobs(phase, updated_at);",
+    )?;
+    // Only independently mergeable user state gets a row-level event.  A
+    // library item is synchronised as one encrypted snapshot (see sync.rs),
+    // rather than as one event per segment or token occurrence.  That keeps a
+    // large subtitle import from becoming tens of thousands of HTTP records.
+    // Dictionary caches and local device configuration remain device-local.
+    for (table, key) in [
+        ("folders", "id"),
+        ("files", "id"),
+        ("words", "id"),
+        ("review_logs", "id"),
+        ("phrases", "id"),
+        ("phrase_review_logs", "id"),
+    ] {
+        let trigger = format!(
+            "DROP TRIGGER IF EXISTS sync_{table}_insert;
+            DROP TRIGGER IF EXISTS sync_{table}_update;
+            DROP TRIGGER IF EXISTS sync_{table}_delete;
+            CREATE TRIGGER sync_{table}_insert AFTER INSERT ON {table}
+              WHEN COALESCE((SELECT value FROM sync_runtime WHERE key='applying'),'0') <> '1' BEGIN
+                INSERT INTO sync_entity_state(table_name,local_id,sync_id,updated_at,deleted_at)
+                  VALUES ('{table}', NEW.{key}, lower(hex(randomblob(16))), CAST(strftime('%s','now') AS INTEGER)*1000, NULL)
+                  ON CONFLICT(table_name,local_id) DO UPDATE SET deleted_at=NULL, updated_at=excluded.updated_at;
+                INSERT INTO sync_changes(table_name,sync_id,operation,changed_at)
+                  SELECT '{table}',sync_id,'upsert',CAST(strftime('%s','now') AS INTEGER)*1000 FROM sync_entity_state WHERE table_name='{table}' AND local_id=NEW.{key};
+            END;
+            CREATE TRIGGER sync_{table}_update AFTER UPDATE ON {table}
+              WHEN COALESCE((SELECT value FROM sync_runtime WHERE key='applying'),'0') <> '1' BEGIN
+                UPDATE sync_entity_state SET updated_at=CAST(strftime('%s','now') AS INTEGER)*1000,deleted_at=NULL WHERE table_name='{table}' AND local_id=NEW.{key};
+                INSERT OR IGNORE INTO sync_entity_state(table_name,local_id,sync_id,updated_at,deleted_at) VALUES ('{table}',NEW.{key},lower(hex(randomblob(16))),CAST(strftime('%s','now') AS INTEGER)*1000,NULL);
+                INSERT INTO sync_changes(table_name,sync_id,operation,changed_at) SELECT '{table}',sync_id,'upsert',CAST(strftime('%s','now') AS INTEGER)*1000 FROM sync_entity_state WHERE table_name='{table}' AND local_id=NEW.{key};
+            END;
+            CREATE TRIGGER sync_{table}_delete AFTER DELETE ON {table}
+              WHEN COALESCE((SELECT value FROM sync_runtime WHERE key='applying'),'0') <> '1' BEGIN
+                UPDATE sync_entity_state SET updated_at=CAST(strftime('%s','now') AS INTEGER)*1000,deleted_at=CAST(strftime('%s','now') AS INTEGER)*1000 WHERE table_name='{table}' AND local_id=OLD.{key};
+                INSERT INTO sync_changes(table_name,sync_id,operation,changed_at) SELECT '{table}',sync_id,'delete',CAST(strftime('%s','now') AS INTEGER)*1000 FROM sync_entity_state WHERE table_name='{table}' AND local_id=OLD.{key};
+            END;"
+        );
+        conn.execute_batch(&trigger)?;
+        // Backfill records created before sync tracking was introduced.
+        conn.execute_batch(&format!(
+            "INSERT OR IGNORE INTO sync_entity_state(table_name,local_id,sync_id,updated_at,deleted_at)
+             SELECT '{table}',{key},lower(hex(randomblob(16))),CAST(strftime('%s','now') AS INTEGER)*1000,NULL FROM {table};"
+        ))?;
+    }
+
+    // Remove the pre-snapshot triggers during upgrade. Their old state rows
+    // are harmless and are retained so older encrypted records can still be
+    // read, but new local work must never recreate row-level upload queues.
+    for table in [
+        "segments",
+        "occurrences",
+        "phrase_occurrences",
+        "reviews",
+        "phrase_reviews",
+    ] {
+        conn.execute_batch(&format!(
+            "DROP TRIGGER IF EXISTS sync_{table}_insert;
+             DROP TRIGGER IF EXISTS sync_{table}_update;
+             DROP TRIGGER IF EXISTS sync_{table}_delete;"
+        ))?;
+    }
+
+    // Any edit that changes a file's visible reading/analysis result queues
+    // exactly one `library_item` snapshot for that file.  The NOT EXISTS
+    // predicate coalesces all writes in an import or AI analysis transaction.
+    conn.execute_batch(
+        "DROP TRIGGER IF EXISTS sync_library_segments_insert;
+         DROP TRIGGER IF EXISTS sync_library_segments_update;
+         DROP TRIGGER IF EXISTS sync_library_segments_delete;
+         DROP TRIGGER IF EXISTS sync_library_occurrences_insert;
+         DROP TRIGGER IF EXISTS sync_library_occurrences_update;
+         DROP TRIGGER IF EXISTS sync_library_occurrences_delete;
+         DROP TRIGGER IF EXISTS sync_library_phrase_occurrences_insert;
+         DROP TRIGGER IF EXISTS sync_library_phrase_occurrences_update;
+         DROP TRIGGER IF EXISTS sync_library_phrase_occurrences_delete;
+         DROP TRIGGER IF EXISTS sync_library_analysis_insert;
+         DROP TRIGGER IF EXISTS sync_library_analysis_update;
+         DROP TRIGGER IF EXISTS sync_library_analysis_delete;
+
+         CREATE TRIGGER sync_library_segments_insert AFTER INSERT ON segments
+           WHEN COALESCE((SELECT value FROM sync_runtime WHERE key='applying'),'0') <> '1' BEGIN
+             INSERT INTO sync_changes(table_name,sync_id,operation,changed_at)
+             SELECT 'library_item', state.sync_id, 'upsert', CAST(strftime('%s','now') AS INTEGER)*1000
+             FROM sync_entity_state state
+             WHERE state.table_name='files' AND state.local_id=NEW.file_id
+               AND NOT EXISTS(SELECT 1 FROM sync_changes pending WHERE pending.table_name='library_item' AND pending.sync_id=state.sync_id AND pending.uploaded_at IS NULL);
+           END;
+         CREATE TRIGGER sync_library_segments_update AFTER UPDATE ON segments
+           WHEN COALESCE((SELECT value FROM sync_runtime WHERE key='applying'),'0') <> '1' BEGIN
+             INSERT INTO sync_changes(table_name,sync_id,operation,changed_at)
+             SELECT 'library_item', state.sync_id, 'upsert', CAST(strftime('%s','now') AS INTEGER)*1000
+             FROM sync_entity_state state
+             WHERE state.table_name='files' AND state.local_id=NEW.file_id
+               AND NOT EXISTS(SELECT 1 FROM sync_changes pending WHERE pending.table_name='library_item' AND pending.sync_id=state.sync_id AND pending.uploaded_at IS NULL);
+           END;
+         CREATE TRIGGER sync_library_segments_delete AFTER DELETE ON segments
+           WHEN COALESCE((SELECT value FROM sync_runtime WHERE key='applying'),'0') <> '1' BEGIN
+             INSERT INTO sync_changes(table_name,sync_id,operation,changed_at)
+             SELECT 'library_item', state.sync_id, 'upsert', CAST(strftime('%s','now') AS INTEGER)*1000
+             FROM sync_entity_state state
+             WHERE state.table_name='files' AND state.local_id=OLD.file_id
+               AND NOT EXISTS(SELECT 1 FROM sync_changes pending WHERE pending.table_name='library_item' AND pending.sync_id=state.sync_id AND pending.uploaded_at IS NULL);
+           END;
+
+         CREATE TRIGGER sync_library_occurrences_insert AFTER INSERT ON occurrences
+           WHEN COALESCE((SELECT value FROM sync_runtime WHERE key='applying'),'0') <> '1' BEGIN
+             INSERT INTO sync_changes(table_name,sync_id,operation,changed_at)
+             SELECT 'library_item', state.sync_id, 'upsert', CAST(strftime('%s','now') AS INTEGER)*1000
+             FROM segments segment JOIN sync_entity_state state ON state.table_name='files'
+             WHERE segment.id=NEW.segment_id AND state.local_id=segment.file_id
+               AND NOT EXISTS(SELECT 1 FROM sync_changes pending WHERE pending.table_name='library_item' AND pending.sync_id=state.sync_id AND pending.uploaded_at IS NULL);
+           END;
+         CREATE TRIGGER sync_library_occurrences_update AFTER UPDATE ON occurrences
+           WHEN COALESCE((SELECT value FROM sync_runtime WHERE key='applying'),'0') <> '1' BEGIN
+             INSERT INTO sync_changes(table_name,sync_id,operation,changed_at)
+             SELECT 'library_item', state.sync_id, 'upsert', CAST(strftime('%s','now') AS INTEGER)*1000
+             FROM segments segment JOIN sync_entity_state state ON state.table_name='files'
+             WHERE segment.id=NEW.segment_id AND state.local_id=segment.file_id
+               AND NOT EXISTS(SELECT 1 FROM sync_changes pending WHERE pending.table_name='library_item' AND pending.sync_id=state.sync_id AND pending.uploaded_at IS NULL);
+           END;
+         CREATE TRIGGER sync_library_occurrences_delete AFTER DELETE ON occurrences
+           WHEN COALESCE((SELECT value FROM sync_runtime WHERE key='applying'),'0') <> '1' BEGIN
+             INSERT INTO sync_changes(table_name,sync_id,operation,changed_at)
+             SELECT 'library_item', state.sync_id, 'upsert', CAST(strftime('%s','now') AS INTEGER)*1000
+             FROM segments segment JOIN sync_entity_state state ON state.table_name='files'
+             WHERE segment.id=OLD.segment_id AND state.local_id=segment.file_id
+               AND NOT EXISTS(SELECT 1 FROM sync_changes pending WHERE pending.table_name='library_item' AND pending.sync_id=state.sync_id AND pending.uploaded_at IS NULL);
+           END;
+
+         CREATE TRIGGER sync_library_phrase_occurrences_insert AFTER INSERT ON phrase_occurrences
+           WHEN COALESCE((SELECT value FROM sync_runtime WHERE key='applying'),'0') <> '1' BEGIN
+             INSERT INTO sync_changes(table_name,sync_id,operation,changed_at)
+             SELECT 'library_item', state.sync_id, 'upsert', CAST(strftime('%s','now') AS INTEGER)*1000
+             FROM segments segment JOIN sync_entity_state state ON state.table_name='files'
+             WHERE segment.id=NEW.segment_id AND state.local_id=segment.file_id
+               AND NOT EXISTS(SELECT 1 FROM sync_changes pending WHERE pending.table_name='library_item' AND pending.sync_id=state.sync_id AND pending.uploaded_at IS NULL);
+           END;
+         CREATE TRIGGER sync_library_phrase_occurrences_update AFTER UPDATE ON phrase_occurrences
+           WHEN COALESCE((SELECT value FROM sync_runtime WHERE key='applying'),'0') <> '1' BEGIN
+             INSERT INTO sync_changes(table_name,sync_id,operation,changed_at)
+             SELECT 'library_item', state.sync_id, 'upsert', CAST(strftime('%s','now') AS INTEGER)*1000
+             FROM segments segment JOIN sync_entity_state state ON state.table_name='files'
+             WHERE segment.id=NEW.segment_id AND state.local_id=segment.file_id
+               AND NOT EXISTS(SELECT 1 FROM sync_changes pending WHERE pending.table_name='library_item' AND pending.sync_id=state.sync_id AND pending.uploaded_at IS NULL);
+           END;
+         CREATE TRIGGER sync_library_phrase_occurrences_delete AFTER DELETE ON phrase_occurrences
+           WHEN COALESCE((SELECT value FROM sync_runtime WHERE key='applying'),'0') <> '1' BEGIN
+             INSERT INTO sync_changes(table_name,sync_id,operation,changed_at)
+             SELECT 'library_item', state.sync_id, 'upsert', CAST(strftime('%s','now') AS INTEGER)*1000
+             FROM segments segment JOIN sync_entity_state state ON state.table_name='files'
+             WHERE segment.id=OLD.segment_id AND state.local_id=segment.file_id
+               AND NOT EXISTS(SELECT 1 FROM sync_changes pending WHERE pending.table_name='library_item' AND pending.sync_id=state.sync_id AND pending.uploaded_at IS NULL);
+           END;
+
+         CREATE TRIGGER sync_library_analysis_insert AFTER INSERT ON file_phrase_analysis
+           WHEN COALESCE((SELECT value FROM sync_runtime WHERE key='applying'),'0') <> '1' BEGIN
+             INSERT INTO sync_changes(table_name,sync_id,operation,changed_at)
+             SELECT 'library_item', state.sync_id, 'upsert', CAST(strftime('%s','now') AS INTEGER)*1000
+             FROM sync_entity_state state WHERE state.table_name='files' AND state.local_id=NEW.file_id
+               AND NOT EXISTS(SELECT 1 FROM sync_changes pending WHERE pending.table_name='library_item' AND pending.sync_id=state.sync_id AND pending.uploaded_at IS NULL);
+           END;
+         CREATE TRIGGER sync_library_analysis_update AFTER UPDATE ON file_phrase_analysis
+           WHEN COALESCE((SELECT value FROM sync_runtime WHERE key='applying'),'0') <> '1' BEGIN
+             INSERT INTO sync_changes(table_name,sync_id,operation,changed_at)
+             SELECT 'library_item', state.sync_id, 'upsert', CAST(strftime('%s','now') AS INTEGER)*1000
+             FROM sync_entity_state state WHERE state.table_name='files' AND state.local_id=NEW.file_id
+               AND NOT EXISTS(SELECT 1 FROM sync_changes pending WHERE pending.table_name='library_item' AND pending.sync_id=state.sync_id AND pending.uploaded_at IS NULL);
+           END;
+         CREATE TRIGGER sync_library_analysis_delete AFTER DELETE ON file_phrase_analysis
+           WHEN COALESCE((SELECT value FROM sync_runtime WHERE key='applying'),'0') <> '1' BEGIN
+             INSERT INTO sync_changes(table_name,sync_id,operation,changed_at)
+             SELECT 'library_item', state.sync_id, 'upsert', CAST(strftime('%s','now') AS INTEGER)*1000
+             FROM sync_entity_state state WHERE state.table_name='files' AND state.local_id=OLD.file_id
+               AND NOT EXISTS(SELECT 1 FROM sync_changes pending WHERE pending.table_name='library_item' AND pending.sync_id=state.sync_id AND pending.uploaded_at IS NULL);
+           END;"
+    )?;
+
+    // A one-time local layout cutover removes any not-yet-sent legacy
+    // row-level events and requeues the compact source records. Uploaded
+    // legacy records are intentionally retained for older Draft clients.
+    let layout: Option<String> = conn
+        .query_row(
+            "SELECT value FROM sync_runtime WHERE key='sync_layout_version'",
+            [],
+            |row| row.get(0),
+        )
+        .optional()?;
+    // Do not trust the marker alone. Builds shipped during the first Draft
+    // rollout could leave it at `2` while retaining the old 100k row-level
+    // queue. Looking at the queued entity kinds makes this migration
+    // self-healing and is safe to repeat: it only discards derived pending
+    // envelopes and requeues the current local source-of-truth state.
+    let has_legacy_pending: bool = conn.query_row(
+        "SELECT EXISTS(
+             SELECT 1 FROM sync_changes
+             WHERE uploaded_at IS NULL
+               AND table_name IN ('segments','occurrences','phrase_occurrences','reviews','phrase_reviews')
+         )",
+        [],
+        |row| row.get(0),
+    )?;
+    if layout.as_deref() != Some("3") || has_legacy_pending {
+        conn.execute("DELETE FROM sync_changes WHERE uploaded_at IS NULL", [])?;
+        conn.execute(
+            "INSERT INTO sync_changes(table_name,sync_id,operation,changed_at)
+             SELECT table_name,sync_id,CASE WHEN deleted_at IS NULL THEN 'upsert' ELSE 'delete' END,?1
+             FROM sync_entity_state
+             WHERE table_name IN ('folders','files','words','phrases','review_logs','phrase_review_logs')",
+            [now_ms_for_sync_tracking()],
+        )?;
+        conn.execute(
+            "INSERT INTO sync_runtime(key,value) VALUES('sync_layout_version','3')
+             ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+            [],
+        )?;
+    }
+    Ok(())
+}
+
+fn now_ms_for_sync_tracking() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as i64
 }
 
 fn migrate_occurrence_hidden(conn: &Connection) -> Result<(), rusqlite::Error> {
@@ -51,6 +403,23 @@ fn migrate_occurrence_hidden(conn: &Connection) -> Result<(), rusqlite::Error> {
         if !has_hidden {
             conn.execute(
                 &format!("ALTER TABLE {table} ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0"),
+                [],
+            )?;
+        }
+    }
+    Ok(())
+}
+
+fn migrate_review_log_schedule(conn: &Connection) -> Result<(), rusqlite::Error> {
+    for table in ["review_logs", "phrase_review_logs"] {
+        let has_due = conn
+            .prepare(&format!("PRAGMA table_info({table})"))?
+            .query_map([], |row| row.get::<_, String>(1))?
+            .filter_map(Result::ok)
+            .any(|column| column == "due_at_after");
+        if !has_due {
+            conn.execute(
+                &format!("ALTER TABLE {table} ADD COLUMN due_at_after INTEGER"),
                 [],
             )?;
         }
@@ -358,7 +727,8 @@ fn create_tables(conn: &Connection) -> Result<(), rusqlite::Error> {
             elapsed_days INTEGER,
             scheduled_days INTEGER,
             state_before INTEGER,
-            state_after INTEGER
+            state_after INTEGER,
+            due_at_after INTEGER
         ) STRICT;
 
         CREATE TABLE IF NOT EXISTS dictionary_entries (
@@ -453,7 +823,8 @@ fn create_tables(conn: &Connection) -> Result<(), rusqlite::Error> {
             elapsed_days INTEGER,
             scheduled_days INTEGER,
             state_before INTEGER,
-            state_after INTEGER
+            state_after INTEGER,
+            due_at_after INTEGER
         ) STRICT;
 
         CREATE TABLE IF NOT EXISTS builtin_phrase_dictionary (
@@ -496,6 +867,14 @@ fn create_tables(conn: &Connection) -> Result<(), rusqlite::Error> {
             reading TEXT,
             translation TEXT NOT NULL,
             category TEXT
+        ) STRICT;
+
+        -- Opaque local state for the optional cloud-sync client. No learning
+        -- data is duplicated here; encrypted payloads are generated on demand.
+        CREATE TABLE IF NOT EXISTS sync_metadata (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            updated_at INTEGER NOT NULL
         ) STRICT;
     ",
     )?;
@@ -541,6 +920,93 @@ fn create_tables(conn: &Connection) -> Result<(), rusqlite::Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sync_tracking_assigns_stable_identity_and_tombstone() {
+        let dir = tempfile::tempdir().unwrap();
+        let conn = init_db(&dir.path().join("sync.db")).unwrap();
+        conn.execute(
+            "INSERT INTO words(language,lemma) VALUES ('en','syncable')",
+            [],
+        )
+        .unwrap();
+        let id: i64 = conn
+            .query_row("SELECT id FROM words WHERE lemma='syncable'", [], |r| {
+                r.get(0)
+            })
+            .unwrap();
+        let sync_id: String = conn
+            .query_row(
+                "SELECT sync_id FROM sync_entity_state WHERE table_name='words' AND local_id=?1",
+                [id],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(sync_id.len(), 32);
+        conn.execute("DELETE FROM words WHERE id=?1", [id]).unwrap();
+        let (deleted_at, operation): (Option<i64>, String) = conn.query_row(
+            "SELECT s.deleted_at,c.operation FROM sync_entity_state s JOIN sync_changes c ON c.sync_id=s.sync_id WHERE s.table_name='words' AND s.local_id=?1 ORDER BY c.id DESC LIMIT 1", [id], |r| Ok((r.get(0)?, r.get(1)?))
+        ).unwrap();
+        assert!(deleted_at.is_some());
+        assert_eq!(operation, "delete");
+    }
+
+    #[test]
+    fn sync_layout_self_heals_a_stale_legacy_pending_queue() {
+        let dir = tempfile::tempdir().unwrap();
+        let conn = init_db(&dir.path().join("sync.db")).unwrap();
+        conn.execute(
+            "INSERT INTO words(language,lemma) VALUES ('en','queue')",
+            [],
+        )
+        .unwrap();
+        conn.execute("INSERT INTO files(name,type,content,content_hash,imported_at,language) VALUES ('one.txt','txt','one','hash',1,'en')", [])
+            .unwrap();
+        let file_id = conn.last_insert_rowid();
+        conn.execute(
+            "INSERT INTO segments(file_id,index_num,en_text) VALUES(?1,0,'one')",
+            [file_id],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO sync_runtime(key,value) VALUES('sync_layout_version','3')
+             ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO sync_changes(table_name,sync_id,operation,changed_at) VALUES('occurrences','legacy','upsert',0)",
+            [],
+        )
+        .unwrap();
+
+        create_sync_tracking(&conn).unwrap();
+
+        let legacy: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sync_changes WHERE uploaded_at IS NULL AND table_name IN ('segments','occurrences','phrase_occurrences','reviews','phrase_reviews')",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let compact: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sync_changes WHERE uploaded_at IS NULL AND table_name IN ('files','words')",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let layout: String = conn
+            .query_row(
+                "SELECT value FROM sync_runtime WHERE key='sync_layout_version'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(legacy, 0);
+        assert_eq!(compact, 2);
+        assert_eq!(layout, "3");
+    }
     use rusqlite::params;
 
     fn setup_legacy_db() -> Connection {

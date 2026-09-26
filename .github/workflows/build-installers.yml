@@ -1,5 +1,8 @@
 name: Build Installers
 
+env:
+  LEXICUE_SYNC_ENDPOINT: ${{ vars.LEXICUE_SYNC_ENDPOINT }}
+
 on:
   workflow_dispatch:
     inputs:
@@ -36,6 +39,9 @@ jobs:
           - target: x86_64-apple-darwin
     steps:
       - uses: actions/checkout@v4
+      - name: Verify official sync endpoint
+        shell: bash
+        run: test -n "$LEXICUE_SYNC_ENDPOINT" && [[ "$LEXICUE_SYNC_ENDPOINT" == https://* ]]
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -75,6 +81,9 @@ jobs:
       RUSTC_WRAPPER: "sccache"
     steps:
       - uses: actions/checkout@v4
+      - name: Verify official sync endpoint
+        shell: bash
+        run: test -n "$LEXICUE_SYNC_ENDPOINT" && [[ "$LEXICUE_SYNC_ENDPOINT" == https://* ]]
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -110,6 +119,9 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+      - name: Verify official sync endpoint
+        shell: bash
+        run: test -n "$LEXICUE_SYNC_ENDPOINT" && [[ "$LEXICUE_SYNC_ENDPOINT" == https://* ]]
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -132,15 +144,270 @@ jobs:
       - run: npm ci
       - name: Generate Android project
         run: npx tauri android init
-      - uses: tauri-apps/tauri-action@v1
+      - name: Initialize Android secure credential context
+        run: |
+          set -euo pipefail
+          source_dir="src-tauri/android-template"
+          java_dir="src-tauri/gen/android/app/src/main/java"
+          install -D -m 0644 "$source_dir/MainActivity.kt" "$java_dir/com/lexicue/app/MainActivity.kt"
+          install -D -m 0644 "$source_dir/Keyring.kt" "$java_dir/io/crates/keyring/Keyring.kt"
+      - name: Install and verify LexiCue Android icons
+        shell: bash
+        run: |
+          set -euo pipefail
+          icon_source="src-tauri/icons/android"
+          resource_dir="src-tauri/gen/android/app/src/main/res"
+          cp -R "$icon_source/." "$resource_dir/"
+          while IFS= read -r source; do
+            relative="${source#${icon_source}/}"
+            cmp "$source" "$resource_dir/$relative"
+          done < <(find "$icon_source" -type f -print)
+          test -f "$resource_dir/mipmap-anydpi-v26/ic_launcher.xml"
+          test -f "$resource_dir/mipmap-xxxhdpi/ic_launcher.png"
+          test -f "$resource_dir/mipmap-xxxhdpi/ic_launcher_foreground.png"
+          test -f "$resource_dir/mipmap-xxxhdpi/ic_launcher_round.png"
+      - name: Configure Android release signing
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ] || [ -z "$ANDROID_KEYSTORE_PASSWORD" ] || [ -z "$ANDROID_KEY_ALIAS" ] || [ -z "$ANDROID_KEY_PASSWORD" ]; then
+            echo "Missing Android release signing secrets: ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD"
+            exit 1
+          fi
+          umask 077
+          keystore_path="$RUNNER_TEMP/lexicue-release.keystore"
+          properties_path="src-tauri/gen/android/keystore.properties"
+          gradle_path="src-tauri/gen/android/app/build.gradle.kts"
+
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$keystore_path"
+          keystore_size="$(stat -c '%s' "$keystore_path")"
+          if [ "$keystore_size" -le 0 ]; then
+            echo "Decoded Android keystore is empty"
+            exit 1
+          fi
+          echo "Android keystore decoded successfully (${keystore_size} bytes); alias is configured"
+
+          {
+            echo "storeFile=$keystore_path"
+            echo "storePassword=$ANDROID_KEYSTORE_PASSWORD"
+            echo "keyPassword=$ANDROID_KEY_PASSWORD"
+            echo "keyAlias=$ANDROID_KEY_ALIAS"
+          } > "$properties_path"
+          echo "Android keystore.properties generated"
+
+          if [ ! -f "$gradle_path" ]; then
+            echo "Generated Android app Gradle file was not found: $gradle_path"
+            exit 1
+          fi
+
+          python3 - "$gradle_path" <<'PY'
+          from pathlib import Path
+          import sys
+
+          gradle_path = Path(sys.argv[1])
+          text = gradle_path.read_text()
+          release_signing_line = 'signingConfig = signingConfigs.getByName("release")'
+
+          if release_signing_line in text and 'keystore.properties' in text:
+              print('Android Gradle release signing is already configured')
+              raise SystemExit(0)
+
+          if 'signingConfigs {' in text or 'signingConfigs.create("release")' in text:
+              raise SystemExit('Unexpected existing signingConfigs block; refusing to patch ambiguously')
+
+          build_types_marker = '    buildTypes {'
+          release_marker = '        getByName("release") {'
+          if build_types_marker not in text or release_marker not in text:
+              print('Generated app/build.gradle.kts does not contain the expected buildTypes/release structure:', file=sys.stderr)
+              print('\n'.join(text.splitlines()[:140]), file=sys.stderr)
+              raise SystemExit(1)
+
+          imports = []
+          if 'import java.io.FileInputStream' not in text:
+              imports.append('import java.io.FileInputStream')
+          if 'import java.util.Properties' not in text:
+              imports.append('import java.util.Properties')
+          if imports:
+              text = '\n'.join(imports) + '\n\n' + text
+
+          signing_config = '''    signingConfigs {
+              create("release") {
+                  val keystorePropertiesFile = rootProject.file("keystore.properties")
+                  val keystoreProperties = Properties()
+                  if (keystorePropertiesFile.exists()) {
+                      keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+                  }
+
+                  keyAlias = keystoreProperties["keyAlias"] as String
+                  keyPassword = keystoreProperties["keyPassword"] as String
+                  storeFile = file(keystoreProperties["storeFile"] as String)
+                  storePassword = keystoreProperties["storePassword"] as String
+              }
+          }
+
+          '''
+          text = text.replace(build_types_marker, signing_config + build_types_marker, 1)
+          text = text.replace(
+              release_marker,
+              release_marker + '\n' + '            ' + release_signing_line,
+              1,
+          )
+          gradle_path.write_text(text)
+          print('Android Gradle release signing configured')
+          PY
+
+          if ! grep -q 'signingConfig = signingConfigs.getByName("release")' "$gradle_path"; then
+            echo "Release build is not wired to the Android signing config"
+            exit 1
+          fi
+          grep -nE 'import java\.(io\.FileInputStream|util\.Properties)|signingConfigs|buildTypes|getByName\("release"\)|signingConfig' "$gradle_path"
+      - name: Build Android release APK
+        env:
           NODE_OPTIONS: --use-system-ca
-        with:
-          tagName: v__VERSION__
-          releaseName: 'LexiCue v__VERSION__'
-          releaseDraft: ${{ inputs.draft }}
-          prerelease: false
-          retryAttempts: 1
-          mobile: android
-          args: --apk --target aarch64
+        run: npx tauri android build --apk --target aarch64
+      - name: Sign, verify, and publish Android APK
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./src-tauri/tauri.conf.json').version")"
+          tag="v${version}"
+          keystore_path="$RUNNER_TEMP/lexicue-release.keystore"
+          apk_output_dir="src-tauri/gen/android/app/build/outputs/apk"
+          signed_apk="$RUNNER_TEMP/lexicue-signed.apk"
+          checksum_file="$RUNNER_TEMP/LexiCue_${version}_universal.apk.sha256"
+          download_dir="$(mktemp -d)"
+          trap 'rm -rf "$download_dir" "$signed_apk" "$checksum_file"' EXIT
+
+          if [ ! -s "$keystore_path" ]; then
+            echo "Android keystore is missing or empty: $keystore_path"
+            exit 1
+          fi
+          apksigner="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner -perm -u+x | sort -V | tail -n 1)"
+          zipalign="$(find "$ANDROID_HOME/build-tools" -type f -name zipalign -perm -u+x | sort -V | tail -n 1)"
+          apkanalyzer="$(find "$ANDROID_HOME/cmdline-tools" -type f -path '*/bin/apkanalyzer' -perm -u+x | sort -V | tail -n 1)"
+          unzip_bin="$(command -v unzip || true)"
+          if [ -z "$apksigner" ] || [ ! -x "$apksigner" ]; then
+            echo "Unable to locate apksigner under $ANDROID_HOME/build-tools"
+            exit 1
+          fi
+          if [ -z "$zipalign" ] || [ ! -x "$zipalign" ]; then
+            echo "Unable to locate zipalign under $ANDROID_HOME/build-tools"
+            exit 1
+          fi
+          if [ -z "$apkanalyzer" ] || [ ! -x "$apkanalyzer" ]; then
+            echo "Unable to locate apkanalyzer under $ANDROID_HOME/cmdline-tools"
+            exit 1
+          fi
+          if [ -z "$unzip_bin" ] || [ ! -x "$unzip_bin" ]; then
+            echo "Unable to locate unzip for APK ABI inspection"
+            exit 1
+          fi
+
+          if [ ! -d "$apk_output_dir" ]; then
+            echo "Android APK output directory does not exist: $apk_output_dir"
+            exit 1
+          fi
+          echo "Android APK outputs:"
+          find "$apk_output_dir" -type f -name '*.apk' -print | sort
+
+          mapfile -t unsigned_apks < <(
+            find "$apk_output_dir" -type f -name '*universal-release-unsigned.apk' -print | sort
+          )
+          if [ "${#unsigned_apks[@]}" -gt 0 ]; then
+            input_apk="${unsigned_apks[0]}"
+          else
+            mapfile -t release_apks < <(
+              find "$apk_output_dir" -type f -name '*universal-release.apk' -print | sort
+            )
+            if [ "${#release_apks[@]}" -eq 0 ]; then
+              echo "No universal release APK was produced"
+              exit 1
+            fi
+            input_apk="${release_apks[0]}"
+          fi
+          echo "Signing local APK: $input_apk"
+
+          aligned_apk="$RUNNER_TEMP/lexicue-aligned.apk"
+          if "$zipalign" -c -P 16 -v 4 "$input_apk" > /dev/null 2>&1; then
+            aligned_apk="$input_apk"
+          else
+            "$zipalign" -P 16 -f 4 "$input_apk" "$aligned_apk"
+          fi
+
+          "$apksigner" sign \
+            --ks "$keystore_path" \
+            --ks-key-alias "$ANDROID_KEY_ALIAS" \
+            --ks-pass "env:ANDROID_KEYSTORE_PASSWORD" \
+            --key-pass "env:ANDROID_KEY_PASSWORD" \
+            --out "$signed_apk" \
+            "$aligned_apk"
+
+          echo "Local APK signature verification:"
+          "$apksigner" verify --verbose --print-certs "$signed_apk"
+          echo "Local APK summary:"
+          "$apkanalyzer" apk summary "$signed_apk"
+          application_id="$($apkanalyzer manifest application-id "$signed_apk")"
+          version_code="$($apkanalyzer manifest version-code "$signed_apk")"
+          version_name="$($apkanalyzer manifest version-name "$signed_apk")"
+          abi_entries="$($unzip_bin -Z1 "$signed_apk" | awk -F/ '$1 == "lib" && $2 != "" { print $2 }' | sort -u)"
+          abis="$(printf '%s\n' "$abi_entries" | sed '/^$/d' | paste -sd, -)"
+          echo "Application ID: $application_id"
+          echo "Version code: $version_code"
+          echo "Version name: $version_name"
+          echo "ABIs from APK ZIP entries: ${abis:-none}"
+          if [ "$application_id" != "com.lexicue.app" ]; then
+            echo "Unexpected Android application ID: $application_id"
+            exit 1
+          fi
+          if ! printf '%s\n' "$abis" | tr ',' '\n' | grep -qx 'arm64-v8a'; then
+            echo "The signed APK does not contain the arm64-v8a ABI"
+            echo "APK lib/ entries:"
+            "$unzip_bin" -Z1 "$signed_apk" | grep '^lib/' || true
+            exit 1
+          fi
+
+          apk_name="LexiCue_${version}_universal.apk"
+          staged_apk="$RUNNER_TEMP/$apk_name"
+          cp "$signed_apk" "$staged_apk"
+          checksum="$(sha256sum "$staged_apk" | awk '{print $1}')"
+          printf '%s  %s\n' "$checksum" "$apk_name" | tee "$checksum_file"
+
+          create_args=(--target "$GITHUB_SHA" --title "LexiCue v${version}" --notes "Android release ${version}")
+          if [ "${{ inputs.draft }}" = "true" ]; then
+            create_args+=(--draft)
+          fi
+          if ! gh release view "$tag" > /dev/null 2>&1; then
+            if ! gh release create "$tag" "${create_args[@]}"; then
+              gh release view "$tag" > /dev/null 2>&1 || {
+                echo "Unable to create or locate Release ${tag}"
+                exit 1
+              }
+            fi
+          fi
+
+          echo "Uploading verified APK to Release ${tag}"
+          gh release upload "$tag" "$staged_apk" "$checksum_file" --clobber
+
+          echo "Downloading published APK for final verification"
+          gh release download "$tag" --pattern "$apk_name" --dir "$download_dir" --clobber
+          published_apk="$download_dir/$apk_name"
+          if [ ! -s "$published_apk" ]; then
+            echo "Published APK could not be downloaded: $published_apk"
+            exit 1
+          fi
+          "$apksigner" verify --verbose --print-certs "$published_apk"
+          published_checksum="$(sha256sum "$published_apk" | awk '{print $1}')"
+          if [ "$published_checksum" != "$checksum" ]; then
+            echo "Published APK checksum does not match the locally verified APK"
+            exit 1
+          fi
+          echo "Published APK verified successfully (${published_checksum})"

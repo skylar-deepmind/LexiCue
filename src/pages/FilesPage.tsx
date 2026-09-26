@@ -83,6 +83,7 @@ export default function FilesPage() {
     loading,
     pendingImport,
     confirming,
+    deletingFiles,
     loadFiles,
     loadFolders,
     setCurrentFolder,
@@ -106,6 +107,7 @@ export default function FilesPage() {
     loading: state.loading,
     pendingImport: state.pendingImport,
     confirming: state.confirming,
+    deletingFiles: state.deletingFiles,
     loadFiles: state.loadFiles,
     loadFolders: state.loadFolders,
     setCurrentFolder: state.setCurrentFolder,
@@ -239,6 +241,7 @@ export default function FilesPage() {
           analysisProgress={analysisProgress[file.id]}
           analysisCompleted={file.phrase_analyzed}
           retrying={retrying[file.id]}
+          deleteProgress={deletingFiles[file.id]}
           onClick={() => handleFileClick(file.id)}
         />
       ))}

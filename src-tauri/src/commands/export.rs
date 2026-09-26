@@ -140,22 +140,28 @@ fn now_ms() -> i64 {
 #[tauri::command]
 pub fn export_all(state: State<DbState>) -> Result<BackupPayload, String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    backup_payload(&conn)
+}
 
-    let files = query_all(&conn, "files")?;
-    let folders = query_all(&conn, "folders")?;
-    let segments = query_all(&conn, "segments")?;
-    let words = query_all(&conn, "words")?;
-    let occurrences = query_all(&conn, "occurrences")?;
-    let reviews = query_all(&conn, "reviews")?;
-    let review_logs = query_all(&conn, "review_logs")?;
-    let dictionary_entries = query_all(&conn, "dictionary_entries")?;
-    let dictionary_sources = query_all(&conn, "dictionary_sources")?;
-    let phrases = query_all(&conn, "phrases")?;
-    let phrase_occurrences = query_all(&conn, "phrase_occurrences")?;
-    let phrase_reviews = query_all(&conn, "phrase_reviews")?;
-    let phrase_review_logs = query_all(&conn, "phrase_review_logs")?;
-    let phrase_dictionary_entries = query_all(&conn, "phrase_dictionary_entries")?;
-    let file_phrase_analysis = query_all(&conn, "file_phrase_analysis")?;
+/// Builds the portable user-data payload used by manual export and by the
+/// encrypted sync transport. Built-in dictionary tables are deliberately not
+/// included because each app installation owns those resources.
+pub fn backup_payload(conn: &rusqlite::Connection) -> Result<BackupPayload, String> {
+    let files = query_all(conn, "files")?;
+    let folders = query_all(conn, "folders")?;
+    let segments = query_all(conn, "segments")?;
+    let words = query_all(conn, "words")?;
+    let occurrences = query_all(conn, "occurrences")?;
+    let reviews = query_all(conn, "reviews")?;
+    let review_logs = query_all(conn, "review_logs")?;
+    let dictionary_entries = query_all(conn, "dictionary_entries")?;
+    let dictionary_sources = query_all(conn, "dictionary_sources")?;
+    let phrases = query_all(conn, "phrases")?;
+    let phrase_occurrences = query_all(conn, "phrase_occurrences")?;
+    let phrase_reviews = query_all(conn, "phrase_reviews")?;
+    let phrase_review_logs = query_all(conn, "phrase_review_logs")?;
+    let phrase_dictionary_entries = query_all(conn, "phrase_dictionary_entries")?;
+    let file_phrase_analysis = query_all(conn, "file_phrase_analysis")?;
 
     Ok(BackupPayload {
         schema_version: 5,
@@ -184,7 +190,13 @@ pub fn export_all(state: State<DbState>) -> Result<BackupPayload, String> {
 #[tauri::command]
 pub fn restore_all(state: State<DbState>, backup: BackupPayload) -> Result<(), String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    restore_backup(&conn, &backup)
+}
 
+/// Restores a portable backup into an existing database connection. Cloud
+/// recovery uses this after making a local safety export; keeping it separate
+/// from the Tauri command makes the destructive step testable and atomic.
+pub fn restore_backup(conn: &rusqlite::Connection, backup: &BackupPayload) -> Result<(), String> {
     if backup.schema_version != 1
         && backup.schema_version != 2
         && backup.schema_version != 3
@@ -232,26 +244,26 @@ pub fn restore_all(state: State<DbState>, backup: BackupPayload) -> Result<(), S
         conn.execute("DELETE FROM folders", [])
             .map_err(|e| e.to_string())?;
 
-        insert_from_json(&conn, "files", &backup.data.files)?;
-        insert_from_json(&conn, "folders", &backup.data.folders)?;
-        insert_from_json(&conn, "words", &backup.data.words)?;
-        insert_from_json(&conn, "segments", &backup.data.segments)?;
-        insert_from_json(&conn, "occurrences", &backup.data.occurrences)?;
-        insert_from_json(&conn, "reviews", &backup.data.reviews)?;
-        insert_from_json(&conn, "review_logs", &backup.data.review_logs)?;
-        insert_from_json(&conn, "dictionary_entries", &backup.data.dictionary_entries)?;
-        insert_from_json(&conn, "dictionary_sources", &backup.data.dictionary_sources)?;
-        insert_from_json(&conn, "phrases", &backup.data.phrases)?;
-        insert_from_json(&conn, "phrase_occurrences", &backup.data.phrase_occurrences)?;
-        insert_from_json(&conn, "phrase_reviews", &backup.data.phrase_reviews)?;
-        insert_from_json(&conn, "phrase_review_logs", &backup.data.phrase_review_logs)?;
+        insert_from_json(conn, "files", &backup.data.files)?;
+        insert_from_json(conn, "folders", &backup.data.folders)?;
+        insert_from_json(conn, "words", &backup.data.words)?;
+        insert_from_json(conn, "segments", &backup.data.segments)?;
+        insert_from_json(conn, "occurrences", &backup.data.occurrences)?;
+        insert_from_json(conn, "reviews", &backup.data.reviews)?;
+        insert_from_json(conn, "review_logs", &backup.data.review_logs)?;
+        insert_from_json(conn, "dictionary_entries", &backup.data.dictionary_entries)?;
+        insert_from_json(conn, "dictionary_sources", &backup.data.dictionary_sources)?;
+        insert_from_json(conn, "phrases", &backup.data.phrases)?;
+        insert_from_json(conn, "phrase_occurrences", &backup.data.phrase_occurrences)?;
+        insert_from_json(conn, "phrase_reviews", &backup.data.phrase_reviews)?;
+        insert_from_json(conn, "phrase_review_logs", &backup.data.phrase_review_logs)?;
         insert_from_json(
-            &conn,
+            conn,
             "phrase_dictionary_entries",
             &backup.data.phrase_dictionary_entries,
         )?;
         insert_from_json(
-            &conn,
+            conn,
             "file_phrase_analysis",
             &backup.data.file_phrase_analysis,
         )?;

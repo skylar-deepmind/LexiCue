@@ -515,7 +515,7 @@
     try {
       var saved = localStorage.getItem("lexicue-lang");
       if (saved === "zh" || saved === "en" || saved === "ja" || saved === "de") return saved;
-    } catch (e) {}
+    } catch {}
     return "en";
   }
 
@@ -534,7 +534,7 @@
     try {
       var saved = localStorage.getItem("lexicue-theme");
       if (saved === "light" || saved === "dark") return saved;
-    } catch (e) {}
+    } catch {}
     return (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
   }
 
@@ -552,7 +552,7 @@
 
   document.querySelector("[data-theme-toggle]").addEventListener("click", function () {
     var next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
-    try { localStorage.setItem("lexicue-theme", next); } catch (e) {}
+    try { localStorage.setItem("lexicue-theme", next); } catch {}
     applyTheme(next);
   });
 
@@ -594,7 +594,7 @@
   document.querySelectorAll(".lang-btn").forEach(function (btn) {
     btn.addEventListener("click", function () {
       lang = btn.dataset.lang;
-      try { localStorage.setItem("lexicue-lang", lang); } catch (e) {}
+      try { localStorage.setItem("lexicue-lang", lang); } catch {}
       applyLanguage(lang);
     });
   });

@@ -1,0 +1,9 @@
+[Unit]
+Description=Encrypted LexiCue PostgreSQL backup
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/lexicue/deploy
+ExecStart=/opt/lexicue/deploy/backup.sh

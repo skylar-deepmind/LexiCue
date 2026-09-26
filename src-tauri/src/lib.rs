@@ -2,7 +2,7 @@ mod commands;
 mod db;
 
 use db::{init_db, DbState, DictionaryStatus};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -30,10 +30,18 @@ pub fn run() {
 
             let app_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&app_dir)?;
+            // Sync remains optional: a damaged or unavailable platform store
+            // must not prevent access to local learning data. Sync commands
+            // return the cached structured error for translated recovery UI.
+            if let Err(error) = commands::sync::init_secret_store() {
+                log::error!("secure credential store initialization failed: {error}");
+            }
             let conn = init_db(&app_dir.join("lexicue.db")).expect("Failed to initialize database");
-            app.manage(DbState {
-                conn: Mutex::new(conn),
-            });
+            let db_state = DbState {
+                conn: Arc::new(Mutex::new(conn)),
+            };
+            commands::files::resume_pending_delete_jobs(db_state.conn.clone());
+            app.manage(db_state);
 
             let status = DictionaryStatus::default();
             app.manage(status.clone());
@@ -79,6 +87,18 @@ pub fn run() {
             commands::import::check_duplicate,
             commands::export::export_all,
             commands::export::restore_all,
+            commands::sync::sync_status,
+            commands::sync::sync_set_auto_sync,
+            commands::sync::sync_set_diagnostic,
+            commands::sync::sync_register,
+            commands::sync::sync_login,
+            commands::sync::sync_recover,
+            commands::sync::sync_run,
+            commands::sync::sync_logout,
+            commands::sync::sync_disconnect,
+            commands::sync::sync_devices,
+            commands::sync::sync_revoke_device,
+            commands::sync::sync_delete_account,
             commands::words::list_words,
             commands::words::word_detail,
             commands::words::update_word_status,
@@ -103,6 +123,8 @@ pub fn run() {
             commands::files::list_files,
             commands::files::get_file_info,
             commands::files::delete_file,
+            commands::files::delete_file_start,
+            commands::files::delete_file_status,
             commands::files::get_file_segments,
             commands::files::list_folders,
             commands::files::create_folder,

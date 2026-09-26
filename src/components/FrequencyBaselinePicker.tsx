@@ -18,7 +18,7 @@ interface Preview {
   retained_count: number;
 }
 
-export const TIERS = [1000, 3000, 5000, 10000];
+const TIERS = [1000, 3000, 5000, 10000];
 const isBaselineLanguage = (language: Language | 'all'): language is 'en' | 'zh' => language === 'en' || language === 'zh';
 
 export function TierButton({ value, selected, onClick }: { value: number; selected: boolean; onClick: () => void }) {
@@ -57,7 +57,7 @@ export default function FrequencyBaselinePicker({ selectedLanguage }: { selected
       setPreview(nextPreview);
       setProfile(nextProfile);
     }).finally(() => setLoading(false));
-  }, [language, tier, batch]);
+  }, [activeLanguage, language, tier, batch]);
 
   const apply = async () => {
     setApplying(true);

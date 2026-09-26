@@ -10,6 +10,7 @@ import { useYoutubeStore } from '../stores/youtubeStore';
 import { useAiStore } from '../stores/aiStore';
 import { useUpdateStore } from '../stores/updateStore';
 import { useFeedbackStore } from '../stores/feedbackStore';
+import { syncCoordinator } from '../lib/syncCoordinator';
 
 export default function Layout() {
   const { t } = useTranslation();
@@ -39,6 +40,10 @@ export default function Layout() {
       }
     })();
   }, [checkUpdate, showFeedback, t]);
+
+  // Sync is opportunistic: a failed background attempt remains non-blocking,
+  // while the settings page exposes the detailed error on a manual retry.
+  useEffect(() => syncCoordinator.start(), []);
 
   return (
     <div className="h-screen flex overflow-hidden">
