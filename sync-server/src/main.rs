@@ -592,7 +592,10 @@ async fn sync_head(
         )
         .await
         .map_err(internal)?;
-    Ok(Json(HeadResponse { cursor: row.get(0), record_count: row.get(1) }))
+    Ok(Json(HeadResponse {
+        cursor: row.get(0),
+        record_count: row.get(1),
+    }))
 }
 
 #[derive(Deserialize)]
@@ -979,27 +982,6 @@ async fn metrics(State(state): State<AppState>, headers: HeaderMap) -> ApiResult
     ))
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn validates_opaque_identifiers_and_blob_hashes() {
-        assert!(valid_identifier("word"));
-        assert!(valid_identifier("abc_DEF-123"));
-        assert!(!valid_identifier("../word"));
-        assert!(valid_hash(&"a".repeat(64)));
-        assert!(!valid_hash("not-a-hash"));
-    }
-
-    #[test]
-    fn tokens_are_not_stored_verbatim() {
-        let token = new_token();
-        assert_ne!(token, token_hash(&token));
-        assert_eq!(token_hash(&token).len(), 64);
-    }
-}
-
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt()
@@ -1053,4 +1035,25 @@ async fn main() {
         .await
         .expect("bind failed");
     axum::serve(listener, app).await.expect("server failed");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn validates_opaque_identifiers_and_blob_hashes() {
+        assert!(valid_identifier("word"));
+        assert!(valid_identifier("abc_DEF-123"));
+        assert!(!valid_identifier("../word"));
+        assert!(valid_hash(&"a".repeat(64)));
+        assert!(!valid_hash("not-a-hash"));
+    }
+
+    #[test]
+    fn tokens_are_not_stored_verbatim() {
+        let token = new_token();
+        assert_ne!(token, token_hash(&token));
+        assert_eq!(token_hash(&token).len(), 64);
+    }
 }

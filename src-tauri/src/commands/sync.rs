@@ -467,32 +467,33 @@ fn now_ms() -> i64 {
         .as_millis() as i64
 }
 
-fn set_progress(
-    conn: &rusqlite::Connection,
-    phase: &str,
+struct ProgressUpdate<'a> {
+    phase: &'a str,
     completed_items: u64,
     total_items: u64,
     completed_bytes: u64,
     total_bytes: u64,
     started_at: i64,
     retry_at: Option<i64>,
-) -> Result<(), String> {
-    let elapsed_ms = now_ms().saturating_sub(started_at).max(1) as u64;
-    let bytes_per_second = completed_bytes.saturating_mul(1000) / elapsed_ms;
-    let eta_seconds = if bytes_per_second > 0 && total_bytes > completed_bytes {
-        Some((total_bytes - completed_bytes).div_ceil(bytes_per_second))
+}
+
+fn set_progress(conn: &rusqlite::Connection, update: ProgressUpdate<'_>) -> Result<(), String> {
+    let elapsed_ms = now_ms().saturating_sub(update.started_at).max(1) as u64;
+    let bytes_per_second = update.completed_bytes.saturating_mul(1000) / elapsed_ms;
+    let eta_seconds = if bytes_per_second > 0 && update.total_bytes > update.completed_bytes {
+        Some((update.total_bytes - update.completed_bytes).div_ceil(bytes_per_second))
     } else {
         None
     };
     let progress = SyncProgress {
-        phase: phase.to_string(),
-        completed_items,
-        total_items,
-        completed_bytes,
-        total_bytes,
+        phase: update.phase.to_string(),
+        completed_items: update.completed_items,
+        total_items: update.total_items,
+        completed_bytes: update.completed_bytes,
+        total_bytes: update.total_bytes,
         bytes_per_second,
         eta_seconds,
-        retry_at,
+        retry_at: update.retry_at,
     };
     let value = serde_json::to_string(&progress).map_err(|_| "local_sync_storage_error")?;
     conn.execute(
@@ -530,11 +531,6 @@ fn stable_sync_error(value: String) -> String {
         "local_identity_conflict".into()
     } else if normalized.contains("waiting for its ") || normalized.contains("missing ") {
         "invalid_encrypted_record".into()
-    } else if normalized.contains("database")
-        || normalized.contains("sqlite")
-        || normalized.contains("locked")
-    {
-        "local_sync_storage_error".into()
     } else {
         "local_sync_storage_error".into()
     }
@@ -1781,13 +1777,15 @@ async fn record_upload(
             if let Ok(conn) = state.conn.lock() {
                 let _ = set_progress(
                     &conn,
-                    "uploading",
-                    0,
-                    total_items,
-                    *completed_bytes,
-                    total_bytes,
-                    started_at,
-                    None,
+                    ProgressUpdate {
+                        phase: "uploading",
+                        completed_items: 0,
+                        total_items,
+                        completed_bytes: *completed_bytes,
+                        total_bytes,
+                        started_at,
+                        retry_at: None,
+                    },
                 );
             }
         }
@@ -1885,13 +1883,15 @@ async fn push_outbox(
         if let Ok(conn) = state.conn.lock() {
             let _ = set_progress(
                 &conn,
-                "uploading",
-                completed_items,
-                total_items,
-                completed_bytes,
-                total_bytes,
-                started_at,
-                None,
+                ProgressUpdate {
+                    phase: "uploading",
+                    completed_items,
+                    total_items,
+                    completed_bytes,
+                    total_bytes,
+                    started_at,
+                    retry_at: None,
+                },
             );
         }
         for result in reply.results {
@@ -2186,13 +2186,15 @@ async fn pull_apply_events(
         let conn = state.conn.lock().map_err(|e| e.to_string())?;
         set_progress(
             &conn,
-            "downloading",
-            records_done as u64,
-            planned_records.max(records_done) as u64,
-            bytes_done as u64,
-            0,
-            started_at,
-            None,
+            ProgressUpdate {
+                phase: "downloading",
+                completed_items: records_done as u64,
+                total_items: planned_records.max(records_done) as u64,
+                completed_bytes: bytes_done as u64,
+                total_bytes: 0,
+                started_at,
+                retry_at: None,
+            },
         )?;
     }
     while after < target_head {
@@ -2285,13 +2287,15 @@ async fn pull_apply_events(
             let conn = state.conn.lock().map_err(|e| e.to_string())?;
             set_progress(
                 &conn,
-                "downloading",
-                records_done as u64,
-                planned_records.max(records_done) as u64,
-                bytes_done as u64,
-                0,
-                started_at,
-                None,
+                ProgressUpdate {
+                    phase: "downloading",
+                    completed_items: records_done as u64,
+                    total_items: planned_records.max(records_done) as u64,
+                    completed_bytes: bytes_done as u64,
+                    total_bytes: 0,
+                    started_at,
+                    retry_at: None,
+                },
             )?;
         }
     }
@@ -2306,13 +2310,15 @@ async fn pull_apply_events(
         set_runtime_phase(&conn, "applying")?;
         set_progress(
             &conn,
-            "applying",
-            0,
-            records_done as u64,
-            0,
-            bytes_done as u64,
-            started_at,
-            None,
+            ProgressUpdate {
+                phase: "applying",
+                completed_items: 0,
+                total_items: records_done as u64,
+                completed_bytes: 0,
+                total_bytes: bytes_done as u64,
+                started_at,
+                retry_at: None,
+            },
         )?;
     }
 
@@ -2384,13 +2390,15 @@ async fn pull_apply_events(
             .unwrap_or(0);
         set_progress(
             &conn,
-            "applying",
-            records_done.saturating_sub(remaining) as u64,
-            records_done as u64,
-            bytes_done.max(0) as u64,
-            bytes_done.max(0) as u64,
-            started_at,
-            None,
+            ProgressUpdate {
+                phase: "applying",
+                completed_items: records_done.saturating_sub(remaining) as u64,
+                total_items: records_done as u64,
+                completed_bytes: bytes_done.max(0) as u64,
+                total_bytes: bytes_done.max(0) as u64,
+                started_at,
+                retry_at: None,
+            },
         )?;
     }
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
@@ -2402,13 +2410,15 @@ async fn pull_apply_events(
     local.last_remote_cursor = target_head;
     set_progress(
         &conn,
-        "applying",
-        records_done as u64,
-        records_done as u64,
-        bytes_done as u64,
-        bytes_done as u64,
-        started_at,
-        None,
+        ProgressUpdate {
+            phase: "applying",
+            completed_items: records_done as u64,
+            total_items: records_done as u64,
+            completed_bytes: bytes_done as u64,
+            total_bytes: bytes_done as u64,
+            started_at,
+            retry_at: None,
+        },
     )?;
     Ok(applied)
 }
@@ -2737,9 +2747,7 @@ fn save_account(
     let transaction = conn
         .unchecked_transaction()
         .map_err(|_| "local_sync_storage_error".to_string())?;
-    if let Err(error) = save_native_secrets(&secrets) {
-        return Err(error);
-    }
+    save_native_secrets(&secrets)?;
     let result = save_config(&transaction, &config)
         .and_then(|_| {
             transaction
@@ -3000,7 +3008,7 @@ async fn sync_now_inner(state: &DbState) -> Result<(), String> {
         let conn = state.conn.lock().map_err(|e| e.to_string())?;
         set_runtime_phase(&conn, "downloading")?;
     }
-    pull_apply_events(&state, &mut local, &data_key, &secrets.account_id).await?;
+    pull_apply_events(state, &mut local, &data_key, &secrets.account_id).await?;
     {
         let conn = state.conn.lock().map_err(|e| e.to_string())?;
         prepare_outbox(&conn, &local, &data_key, &secrets.account_id)?;
@@ -3013,13 +3021,15 @@ async fn sync_now_inner(state: &DbState) -> Result<(), String> {
             .map_err(|_| "local_sync_storage_error".to_string())?;
         set_progress(
             &conn,
-            "uploading",
-            0,
-            total_items.max(0) as u64,
-            0,
-            total_bytes.max(0) as u64,
-            started_at,
-            None,
+            ProgressUpdate {
+                phase: "uploading",
+                completed_items: 0,
+                total_items: total_items.max(0) as u64,
+                completed_bytes: 0,
+                total_bytes: total_bytes.max(0) as u64,
+                started_at,
+                retry_at: None,
+            },
         )?;
     }
     {
@@ -3083,7 +3093,7 @@ async fn sync_now_inner(state: &DbState) -> Result<(), String> {
         let conn = state.conn.lock().map_err(|e| e.to_string())?;
         set_runtime_phase(&conn, "downloading")?;
     }
-    let downloaded = pull_apply_events(&state, &mut local, &data_key, &secrets.account_id).await?;
+    let downloaded = pull_apply_events(state, &mut local, &data_key, &secrets.account_id).await?;
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
     local.last_synced_at = Some(now_ms());
     save_config(&conn, &local)?;

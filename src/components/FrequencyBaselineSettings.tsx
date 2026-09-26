@@ -1,16 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { BarChart3, RefreshCw, RotateCcw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Language } from '../lib/languages';
 import { SELF_NAMES } from '../lib/languages';
 import { invalidateCaches } from '../lib/cacheInvalidation';
-import { TIERS, TierButton } from './FrequencyBaselinePicker';
+import { TierButton } from './FrequencyBaselinePicker';
 import SettingsCollapsibleSection from './SettingsCollapsibleSection';
 
 interface Profile { language: Language; tier: number | null; enabled: boolean; marked_count: number; pending_count: number; pack_version: string; license: string; }
 interface Preview { range_start: number; range_end: number; words: string[]; }
 const LANGUAGES: Language[] = ['en', 'zh'];
+const TIERS = [1000, 3000, 5000, 10000];
 
 export default function FrequencyBaselineSettings() {
   const { t } = useTranslation();
@@ -22,12 +23,12 @@ export default function FrequencyBaselineSettings() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [open, setOpen] = useState(false);
-  const load = async () => {
+  const load = useCallback(async () => {
     const nextProfile = await invoke<Profile>('get_frequency_baseline', { language });
     setProfile(nextProfile);
     if (nextProfile.tier) setTier(nextProfile.tier);
-  };
-  useEffect(() => { void load(); }, [language]);
+  }, [language]);
+  useEffect(() => { void load(); }, [load]);
   useEffect(() => { setBatch(0); }, [language, tier]);
   useEffect(() => {
     if (!open) return;
