@@ -49,6 +49,9 @@ pub struct CardOccurrence {
     pub end_time: Option<String>,
     pub file_name: String,
     pub original_form: Option<String>,
+    pub meaning_zh: Option<String>,
+    pub meaning_en: Option<String>,
+    pub token_positions: Option<Vec<i32>>,
 }
 
 #[derive(Deserialize)]
@@ -182,6 +185,9 @@ pub fn get_due_cards(
                             end_time: row.get(4)?,
                             file_name: row.get(5)?,
                             original_form: row.get(6)?,
+                            meaning_zh: None,
+                            meaning_en: None,
+                            token_positions: None,
                         })
                     })
                     .map_err(|e| e.to_string())?;
@@ -238,6 +244,9 @@ pub fn get_due_cards(
                     end_time: row.get(4)?,
                     file_name: row.get(5)?,
                     original_form: row.get(6)?,
+                    meaning_zh: None,
+                    meaning_en: None,
+                    token_positions: None,
                 })
             })
             .map_err(|e| e.to_string())?
@@ -423,7 +432,7 @@ pub fn get_due_phrase_cards(
             let occurrences = {
                 let mut ostmt = conn
                     .prepare(
-                        "SELECT po.id, s.en_text, s.zh_text, s.start_time, s.end_time, f.name
+                        "SELECT po.id, s.en_text, s.zh_text, s.start_time, s.end_time, f.name, po.surface_text, po.meaning_zh, po.token_positions_json, po.meaning_en
                          FROM phrase_occurrences po
                          JOIN segments s ON s.id = po.segment_id
                          JOIN files f ON f.id = s.file_id
@@ -442,7 +451,10 @@ pub fn get_due_phrase_cards(
                             start_time: row.get(3)?,
                             end_time: row.get(4)?,
                             file_name: row.get(5)?,
-                            original_form: None,
+                            original_form: row.get(6)?,
+                            meaning_zh: row.get(7)?,
+                            token_positions: row.get::<_, Option<String>>(8)?.and_then(|value| serde_json::from_str(&value).ok()),
+                            meaning_en: row.get(9)?,
                         })
                     })
                     .map_err(|e| e.to_string())?;

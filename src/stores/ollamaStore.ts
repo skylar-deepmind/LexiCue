@@ -11,6 +11,35 @@ export interface OllamaProgress {
   processedSegments: number;
   totalSegments: number;
   percent: number;
+  phase?: 'extraction' | 'explanation' | 'saving' | 'completed' | 'error';
+  error?: string;
+  runId?: string;
+  skippedItems?: number;
+  errorCode?: string;
+}
+
+export interface AnalysisDiagnostic {
+  runId: string;
+  fileId: number;
+  stage: string;
+  status: string;
+  batch: number;
+  code: string;
+  errorKind: string | null;
+  httpStatus: number | null;
+  provider: string;
+  model: string;
+  requestId: string | null;
+  finishReason: string | null;
+  durationMs: number;
+  promptTokens: number | null;
+  completionTokens: number | null;
+  validCount: number;
+  skippedCount: number;
+  totalSkipped: number;
+  missingFields: string[];
+  rawAvailable: boolean;
+  occurredAt: number;
 }
 
 export interface OllamaRetry {
@@ -22,6 +51,7 @@ export interface OllamaRetry {
 
 interface OllamaStore {
   progress: Record<number, OllamaProgress>;
+  diagnostics: Record<number, AnalysisDiagnostic>;
   retrying: Record<number, OllamaRetry>;
   initialize: () => Promise<void>;
   startAnalysis: (fileId: number, config: AiConfig) => Promise<{ phrase_count: number; occurrence_count: number }>;
@@ -41,6 +71,7 @@ function dismissRetryToast(fileId: number) {
 
 export const useOllamaStore = create<OllamaStore>((set) => ({
   progress: {},
+  diagnostics: {},
   retrying: {},
 
   initialize: async () => {
@@ -68,6 +99,7 @@ export const useOllamaStore = create<OllamaStore>((set) => ({
 
   startAnalysis: async (fileId, config) => {
     set((state) => ({
+      diagnostics: Object.fromEntries(Object.entries(state.diagnostics).filter(([id]) => Number(id) !== fileId)),
       progress: {
         ...state.progress,
         [fileId]: {
@@ -80,17 +112,31 @@ export const useOllamaStore = create<OllamaStore>((set) => ({
       },
     }));
     try {
-      return await invoke<{ phrase_count: number; occurrence_count: number }>('analyze_file_phrases', {
+      const result = await invoke<{ phrase_count: number; occurrence_count: number }>('analyze_file_phrases', {
         fileId,
         config,
       });
-    } finally {
+      const diagnostic = await invoke<AnalysisDiagnostic | null>('get_analysis_diagnostic', { fileId }).catch(() => null);
       set((state) => {
         const progress = { ...state.progress };
         delete progress[fileId];
+        return { progress, diagnostics: diagnostic ? { ...state.diagnostics, [fileId]: diagnostic } : state.diagnostics };
+      });
+      return result;
+    } catch (error) {
+      const diagnostic = await invoke<AnalysisDiagnostic | null>('get_analysis_diagnostic', { fileId }).catch(() => null);
+      set((state) => {
+        const progress = { ...state.progress };
+        if (String(error).includes('ERR_CANCELLED')) delete progress[fileId];
+        else progress[fileId] = { ...progress[fileId], fileId, status: 'error', error: String(error) };
+        return { progress, diagnostics: diagnostic ? { ...state.diagnostics, [fileId]: diagnostic } : state.diagnostics };
+      });
+      throw error;
+    } finally {
+      set((state) => {
         const retrying = { ...state.retrying };
         delete retrying[fileId];
-        return { progress, retrying };
+        return { retrying };
       });
       dismissRetryToast(fileId);
     }

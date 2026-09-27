@@ -56,15 +56,13 @@ function tokenizeSurfaceText(text: string, segTokens: SegmentToken[]): RenderedT
   const sorted = [...segTokens].sort((a, b) => a.position - b.position);
   const result: RenderedToken[] = [];
   let cursor = 0;
-  let wordIndex = 0;
   for (const st of sorted) {
     const idx = text.indexOf(st.surface, cursor);
     if (idx > cursor) {
       result.push({ token: text.slice(cursor, idx), wordIndex: -1, lemma: null });
     }
     if (idx >= 0) {
-      result.push({ token: st.surface, wordIndex, lemma: st.lemma });
-      wordIndex++;
+      result.push({ token: st.surface, wordIndex: st.position, lemma: st.lemma });
       cursor = idx + st.surface.length;
     }
   }
@@ -99,8 +97,13 @@ export default function SegmentCard({
   const normalizedQuery = highlightQuery.trim().toLowerCase();
 
   const phraseByStartPos = new Map<number, SegmentPhrase>();
+  const phraseByTokenPos = new Map<number, SegmentPhrase>();
   for (const ph of phrases) {
-    phraseByStartPos.set(ph.position, ph);
+    if (ph.token_positions?.length) {
+      for (const position of ph.token_positions) {
+        if (!phraseByTokenPos.has(position)) phraseByTokenPos.set(position, ph);
+      }
+    } else phraseByStartPos.set(ph.position, ph);
   }
 
   const phraseElements: ReactElement[] = [];
@@ -108,6 +111,17 @@ export default function SegmentCard({
   while (i < renderedTokens.length) {
     const rt = renderedTokens[i];
     if (rt.wordIndex >= 0) {
+      const selectedPhrase = phraseByTokenPos.get(rt.wordIndex);
+      if (selectedPhrase && onPhraseClick) {
+        phraseElements.push(
+          <span key={i} onClick={() => onPhraseClick(selectedPhrase.phrase_id, selectedPhrase.text)}
+            className={`cursor-pointer rounded-sm underline decoration-dotted ${selectedPhrase.status === 'ignored' ? 'text-gray-400 line-through' : 'text-purple-700 font-medium bg-purple-50/60'}`}>
+            {rt.token}
+          </span>
+        );
+        i++;
+        continue;
+      }
       const phrase = phraseByStartPos.get(rt.wordIndex);
       if (phrase && onPhraseClick) {
         const phraseLen = phrase.word_count;

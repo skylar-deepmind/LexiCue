@@ -199,7 +199,7 @@ export default function SettingsPage() {
       model: aiModel,
       apiKey: aiProvider === 'openai' ? aiApiKey : undefined,
     };
-    const fingerprint = JSON.stringify(config);
+    const fingerprint = JSON.stringify({ provider: config.provider, baseUrl: config.baseUrl, apiKey: config.apiKey });
     try {
       await invoke('ai_status', { config });
       setAiStatus('ready');
@@ -223,13 +223,12 @@ export default function SettingsPage() {
     const fingerprint = JSON.stringify({
       provider: aiProvider,
       baseUrl: aiBaseUrl.trim() || DEFAULT_OLLAMA_URL,
-      model: aiModel,
       apiKey: aiProvider === 'openai' ? aiApiKey : undefined,
     });
     if (aiStatus !== 'idle' && aiFingerprint && aiFingerprint !== fingerprint) {
       resetAiCheck();
     }
-  }, [aiProvider, aiBaseUrl, aiModel, aiApiKey, aiStatus, aiFingerprint, resetAiCheck]);
+  }, [aiProvider, aiBaseUrl, aiApiKey, aiStatus, aiFingerprint, resetAiCheck]);
 
   const switchProvider = (provider: AiProvider) => {
     setAiProvider(provider);

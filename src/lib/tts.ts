@@ -1,4 +1,6 @@
 import type { Language } from './languages';
+import type { DictionaryEntry } from './types';
+import { invoke } from '@tauri-apps/api/core';
 
 const VOICE_LANG: Record<Language, string> = {
   en: 'en-US',
@@ -30,6 +32,7 @@ const PREFERRED_VOICES: Partial<Record<Language, string[]>> = {
 const LOW_QUALITY_HINTS = ['compact', 'ting-ting'];
 
 let cachedVoices: SpeechSynthesisVoice[] | null = null;
+let voicesListenerRegistered = false;
 
 function loadVoices(): SpeechSynthesisVoice[] {
   if (cachedVoices && cachedVoices.length > 0) return cachedVoices;
@@ -39,7 +42,8 @@ function loadVoices(): SpeechSynthesisVoice[] {
 }
 
 function registerVoicesChanged() {
-  if (!('speechSynthesis' in window)) return;
+  if (!('speechSynthesis' in window) || voicesListenerRegistered) return;
+  voicesListenerRegistered = true;
   window.speechSynthesis.addEventListener?.('voiceschanged', () => {
     cachedVoices = window.speechSynthesis?.getVoices() ?? null;
   });
@@ -108,15 +112,47 @@ export function speakText(text: string, language: Language) {
     synth.speak(utterance);
   };
 
-  if (loadVoices().length > 0) {
-    speak();
+  // Speak on the click itself. Waiting for voiceschanged can defer the first word indefinitely.
+  speak();
+}
+
+export function prepareSpeechVoices() {
+  if ('speechSynthesis' in window) {
+    registerVoicesChanged();
+    loadVoices();
+  }
+}
+
+export async function playPronunciation(text: string, language: Language, entry?: DictionaryEntry | null, onCached?: (entry: DictionaryEntry) => void) {
+  if (entry?.local_audio_path) {
+    try {
+      const bytes = await invoke<number[]>('read_dictionary_audio', { lemma: entry.lemma, language });
+      const url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: 'audio/mpeg' }));
+      const audio = new Audio(url);
+      audio.addEventListener('ended', () => URL.revokeObjectURL(url), { once: true });
+      audio.addEventListener('error', () => URL.revokeObjectURL(url), { once: true });
+      window.speechSynthesis?.cancel();
+      await audio.play();
+      return;
+    } catch (error) {
+      console.warn('Cached pronunciation unavailable:', error);
+    }
+  }
+  if (language === 'en') {
+    speakText(text, language);
+    if (entry?.audio_url && !entry.local_audio_path) {
+      void invoke<DictionaryEntry>('cache_dictionary_audio', { lemma: entry.lemma, language })
+        .then((cached) => onCached?.(cached)).catch(() => {});
+    }
     return;
   }
-
-  window.speechSynthesis.onvoiceschanged = () => {
-    const ready = loadVoices();
-    if (ready.length === 0) return;
-    window.speechSynthesis.onvoiceschanged = null;
-    speak();
-  };
+  if (entry?.audio_url) {
+    try {
+      await new Audio(entry.audio_url).play();
+      return;
+    } catch (error) {
+      console.warn('Dictionary pronunciation unavailable:', error);
+    }
+  }
+  speakText(text, language);
 }

@@ -16,6 +16,7 @@ interface PhraseStore {
   detail: PhraseDetail | null;
   filter: WordStatus | 'all';
   sortBy: 'frequency' | 'alpha' | 'recent';
+  includeUnverified: boolean;
   selected: Set<number>;
   batchUpdating: boolean;
   lastBatchAction: BatchAction | null;
@@ -30,6 +31,7 @@ interface PhraseStore {
   closeDetail: () => void;
   setFilter: (f: WordStatus | 'all') => void;
   setSortBy: (s: 'frequency' | 'alpha' | 'recent') => void;
+  setIncludeUnverified: (include: boolean) => void;
   updateStatus: (phraseId: number, status: WordStatus) => Promise<void>;
   updateDefinition: (phraseId: number, definition: string) => Promise<void>;
   batchUpdateStatus: (status: WordStatus) => Promise<number>;
@@ -42,8 +44,8 @@ interface PhraseStore {
 const phraseCache = new QueryCache<PhraseInfo[]>();
 registerCacheInvalidator('phrases', () => phraseCache.invalidate());
 
-function phraseQueryKey(filter: PhraseStore['filter'], sortBy: PhraseStore['sortBy']): string {
-  return JSON.stringify([usePreferencesStore.getState().language, filter, sortBy]);
+function phraseQueryKey(filter: PhraseStore['filter'], sortBy: PhraseStore['sortBy'], includeUnverified: boolean): string {
+  return JSON.stringify([usePreferencesStore.getState().language, filter, sortBy, includeUnverified]);
 }
 
 export const usePhraseStore = create<PhraseStore>((set, get) => ({
@@ -51,6 +53,7 @@ export const usePhraseStore = create<PhraseStore>((set, get) => ({
   detail: null,
   filter: 'unprocessed',
   sortBy: 'frequency',
+  includeUnverified: false,
   selected: new Set(),
   batchUpdating: false,
   lastBatchAction: null,
@@ -61,9 +64,9 @@ export const usePhraseStore = create<PhraseStore>((set, get) => ({
   loadedKey: null,
 
   loadPhrases: async (force = false) => {
-    const { filter, sortBy } = get();
+    const { filter, sortBy, includeUnverified } = get();
     const language = usePreferencesStore.getState().language;
-    const key = phraseQueryKey(filter, sortBy);
+    const key = phraseQueryKey(filter, sortBy, includeUnverified);
     const cached = phraseCache.peek(key);
     if (cached) set({ phrases: cached, loadedKey: key, loading: false });
     if (!force && phraseCache.isFresh(key)) return;
@@ -73,12 +76,13 @@ export const usePhraseStore = create<PhraseStore>((set, get) => ({
           statusFilter: filter === 'all' ? null : filter,
           sortBy,
           language: language === 'all' ? null : language,
+          includeUnverified,
         }), force);
-      if (phraseQueryKey(get().filter, get().sortBy) === key) set({ phrases, loadedKey: key });
+      if (phraseQueryKey(get().filter, get().sortBy, get().includeUnverified) === key) set({ phrases, loadedKey: key });
     } catch (e) {
       console.error('Failed to load phrases:', e);
     } finally {
-      if (phraseQueryKey(get().filter, get().sortBy) === key) set({ loading: false });
+      if (phraseQueryKey(get().filter, get().sortBy, get().includeUnverified) === key) set({ loading: false });
     }
   },
 
@@ -109,6 +113,11 @@ export const usePhraseStore = create<PhraseStore>((set, get) => ({
     get().loadPhrases();
   },
 
+  setIncludeUnverified: (include) => {
+    set({ includeUnverified: include, selected: new Set() });
+    get().loadPhrases();
+  },
+
   updateStatus: async (phraseId, status) => {
     await invoke('update_phrase_status', { phraseId, status });
     if (status === 'learning') {
@@ -122,7 +131,7 @@ export const usePhraseStore = create<PhraseStore>((set, get) => ({
       lastBatchAction: null,
     });
     phraseCache.invalidate();
-    phraseCache.prime(phraseQueryKey(get().filter, get().sortBy), result.words);
+    phraseCache.prime(phraseQueryKey(get().filter, get().sortBy, get().includeUnverified), result.words);
     invalidateCaches('files', 'review', 'insights');
     const { detail } = get();
     if (detail && detail.phrase.id === phraseId) {
@@ -168,7 +177,7 @@ export const usePhraseStore = create<PhraseStore>((set, get) => ({
         lastBatchAction: { changes, removed: result.removed },
       });
       phraseCache.invalidate();
-      phraseCache.prime(phraseQueryKey(get().filter, get().sortBy), result.words);
+      phraseCache.prime(phraseQueryKey(get().filter, get().sortBy, get().includeUnverified), result.words);
       invalidateCaches('files', 'review', 'insights');
       return changes.length;
     } finally {
@@ -200,7 +209,7 @@ export const usePhraseStore = create<PhraseStore>((set, get) => ({
         lastBatchAction: null,
       });
       phraseCache.invalidate();
-      phraseCache.prime(phraseQueryKey(get().filter, get().sortBy), phrases);
+      phraseCache.prime(phraseQueryKey(get().filter, get().sortBy, get().includeUnverified), phrases);
       invalidateCaches('files', 'review', 'insights');
     } finally {
       set({ batchUpdating: false });

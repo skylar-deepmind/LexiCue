@@ -1,4 +1,4 @@
-import { X, BookOpen, RefreshCw, EyeOff, Eye } from 'lucide-react';
+import { X, BookOpen, RefreshCw, EyeOff, Eye, Pencil, Plus, Trash2, Volume2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
@@ -9,6 +9,7 @@ import Pagination from './Pagination';
 import DisplaySettingsMenu from './DisplaySettingsMenu';
 import { usePreferencesStore } from '../stores/preferencesStore';
 import { CONTENT_FONT_CLASS } from '../lib/contentTypography';
+import { speakText } from '../lib/tts';
 
 const OCCURRENCE_PAGE_SIZE = 5;
 
@@ -28,6 +29,18 @@ export default function PhraseDetailPanel({ detail, onClose, onStatusChange, onD
   const [definition, setDefinition] = useState(detail.phrase.definition ?? '');
   const [dictionary, setDictionary] = useState<PhraseDictionaryEntry | null>(null);
   const [dictionaryLoading, setDictionaryLoading] = useState(false);
+  const [otherSensesEn, setOtherSensesEn] = useState<{ meaning_en: string; example_en: string }[]>([]);
+  const [otherSensesZh, setOtherSensesZh] = useState<{ meaning_zh: string; example_en: string }[]>([]);
+  const [editingOccurrence, setEditingOccurrence] = useState<number | null>(null);
+  const [editingChineseOccurrence, setEditingChineseOccurrence] = useState<number | null>(null);
+  const [meaningDraft, setMeaningDraft] = useState('');
+  const [usageDraft, setUsageDraft] = useState('');
+  const [meaningZhDraft, setMeaningZhDraft] = useState('');
+  const [usageZhDraft, setUsageZhDraft] = useState('');
+  const [editingSenses, setEditingSenses] = useState(false);
+  const [editingSensesZh, setEditingSensesZh] = useState(false);
+  const [savingExplanation, setSavingExplanation] = useState(false);
+  const [explanationError, setExplanationError] = useState(false);
   const [statusSaving, setStatusSaving] = useState<WordStatus | null>(null);
   const [definitionSaved, setDefinitionSaved] = useState(false);
   const [occurrences, setOccurrences] = useState<OccurrenceDetail[]>(detail.occurrences);
@@ -95,12 +108,69 @@ export default function PhraseDetailPanel({ detail, onClose, onStatusChange, onD
 
   useEffect(() => {
     setDictionary(null);
+    setOtherSensesEn([]);
+    setOtherSensesZh([]);
+    setExplanationError(false);
     setDictionaryLoading(true);
     invoke<PhraseDictionaryEntry>('lookup_phrase_dictionary', { text: detail.phrase.text, language: detail.phrase.language })
-      .then(setDictionary)
+      .then((entry) => { setDictionary(entry); setOtherSensesEn(entry.other_senses_en ?? []); setOtherSensesZh(entry.other_senses ?? []); })
       .catch(() => {})
       .finally(() => setDictionaryLoading(false));
   }, [detail.phrase.id, detail.phrase.text, detail.phrase.language]);
+
+  const saveOccurrenceMeaning = async (occurrenceId: number) => {
+    if (!meaningDraft.trim()) return;
+    setSavingExplanation(true);
+    setExplanationError(false);
+    try {
+      await invoke('update_phrase_occurrence_meaning_en', { occurrenceId, meaningEn: meaningDraft, usageEn: usageDraft });
+      setOccurrences((current) => current.map((occ) => occ.id === occurrenceId ? { ...occ, meaning_en: meaningDraft.trim(), usage_en: usageDraft.trim(), meaning_en_edited: true, collins_sense_id: null } : occ));
+      setEditingOccurrence(null);
+    } catch (error) {
+      console.error('Failed to save phrase meaning:', error);
+      setExplanationError(true);
+    } finally { setSavingExplanation(false); }
+  };
+
+  const saveOccurrenceMeaningZh = async (occurrenceId: number) => {
+    if (!meaningZhDraft.trim()) return;
+    setSavingExplanation(true);
+    setExplanationError(false);
+    try {
+      await invoke('update_phrase_occurrence_meaning', { occurrenceId, meaningZh: meaningZhDraft, usageZh: usageZhDraft });
+      setOccurrences((current) => current.map((occ) => occ.id === occurrenceId ? { ...occ, meaning_zh: meaningZhDraft.trim(), usage_zh: usageZhDraft.trim(), meaning_edited: true } : occ));
+      setEditingChineseOccurrence(null);
+    } catch (error) {
+      console.error('Failed to save Chinese phrase meaning:', error);
+      setExplanationError(true);
+    } finally { setSavingExplanation(false); }
+  };
+
+  const saveOtherSensesZh = async () => {
+    setSavingExplanation(true);
+    setExplanationError(false);
+    try {
+      await invoke('update_phrase_other_senses', { text: detail.phrase.text, language: detail.phrase.language, otherSenses: otherSensesZh });
+      setDictionary((current) => current ? { ...current, other_senses: otherSensesZh, other_senses_edited: true } : current);
+      setEditingSensesZh(false);
+    } catch (error) {
+      console.error('Failed to save other Chinese phrase meanings:', error);
+      setExplanationError(true);
+    } finally { setSavingExplanation(false); }
+  };
+
+  const saveOtherSenses = async () => {
+    setSavingExplanation(true);
+    setExplanationError(false);
+    try {
+      await invoke('update_phrase_other_senses_en', { text: detail.phrase.text, otherSenses: otherSensesEn });
+      setDictionary((current) => current ? { ...current, other_senses_en: otherSensesEn, other_senses_en_edited: true } : current);
+      setEditingSenses(false);
+    } catch (error) {
+      console.error('Failed to save other senses:', error);
+      setExplanationError(true);
+    } finally { setSavingExplanation(false); }
+  };
 
   const statuses: WordStatus[] = ['unprocessed', 'learning', 'known', 'ignored'];
   const visibleOccurrences = occurrences.filter((occ) => !occ.hidden);
@@ -123,6 +193,8 @@ export default function PhraseDetailPanel({ detail, onClose, onStatusChange, onD
         return t('phraseDetail.categoryIdiom');
       case 'collocation':
         return t('phraseDetail.categoryCollocation');
+      case 'fixed_expression':
+        return t('phraseDetail.categoryFixedExpression');
       default:
         return category;
     }
@@ -131,14 +203,25 @@ export default function PhraseDetailPanel({ detail, onClose, onStatusChange, onD
   return (
     <div className="fixed inset-y-0 right-0 w-full sm:w-96 bg-white border-l border-gray-200 shadow-xl z-40 flex flex-col">
       <div className="flex items-center justify-between p-4 border-b border-gray-100">
-        <h2 className={`font-semibold text-gray-900 ${CONTENT_FONT_CLASS.learning[learningTextFontSize]}`}>{detail.phrase.text}</h2>
+        <h2 className={`min-w-0 break-words font-semibold text-gray-900 ${CONTENT_FONT_CLASS.learning[learningTextFontSize]}`}>{detail.phrase.text}</h2>
         <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => speakText(detail.phrase.text, detail.phrase.language)}
+            disabled={typeof window === 'undefined' || !('speechSynthesis' in window)}
+            aria-label={t('phraseDetail.playAria', { phrase: detail.phrase.text })}
+            title={t('wordDetail.systemVoiceTitle')}
+            className="phrase-audio-action flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+          >
+            <Volume2 size={18} aria-hidden="true" />
+          </button>
           <DisplaySettingsMenu />
           <button onClick={onClose} aria-label={t('common.close')} className="text-gray-400 hover:text-gray-600 p-1"><X size={20} /></button>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {explanationError && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{t('phraseDetail.saveFailed')}</p>}
         <div className="flex items-center gap-2 flex-wrap">
           <StatusBadge status={detail.phrase.status} />
           <span className={`${CONTENT_FONT_CLASS.auxiliary[auxiliaryFontSize]} text-gray-500`}>{t('phraseDetail.frequency', { count: detail.phrase.frequency })}</span>
@@ -163,11 +246,53 @@ export default function PhraseDetailPanel({ detail, onClose, onStatusChange, onD
               {dictionary.pinyin && (
                 <p className={`text-purple-600 ${CONTENT_FONT_CLASS.auxiliary[auxiliaryFontSize]}`}>{dictionary.pinyin}</p>
               )}
-              <p className={`text-gray-700 ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}>{dictionary.translation}</p>
-              {dictionary.usage_zh && (
+              {detail.phrase.language !== 'en' && <p className={`text-gray-700 ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}>{dictionary.translation}</p>}
+              {detail.phrase.language !== 'en' && dictionary.usage_zh && (
                 <p className={`leading-relaxed text-gray-500 ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}>{t('phraseDetail.usage', { usage: dictionary.usage_zh })}</p>
               )}
-              <p className="text-[11px] text-gray-400">{t('phraseDetail.source', { provider: dictionary.provider })}</p>
+              {detail.phrase.language !== 'en' && <p className="text-[11px] text-gray-400">{t('phraseDetail.source', { provider: dictionary.provider })}</p>}
+              {detail.phrase.language === 'en' && (
+                <div className="mt-3 space-y-3">
+                  <div className="dictionary-evidence">
+                    <p className="dictionary-evidence__label">Collins COBUILD V3 · {t('phraseDetail.dictionaryOriginal')}</p>
+                    {!!dictionary.collins_senses.length && !occurrences.some((occ) => dictionary.collins_senses.some((sense) => sense.id === occ.collins_sense_id)) && <p className="dictionary-evidence__muted">{t('phraseDetail.referenceOnly')}</p>}
+                    {dictionary.collins_senses.length ? dictionary.collins_senses.map((sense) => (
+                      <div key={sense.id} className="dictionary-evidence__sense">
+                        <p className="dictionary-evidence__muted">{sense.headword} · {sense.grammar}{occurrences.some((occ) => occ.collins_sense_id === sense.id) && <span className="dictionary-evidence__badge">{t('phraseDetail.collinsMatched')}</span>}</p>
+                        <p className={CONTENT_FONT_CLASS.definition[definitionFontSize]}>{sense.definition}</p>
+                        {sense.example && <p className="dictionary-evidence__example">{sense.example}</p>}
+                      </div>
+                    )) : <p className="dictionary-evidence__muted">{dictionary.collins_available ? t('phraseDetail.noCollinsEntry') : t('phraseDetail.collinsUnavailable')}</p>}
+                  </div>
+                  <div className="dictionary-evidence">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="dictionary-evidence__label">{t('phraseDetail.otherChineseSenses')}</p>
+                      <button type="button" onClick={() => setEditingSensesZh((value) => !value)} aria-label={t('phraseDetail.editOtherChineseSenses')} className="dictionary-evidence__button"><Pencil size={14} /></button>
+                    </div>
+                    {!editingSensesZh && dictionary.other_senses.map((sense, index) => <div key={index} className="dictionary-evidence__sense"><p>{sense.meaning_zh}</p><p className="dictionary-evidence__example">{t('phraseDetail.aiExample')} · {sense.example_en}</p></div>)}
+                    {!editingSensesZh && !dictionary.other_senses.length && <p className="dictionary-evidence__muted">{t('phraseDetail.noOtherSenses')}</p>}
+                    {editingSensesZh && <div className="space-y-2">{otherSensesZh.map((sense, index) => <div key={index} className="flex gap-2"><div className="flex-1 space-y-1">
+                      <input aria-label={`${t('phraseDetail.chineseMeaning')} ${index + 1}`} value={sense.meaning_zh} onChange={(e) => setOtherSensesZh((current) => current.map((item, i) => i === index ? { ...item, meaning_zh: e.target.value } : item))} className="dictionary-evidence__input" />
+                      <input aria-label={`${t('phraseDetail.englishExample')} ${index + 1}`} value={sense.example_en} onChange={(e) => setOtherSensesZh((current) => current.map((item, i) => i === index ? { ...item, example_en: e.target.value } : item))} className="dictionary-evidence__input" />
+                    </div><button type="button" onClick={() => setOtherSensesZh((current) => current.filter((_, i) => i !== index))} aria-label={t('phraseDetail.removeOtherSense')} className="dictionary-evidence__button"><Trash2 size={14} /></button></div>)}
+                    <div className="flex gap-2">{otherSensesZh.length < 2 && <button type="button" onClick={() => setOtherSensesZh((current) => [...current, { meaning_zh: '', example_en: '' }])} className="dictionary-evidence__button"><Plus size={14} /> {t('phraseDetail.addOtherSense')}</button>}
+                      <button type="button" disabled={savingExplanation || otherSensesZh.some((sense) => !sense.meaning_zh.trim() || !sense.example_en.trim())} onClick={() => void saveOtherSensesZh()} className="dictionary-evidence__button">{t('common.save')}</button></div></div>}
+                  </div>
+                  <div className="dictionary-evidence">
+                    <div className="flex items-center justify-between gap-2"><p className="dictionary-evidence__label">{t('phraseDetail.otherEnglishSenses')}</p>
+                      <button type="button" onClick={() => setEditingSenses((value) => !value)} aria-label={t('phraseDetail.editOtherEnglishSenses')} className="dictionary-evidence__button"><Pencil size={14} /></button>
+                    </div>
+                    {!editingSenses && dictionary.other_senses_en.map((sense, index) => <div key={index} className="dictionary-evidence__sense"><p>{sense.meaning_en}</p><p className="dictionary-evidence__example">{t('phraseDetail.aiExample')} · {sense.example_en}</p></div>)}
+                    {!editingSenses && !dictionary.other_senses_en.length && <p className="dictionary-evidence__muted">{t('phraseDetail.noOtherSenses')}</p>}
+                    {editingSenses && <div className="space-y-2">{otherSensesEn.map((sense, index) => <div key={index} className="flex gap-2"><div className="flex-1 space-y-1">
+                      <input aria-label={`${t('phraseDetail.englishMeaning')} ${index + 1}`} value={sense.meaning_en} onChange={(e) => setOtherSensesEn((current) => current.map((item, i) => i === index ? { ...item, meaning_en: e.target.value } : item))} className="dictionary-evidence__input" />
+                      <input aria-label={`${t('phraseDetail.englishExample')} ${index + 1}`} value={sense.example_en} onChange={(e) => setOtherSensesEn((current) => current.map((item, i) => i === index ? { ...item, example_en: e.target.value } : item))} className="dictionary-evidence__input" />
+                    </div><button type="button" onClick={() => setOtherSensesEn((current) => current.filter((_, i) => i !== index))} aria-label={t('phraseDetail.removeOtherSense')} className="dictionary-evidence__button"><Trash2 size={14} /></button></div>)}
+                    <div className="flex gap-2">{otherSensesEn.length < 2 && <button type="button" onClick={() => setOtherSensesEn((current) => [...current, { meaning_en: '', example_en: '' }])} className="dictionary-evidence__button"><Plus size={14} /> {t('phraseDetail.addOtherSense')}</button>}
+                      <button type="button" disabled={savingExplanation || otherSensesEn.some((sense) => !sense.meaning_en.trim() || !sense.example_en.trim())} onClick={() => void saveOtherSenses()} className="dictionary-evidence__button">{t('common.save')}</button></div></div>}
+                  </div>
+                </div>
+              )}
             </div>
           )}
           {!dictionaryLoading && !dictionary && (
@@ -195,7 +320,7 @@ export default function PhraseDetailPanel({ detail, onClose, onStatusChange, onD
 
         <div>
           <div className="mb-1 flex items-center justify-between">
-            <label className="block text-xs font-medium text-gray-500">{t('phraseDetail.definitionLabel')}</label>
+            <label className="block text-xs font-medium text-gray-500">{detail.phrase.language === 'en' ? t('phraseDetail.englishNoteLabel') : t('phraseDetail.definitionLabel')}</label>
             <div className="flex items-center gap-2">
               {definitionSaved && <span className="text-xs text-green-600">{t('common.saved')}</span>}
               <button
@@ -211,7 +336,7 @@ export default function PhraseDetailPanel({ detail, onClose, onStatusChange, onD
             value={definition}
             onChange={(e) => setDefinition(e.target.value)}
             onBlur={() => void handleDefinitionSave()}
-            placeholder={t('phraseDetail.definitionPlaceholder')}
+            placeholder={detail.phrase.language === 'en' ? t('phraseDetail.englishNotePlaceholder') : t('phraseDetail.definitionPlaceholder')}
             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
             rows={2}
           />
@@ -230,9 +355,10 @@ export default function PhraseDetailPanel({ detail, onClose, onStatusChange, onD
                   <p className="text-gray-700 leading-relaxed">
                     <OccurrenceText
                       text={occ.en_text}
-                      surface={detail.phrase.text}
+                      surface={occ.surface_text ?? detail.phrase.text}
                       language={detail.phrase.language}
                       mode="phrase"
+                      tokenPositions={occ.token_positions}
                       highlightClassName="rounded-sm bg-purple-50/60 font-medium text-purple-700"
                     />
                   </p>
@@ -251,6 +377,26 @@ export default function PhraseDetailPanel({ detail, onClose, onStatusChange, onD
                 {occ.zh_text && (
                   <p className={`mt-1 text-gray-400 ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}>{occ.zh_text}</p>
                 )}
+                {detail.phrase.language === 'en' && occ.meaning_zh && <div className="dictionary-evidence mt-2 text-sm">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="dictionary-evidence__label">{t('phraseDetail.contextChineseMeaning')} · {occ.meaning_edited ? t('phraseDetail.edited') : 'AI'}</span>
+                    <button type="button" onClick={(event) => { event.stopPropagation(); setEditingChineseOccurrence(occ.id); setMeaningZhDraft(occ.meaning_zh ?? ''); setUsageZhDraft(occ.usage_zh ?? ''); }} aria-label={t('phraseDetail.editContextChineseMeaning')} className="dictionary-evidence__button"><Pencil size={14} /></button>
+                  </div>
+                  {editingChineseOccurrence === occ.id ? <div className="mt-1 space-y-2" onClick={(event) => event.stopPropagation()}>
+                    <textarea aria-label={t('phraseDetail.contextChineseMeaning')} value={meaningZhDraft} onChange={(event) => setMeaningZhDraft(event.target.value)} className="dictionary-evidence__input" rows={2} />
+                    <textarea aria-label={t('phraseDetail.chineseUsage')} value={usageZhDraft} onChange={(event) => setUsageZhDraft(event.target.value)} className="dictionary-evidence__input" rows={2} />
+                    <button type="button" disabled={savingExplanation || !meaningZhDraft.trim()} onClick={() => void saveOccurrenceMeaningZh(occ.id)} className="dictionary-evidence__button">{t('common.save')}</button>
+                  </div> : <><p>{occ.meaning_zh}</p>{occ.usage_zh && <p className="dictionary-evidence__muted">{occ.usage_zh}</p>}</>}
+                </div>}
+                {detail.phrase.language === 'en' && occ.meaning_en && <div className="dictionary-evidence mt-2 text-sm">
+                  <div className="flex items-center justify-between gap-2"><span className="dictionary-evidence__label">{t('phraseDetail.contextEnglishMeaning')} · {occ.meaning_en_edited ? t('phraseDetail.edited') : 'AI'} · {dictionary?.collins_senses.some((sense) => sense.id === occ.collins_sense_id) ? t('phraseDetail.collinsMatched') : t('phraseDetail.notCollinsVerified')}</span>
+                    <button type="button" onClick={(event) => { event.stopPropagation(); setEditingOccurrence(occ.id); setMeaningDraft(occ.meaning_en ?? ''); setUsageDraft(occ.usage_en ?? ''); }} aria-label={t('phraseDetail.editContextEnglishMeaning')} className="dictionary-evidence__button"><Pencil size={14} /></button></div>
+                  {editingOccurrence === occ.id ? <div className="mt-1 space-y-2" onClick={(event) => event.stopPropagation()}>
+                    <textarea aria-label={t('phraseDetail.contextEnglishMeaning')} value={meaningDraft} onChange={(event) => setMeaningDraft(event.target.value)} className="dictionary-evidence__input" rows={2} />
+                    <textarea aria-label={t('phraseDetail.englishUsage')} value={usageDraft} onChange={(event) => setUsageDraft(event.target.value)} className="dictionary-evidence__input" rows={2} />
+                    <button type="button" disabled={savingExplanation || !meaningDraft.trim()} onClick={() => void saveOccurrenceMeaning(occ.id)} className="dictionary-evidence__button">{t('common.save')}</button>
+                  </div> : <><p>{occ.meaning_en}</p>{occ.usage_en && <p className="dictionary-evidence__muted">{occ.usage_en}</p>}</>}
+                </div>}
                 <p className={`mt-1 text-gray-400 ${CONTENT_FONT_CLASS.auxiliary[auxiliaryFontSize]}`}>
                   {occ.file_name}
                   {occ.start_time && <span className="ml-2">[{occ.start_time}]</span>}
@@ -285,9 +431,10 @@ export default function PhraseDetailPanel({ detail, onClose, onStatusChange, onD
                         <p className="text-gray-700 leading-relaxed line-through decoration-gray-300">
                           <OccurrenceText
                             text={occ.en_text}
-                            surface={detail.phrase.text}
+                            surface={occ.surface_text ?? detail.phrase.text}
                             language={detail.phrase.language}
                             mode="phrase"
+                            tokenPositions={occ.token_positions}
                             highlightClassName="rounded-sm bg-purple-50/60 font-medium text-purple-700"
                           />
                         </p>

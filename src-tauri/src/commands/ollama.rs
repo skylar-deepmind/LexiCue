@@ -12,6 +12,18 @@ use super::import::{
 };
 use crate::db::DbState;
 
+mod english_phrases;
+
+#[tauri::command]
+pub fn get_analysis_diagnostic(file_id: i64) -> Option<serde_json::Value> {
+    english_phrases::diagnostic_summary(file_id)
+}
+
+#[tauri::command]
+pub fn get_analysis_raw_diagnostic(file_id: i64) -> Option<String> {
+    english_phrases::raw_diagnostic_report(file_id)
+}
+
 const CANCELLED_MESSAGE: &str = "ERR_CANCELLED";
 
 #[derive(Clone, Default)]
@@ -96,6 +108,8 @@ struct ModelInfo {
 #[derive(Deserialize)]
 struct ChatResponse {
     message: ChatMessage,
+    #[serde(default)]
+    done_reason: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -150,12 +164,39 @@ impl AiConfig {
 
 #[derive(Deserialize)]
 struct OpenAiChatResponse {
+    #[serde(default)]
+    id: Option<String>,
     choices: Vec<OpenAiChoice>,
+    #[serde(default)]
+    usage: Option<OpenAiUsage>,
+}
+
+#[derive(Deserialize)]
+struct OpenAiUsage {
+    prompt_tokens: Option<u64>,
+    completion_tokens: Option<u64>,
 }
 
 #[derive(Deserialize)]
 struct OpenAiChoice {
     message: OpenAiMessage,
+    #[serde(default)]
+    finish_reason: Option<String>,
+}
+
+struct ChatResult {
+    content: String,
+    request_id: Option<String>,
+    finish_reason: Option<String>,
+    prompt_tokens: Option<u64>,
+    completion_tokens: Option<u64>,
+}
+
+struct ChatFailure {
+    message: String,
+    kind: &'static str,
+    http_status: Option<u16>,
+    request_id: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -191,6 +232,11 @@ fn chat_endpoint(config: &AiConfig) -> String {
     } else {
         endpoint(&config.base_url, "/chat")
     }
+}
+
+fn request_id(headers: &reqwest::header::HeaderMap) -> Option<String> {
+    headers.get("x-request-id").or_else(|| headers.get("x-ds-trace-id"))
+        .and_then(|value| value.to_str().ok()).map(str::to_string)
 }
 
 fn models_endpoint(config: &AiConfig) -> String {
@@ -574,6 +620,20 @@ async fn chat(
     prompt: String,
     format: serde_json::Value,
 ) -> Result<String, String> {
+    chat_detailed(client, config, token, notifier, prompt, format)
+        .await
+        .map(|result| result.content)
+        .map_err(|error| error.message)
+}
+
+async fn chat_detailed(
+    client: &Client,
+    config: &AiConfig,
+    token: &CancellationToken,
+    notifier: Option<&RetryNotifier>,
+    prompt: String,
+    format: serde_json::Value,
+) -> Result<ChatResult, ChatFailure> {
     if config.is_openai() {
         chat_openai(client, config, token, notifier, prompt, format).await
     } else {
@@ -588,7 +648,7 @@ async fn chat_ollama(
     notifier: Option<&RetryNotifier>,
     prompt: String,
     format: serde_json::Value,
-) -> Result<String, String> {
+) -> Result<ChatResult, ChatFailure> {
     let url = chat_endpoint(config);
     let body = serde_json::json!({
         "model": config.model,
@@ -603,30 +663,40 @@ async fn chat_ollama(
     let response = send_retry(token, notifier, || client.post(&url).json(&body))
         .await
         .map_err(|error| {
-            if error == CANCELLED_MESSAGE {
-                error
-            } else {
-                format!("无法连接 Ollama（{}）：{}", url, error)
+            let cancelled = error == CANCELLED_MESSAGE;
+            ChatFailure {
+                message: if cancelled { error } else { format!("无法连接 Ollama（{}）：{}", url, error) },
+                kind: if cancelled { "CANCELLED" } else { "NETWORK_ERROR" },
+                http_status: None,
+                request_id: None,
             }
         })?;
 
     if !response.status().is_success() {
         let status = response.status();
+        let request_id = request_id(response.headers());
         let body = response.text().await.unwrap_or_default();
-        if status.is_server_error() {
-            return Err(format!(
+        let message = if status.is_server_error() {
+            format!(
                 "Ollama 服务暂时不可用（HTTP {}），请稍后重试。服务端返回：{}",
                 status, body
-            ));
-        }
-        return Err(format!("Ollama 返回错误 {}：{}", status, body));
+            )
+        } else { format!("Ollama 返回错误 {}：{}", status, body) };
+        return Err(ChatFailure { message, kind: "HTTP_ERROR", http_status: Some(status.as_u16()), request_id });
     }
 
+    let request_id = request_id(response.headers());
     response
         .json::<ChatResponse>()
         .await
-        .map(|result| result.message.content)
-        .map_err(|error| format!("无法读取 Ollama 响应：{}", error))
+        .map(|result| ChatResult {
+            content: result.message.content,
+            request_id,
+            finish_reason: result.done_reason,
+            prompt_tokens: None,
+            completion_tokens: None,
+        })
+        .map_err(|error| ChatFailure { message: format!("无法读取 Ollama 响应：{}", error), kind: "RESPONSE_DECODE_FAILED", http_status: None, request_id: None })
 }
 
 async fn chat_openai(
@@ -636,7 +706,7 @@ async fn chat_openai(
     notifier: Option<&RetryNotifier>,
     prompt: String,
     format: serde_json::Value,
-) -> Result<String, String> {
+) -> Result<ChatResult, ChatFailure> {
     let url = chat_endpoint(config);
     let mut body = serde_json::json!({
         "model": config.model,
@@ -663,35 +733,46 @@ async fn chat_openai(
     })
     .await
     .map_err(|error| {
-        if error == CANCELLED_MESSAGE {
-            error
-        } else {
-            format!("无法连接 AI 服务（{}）：{}", url, error)
+        let cancelled = error == CANCELLED_MESSAGE;
+        ChatFailure {
+            message: if cancelled { error } else { format!("无法连接 AI 服务（{}）：{}", url, error) },
+            kind: if cancelled { "CANCELLED" } else { "NETWORK_ERROR" },
+            http_status: None,
+            request_id: None,
         }
     })?;
 
     if !response.status().is_success() {
         let status = response.status();
+        let request_id = request_id(response.headers());
         let body = response.text().await.unwrap_or_default();
-        if status.is_server_error() {
-            return Err(format!(
+        let message = if status.is_server_error() {
+            format!(
                 "AI 服务暂时不可用（HTTP {}），请稍后重试。服务端返回：{}",
                 status, body
-            ));
-        }
-        return Err(format!("AI 服务返回错误 {}：{}", status, body));
+            )
+        } else { format!("AI 服务返回错误 {}：{}", status, body) };
+        return Err(ChatFailure { message, kind: "HTTP_ERROR", http_status: Some(status.as_u16()), request_id });
     }
 
+    let header_request_id = request_id(response.headers());
     let result: OpenAiChatResponse = response
         .json()
         .await
-        .map_err(|error| format!("无法读取 AI 响应：{}", error))?;
-    result
-        .choices
+        .map_err(|error| ChatFailure { message: format!("无法读取 AI 响应：{}", error), kind: "RESPONSE_DECODE_FAILED", http_status: None, request_id: header_request_id.clone() })?;
+    let request_id = header_request_id.or(result.id);
+    let usage = result.usage;
+    result.choices
         .into_iter()
         .next()
-        .map(|choice| choice.message.content)
-        .ok_or_else(|| "AI 服务未返回任何内容".to_string())
+        .map(|choice| ChatResult {
+            content: choice.message.content,
+            request_id,
+            finish_reason: choice.finish_reason,
+            prompt_tokens: usage.as_ref().and_then(|value| value.prompt_tokens),
+            completion_tokens: usage.as_ref().and_then(|value| value.completion_tokens),
+        })
+        .ok_or_else(|| ChatFailure { message: "AI 服务未返回任何内容".into(), kind: "EMPTY_CHOICES", http_status: None, request_id: None })
 }
 
 fn build_models_request(client: &Client, config: &AiConfig, url: &str) -> reqwest::RequestBuilder {
@@ -873,6 +954,7 @@ pub async fn translate_segments(
         return Ok(Vec::new());
     }
 
+
     let token = CancellationToken::default();
     cancel_registry()
         .lock()
@@ -1053,6 +1135,10 @@ pub async fn analyze_file_phrases(
             "文件中没有可分析的{}内容",
             language_display_name(&language)
         ));
+    }
+
+    if language == "en" {
+        return english_phrases::analyze(app, state, file_id, config).await;
     }
 
     {

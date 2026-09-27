@@ -24,6 +24,7 @@ deploy/backups/
 # Local development artifacts
 assets
 scripts/cache
+__pycache__/
 
 # Editor directories and files
 .vscode/*

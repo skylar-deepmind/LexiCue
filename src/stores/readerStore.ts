@@ -18,6 +18,7 @@ export interface SegmentPhrase {
   position: number;
   segment_index: number;
   word_count: number;
+  token_positions: number[] | null;
 }
 
 export interface SegmentToken {

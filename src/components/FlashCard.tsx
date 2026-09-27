@@ -2,7 +2,7 @@ import { BookOpen, Volume2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
-import { speakText } from '../lib/tts';
+import { playPronunciation, speakText } from '../lib/tts';
 import type { DictionaryEntry, DueCard, DuePhraseCard, PhraseDictionaryEntry } from '../lib/types';
 import OccurrenceText from './OccurrenceText';
 import { usePreferencesStore } from '../stores/preferencesStore';
@@ -43,21 +43,8 @@ export default function FlashCard({ card, revealed, onReveal }: FlashCardProps) 
   const playAudio = async () => {
     setAudioLoading(true);
     try {
-      if (!phraseMode && dictionary?.local_audio_path) {
-        const bytes = await invoke<number[]>('read_dictionary_audio', { lemma: wordText, language: card.language });
-        const url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: 'audio/mpeg' }));
-        const audio = new Audio(url);
-        audio.addEventListener('ended', () => URL.revokeObjectURL(url), { once: true });
-        await audio.play();
-      } else if (!phraseMode && dictionary?.audio_url) {
-        await new Audio(dictionary.audio_url).play();
-      } else {
-        const text =
-          isWordCard(card) && card.language === 'ja' && card.reading
-            ? card.reading
-            : wordText;
-        speakText(text, card.language);
-      }
+      const text = isWordCard(card) && card.language === 'ja' && card.reading ? card.reading : wordText;
+      await playPronunciation(text, card.language, phraseMode ? null : dictionary, setDictionary);
     } catch (error) {
       console.error('Failed to play pronunciation:', error);
     } finally {
@@ -74,7 +61,10 @@ export default function FlashCard({ card, revealed, onReveal }: FlashCardProps) 
         .catch(() => {});
     } else {
       setDictionary(null);
-      const lookup = card.language === 'de'
+      const lookup = card.language === 'en'
+        ? invoke<DictionaryEntry>('lookup_local_dictionary', { lemma: wordText })
+            .catch(() => invoke<DictionaryEntry>('lookup_dictionary', { lemma: wordText, language: card.language, refresh: false }))
+        : card.language === 'de'
         ? invoke<DictionaryEntry>('lookup_dictionary', { lemma: wordText, language: card.language, refresh: false })
         : invoke<DictionaryEntry>('get_cached_dictionary', { lemma: wordText, language: card.language });
       void lookup.then(setDictionary).catch(() => {});
@@ -92,7 +82,17 @@ export default function FlashCard({ card, revealed, onReveal }: FlashCardProps) 
         }`}
       >
         <div className="flex min-h-[190px] flex-col items-center justify-center">
-          <span className={`font-bold text-gray-900 ${FLASHCARD_TERM_FONT_CLASS[phraseMode ? 'phrase' : 'word'][learningTextFontSize]}`}>{wordText}</span>
+          <div className="flex max-w-full items-center justify-center gap-2">
+            <span className={`min-w-0 break-words font-bold text-gray-900 ${FLASHCARD_TERM_FONT_CLASS[phraseMode ? 'phrase' : 'word'][learningTextFontSize]}`}>{wordText}</span>
+            {phraseMode && <button
+              type="button"
+              onClick={(event) => { event.stopPropagation(); speakText(wordText, card.language); }}
+              disabled={typeof window === 'undefined' || !('speechSynthesis' in window)}
+              aria-label={t('phraseDetail.playAria', { phrase: wordText })}
+              title={t('wordDetail.systemVoiceTitle')}
+              className="phrase-audio-action flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+            ><Volume2 size={18} aria-hidden="true" /></button>}
+          </div>
         </div>
 
         {!revealed ? (
@@ -115,21 +115,13 @@ export default function FlashCard({ card, revealed, onReveal }: FlashCardProps) 
               </p>
             )}
 
-            {phraseMode && phraseDictionary && (
+            {phraseMode && (phraseDictionary || occ?.meaning_zh || occ?.meaning_en) && (
               <div className="mt-3 space-y-2 rounded-xl bg-purple-50/60 p-3">
                 <div className="flex items-center gap-2">
-                  <p className={`text-purple-700 ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}>{phraseDictionary.translation}</p>
-                  <button
-                    onClick={() => void playAudio()}
-                    disabled={audioLoading}
-                    aria-label={t('flashcard.playAria')}
-                    title={t('flashcard.playAria')}
-                    className="rounded-md p-1 text-purple-600 hover:bg-purple-100 disabled:opacity-40"
-                  >
-                    <Volume2 size={14} />
-                  </button>
+                  <p className={`text-purple-700 ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}>{occ?.meaning_zh || phraseDictionary?.translation || occ?.meaning_en || phraseDictionary?.meaning_en || phraseDictionary?.collins_senses[0]?.definition}</p>
                 </div>
-                {phraseDictionary.category && (
+                {card.language === 'en' && (occ?.meaning_en || phraseDictionary?.meaning_en) && <p className={`text-gray-500 ${CONTENT_FONT_CLASS.auxiliary[auxiliaryFontSize]}`}>{occ?.meaning_en ?? phraseDictionary?.meaning_en}</p>}
+                {phraseDictionary?.category && (
                   <p className={`text-purple-500 ${CONTENT_FONT_CLASS.auxiliary[auxiliaryFontSize]}`}>{phraseDictionary.category}</p>
                 )}
               </div>
@@ -171,6 +163,7 @@ export default function FlashCard({ card, revealed, onReveal }: FlashCardProps) 
                     surface={occ.original_form ?? wordText}
                     language={card.language}
                     mode={phraseMode ? 'phrase' : 'word'}
+                    tokenPositions={occ.token_positions}
                   />
                 </p>
                 {occ.zh_text && <p className={`mt-1 text-gray-500 ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}>{occ.zh_text}</p>}

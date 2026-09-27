@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::io::Read;
 use tauri::{AppHandle, Manager, State};
 
-use crate::commands::english;
+use crate::commands::{collins, english};
 use crate::db::{DbState, DictionaryStatus};
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -144,19 +144,6 @@ pub fn initialize_builtin_dictionary(conn: &rusqlite::Connection) -> Result<(), 
 
 type BuiltinEntry = (Option<String>, String, Option<String>);
 
-fn builtin_entry(conn: &rusqlite::Connection, lemma: &str) -> Result<Option<BuiltinEntry>, String> {
-    let result = conn.query_row(
-        "SELECT phonetic, translation, part_of_speech FROM builtin_dictionary_entries WHERE lemma = ?1",
-        [lemma],
-        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-    );
-    match result {
-        Ok(entry) => Ok(Some(entry)),
-        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
-        Err(error) => Err(error.to_string()),
-    }
-}
-
 fn builtin_japanese_entry(
     conn: &rusqlite::Connection,
     lemma: &str,
@@ -210,11 +197,20 @@ fn cached_entry(
     lemma: &str,
     language: &str,
 ) -> Result<Option<DictionaryEntry>, String> {
+    stored_entry(conn, lemma, language, "dictionary_entries")
+}
+
+fn stored_entry(
+    conn: &rusqlite::Connection,
+    lemma: &str,
+    language: &str,
+    table: &str,
+) -> Result<Option<DictionaryEntry>, String> {
     let mut stmt = conn
-        .prepare(
+        .prepare(&format!(
             "SELECT lemma, provider, phonetic, audio_url, local_audio_path, definitions_json, fetched_at
-             FROM dictionary_entries WHERE language = ?1 AND lemma = ?2",
-        )
+             FROM {table} WHERE language = ?1 AND lemma = ?2"
+        ))
         .map_err(|e| e.to_string())?;
     let result = stmt.query_row([language, lemma], |row| {
         let definitions_json: String = row.get(5)?;
@@ -235,6 +231,38 @@ fn cached_entry(
         Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
         Err(e) => Err(e.to_string()),
     }
+}
+
+#[tauri::command]
+pub fn lookup_local_dictionary(
+    app: AppHandle,
+    lemma: String,
+) -> Result<DictionaryEntry, String> {
+    let normalized = lemma.trim().to_lowercase();
+    if normalized.is_empty() { return Err("word is empty".into()); }
+    let resolved = english::lemma_of_surface(&normalized);
+    let path = collins::index_path(&app)?;
+    if !path.is_file() { return Err("Collins index is not installed".into()); }
+    let mut senses = collins::lookup_word(&path, &normalized)?;
+    if senses.is_empty() && resolved != normalized {
+        senses = collins::lookup_word(&path, &resolved)?;
+    }
+    if senses.is_empty() { return Err(format!("Collins entry not found: {normalized}")); }
+    Ok(DictionaryEntry {
+        language: "en".to_string(),
+        lemma: normalized,
+        provider: collins::PROVIDER.to_string(),
+        phonetic: None,
+        audio_url: None,
+        local_audio_path: None,
+        definitions: senses.into_iter().map(|sense| DictionaryDefinition {
+            part_of_speech: sense.grammar,
+            definition: sense.definition,
+            translation: None,
+            example: sense.example,
+        }).collect(),
+        fetched_at: now_ms(),
+    })
 }
 
 pub fn initialize_builtin_phrase_dictionary(conn: &rusqlite::Connection) -> Result<(), String> {
@@ -555,14 +583,21 @@ pub fn initialize_builtin_japanese_phrase_dictionary(
 #[tauri::command]
 pub fn lookup_phrase_dictionary(
     state: State<DbState>,
+    app: AppHandle,
     text: String,
     language: Option<String>,
 ) -> Result<PhraseDictionaryEntry, String> {
     let normalized = text.trim().to_lowercase();
     let language = language.unwrap_or_else(|| "en".to_string());
+    let collins_path = collins::index_path(&app)?;
+    let collins_available = language == "en" && collins_path.is_file();
+    let collins_senses = if language == "en" {
+        collins::lookup_phrase(&collins_path, &normalized)?
+    } else { Vec::new() };
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
     let ollama_result = conn.query_row(
-        "SELECT text, translation, pinyin, usage_zh, category, provider
+        "SELECT text, translation, pinyin, usage_zh, category, provider, other_senses_json, other_senses_edited,
+                meaning_en, usage_en, other_senses_en_json, other_senses_en_edited
          FROM phrase_dictionary_entries WHERE language = ?1 AND text = ?2",
         [&language, &normalized],
         |row| {
@@ -573,11 +608,29 @@ pub fn lookup_phrase_dictionary(
                 usage_zh: row.get(3)?,
                 category: row.get(4)?,
                 provider: row.get(5)?,
+                other_senses: serde_json::from_str(&row.get::<_, String>(6)?).unwrap_or_default(),
+                other_senses_edited: row.get::<_, i64>(7)? != 0,
+                meaning_en: row.get(8)?,
+                usage_en: row.get(9)?,
+                other_senses_en: serde_json::from_str(&row.get::<_, String>(10)?).unwrap_or_default(),
+                other_senses_en_edited: row.get::<_, i64>(11)? != 0,
+                collins_senses: collins_senses.clone(),
+                collins_available,
             })
         },
     );
     if let Ok(entry) = ollama_result {
         return Ok(entry);
+    }
+    if language == "en" {
+        if collins_senses.is_empty() { return Err("phrase not found in Collins".into()); }
+        return Ok(PhraseDictionaryEntry {
+            text: normalized, translation: String::new(), pinyin: None, usage_zh: None,
+            category: None, provider: collins::PROVIDER.into(), other_senses: Vec::new(),
+            other_senses_edited: false, meaning_en: None, usage_en: None,
+            other_senses_en: Vec::new(), other_senses_en_edited: false, collins_senses,
+            collins_available,
+        });
     }
     if language == "zh" {
         let result = conn.query_row(
@@ -591,6 +644,14 @@ pub fn lookup_phrase_dictionary(
                     usage_zh: None,
                     category: row.get(3)?,
                     provider: "CC-CEDICT Phrases".to_string(),
+                    other_senses: Vec::new(),
+                    other_senses_edited: false,
+                    meaning_en: None,
+                    usage_en: None,
+                    other_senses_en: Vec::new(),
+                    other_senses_en_edited: false,
+                    collins_senses: Vec::new(),
+                    collins_available: false,
                 })
             },
         );
@@ -613,6 +674,14 @@ pub fn lookup_phrase_dictionary(
                 usage_zh: None,
                 category: row.get(2)?,
                 provider: "PhraseDict".to_string(),
+                other_senses: Vec::new(),
+                other_senses_edited: false,
+                meaning_en: None,
+                usage_en: None,
+                other_senses_en: Vec::new(),
+                other_senses_en_edited: false,
+                collins_senses: Vec::new(),
+                collins_available: false,
             })
         },
     );
@@ -633,6 +702,63 @@ pub struct PhraseDictionaryEntry {
     pub usage_zh: Option<String>,
     pub category: Option<String>,
     pub provider: String,
+    pub other_senses: Vec<PhraseOtherSense>,
+    pub other_senses_edited: bool,
+    pub meaning_en: Option<String>,
+    pub usage_en: Option<String>,
+    pub other_senses_en: Vec<PhraseOtherSenseEn>,
+    pub other_senses_en_edited: bool,
+    pub collins_senses: Vec<collins::Sense>,
+    pub collins_available: bool,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct PhraseOtherSense {
+    pub meaning_zh: String,
+    pub example_en: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct PhraseOtherSenseEn {
+    pub meaning_en: String,
+    pub example_en: String,
+}
+
+#[tauri::command]
+pub fn update_phrase_other_senses_en(
+    state: State<DbState>, text: String, other_senses: Vec<PhraseOtherSenseEn>,
+) -> Result<(), String> {
+    if other_senses.len() > 2 || other_senses.iter().any(|sense| sense.meaning_en.trim().is_empty() || sense.example_en.trim().is_empty()) {
+        return Err("At most two complete senses are allowed".into());
+    }
+    let json = serde_json::to_string(&other_senses).map_err(|e| e.to_string())?;
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    conn.execute(
+        "INSERT INTO phrase_dictionary_entries(language,text,translation,provider,updated_at,other_senses_en_json,other_senses_en_edited)
+         VALUES('en',?1,'','manual',?2,?3,1)
+         ON CONFLICT(language,text) DO UPDATE SET other_senses_en_json=excluded.other_senses_en_json,other_senses_en_edited=1",
+        rusqlite::params![text.trim().to_lowercase(),now_ms(),json],
+    ).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn update_phrase_other_senses(
+    state: State<DbState>,
+    text: String,
+    language: String,
+    other_senses: Vec<PhraseOtherSense>,
+) -> Result<(), String> {
+    if other_senses.len() > 2 || other_senses.iter().any(|sense| sense.meaning_zh.trim().is_empty() || sense.example_en.trim().is_empty()) {
+        return Err("扩展义最多两项，且释义和例句不能为空".to_string());
+    }
+    let json = serde_json::to_string(&other_senses).map_err(|error| error.to_string())?;
+    let conn = state.conn.lock().map_err(|error| error.to_string())?;
+    conn.execute("INSERT INTO phrase_dictionary_entries(language,text,translation,provider,updated_at,other_senses_json,other_senses_edited)
+        VALUES(?1,?2,'','manual',?3,?4,1)
+        ON CONFLICT(language,text) DO UPDATE SET other_senses_json=excluded.other_senses_json,other_senses_edited=1",
+        rusqlite::params![language,text.trim().to_lowercase(),now_ms(),json]).map_err(|error| error.to_string())?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -908,51 +1034,31 @@ pub async fn lookup_dictionary(
         return lookup_chinese(state, app.clone(), normalized, refresh).await;
     }
 
-    let (cached, builtin) = {
+    // English uses the owner's COBUILD index as the sole local authority.
+    // A refresh explicitly asks for online data; otherwise any Collins hit
+    // returns immediately, without an HTTP request.
+    let collins_entry = if language == "en" {
+        match lookup_local_dictionary(app.clone(), normalized.clone()) {
+            Ok(entry) => Some(entry),
+            Err(error) if error == "Collins index is not installed" || error.starts_with("Collins entry not found:") => None,
+            Err(error) => return Err(error),
+        }
+    } else { None };
+    if !refresh {
+        if let Some(entry) = collins_entry.as_ref() { return Ok(entry.clone()); }
+    }
+
+    let online_cached = {
         let conn = state.conn.lock().map_err(|e| e.to_string())?;
-        let resolved = if language == "en" {
-            english::lemma_of_surface(&normalized)
-        } else {
-            normalized.clone()
-        };
-        let builtin = if language == "en" {
-            builtin_entry(&conn, &normalized)?.or_else(|| {
-                if resolved != normalized {
-                    builtin_entry(&conn, &resolved).ok().flatten()
-                } else {
-                    None
-                }
-            })
-        } else {
-            None
-        };
-        (cached_entry(&conn, &normalized, &language)?, builtin)
+        stored_entry(&conn, &normalized, &language, "online_dictionary_entries")?
     };
     if !refresh {
-        if let Some(entry) = cached.as_ref().filter(|entry| entry.provider != "ECDICT") {
+        if let Some(entry) = online_cached.as_ref() {
             return Ok(entry.clone());
         }
     }
 
-    let local_fallback = cached.or_else(|| {
-        builtin
-            .as_ref()
-            .map(|(phonetic, translation, part_of_speech)| DictionaryEntry {
-                lemma: normalized.clone(),
-                language: language.clone(),
-                provider: "ECDICT".to_string(),
-                phonetic: phonetic.clone(),
-                audio_url: None,
-                local_audio_path: None,
-                definitions: vec![DictionaryDefinition {
-                    part_of_speech: part_of_speech.clone().unwrap_or_default(),
-                    definition: String::new(),
-                    translation: Some(translation.clone()),
-                    example: None,
-                }],
-                fetched_at: now_ms(),
-            })
-    });
+    let local_fallback = online_cached.or(collins_entry);
 
     let url = format!(
         "https://api.dictionaryapi.dev/api/v2/entries/{}/{}",
@@ -988,8 +1094,7 @@ pub async fn lookup_dictionary(
                     .iter()
                     .find_map(|item| item.text.clone())
             })
-        })
-        .or_else(|| builtin.as_ref().and_then(|item| item.0.clone()));
+        });
     let audio_url = api_entries.iter().find_map(|entry| {
         entry.phonetics.as_ref().and_then(|items| {
             items.iter().find_map(|item| {
@@ -1000,7 +1105,6 @@ pub async fn lookup_dictionary(
             })
         })
     });
-    let local_translation = builtin.as_ref().map(|item| item.1.clone());
     if api_entries.is_empty() {
         return local_fallback.ok_or_else(|| "empty dictionary response".to_string());
     }
@@ -1013,23 +1117,18 @@ pub async fn lookup_dictionary(
                 .iter()
                 .map(move |definition| (meaning, definition))
         })
-        .enumerate()
-        .map(|(index, (meaning, definition))| DictionaryDefinition {
+        .map(|(meaning, definition)| DictionaryDefinition {
             part_of_speech: meaning.part_of_speech.clone().unwrap_or_default(),
             definition: definition.definition.clone(),
-            translation: (index == 0).then(|| local_translation.clone()).flatten(),
+            translation: None,
             example: definition.example.clone(),
         })
         .take(12)
         .collect::<Vec<_>>();
-    let mut entry = DictionaryEntry {
+    let entry = DictionaryEntry {
         lemma: normalized.clone(),
         language: language.clone(),
-        provider: if local_translation.is_some() {
-            "dictionaryapi.dev + ECDICT".to_string()
-        } else {
-            "dictionaryapi.dev".to_string()
-        },
+        provider: "dictionaryapi.dev".to_string(),
         phonetic,
         audio_url,
         local_audio_path: None,
@@ -1038,14 +1137,10 @@ pub async fn lookup_dictionary(
     };
 
     let definitions_json = serde_json::to_string(&entry.definitions).map_err(|e| e.to_string())?;
-    if let Some(audio_url) = entry.audio_url.clone() {
-        if let Ok(path) = download_audio(&app, &normalized, &language, &audio_url).await {
-            entry.local_audio_path = Some(path);
-        }
-    }
+    let _ = app;
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
     conn.execute(
-        "INSERT OR REPLACE INTO dictionary_entries
+        "INSERT OR REPLACE INTO online_dictionary_entries
          (language, lemma, provider, phonetic, audio_url, local_audio_path, definitions_json, fetched_at)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
          ",
@@ -1414,15 +1509,25 @@ pub async fn cache_dictionary_audio(
     let language = language.unwrap_or_else(|| "en".to_string());
     let (audio_url, mut entry) = {
         let conn = state.conn.lock().map_err(|e| e.to_string())?;
-        let entry =
-            cached_entry(&conn, &normalized, &language)?.ok_or("dictionary entry not cached")?;
+        let entry = if language == "en" {
+            stored_entry(&conn, &normalized, &language, "online_dictionary_entries")?
+                .or(cached_entry(&conn, &normalized, &language)?)
+        } else {
+            cached_entry(&conn, &normalized, &language)?
+        }
+        .ok_or("dictionary entry not cached")?;
         (entry.audio_url.clone(), entry)
     };
     let url = audio_url.unwrap_or_else(|| google_tts_audio_url(&normalized, &language));
     let path = download_audio(&app, &normalized, &language, &url).await?;
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    let table = if language == "en" && entry.provider.starts_with("dictionaryapi.dev") {
+        "online_dictionary_entries"
+    } else {
+        "dictionary_entries"
+    };
     conn.execute(
-        "UPDATE dictionary_entries SET local_audio_path = ?1 WHERE language = ?2 AND lemma = ?3",
+        &format!("UPDATE {table} SET local_audio_path = ?1 WHERE language = ?2 AND lemma = ?3"),
         rusqlite::params![path, language, normalized],
     )
     .map_err(|e| e.to_string())?;
@@ -1439,8 +1544,14 @@ pub fn read_dictionary_audio(
     let normalized = lemma.trim().to_lowercase();
     let language = language.unwrap_or_else(|| "en".to_string());
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
-    let entry =
-        cached_entry(&conn, &normalized, &language)?.ok_or("dictionary entry not cached")?;
+    let entry = if language == "en" {
+        stored_entry(&conn, &normalized, &language, "online_dictionary_entries")?
+            .filter(|entry| entry.local_audio_path.is_some())
+            .or(cached_entry(&conn, &normalized, &language)?)
+    } else {
+        cached_entry(&conn, &normalized, &language)?
+    }
+    .ok_or("dictionary entry not cached")?;
     let path = entry
         .local_audio_path
         .ok_or("audio is not cached locally")?;

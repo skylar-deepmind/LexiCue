@@ -44,6 +44,7 @@ export default function PhrasesPage() {
     closeDetail: state.closeDetail,
     setFilter: state.setFilter,
     setSortBy: state.setSortBy,
+    setIncludeUnverified: state.setIncludeUnverified,
     updateStatus: state.updateStatus,
     updateDefinition: state.updateDefinition,
     batchUpdateStatus: state.batchUpdateStatus,
@@ -60,6 +61,7 @@ export default function PhrasesPage() {
     phrases,
     filter,
     sortBy,
+    includeUnverified,
     selected,
     loading,
     batchUpdating,
@@ -72,6 +74,7 @@ export default function PhrasesPage() {
     phrases: state.phrases,
     filter: state.filter,
     sortBy: state.sortBy,
+    includeUnverified: state.includeUnverified,
     selected: state.selected,
     loading: state.loading,
     batchUpdating: state.batchUpdating,
@@ -132,7 +135,7 @@ export default function PhrasesPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [query, filter, sortBy]);
+  }, [query, filter, sortBy, includeUnverified]);
 
   useEffect(() => {
     if (selectAllRef.current) {
@@ -230,6 +233,17 @@ export default function PhrasesPage() {
             ))}
           </div>
         </div>
+        {(selectedLanguage === 'en' || selectedLanguage === 'all') && (
+          <label className="phrase-candidate-toggle mt-3 inline-flex items-center gap-2 rounded-md px-2 py-1 text-xs cursor-pointer">
+            <input
+              type="checkbox"
+              checked={includeUnverified}
+              onChange={(event) => store.setIncludeUnverified(event.target.checked)}
+              className="phrase-candidate-toggle__input h-4 w-4"
+            />
+            <span>{t('phrases.showUnverified')}</span>
+          </label>
+        )}
         <input
           value={query}
           onChange={(e) => {
@@ -353,6 +367,7 @@ export default function PhrasesPage() {
                       {phrase.text}
                     </button>
                     <span className={`${CONTENT_FONT_CLASS.auxiliary[auxiliaryFontSize]} text-gray-400 shrink-0`}>×{phrase.frequency}</span>
+                    {includeUnverified && phrase.unverified && <span className="phrase-candidate-badge shrink-0 rounded px-1.5 py-0.5 text-[10px]">{t('phrases.unverifiedBadge')}</span>}
                   </div>
                   <div className="mt-1 flex items-center gap-2">
                     <StatusBadge

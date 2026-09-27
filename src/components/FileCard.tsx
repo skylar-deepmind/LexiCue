@@ -1,7 +1,11 @@
-import { Brain, Trash2, FolderInput } from 'lucide-react';
+import { Brain, Trash2, FolderInput, Copy, Download } from 'lucide-react';
+import { useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
+import { ask, save } from '@tauri-apps/plugin-dialog';
+import { writeTextFile } from '@tauri-apps/plugin-fs';
 import { useTranslation } from 'react-i18next';
 import type { FileRecord } from '../lib/types';
-import type { OllamaRetry } from '../stores/ollamaStore';
+import type { AnalysisDiagnostic, OllamaRetry } from '../stores/ollamaStore';
 import { learningIndex, learningStage } from '../lib/fileProgress';
 import type { DeleteJobStatus } from '../stores/fileStore';
 
@@ -18,19 +22,54 @@ interface FileCardProps {
     processedSegments: number;
     totalSegments: number;
     percent: number;
+    phase?: 'extraction' | 'explanation' | 'saving' | 'completed' | 'error';
+    error?: string;
   };
   analysisCompleted: boolean;
+  diagnostic?: AnalysisDiagnostic;
   retrying?: OllamaRetry;
   deleteProgress?: DeleteJobStatus;
   onClick: () => void;
 }
 
-export default function FileCard({ file, folderPath, onDelete, onAnalyze, onCancel, onMove, aiEnabled, analysisProgress, analysisCompleted, retrying, deleteProgress, onClick }: FileCardProps) {
+export default function FileCard({ file, folderPath, onDelete, onAnalyze, onCancel, onMove, aiEnabled, analysisProgress, analysisCompleted, diagnostic, retrying, deleteProgress, onClick }: FileCardProps) {
   const { t, i18n } = useTranslation();
+  const [diagnosticNotice, setDiagnosticNotice] = useState('');
+  const [diagnosticBusy, setDiagnosticBusy] = useState(false);
   const icon = file.type === 'srt' ? '🎬' : '📄';
   const date = new Date(file.imported_at).toLocaleDateString(i18n.resolvedLanguage ?? 'zh');
   const index = learningIndex(file.word_progress, file.phrase_progress, analysisCompleted);
   const stage = learningStage(index);
+  const skippedItems = diagnostic?.code === 'COMPLETED' ? diagnostic.totalSkipped : file.phrase_skipped_items;
+
+  const copyDiagnostic = async () => {
+    if (!diagnostic) return;
+    try {
+      await navigator.clipboard.writeText(JSON.stringify({ app: 'LexiCue', ...diagnostic }, null, 2));
+      setDiagnosticNotice(t('fileCard.diagnosticCopied'));
+    } catch {
+      setDiagnosticNotice(t('fileCard.diagnosticActionFailed'));
+    }
+  };
+
+  const exportDetailedDiagnostic = async () => {
+    if (!diagnostic || diagnosticBusy) return;
+    setDiagnosticBusy(true);
+    try {
+      const approved = await ask(t('fileCard.rawDiagnosticWarning'), { title: t('fileCard.exportDiagnostic') });
+      if (!approved) return;
+      const report = await invoke<string | null>('get_analysis_raw_diagnostic', { fileId: file.id });
+      if (!report) { setDiagnosticNotice(t('fileCard.rawDiagnosticUnavailable')); return; }
+      const path = await save({ defaultPath: `lexicue-ai-diagnostic-${diagnostic.runId.slice(0, 8)}.json`, filters: [{ name: 'JSON', extensions: ['json'] }] });
+      if (!path) return;
+      await writeTextFile(path, report);
+      setDiagnosticNotice(t('fileCard.diagnosticExported'));
+    } catch {
+      setDiagnosticNotice(t('fileCard.diagnosticActionFailed'));
+    } finally {
+      setDiagnosticBusy(false);
+    }
+  };
 
   return (
     <div
@@ -60,10 +99,10 @@ export default function FileCard({ file, folderPath, onDelete, onAnalyze, onCanc
                 e.stopPropagation();
                 onAnalyze(file.id);
               }}
-              disabled={analysisCompleted || Boolean(analysisProgress)}
-              className="p-1 text-gray-400 transition-colors hover:text-purple-600 disabled:cursor-wait disabled:opacity-50"
-              aria-label={t('fileCard.analyzeAria', { name: file.name })}
-              title={analysisCompleted ? t('fileCard.analyzedTitle') : t('fileCard.analyzeTitle')}
+              disabled={analysisProgress?.status === 'processing'}
+              className="file-ai-action p-1 text-gray-400 transition-colors hover:text-purple-600"
+              aria-label={analysisCompleted ? t('fileCard.reanalyzeAria', { name: file.name }) : t('fileCard.analyzeAria', { name: file.name })}
+              title={analysisCompleted ? t('fileCard.reanalyzeTitle') : t('fileCard.analyzeTitle')}
             >
               <Brain size={16} />
             </button>
@@ -123,18 +162,30 @@ export default function FileCard({ file, folderPath, onDelete, onAnalyze, onCanc
         <p className="mt-3 text-xs text-green-700">{t('fileCard.aiDone')}</p>
       )}
       {aiEnabled && analysisProgress?.status === 'error' && (
-        <p className="mt-3 text-xs text-red-600">{t('fileCard.analysisFailed')}</p>
+        <div className="mt-3 text-xs text-red-600" onClick={(event) => event.stopPropagation()}>
+          <p role="alert">{t('fileCard.analysisFailed')}{diagnostic
+            ? ` · ${t(`fileCard.diagnosticCodes.${diagnostic.code}`, { defaultValue: diagnostic.code })} (${diagnostic.code}${diagnostic.httpStatus ? ` / HTTP ${diagnostic.httpStatus}` : ''}) · ${t('fileCard.diagnosticId', { id: diagnostic.runId.slice(0, 8) })}`
+            : analysisProgress.error ? `：${analysisProgress.error}` : ''}</p>
+          {diagnostic && <div className="mt-1 flex flex-wrap gap-2">
+            <button type="button" onClick={() => void copyDiagnostic()} className="ai-diagnostic-action inline-flex items-center gap-1 rounded px-2 py-1 text-red-600 hover:bg-red-50"><Copy size={13} />{t('fileCard.copyDiagnostic')}</button>
+            {diagnostic.rawAvailable && <button type="button" disabled={diagnosticBusy} onClick={() => void exportDetailedDiagnostic()} className="ai-diagnostic-action inline-flex items-center gap-1 rounded px-2 py-1 text-red-600 hover:bg-red-50"><Download size={13} />{t('fileCard.exportDiagnostic')}</button>}
+          </div>}
+          {diagnosticNotice && <p className="mt-1" role="status">{diagnosticNotice}</p>}
+        </div>
       )}
       {aiEnabled && analysisProgress?.status === 'completed' && (
         <p className="mt-3 text-xs text-green-700">{t('fileCard.aiDone')}</p>
       )}
+      {aiEnabled && analysisCompleted && skippedItems > 0 && (
+        <p className="mt-1 text-xs text-amber-700">{t('fileCard.skippedAiItems', { count: skippedItems })}</p>
+      )}
       {aiEnabled && analysisProgress?.status === 'processing' && (
         <div className="mt-3" onClick={(event) => event.stopPropagation()}>
           <div className="mb-1 flex items-center justify-between gap-2 text-xs text-purple-700">
-            <span>{t('fileCard.analyzing')}</span>
+            <span>{analysisProgress.phase === 'extraction' ? t('fileCard.extracting') : analysisProgress.phase === 'explanation' ? t('fileCard.explaining') : analysisProgress.phase === 'saving' ? t('fileCard.saving') : t('fileCard.analyzing')}</span>
             <span className="flex items-center gap-2">
               {analysisProgress.totalSegments > 0
-                ? t('fileCard.segmentsProgress', { processed: analysisProgress.processedSegments, total: analysisProgress.totalSegments })
+                ? t(analysisProgress.phase ? 'fileCard.stepsProgress' : 'fileCard.segmentsProgress', { processed: analysisProgress.processedSegments, total: analysisProgress.totalSegments })
                 : t('fileCard.preparing')}
               <button
                 onClick={() => onCancel(file.id)}

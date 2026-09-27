@@ -100,7 +100,7 @@ fn is_stripped(c: char) -> bool {
     )
 }
 
-fn tokenize_english_text(text: &str) -> Vec<(String, i32)> {
+pub(crate) fn tokenize_english_text(text: &str) -> Vec<(String, i32)> {
     let cleaned: String = text
         .chars()
         .map(|c| if is_stripped(c) { ' ' } else { c })

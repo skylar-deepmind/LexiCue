@@ -128,6 +128,7 @@ export default function FilesPage() {
   const navigate = useNavigate();
   const aiEnabled = useAiStore((state) => state.enabled);
   const analysisProgress = useOllamaStore((state) => state.progress);
+  const analysisDiagnostics = useOllamaStore((state) => state.diagnostics);
   const retrying = useOllamaStore((state) => state.retrying);
   const startAnalysis = useOllamaStore((state) => state.startAnalysis);
   const cancelAnalysis = useOllamaStore((state) => state.cancelAnalysis);
@@ -223,7 +224,7 @@ export default function FilesPage() {
   };
 
   const renderFileGrid = (list: FileRecord[]) => (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
       {list.map((file) => (
         <FileCard
           key={file.id}
@@ -239,6 +240,7 @@ export default function FilesPage() {
           onCancel={(id) => void cancelAnalysis(id)}
           onMove={(item) => setMoveTarget({ kind: 'file', id: item.id })}
           analysisProgress={analysisProgress[file.id]}
+          diagnostic={analysisDiagnostics[file.id]}
           analysisCompleted={file.phrase_analyzed}
           retrying={retrying[file.id]}
           deleteProgress={deletingFiles[file.id]}
@@ -475,7 +477,7 @@ export default function FilesPage() {
 
         <div className="min-w-0 flex-1 overflow-y-auto p-6">
           {loading ? (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {Array.from({ length: 6 }).map((_, index) => (
                 <div key={index} className="rounded-lg border border-gray-200 p-4">
                   <div className="flex items-start gap-3">
@@ -508,7 +510,7 @@ export default function FilesPage() {
             <div className="space-y-8">
               {subfolders.length > 0 && (
                 <section>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                     {subfolders.map((folder) => (
                       <FolderCard
                         key={folder.id}

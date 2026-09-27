@@ -17,13 +17,13 @@ pub fn run() {
             app.handle()
                 .plugin(tauri_plugin_updater::Builder::new().build())?;
 
-            if cfg!(debug_assertions) {
-                app.handle().plugin(
-                    tauri_plugin_log::Builder::default()
-                        .level(log::LevelFilter::Info)
-                        .build(),
-                )?;
-            }
+            app.handle().plugin(
+                tauri_plugin_log::Builder::default()
+                    .level(log::LevelFilter::Info)
+                    .max_file_size(2_000_000)
+                    .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepSome(3))
+                    .build(),
+            )?;
 
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Regular);
@@ -118,6 +118,8 @@ pub fn run() {
             commands::phrases::update_phrase_definition,
             commands::phrases::batch_update_phrase_status,
             commands::phrases::set_phrase_occurrence_hidden,
+            commands::phrases::update_phrase_occurrence_meaning,
+            commands::phrases::update_phrase_occurrence_meaning_en,
             commands::phrases::create_manual_phrase,
             commands::phrases::get_file_phrases,
             commands::files::list_files,
@@ -139,7 +141,10 @@ pub fn run() {
             commands::reviews::submit_phrase_rating,
             commands::reviews::create_phrase_review_card,
             commands::dictionary::lookup_dictionary,
+            commands::dictionary::lookup_local_dictionary,
             commands::dictionary::lookup_phrase_dictionary,
+            commands::dictionary::update_phrase_other_senses,
+            commands::dictionary::update_phrase_other_senses_en,
             commands::dictionary::get_cached_dictionary,
             commands::dictionary::list_dictionary_sources,
             commands::dictionary::delete_dictionary_source,
@@ -152,6 +157,8 @@ pub fn run() {
             commands::ollama::ai_models,
             commands::ollama::analyze_file_phrases,
             commands::ollama::cancel_phrase_analysis,
+            commands::ollama::get_analysis_diagnostic,
+            commands::ollama::get_analysis_raw_diagnostic,
             commands::ollama::translate_segments,
             commands::ollama::cancel_translate_segments,
             commands::youtube::youtube_list_subs,

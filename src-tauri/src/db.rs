@@ -39,6 +39,8 @@ pub fn init_db(db_path: &Path) -> Result<Connection, rusqlite::Error> {
     migrate_file_folder(&conn)?;
     migrate_occurrence_hidden(&conn)?;
     migrate_review_log_schedule(&conn)?;
+    migrate_english_learning(&conn)?;
+    create_study_phrase_view(&conn)?;
     create_performance_indexes(&conn)?;
     Ok(conn)
 }
@@ -342,6 +344,22 @@ fn create_sync_tracking(conn: &Connection) -> Result<(), rusqlite::Error> {
              FROM sync_entity_state state WHERE state.table_name='files' AND state.local_id=OLD.file_id
                AND NOT EXISTS(SELECT 1 FROM sync_changes pending WHERE pending.table_name='library_item' AND pending.sync_id=state.sync_id AND pending.uploaded_at IS NULL);
            END;"
+    )?;
+
+    conn.execute_batch(
+        "CREATE TRIGGER IF NOT EXISTS sync_library_phrase_dictionary_update
+         AFTER UPDATE ON phrase_dictionary_entries
+         WHEN COALESCE((SELECT value FROM sync_runtime WHERE key='applying'),'0') <> '1'
+         BEGIN
+           INSERT INTO sync_changes(table_name,sync_id,operation,changed_at)
+           SELECT DISTINCT 'library_item', state.sync_id, 'upsert', CAST(strftime('%s','now') AS INTEGER)*1000
+           FROM phrases phrase
+           JOIN phrase_occurrences occurrence ON occurrence.phrase_id=phrase.id
+           JOIN segments segment ON segment.id=occurrence.segment_id
+           JOIN sync_entity_state state ON state.table_name='files' AND state.local_id=segment.file_id
+           WHERE phrase.language=NEW.language AND phrase.text=NEW.text
+             AND NOT EXISTS(SELECT 1 FROM sync_changes pending WHERE pending.table_name='library_item' AND pending.sync_id=state.sync_id AND pending.uploaded_at IS NULL);
+         END;"
     )?;
 
     // A one-time local layout cutover removes any not-yet-sent legacy
@@ -743,6 +761,18 @@ fn create_tables(conn: &Connection) -> Result<(), rusqlite::Error> {
              PRIMARY KEY(language, lemma)
         ) STRICT;
 
+        CREATE TABLE IF NOT EXISTS online_dictionary_entries (
+            language TEXT NOT NULL,
+            lemma TEXT NOT NULL,
+            provider TEXT NOT NULL,
+            phonetic TEXT,
+            audio_url TEXT,
+            local_audio_path TEXT,
+            definitions_json TEXT NOT NULL,
+            fetched_at INTEGER NOT NULL,
+            PRIMARY KEY(language, lemma)
+        ) STRICT;
+
         CREATE TABLE IF NOT EXISTS dictionary_sources (
              language TEXT NOT NULL DEFAULT 'en',
              provider TEXT NOT NULL,
@@ -781,13 +811,22 @@ fn create_tables(conn: &Connection) -> Result<(), rusqlite::Error> {
             category TEXT,
             provider TEXT NOT NULL,
              updated_at INTEGER NOT NULL,
+             other_senses_json TEXT NOT NULL DEFAULT '[]',
+             other_senses_edited INTEGER NOT NULL DEFAULT 0,
+             meaning_en TEXT,
+             usage_en TEXT,
+             other_senses_en_json TEXT NOT NULL DEFAULT '[]',
+             other_senses_en_edited INTEGER NOT NULL DEFAULT 0,
              PRIMARY KEY(language, text)
         ) STRICT;
 
         CREATE TABLE IF NOT EXISTS file_phrase_analysis (
             file_id INTEGER PRIMARY KEY REFERENCES files(id) ON DELETE CASCADE,
             model TEXT NOT NULL,
-            completed_at INTEGER NOT NULL
+            completed_at INTEGER NOT NULL,
+            pipeline_version INTEGER NOT NULL DEFAULT 1,
+            collins_evidence_available INTEGER NOT NULL DEFAULT 0,
+            skipped_items INTEGER NOT NULL DEFAULT 0
         ) STRICT;
 
         CREATE TABLE IF NOT EXISTS phrase_occurrences (
@@ -795,7 +834,16 @@ fn create_tables(conn: &Connection) -> Result<(), rusqlite::Error> {
             phrase_id INTEGER NOT NULL REFERENCES phrases(id) ON DELETE CASCADE,
             segment_id INTEGER NOT NULL REFERENCES segments(id) ON DELETE CASCADE,
             position INTEGER NOT NULL,
-            hidden INTEGER NOT NULL DEFAULT 0
+            hidden INTEGER NOT NULL DEFAULT 0,
+            surface_text TEXT,
+            token_positions_json TEXT,
+            meaning_zh TEXT,
+            usage_zh TEXT,
+            meaning_edited INTEGER NOT NULL DEFAULT 0,
+            meaning_en TEXT,
+            usage_en TEXT,
+            meaning_en_edited INTEGER NOT NULL DEFAULT 0,
+            collins_sense_id INTEGER
         ) STRICT;
 
         CREATE TABLE IF NOT EXISTS phrase_reviews (
@@ -917,9 +965,120 @@ fn create_tables(conn: &Connection) -> Result<(), rusqlite::Error> {
     Ok(())
 }
 
+fn migrate_english_learning(conn: &Connection) -> Result<(), rusqlite::Error> {
+    for (table, column, definition) in [
+        ("file_phrase_analysis", "pipeline_version", "INTEGER NOT NULL DEFAULT 1"),
+        ("file_phrase_analysis", "collins_evidence_available", "INTEGER NOT NULL DEFAULT 0"),
+        ("file_phrase_analysis", "skipped_items", "INTEGER NOT NULL DEFAULT 0"),
+        ("phrase_occurrences", "surface_text", "TEXT"),
+        ("phrase_occurrences", "token_positions_json", "TEXT"),
+        ("phrase_occurrences", "meaning_zh", "TEXT"),
+        ("phrase_occurrences", "usage_zh", "TEXT"),
+        ("phrase_occurrences", "meaning_edited", "INTEGER NOT NULL DEFAULT 0"),
+        ("phrase_occurrences", "meaning_en", "TEXT"),
+        ("phrase_occurrences", "usage_en", "TEXT"),
+        ("phrase_occurrences", "meaning_en_edited", "INTEGER NOT NULL DEFAULT 0"),
+        ("phrase_occurrences", "collins_sense_id", "INTEGER"),
+        ("phrase_dictionary_entries", "other_senses_json", "TEXT NOT NULL DEFAULT '[]'"),
+        ("phrase_dictionary_entries", "other_senses_edited", "INTEGER NOT NULL DEFAULT 0"),
+        ("phrase_dictionary_entries", "meaning_en", "TEXT"),
+        ("phrase_dictionary_entries", "usage_en", "TEXT"),
+        ("phrase_dictionary_entries", "other_senses_en_json", "TEXT NOT NULL DEFAULT '[]'"),
+        ("phrase_dictionary_entries", "other_senses_en_edited", "INTEGER NOT NULL DEFAULT 0"),
+    ] {
+        let exists = conn
+            .prepare(&format!("PRAGMA table_info({table})"))?
+            .query_map([], |row| row.get::<_, String>(1))?
+            .filter_map(Result::ok)
+            .any(|name| name == column);
+        if !exists {
+            conn.execute(&format!("ALTER TABLE {table} ADD COLUMN {column} {definition}"), [])?;
+        }
+    }
+    conn.execute(
+        "INSERT OR IGNORE INTO online_dictionary_entries
+         (language,lemma,provider,phonetic,audio_url,local_audio_path,definitions_json,fetched_at)
+         SELECT language,lemma,provider,phonetic,audio_url,local_audio_path,definitions_json,fetched_at
+         FROM dictionary_entries WHERE language='en' AND provider LIKE 'dictionaryapi.dev%'",
+        [],
+    )?;
+    // A v3 analysis with a selected sense could only have run with the private
+    // index installed. This restores that fact for analyses made before this
+    // column existed, without guessing about zero-match files.
+    conn.execute(
+        "UPDATE file_phrase_analysis SET collins_evidence_available=1
+         WHERE pipeline_version>=3 AND collins_evidence_available=0
+           AND EXISTS (SELECT 1 FROM segments s JOIN phrase_occurrences po ON po.segment_id=s.id
+                       WHERE s.file_id=file_phrase_analysis.file_id AND po.collins_sense_id IS NOT NULL)",
+        [],
+    )?;
+    Ok(())
+}
+
+fn create_study_phrase_view(conn: &Connection) -> Result<(), rusqlite::Error> {
+    conn.execute_batch(
+        "DROP VIEW IF EXISTS study_phrase_occurrences;
+         CREATE VIEW study_phrase_occurrences AS
+         SELECT po.* FROM phrase_occurrences po
+         JOIN phrases p ON p.id=po.phrase_id
+         JOIN segments s ON s.id=po.segment_id
+         LEFT JOIN file_phrase_analysis a ON a.file_id=s.file_id
+         WHERE po.hidden=0 AND (
+           p.language!='en' OR p.source!='detected' OR p.status!='unprocessed'
+           OR p.definition IS NOT NULL OR po.meaning_edited=1 OR po.meaning_en_edited=1
+           OR COALESCE(a.pipeline_version,1)<3 OR COALESCE(a.collins_evidence_available,0)=0
+           OR po.collins_sense_id IS NOT NULL
+         );",
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn study_view_hides_unverified_new_candidates_but_keeps_edits_and_legacy_data() {
+        let dir = tempfile::tempdir().unwrap();
+        let conn = init_db(&dir.path().join("study.db")).unwrap();
+        conn.execute("INSERT INTO files(name,type,content,content_hash,imported_at) VALUES('one.txt','txt','text','h',1)", []).unwrap();
+        conn.execute("INSERT INTO segments(file_id,index_num,en_text) VALUES(1,0,'I picked it up')", []).unwrap();
+        conn.execute("INSERT INTO phrases(text) VALUES('pick up')", []).unwrap();
+        conn.execute("INSERT INTO phrase_occurrences(phrase_id,segment_id,position,collins_sense_id) VALUES(1,1,1,NULL)", []).unwrap();
+        conn.execute("INSERT INTO file_phrase_analysis(file_id,model,completed_at,pipeline_version,collins_evidence_available) VALUES(1,'test',1,3,1)", []).unwrap();
+        let visible = || -> i64 { conn.query_row("SELECT COUNT(*) FROM study_phrase_occurrences", [], |row| row.get(0)).unwrap() };
+        assert_eq!(visible(), 0);
+        let raw: i64 = conn.query_row("SELECT COUNT(*) FROM phrase_occurrences", [], |row| row.get(0)).unwrap();
+        assert_eq!(raw, 1);
+        conn.execute("UPDATE phrase_occurrences SET meaning_edited=1 WHERE id=1", []).unwrap();
+        assert_eq!(visible(), 1);
+        conn.execute("UPDATE phrase_occurrences SET meaning_edited=0,collins_sense_id=42 WHERE id=1", []).unwrap();
+        assert_eq!(visible(), 1);
+        conn.execute("UPDATE phrase_occurrences SET collins_sense_id=NULL WHERE id=1", []).unwrap();
+        conn.execute("UPDATE phrases SET status='learning' WHERE id=1", []).unwrap();
+        assert_eq!(visible(), 1);
+        conn.execute("UPDATE phrases SET status='unprocessed' WHERE id=1", []).unwrap();
+        conn.execute("UPDATE file_phrase_analysis SET pipeline_version=1 WHERE file_id=1", []).unwrap();
+        assert_eq!(visible(), 1);
+    }
+
+    #[test]
+    fn english_learning_migration_keeps_cached_online_dictionary_and_is_idempotent() {
+        let dir = tempfile::tempdir().unwrap();
+        let conn = init_db(&dir.path().join("english.db")).unwrap();
+        conn.execute(
+            "INSERT INTO dictionary_entries(language,lemma,provider,definitions_json,fetched_at) VALUES('en','pick','dictionaryapi.dev','[]',1)",
+            [],
+        ).unwrap();
+        migrate_english_learning(&conn).unwrap();
+        migrate_english_learning(&conn).unwrap();
+        let provider: String = conn.query_row(
+            "SELECT provider FROM online_dictionary_entries WHERE language='en' AND lemma='pick'",
+            [], |row| row.get(0),
+        ).unwrap();
+        assert_eq!(provider, "dictionaryapi.dev");
+        let count: i64 = conn.query_row("SELECT COUNT(*) FROM online_dictionary_entries WHERE lemma='pick'", [], |row| row.get(0)).unwrap();
+        assert_eq!(count, 1);
+    }
 
     #[test]
     fn sync_tracking_assigns_stable_identity_and_tombstone() {

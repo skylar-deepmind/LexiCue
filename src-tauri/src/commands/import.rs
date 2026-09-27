@@ -433,7 +433,7 @@ pub fn import_file(state: State<DbState>, payload: ImportPayload) -> Result<i64,
         }
 
         let detected_phrases = match payload.language.as_str() {
-            "en" => detect_phrases_in_segments(&conn, &seg_texts)?,
+            "en" => Vec::new(),
             "zh" => detect_chinese_phrases_in_segments(&conn, &seg_texts)?,
             "ja" => detect_japanese_phrases_in_segments(&conn, &seg_texts)?,
             _ => Vec::new(),

@@ -11,6 +11,7 @@ export interface FileRecord {
   segment_count: number;
   phrase_analyzed: boolean;
   phrase_analysis_at: number | null;
+  phrase_skipped_items: number;
   language: Language;
   folder_id: number | null;
   word_progress: LearningProgress;
@@ -67,6 +68,15 @@ export interface OccurrenceDetail {
   end_time: string | null;
   file_name: string;
   hidden: boolean;
+  surface_text?: string | null;
+  token_positions?: number[] | null;
+  meaning_zh?: string | null;
+  usage_zh?: string | null;
+  meaning_edited?: boolean;
+  meaning_en?: string | null;
+  usage_en?: string | null;
+  meaning_en_edited?: boolean;
+  collins_sense_id?: number | null;
 }
 
 export interface WordDetail {
@@ -128,6 +138,9 @@ export interface CardOccurrence {
   end_time: string | null;
   file_name: string;
   original_form: string | null;
+  meaning_zh?: string | null;
+  meaning_en?: string | null;
+  token_positions?: number[] | null;
 }
 
 export interface DuplicateCheck {
@@ -180,6 +193,7 @@ export interface PhraseInfo {
   source: 'detected' | 'manual';
   frequency: number;
   language: Language;
+  unverified: boolean;
 }
 
 export interface PhraseDetail {
@@ -194,6 +208,21 @@ export interface PhraseDictionaryEntry {
   usage_zh: string | null;
   category: string | null;
   provider: string;
+  other_senses: { meaning_zh: string; example_en: string }[];
+  other_senses_edited: boolean;
+  meaning_en: string | null;
+  usage_en: string | null;
+  other_senses_en: { meaning_en: string; example_en: string }[];
+  other_senses_en_edited: boolean;
+  collins_senses: {
+    id: number;
+    phrase: string;
+    headword: string;
+    grammar: string;
+    definition: string;
+    example: string | null;
+  }[];
+  collins_available: boolean;
 }
 
 export interface DuePhraseCard {

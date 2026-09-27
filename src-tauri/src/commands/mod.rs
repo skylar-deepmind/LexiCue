@@ -1,4 +1,5 @@
 pub mod chinese;
+pub mod collins;
 pub mod dictionary;
 pub mod english;
 pub mod export;

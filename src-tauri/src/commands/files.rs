@@ -24,6 +24,7 @@ pub struct FileInfo {
     pub segment_count: i64,
     pub phrase_analyzed: bool,
     pub phrase_analysis_at: Option<i64>,
+    pub phrase_skipped_items: i64,
     pub language: String,
     pub folder_id: Option<i64>,
     pub word_progress: LearningProgress,
@@ -98,14 +99,15 @@ fn query_files(
                         COUNT(DISTINCT CASE WHEN p.status='ignored' THEN po.phrase_id END) AS ignored
                  FROM segments s
                  JOIN selected_files f ON f.id = s.file_id
-                 JOIN phrase_occurrences po ON po.segment_id = s.id
+                 JOIN study_phrase_occurrences po ON po.segment_id = s.id
                  JOIN phrases p ON p.id = po.phrase_id
                  GROUP BY s.file_id
              )
              SELECT f.id, f.name, f.type, f.imported_at, COALESCE(ss.total, 0), f.language,
                     a.file_id IS NOT NULL, a.completed_at, f.folder_id,
                     COALESCE(ws.total, 0), COALESCE(ws.unprocessed, 0), COALESCE(ws.learning, 0), COALESCE(ws.known, 0), COALESCE(ws.ignored, 0),
-                    COALESCE(ps.total, 0), COALESCE(ps.unprocessed, 0), COALESCE(ps.learning, 0), COALESCE(ps.known, 0), COALESCE(ps.ignored, 0)
+                    COALESCE(ps.total, 0), COALESCE(ps.unprocessed, 0), COALESCE(ps.learning, 0), COALESCE(ps.known, 0), COALESCE(ps.ignored, 0),
+                    COALESCE(a.skipped_items, 0)
              FROM selected_files f
              LEFT JOIN segment_stats ss ON ss.file_id = f.id
              LEFT JOIN word_stats ws ON ws.file_id = f.id
@@ -124,6 +126,7 @@ fn query_files(
             phrase_analyzed: row.get::<_, i32>(6)? != 0,
             language: row.get(5)?,
             phrase_analysis_at: row.get(7)?,
+            phrase_skipped_items: row.get(19)?,
             folder_id: row.get(8)?,
             word_progress: LearningProgress {
                 total: row.get(9)?,
@@ -166,17 +169,18 @@ fn query_file_info(conn: &rusqlite::Connection, file_id: i64) -> Result<FileInfo
                 (SELECT COUNT(DISTINCT o.word_id) FROM segments s JOIN occurrences o ON o.segment_id=s.id JOIN words w ON w.id=o.word_id WHERE s.file_id=f.id AND w.status='learning'),
                 (SELECT COUNT(DISTINCT o.word_id) FROM segments s JOIN occurrences o ON o.segment_id=s.id JOIN words w ON w.id=o.word_id WHERE s.file_id=f.id AND w.status='known'),
                 (SELECT COUNT(DISTINCT o.word_id) FROM segments s JOIN occurrences o ON o.segment_id=s.id JOIN words w ON w.id=o.word_id WHERE s.file_id=f.id AND w.status='ignored'),
-                (SELECT COUNT(DISTINCT po.phrase_id) FROM segments s JOIN phrase_occurrences po ON po.segment_id=s.id WHERE s.file_id=f.id),
-                (SELECT COUNT(DISTINCT po.phrase_id) FROM segments s JOIN phrase_occurrences po ON po.segment_id=s.id JOIN phrases p ON p.id=po.phrase_id WHERE s.file_id=f.id AND p.status='unprocessed'),
-                (SELECT COUNT(DISTINCT po.phrase_id) FROM segments s JOIN phrase_occurrences po ON po.segment_id=s.id JOIN phrases p ON p.id=po.phrase_id WHERE s.file_id=f.id AND p.status='learning'),
-                (SELECT COUNT(DISTINCT po.phrase_id) FROM segments s JOIN phrase_occurrences po ON po.segment_id=s.id JOIN phrases p ON p.id=po.phrase_id WHERE s.file_id=f.id AND p.status='known'),
-                (SELECT COUNT(DISTINCT po.phrase_id) FROM segments s JOIN phrase_occurrences po ON po.segment_id=s.id JOIN phrases p ON p.id=po.phrase_id WHERE s.file_id=f.id AND p.status='ignored')
+                (SELECT COUNT(DISTINCT po.phrase_id) FROM segments s JOIN study_phrase_occurrences po ON po.segment_id=s.id WHERE s.file_id=f.id),
+                (SELECT COUNT(DISTINCT po.phrase_id) FROM segments s JOIN study_phrase_occurrences po ON po.segment_id=s.id JOIN phrases p ON p.id=po.phrase_id WHERE s.file_id=f.id AND p.status='unprocessed'),
+                (SELECT COUNT(DISTINCT po.phrase_id) FROM segments s JOIN study_phrase_occurrences po ON po.segment_id=s.id JOIN phrases p ON p.id=po.phrase_id WHERE s.file_id=f.id AND p.status='learning'),
+                (SELECT COUNT(DISTINCT po.phrase_id) FROM segments s JOIN study_phrase_occurrences po ON po.segment_id=s.id JOIN phrases p ON p.id=po.phrase_id WHERE s.file_id=f.id AND p.status='known'),
+                (SELECT COUNT(DISTINCT po.phrase_id) FROM segments s JOIN study_phrase_occurrences po ON po.segment_id=s.id JOIN phrases p ON p.id=po.phrase_id WHERE s.file_id=f.id AND p.status='ignored'),
+                COALESCE((SELECT skipped_items FROM file_phrase_analysis a WHERE a.file_id=f.id),0)
          FROM files f WHERE f.id=?1",
         params![file_id],
         |row| Ok(FileInfo {
             id: row.get(0)?, name: row.get(1)?, file_type: row.get(2)?, imported_at: row.get(3)?,
             segment_count: row.get(4)?, language: row.get(5)?, phrase_analyzed: row.get::<_, i32>(6)? != 0,
-            phrase_analysis_at: row.get(7)?, folder_id: row.get(8)?,
+            phrase_analysis_at: row.get(7)?, phrase_skipped_items: row.get(19)?, folder_id: row.get(8)?,
             word_progress: LearningProgress { total: row.get(9)?, unprocessed: row.get(10)?, learning: row.get(11)?, known: row.get(12)?, ignored: row.get(13)? },
             phrase_progress: LearningProgress { total: row.get(14)?, unprocessed: row.get(15)?, learning: row.get(16)?, known: row.get(17)?, ignored: row.get(18)? },
         }),
@@ -626,14 +630,15 @@ mod tests {
              CREATE TABLE occurrences (id INTEGER PRIMARY KEY, word_id INTEGER, segment_id INTEGER, hidden INTEGER DEFAULT 0);
              CREATE TABLE phrases (id INTEGER PRIMARY KEY, status TEXT);
              CREATE TABLE phrase_occurrences (id INTEGER PRIMARY KEY, phrase_id INTEGER, segment_id INTEGER, hidden INTEGER DEFAULT 0);
-             CREATE TABLE file_phrase_analysis (file_id INTEGER PRIMARY KEY, completed_at INTEGER);
+             CREATE VIEW study_phrase_occurrences AS SELECT * FROM phrase_occurrences WHERE hidden=0;
+             CREATE TABLE file_phrase_analysis (file_id INTEGER PRIMARY KEY, completed_at INTEGER, skipped_items INTEGER DEFAULT 0);
              INSERT INTO files VALUES (1, 'one.txt', 'txt', 1, 'en', NULL), (2, 'two.txt', 'txt', 2, 'en', 9), (3, 'empty.txt', 'txt', 3, 'de', NULL);
              INSERT INTO segments VALUES (10, 1, 0), (11, 1, 1), (20, 2, 0);
              INSERT INTO words VALUES (1, 'unprocessed'), (2, 'learning'), (3, 'known'), (4, 'ignored'), (5, 'known');
              INSERT INTO occurrences VALUES (1, 1, 10, 0), (2, 1, 11, 0), (3, 2, 10, 1), (4, 3, 10, 0), (5, 4, 11, 0), (6, 5, 20, 0);
              INSERT INTO phrases VALUES (1, 'known'), (2, 'ignored');
              INSERT INTO phrase_occurrences VALUES (1, 1, 10, 1), (2, 1, 11, 0), (3, 2, 20, 0);
-             INSERT INTO file_phrase_analysis VALUES (1, 99);",
+             INSERT INTO file_phrase_analysis(file_id,completed_at) VALUES (1, 99);",
         ).unwrap();
 
         let first = query_file_info(&conn, 1).unwrap();

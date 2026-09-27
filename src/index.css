@@ -79,6 +79,30 @@
 html, body, #root { height: 100%; }
 body { margin: 0; background: var(--app-bg); color: var(--text-body); }
 
+.dictionary-evidence { border: 1px solid var(--border); border-radius: 0.625rem; background: var(--surface); color: var(--text-body); padding: 0.625rem; }
+.dictionary-evidence__sense + .dictionary-evidence__sense { border-top: 1px solid var(--border-soft); margin-top: 0.625rem; padding-top: 0.625rem; }
+.dictionary-evidence__label { color: var(--text-strong); font-size: 0.75rem; font-weight: 650; margin-bottom: 0.375rem; }
+.dictionary-evidence__muted { color: var(--text-muted); font-size: 0.75rem; }
+.dictionary-evidence__example { color: var(--text-muted); font-size: 0.875rem; font-style: italic; margin-top: 0.25rem; }
+.dictionary-evidence__badge { display: inline-block; margin-left: 0.375rem; border: 1px solid var(--accent-200); border-radius: 0.25rem; background: var(--accent-50); color: var(--accent-700); padding: 0.125rem 0.375rem; }
+.dictionary-evidence__button { display: inline-flex; align-items: center; gap: 0.25rem; border: 1px solid var(--border); border-radius: 0.375rem; color: var(--text-body); padding: 0.375rem; }
+.dictionary-evidence__button:hover:not(:disabled) { background: var(--surface-muted); border-color: var(--accent-200); }
+.dictionary-evidence__button:disabled { opacity: 0.45; cursor: not-allowed; }
+.dictionary-evidence__button:focus-visible, .dictionary-evidence__input:focus-visible { outline: 2px solid var(--accent-500); outline-offset: 2px; }
+.dictionary-evidence__input { display: block; width: 100%; border: 1px solid var(--border); border-radius: 0.375rem; background: var(--surface); color: var(--text-strong); padding: 0.5rem; }
+.dictionary-evidence__input:hover { border-color: var(--accent-200); }
+
+.phrase-audio-action { color: var(--accent-700); }
+.phrase-audio-action:hover:not(:disabled) { background: var(--accent-50); }
+.phrase-audio-action:disabled { color: var(--text-faint); cursor: not-allowed; }
+.phrase-audio-action:focus-visible { outline: 2px solid var(--accent-500); outline-offset: 2px; }
+.phrase-candidate-toggle { color: var(--text-muted); }
+.phrase-candidate-toggle:hover { background: var(--surface-muted); color: var(--text-strong); }
+.phrase-candidate-toggle:focus-within { outline: 2px solid var(--accent-500); outline-offset: 2px; }
+.phrase-candidate-toggle__input { accent-color: var(--accent-600); }
+.phrase-candidate-toggle__input:disabled { opacity: 0.45; cursor: not-allowed; }
+.phrase-candidate-badge { background: var(--sync-warning-bg); color: var(--sync-warning-text); border: 1px solid var(--sync-warning-border); }
+
 .settings-collapsible-section {
   background-color: var(--surface);
   border-color: var(--border);
@@ -184,6 +208,33 @@ body { margin: 0; background: var(--app-bg); color: var(--text-body); }
   border-radius: 4px;
 }
 
+.phrase-save-button:disabled,
+.phrase-save-button:disabled:hover {
+  background-color: var(--border-soft) !important;
+  color: var(--text-muted) !important;
+  cursor: not-allowed;
+}
+
+.file-ai-action:disabled,
+.file-ai-action:disabled:hover {
+  color: var(--text-muted) !important;
+  cursor: wait;
+}
+
+.word-audio-action:disabled,
+.word-audio-action:disabled:hover {
+  color: var(--text-muted) !important;
+  background-color: transparent !important;
+  cursor: wait;
+}
+
+.ai-diagnostic-action:disabled,
+.ai-diagnostic-action:disabled:hover {
+  color: var(--text-muted) !important;
+  background-color: var(--border-soft) !important;
+  cursor: wait;
+}
+
 /* Existing Tailwind utility classes are mapped to semantic theme tokens. */
 [data-theme] .bg-white { background-color: var(--surface); }
 [data-theme] .bg-gray-50, [data-theme] .bg-gray-50\/70 { background-color: var(--surface-muted); }
@@ -194,7 +245,7 @@ body { margin: 0; background: var(--app-bg); color: var(--text-body); }
 [data-theme] .text-gray-400, [data-theme] .text-gray-300 { color: var(--text-faint); }
 [data-theme] .border-gray-200 { border-color: var(--border); }
 [data-theme] .border-gray-100, [data-theme] .border-gray-50 { border-color: var(--border-soft); }
-[data-theme] .bg-blue-50, [data-theme] .bg-blue-50\/50, [data-theme] .bg-blue-50\/60 { background-color: var(--accent-50); }
+[data-theme] .bg-blue-50, [data-theme] .bg-blue-50\/40, [data-theme] .bg-blue-50\/50, [data-theme] .bg-blue-50\/60 { background-color: var(--accent-50); }
 [data-theme] .bg-blue-100 { background-color: var(--accent-100); }
 [data-theme] .bg-blue-500 { background-color: var(--accent-500); }
 [data-theme] .bg-blue-600 { background-color: var(--accent-600); }

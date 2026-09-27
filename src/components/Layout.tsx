@@ -11,6 +11,7 @@ import { useAiStore } from '../stores/aiStore';
 import { useUpdateStore } from '../stores/updateStore';
 import { useFeedbackStore } from '../stores/feedbackStore';
 import { syncCoordinator } from '../lib/syncCoordinator';
+import { prepareSpeechVoices } from '../lib/tts';
 
 export default function Layout() {
   const { t } = useTranslation();
@@ -24,6 +25,7 @@ export default function Layout() {
   const startupChecked = useRef(false);
 
   useEffect(() => {
+    prepareSpeechVoices();
     if (aiEnabled) void initializeOllama();
     void initializeDict();
     void initializeYoutube();
