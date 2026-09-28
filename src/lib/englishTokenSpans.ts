@@ -1,5 +1,3 @@
-const STRIPPED = new Set('.,!?;:()[]{}"\'`«»–—…@#$%^&*+=<>/\\|~');
-
 export interface EnglishTokenSpan {
   start: number;
   end: number;
@@ -9,17 +7,18 @@ export interface EnglishTokenSpan {
 // Mirrors the positions produced by tokenize_english_text in the Rust reader.
 export function englishTokenSpans(text: string): EnglishTokenSpan[] {
   const spans: EnglishTokenSpan[] = [];
-  let start = -1;
-  for (let index = 0; index <= text.length; index += 1) {
-    const char = text[index];
-    const delimiter = index === text.length || /\s/.test(char) || STRIPPED.has(char)
-      || (char === '-' && (text[index + 1] === '-' || text[index - 1] === '-'));
-    if (delimiter && start >= 0) {
-      spans.push({ start, end: index, position: spans.length });
-      start = -1;
-    } else if (!delimiter && start < 0) {
-      start = index;
-    }
+  const tokens = [...text.matchAll(/\S+/g)];
+  for (const [position, match] of tokens.entries()) {
+    const raw = match[0];
+    const lower = raw.toLowerCase();
+    if (/^(https?:\/\/|www\.)/.test(lower) || (lower.includes('@') && lower.includes('.')) || /\.(png|jpe?g|gif|webp|svg|mp3|mp4|srt|txt|html)[\W]*$/.test(lower) || raw.includes('-')) continue;
+    const leading = raw.match(/^[^A-Za-z]+/)?.[0].length ?? 0;
+    const trailing = raw.match(/[^A-Za-z'’‘]+$/)?.[0].length ?? 0;
+    const start = (match.index ?? 0) + leading;
+    const end = (match.index ?? 0) + raw.length - trailing;
+    const normalized = text.slice(start, end).replace(/[’‘]/g, "'");
+    if (!/[A-Za-z]/.test(normalized)) continue;
+    spans.push({ start, end, position });
   }
   return spans;
 }

@@ -45,6 +45,7 @@ export default function WordsPage() {
     closeDetail: state.closeDetail,
     setFilter: state.setFilter,
     setSortBy: state.setSortBy,
+    setIncludeProperNouns: state.setIncludeProperNouns,
     updateStatus: state.updateStatus,
     updateDefinition: state.updateDefinition,
     batchUpdateStatus: state.batchUpdateStatus,
@@ -61,6 +62,7 @@ export default function WordsPage() {
     words,
     filter,
     sortBy,
+    includeProperNouns,
     selected,
     loading,
     batchUpdating,
@@ -73,6 +75,7 @@ export default function WordsPage() {
     words: state.words,
     filter: state.filter,
     sortBy: state.sortBy,
+    includeProperNouns: state.includeProperNouns,
     selected: state.selected,
     loading: state.loading,
     batchUpdating: state.batchUpdating,
@@ -117,7 +120,8 @@ export default function WordsPage() {
 
   const normalizedQuery = query.trim().toLowerCase();
   const visibleWords = useMemo(() => words.filter((word) =>
-    word.lemma.toLowerCase().includes(normalizedQuery),
+    word.lemma.toLowerCase().includes(normalizedQuery)
+      || word.search_aliases.some((alias) => alias.toLowerCase().includes(normalizedQuery)),
   ), [words, normalizedQuery]);
   const totalPages = Math.max(1, Math.ceil(visibleWords.length / PAGE_SIZE));
   const pageWords = useMemo(
@@ -241,6 +245,16 @@ export default function WordsPage() {
           aria-label={t('words.searchAria')}
           className="mt-3 w-full max-w-sm px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
+        {selectedLanguage === 'en' && (
+          <label className="word-kind-toggle mt-3 inline-flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm">
+            <input
+              type="checkbox"
+              checked={includeProperNouns}
+              onChange={(event) => store.setIncludeProperNouns(event.target.checked)}
+            />
+            {t('words.showProperNouns')}
+          </label>
+        )}
       </div>
 
       <FrequencyBaselinePicker selectedLanguage={selectedLanguage} />
@@ -366,6 +380,8 @@ export default function WordsPage() {
                       })}
                     />
                     {word.baseline_pending && <span className="ml-2 text-xs text-emerald-700">高频基线</span>}
+                    {word.word_kind === 'ambiguous' && <span className="word-kind-badge ml-2">{t('words.ambiguousForm')}</span>}
+                    {word.word_kind === 'proper_noun' && <span className="word-kind-badge ml-2">{t('words.properNoun')}</span>}
                   </div>
                 </div>
               </div>
@@ -397,6 +413,7 @@ export default function WordsPage() {
               onClose={store.closeDetail}
               onStatusChange={store.updateStatus}
               onDefinitionSave={store.updateDefinition}
+              onWordResolved={() => { store.closeDetail(); void store.loadWords(true); }}
               onOccurrenceOpen={(occurrence) => {
                 store.closeDetail();
                 navigate(occurrenceRoute(occurrence, 'word', detail.word.id));

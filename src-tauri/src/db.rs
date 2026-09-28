@@ -685,7 +685,17 @@ fn create_tables(conn: &Connection) -> Result<(), rusqlite::Error> {
              definition TEXT,
              reading TEXT,
              part_of_speech TEXT,
+             word_kind TEXT NOT NULL DEFAULT 'common'
+                CHECK(word_kind IN ('common','proper_noun','noise','ambiguous')),
+             kind_edited INTEGER NOT NULL DEFAULT 0,
              UNIQUE(language, lemma)
+        ) STRICT;
+
+        CREATE TABLE IF NOT EXISTS word_aliases (
+            word_id INTEGER NOT NULL REFERENCES words(id) ON DELETE CASCADE,
+            alias TEXT NOT NULL,
+            alias_kind TEXT NOT NULL DEFAULT 'surface',
+            PRIMARY KEY(word_id, alias)
         ) STRICT;
 
         CREATE TABLE IF NOT EXISTS frequency_baseline_profiles (
@@ -717,7 +727,13 @@ fn create_tables(conn: &Connection) -> Result<(), rusqlite::Error> {
             segment_id INTEGER NOT NULL REFERENCES segments(id) ON DELETE CASCADE,
             original_form TEXT NOT NULL,
             position INTEGER NOT NULL,
-            hidden INTEGER NOT NULL DEFAULT 0
+            hidden INTEGER NOT NULL DEFAULT 0,
+            meaning_zh TEXT,
+            usage_zh TEXT,
+            collins_sense_id INTEGER,
+            meaning_edited INTEGER NOT NULL DEFAULT 0,
+            analysis_model TEXT,
+            analyzed_at INTEGER
         ) STRICT;
 
         CREATE TABLE IF NOT EXISTS reviews (
@@ -967,6 +983,14 @@ fn create_tables(conn: &Connection) -> Result<(), rusqlite::Error> {
 
 fn migrate_english_learning(conn: &Connection) -> Result<(), rusqlite::Error> {
     for (table, column, definition) in [
+        ("words", "word_kind", "TEXT NOT NULL DEFAULT 'common' CHECK(word_kind IN ('common','proper_noun','noise','ambiguous'))"),
+        ("words", "kind_edited", "INTEGER NOT NULL DEFAULT 0"),
+        ("occurrences", "meaning_zh", "TEXT"),
+        ("occurrences", "usage_zh", "TEXT"),
+        ("occurrences", "collins_sense_id", "INTEGER"),
+        ("occurrences", "meaning_edited", "INTEGER NOT NULL DEFAULT 0"),
+        ("occurrences", "analysis_model", "TEXT"),
+        ("occurrences", "analyzed_at", "INTEGER"),
         ("file_phrase_analysis", "pipeline_version", "INTEGER NOT NULL DEFAULT 1"),
         ("file_phrase_analysis", "collins_evidence_available", "INTEGER NOT NULL DEFAULT 0"),
         ("file_phrase_analysis", "skipped_items", "INTEGER NOT NULL DEFAULT 0"),
@@ -995,6 +1019,20 @@ fn migrate_english_learning(conn: &Connection) -> Result<(), rusqlite::Error> {
             conn.execute(&format!("ALTER TABLE {table} ADD COLUMN {column} {definition}"), [])?;
         }
     }
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS word_aliases (
+            word_id INTEGER NOT NULL REFERENCES words(id) ON DELETE CASCADE,
+            alias TEXT NOT NULL,
+            alias_kind TEXT NOT NULL DEFAULT 'surface',
+            PRIMARY KEY(word_id, alias)
+        ) STRICT;
+        CREATE INDEX IF NOT EXISTS idx_word_aliases_alias ON word_aliases(alias);
+        INSERT OR IGNORE INTO word_aliases(word_id,alias,alias_kind)
+        SELECT word_id,lower(original_form),'surface' FROM occurrences WHERE trim(original_form)!='';
+        UPDATE words SET word_kind='noise'
+          WHERE language='en' AND kind_edited=0 AND lower(lemma) IN
+            ('re','ve','ll','m','d','t','https','http','www','com','org','net','png','jpg','jpeg','gif','webp','svg');"
+    )?;
     conn.execute(
         "INSERT OR IGNORE INTO online_dictionary_entries
          (language,lemma,provider,phonetic,audio_url,local_audio_path,definitions_json,fetched_at)

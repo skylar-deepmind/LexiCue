@@ -62,8 +62,7 @@ export default function FlashCard({ card, revealed, onReveal }: FlashCardProps) 
     } else {
       setDictionary(null);
       const lookup = card.language === 'en'
-        ? invoke<DictionaryEntry>('lookup_local_dictionary', { lemma: wordText })
-            .catch(() => invoke<DictionaryEntry>('lookup_dictionary', { lemma: wordText, language: card.language, refresh: false }))
+        ? invoke<DictionaryEntry>('lookup_dictionary', { lemma: wordText, language: card.language, refresh: false })
         : card.language === 'de'
         ? invoke<DictionaryEntry>('lookup_dictionary', { lemma: wordText, language: card.language, refresh: false })
         : invoke<DictionaryEntry>('get_cached_dictionary', { lemma: wordText, language: card.language });

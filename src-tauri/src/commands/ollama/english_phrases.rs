@@ -138,7 +138,7 @@ fn validate_candidate(candidate: &Candidate, segment: &SegmentRow) -> Option<Str
     let mut surfaces = Vec::new();
     for (word, position) in words.iter().zip(&candidate.token_positions) {
         let surface = tokens.iter().find(|(_, token_position)| token_position == position)?.0.clone();
-        if surface.to_lowercase() != *word && english::lemma_of_surface(&surface) != *word {
+        if !english::surface_matches_lemma(&surface, word) {
             return None;
         }
         surfaces.push(surface);
@@ -149,15 +149,19 @@ fn validate_candidate(candidate: &Candidate, segment: &SegmentRow) -> Option<Str
 fn example_uses_phrase(example: &str, canonical: &str, category: &str) -> bool {
     let phrase: Vec<&str> = canonical.split_whitespace().collect();
     let tokens: Vec<String> = english::tokenize_english_text(example).into_iter()
-        .map(|(surface, _)| english::lemma_of_surface(&surface)).collect();
+        .map(|(surface, _)| surface).collect();
     if phrase.len() < 2 { return false; }
     for start in 0..tokens.len() {
-        if tokens[start] != phrase[0] { continue; }
+        if !english::surface_matches_lemma(&tokens[start], phrase[0]) { continue; }
         let mut cursor = start;
         let mut matches = true;
         for word in phrase.iter().skip(1) {
             let limit = if category == "phrasal_verb" { (cursor + 4).min(tokens.len().saturating_sub(1)) } else { cursor + 1 };
-            let Some(next) = (cursor + 1..=limit).find(|position| tokens.get(*position).map(String::as_str) == Some(*word)) else { matches = false; break; };
+            let Some(next) = (cursor + 1..=limit).find(|position| {
+                tokens.get(*position).is_some_and(|surface| {
+                    english::surface_matches_lemma(surface, word)
+                })
+            }) else { matches = false; break; };
             cursor = next;
         }
         if matches { return true; }

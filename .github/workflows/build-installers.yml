@@ -55,7 +55,22 @@ jobs:
         with:
           workspaces: src-tauri
       - run: npm ci
+      - name: Build macOS branch installer
+        if: ${{ github.ref != 'refs/heads/main' }}
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          NODE_OPTIONS: --use-system-ca
+        run: npm run tauri build -- --target ${{ matrix.target }} --bundles app,dmg
+      - name: Upload macOS branch installer
+        if: ${{ github.ref != 'refs/heads/main' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: LexiCue-macOS-${{ matrix.target }}-${{ github.sha }}
+          path: src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
+          if-no-files-found: error
       - uses: tauri-apps/tauri-action@v1
+        if: ${{ github.ref == 'refs/heads/main' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}

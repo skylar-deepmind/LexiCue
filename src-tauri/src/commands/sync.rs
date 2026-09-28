@@ -296,6 +296,18 @@ struct LibraryOccurrence {
     original_form: String,
     position: i64,
     hidden: i64,
+    #[serde(default)]
+    meaning_zh: Option<String>,
+    #[serde(default)]
+    usage_zh: Option<String>,
+    #[serde(default)]
+    collins_sense_id: Option<i64>,
+    #[serde(default)]
+    meaning_edited: i64,
+    #[serde(default)]
+    analysis_model: Option<String>,
+    #[serde(default)]
+    analyzed_at: Option<i64>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -960,7 +972,9 @@ fn library_item_record(
     for (segment_id, index_num, en_text, zh_text, start_time, end_time) in segment_rows {
         let mut occurrence_statement = conn
             .prepare(
-                "SELECT state.sync_id,occurrence.original_form,occurrence.position,occurrence.hidden
+                "SELECT state.sync_id,occurrence.original_form,occurrence.position,occurrence.hidden,
+                        occurrence.meaning_zh,occurrence.usage_zh,occurrence.collins_sense_id,
+                        occurrence.meaning_edited,occurrence.analysis_model,occurrence.analyzed_at
                  FROM occurrences occurrence
                  JOIN sync_entity_state state ON state.table_name='words' AND state.local_id=occurrence.word_id
                  WHERE occurrence.segment_id=?1 ORDER BY occurrence.position,occurrence.id",
@@ -973,6 +987,12 @@ fn library_item_record(
                     original_form: row.get(1)?,
                     position: row.get(2)?,
                     hidden: row.get(3)?,
+                    meaning_zh: row.get(4)?,
+                    usage_zh: row.get(5)?,
+                    collins_sense_id: row.get(6)?,
+                    meaning_edited: row.get(7)?,
+                    analysis_model: row.get(8)?,
+                    analyzed_at: row.get(9)?,
                 })
             })
             .map_err(|_| "local_sync_storage_error".to_string())?
@@ -1208,10 +1228,14 @@ fn apply_library_item_event(
             let word_id = local_id_for(conn, "words", &occurrence.word_sync_id)?
                 .ok_or("invalid_encrypted_record")?;
             conn.execute(
-                "INSERT INTO occurrences(word_id,segment_id,original_form,position,hidden) VALUES(?1,?2,?3,?4,?5)",
-                rusqlite::params![word_id, segment_id, occurrence.original_form, occurrence.position, occurrence.hidden],
+                "INSERT INTO occurrences(word_id,segment_id,original_form,position,hidden,meaning_zh,usage_zh,collins_sense_id,meaning_edited,analysis_model,analyzed_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)",
+                rusqlite::params![word_id, segment_id, occurrence.original_form, occurrence.position, occurrence.hidden, occurrence.meaning_zh, occurrence.usage_zh, occurrence.collins_sense_id, occurrence.meaning_edited, occurrence.analysis_model, occurrence.analyzed_at],
             )
             .map_err(|_| "local_sync_storage_error".to_string())?;
+            conn.execute(
+                "INSERT OR IGNORE INTO word_aliases(word_id,alias,alias_kind) VALUES(?1,lower(?2),'surface')",
+                rusqlite::params![word_id, occurrence.original_form],
+            ).map_err(|_| "local_sync_storage_error".to_string())?;
         }
         for occurrence in segment.phrase_occurrences {
             let phrase_id = local_id_for(conn, "phrases", &occurrence.phrase_sync_id)?
@@ -3383,7 +3407,7 @@ mod tests {
         let segment_id = source.last_insert_rowid();
         source
             .execute(
-                "INSERT INTO occurrences(word_id,segment_id,original_form,position,hidden) VALUES(?1,?2,'Hello',0,0)",
+                "INSERT INTO occurrences(word_id,segment_id,original_form,position,hidden,meaning_zh,usage_zh,collins_sense_id,meaning_edited,analysis_model,analyzed_at) VALUES(?1,?2,'Hello',0,0,'本句你好','用作问候',7,1,'test-model',3)",
                 rusqlite::params![word_id, segment_id],
             )
             .unwrap();
@@ -3411,6 +3435,8 @@ mod tests {
         let snapshot = library_item_record(&source, file_id).unwrap();
         assert_eq!(snapshot.segments.len(), 1);
         assert_eq!(snapshot.segments[0].occurrences.len(), 1);
+        assert_eq!(snapshot.segments[0].occurrences[0].meaning_zh.as_deref(), Some("本句你好"));
+        assert_eq!(snapshot.segments[0].occurrences[0].collins_sense_id, Some(7));
         assert_eq!(snapshot.segments[0].phrase_occurrences[0].hidden, 1);
         assert_eq!(snapshot.segments[0].phrase_occurrences[0].meaning_zh.as_deref(), Some("本句问候"));
         assert_eq!(snapshot.segments[0].phrase_occurrences[0].meaning_en.as_deref(), Some("A greeting"));
@@ -3467,6 +3493,11 @@ mod tests {
             )
             .unwrap();
         assert_eq!(restored, ("你好，世界".into(), "你好世界".into(), 1, 1));
+        let restored_word_ai: (Option<String>, Option<String>, Option<i64>, i64, Option<String>, Option<i64>) = target.query_row(
+            "SELECT meaning_zh,usage_zh,collins_sense_id,meaning_edited,analysis_model,analyzed_at FROM occurrences LIMIT 1", [],
+            |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?,row.get(4)?,row.get(5)?)),
+        ).unwrap();
+        assert_eq!(restored_word_ai, (Some("本句你好".into()),Some("用作问候".into()),Some(7),1,Some("test-model".into()),Some(3)));
         let restored_ai: (Option<String>, Option<String>, i64, String, i64, i64) = target.query_row(
             "SELECT po.meaning_zh,po.token_positions_json,po.meaning_edited,pde.other_senses_json,pde.other_senses_edited,fpa.pipeline_version FROM phrase_occurrences po JOIN phrase_dictionary_entries pde ON pde.text='hello world' JOIN file_phrase_analysis fpa ON fpa.file_id=(SELECT file_id FROM segments WHERE id=po.segment_id) LIMIT 1",
             [],

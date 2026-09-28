@@ -50,7 +50,11 @@ pub struct OccurrenceInput {
     pub reading: Option<String>,
     #[serde(default)]
     pub part_of_speech: Option<String>,
+    #[serde(default = "default_word_kind")]
+    pub word_kind: String,
 }
+
+fn default_word_kind() -> String { "common".to_string() }
 
 #[derive(Deserialize)]
 pub struct PhraseOccurrenceInput {
@@ -359,10 +363,14 @@ pub fn import_file(state: State<DbState>, payload: ImportPayload) -> Result<i64,
 
         {
             let mut stmt = conn
-                .prepare("INSERT OR IGNORE INTO words (language, lemma) VALUES (?1, ?2)")
+                .prepare("INSERT OR IGNORE INTO words (language, lemma, word_kind) VALUES (?1, ?2, ?3)")
                 .map_err(|e| e.to_string())?;
             for lemma in &payload.lemmas {
-                stmt.execute(params![payload.language, lemma])
+                let kind = payload.occurrences.iter().filter(|item| &item.lemma == lemma)
+                    .map(|item| item.word_kind.as_str())
+                    .min_by_key(|kind| match *kind { "common" => 0, "ambiguous" => 1, "proper_noun" => 2, _ => 3 })
+                    .unwrap_or("common");
+                stmt.execute(params![payload.language, lemma, kind])
                     .map_err(|e| e.to_string())?;
             }
         }
@@ -426,8 +434,17 @@ pub fn import_file(state: State<DbState>, payload: ImportPayload) -> Result<i64,
                 stmt.execute(params![word_id, seg_id, occ.original_form, occ.position])
                     .map_err(|e| e.to_string())?;
                 conn.execute(
-                    "UPDATE words SET reading = COALESCE(?1, reading), part_of_speech = COALESCE(?2, part_of_speech) WHERE id = ?3",
-                    params![occ.reading, occ.part_of_speech, word_id],
+                    "INSERT OR IGNORE INTO word_aliases(word_id,alias,alias_kind) VALUES(?1,lower(?2),'surface')",
+                    params![word_id, occ.original_form],
+                ).map_err(|e| e.to_string())?;
+                conn.execute(
+                    "UPDATE words SET reading = COALESCE(?1, reading), part_of_speech = COALESCE(?2, part_of_speech),
+                       word_kind = CASE WHEN kind_edited=1 THEN word_kind
+                         WHEN ?3='common' THEN 'common'
+                         WHEN word_kind='common' THEN word_kind
+                         WHEN ?3='ambiguous' THEN 'ambiguous' ELSE word_kind END
+                     WHERE id = ?4",
+                    params![occ.reading, occ.part_of_speech, occ.word_kind, word_id],
                 ).map_err(|e| e.to_string())?;
             }
         }

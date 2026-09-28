@@ -8,7 +8,7 @@ Downloads (one-time):
     https://raw.githubusercontent.com/hermitdave/FrequencyWords/master/content/2018/en/en_full.txt
 
 Outputs (into --outdir, default ../src-tauri/resources):
-  english_wordforms.tsv.gz  surface<TAB>lemma<TAB>pos   (inflected form -> headword)
+  english_wordforms.tsv.gz  surface<TAB>lemma<TAB>pos<TAB>relation<TAB>lemma_frequency
   ENGLISH-LICENSE.txt
 
 Only word forms / lemmas that appear in the frequency list (count >= FREQ_THRESHOLD)
@@ -175,28 +175,27 @@ def main() -> None:
     }
     print(f"selected {len(selected)} lemmas", file=sys.stderr)
 
-    # Resolve each surface to its best lemma (highest lemma frequency wins).
-    resolved = {}
-    for form, candidates in wordforms.items():
-        if not candidates:
-            continue
-        best = max(candidates, key=lambda c: c[2])
-        resolved[form] = (best[0], best[1])
-    for lemma in selected:
-        resolved.setdefault(lemma, (lemma, ""))
-    print(f"wordform surfaces: {len(resolved)}", file=sys.stderr)
-
     wf_rows = []
-    for form, (lemma, pos) in resolved.items():
-        if form in selected or lemma in selected:
-            wf_rows.append((form, lemma, pos))
+    for form, candidates in wordforms.items():
+        for lemma, pos, _frequency in candidates:
+            if form in selected or lemma in selected:
+                relation = "headword" if form == lemma else "inflection"
+                wf_rows.append((form, lemma, pos, relation, _frequency))
+    # Add a fallback self row only when Kaikki did not expose the selected word
+    # as either a headword or a form. Adding it unconditionally would make clear
+    # inflections such as "went" and "enrolled" falsely ambiguous.
+    for lemma in selected:
+        if lemma not in wordforms:
+            wf_rows.append((lemma, lemma, "", "headword", freq.get(lemma, 0)))
     wf_rows = sorted(set(wf_rows))
     print(f"wordform rows: {len(wf_rows)}", file=sys.stderr)
 
     wf_path = f"{args.outdir}/english_wordforms.tsv.gz"
     with gzip.open(wf_path, "wt", encoding="utf-8", compresslevel=9) as out:
-        for form, lemma, pos in wf_rows:
-            out.write(f"{form}\t{lemma}\t{pos}\n")
+        for form, lemma, pos, relation, lemma_frequency in wf_rows:
+            out.write(
+                f"{form}\t{lemma}\t{pos}\t{relation}\t{lemma_frequency}\n"
+            )
     with open(f"{args.outdir}/ENGLISH-LICENSE.txt", "w", encoding="utf-8") as out:
         out.write(LICENSE)
 

@@ -16,6 +16,7 @@ interface WordStore {
   detail: WordDetail | null;
   filter: WordStatus | 'all';
   sortBy: 'frequency' | 'alpha' | 'recent';
+  includeProperNouns: boolean;
   selected: Set<number>;
   batchUpdating: boolean;
   lastBatchAction: BatchAction | null;
@@ -30,6 +31,7 @@ interface WordStore {
   closeDetail: () => void;
   setFilter: (f: WordStatus | 'all') => void;
   setSortBy: (s: 'frequency' | 'alpha' | 'recent') => void;
+  setIncludeProperNouns: (value: boolean) => void;
   updateStatus: (wordId: number, status: WordStatus) => Promise<void>;
   updateDefinition: (wordId: number, definition: string) => Promise<void>;
   batchUpdateStatus: (status: WordStatus) => Promise<number>;
@@ -42,8 +44,8 @@ interface WordStore {
 const wordCache = new QueryCache<WordInfo[]>();
 registerCacheInvalidator('words', () => wordCache.invalidate());
 
-function wordQueryKey(filter: WordStore['filter'], sortBy: WordStore['sortBy']): string {
-  return JSON.stringify([usePreferencesStore.getState().language, filter, sortBy]);
+function wordQueryKey(filter: WordStore['filter'], sortBy: WordStore['sortBy'], includeProperNouns = false): string {
+  return JSON.stringify([usePreferencesStore.getState().language, filter, sortBy, includeProperNouns]);
 }
 
 export const useWordStore = create<WordStore>((set, get) => ({
@@ -51,6 +53,7 @@ export const useWordStore = create<WordStore>((set, get) => ({
   detail: null,
   filter: 'unprocessed',
   sortBy: 'frequency',
+  includeProperNouns: false,
   selected: new Set(),
   batchUpdating: false,
   lastBatchAction: null,
@@ -61,9 +64,9 @@ export const useWordStore = create<WordStore>((set, get) => ({
   loadedKey: null,
 
   loadWords: async (force = false) => {
-    const { filter, sortBy } = get();
+    const { filter, sortBy, includeProperNouns } = get();
     const language = usePreferencesStore.getState().language;
-    const key = wordQueryKey(filter, sortBy);
+    const key = wordQueryKey(filter, sortBy, includeProperNouns);
     const cached = wordCache.peek(key);
     if (cached) set({ words: cached, loadedKey: key, loading: false });
     if (!force && wordCache.isFresh(key)) return;
@@ -73,12 +76,13 @@ export const useWordStore = create<WordStore>((set, get) => ({
           statusFilter: filter === 'all' ? null : filter,
           sortBy,
           language: language === 'all' ? null : language,
+          includeProperNouns,
         }), force);
-      if (wordQueryKey(get().filter, get().sortBy) === key) set({ words, loadedKey: key });
+      if (wordQueryKey(get().filter, get().sortBy, get().includeProperNouns) === key) set({ words, loadedKey: key });
     } catch (e) {
       console.error('Failed to load words:', e);
     } finally {
-      if (wordQueryKey(get().filter, get().sortBy) === key) set({ loading: false });
+      if (wordQueryKey(get().filter, get().sortBy, get().includeProperNouns) === key) set({ loading: false });
     }
   },
 
@@ -108,6 +112,10 @@ export const useWordStore = create<WordStore>((set, get) => ({
     set({ sortBy: s });
     get().loadWords();
   },
+  setIncludeProperNouns: (value) => {
+    set({ includeProperNouns: value, selected: new Set() });
+    get().loadWords();
+  },
 
   updateStatus: async (wordId, status) => {
     await invoke('update_word_status', { wordId, status });
@@ -122,7 +130,7 @@ export const useWordStore = create<WordStore>((set, get) => ({
       lastBatchAction: null,
     });
     wordCache.invalidate();
-    wordCache.prime(wordQueryKey(get().filter, get().sortBy), result.words);
+    wordCache.prime(wordQueryKey(get().filter, get().sortBy, get().includeProperNouns), result.words);
     invalidateCaches('files', 'review', 'insights');
     const { detail } = get();
     if (detail && detail.word.id === wordId) {
@@ -168,7 +176,7 @@ export const useWordStore = create<WordStore>((set, get) => ({
         lastBatchAction: { changes, removed: result.removed },
       });
       wordCache.invalidate();
-      wordCache.prime(wordQueryKey(get().filter, get().sortBy), result.words);
+      wordCache.prime(wordQueryKey(get().filter, get().sortBy, get().includeProperNouns), result.words);
       invalidateCaches('files', 'review', 'insights');
       return changes.length;
     } finally {
@@ -200,7 +208,7 @@ export const useWordStore = create<WordStore>((set, get) => ({
         lastBatchAction: null,
       });
       wordCache.invalidate();
-      wordCache.prime(wordQueryKey(get().filter, get().sortBy), words);
+      wordCache.prime(wordQueryKey(get().filter, get().sortBy, get().includeProperNouns), words);
       invalidateCaches('files', 'review', 'insights');
     } finally {
       set({ batchUpdating: false });

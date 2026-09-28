@@ -53,6 +53,8 @@ export interface WordInfo {
   reading: string | null;
   part_of_speech: string | null;
   baseline_pending?: boolean;
+  word_kind: 'common' | 'proper_noun' | 'noise' | 'ambiguous';
+  search_aliases: string[];
 }
 
 export interface OccurrenceDetail {
@@ -77,6 +79,8 @@ export interface OccurrenceDetail {
   usage_en?: string | null;
   meaning_en_edited?: boolean;
   collins_sense_id?: number | null;
+  analysis_model?: string | null;
+  analyzed_at?: number | null;
 }
 
 export interface WordDetail {
@@ -94,6 +98,9 @@ export interface DictionaryDefinition {
 export interface DictionaryEntry {
   language: Language;
   lemma: string;
+  requested_form: string;
+  matched_headword: string;
+  match_kind: 'exact' | 'inflection' | 'spelling_variant' | 'online_fallback';
   provider: string;
   phonetic: string | null;
   audio_url: string | null;
@@ -183,6 +190,7 @@ export interface OccurrenceInput {
   position: number;
   reading?: string | null;
   part_of_speech?: string | null;
+  word_kind?: 'common' | 'proper_noun' | 'noise' | 'ambiguous';
 }
 
 export interface PhraseInfo {

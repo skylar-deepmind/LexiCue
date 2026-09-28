@@ -112,6 +112,7 @@ interface EnglishToken {
   lemma: string;
   part_of_speech: string | null;
   position: number;
+  word_kind: 'common' | 'proper_noun' | 'noise' | 'ambiguous';
 }
 
 interface ChineseToken {
@@ -180,6 +181,7 @@ async function enrichEnglishParsing(parsed: ParsedResult): Promise<ParsedResult>
         original_form: token.surface,
         position: token.position,
         part_of_speech: token.part_of_speech,
+        word_kind: token.word_kind,
       });
     }
   });

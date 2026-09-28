@@ -13,6 +13,7 @@ use super::import::{
 use crate::db::DbState;
 
 mod english_phrases;
+pub mod word_context;
 
 #[tauri::command]
 pub fn get_analysis_diagnostic(file_id: i64) -> Option<serde_json::Value> {

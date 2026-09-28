@@ -18,6 +18,9 @@ pub struct DictionaryDefinition {
 pub struct DictionaryEntry {
     pub language: String,
     pub lemma: String,
+    pub requested_form: String,
+    pub matched_headword: String,
+    pub match_kind: String,
     pub provider: String,
     pub phonetic: Option<String>,
     pub audio_url: Option<String>,
@@ -217,6 +220,9 @@ fn stored_entry(
         let definitions = serde_json::from_str(&definitions_json).unwrap_or_default();
         Ok(DictionaryEntry {
             lemma: row.get(0)?,
+            requested_form: row.get(0)?,
+            matched_headword: row.get(0)?,
+            match_kind: "exact".to_string(),
             language: language.to_string(),
             provider: row.get(1)?,
             phonetic: row.get(2)?,
@@ -240,29 +246,51 @@ pub fn lookup_local_dictionary(
 ) -> Result<DictionaryEntry, String> {
     let normalized = lemma.trim().to_lowercase();
     if normalized.is_empty() { return Err("word is empty".into()); }
-    let resolved = english::lemma_of_surface(&normalized);
     let path = collins::index_path(&app)?;
     if !path.is_file() { return Err("Collins index is not installed".into()); }
-    let mut senses = collins::lookup_word(&path, &normalized)?;
-    if senses.is_empty() && resolved != normalized {
-        senses = collins::lookup_word(&path, &resolved)?;
-    }
+    let (matched, match_kind, senses) = resolve_collins_word(&path, &normalized)?;
     if senses.is_empty() { return Err(format!("Collins entry not found: {normalized}")); }
     Ok(DictionaryEntry {
-        language: "en".to_string(),
-        lemma: normalized,
-        provider: collins::PROVIDER.to_string(),
-        phonetic: None,
-        audio_url: None,
-        local_audio_path: None,
+        language: "en".to_string(), lemma: normalized.clone(), requested_form: normalized,
+        matched_headword: matched, match_kind, provider: collins::PROVIDER.to_string(),
+        phonetic: None, audio_url: None, local_audio_path: None,
         definitions: senses.into_iter().map(|sense| DictionaryDefinition {
-            part_of_speech: sense.grammar,
-            definition: sense.definition,
-            translation: None,
-            example: sense.example,
-        }).collect(),
-        fetched_at: now_ms(),
+            part_of_speech: sense.grammar, definition: sense.definition,
+            translation: None, example: sense.example,
+        }).collect(), fetched_at: now_ms(),
     })
+}
+
+fn resolve_collins_word(path: &std::path::Path, normalized: &str) -> Result<(String, String, Vec<collins::Sense>), String> {
+    let mut matched = normalized.to_string();
+    let mut match_kind = "exact".to_string();
+    let mut senses = collins::lookup_word(&path, &matched)?;
+    if senses.is_empty() {
+        let lemma = english::lemma_of_surface(normalized);
+        if lemma != normalized {
+            let candidate_senses = collins::lookup_word(&path, &lemma)?;
+            if !candidate_senses.is_empty() {
+                matched = lemma.clone();
+                match_kind = "inflection".to_string();
+                senses = candidate_senses;
+            }
+        }
+        if senses.is_empty() {
+            let mut spelling_candidates = english::spelling_variants(&lemma);
+            spelling_candidates.extend(english::spelling_variants(normalized));
+            spelling_candidates.sort(); spelling_candidates.dedup();
+            for candidate in spelling_candidates {
+                let candidate_senses = collins::lookup_word(&path, &candidate)?;
+                if !candidate_senses.is_empty() {
+                    matched = candidate;
+                    match_kind = "spelling_variant".to_string();
+                    senses = candidate_senses;
+                    break;
+                }
+            }
+        }
+    }
+    Ok((matched, match_kind, senses))
 }
 
 pub fn initialize_builtin_phrase_dictionary(conn: &rusqlite::Connection) -> Result<(), String> {
@@ -964,6 +992,9 @@ async fn fetch_jisho_entry(
 
     Ok(DictionaryEntry {
         lemma: normalized.to_string(),
+        requested_form: normalized.to_string(),
+        matched_headword: normalized.to_string(),
+        match_kind: "online_fallback".to_string(),
         language: language.to_string(),
         provider,
         phonetic: reading,
@@ -1127,6 +1158,9 @@ pub async fn lookup_dictionary(
         .collect::<Vec<_>>();
     let entry = DictionaryEntry {
         lemma: normalized.clone(),
+        requested_form: normalized.clone(),
+        matched_headword: normalized.clone(),
+        match_kind: "online_fallback".to_string(),
         language: language.clone(),
         provider: "dictionaryapi.dev".to_string(),
         phonetic,
@@ -1184,6 +1218,9 @@ async fn lookup_japanese(
             .as_ref()
             .map(|(reading, translation, part_of_speech)| DictionaryEntry {
                 lemma: normalized.clone(),
+                requested_form: normalized.clone(),
+                matched_headword: normalized.clone(),
+                match_kind: "exact".to_string(),
                 language: "ja".to_string(),
                 provider: "JMdict".to_string(),
                 phonetic: reading.clone(),
@@ -1265,6 +1302,9 @@ async fn lookup_german(
     let mut entry = builtin
         .map(|(phonetic, translation, part_of_speech)| DictionaryEntry {
             lemma: key.clone(),
+            requested_form: normalized.clone(),
+            matched_headword: key.clone(),
+            match_kind: "exact".to_string(),
             language: "de".to_string(),
             provider: "GermanDict".to_string(),
             phonetic,
@@ -1330,6 +1370,9 @@ async fn lookup_chinese(
     let mut entry = builtin
         .map(|(reading, translation, part_of_speech)| DictionaryEntry {
             lemma: normalized.clone(),
+            requested_form: normalized.clone(),
+            matched_headword: normalized.clone(),
+            match_kind: "exact".to_string(),
             language: "zh".to_string(),
             provider: "CC-CEDICT".to_string(),
             phonetic: reading,
@@ -1565,7 +1608,7 @@ mod tests {
         initialize_builtin_chinese_phrase_dictionary, initialize_builtin_dictionary,
         initialize_builtin_german_dictionary, initialize_builtin_japanese_dictionary,
         initialize_builtin_japanese_phrase_dictionary, initialize_builtin_phrase_dictionary,
-        list_dictionary_sources_for_conn,
+        list_dictionary_sources_for_conn, resolve_collins_word,
     };
     use rusqlite::Connection;
 
@@ -1936,5 +1979,22 @@ mod tests {
         assert_eq!(counts.get("PhraseDict"), Some(&2));
         assert_eq!(counts.get("CC-CEDICT Phrases"), Some(&1));
         assert_eq!(counts.get("JMdict Idioms"), Some(&2));
+    }
+
+    #[test]
+    fn collins_resolution_keeps_requested_spelling_and_verifies_the_variant() {
+        let file = tempfile::NamedTempFile::new().unwrap();
+        let conn = Connection::open(file.path()).unwrap();
+        conn.execute_batch(
+            "CREATE TABLE metadata(key TEXT PRIMARY KEY,value TEXT NOT NULL);
+             CREATE TABLE word_senses(id INTEGER PRIMARY KEY,lookup_key TEXT,headword TEXT,grammar TEXT,definition TEXT,example TEXT);
+             INSERT INTO metadata VALUES('provider','Collins COBUILD V3');
+             INSERT INTO word_senses VALUES(1,'enrol','enrol','V-ERG','officially join a course',NULL);",
+        ).unwrap();
+        drop(conn);
+        let (headword, kind, senses) = resolve_collins_word(file.path(), "enroll").unwrap();
+        assert_eq!((headword.as_str(),kind.as_str(),senses.len()), ("enrol","spelling_variant",1));
+        let (headword, kind, senses) = resolve_collins_word(file.path(), "enrolled").unwrap();
+        assert_eq!((headword.as_str(),kind.as_str(),senses.len()), ("enrol","spelling_variant",1));
     }
 }
