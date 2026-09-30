@@ -276,6 +276,10 @@
     "notFound": "ファイルが見つかりません", "notFoundHint": "削除された可能性があります。ファイル一覧に戻ってください。"
   },
   "frequencyBaseline": {
+    "introTitle": "頻度ベースラインを試す",
+    "introDescription": "なじみのある英語・中国語の頻出語を既知として事前にマークできます。サンプルを確認し、設定で範囲を選んでください。",
+    "introAction": "設定へ",
+    "introDismiss": "了解",
     "chooseTitle": "頻度ベースラインを選ぶ",
     "chooseDescription": "代表的な単語を確認してから、先にスキップする一般的な単語の範囲を選びます。これは頻度にもとづく提案であり、CEFR/HSK 認定ではありません。習熟度には個人差があります。",
     "settingsTitle": "頻度ベースラインの管理",
@@ -465,13 +469,6 @@
     "restoreOccurrenceAria": "例文を復元",
     "hiddenOccurrences": "非表示の例文 ({{count}})",
     "spellingVariantMatch": "Collins 見出し語：{{headword}}（英国式綴り）",
-    "explainSentence": "この文での意味を説明",
-    "contextMeaning": "この文での中国語の意味",
-    "contextUsage": "用法メモ",
-    "contextAnalysisFailed": "分析に失敗しました。既存の説明は保持されています。",
-    "dictionaryVerified": "Collins の語義と一致",
-    "aiUnverified": "AI（辞書未確認）",
-    "userEdited": "ユーザー編集",
     "confirmBaseForm": "学習する原形を確認",
     "confirmBaseFormAction": "確認",
     "keepCurrentFormHint": "現在の形を選ぶと独立した語として保持されます。"

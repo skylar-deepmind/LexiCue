@@ -1,4 +1,4 @@
-import { X, Volume2, RefreshCw, Download, EyeOff, Eye, Sparkles, Pencil, Trash2 } from 'lucide-react';
+import { X, Volume2, RefreshCw, Download, EyeOff, Eye } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { playPronunciation } from '../lib/tts';
 import type { DictionaryEntry, OccurrenceDetail, WordDetail, WordStatus } from '../lib/types';
@@ -11,7 +11,6 @@ import { useDictionaryStore } from '../stores/dictionaryStore';
 import { CONTENT_FONT_CLASS } from '../lib/contentTypography';
 import { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { getAiConfig, isAiEnabled } from '../lib/ai';
 
 const OCCURRENCE_PAGE_SIZE = 5;
 
@@ -47,10 +46,6 @@ export default function WordDetailPanel({ detail, onClose, onStatusChange, onDef
   const savedTimerRef = useRef<number | null>(null);
   const panelTitleRef = useRef<HTMLHeadingElement>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
-  const [analyzingOccurrence, setAnalyzingOccurrence] = useState<number | null>(null);
-  const [meaningError, setMeaningError] = useState<number | null>(null);
-  const [editingMeaning, setEditingMeaning] = useState<number | null>(null);
-  const [meaningDraft, setMeaningDraft] = useState({ meaning: '', usage: '' });
   const [lemmaCandidates, setLemmaCandidates] = useState<string[]>([]);
   const [selectedLemma, setSelectedLemma] = useState(detail.word.lemma);
 
@@ -121,31 +116,6 @@ export default function WordDetailPanel({ detail, onClose, onStatusChange, onDef
     } finally {
       setHideSaving(false);
     }
-  };
-
-  const analyzeOccurrence = async (occurrenceId: number) => {
-    setAnalyzingOccurrence(occurrenceId);
-    setMeaningError(null);
-    try {
-      const result = await invoke<{ meaning_zh: string; usage_zh: string; collins_sense_id: number | null; analysis_model: string; analyzed_at: number }>('analyze_word_occurrence', { occurrenceId, config: getAiConfig() });
-      setOccurrences((current) => current.map((item) => item.id === occurrenceId ? { ...item, ...result, meaning_edited: false } : item));
-    } catch (error) {
-      console.error('Failed to analyze word occurrence:', error);
-      if (!String(error).includes('ERR_CANCELLED')) setMeaningError(occurrenceId);
-    } finally {
-      setAnalyzingOccurrence(null);
-    }
-  };
-
-  const saveOccurrenceMeaning = async (occurrenceId: number) => {
-    await invoke('update_word_occurrence_meaning', { occurrenceId, meaningZh: meaningDraft.meaning, usageZh: meaningDraft.usage });
-    setOccurrences((current) => current.map((item) => item.id === occurrenceId ? { ...item, meaning_zh: meaningDraft.meaning.trim(), usage_zh: meaningDraft.usage.trim(), meaning_edited: true, collins_sense_id: null } : item));
-    setEditingMeaning(null);
-  };
-
-  const deleteOccurrenceMeaning = async (occurrenceId: number) => {
-    await invoke('delete_word_occurrence_meaning', { occurrenceId });
-    setOccurrences((current) => current.map((item) => item.id === occurrenceId ? { ...item, meaning_zh: null, usage_zh: null, meaning_edited: false, collins_sense_id: null } : item));
   };
 
   const loadDictionary = async (refresh = false) => {
@@ -419,7 +389,7 @@ export default function WordDetailPanel({ detail, onClose, onStatusChange, onDef
               <div
                 key={occ.id}
                 onClick={() => onOccurrenceOpen?.(occ)}
-                className={`bg-gray-50 rounded-lg p-3 ${onOccurrenceOpen ? 'cursor-pointer hover:bg-blue-50' : ''} ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}
+                className={`word-occurrence bg-gray-50 rounded-lg p-3 ${onOccurrenceOpen ? 'cursor-pointer hover:bg-blue-50' : ''} ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <p className="text-gray-700 leading-relaxed">
@@ -431,48 +401,16 @@ export default function WordDetailPanel({ detail, onClose, onStatusChange, onDef
                       disabled={hideSaving}
                       aria-label={t('wordDetail.hideOccurrenceAria')}
                       title={t('wordDetail.hideOccurrence')}
-                      className="shrink-0 rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:opacity-40"
+                      className="word-occurrence__visibility shrink-0 rounded-md p-1.5"
                     >
                       <EyeOff size={14} />
                     </button>
                   )}
                 </div>
                 {occ.zh_text && (
-                  <p className={`mt-1 text-gray-400 ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}>{occ.zh_text}</p>
+                  <p className={`word-occurrence__secondary mt-1 ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}>{occ.zh_text}</p>
                 )}
-                {editingMeaning === occ.id ? (
-                  <div className="word-context-box mt-2 space-y-2" onClick={(event) => event.stopPropagation()}>
-                    <input className="dictionary-evidence__input" value={meaningDraft.meaning} onChange={(event) => setMeaningDraft((value) => ({ ...value, meaning: event.target.value }))} aria-label={t('wordDetail.contextMeaning')} />
-                    <textarea className="dictionary-evidence__input resize-none" rows={2} value={meaningDraft.usage} onChange={(event) => setMeaningDraft((value) => ({ ...value, usage: event.target.value }))} aria-label={t('wordDetail.contextUsage')} />
-                    <div className="flex gap-2">
-                      <button className="word-context-action" disabled={!meaningDraft.meaning.trim()} onClick={() => void saveOccurrenceMeaning(occ.id)}>{t('common.save')}</button>
-                      <button className="word-context-action" onClick={() => setEditingMeaning(null)}>{t('common.cancel')}</button>
-                    </div>
-                  </div>
-                ) : occ.meaning_zh ? (
-                  <div className="word-context-box mt-2" onClick={(event) => event.stopPropagation()}>
-                    <div className="flex items-start justify-between gap-2">
-                      <div><p className="font-medium">{occ.meaning_zh}</p>{occ.usage_zh && <p className="mt-1 text-xs">{occ.usage_zh}</p>}</div>
-                      <div className="flex shrink-0 gap-1">
-                        <button className="word-context-icon" title={t('common.edit')} onClick={() => { setEditingMeaning(occ.id); setMeaningDraft({ meaning: occ.meaning_zh ?? '', usage: occ.usage_zh ?? '' }); }}><Pencil size={13} /></button>
-                        <button className="word-context-icon" title={t('common.delete')} onClick={() => void deleteOccurrenceMeaning(occ.id)}><Trash2 size={13} /></button>
-                      </div>
-                    </div>
-                    <p className="mt-1 text-[11px] opacity-70">{occ.meaning_edited ? t('wordDetail.userEdited') : occ.collins_sense_id ? t('wordDetail.dictionaryVerified') : t('wordDetail.aiUnverified')}</p>
-                  </div>
-                ) : detail.word.language === 'en' && (
-                  <div className="mt-2" onClick={(event) => event.stopPropagation()}>
-                    <button className="word-context-action inline-flex items-center gap-1" disabled={!isAiEnabled() || analyzingOccurrence === occ.id} onClick={() => void analyzeOccurrence(occ.id)}>
-                      {analyzingOccurrence === occ.id ? <RefreshCw size={13} className="animate-spin" /> : <Sparkles size={13} />}
-                      {t('wordDetail.explainSentence')}
-                    </button>
-                    {analyzingOccurrence === occ.id && (
-                      <button className="word-context-action ml-2" onClick={() => void invoke('cancel_word_occurrence_analysis', { occurrenceId: occ.id })}>{t('common.cancel')}</button>
-                    )}
-                    {meaningError === occ.id && <p className="word-context-error mt-1">{t('wordDetail.contextAnalysisFailed')}</p>}
-                  </div>
-                )}
-                <p className={`mt-1 text-gray-400 ${CONTENT_FONT_CLASS.auxiliary[auxiliaryFontSize]}`}>
+                <p className={`word-occurrence__secondary mt-1 ${CONTENT_FONT_CLASS.auxiliary[auxiliaryFontSize]}`}>
                   {occ.file_name}
                   {occ.start_time && <span className="ml-2">[{occ.start_time}]</span>}
                 </p>
@@ -501,7 +439,7 @@ export default function WordDetailPanel({ detail, onClose, onStatusChange, onDef
               {showHidden && (
                 <div className="mt-2 space-y-2">
                   {hiddenOccurrences.map((occ) => (
-                    <div key={occ.id} onClick={() => onOccurrenceOpen?.(occ)} className={`bg-gray-50 rounded-lg p-3 opacity-70 ${onOccurrenceOpen ? 'cursor-pointer hover:bg-blue-50' : ''} ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}>
+                    <div key={occ.id} onClick={() => onOccurrenceOpen?.(occ)} className={`word-occurrence bg-gray-50 rounded-lg p-3 ${onOccurrenceOpen ? 'cursor-pointer hover:bg-blue-50' : ''} ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}>
                       <div className="flex items-start justify-between gap-2">
                         <p className="text-gray-700 leading-relaxed line-through decoration-gray-300">
                           <OccurrenceText text={occ.en_text} surface={occ.original_form} language={detail.word.language} />
@@ -511,15 +449,15 @@ export default function WordDetailPanel({ detail, onClose, onStatusChange, onDef
                           disabled={hideSaving}
                           aria-label={t('wordDetail.restoreOccurrenceAria')}
                           title={t('wordDetail.restoreOccurrence')}
-                          className="shrink-0 rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:opacity-40"
+                          className="word-occurrence__visibility shrink-0 rounded-md p-1.5"
                         >
                           <Eye size={14} />
                         </button>
                       </div>
                       {occ.zh_text && (
-                        <p className={`mt-1 text-gray-400 ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}>{occ.zh_text}</p>
+                        <p className={`word-occurrence__secondary mt-1 ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}>{occ.zh_text}</p>
                       )}
-                      <p className={`mt-1 text-gray-400 ${CONTENT_FONT_CLASS.auxiliary[auxiliaryFontSize]}`}>
+                      <p className={`word-occurrence__secondary mt-1 ${CONTENT_FONT_CLASS.auxiliary[auxiliaryFontSize]}`}>
                         {occ.file_name}
                         {occ.start_time && <span className="ml-2">[{occ.start_time}]</span>}
                       </p>

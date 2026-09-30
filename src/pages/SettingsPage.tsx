@@ -5,6 +5,7 @@ import { getVersion } from '@tauri-apps/api/app';
 import { ask } from '@tauri-apps/plugin-dialog';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { useTranslation } from 'react-i18next';
+import { useLocation } from 'react-router-dom';
 import { useFileStore } from '../stores/fileStore';
 import { useUpdateStore } from '../stores/updateStore';
 import { DEFAULT_OLLAMA_URL, OPENAI_PRESETS, useAiStore, type AiProvider } from '../stores/aiStore';
@@ -69,6 +70,7 @@ registerCacheInvalidator('storage', () => storageUsageCache.invalidate('storage'
 
 export default function SettingsPage() {
   const { t, i18n } = useTranslation();
+  const location = useLocation();
   const { theme, setTheme } = useTheme();
   const uiLanguage = usePreferencesStore((state) => state.uiLanguage);
   const setUiLanguage = usePreferencesStore((state) => state.setUiLanguage);
@@ -120,6 +122,16 @@ export default function SettingsPage() {
   const scrollToSection = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
+
+  useEffect(() => {
+    if (location.hash !== '#frequency-baseline') return;
+    const frame = requestAnimationFrame(() => {
+      const section = document.getElementById('frequency-baseline');
+      section?.querySelector('button')?.focus({ preventScroll: true });
+      section?.scrollIntoView({ block: 'start' });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [location.hash]);
 
   const checkYtdlp = async (force = false) => {
     const cached = ytdlpStatusCache.peek('status');

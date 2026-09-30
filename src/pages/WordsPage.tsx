@@ -11,7 +11,7 @@ import EmptyState from '../components/EmptyState';
 import Pagination from '../components/Pagination';
 import Skeleton from '../components/Skeleton';
 import DisplaySettingsMenu from '../components/DisplaySettingsMenu';
-import FrequencyBaselinePicker from '../components/FrequencyBaselinePicker';
+import FrequencyBaselineIntro from '../components/FrequencyBaselineIntro';
 import { usePreferencesStore } from '../stores/preferencesStore';
 import { CONTENT_FONT_CLASS } from '../lib/contentTypography';
 import { useNavigate } from 'react-router-dom';
@@ -257,7 +257,7 @@ export default function WordsPage() {
         )}
       </div>
 
-      <FrequencyBaselinePicker selectedLanguage={selectedLanguage} />
+      <FrequencyBaselineIntro />
 
       {(selected.size > 0 || lastBatchAction) && (
         <div className="px-6 py-2 bg-blue-50 border-b border-blue-100 flex flex-wrap items-center gap-2">

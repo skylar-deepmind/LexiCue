@@ -282,6 +282,10 @@
     "notFound": "找不到此文件", "notFoundHint": "文件可能已被删除，请返回文件列表"
   },
   "frequencyBaseline": {
+    "introTitle": "试试高频词基线",
+    "introDescription": "可将熟悉的英语、中文常见词预先标记为已掌握。先看样本，再到设置中选择适合自己的范围。",
+    "introAction": "前往设置",
+    "introDismiss": "知道了",
     "chooseTitle": "选择高频词基线",
     "chooseDescription": "先看代表词，再选择可先跳过的常见词范围。这是词频建议，不是 CEFR 或 HSK 认证；实际掌握程度因人而异。",
     "settingsTitle": "高频词基线管理",
@@ -471,13 +475,6 @@
     "restoreOccurrenceAria": "恢复例句",
     "hiddenOccurrences": "已隐藏例句 ({{count}})",
     "spellingVariantMatch": "Collins 词条：{{headword}}（英式拼写）",
-    "explainSentence": "解释本句",
-    "contextMeaning": "本句中文义",
-    "contextUsage": "用法说明",
-    "contextAnalysisFailed": "分析失败，旧解释未被修改。请重试。",
-    "dictionaryVerified": "已对应 Collins 义项",
-    "aiUnverified": "AI 未经词典核实",
-    "userEdited": "用户修订",
     "confirmBaseForm": "确认这个词的学习原形",
     "confirmBaseFormAction": "确认",
     "keepCurrentFormHint": "选择当前形式可保持独立学习；确认后仍可通过原文词形搜索。"

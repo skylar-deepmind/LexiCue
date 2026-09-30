@@ -288,6 +288,10 @@
     "notFound": "File not found", "notFoundHint": "It may have been deleted. Return to the file list."
   },
   "frequencyBaseline": {
+    "introTitle": "Try a frequency baseline",
+    "introDescription": "Pre-mark familiar common English or Chinese words as known. Review samples, then choose a range in Settings.",
+    "introAction": "Go to Settings",
+    "introDismiss": "Got it",
     "chooseTitle": "Choose a frequency baseline",
     "chooseDescription": "Review representative words before choosing familiar common words to skip. This is a frequency suggestion, not a CEFR or HSK certification; proficiency varies by person.",
     "settingsTitle": "Frequency baseline management",
@@ -484,13 +488,6 @@
     "restoreOccurrenceAria": "Restore example",
     "hiddenOccurrences": "Hidden examples ({{count}})",
     "spellingVariantMatch": "Collins headword: {{headword}} (British spelling)",
-    "explainSentence": "Explain this sentence",
-    "contextMeaning": "Meaning in this sentence",
-    "contextUsage": "Usage note",
-    "contextAnalysisFailed": "Analysis failed. The existing explanation was preserved. Try again.",
-    "dictionaryVerified": "Matched to a Collins sense",
-    "aiUnverified": "AI, not dictionary verified",
-    "userEdited": "Edited by you",
     "confirmBaseForm": "Confirm the learning headword",
     "confirmBaseFormAction": "Confirm",
     "keepCurrentFormHint": "Choose the current form to keep it separate. Original forms remain searchable."

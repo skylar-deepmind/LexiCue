@@ -282,6 +282,10 @@
     "notFound": "Datei nicht gefunden", "notFoundHint": "Sie wurde möglicherweise gelöscht. Kehren Sie zur Dateiliste zurück."
   },
   "frequencyBaseline": {
+    "introTitle": "Häufigkeitsbasis ausprobieren",
+    "introDescription": "Vertraute häufige englische oder chinesische Wörter als bekannt vormarkieren. Beispiele ansehen und den Umfang in den Einstellungen wählen.",
+    "introAction": "Zu den Einstellungen",
+    "introDismiss": "Verstanden",
     "chooseTitle": "Häufigkeitsbasis wählen",
     "chooseDescription": "Prüfen Sie Beispielwörter, bevor Sie häufige bekannte Wörter überspringen. Dies ist ein Häufigkeitsvorschlag, keine CEFR- oder HSK-Zertifizierung; Kenntnisse unterscheiden sich individuell.",
     "settingsTitle": "Häufigkeitsbasis verwalten",
@@ -478,13 +482,6 @@
     "restoreOccurrenceAria": "Beispiel wiederherstellen",
     "hiddenOccurrences": "Ausgeblendete Beispiele ({{count}})",
     "spellingVariantMatch": "Collins Stichwort: {{headword}} (britische Schreibweise)",
-    "explainSentence": "Diesen Satz erklären",
-    "contextMeaning": "Bedeutung in diesem Satz",
-    "contextUsage": "Gebrauchshinweis",
-    "contextAnalysisFailed": "Analyse fehlgeschlagen. Die vorhandene Erklärung wurde beibehalten.",
-    "dictionaryVerified": "Mit Collins Bedeutung abgeglichen",
-    "aiUnverified": "KI, nicht im Wörterbuch geprüft",
-    "userEdited": "Vom Benutzer bearbeitet",
     "confirmBaseForm": "Lernform bestätigen",
     "confirmBaseFormAction": "Bestätigen",
     "keepCurrentFormHint": "Die aktuelle Form bleibt als eigenes Lernwort erhalten."
