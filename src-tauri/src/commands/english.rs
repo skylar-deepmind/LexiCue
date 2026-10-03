@@ -300,6 +300,37 @@ pub(crate) fn tokenize_english_text(text: &str) -> Vec<(String, i32)> {
         .collect()
 }
 
+/// Original text spans share the exact eligibility and positions of the AI tokenizer.
+/// Offsets are UTF-16 code units, as used by JavaScript String.slice.
+pub(crate) struct EnglishSpan {
+    pub position: i32,
+    pub start: usize,
+    pub end: usize,
+}
+
+pub(crate) fn tokenize_english_spans(text: &str) -> Vec<EnglishSpan> {
+    let positions: std::collections::HashSet<_> = tokenize_english_text(text).into_iter().map(|(_, p)| p).collect();
+    let mut cursor = 0;
+    let mut utf16_cursor = 0;
+    let mut spans = Vec::new();
+    for (position, raw) in text.split_whitespace().enumerate() {
+        let start = cursor + text[cursor..].find(raw).unwrap_or(0);
+        let utf16_start = utf16_cursor + text[cursor..start].encode_utf16().count();
+        cursor = start + raw.len();
+        utf16_cursor = utf16_start + raw.encode_utf16().count();
+        if !positions.contains(&(position as i32)) { continue; }
+        let trimmed = raw.trim_matches(|c: char| is_stripped(c) || c.is_ascii_digit());
+        let leading = raw.len() - raw.trim_start_matches(|c: char| is_stripped(c) || c.is_ascii_digit()).len();
+        let word_start = utf16_start + raw[..leading].encode_utf16().count();
+        spans.push(EnglishSpan {
+            position: position as i32,
+            start: word_start,
+            end: word_start + trimmed.encode_utf16().count(),
+        });
+    }
+    spans
+}
+
 fn lemmatize_tokens(tokens: Vec<(String, i32)>, wordforms: &EnglishWordforms) -> Vec<EnglishToken> {
     tokens
         .into_iter()

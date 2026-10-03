@@ -33,6 +33,20 @@ pub fn init_db(db_path: &Path) -> Result<Connection, rusqlite::Error> {
     )?;
 
     create_tables(&conn)?;
+    conn.execute_batch("CREATE TABLE IF NOT EXISTS phrase_analysis_cache (
+        file_id INTEGER NOT NULL REFERENCES files(id) ON DELETE CASCADE,
+        stage TEXT NOT NULL CHECK(stage IN ('extraction','explanation','extraction_split')),
+        cache_key TEXT NOT NULL,
+        result_json TEXT NOT NULL,
+        payload_bytes INTEGER NOT NULL,
+        created_at INTEGER NOT NULL,
+        expires_at INTEGER NOT NULL,
+        last_used_at INTEGER NOT NULL,
+        PRIMARY KEY(file_id,stage,cache_key)
+    );
+    CREATE INDEX IF NOT EXISTS phrase_analysis_cache_expiry ON phrase_analysis_cache(expires_at);
+    CREATE INDEX IF NOT EXISTS phrase_analysis_cache_lru ON phrase_analysis_cache(last_used_at);
+    DELETE FROM phrase_analysis_cache WHERE stage='explanation' OR expires_at <= CAST(strftime('%s','now') AS INTEGER)*1000;")?;
     create_sync_tracking(&conn)?;
     migrate_legacy_constraints(&conn)?;
     backfill_phrase_provider(&conn)?;
@@ -1045,7 +1059,7 @@ fn migrate_english_learning(conn: &Connection) -> Result<(), rusqlite::Error> {
     // column existed, without guessing about zero-match files.
     conn.execute(
         "UPDATE file_phrase_analysis SET collins_evidence_available=1
-         WHERE pipeline_version>=3 AND collins_evidence_available=0
+         WHERE pipeline_version>=3 AND pipeline_version<5 AND collins_evidence_available=0
            AND EXISTS (SELECT 1 FROM segments s JOIN phrase_occurrences po ON po.segment_id=s.id
                        WHERE s.file_id=file_phrase_analysis.file_id AND po.collins_sense_id IS NOT NULL)",
         [],
@@ -1064,7 +1078,7 @@ fn create_study_phrase_view(conn: &Connection) -> Result<(), rusqlite::Error> {
          WHERE po.hidden=0 AND (
            p.language!='en' OR p.source!='detected' OR p.status!='unprocessed'
            OR p.definition IS NOT NULL OR po.meaning_edited=1 OR po.meaning_en_edited=1
-           OR COALESCE(a.pipeline_version,1)<3 OR COALESCE(a.collins_evidence_available,0)=0
+           OR COALESCE(a.pipeline_version,1)>=5 OR COALESCE(a.pipeline_version,1)<3 OR COALESCE(a.collins_evidence_available,0)=0
            OR po.collins_sense_id IS NOT NULL
          );",
     )

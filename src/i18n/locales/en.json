@@ -18,7 +18,11 @@
       "definition": "Definitions & translations",
       "auxiliary": "Supporting information"
     },
-    "sizes": { "sm": "Small", "md": "Default", "lg": "Large" }
+    "sizes": {
+      "sm": "Small",
+      "md": "Default",
+      "lg": "Large"
+    }
   },
   "status": {
     "unprocessed": "Unprocessed",
@@ -75,26 +79,132 @@
       "title": "Interface Language",
       "description": "Choose the display language of the app interface."
     },
-    "frequencyBaseline": { "title": "Frequency Baseline" },
+    "frequencyBaseline": {
+      "title": "Frequency Baseline"
+    },
     "cloudSync": {
       "title": "Cloud Sync",
       "description": "Keep your library and learning progress encrypted and up to date across devices.",
       "notConnected": "Not connected",
-      "state": { "synced": "Up to date", "syncing": "Syncing", "offline": "Waiting for network", "authRequired": "Sign in again", "error": "Sync needs attention" },
-      "lastSynced": "Last synced {{time}}", "preparing": "Preparing sync…", "pending": "{{count}} items waiting to upload", "conflicts": "{{count}} text conflicts saved for review", "progressLabel": "Sync progress", "downloadedBytes": "{{size}} downloaded", "eta": "About {{seconds}} seconds remaining", "progress": { "preparing": "Preparing local data", "downloading": "Downloading cloud data", "applying": "Applying cloud data", "uploading": "Uploading local data", "retrying": "Waiting to retry" },
-      "restoreProgress": "Restore {{completed}}/{{total}}",
-      "syncNow": "Sync now", "pauseAuto": "Pause automatic sync", "enableAuto": "Enable automatic sync",
-      "advanced": "Advanced options", "devices": "Devices", "refresh": "Refresh", "currentDevice": "This device", "revoke": "Revoke", "disconnect": "Sign out on this device",
-      "dangerTitle": "Delete sync account", "deleteHint": "Deletes the encrypted cloud copy and signs out every device. Local data stays on this device.", "deleteAccount": "Delete account", "deleteConfirm": "Delete this sync account and its encrypted cloud data? Local data on this device will not be deleted.",
-      "accountMode": "Account action", "createAccount": "Create account", "login": "Sign in", "email": "Email", "recoveryKey": "Recovery key", "newPassword": "New password", "password": "Password", "hidePassword": "Hide password", "showPassword": "Show password", "passwordHint": "Use at least 10 characters.",
-      "createAndSync": "Create account and sync", "recoverAction": "Recover account", "loginAndSync": "Sign in and sync", "forgotPassword": "Forgot password? Use a recovery key", "backToLogin": "Back to sign in",
-      "saveRecoveryTitle": "Save your recovery key", "saveRecoveryDescription": "This is the only way to recover encrypted data if you forget your password. LexiCue cannot recover it for you.", "copyRecovery": "Copy recovery key", "downloadRecovery": "Save recovery key to a file", "recoveryFileTitle": "LexiCue recovery key — keep this file private",
-      "diagnostic": { "summary": "Diagnostic: {{stage}} · {{kind}}", "copy": "Copy diagnostic", "copied": "Copied", "kinds": { "sqlite_busy": "database busy", "sqlite_constraint": "local data constraint conflict", "sqlite_foreign_key": "missing local relationship", "storage_write": "local storage cannot be written", "missing_reference": "missing cloud data relationship", "local_write": "local data write failed" } },
-      "errors": {
-        "auth_required": "Please sign in again to continue syncing.", "session_expired": "Your session expired. Please sign in again.", "invalid_credentials": "The email or password is incorrect.", "invalid_email": "Enter a valid email address.", "invalid_password": "The password must contain at least 10 characters.", "invalid_recovery_code": "That recovery key is invalid.", "email_exists": "An account already exists for this email.", "invalid_registration": "The registration details are invalid. Check them and try again.", "invalid_device": "The device details are invalid. Please try again.", "network_unavailable": "No network connection. LexiCue will retry automatically.", "rate_limited": "Too many sync requests. Wait a moment and try again.", "server_internal": "The sync service encountered an internal error. Please try again later.", "credential_store_unavailable": "Secure credential storage is unavailable. Enable a device screen lock, then restart LexiCue.", "credential_store_write_failed": "Could not save credentials securely. Check the device lock and try again.", "credential_missing": "Saved credentials are missing. Please sign in again.", "credential_corrupted": "Saved credentials are damaged. Sign out, then sign in again.", "sync_service_not_configured": "This build does not include the official sync service address.", "unsupported_sync_protocol": "Please update LexiCue to continue syncing.", "invalid_server_response": "The sync service returned unreadable data. Update LexiCue or try again later.", "invalid_key_package": "The encrypted sign-in data could not be verified. The password may be incorrect or the data may be damaged. Try again or use your recovery key.", "invalid_local_sync_key": "The local sync key is invalid. Sign out, then sign in again.", "record_encryption_failed": "A local record could not be encrypted, so it was not uploaded. Please try again.", "invalid_encrypted_record": "An encrypted record is invalid and was not applied. Please try again.", "record_authentication_failed": "An encrypted record failed verification and was not applied.", "invalid_record_batch": "The cloud record batch is invalid, so those records were not applied. Please try again.", "invalid_record": "A cloud record is malformed and was not applied. Please try again.", "record_precondition_failed": "A cloud record version conflicted. LexiCue will fetch, merge, and retry.", "invalid_blob_manifest": "The sync blob manifest is invalid, so the cloud data was not applied. Please try again.", "invalid_blob": "A sync blob is invalid, so the cloud data was not applied. Please try again.", "blob_hash_mismatch": "A sync blob failed integrity verification, so the cloud data was not applied. Please try again.", "blob_not_found": "A sync blob is missing, so the cloud data may be incomplete. Please try again.", "cannot_revoke_current_device": "This device cannot revoke itself. Use another device instead.", "device_not_found": "That device was not found or was already revoked. Refresh the device list.", "metrics_disabled": "Sync service monitoring is disabled. Contact the administrator.", "metrics_unauthorized": "You are not authorized to access sync service monitoring. Contact the administrator.", "sync_service_error": "The sync service is temporarily unavailable. LexiCue will retry.", "unknown": "An unrecognized sync error occurred. Please retry; if it continues, update LexiCue."
-        ,"local_backup_failed": "A local safety backup could not be created. Your original data was not changed. Check available storage, then try again.", "local_sync_storage_error": "Local sync data could not be written safely. Your original data was not changed. Restart LexiCue, then try again.", "local_identity_conflict": "This device has duplicate sync identities that cannot be handled safely. Your original data was not changed and the backup was kept. Contact support.", "local_delete_failed": "The local file could not be deleted safely. The original data may still be present and the backup was kept. Try again or restart LexiCue.", "record_too_large": "A local record exceeds the per-record sync limit and was not uploaded. Split the file or reduce its data, then try again."
+      "state": {
+        "synced": "Up to date",
+        "syncing": "Syncing",
+        "offline": "Waiting for network",
+        "authRequired": "Sign in again",
+        "error": "Sync needs attention"
       },
-      "notices": { "accountCreated": "Account created. Your data is syncing automatically.", "connected": "Signed in. Your data is being prepared.", "synced": "Sync completed.", "accountDeleted": "The sync account was deleted. Local data was kept.", "recoverySaved": "Recovery key saved." }
+      "lastSynced": "Last synced {{time}}",
+      "preparing": "Preparing sync…",
+      "pending": "{{count}} items waiting to upload",
+      "conflicts": "{{count}} text conflicts saved for review",
+      "progressLabel": "Sync progress",
+      "downloadedBytes": "{{size}} downloaded",
+      "eta": "About {{seconds}} seconds remaining",
+      "progress": {
+        "preparing": "Preparing local data",
+        "downloading": "Downloading cloud data",
+        "applying": "Applying cloud data",
+        "uploading": "Uploading local data",
+        "retrying": "Waiting to retry"
+      },
+      "restoreProgress": "Restore {{completed}}/{{total}}",
+      "syncNow": "Sync now",
+      "pauseAuto": "Pause automatic sync",
+      "enableAuto": "Enable automatic sync",
+      "advanced": "Advanced options",
+      "devices": "Devices",
+      "refresh": "Refresh",
+      "currentDevice": "This device",
+      "revoke": "Revoke",
+      "disconnect": "Sign out on this device",
+      "dangerTitle": "Delete sync account",
+      "deleteHint": "Deletes the encrypted cloud copy and signs out every device. Local data stays on this device.",
+      "deleteAccount": "Delete account",
+      "deleteConfirm": "Delete this sync account and its encrypted cloud data? Local data on this device will not be deleted.",
+      "accountMode": "Account action",
+      "createAccount": "Create account",
+      "login": "Sign in",
+      "email": "Email",
+      "recoveryKey": "Recovery key",
+      "newPassword": "New password",
+      "password": "Password",
+      "hidePassword": "Hide password",
+      "showPassword": "Show password",
+      "passwordHint": "Use at least 10 characters.",
+      "createAndSync": "Create account and sync",
+      "recoverAction": "Recover account",
+      "loginAndSync": "Sign in and sync",
+      "forgotPassword": "Forgot password? Use a recovery key",
+      "backToLogin": "Back to sign in",
+      "saveRecoveryTitle": "Save your recovery key",
+      "saveRecoveryDescription": "This is the only way to recover encrypted data if you forget your password. LexiCue cannot recover it for you.",
+      "copyRecovery": "Copy recovery key",
+      "downloadRecovery": "Save recovery key to a file",
+      "recoveryFileTitle": "LexiCue recovery key — keep this file private",
+      "diagnostic": {
+        "summary": "Diagnostic: {{stage}} · {{kind}}",
+        "copy": "Copy diagnostic",
+        "copied": "Copied",
+        "kinds": {
+          "sqlite_busy": "database busy",
+          "sqlite_constraint": "local data constraint conflict",
+          "sqlite_foreign_key": "missing local relationship",
+          "storage_write": "local storage cannot be written",
+          "missing_reference": "missing cloud data relationship",
+          "local_write": "local data write failed"
+        }
+      },
+      "errors": {
+        "auth_required": "Please sign in again to continue syncing.",
+        "session_expired": "Your session expired. Please sign in again.",
+        "invalid_credentials": "The email or password is incorrect.",
+        "invalid_email": "Enter a valid email address.",
+        "invalid_password": "The password must contain at least 10 characters.",
+        "invalid_recovery_code": "That recovery key is invalid.",
+        "email_exists": "An account already exists for this email.",
+        "invalid_registration": "The registration details are invalid. Check them and try again.",
+        "invalid_device": "The device details are invalid. Please try again.",
+        "network_unavailable": "No network connection. LexiCue will retry automatically.",
+        "rate_limited": "Too many sync requests. Wait a moment and try again.",
+        "server_internal": "The sync service encountered an internal error. Please try again later.",
+        "credential_store_unavailable": "Secure credential storage is unavailable. Enable a device screen lock, then restart LexiCue.",
+        "credential_store_write_failed": "Could not save credentials securely. Check the device lock and try again.",
+        "credential_missing": "Saved credentials are missing. Please sign in again.",
+        "credential_corrupted": "Saved credentials are damaged. Sign out, then sign in again.",
+        "sync_service_not_configured": "This build does not include the official sync service address.",
+        "unsupported_sync_protocol": "Please update LexiCue to continue syncing.",
+        "invalid_server_response": "The sync service returned unreadable data. Update LexiCue or try again later.",
+        "invalid_key_package": "The encrypted sign-in data could not be verified. The password may be incorrect or the data may be damaged. Try again or use your recovery key.",
+        "invalid_local_sync_key": "The local sync key is invalid. Sign out, then sign in again.",
+        "record_encryption_failed": "A local record could not be encrypted, so it was not uploaded. Please try again.",
+        "invalid_encrypted_record": "An encrypted record is invalid and was not applied. Please try again.",
+        "record_authentication_failed": "An encrypted record failed verification and was not applied.",
+        "invalid_record_batch": "The cloud record batch is invalid, so those records were not applied. Please try again.",
+        "invalid_record": "A cloud record is malformed and was not applied. Please try again.",
+        "record_precondition_failed": "A cloud record version conflicted. LexiCue will fetch, merge, and retry.",
+        "invalid_blob_manifest": "The sync blob manifest is invalid, so the cloud data was not applied. Please try again.",
+        "invalid_blob": "A sync blob is invalid, so the cloud data was not applied. Please try again.",
+        "blob_hash_mismatch": "A sync blob failed integrity verification, so the cloud data was not applied. Please try again.",
+        "blob_not_found": "A sync blob is missing, so the cloud data may be incomplete. Please try again.",
+        "cannot_revoke_current_device": "This device cannot revoke itself. Use another device instead.",
+        "device_not_found": "That device was not found or was already revoked. Refresh the device list.",
+        "metrics_disabled": "Sync service monitoring is disabled. Contact the administrator.",
+        "metrics_unauthorized": "You are not authorized to access sync service monitoring. Contact the administrator.",
+        "sync_service_error": "The sync service is temporarily unavailable. LexiCue will retry.",
+        "unknown": "An unrecognized sync error occurred. Please retry; if it continues, update LexiCue.",
+        "local_backup_failed": "A local safety backup could not be created. Your original data was not changed. Check available storage, then try again.",
+        "local_sync_storage_error": "Local sync data could not be written safely. Your original data was not changed. Restart LexiCue, then try again.",
+        "local_identity_conflict": "This device has duplicate sync identities that cannot be handled safely. Your original data was not changed and the backup was kept. Contact support.",
+        "local_delete_failed": "The local file could not be deleted safely. The original data may still be present and the backup was kept. Try again or restart LexiCue.",
+        "record_too_large": "A local record exceeds the per-record sync limit and was not uploaded. Split the file or reduce its data, then try again."
+      },
+      "notices": {
+        "accountCreated": "Account created. Your data is syncing automatically.",
+        "connected": "Signed in. Your data is being prepared.",
+        "synced": "Sync completed.",
+        "accountDeleted": "The sync account was deleted. Local data was kept.",
+        "recoverySaved": "Recovery key saved."
+      }
     },
     "ai": {
       "title": "AI Features",
@@ -229,12 +339,16 @@
     "emptyFolderDescription": "Create a subfolder, or drag files here"
   },
   "fileCard": {
+    "analysisOptions": "AI analysis options for {{name}}",
+    "forceReanalyze": "Force reanalysis",
+    "forceReanalyzeHint": "Skip cache and call AI again",
     "segments_one": "{{count}} segment",
     "segments_other": "{{count}} segments",
     "aiDone": "AI phrase analysis complete",
     "analysisFailed": "AI phrase analysis failed",
     "diagnosticId": "Diagnostic ID {{id}}",
     "diagnosticCodes": {
+      "STREAM_INTERRUPTED": "Connection interrupted; unfinished batch rolled back. Continue to resume.",
       "ALL_ITEMS_INVALID": "Model items were incomplete or could not be matched to the text",
       "INVALID_JSON": "Model reply was empty or invalid JSON",
       "OUTPUT_TRUNCATED": "Model reply was cut off",
@@ -281,11 +395,15 @@
       "flowing": "Building momentum",
       "nearlyDone": "Nearly complete",
       "complete": "Complete"
-    }
+    },
+    "analyze": "Analyze",
+    "reanalyze": "Reanalyze",
+    "continueAnalysis": "Continue analysis"
   },
   "fileDetail": {
     "back": "Back to files",
-    "notFound": "File not found", "notFoundHint": "It may have been deleted. Return to the file list."
+    "notFound": "File not found",
+    "notFoundHint": "It may have been deleted. Return to the file list."
   },
   "frequencyBaseline": {
     "introTitle": "Try a frequency baseline",
@@ -318,10 +436,26 @@
     "disable": "Stop future automatic pre-marking",
     "revoke": "Undo unconfirmed pre-marking",
     "tiers": {
-      "1000": { "title": "Foundation", "count": "First 1,000 frequent words", "description": "The most common core words; useful when you are just building a core vocabulary." },
-      "3000": { "title": "Everyday communication", "count": "First 3,000 frequent words", "description": "More common words in everyday conversation and content; use the samples to judge your own knowledge." },
-      "5000": { "title": "Confident use", "count": "First 5,000 frequent words", "description": "More common words in study, work, and general reading; this is not a proficiency certification." },
-      "10000": { "title": "Broad reading", "count": "First 10,000 frequent words", "description": "Common words across a wider range of media and reading; base the choice on actual familiarity." }
+      "1000": {
+        "title": "Foundation",
+        "count": "First 1,000 frequent words",
+        "description": "The most common core words; useful when you are just building a core vocabulary."
+      },
+      "3000": {
+        "title": "Everyday communication",
+        "count": "First 3,000 frequent words",
+        "description": "More common words in everyday conversation and content; use the samples to judge your own knowledge."
+      },
+      "5000": {
+        "title": "Confident use",
+        "count": "First 5,000 frequent words",
+        "description": "More common words in study, work, and general reading; this is not a proficiency certification."
+      },
+      "10000": {
+        "title": "Broad reading",
+        "count": "First 10,000 frequent words",
+        "description": "Common words across a wider range of media and reading; base the choice on actual familiarity."
+      }
     }
   },
   "words": {
@@ -554,7 +688,12 @@
     "hideOccurrenceAria": "Hide example",
     "restoreOccurrence": "Restore this example",
     "restoreOccurrenceAria": "Restore example",
-    "hiddenOccurrences": "Hidden examples ({{count}})"
+    "hiddenOccurrences": "Hidden examples ({{count}})",
+    "manualExample": "Manual example",
+    "manualChineseSenses": "Add Chinese meanings and examples",
+    "manualEnglishSenses": "Add English meanings and examples",
+    "showAllSenses": "Show all senses",
+    "collapseSenses": "Show fewer senses"
   },
   "youtube": {
     "title": "Import from YouTube",
@@ -695,5 +834,139 @@
     "newSubfolder": "New Subfolder",
     "move": "Move to…",
     "actionsAria": "Actions for {{name}}"
+  },
+  "analysisModel": {
+    "title": "AI analysis model",
+    "refresh": "Refresh model list",
+    "settings": "Configure AI service",
+    "disabled": "AI analysis is off. Enable it in Settings.",
+    "loading": "Connecting and loading models…",
+    "empty": "Refresh to load models, or configure the service in Settings.",
+    "loadFailed": "Could not load models. Retry or check AI settings.",
+    "nextAnalysis": "Your selection applies to analyses started next."
+  },
+  "analysisPreview": {
+    "analyzing": "Analyzing",
+    "continue": "Continue analysis",
+    "currentBatch": "Batch {{batch}} · subtitles {{start}}–{{end}} · {{seconds}}s elapsed",
+    "snapshotFailed": "Preview reconciliation failed. Existing results remain available.",
+    "temporary": "Current highlights are provisional until this batch succeeds. Results are saved when all batches complete.",
+    "title": "Phrase analysis preview",
+    "open": "View analysis",
+    "processed": "Processed",
+    "segments": "Segments {{processed}} / {{total}}",
+    "counts": "{{phrases}} phrases · {{occurrences}} occurrences",
+    "follow": "Follow latest results",
+    "cancelling": "Cancelling",
+    "retry": "Resume analysis",
+    "viewSaved": "View saved phrases",
+    "phraseList": "Extracted phrases",
+    "loading": "Loading subtitles…",
+    "loadFailed": "Subtitle preview could not load. Analysis continues in the background.",
+    "reload": "Reload subtitles",
+    "waiting": "Waiting for the first phrase…",
+    "empty": "No phrases extracted in this run yet.",
+    "notSaved": "Complete phrases appear as they arrive. Results are saved after all batches succeed. Closing this panel does not cancel analysis.",
+    "savedHint": "Results are saved and available in reading and phrases.",
+    "incomplete": "Analysis is incomplete. These results are a preview and have not been saved.",
+    "status": {
+      "waitingFirst": "Waiting for the first phrase",
+      "receiving": "Receiving analysis results",
+      "interrupted": "Connection interrupted · not saved",
+      "processing": "Extracting phrases",
+      "saving": "Saving results",
+      "saved": "Saved",
+      "error": "Analysis failed · Not saved",
+      "cancelled": "Cancelled · Not saved"
+    },
+    "categories": {
+      "phrasal_verb": "Phrasal verb",
+      "idiom": "Idiom",
+      "fixed_expression": "Fixed expression",
+      "collocation": "Collocation"
+    }
+  },
+  "gemmaModels": {
+    "getModels": "Get models",
+    "title": "Gemma 4 for this device",
+    "refresh": "Check again",
+    "detecting": "Checking device…",
+    "unknownCpu": "Unknown processor",
+    "unknownMemory": "Memory unknown",
+    "unifiedMemory": "{{size}} unified memory",
+    "memory": "{{size}} system RAM",
+    "environmentError": "Could not read device information. Check again.",
+    "remote": "Server configuration unknown. This Ollama address is remote; this device cannot determine its model recommendations or downloads.",
+    "accelerationUnknown": "Acceleration is unconfirmed. System RAM is not VRAM; CPU inference may be slow.",
+    "noRecommendation": "Device information is incomplete or memory is limited. Choose a model manually below.",
+    "memoryHint": "Recommendations are conservative estimates. Download size differs from runtime memory; loading and longer contexts need additional memory.",
+    "loadingInstalled": "Loading installed models…",
+    "serviceUnavailable": "Cannot connect to local Ollama. Start the service, then check again.",
+    "preferred": "Recommended",
+    "installed": "Installed",
+    "estimatedSize": "About {{size}} download",
+    "useAfter": "Use for analysis after download",
+    "selected": "Currently selected",
+    "use": "Use this model",
+    "download": "Download",
+    "showOther": "Show other versions",
+    "hideOther": "Hide other versions",
+    "progressTitle": "Model download progress",
+    "layerProgress": "Current layer progress",
+    "layerBytes": "Current layer {{completed}} / {{total}}",
+    "errorDetails": "Error details",
+    "nowSelected": "Selected for future analyses. Running analyses keep their original model.",
+    "cancel": "Cancel download",
+    "retry": "Continue download",
+    "reason": {
+      "preferred": "Preferred for the memory available on this device.",
+      "lightweight": "A smaller option for comparison or lower memory use.",
+      "larger": "Memory permits a trial; speed and quality need validation.",
+      "manual": "Outside the conservative recommendation; available for manual selection."
+    },
+    "phase": {
+      "manifest": "Getting model manifest",
+      "downloading": "Downloading",
+      "verifying": "Verifying files",
+      "installing": "Confirming installation",
+      "completed": "Download complete",
+      "cancelled": "Cancelled; you can continue",
+      "error": "Download incomplete",
+      "cancelling": "Cancelling…"
+    },
+    "error": {
+      "idle": "No download data received for too long. Continue the download.",
+      "connection": "Download connection interrupted. Continue the download.",
+      "busy": "Another model is downloading. Wait for it to finish.",
+      "space": "Insufficient disk space. Free some space and continue.",
+      "notFound": "Model version not found. Check again or choose another version.",
+      "failed": "Download or installation check failed. View details and retry."
+    }
+  },
+  "appSelect": {
+    "choose": "Choose an option",
+    "search": "Search options…",
+    "empty": "No matching options"
+  },
+  "learningRing": {
+    "progress": "Learning progress {{percent}}%",
+    "calculation": "Learning counts as 50%; known and ignored count as 100%.",
+    "knownRatio": "Known words: {{percent}}%"
+  },
+  "modelManagement": {
+    "installedTitle": "Installed local models",
+    "empty": "No local models installed.",
+    "unknownSize": "Size unknown",
+    "delete": "Delete",
+    "deleteAria": "Delete model {{model}}",
+    "deleteTitle": "Delete local model",
+    "deleteConfirm": "Delete {{model}}? This model is managed by local Ollama. Other apps using it will also need it reinstalled. Your learning data and analysis results will be kept.",
+    "busy": "Local AI is running or downloading. Finish or cancel the task before deleting models.",
+    "deleting": "Deleting model…",
+    "failed": "Deletion could not be confirmed. Refresh or retry.",
+    "deleted": "Deleted {{model}}. Choose another model if this was your selected model.",
+    "alreadyAbsent": "{{model}} is already absent. The model list has been refreshed.",
+    "retry": "Retry deletion",
+    "service": "Ollama service: {{address}}"
   }
 }

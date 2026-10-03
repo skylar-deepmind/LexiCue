@@ -1,7 +1,9 @@
+import { initializeLocalActivity } from '../stores/modelDownloadStore';
 import { useEffect, useRef } from 'react';
 import { Outlet } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import Sidebar from './Sidebar';
+import AnalysisPreviewDrawer from './AnalysisPreviewDrawer';
 import MobileNav from './MobileNav';
 import ToastHost from './ToastHost';
 import { useOllamaStore } from '../stores/ollamaStore';
@@ -24,6 +26,7 @@ export default function Layout() {
   const showFeedback = useFeedbackStore((state) => state.show);
   const startupChecked = useRef(false);
 
+  useEffect(() => { void initializeLocalActivity(); }, []);
   useEffect(() => {
     prepareSpeechVoices();
     if (aiEnabled) void initializeOllama();
@@ -50,7 +53,7 @@ export default function Layout() {
   return (
     <div className="h-screen flex overflow-hidden">
       <Sidebar />
-      <main className="min-w-0 flex-1 overflow-hidden flex flex-col">
+      <main className="@container min-w-0 flex-1 overflow-hidden flex flex-col">
         {!dictReady && (
           <div className="pointer-events-none fixed right-4 top-4 z-[90] rounded border px-3 py-1.5 text-xs text-amber-600">
             {t('layout.dictInit')}
@@ -61,6 +64,7 @@ export default function Layout() {
         </div>
         <MobileNav />
       </main>
+      <AnalysisPreviewDrawer />
       <ToastHost />
     </div>
   );

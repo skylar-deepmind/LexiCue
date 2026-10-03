@@ -18,7 +18,11 @@
       "definition": "定義・訳文",
       "auxiliary": "補足情報"
     },
-    "sizes": { "sm": "小", "md": "標準", "lg": "大" }
+    "sizes": {
+      "sm": "小",
+      "md": "標準",
+      "lg": "大"
+    }
   },
   "status": {
     "unprocessed": "未処理",
@@ -75,20 +79,132 @@
       "title": "表示言語",
       "description": "アプリの表示言語を選択します。"
     },
-    "frequencyBaseline": { "title": "頻度ベースライン" },
+    "frequencyBaseline": {
+      "title": "頻度ベースライン"
+    },
     "cloudSync": {
-      "title": "クラウド同期", "description": "ライブラリと学習履歴をエンドツーエンド暗号化して端末間で同期します。", "notConnected": "未接続",
-      "state": { "synced": "同期済み", "syncing": "同期中", "offline": "ネットワーク待機中", "authRequired": "再ログインが必要", "error": "同期を確認してください" },
-      "lastSynced": "最終同期：{{time}}", "preparing": "同期を準備中…", "pending": "{{count}} 件がアップロード待ち", "conflicts": "確認用に {{count}} 件のテキスト競合を保存しました", "progressLabel": "同期の進捗", "downloadedBytes": "{{size}} をダウンロード済み", "eta": "残り約 {{seconds}} 秒", "progress": { "preparing": "ローカルデータを準備中", "downloading": "クラウドデータをダウンロード中", "applying": "クラウドデータを適用中", "uploading": "ローカルデータをアップロード中", "retrying": "再試行を待機中" },
+      "title": "クラウド同期",
+      "description": "ライブラリと学習履歴をエンドツーエンド暗号化して端末間で同期します。",
+      "notConnected": "未接続",
+      "state": {
+        "synced": "同期済み",
+        "syncing": "同期中",
+        "offline": "ネットワーク待機中",
+        "authRequired": "再ログインが必要",
+        "error": "同期を確認してください"
+      },
+      "lastSynced": "最終同期：{{time}}",
+      "preparing": "同期を準備中…",
+      "pending": "{{count}} 件がアップロード待ち",
+      "conflicts": "確認用に {{count}} 件のテキスト競合を保存しました",
+      "progressLabel": "同期の進捗",
+      "downloadedBytes": "{{size}} をダウンロード済み",
+      "eta": "残り約 {{seconds}} 秒",
+      "progress": {
+        "preparing": "ローカルデータを準備中",
+        "downloading": "クラウドデータをダウンロード中",
+        "applying": "クラウドデータを適用中",
+        "uploading": "ローカルデータをアップロード中",
+        "retrying": "再試行を待機中"
+      },
       "restoreProgress": "復元 {{completed}}/{{total}}",
-      "syncNow": "今すぐ同期", "pauseAuto": "自動同期を停止", "enableAuto": "自動同期を有効化", "advanced": "詳細オプション", "devices": "端末", "refresh": "更新", "currentDevice": "この端末", "revoke": "無効化", "disconnect": "この端末からログアウト",
-      "dangerTitle": "同期アカウントを削除", "deleteHint": "暗号化されたクラウドコピーを削除し、全端末をログアウトします。この端末のデータは残ります。", "deleteAccount": "アカウントを削除", "deleteConfirm": "同期アカウントと暗号化クラウドデータを削除しますか？この端末のデータは削除されません。",
-      "accountMode": "アカウント操作", "createAccount": "アカウント作成", "login": "ログイン", "email": "メールアドレス", "recoveryKey": "復旧キー", "newPassword": "新しいパスワード", "password": "パスワード", "hidePassword": "パスワードを隠す", "showPassword": "パスワードを表示", "passwordHint": "10文字以上で入力してください。",
-      "createAndSync": "アカウントを作成して同期", "recoverAction": "アカウントを復旧", "loginAndSync": "ログインして同期", "forgotPassword": "パスワードを忘れた場合は復旧キーを使用", "backToLogin": "ログインに戻る",
-      "saveRecoveryTitle": "復旧キーを保存してください", "saveRecoveryDescription": "パスワードを忘れた場合、暗号化データを復旧する唯一の方法です。LexiCue では復旧できません。", "copyRecovery": "復旧キーをコピー", "downloadRecovery": "復旧キーをファイルに保存", "recoveryFileTitle": "LexiCue 復旧キー — 安全に保管してください",
-      "diagnostic": { "summary": "診断: {{stage}} · {{kind}}", "copy": "診断情報をコピー", "copied": "コピー済み", "kinds": { "sqlite_busy": "データベースが使用中", "sqlite_constraint": "ローカルデータの制約競合", "sqlite_foreign_key": "ローカル関連付けが不足", "storage_write": "ローカルストレージに書き込めない", "missing_reference": "クラウドデータの関連付けが不足", "local_write": "ローカルデータの書き込みに失敗" } },
-      "errors": { "auth_required": "再ログインしてください。", "session_expired": "セッションの期限が切れました。再ログインしてください。", "invalid_credentials": "メールアドレスまたはパスワードが正しくありません。", "invalid_email": "有効なメールアドレスを入力してください。", "invalid_password": "パスワードは10文字以上必要です。", "invalid_recovery_code": "復旧キーが無効です。", "email_exists": "このメールアドレスのアカウントは既にあります。", "invalid_registration": "登録情報が無効です。確認して再試行してください。", "invalid_device": "端末情報が無効です。もう一度お試しください。", "network_unavailable": "オフラインです。自動的に再試行します。", "rate_limited": "同期リクエストが多すぎます。少し待って再試行してください。", "server_internal": "同期サービスで内部エラーが発生しました。しばらくしてから再試行してください。", "credential_store_unavailable": "安全な認証情報ストレージを利用できません。端末の画面ロックを有効にして LexiCue を再起動してください。", "credential_store_write_failed": "認証情報を安全に保存できませんでした。端末のロック設定を確認してください。", "credential_missing": "保存済み認証情報がありません。再ログインしてください。", "credential_corrupted": "認証情報が破損しています。ログアウト後、再ログインしてください。", "local_backup_failed": "ローカルの安全バックアップを作成できませんでした。元のデータは変更されていません。空き容量を確認してから再試行してください。", "local_sync_storage_error": "ローカルの同期データを安全に書き込めませんでした。元のデータは変更されていません。LexiCue を再起動してから再試行してください。", "local_identity_conflict": "この端末には安全に処理できない重複した同期 ID があります。元のデータは変更されておらず、バックアップは保持されています。サポートにお問い合わせください。", "local_delete_failed": "ローカルファイルを安全に削除できませんでした。元のデータが残っている可能性があり、バックアップは保持されています。再試行するか LexiCue を再起動してください。", "record_too_large": "ローカルレコードが同期上限を超えているためアップロードしませんでした。ファイルを分割するかデータを減らして再試行してください。", "sync_service_not_configured": "このビルドには公式同期サービスが設定されていません。", "unsupported_sync_protocol": "LexiCue を更新してください。", "invalid_server_response": "同期サービスから認識できないデータが返されました。LexiCue を更新するか、後でもう一度お試しください。", "invalid_key_package": "暗号化されたログイン情報を確認できません。パスワードが正しくないか、データが破損している可能性があります。再試行するか復旧キーを使用してください。", "invalid_local_sync_key": "この端末の同期キーが無効です。ログアウトしてから再ログインしてください。", "record_encryption_failed": "ローカルデータを暗号化できなかったため、アップロードしませんでした。再試行してください。", "invalid_encrypted_record": "暗号化レコードが無効なため適用しませんでした。再試行してください。", "record_authentication_failed": "暗号化レコードの検証に失敗したため適用しませんでした。", "invalid_record_batch": "クラウドレコードのまとまりが無効なため、適用しませんでした。再試行してください。", "invalid_record": "クラウドレコードの形式が無効なため適用しませんでした。再試行してください。", "record_precondition_failed": "クラウドレコードのバージョンが競合しました。取得し直して統合後、再試行します。", "invalid_blob_manifest": "同期ファイルの一覧情報が無効なため、クラウドデータを適用しませんでした。再試行してください。", "invalid_blob": "同期ファイルのデータが無効なため、クラウドデータを適用しませんでした。再試行してください。", "blob_hash_mismatch": "同期ファイルの整合性を確認できなかったため、クラウドデータを適用しませんでした。再試行してください。", "blob_not_found": "同期ファイルが見つからないため、クラウドデータが不完全な可能性があります。再試行してください。", "cannot_revoke_current_device": "この端末自身を無効化することはできません。別の端末から操作してください。", "device_not_found": "端末が見つからないか、すでに無効化されています。端末一覧を更新してください。", "metrics_disabled": "同期サービスの監視は無効になっています。管理者に連絡してください。", "metrics_unauthorized": "同期サービスの監視にアクセスする権限がありません。管理者に連絡してください。", "sync_service_error": "同期サービスを利用できません。自動的に再試行します。", "unknown": "未確認の同期エラーが発生しました。再試行してください。続く場合は LexiCue を更新してください。" },
-      "notices": { "accountCreated": "アカウントを作成しました。自動同期を開始します。", "connected": "ログインしました。データを準備しています。", "synced": "同期が完了しました。", "accountDeleted": "同期アカウントを削除しました。ローカルデータは保持されています。", "recoverySaved": "復旧キーを保存しました。" }
+      "syncNow": "今すぐ同期",
+      "pauseAuto": "自動同期を停止",
+      "enableAuto": "自動同期を有効化",
+      "advanced": "詳細オプション",
+      "devices": "端末",
+      "refresh": "更新",
+      "currentDevice": "この端末",
+      "revoke": "無効化",
+      "disconnect": "この端末からログアウト",
+      "dangerTitle": "同期アカウントを削除",
+      "deleteHint": "暗号化されたクラウドコピーを削除し、全端末をログアウトします。この端末のデータは残ります。",
+      "deleteAccount": "アカウントを削除",
+      "deleteConfirm": "同期アカウントと暗号化クラウドデータを削除しますか？この端末のデータは削除されません。",
+      "accountMode": "アカウント操作",
+      "createAccount": "アカウント作成",
+      "login": "ログイン",
+      "email": "メールアドレス",
+      "recoveryKey": "復旧キー",
+      "newPassword": "新しいパスワード",
+      "password": "パスワード",
+      "hidePassword": "パスワードを隠す",
+      "showPassword": "パスワードを表示",
+      "passwordHint": "10文字以上で入力してください。",
+      "createAndSync": "アカウントを作成して同期",
+      "recoverAction": "アカウントを復旧",
+      "loginAndSync": "ログインして同期",
+      "forgotPassword": "パスワードを忘れた場合は復旧キーを使用",
+      "backToLogin": "ログインに戻る",
+      "saveRecoveryTitle": "復旧キーを保存してください",
+      "saveRecoveryDescription": "パスワードを忘れた場合、暗号化データを復旧する唯一の方法です。LexiCue では復旧できません。",
+      "copyRecovery": "復旧キーをコピー",
+      "downloadRecovery": "復旧キーをファイルに保存",
+      "recoveryFileTitle": "LexiCue 復旧キー — 安全に保管してください",
+      "diagnostic": {
+        "summary": "診断: {{stage}} · {{kind}}",
+        "copy": "診断情報をコピー",
+        "copied": "コピー済み",
+        "kinds": {
+          "sqlite_busy": "データベースが使用中",
+          "sqlite_constraint": "ローカルデータの制約競合",
+          "sqlite_foreign_key": "ローカル関連付けが不足",
+          "storage_write": "ローカルストレージに書き込めない",
+          "missing_reference": "クラウドデータの関連付けが不足",
+          "local_write": "ローカルデータの書き込みに失敗"
+        }
+      },
+      "errors": {
+        "auth_required": "再ログインしてください。",
+        "session_expired": "セッションの期限が切れました。再ログインしてください。",
+        "invalid_credentials": "メールアドレスまたはパスワードが正しくありません。",
+        "invalid_email": "有効なメールアドレスを入力してください。",
+        "invalid_password": "パスワードは10文字以上必要です。",
+        "invalid_recovery_code": "復旧キーが無効です。",
+        "email_exists": "このメールアドレスのアカウントは既にあります。",
+        "invalid_registration": "登録情報が無効です。確認して再試行してください。",
+        "invalid_device": "端末情報が無効です。もう一度お試しください。",
+        "network_unavailable": "オフラインです。自動的に再試行します。",
+        "rate_limited": "同期リクエストが多すぎます。少し待って再試行してください。",
+        "server_internal": "同期サービスで内部エラーが発生しました。しばらくしてから再試行してください。",
+        "credential_store_unavailable": "安全な認証情報ストレージを利用できません。端末の画面ロックを有効にして LexiCue を再起動してください。",
+        "credential_store_write_failed": "認証情報を安全に保存できませんでした。端末のロック設定を確認してください。",
+        "credential_missing": "保存済み認証情報がありません。再ログインしてください。",
+        "credential_corrupted": "認証情報が破損しています。ログアウト後、再ログインしてください。",
+        "local_backup_failed": "ローカルの安全バックアップを作成できませんでした。元のデータは変更されていません。空き容量を確認してから再試行してください。",
+        "local_sync_storage_error": "ローカルの同期データを安全に書き込めませんでした。元のデータは変更されていません。LexiCue を再起動してから再試行してください。",
+        "local_identity_conflict": "この端末には安全に処理できない重複した同期 ID があります。元のデータは変更されておらず、バックアップは保持されています。サポートにお問い合わせください。",
+        "local_delete_failed": "ローカルファイルを安全に削除できませんでした。元のデータが残っている可能性があり、バックアップは保持されています。再試行するか LexiCue を再起動してください。",
+        "record_too_large": "ローカルレコードが同期上限を超えているためアップロードしませんでした。ファイルを分割するかデータを減らして再試行してください。",
+        "sync_service_not_configured": "このビルドには公式同期サービスが設定されていません。",
+        "unsupported_sync_protocol": "LexiCue を更新してください。",
+        "invalid_server_response": "同期サービスから認識できないデータが返されました。LexiCue を更新するか、後でもう一度お試しください。",
+        "invalid_key_package": "暗号化されたログイン情報を確認できません。パスワードが正しくないか、データが破損している可能性があります。再試行するか復旧キーを使用してください。",
+        "invalid_local_sync_key": "この端末の同期キーが無効です。ログアウトしてから再ログインしてください。",
+        "record_encryption_failed": "ローカルデータを暗号化できなかったため、アップロードしませんでした。再試行してください。",
+        "invalid_encrypted_record": "暗号化レコードが無効なため適用しませんでした。再試行してください。",
+        "record_authentication_failed": "暗号化レコードの検証に失敗したため適用しませんでした。",
+        "invalid_record_batch": "クラウドレコードのまとまりが無効なため、適用しませんでした。再試行してください。",
+        "invalid_record": "クラウドレコードの形式が無効なため適用しませんでした。再試行してください。",
+        "record_precondition_failed": "クラウドレコードのバージョンが競合しました。取得し直して統合後、再試行します。",
+        "invalid_blob_manifest": "同期ファイルの一覧情報が無効なため、クラウドデータを適用しませんでした。再試行してください。",
+        "invalid_blob": "同期ファイルのデータが無効なため、クラウドデータを適用しませんでした。再試行してください。",
+        "blob_hash_mismatch": "同期ファイルの整合性を確認できなかったため、クラウドデータを適用しませんでした。再試行してください。",
+        "blob_not_found": "同期ファイルが見つからないため、クラウドデータが不完全な可能性があります。再試行してください。",
+        "cannot_revoke_current_device": "この端末自身を無効化することはできません。別の端末から操作してください。",
+        "device_not_found": "端末が見つからないか、すでに無効化されています。端末一覧を更新してください。",
+        "metrics_disabled": "同期サービスの監視は無効になっています。管理者に連絡してください。",
+        "metrics_unauthorized": "同期サービスの監視にアクセスする権限がありません。管理者に連絡してください。",
+        "sync_service_error": "同期サービスを利用できません。自動的に再試行します。",
+        "unknown": "未確認の同期エラーが発生しました。再試行してください。続く場合は LexiCue を更新してください。"
+      },
+      "notices": {
+        "accountCreated": "アカウントを作成しました。自動同期を開始します。",
+        "connected": "ログインしました。データを準備しています。",
+        "synced": "同期が完了しました。",
+        "accountDeleted": "同期アカウントを削除しました。ローカルデータは保持されています。",
+        "recoverySaved": "復旧キーを保存しました。"
+      }
     },
     "ai": {
       "title": "AI 機能",
@@ -218,11 +334,15 @@
     "emptyFolderDescription": "サブフォルダを作成するか、ファイルをここにドラッグしてください"
   },
   "fileCard": {
+    "analysisOptions": "{{name}} のAI分析オプション",
+    "forceReanalyze": "強制的に再分析",
+    "forceReanalyzeHint": "キャッシュを使わずAIで再分析",
     "segments": "{{count}} セグメント",
     "aiDone": "AI フレーズ分析が完了しました",
     "analysisFailed": "AI フレーズ分析に失敗しました",
     "diagnosticId": "診断ID {{id}}",
     "diagnosticCodes": {
+      "STREAM_INTERRUPTED": "接続が中断しました。未完了のバッチを取り消しました。分析を続けられます。",
       "ALL_ITEMS_INVALID": "モデルの結果に必須項目がないか、原文と一致しません",
       "INVALID_JSON": "モデルの応答が空か、JSONを解析できません",
       "OUTPUT_TRUNCATED": "モデルの応答が途中で切れました",
@@ -269,11 +389,15 @@
       "flowing": "順調",
       "nearlyDone": "完了間近",
       "complete": "完了"
-    }
+    },
+    "analyze": "分析",
+    "reanalyze": "再分析",
+    "continueAnalysis": "分析を続ける"
   },
   "fileDetail": {
     "back": "ファイルに戻る",
-    "notFound": "ファイルが見つかりません", "notFoundHint": "削除された可能性があります。ファイル一覧に戻ってください。"
+    "notFound": "ファイルが見つかりません",
+    "notFoundHint": "削除された可能性があります。ファイル一覧に戻ってください。"
   },
   "frequencyBaseline": {
     "introTitle": "頻度ベースラインを試す",
@@ -306,10 +430,26 @@
     "disable": "今後の自動事前マークを停止",
     "revoke": "未確認の事前マークを取り消す",
     "tiers": {
-      "1000": { "title": "基礎の出発点", "count": "頻出語 上位 1,000 語", "description": "最もよく使われる基本語です。核となる語彙を作り始める際の目安になります。" },
-      "3000": { "title": "日常コミュニケーション", "count": "頻出語 上位 3,000 語", "description": "日常会話や一般的な内容の語をさらに含みます。サンプルで実際の理解度を判断してください。" },
-      "5000": { "title": "より自信をもって使う", "count": "頻出語 上位 5,000 語", "description": "学習、仕事、一般的な読書でよく使う語をより多く含みます。能力認定ではありません。" },
-      "10000": { "title": "幅広い読書", "count": "頻出語 上位 10,000 語", "description": "より幅広いメディアや読書でよく使う語を含みます。実際の馴染みやすさで選んでください。" }
+      "1000": {
+        "title": "基礎の出発点",
+        "count": "頻出語 上位 1,000 語",
+        "description": "最もよく使われる基本語です。核となる語彙を作り始める際の目安になります。"
+      },
+      "3000": {
+        "title": "日常コミュニケーション",
+        "count": "頻出語 上位 3,000 語",
+        "description": "日常会話や一般的な内容の語をさらに含みます。サンプルで実際の理解度を判断してください。"
+      },
+      "5000": {
+        "title": "より自信をもって使う",
+        "count": "頻出語 上位 5,000 語",
+        "description": "学習、仕事、一般的な読書でよく使う語をより多く含みます。能力認定ではありません。"
+      },
+      "10000": {
+        "title": "幅広い読書",
+        "count": "頻出語 上位 10,000 語",
+        "description": "より幅広いメディアや読書でよく使う語を含みます。実際の馴染みやすさで選んでください。"
+      }
     }
   },
   "words": {
@@ -534,7 +674,12 @@
     "hideOccurrenceAria": "例文を非表示",
     "restoreOccurrence": "この例文を復元",
     "restoreOccurrenceAria": "例文を復元",
-    "hiddenOccurrences": "非表示の例文 ({{count}})"
+    "hiddenOccurrences": "非表示の例文 ({{count}})",
+    "manualExample": "手動の例文",
+    "manualChineseSenses": "中国語の意味と例文を補足",
+    "manualEnglishSenses": "英語の意味と例文を補足",
+    "showAllSenses": "すべての語義を表示",
+    "collapseSenses": "語義を折りたたむ"
   },
   "youtube": {
     "title": "YouTube からインポート",
@@ -672,5 +817,139 @@
     "newSubfolder": "サブフォルダを作成",
     "move": "移動…",
     "actionsAria": "{{name}} の操作"
+  },
+  "analysisModel": {
+    "title": "AI 分析モデル",
+    "refresh": "モデル一覧を更新",
+    "settings": "AI サービスを設定",
+    "disabled": "AI 分析は無効です。設定で有効にできます。",
+    "loading": "接続してモデルを取得しています…",
+    "empty": "更新してモデルを取得するか、設定でサービスを構成してください。",
+    "loadFailed": "モデルを取得できませんでした。再試行するか AI 設定を確認してください。",
+    "nextAnalysis": "選択したモデルは、これから開始する分析に適用されます。"
+  },
+  "analysisPreview": {
+    "analyzing": "分析中",
+    "continue": "分析を続ける",
+    "currentBatch": "バッチ {{batch}} · 字幕 {{start}}–{{end}} · {{seconds}} 秒経過",
+    "snapshotFailed": "プレビューの照合に失敗しました。表示済みの結果は引き続き確認できます。",
+    "temporary": "現在の強調表示は、このバッチが正常に完了するまで暫定結果です。すべてのバッチ完了後に保存されます。",
+    "title": "フレーズ分析プレビュー",
+    "open": "分析を表示",
+    "processed": "処理済み",
+    "segments": "字幕 {{processed}} / {{total}}",
+    "counts": "{{phrases}} フレーズ · {{occurrences}} 箇所",
+    "follow": "最新の結果を追従",
+    "cancelling": "キャンセル中",
+    "retry": "分析を再開",
+    "viewSaved": "保存したフレーズを見る",
+    "phraseList": "抽出したフレーズ",
+    "loading": "字幕を読み込み中…",
+    "loadFailed": "字幕プレビューを読み込めませんでした。分析はバックグラウンドで継続します。",
+    "reload": "字幕を再読み込み",
+    "waiting": "最初のフレーズを待っています…",
+    "empty": "この分析ではまだフレーズが抽出されていません。",
+    "notSaved": "完全なフレーズが届き次第表示されます。すべてのバッチが成功した後に保存されます。パネルを閉じても分析は続きます。",
+    "savedHint": "結果を保存しました。読解画面とフレーズ画面で確認できます。",
+    "incomplete": "分析は未完了です。このプレビューはまだ保存されていません。",
+    "status": {
+      "waitingFirst": "最初のフレーズを待っています",
+      "receiving": "分析結果を受信中",
+      "interrupted": "接続が中断しました · 未保存",
+      "processing": "フレーズを抽出中",
+      "saving": "結果を保存中",
+      "saved": "保存済み",
+      "error": "分析失敗 · 未保存",
+      "cancelled": "キャンセル済み · 未保存"
+    },
+    "categories": {
+      "phrasal_verb": "句動詞",
+      "idiom": "慣用句",
+      "fixed_expression": "定型表現",
+      "collocation": "連語"
+    }
+  },
+  "gemmaModels": {
+    "getModels": "モデルを入手",
+    "title": "この端末向けの Gemma 4",
+    "refresh": "再検出",
+    "detecting": "端末を確認中…",
+    "unknownCpu": "CPU 不明",
+    "unknownMemory": "メモリ情報不明",
+    "unifiedMemory": "{{size}} ユニファイドメモリ",
+    "memory": "{{size}} システムメモリ",
+    "environmentError": "端末情報を取得できませんでした。再検出してください。",
+    "remote": "サーバーの構成は不明です。この Ollama は別の端末にあるため、この端末の情報による推奨やダウンロードは利用できません。",
+    "accelerationUnknown": "高速化機能は未確認です。システムメモリは VRAM ではありません。CPU での処理は遅くなる場合があります。",
+    "noRecommendation": "端末情報が不足しているか、メモリが少ないため、下からモデルを手動で選択してください。",
+    "memoryHint": "推奨は保守的な目安です。ダウンロード容量と実行時メモリは異なり、読み込みや長いコンテキストには追加メモリが必要です。",
+    "loadingInstalled": "インストール済みモデルを読み込み中…",
+    "serviceUnavailable": "ローカル Ollama に接続できません。サービスを起動して再検出してください。",
+    "preferred": "推奨",
+    "installed": "インストール済み",
+    "estimatedSize": "ダウンロード約 {{size}}",
+    "useAfter": "完了後に分析で使用",
+    "selected": "現在使用中",
+    "use": "このモデルを使用",
+    "download": "ダウンロード",
+    "showOther": "他のバージョンを表示",
+    "hideOther": "他のバージョンを閉じる",
+    "progressTitle": "モデルのダウンロード状況",
+    "layerProgress": "現在のレイヤーの進捗",
+    "layerBytes": "現在のレイヤー {{completed}} / {{total}}",
+    "errorDetails": "エラーの詳細",
+    "nowSelected": "今後の分析で使用します。実行中の分析は元のモデルを使用し続けます。",
+    "cancel": "ダウンロードを中止",
+    "retry": "ダウンロードを再開",
+    "reason": {
+      "preferred": "この端末のメモリ容量に適した推奨バージョンです。",
+      "lightweight": "比較やメモリ使用量の削減に適した小さいモデルです。",
+      "larger": "メモリ容量上は試せますが、速度と品質の確認が必要です。",
+      "manual": "保守的な推奨範囲外です。手動で選択できます。"
+    },
+    "phase": {
+      "manifest": "モデル情報を取得中",
+      "downloading": "ダウンロード中",
+      "verifying": "ファイルを検証中",
+      "installing": "インストールを確認中",
+      "completed": "ダウンロード完了",
+      "cancelled": "中止しました。再開できます",
+      "error": "ダウンロード未完了",
+      "cancelling": "中止中…"
+    },
+    "error": {
+      "idle": "長時間データを受信できませんでした。ダウンロードを再開してください。",
+      "connection": "接続が切れました。ダウンロードを再開してください。",
+      "busy": "別のモデルをダウンロード中です。完了をお待ちください。",
+      "space": "ディスク容量が不足しています。空き容量を確保して再開してください。",
+      "notFound": "モデルが見つかりません。再検出するか別のモデルを選択してください。",
+      "failed": "ダウンロードまたはインストール確認に失敗しました。詳細を確認して再試行してください。"
+    }
+  },
+  "appSelect": {
+    "choose": "選択してください",
+    "search": "候補を検索…",
+    "empty": "一致する候補がありません"
+  },
+  "learningRing": {
+    "progress": "学習進捗 {{percent}}%",
+    "calculation": "学習中は50%、習得済みと無視は100%として計算します。",
+    "knownRatio": "習得済み単語の割合：{{percent}}%"
+  },
+  "modelManagement": {
+    "installedTitle": "インストール済みローカルモデル",
+    "empty": "ローカルモデルはまだありません。",
+    "unknownSize": "サイズ不明",
+    "delete": "削除",
+    "deleteAria": "モデル {{model}} を削除",
+    "deleteTitle": "ローカルモデルを削除",
+    "deleteConfirm": "{{model}} を削除しますか？このモデルはローカル Ollama が管理しています。他のアプリでも再インストールするまで使用できなくなります。学習データと分析結果は保持されます。",
+    "busy": "ローカルAIが実行中またはダウンロード中です。タスクを完了または中止してから削除してください。",
+    "deleting": "モデルを削除中…",
+    "failed": "削除を確認できませんでした。更新または再試行してください。",
+    "deleted": "{{model}} を削除しました。必要に応じて別のモデルを選択してください。",
+    "alreadyAbsent": "{{model}} は既に存在しません。モデル一覧を更新しました。",
+    "retry": "削除を再試行",
+    "service": "Ollama サービス：{{address}}"
   }
 }

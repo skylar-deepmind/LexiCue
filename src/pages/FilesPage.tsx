@@ -16,6 +16,7 @@ import { ask } from '@tauri-apps/plugin-dialog';
 import { useFileStore } from '../stores/fileStore';
 import { useOllamaStore } from '../stores/ollamaStore';
 import FileCard from '../components/FileCard';
+import AnalysisModelPicker from '../components/AnalysisModelPicker';
 import FolderCard from '../components/FolderCard';
 import FolderTree, { type DragPayload } from '../components/FolderTree';
 import EmptyState from '../components/EmptyState';
@@ -130,6 +131,8 @@ export default function FilesPage() {
   const analysisProgress = useOllamaStore((state) => state.progress);
   const analysisDiagnostics = useOllamaStore((state) => state.diagnostics);
   const retrying = useOllamaStore((state) => state.retrying);
+  const previews = useOllamaStore(state => state.previews);
+  const openPreview = useOllamaStore(state => state.openPreview);
   const startAnalysis = useOllamaStore((state) => state.startAnalysis);
   const cancelAnalysis = useOllamaStore((state) => state.cancelAnalysis);
   const globalLanguage = usePreferencesStore((state) => state.language);
@@ -163,7 +166,7 @@ export default function FilesPage() {
     navigate(`/files/${fileId}`);
   };
 
-  const handleAnalyze = async (fileId: number) => {
+  const handleAnalyze = async (fileId: number, forceRefresh = false) => {
     const config = getAiConfig();
     if (!aiEnabled || !config.model) {
       useFeedbackStore.getState().show(t('errors.needAiSetup'), 'error');
@@ -172,7 +175,7 @@ export default function FilesPage() {
     }
     try {
       useFeedbackStore.getState().show(t('files.aiAnalyzing'), 'info', 5000);
-      const result = await startAnalysis(fileId, config);
+      const result = await startAnalysis(fileId, config, forceRefresh, { fileName: files.find(file => file.id === fileId)?.name ?? String(fileId), language: files.find(file => file.id === fileId)?.language ?? 'en' });
       invalidateCaches('phrases', 'insights', 'storage');
       useFileStore.getState().invalidateFiles();
       await loadFiles(true);
@@ -224,7 +227,7 @@ export default function FilesPage() {
   };
 
   const renderFileGrid = (list: FileRecord[]) => (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="file-grid">
       {list.map((file) => (
         <FileCard
           key={file.id}
@@ -235,13 +238,17 @@ export default function FilesPage() {
               : undefined
           }
           aiEnabled={aiEnabled}
-          onDelete={deleteFile}
-          onAnalyze={(id) => void handleAnalyze(id)}
+          onDelete={(id) => void deleteFile(id).then(() => {
+            if (!useFileStore.getState().files.some(file => file.id === id)) useOllamaStore.getState().clearPreview(id);
+          })}
+          onAnalyze={(id, forceRefresh) => void handleAnalyze(id, forceRefresh)}
+          onViewAnalysis={previews[file.id] ? openPreview : undefined}
           onCancel={(id) => void cancelAnalysis(id)}
           onMove={(item) => setMoveTarget({ kind: 'file', id: item.id })}
           analysisProgress={analysisProgress[file.id]}
           diagnostic={analysisDiagnostics[file.id]}
           analysisCompleted={file.phrase_analyzed}
+          interrupted={previews[file.id]?.status === 'cancelled' || previews[file.id]?.status === 'error'}
           retrying={retrying[file.id]}
           deleteProgress={deletingFiles[file.id]}
           onClick={() => handleFileClick(file.id)}
@@ -252,7 +259,7 @@ export default function FilesPage() {
 
   return (
     <div className="h-full flex flex-col">
-      <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-gray-100">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-b border-gray-100">
         <nav className="flex min-w-0 items-center gap-1.5 text-sm" aria-label={t('files.breadcrumbAria')}>
           <button
             onClick={() => setCurrentFolder(null)}
@@ -281,7 +288,7 @@ export default function FilesPage() {
             </span>
           ))}
         </nav>
-        <div className="flex shrink-0 gap-2">
+        <div className="flex min-w-0 flex-wrap gap-2">
           <button
             onClick={() => setPromptTarget({ mode: 'create', parentId: currentFolderId })}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 transition-colors hover:bg-gray-50"
@@ -358,6 +365,8 @@ export default function FilesPage() {
           </div>
         </div>
       </div>
+
+      <AnalysisModelPicker />
 
       {youtubeDialogOpen && <YouTubeDialog onClose={() => setYoutubeDialogOpen(false)} />}
 
@@ -475,9 +484,9 @@ export default function FilesPage() {
           )}
         </aside>
 
-        <div className="min-w-0 flex-1 overflow-y-auto p-6">
+        <div className="file-list-container min-w-0 flex-1 overflow-y-auto p-6">
           {loading ? (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="file-grid">
               {Array.from({ length: 6 }).map((_, index) => (
                 <div key={index} className="rounded-lg border border-gray-200 p-4">
                   <div className="flex items-start gap-3">
@@ -510,7 +519,7 @@ export default function FilesPage() {
             <div className="space-y-8">
               {subfolders.length > 0 && (
                 <section>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  <div className="file-grid">
                     {subfolders.map((folder) => (
                       <FolderCard
                         key={folder.id}

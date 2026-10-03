@@ -13,11 +13,17 @@ use super::import::{
 use crate::db::DbState;
 
 mod english_phrases;
+pub mod models;
 pub mod word_context;
 
 #[tauri::command]
 pub fn get_analysis_diagnostic(file_id: i64) -> Option<serde_json::Value> {
     english_phrases::diagnostic_summary(file_id)
+}
+
+#[tauri::command]
+pub fn get_analysis_preview_snapshot(file_id: i64, run_id: String) -> Option<serde_json::Value> {
+    english_phrases::preview_snapshot(file_id, &run_id)
 }
 
 #[tauri::command]
@@ -79,12 +85,14 @@ struct RetryNotifier {
 
 impl RetryNotifier {
     fn notify(&self, attempt: usize, reason: String) {
+        english_phrases::diagnostic_transport_retry(self.file_id);
         let _ = self.app.emit(
             "ollama-analysis-retry",
             serde_json::json!({
                 "fileId": self.file_id,
                 "attempt": attempt,
                 "maxAttempts": MAX_ATTEMPTS,
+                "runId": english_phrases::diagnostic_summary(self.file_id).and_then(|value| value.get("runId").cloned()),
                 "reason": reason,
             }),
         );
@@ -92,8 +100,12 @@ impl RetryNotifier {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct OllamaModel {
     pub name: String,
+    pub size: Option<u64>,
+    pub digest: Option<String>,
+    pub modified_at: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -104,6 +116,9 @@ struct ModelListResponse {
 #[derive(Deserialize)]
 struct ModelInfo {
     name: String,
+    size: Option<u64>,
+    digest: Option<String>,
+    modified_at: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -111,6 +126,10 @@ struct ChatResponse {
     message: ChatMessage,
     #[serde(default)]
     done_reason: Option<String>,
+    #[serde(default)]
+    prompt_eval_count: Option<u64>,
+    #[serde(default)]
+    eval_count: Option<u64>,
 }
 
 #[derive(Deserialize)]
@@ -694,8 +713,8 @@ async fn chat_ollama(
             content: result.message.content,
             request_id,
             finish_reason: result.done_reason,
-            prompt_tokens: None,
-            completion_tokens: None,
+            prompt_tokens: result.prompt_eval_count,
+            completion_tokens: result.eval_count,
         })
         .map_err(|error| ChatFailure { message: format!("无法读取 Ollama 响应：{}", error), kind: "RESPONSE_DECODE_FAILED", http_status: None, request_id: None })
 }
@@ -852,7 +871,7 @@ pub async fn ai_status(config: AiConfig) -> Result<(), String> {
     match connected {
         Ok(()) => Ok(()),
         Err(models_error) => {
-            if config.model.trim().is_empty() {
+            if !config.is_openai() || models::is_loopback_service(&config.base_url) || config.model.trim().is_empty() {
                 return Err(models_error);
             }
             probe_chat(&client, &config).await.map_err(|chat_error| {
@@ -882,7 +901,7 @@ pub async fn ai_models(config: AiConfig) -> Result<Vec<OllamaModel>, String> {
         Ok(parsed
             .data
             .into_iter()
-            .map(|model| OllamaModel { name: model.id })
+            .map(|model| OllamaModel { name: model.id, size: None, digest: None, modified_at: None })
             .collect())
     } else {
         let parsed: ModelListResponse = response
@@ -892,7 +911,7 @@ pub async fn ai_models(config: AiConfig) -> Result<Vec<OllamaModel>, String> {
         Ok(parsed
             .models
             .into_iter()
-            .map(|model| OllamaModel { name: model.name })
+            .map(|model| OllamaModel { name: model.name, size: model.size, digest: model.digest, modified_at: model.modified_at })
             .collect())
     }
 }
@@ -948,6 +967,7 @@ pub async fn translate_segments(
     language: String,
     segments: Vec<SegmentForTranslation>,
 ) -> Result<Vec<SegmentTranslation>, String> {
+    let _activity_guard = models::generation_guard(&config, &app)?;
     if config.model.trim().is_empty() {
         return Err("请先选择 AI 模型".to_string());
     }
@@ -1099,7 +1119,10 @@ pub async fn analyze_file_phrases(
     state: State<'_, DbState>,
     file_id: i64,
     config: AiConfig,
+    force_refresh: Option<bool>,
+    run_id: Option<String>,
 ) -> Result<OllamaAnalysisResult, String> {
+    let _activity_guard = models::generation_guard(&config, &app)?;
     if config.model.trim().is_empty() {
         return Err("请先选择 AI 模型".to_string());
     }
@@ -1139,7 +1162,7 @@ pub async fn analyze_file_phrases(
     }
 
     if language == "en" {
-        return english_phrases::analyze(app, state, file_id, config).await;
+        return english_phrases::analyze(app, state, file_id, config, force_refresh.unwrap_or(false), run_id).await;
     }
 
     {

@@ -1,4 +1,4 @@
-use super::{key, normalized, validate_candidate, Candidate, Interpretation, OtherSense, SegmentRow};
+use super::{key, normalized, validate_candidate, Candidate, SegmentRow};
 use crate::commands::ollama::parse_ai_json;
 use serde::de::DeserializeOwned;
 use serde_json::{Map, Value};
@@ -15,15 +15,7 @@ pub(super) struct ParseOutcome<T> {
 fn items(response: &str, field: &str) -> Result<Vec<Value>, String> {
     if response.trim().is_empty() { return Err("empty_response".into()); }
     let value: Value = parse_ai_json(response).map_err(|_| "invalid_json".to_string())?;
-    let array = value.get(field).and_then(Value::as_array).or_else(|| {
-        // Some JSON-only models use a generic wrapper despite the requested
-        // schema. Item validation below still checks every required field.
-        if field == "interpretations" {
-            ["phrases", "results", "items"].iter()
-                .find_map(|alias| value.get(*alias).and_then(Value::as_array))
-        } else { None }
-    });
-    array.cloned()
+    value.get(field).and_then(Value::as_array).cloned()
         .ok_or_else(|| format!("missing_{field}_array"))
 }
 
@@ -72,55 +64,71 @@ pub(super) fn candidates(response: &str, segments: &[SegmentRow]) -> Result<Pars
     Ok(output)
 }
 
-pub(super) fn interpretations(response: &str, candidates: &[&Candidate]) -> Result<ParseOutcome<Interpretation>, String> {
-    let raw = items(response, "interpretations")?;
-    let mut output = ParseOutcome { items: Vec::new(), raw_count: raw.len(), skipped_count: 0, recovered_count: 0, missing_fields: BTreeSet::new() };
-    let lookup: HashSet<String> = candidates.iter().map(|candidate| key(candidate.segment_index, &candidate.canonical, &candidate.token_positions)).collect();
-    let mut seen = HashSet::new();
-    for item in raw {
-        let Some(mut object) = item.as_object().cloned() else { output.skipped_count += 1; continue; };
-        missing_fields(&object, &["segment_index", "canonical", "token_positions", "supported", "meaning_en", "usage_en", "meaning_zh", "usage_zh"], &mut output.missing_fields);
-        if object.get("supported") == Some(&Value::Bool(false)) {
-            object.entry("meaning_en").or_insert_with(|| Value::String(String::new()));
-            object.entry("usage_en").or_insert_with(|| Value::String(String::new()));
-            object.entry("meaning_zh").or_insert_with(|| Value::String(String::new()));
-            object.entry("usage_zh").or_insert_with(|| Value::String(String::new()));
-        }
-        if !object.contains_key("segment_index") {
-            let canonical = object.get("canonical").and_then(Value::as_str);
-            let positions = object.get("token_positions").and_then(Value::as_array)
-                .and_then(|array| array.iter().map(|value| value.as_i64().and_then(|n| i32::try_from(n).ok())).collect::<Option<Vec<_>>>());
-            let matches: Vec<_> = candidates.iter().filter(|candidate| {
-                canonical.map(normalized).as_deref() == Some(candidate.canonical.as_str())
-                    && positions.as_ref() == Some(&candidate.token_positions)
-            }).collect();
-            if matches.len() == 1 {
-                object.insert("segment_index".into(), Value::from(matches[0].segment_index));
-                output.recovered_count += 1;
-            } else {
-                output.skipped_count += 1;
+/// Scan only complete objects in the root phrases array. Final parsing remains
+/// authoritative; unsupported prefixes (including Markdown) simply defer preview.
+pub(super) struct IncrementalCandidates<'a> {
+    segments: &'a [SegmentRow], text: String, cursor: usize, stack: Vec<u8>,
+    string_start: Option<usize>, escaped: bool, root_key: String, last: u8,
+    phrases: bool, item_start: Option<usize>, seen: HashSet<String>, disabled: bool,
+}
+
+impl<'a> IncrementalCandidates<'a> {
+    pub fn new(segments: &'a [SegmentRow]) -> Self {
+        Self { segments, text: String::new(), cursor: 0, stack: Vec::new(), string_start: None,
+            escaped: false, root_key: String::new(), last: 0, phrases: false,
+            item_start: None, seen: HashSet::new(), disabled: false }
+    }
+    pub fn push(&mut self, fragment: &str) -> Vec<Candidate> {
+        self.text.push_str(fragment);
+        let mut output = Vec::new();
+        while !self.disabled && self.cursor < self.text.len() {
+            let index = self.cursor;
+            let byte = self.text.as_bytes()[index];
+            self.cursor += 1;
+            if let Some(start) = self.string_start {
+                if self.escaped { self.escaped = false; }
+                else if byte == b'\\' { self.escaped = true; }
+                else if byte == b'"' {
+                    self.string_start = None;
+                    if self.stack == [b'{'] {
+                        self.root_key = serde_json::from_str::<String>(&self.text[start..=index]).unwrap_or_default();
+                    }
+                    self.last = byte;
+                }
                 continue;
             }
+            if byte.is_ascii_whitespace() { continue; }
+            if self.stack.is_empty() && self.last == 0 && byte != b'{' { self.disabled = true; break; }
+            match byte {
+                b'"' => self.string_start = Some(index),
+                b'[' => {
+                    if self.stack == [b'{'] && self.root_key == "phrases" && self.last == b':' { self.phrases = true; }
+                    self.stack.push(byte);
+                }
+                b'{' => {
+                    if self.phrases && self.stack == [b'{', b'['] { self.item_start = Some(index); }
+                    self.stack.push(byte);
+                }
+                b'}' | b']' => {
+                    if self.stack.pop() != Some(if byte == b'}' { b'{' } else { b'[' }) { self.disabled = true; break; }
+                    if byte == b'}' && self.phrases && self.stack == [b'{', b'['] {
+                        if let Some(start) = self.item_start.take() {
+                            let wrapped = format!("{{\"phrases\":[{}]}}", &self.text[start..=index]);
+                            if let Ok(parsed) = candidates(&wrapped, self.segments) {
+                                for candidate in parsed.items {
+                                    if self.seen.insert(key(candidate.segment_index, &candidate.canonical, &candidate.token_positions)) { output.push(candidate); }
+                                }
+                            }
+                        }
+                    }
+                    if byte == b']' && self.stack == [b'{'] { self.phrases = false; }
+                }
+                _ => {}
+            }
+            self.last = byte;
         }
-        // Optional enrichment must not invalidate a sound context meaning.
-        // A sense ID is still checked against retrieved Collins senses later.
-        let sense_id = object.get("collins_sense_id").and_then(|value| {
-            value.as_i64().or_else(|| value.as_str().and_then(|text| text.parse::<i64>().ok()))
-        });
-        object.insert("collins_sense_id".into(), sense_id.map(Value::from).unwrap_or(Value::Null));
-        let other_senses = object.get("other_senses").and_then(Value::as_array)
-            .map(|values| values.iter().filter(|value| serde_json::from_value::<OtherSense>((*value).clone()).is_ok()).take(2).cloned().collect())
-            .unwrap_or_default();
-        object.insert("other_senses".into(), Value::Array(other_senses));
-        let Some(interpretation) = decode::<Interpretation>(object) else { output.skipped_count += 1; continue; };
-        let item_key = key(interpretation.segment_index, &interpretation.canonical, &interpretation.token_positions);
-        if !lookup.contains(&item_key) || !seen.insert(item_key) || (interpretation.supported && (interpretation.meaning_en.trim().is_empty() || interpretation.usage_en.trim().is_empty() || interpretation.meaning_zh.trim().is_empty() || interpretation.usage_zh.trim().is_empty())) {
-            output.skipped_count += 1;
-            continue;
-        }
-        output.items.push(interpretation);
+        output
     }
-    Ok(output)
 }
 
 #[cfg(test)]
@@ -161,35 +169,24 @@ mod tests {
     }
 
     #[test]
-    fn explanation_recovers_unique_index_and_rejects_ambiguous_or_missing_meaning() {
-        let one = Candidate { segment_index: 4, canonical: "pick up".into(), token_positions: vec![1,3], category: "phrasal_verb".into() };
-        let two = Candidate { segment_index: 5, ..one.clone() };
-        let response = r#"{"interpretations":[{"canonical":"pick up","token_positions":[1,3],"supported":true,"meaning_en":"lift","usage_en":"separable","meaning_zh":"拾起","usage_zh":"可分离","other_senses":[]}]}"#;
-        let unique = interpretations(response, &[&one]).unwrap();
-        assert_eq!(unique.items.len(), 1);
-        assert_eq!(unique.items[0].segment_index, 4);
-        let ambiguous = interpretations(response, &[&one, &two]).unwrap();
-        assert_eq!((ambiguous.items.len(), ambiguous.skipped_count), (0, 1));
-        let missing_meaning = interpretations(r#"{"interpretations":[{"segment_index":4,"canonical":"pick up","token_positions":[1,3],"supported":true,"meaning_en":"lift","usage_en":"separable","usage_zh":"可分离"}]}"#, &[&one]).unwrap();
-        assert_eq!((missing_meaning.items.len(), missing_meaning.skipped_count), (0, 1));
+    fn incremental_objects_share_final_validation_and_wait_for_closing_brace() {
+        let source = [segment(4, "I'd picked it up, then picked it up.")];
+        let first = r#"{"segment_index":4,"canonical":" PICK UP ","token_positions":[1,3],"category":"phrasal_verb","ignored":"🎬 \" } ]"}"#;
+        let second = r#"{"segment_index":4,"canonical":"pick up","token_positions":[5,7],"category":"phrasal_verb"}"#;
+        let raw = format!("{{\"phrases\":[{first},{first},{second},{{\"canonical\":\"wrong word\"}}]}}");
+        let mut parser = IncrementalCandidates::new(&source);
+        let mut items = Vec::new();
+        for (i,c) in raw.char_indices() {
+            let new = parser.push(&c.to_string());
+            if i < first.len() + 11 { assert!(new.is_empty()); }
+            items.extend(new);
+        }
+        let final_items = candidates(&raw,&source).unwrap().items;
+        assert_eq!(items.len(),2);
+        assert_eq!(serde_json::to_value(items).unwrap(),serde_json::to_value(final_items).unwrap());
+        let mut fenced = IncrementalCandidates::new(&source);
+        assert!(fenced.push(&format!("```json\n{raw}\n```")).is_empty());
+        assert_eq!(candidates(&format!("```json\n{raw}\n```"),&source).unwrap().items.len(),2);
     }
 
-    #[test]
-    fn explanation_accepts_common_array_wrappers_only_when_items_are_valid() {
-        let candidate = Candidate { segment_index: 4, canonical: "pick up".into(), token_positions: vec![1,3], category: "phrasal_verb".into() };
-        let valid = r#"{"results":[{"segment_index":4,"canonical":"pick up","token_positions":[1,3],"supported":true,"meaning_en":"lift","usage_en":"separable","meaning_zh":"拾起","usage_zh":"可分离"}]}"#;
-        assert_eq!(interpretations(valid, &[&candidate]).unwrap().items.len(), 1);
-        let invalid = r#"{"phrases":[{"segment_index":4,"canonical":"pick up","token_positions":[1,3]}]}"#;
-        assert_eq!(interpretations(invalid, &[&candidate]).unwrap().skipped_count, 1);
-    }
-
-    #[test]
-    fn malformed_optional_enrichment_does_not_discard_context_meaning() {
-        let candidate = Candidate { segment_index: 4, canonical: "pick up".into(), token_positions: vec![1,3], category: "phrasal_verb".into() };
-        let response = r#"{"interpretations":[{"segment_index":4,"canonical":"pick up","token_positions":[1,3],"supported":true,"meaning_en":"lift","usage_en":"separable","meaning_zh":"捡起","usage_zh":"可分离","collins_sense_id":"unknown","other_senses":[{"meaning_en":"learn","example_en":"She picked up French."}]}]}"#;
-        let parsed = interpretations(response, &[&candidate]).unwrap();
-        assert_eq!(parsed.items.len(), 1);
-        assert_eq!(parsed.items[0].collins_sense_id, None);
-        assert!(parsed.items[0].other_senses.is_empty());
-    }
 }

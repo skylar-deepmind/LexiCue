@@ -647,11 +647,12 @@ pub fn lookup_phrase_dictionary(
             })
         },
     );
-    if let Ok(entry) = ollama_result {
-        return Ok(entry);
+    match ollama_result {
+        Ok(entry) => return Ok(entry),
+        Err(rusqlite::Error::QueryReturnedNoRows) => {},
+        Err(error) => return Err(error.to_string()),
     }
     if language == "en" {
-        if collins_senses.is_empty() { return Err("phrase not found in Collins".into()); }
         return Ok(PhraseDictionaryEntry {
             text: normalized, translation: String::new(), pinyin: None, usage_zh: None,
             category: None, provider: collins::PROVIDER.into(), other_senses: Vec::new(),

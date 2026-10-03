@@ -18,7 +18,11 @@
       "definition": "Definitionen & Übersetzungen",
       "auxiliary": "Zusatzinformationen"
     },
-    "sizes": { "sm": "Klein", "md": "Standard", "lg": "Groß" }
+    "sizes": {
+      "sm": "Klein",
+      "md": "Standard",
+      "lg": "Groß"
+    }
   },
   "status": {
     "unprocessed": "Unbearbeitet",
@@ -75,20 +79,132 @@
       "title": "Anzeigesprache",
       "description": "Wählen Sie die Anzeigesprache der App-Oberfläche."
     },
-    "frequencyBaseline": { "title": "Häufigkeitsbasis" },
+    "frequencyBaseline": {
+      "title": "Häufigkeitsbasis"
+    },
     "cloudSync": {
-      "title": "Cloud-Synchronisierung", "description": "Bibliothek und Lernfortschritt Ende-zu-Ende-verschlüsselt zwischen Geräten synchronisieren.", "notConnected": "Nicht verbunden",
-      "state": { "synced": "Synchronisiert", "syncing": "Wird synchronisiert", "offline": "Wartet auf Netzwerk", "authRequired": "Erneute Anmeldung nötig", "error": "Synchronisierung prüfen" },
-      "lastSynced": "Zuletzt synchronisiert: {{time}}", "preparing": "Synchronisierung wird vorbereitet…", "pending": "{{count}} Elemente warten auf Upload", "conflicts": "{{count}} Textkonflikte wurden zur späteren Prüfung gespeichert", "progressLabel": "Synchronisierungsfortschritt", "downloadedBytes": "{{size}} heruntergeladen", "eta": "Noch etwa {{seconds}} Sekunden", "progress": { "preparing": "Lokale Daten werden vorbereitet", "downloading": "Cloud-Daten werden geladen", "applying": "Cloud-Daten werden angewendet", "uploading": "Lokale Daten werden hochgeladen", "retrying": "Warten auf erneuten Versuch" },
+      "title": "Cloud-Synchronisierung",
+      "description": "Bibliothek und Lernfortschritt Ende-zu-Ende-verschlüsselt zwischen Geräten synchronisieren.",
+      "notConnected": "Nicht verbunden",
+      "state": {
+        "synced": "Synchronisiert",
+        "syncing": "Wird synchronisiert",
+        "offline": "Wartet auf Netzwerk",
+        "authRequired": "Erneute Anmeldung nötig",
+        "error": "Synchronisierung prüfen"
+      },
+      "lastSynced": "Zuletzt synchronisiert: {{time}}",
+      "preparing": "Synchronisierung wird vorbereitet…",
+      "pending": "{{count}} Elemente warten auf Upload",
+      "conflicts": "{{count}} Textkonflikte wurden zur späteren Prüfung gespeichert",
+      "progressLabel": "Synchronisierungsfortschritt",
+      "downloadedBytes": "{{size}} heruntergeladen",
+      "eta": "Noch etwa {{seconds}} Sekunden",
+      "progress": {
+        "preparing": "Lokale Daten werden vorbereitet",
+        "downloading": "Cloud-Daten werden geladen",
+        "applying": "Cloud-Daten werden angewendet",
+        "uploading": "Lokale Daten werden hochgeladen",
+        "retrying": "Warten auf erneuten Versuch"
+      },
       "restoreProgress": "Wiederherstellung {{completed}}/{{total}}",
-      "syncNow": "Jetzt synchronisieren", "pauseAuto": "Automatische Synchronisierung pausieren", "enableAuto": "Automatische Synchronisierung aktivieren", "advanced": "Erweiterte Optionen", "devices": "Geräte", "refresh": "Aktualisieren", "currentDevice": "Dieses Gerät", "revoke": "Widerrufen", "disconnect": "Auf diesem Gerät abmelden",
-      "dangerTitle": "Synchronisierungskonto löschen", "deleteHint": "Löscht die verschlüsselte Cloud-Kopie und meldet alle Geräte ab. Lokale Daten bleiben erhalten.", "deleteAccount": "Konto löschen", "deleteConfirm": "Synchronisierungskonto und verschlüsselte Cloud-Daten löschen? Die lokalen Daten auf diesem Gerät bleiben erhalten.",
-      "accountMode": "Kontoaktion", "createAccount": "Konto erstellen", "login": "Anmelden", "email": "E-Mail", "recoveryKey": "Wiederherstellungsschlüssel", "newPassword": "Neues Passwort", "password": "Passwort", "hidePassword": "Passwort ausblenden", "showPassword": "Passwort anzeigen", "passwordHint": "Mindestens 10 Zeichen verwenden.",
-      "createAndSync": "Konto erstellen und synchronisieren", "recoverAction": "Konto wiederherstellen", "loginAndSync": "Anmelden und synchronisieren", "forgotPassword": "Passwort vergessen? Wiederherstellungsschlüssel verwenden", "backToLogin": "Zurück zur Anmeldung",
-      "saveRecoveryTitle": "Wiederherstellungsschlüssel speichern", "saveRecoveryDescription": "Nur damit lassen sich verschlüsselte Daten bei vergessenem Passwort wiederherstellen. LexiCue kann ihn nicht ersetzen.", "copyRecovery": "Wiederherstellungsschlüssel kopieren", "downloadRecovery": "Wiederherstellungsschlüssel als Datei speichern", "recoveryFileTitle": "LexiCue-Wiederherstellungsschlüssel — sicher aufbewahren",
-      "diagnostic": { "summary": "Diagnose: {{stage}} · {{kind}}", "copy": "Diagnose kopieren", "copied": "Kopiert", "kinds": { "sqlite_busy": "Datenbank ist beschäftigt", "sqlite_constraint": "lokaler Datenkonflikt", "sqlite_foreign_key": "lokale Verknüpfung fehlt", "storage_write": "lokaler Speicher kann nicht beschrieben werden", "missing_reference": "Cloud-Datenverknüpfung fehlt", "local_write": "lokales Schreiben fehlgeschlagen" } },
-      "errors": { "auth_required": "Bitte erneut anmelden.", "session_expired": "Die Sitzung ist abgelaufen. Bitte erneut anmelden.", "invalid_credentials": "E-Mail oder Passwort ist falsch.", "invalid_email": "Bitte eine gültige E-Mail-Adresse eingeben.", "invalid_password": "Das Passwort muss mindestens 10 Zeichen lang sein.", "invalid_recovery_code": "Der Wiederherstellungsschlüssel ist ungültig.", "email_exists": "Für diese E-Mail besteht bereits ein Konto.", "invalid_registration": "Die Registrierungsdaten sind ungültig. Bitte prüfen und erneut versuchen.", "invalid_device": "Die Gerätedaten sind ungültig. Bitte erneut versuchen.", "network_unavailable": "Keine Netzwerkverbindung. LexiCue versucht es automatisch erneut.", "rate_limited": "Zu viele Synchronisierungsanfragen. Bitte kurz warten und erneut versuchen.", "server_internal": "Der Synchronisierungsdienst hat einen internen Fehler festgestellt. Bitte später erneut versuchen.", "credential_store_unavailable": "Der sichere Anmeldedatenspeicher ist nicht verfügbar. Gerätesperre aktivieren und LexiCue neu starten.", "credential_store_write_failed": "Anmeldedaten konnten nicht sicher gespeichert werden. Gerätesperre prüfen und erneut versuchen.", "credential_missing": "Gespeicherte Anmeldedaten fehlen. Bitte erneut anmelden.", "credential_corrupted": "Gespeicherte Anmeldedaten sind beschädigt. Abmelden und erneut anmelden.", "local_backup_failed": "Eine lokale Sicherheitskopie konnte nicht erstellt werden. Ihre ursprünglichen Daten wurden nicht verändert. Prüfen Sie den freien Speicherplatz und versuchen Sie es erneut.", "local_sync_storage_error": "Lokale Synchronisierungsdaten konnten nicht sicher gespeichert werden. Ihre ursprünglichen Daten wurden nicht verändert. Starten Sie LexiCue neu und versuchen Sie es erneut.", "local_identity_conflict": "Dieses Gerät enthält doppelte Synchronisierungsidentitäten, die nicht sicher verarbeitet werden können. Ihre ursprünglichen Daten wurden nicht verändert und die Sicherung wurde behalten. Wenden Sie sich an den Support.", "local_delete_failed": "Die lokale Datei konnte nicht sicher gelöscht werden. Die ursprünglichen Daten können noch vorhanden sein; die Sicherung wurde behalten. Erneut versuchen oder LexiCue neu starten.", "record_too_large": "Ein lokaler Datensatz überschreitet das Synchronisierungslimit und wurde nicht hochgeladen. Datei aufteilen oder Daten reduzieren und erneut versuchen.", "sync_service_not_configured": "In diesem Build ist der offizielle Synchronisierungsdienst nicht konfiguriert.", "unsupported_sync_protocol": "Bitte LexiCue aktualisieren.", "invalid_server_response": "Der Synchronisierungsdienst hat unlesbare Daten zurückgegeben. LexiCue aktualisieren oder später erneut versuchen.", "invalid_key_package": "Die verschlüsselten Anmeldedaten konnten nicht verifiziert werden. Das Passwort ist möglicherweise falsch oder die Daten sind beschädigt. Erneut versuchen oder Wiederherstellungsschlüssel verwenden.", "invalid_local_sync_key": "Der lokale Synchronisierungsschlüssel ist ungültig. Abmelden und erneut anmelden.", "record_encryption_failed": "Ein lokaler Datensatz konnte nicht verschlüsselt und daher nicht hochgeladen werden. Bitte erneut versuchen.", "invalid_encrypted_record": "Ein verschlüsselter Datensatz ist ungültig und wurde nicht angewendet. Bitte erneut versuchen.", "record_authentication_failed": "Ein verschlüsselter Datensatz konnte nicht verifiziert werden und wurde nicht angewendet.", "invalid_record_batch": "Der Cloud-Datensatzstapel ist ungültig. Diese Datensätze wurden nicht angewendet. Bitte erneut versuchen.", "invalid_record": "Ein Cloud-Datensatz ist fehlerhaft und wurde nicht angewendet. Bitte erneut versuchen.", "record_precondition_failed": "Die Version eines Cloud-Datensatzes steht im Konflikt. LexiCue ruft sie ab, führt sie zusammen und versucht es erneut.", "invalid_blob_manifest": "Das Manifest eines Synchronisierungsblocks ist ungültig. Die Cloud-Daten wurden nicht angewendet. Bitte erneut versuchen.", "invalid_blob": "Ein Synchronisierungsblock ist ungültig. Die Cloud-Daten wurden nicht angewendet. Bitte erneut versuchen.", "blob_hash_mismatch": "Die Integritätsprüfung eines Synchronisierungsblocks ist fehlgeschlagen. Die Cloud-Daten wurden nicht angewendet. Bitte erneut versuchen.", "blob_not_found": "Ein Synchronisierungsblock fehlt. Die Cloud-Daten sind möglicherweise unvollständig. Bitte erneut versuchen.", "cannot_revoke_current_device": "Dieses Gerät kann sich nicht selbst widerrufen. Verwenden Sie ein anderes Gerät.", "device_not_found": "Das Gerät wurde nicht gefunden oder bereits widerrufen. Geräteliste aktualisieren.", "metrics_disabled": "Die Überwachung des Synchronisierungsdienstes ist deaktiviert. Administrator kontaktieren.", "metrics_unauthorized": "Sie sind nicht berechtigt, auf die Überwachung des Synchronisierungsdienstes zuzugreifen. Administrator kontaktieren.", "sync_service_error": "Der Synchronisierungsdienst ist vorübergehend nicht verfügbar. LexiCue versucht es erneut.", "unknown": "Ein nicht erkannter Synchronisierungsfehler ist aufgetreten. Bitte erneut versuchen; bei anhaltendem Problem LexiCue aktualisieren." },
-      "notices": { "accountCreated": "Konto erstellt. Die Daten werden automatisch synchronisiert.", "connected": "Angemeldet. Die Daten werden vorbereitet.", "synced": "Synchronisierung abgeschlossen.", "accountDeleted": "Synchronisierungskonto gelöscht. Lokale Daten wurden behalten.", "recoverySaved": "Wiederherstellungsschlüssel gespeichert." }
+      "syncNow": "Jetzt synchronisieren",
+      "pauseAuto": "Automatische Synchronisierung pausieren",
+      "enableAuto": "Automatische Synchronisierung aktivieren",
+      "advanced": "Erweiterte Optionen",
+      "devices": "Geräte",
+      "refresh": "Aktualisieren",
+      "currentDevice": "Dieses Gerät",
+      "revoke": "Widerrufen",
+      "disconnect": "Auf diesem Gerät abmelden",
+      "dangerTitle": "Synchronisierungskonto löschen",
+      "deleteHint": "Löscht die verschlüsselte Cloud-Kopie und meldet alle Geräte ab. Lokale Daten bleiben erhalten.",
+      "deleteAccount": "Konto löschen",
+      "deleteConfirm": "Synchronisierungskonto und verschlüsselte Cloud-Daten löschen? Die lokalen Daten auf diesem Gerät bleiben erhalten.",
+      "accountMode": "Kontoaktion",
+      "createAccount": "Konto erstellen",
+      "login": "Anmelden",
+      "email": "E-Mail",
+      "recoveryKey": "Wiederherstellungsschlüssel",
+      "newPassword": "Neues Passwort",
+      "password": "Passwort",
+      "hidePassword": "Passwort ausblenden",
+      "showPassword": "Passwort anzeigen",
+      "passwordHint": "Mindestens 10 Zeichen verwenden.",
+      "createAndSync": "Konto erstellen und synchronisieren",
+      "recoverAction": "Konto wiederherstellen",
+      "loginAndSync": "Anmelden und synchronisieren",
+      "forgotPassword": "Passwort vergessen? Wiederherstellungsschlüssel verwenden",
+      "backToLogin": "Zurück zur Anmeldung",
+      "saveRecoveryTitle": "Wiederherstellungsschlüssel speichern",
+      "saveRecoveryDescription": "Nur damit lassen sich verschlüsselte Daten bei vergessenem Passwort wiederherstellen. LexiCue kann ihn nicht ersetzen.",
+      "copyRecovery": "Wiederherstellungsschlüssel kopieren",
+      "downloadRecovery": "Wiederherstellungsschlüssel als Datei speichern",
+      "recoveryFileTitle": "LexiCue-Wiederherstellungsschlüssel — sicher aufbewahren",
+      "diagnostic": {
+        "summary": "Diagnose: {{stage}} · {{kind}}",
+        "copy": "Diagnose kopieren",
+        "copied": "Kopiert",
+        "kinds": {
+          "sqlite_busy": "Datenbank ist beschäftigt",
+          "sqlite_constraint": "lokaler Datenkonflikt",
+          "sqlite_foreign_key": "lokale Verknüpfung fehlt",
+          "storage_write": "lokaler Speicher kann nicht beschrieben werden",
+          "missing_reference": "Cloud-Datenverknüpfung fehlt",
+          "local_write": "lokales Schreiben fehlgeschlagen"
+        }
+      },
+      "errors": {
+        "auth_required": "Bitte erneut anmelden.",
+        "session_expired": "Die Sitzung ist abgelaufen. Bitte erneut anmelden.",
+        "invalid_credentials": "E-Mail oder Passwort ist falsch.",
+        "invalid_email": "Bitte eine gültige E-Mail-Adresse eingeben.",
+        "invalid_password": "Das Passwort muss mindestens 10 Zeichen lang sein.",
+        "invalid_recovery_code": "Der Wiederherstellungsschlüssel ist ungültig.",
+        "email_exists": "Für diese E-Mail besteht bereits ein Konto.",
+        "invalid_registration": "Die Registrierungsdaten sind ungültig. Bitte prüfen und erneut versuchen.",
+        "invalid_device": "Die Gerätedaten sind ungültig. Bitte erneut versuchen.",
+        "network_unavailable": "Keine Netzwerkverbindung. LexiCue versucht es automatisch erneut.",
+        "rate_limited": "Zu viele Synchronisierungsanfragen. Bitte kurz warten und erneut versuchen.",
+        "server_internal": "Der Synchronisierungsdienst hat einen internen Fehler festgestellt. Bitte später erneut versuchen.",
+        "credential_store_unavailable": "Der sichere Anmeldedatenspeicher ist nicht verfügbar. Gerätesperre aktivieren und LexiCue neu starten.",
+        "credential_store_write_failed": "Anmeldedaten konnten nicht sicher gespeichert werden. Gerätesperre prüfen und erneut versuchen.",
+        "credential_missing": "Gespeicherte Anmeldedaten fehlen. Bitte erneut anmelden.",
+        "credential_corrupted": "Gespeicherte Anmeldedaten sind beschädigt. Abmelden und erneut anmelden.",
+        "local_backup_failed": "Eine lokale Sicherheitskopie konnte nicht erstellt werden. Ihre ursprünglichen Daten wurden nicht verändert. Prüfen Sie den freien Speicherplatz und versuchen Sie es erneut.",
+        "local_sync_storage_error": "Lokale Synchronisierungsdaten konnten nicht sicher gespeichert werden. Ihre ursprünglichen Daten wurden nicht verändert. Starten Sie LexiCue neu und versuchen Sie es erneut.",
+        "local_identity_conflict": "Dieses Gerät enthält doppelte Synchronisierungsidentitäten, die nicht sicher verarbeitet werden können. Ihre ursprünglichen Daten wurden nicht verändert und die Sicherung wurde behalten. Wenden Sie sich an den Support.",
+        "local_delete_failed": "Die lokale Datei konnte nicht sicher gelöscht werden. Die ursprünglichen Daten können noch vorhanden sein; die Sicherung wurde behalten. Erneut versuchen oder LexiCue neu starten.",
+        "record_too_large": "Ein lokaler Datensatz überschreitet das Synchronisierungslimit und wurde nicht hochgeladen. Datei aufteilen oder Daten reduzieren und erneut versuchen.",
+        "sync_service_not_configured": "In diesem Build ist der offizielle Synchronisierungsdienst nicht konfiguriert.",
+        "unsupported_sync_protocol": "Bitte LexiCue aktualisieren.",
+        "invalid_server_response": "Der Synchronisierungsdienst hat unlesbare Daten zurückgegeben. LexiCue aktualisieren oder später erneut versuchen.",
+        "invalid_key_package": "Die verschlüsselten Anmeldedaten konnten nicht verifiziert werden. Das Passwort ist möglicherweise falsch oder die Daten sind beschädigt. Erneut versuchen oder Wiederherstellungsschlüssel verwenden.",
+        "invalid_local_sync_key": "Der lokale Synchronisierungsschlüssel ist ungültig. Abmelden und erneut anmelden.",
+        "record_encryption_failed": "Ein lokaler Datensatz konnte nicht verschlüsselt und daher nicht hochgeladen werden. Bitte erneut versuchen.",
+        "invalid_encrypted_record": "Ein verschlüsselter Datensatz ist ungültig und wurde nicht angewendet. Bitte erneut versuchen.",
+        "record_authentication_failed": "Ein verschlüsselter Datensatz konnte nicht verifiziert werden und wurde nicht angewendet.",
+        "invalid_record_batch": "Der Cloud-Datensatzstapel ist ungültig. Diese Datensätze wurden nicht angewendet. Bitte erneut versuchen.",
+        "invalid_record": "Ein Cloud-Datensatz ist fehlerhaft und wurde nicht angewendet. Bitte erneut versuchen.",
+        "record_precondition_failed": "Die Version eines Cloud-Datensatzes steht im Konflikt. LexiCue ruft sie ab, führt sie zusammen und versucht es erneut.",
+        "invalid_blob_manifest": "Das Manifest eines Synchronisierungsblocks ist ungültig. Die Cloud-Daten wurden nicht angewendet. Bitte erneut versuchen.",
+        "invalid_blob": "Ein Synchronisierungsblock ist ungültig. Die Cloud-Daten wurden nicht angewendet. Bitte erneut versuchen.",
+        "blob_hash_mismatch": "Die Integritätsprüfung eines Synchronisierungsblocks ist fehlgeschlagen. Die Cloud-Daten wurden nicht angewendet. Bitte erneut versuchen.",
+        "blob_not_found": "Ein Synchronisierungsblock fehlt. Die Cloud-Daten sind möglicherweise unvollständig. Bitte erneut versuchen.",
+        "cannot_revoke_current_device": "Dieses Gerät kann sich nicht selbst widerrufen. Verwenden Sie ein anderes Gerät.",
+        "device_not_found": "Das Gerät wurde nicht gefunden oder bereits widerrufen. Geräteliste aktualisieren.",
+        "metrics_disabled": "Die Überwachung des Synchronisierungsdienstes ist deaktiviert. Administrator kontaktieren.",
+        "metrics_unauthorized": "Sie sind nicht berechtigt, auf die Überwachung des Synchronisierungsdienstes zuzugreifen. Administrator kontaktieren.",
+        "sync_service_error": "Der Synchronisierungsdienst ist vorübergehend nicht verfügbar. LexiCue versucht es erneut.",
+        "unknown": "Ein nicht erkannter Synchronisierungsfehler ist aufgetreten. Bitte erneut versuchen; bei anhaltendem Problem LexiCue aktualisieren."
+      },
+      "notices": {
+        "accountCreated": "Konto erstellt. Die Daten werden automatisch synchronisiert.",
+        "connected": "Angemeldet. Die Daten werden vorbereitet.",
+        "synced": "Synchronisierung abgeschlossen.",
+        "accountDeleted": "Synchronisierungskonto gelöscht. Lokale Daten wurden behalten.",
+        "recoverySaved": "Wiederherstellungsschlüssel gespeichert."
+      }
     },
     "ai": {
       "title": "KI-Funktionen",
@@ -223,12 +339,16 @@
     "emptyFolderDescription": "Erstellen Sie einen Unterordner oder ziehen Sie Dateien hierher"
   },
   "fileCard": {
+    "analysisOptions": "KI-Analyseoptionen für {{name}}",
+    "forceReanalyze": "Erneut analysieren erzwingen",
+    "forceReanalyzeHint": "Cache überspringen und KI erneut aufrufen",
     "segments_one": "{{count}} Segment",
     "segments_other": "{{count}} Segmente",
     "aiDone": "KI-Phrasenanalyse abgeschlossen",
     "analysisFailed": "KI-Phrasenanalyse fehlgeschlagen",
     "diagnosticId": "Diagnose-ID {{id}}",
     "diagnosticCodes": {
+      "STREAM_INTERRUPTED": "Verbindung unterbrochen; unvollständiger Stapel zurückgenommen. Analyse kann fortgesetzt werden.",
       "ALL_ITEMS_INVALID": "Modellergebnisse sind unvollständig oder passen nicht zum Text",
       "INVALID_JSON": "Modellantwort war leer oder kein gültiges JSON",
       "OUTPUT_TRUNCATED": "Modellantwort wurde abgeschnitten",
@@ -275,11 +395,15 @@
       "flowing": "Gut unterwegs",
       "nearlyDone": "Fast fertig",
       "complete": "Abgeschlossen"
-    }
+    },
+    "analyze": "Analysieren",
+    "reanalyze": "Erneut analysieren",
+    "continueAnalysis": "Analyse fortsetzen"
   },
   "fileDetail": {
     "back": "Zurück zu Dateien",
-    "notFound": "Datei nicht gefunden", "notFoundHint": "Sie wurde möglicherweise gelöscht. Kehren Sie zur Dateiliste zurück."
+    "notFound": "Datei nicht gefunden",
+    "notFoundHint": "Sie wurde möglicherweise gelöscht. Kehren Sie zur Dateiliste zurück."
   },
   "frequencyBaseline": {
     "introTitle": "Häufigkeitsbasis ausprobieren",
@@ -312,10 +436,26 @@
     "disable": "Künftige automatische Vormarkierung stoppen",
     "revoke": "Unbestätigte Vormarkierungen zurücknehmen",
     "tiers": {
-      "1000": { "title": "Grundlagen", "count": "Erste 1.000 häufige Wörter", "description": "Die häufigsten Kernwörter; hilfreich beim Aufbau eines Grundwortschatzes." },
-      "3000": { "title": "Alltagskommunikation", "count": "Erste 3.000 häufige Wörter", "description": "Mehr häufige Wörter aus Alltag und typischen Inhalten; beurteilen Sie Ihre Kenntnisse anhand der Beispiele." },
-      "5000": { "title": "Sichere Anwendung", "count": "Erste 5.000 häufige Wörter", "description": "Mehr häufige Wörter aus Lernen, Arbeit und allgemeiner Lektüre; dies ist keine Kompetenzzertifizierung." },
-      "10000": { "title": "Breites Lesen", "count": "Erste 10.000 häufige Wörter", "description": "Häufige Wörter aus einer breiteren Auswahl von Medien und Lektüre; wählen Sie nach tatsächlicher Vertrautheit." }
+      "1000": {
+        "title": "Grundlagen",
+        "count": "Erste 1.000 häufige Wörter",
+        "description": "Die häufigsten Kernwörter; hilfreich beim Aufbau eines Grundwortschatzes."
+      },
+      "3000": {
+        "title": "Alltagskommunikation",
+        "count": "Erste 3.000 häufige Wörter",
+        "description": "Mehr häufige Wörter aus Alltag und typischen Inhalten; beurteilen Sie Ihre Kenntnisse anhand der Beispiele."
+      },
+      "5000": {
+        "title": "Sichere Anwendung",
+        "count": "Erste 5.000 häufige Wörter",
+        "description": "Mehr häufige Wörter aus Lernen, Arbeit und allgemeiner Lektüre; dies ist keine Kompetenzzertifizierung."
+      },
+      "10000": {
+        "title": "Breites Lesen",
+        "count": "Erste 10.000 häufige Wörter",
+        "description": "Häufige Wörter aus einer breiteren Auswahl von Medien und Lektüre; wählen Sie nach tatsächlicher Vertrautheit."
+      }
     }
   },
   "words": {
@@ -548,7 +688,12 @@
     "hideOccurrenceAria": "Beispiel ausblenden",
     "restoreOccurrence": "Dieses Beispiel wiederherstellen",
     "restoreOccurrenceAria": "Beispiel wiederherstellen",
-    "hiddenOccurrences": "Ausgeblendete Beispiele ({{count}})"
+    "hiddenOccurrences": "Ausgeblendete Beispiele ({{count}})",
+    "manualExample": "Eigenes Beispiel",
+    "manualChineseSenses": "Chinesische Bedeutungen und Beispiele ergänzen",
+    "manualEnglishSenses": "Englische Bedeutungen und Beispiele ergänzen",
+    "showAllSenses": "Alle Bedeutungen anzeigen",
+    "collapseSenses": "Weniger Bedeutungen anzeigen"
   },
   "youtube": {
     "title": "Von YouTube importieren",
@@ -689,5 +834,139 @@
     "newSubfolder": "Neuer Unterordner",
     "move": "Verschieben nach…",
     "actionsAria": "Aktionen für {{name}}"
+  },
+  "analysisModel": {
+    "title": "KI-Analysemodell",
+    "refresh": "Modellliste aktualisieren",
+    "settings": "KI-Dienst konfigurieren",
+    "disabled": "Die KI-Analyse ist deaktiviert. Aktiviere sie in den Einstellungen.",
+    "loading": "Verbindung wird hergestellt und Modelle werden geladen…",
+    "empty": "Lade die Modelle neu oder konfiguriere den Dienst in den Einstellungen.",
+    "loadFailed": "Modelle konnten nicht geladen werden. Versuche es erneut oder prüfe die KI-Einstellungen.",
+    "nextAnalysis": "Die Auswahl gilt für anschließend gestartete Analysen."
+  },
+  "analysisPreview": {
+    "analyzing": "Wird analysiert",
+    "continue": "Analyse fortsetzen",
+    "currentBatch": "Stapel {{batch}} · Untertitel {{start}}–{{end}} · {{seconds}} s vergangen",
+    "snapshotFailed": "Vorschauabgleich fehlgeschlagen. Vorhandene Ergebnisse bleiben sichtbar.",
+    "temporary": "Aktuelle Markierungen sind vorläufig, bis dieser Stapel erfolgreich endet. Gespeichert wird nach Abschluss aller Stapel.",
+    "title": "Vorschau der Ausdrucksanalyse",
+    "open": "Analyse anzeigen",
+    "processed": "Verarbeitet",
+    "segments": "Abschnitte {{processed}} / {{total}}",
+    "counts": "{{phrases}} Ausdrücke · {{occurrences}} Vorkommen",
+    "follow": "Neuen Ergebnissen folgen",
+    "cancelling": "Wird abgebrochen",
+    "retry": "Analyse fortsetzen",
+    "viewSaved": "Gespeicherte Ausdrücke ansehen",
+    "phraseList": "Erkannte Ausdrücke",
+    "loading": "Untertitel werden geladen…",
+    "loadFailed": "Die Vorschau konnte nicht geladen werden. Die Analyse läuft im Hintergrund weiter.",
+    "reload": "Untertitel neu laden",
+    "waiting": "Warten auf die erste Wortgruppe…",
+    "empty": "Bisher keine Ausdrücke in diesem Durchlauf.",
+    "notSaved": "Vollständige Wortgruppen erscheinen sofort. Gespeichert wird nach Erfolg aller Stapel. Das Schließen dieser Ansicht bricht die Analyse nicht ab.",
+    "savedHint": "Ergebnisse gespeichert und beim Lesen sowie unter Ausdrücke verfügbar.",
+    "incomplete": "Analyse unvollständig. Diese Vorschau wurde noch nicht gespeichert.",
+    "status": {
+      "waitingFirst": "Warten auf die erste Wortgruppe",
+      "receiving": "Analyseergebnisse werden empfangen",
+      "interrupted": "Verbindung unterbrochen · nicht gespeichert",
+      "processing": "Ausdrücke werden extrahiert",
+      "saving": "Ergebnisse werden gespeichert",
+      "saved": "Gespeichert",
+      "error": "Analyse fehlgeschlagen · Nicht gespeichert",
+      "cancelled": "Abgebrochen · Nicht gespeichert"
+    },
+    "categories": {
+      "phrasal_verb": "Partikelverb",
+      "idiom": "Redewendung",
+      "fixed_expression": "Fester Ausdruck",
+      "collocation": "Kollokation"
+    }
+  },
+  "gemmaModels": {
+    "getModels": "Modelle laden",
+    "title": "Gemma 4 für dieses Gerät",
+    "refresh": "Erneut prüfen",
+    "detecting": "Gerät wird geprüft…",
+    "unknownCpu": "Prozessor unbekannt",
+    "unknownMemory": "Arbeitsspeicher unbekannt",
+    "unifiedMemory": "{{size}} gemeinsamer Speicher",
+    "memory": "{{size}} Arbeitsspeicher",
+    "environmentError": "Geräteinformationen konnten nicht gelesen werden. Erneut prüfen.",
+    "remote": "Serverkonfiguration unbekannt. Die Ollama-Adresse ist nicht lokal; Empfehlungen und Downloads anhand dieses Geräts sind nicht verfügbar.",
+    "accelerationUnknown": "Beschleunigung nicht bestätigt. RAM ist kein Grafikspeicher; CPU-Ausführung kann langsam sein.",
+    "noRecommendation": "Geräteinformationen fehlen oder der Speicher ist knapp. Wählen Sie unten ein Modell manuell.",
+    "memoryHint": "Die Empfehlungen sind konservative Schätzungen. Downloadgröße und Laufzeitspeicher unterscheiden sich; Laden und längere Kontexte benötigen zusätzlichen Speicher.",
+    "loadingInstalled": "Installierte Modelle werden geladen…",
+    "serviceUnavailable": "Lokales Ollama nicht erreichbar. Dienst starten und erneut prüfen.",
+    "preferred": "Empfohlen",
+    "installed": "Installiert",
+    "estimatedSize": "Download ca. {{size}}",
+    "useAfter": "Nach dem Download für Analysen verwenden",
+    "selected": "Aktuell ausgewählt",
+    "use": "Modell verwenden",
+    "download": "Herunterladen",
+    "showOther": "Weitere Versionen anzeigen",
+    "hideOther": "Weitere Versionen ausblenden",
+    "progressTitle": "Modell-Downloadfortschritt",
+    "layerProgress": "Fortschritt der aktuellen Schicht",
+    "layerBytes": "Aktuelle Schicht {{completed}} / {{total}}",
+    "errorDetails": "Fehlerdetails",
+    "nowSelected": "Für künftige Analysen ausgewählt. Laufende Analysen behalten ihr ursprüngliches Modell.",
+    "cancel": "Download abbrechen",
+    "retry": "Download fortsetzen",
+    "reason": {
+      "preferred": "Bevorzugte Version für den verfügbaren Arbeitsspeicher.",
+      "lightweight": "Kleinere Option zum Vergleichen oder für weniger Speicherverbrauch.",
+      "larger": "Der Speicher erlaubt einen Versuch; Geschwindigkeit und Qualität müssen geprüft werden.",
+      "manual": "Außerhalb der konservativen Empfehlung; manuell wählbar."
+    },
+    "phase": {
+      "manifest": "Modellübersicht wird geladen",
+      "downloading": "Download läuft",
+      "verifying": "Dateien werden geprüft",
+      "installing": "Installation wird bestätigt",
+      "completed": "Download abgeschlossen",
+      "cancelled": "Abgebrochen; Fortsetzen möglich",
+      "error": "Download unvollständig",
+      "cancelling": "Wird abgebrochen…"
+    },
+    "error": {
+      "idle": "Zu lange keine Daten empfangen. Download fortsetzen.",
+      "connection": "Downloadverbindung unterbrochen. Download fortsetzen.",
+      "busy": "Ein anderes Modell wird heruntergeladen. Bitte warten.",
+      "space": "Nicht genug Speicherplatz. Platz freigeben und fortsetzen.",
+      "notFound": "Modellversion nicht gefunden. Erneut prüfen oder andere Version wählen.",
+      "failed": "Download oder Installationsprüfung fehlgeschlagen. Details ansehen und erneut versuchen."
+    }
+  },
+  "appSelect": {
+    "choose": "Option auswählen",
+    "search": "Optionen suchen…",
+    "empty": "Keine passenden Optionen"
+  },
+  "learningRing": {
+    "progress": "Lernfortschritt {{percent}} %",
+    "calculation": "In Bearbeitung zählt zu 50 %, gelernt und ignoriert zu 100 %.",
+    "knownRatio": "Gelernte Wörter: {{percent}} %"
+  },
+  "modelManagement": {
+    "installedTitle": "Installierte lokale Modelle",
+    "empty": "Keine lokalen Modelle installiert.",
+    "unknownSize": "Größe unbekannt",
+    "delete": "Löschen",
+    "deleteAria": "Modell {{model}} löschen",
+    "deleteTitle": "Lokales Modell löschen",
+    "deleteConfirm": "{{model}} löschen? Dieses Modell wird vom lokalen Ollama verwaltet. Andere Apps benötigen danach ebenfalls eine Neuinstallation des Modells. Lerndaten und Analyseergebnisse bleiben erhalten.",
+    "busy": "Die lokale KI arbeitet oder lädt ein Modell herunter. Aufgabe vor dem Löschen beenden oder abbrechen.",
+    "deleting": "Modell wird gelöscht…",
+    "failed": "Löschen konnte nicht bestätigt werden. Liste aktualisieren oder erneut versuchen.",
+    "deleted": "{{model}} gelöscht. Bei Bedarf ein anderes Modell auswählen.",
+    "alreadyAbsent": "{{model}} ist bereits entfernt. Die Modellliste wurde aktualisiert.",
+    "retry": "Löschen erneut versuchen",
+    "service": "Ollama-Dienst: {{address}}"
   }
 }

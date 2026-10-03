@@ -264,12 +264,13 @@ export default function PhraseDetailPanel({ detail, onClose, onStatusChange, onD
                       </div>
                     )) : <p className="dictionary-evidence__muted">{dictionary.collins_available ? t('phraseDetail.noCollinsEntry') : t('phraseDetail.collinsUnavailable')}</p>}
                   </div>
-                  <div className="dictionary-evidence">
+                  <details className="dictionary-evidence" open={dictionary.other_senses.length > 0 || editingSensesZh}>
+                    <summary className="dictionary-evidence__summary">{t(!dictionary.other_senses.length || dictionary.other_senses_edited ? 'phraseDetail.manualChineseSenses' : 'phraseDetail.otherChineseSenses')}</summary>
                     <div className="flex items-center justify-between gap-2">
-                      <p className="dictionary-evidence__label">{t('phraseDetail.otherChineseSenses')}</p>
+                      <p className="dictionary-evidence__label">{t(!dictionary.other_senses.length || dictionary.other_senses_edited ? 'phraseDetail.manualChineseSenses' : 'phraseDetail.otherChineseSenses')}</p>
                       <button type="button" onClick={() => setEditingSensesZh((value) => !value)} aria-label={t('phraseDetail.editOtherChineseSenses')} className="dictionary-evidence__button"><Pencil size={14} /></button>
                     </div>
-                    {!editingSensesZh && dictionary.other_senses.map((sense, index) => <div key={index} className="dictionary-evidence__sense"><p>{sense.meaning_zh}</p><p className="dictionary-evidence__example">{t('phraseDetail.aiExample')} · {sense.example_en}</p></div>)}
+                    {!editingSensesZh && dictionary.other_senses.map((sense, index) => <div key={index} className="dictionary-evidence__sense"><p>{sense.meaning_zh}</p><p className="dictionary-evidence__example">{t(dictionary.other_senses_edited ? 'phraseDetail.manualExample' : 'phraseDetail.aiExample')} · {sense.example_en}</p></div>)}
                     {!editingSensesZh && !dictionary.other_senses.length && <p className="dictionary-evidence__muted">{t('phraseDetail.noOtherSenses')}</p>}
                     {editingSensesZh && <div className="space-y-2">{otherSensesZh.map((sense, index) => <div key={index} className="flex gap-2"><div className="flex-1 space-y-1">
                       <input aria-label={`${t('phraseDetail.chineseMeaning')} ${index + 1}`} value={sense.meaning_zh} onChange={(e) => setOtherSensesZh((current) => current.map((item, i) => i === index ? { ...item, meaning_zh: e.target.value } : item))} className="dictionary-evidence__input" />
@@ -277,12 +278,13 @@ export default function PhraseDetailPanel({ detail, onClose, onStatusChange, onD
                     </div><button type="button" onClick={() => setOtherSensesZh((current) => current.filter((_, i) => i !== index))} aria-label={t('phraseDetail.removeOtherSense')} className="dictionary-evidence__button"><Trash2 size={14} /></button></div>)}
                     <div className="flex gap-2">{otherSensesZh.length < 2 && <button type="button" onClick={() => setOtherSensesZh((current) => [...current, { meaning_zh: '', example_en: '' }])} className="dictionary-evidence__button"><Plus size={14} /> {t('phraseDetail.addOtherSense')}</button>}
                       <button type="button" disabled={savingExplanation || otherSensesZh.some((sense) => !sense.meaning_zh.trim() || !sense.example_en.trim())} onClick={() => void saveOtherSensesZh()} className="dictionary-evidence__button">{t('common.save')}</button></div></div>}
-                  </div>
-                  <div className="dictionary-evidence">
-                    <div className="flex items-center justify-between gap-2"><p className="dictionary-evidence__label">{t('phraseDetail.otherEnglishSenses')}</p>
+                  </details>
+                  <details className="dictionary-evidence" open={dictionary.other_senses_en.length > 0 || editingSenses}>
+                    <summary className="dictionary-evidence__summary">{t(!dictionary.other_senses_en.length || dictionary.other_senses_en_edited ? 'phraseDetail.manualEnglishSenses' : 'phraseDetail.otherEnglishSenses')}</summary>
+                    <div className="flex items-center justify-between gap-2"><p className="dictionary-evidence__label">{t(!dictionary.other_senses_en.length || dictionary.other_senses_en_edited ? 'phraseDetail.manualEnglishSenses' : 'phraseDetail.otherEnglishSenses')}</p>
                       <button type="button" onClick={() => setEditingSenses((value) => !value)} aria-label={t('phraseDetail.editOtherEnglishSenses')} className="dictionary-evidence__button"><Pencil size={14} /></button>
                     </div>
-                    {!editingSenses && dictionary.other_senses_en.map((sense, index) => <div key={index} className="dictionary-evidence__sense"><p>{sense.meaning_en}</p><p className="dictionary-evidence__example">{t('phraseDetail.aiExample')} · {sense.example_en}</p></div>)}
+                    {!editingSenses && dictionary.other_senses_en.map((sense, index) => <div key={index} className="dictionary-evidence__sense"><p>{sense.meaning_en}</p><p className="dictionary-evidence__example">{t(dictionary.other_senses_en_edited ? 'phraseDetail.manualExample' : 'phraseDetail.aiExample')} · {sense.example_en}</p></div>)}
                     {!editingSenses && !dictionary.other_senses_en.length && <p className="dictionary-evidence__muted">{t('phraseDetail.noOtherSenses')}</p>}
                     {editingSenses && <div className="space-y-2">{otherSensesEn.map((sense, index) => <div key={index} className="flex gap-2"><div className="flex-1 space-y-1">
                       <input aria-label={`${t('phraseDetail.englishMeaning')} ${index + 1}`} value={sense.meaning_en} onChange={(e) => setOtherSensesEn((current) => current.map((item, i) => i === index ? { ...item, meaning_en: e.target.value } : item))} className="dictionary-evidence__input" />
@@ -290,7 +292,7 @@ export default function PhraseDetailPanel({ detail, onClose, onStatusChange, onD
                     </div><button type="button" onClick={() => setOtherSensesEn((current) => current.filter((_, i) => i !== index))} aria-label={t('phraseDetail.removeOtherSense')} className="dictionary-evidence__button"><Trash2 size={14} /></button></div>)}
                     <div className="flex gap-2">{otherSensesEn.length < 2 && <button type="button" onClick={() => setOtherSensesEn((current) => [...current, { meaning_en: '', example_en: '' }])} className="dictionary-evidence__button"><Plus size={14} /> {t('phraseDetail.addOtherSense')}</button>}
                       <button type="button" disabled={savingExplanation || otherSensesEn.some((sense) => !sense.meaning_en.trim() || !sense.example_en.trim())} onClick={() => void saveOtherSenses()} className="dictionary-evidence__button">{t('common.save')}</button></div></div>}
-                  </div>
+                  </details>
                 </div>
               )}
             </div>

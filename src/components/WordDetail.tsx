@@ -1,3 +1,4 @@
+import AppSelect from './AppSelect';
 import { X, Volume2, RefreshCw, Download, EyeOff, Eye } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { playPronunciation } from '../lib/tts';
@@ -247,9 +248,8 @@ export default function WordDetailPanel({ detail, onClose, onStatusChange, onDef
           <div className="word-context-box">
             <p className="mb-2 text-xs font-medium">{t('wordDetail.confirmBaseForm')}</p>
             <div className="flex gap-2">
-              <select className="dictionary-evidence__input" value={selectedLemma} onChange={(event) => setSelectedLemma(event.target.value)}>
-                {lemmaCandidates.map((candidate) => <option key={candidate} value={candidate}>{candidate}</option>)}
-              </select>
+              <AppSelect value={selectedLemma} onChange={setSelectedLemma} aria-label={t('wordDetail.confirmBaseForm')}
+                options={lemmaCandidates.map(candidate => ({ value: candidate, label: candidate }))} />
               <button className="word-context-action shrink-0" onClick={async () => { await invoke('resolve_word_lemma', { wordId: detail.word.id, lemma: selectedLemma }); onWordResolved?.(); }}>{t('wordDetail.confirmBaseFormAction')}</button>
             </div>
             <p className="mt-1 text-[11px] opacity-70">{t('wordDetail.keepCurrentFormHint')}</p>

@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useDialogFocus } from './useDialogFocus';
+import AppSelect from './AppSelect';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LANGUAGES, type Language } from '../lib/languages';
 
@@ -10,6 +12,8 @@ interface ImportLanguageDialogProps {
 }
 
 export default function ImportLanguageDialog({ fileName, defaultLanguage, onConfirm, onCancel }: ImportLanguageDialogProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(dialogRef, onCancel);
   const { t } = useTranslation();
   const [language, setLanguage] = useState<Language | ''>(
     defaultLanguage && defaultLanguage !== 'all' ? defaultLanguage : '',
@@ -17,7 +21,7 @@ export default function ImportLanguageDialog({ fileName, defaultLanguage, onConf
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md rounded-2xl bg-white shadow-xl">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={t('importLang.title')} className="w-full max-w-md rounded-2xl bg-white shadow-xl">
         <div className="border-b border-gray-100 p-5">
           <h3 className="text-lg font-semibold text-gray-900">{t('importLang.title')}</h3>
           <p className="mt-1 truncate text-sm text-gray-500" title={fileName}>{fileName}</p>
@@ -26,17 +30,9 @@ export default function ImportLanguageDialog({ fileName, defaultLanguage, onConf
           <label className="block text-sm font-medium text-gray-700" htmlFor="import-language">
             {t('importLang.mainLanguage')}
           </label>
-          <select
-            id="import-language"
-            value={language}
-            onChange={(event) => setLanguage(event.target.value as Language)}
-            className="mt-2 w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-          >
-            <option value="" disabled>{t('importLang.selectLanguage')}</option>
-            {LANGUAGES.map((item) => (
-              <option key={item.id} value={item.id}>{item.label}</option>
-            ))}
-          </select>
+          <AppSelect id="import-language" value={language} onChange={value => setLanguage(value as Language)}
+            className="mt-2" placeholder={t('importLang.selectLanguage')}
+            options={LANGUAGES.map(item => ({ value: item.id, label: item.label }))} />
           <p className="mt-3 text-xs leading-5 text-gray-500">
             {t('importLang.hint')}
           </p>

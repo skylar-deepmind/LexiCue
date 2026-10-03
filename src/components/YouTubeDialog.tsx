@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useDialogFocus } from './useDialogFocus';
+import AppSelect from './AppSelect';
+import { useRef, useState } from 'react';
 import { Check, Clapperboard, Loader2, Search, Sparkles, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -55,6 +57,8 @@ interface YouTubeDialogProps {
 }
 
 export default function YouTubeDialog({ onClose }: YouTubeDialogProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(dialogRef, onClose);
   const { t, i18n } = useTranslation();
   const [step, setStep] = useState<Step>('url');
   const [url, setUrl] = useState('');
@@ -174,7 +178,7 @@ export default function YouTubeDialog({ onClose }: YouTubeDialogProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="flex max-h-[85vh] w-full max-w-lg flex-col rounded-2xl bg-white shadow-xl">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={t('youtube.title')} className="flex max-h-[85vh] w-full max-w-lg flex-col rounded-2xl bg-white shadow-xl">
         <div className="flex items-center justify-between border-b border-gray-100 p-5">
           <div className="flex items-center gap-2">
             <Clapperboard size={20} className="text-red-600" />
@@ -266,17 +270,8 @@ export default function YouTubeDialog({ onClose }: YouTubeDialogProps) {
                     <label className="mb-1.5 block text-sm font-medium text-gray-700" htmlFor="youtube-language">
                       {t('youtube.learningLanguage')}
                     </label>
-                    <select
-                      id="youtube-language"
-                      value={language}
-                      onChange={(e) => setLanguage(e.target.value as Language)}
-                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                    >
-                      <option value="" disabled>{t('youtube.selectLanguage')}</option>
-                      {LANGUAGES.map((item) => (
-                        <option key={item.id} value={item.id}>{item.label}</option>
-                      ))}
-                    </select>
+                    <AppSelect id="youtube-language" value={language} onChange={value => setLanguage(value as Language)}
+                      placeholder={t('youtube.selectLanguage')} options={LANGUAGES.map(item => ({ value: item.id, label: item.label }))} />
                   </div>
                   {showAiOption && (
                     <button

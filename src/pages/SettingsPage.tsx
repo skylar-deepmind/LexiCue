@@ -1,3 +1,4 @@
+import AppSelect from '../components/AppSelect';
 import { useEffect, useState } from 'react';
 import { BookOpen, Brain, Clapperboard, Database, Download, Eye, EyeOff, HardDrive, RefreshCw, Trash2, Upload } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
@@ -20,6 +21,9 @@ import { registerCacheInvalidator } from '../lib/cacheInvalidation';
 import FrequencyBaselineSettings from '../components/FrequencyBaselineSettings';
 import SettingsCollapsibleSection from '../components/SettingsCollapsibleSection';
 import CloudSyncSettings from '../components/CloudSyncSettings';
+import { checkAiConnection, ensureAiConnection, getAiConnectionFingerprint } from '../lib/ai';
+
+import GemmaModelManager from '../components/GemmaModelManager';
 
 interface YtDlpStatus {
   available: boolean;
@@ -82,7 +86,7 @@ export default function SettingsPage() {
   const initialStorage = storageUsageCache.peek('storage') ?? null;
   const [storage, setStorage] = useState<StorageUsage | null>(initialStorage);
   const [storageLoading, setStorageLoading] = useState(false);
-  const [aiOpen, setAiOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(location.hash === '#ai' || location.hash === '#ai-models');
   const [dictionaryOpen, setDictionaryOpen] = useState(false);
   const [storageOpen, setStorageOpen] = useState(false);
   const aiEnabled = useAiStore((state) => state.enabled);
@@ -99,11 +103,7 @@ export default function SettingsPage() {
   const aiStatus = useAiStore((state) => state.aiStatus);
   const aiModels = useAiStore((state) => state.aiModels);
   const aiError = useAiStore((state) => state.aiError);
-  const setAiStatus = useAiStore((state) => state.setAiStatus);
-  const setAiModels = useAiStore((state) => state.setAiModels);
-  const setAiError = useAiStore((state) => state.setAiError);
   const aiFingerprint = useAiStore((state) => state.aiFingerprint);
-  const setAiFingerprint = useAiStore((state) => state.setAiFingerprint);
   const resetAiCheck = useAiStore((state) => state.resetAiCheck);
   const [ytdlp, setYtdlp] = useState<YtDlpStatus | null>(() => ytdlpStatusCache.peek('status') ?? null);
   const [ytdlpChecking, setYtdlpChecking] = useState(false);
@@ -124,14 +124,22 @@ export default function SettingsPage() {
   };
 
   useEffect(() => {
-    if (location.hash !== '#frequency-baseline') return;
-    const frame = requestAnimationFrame(() => {
-      const section = document.getElementById('frequency-baseline');
-      section?.querySelector('button')?.focus({ preventScroll: true });
-      section?.scrollIntoView({ block: 'start' });
+    if (location.hash !== '#frequency-baseline' && location.hash !== '#ai' && location.hash !== '#ai-models') return;
+    const id = location.hash.slice(1);
+    let frame = requestAnimationFrame(() => {
+      if (id === 'ai' || id === 'ai-models') setAiOpen(true);
+      const focusSection = () => {
+        const section = document.getElementById(id);
+        if (id === 'ai-models') section?.focus({ preventScroll: true });
+        else section?.querySelector('button')?.focus({ preventScroll: true });
+        section?.scrollIntoView({ block: 'start' });
+      };
+      focusSection();
+      // A hash change can expand the section after this frame. Do not reopen it on a manual collapse.
+      if (id === 'ai-models' && aiEnabled && !document.getElementById(id)) frame = requestAnimationFrame(focusSection);
     });
     return () => cancelAnimationFrame(frame);
-  }, [location.hash]);
+  }, [location.hash, aiEnabled]);
 
   const checkYtdlp = async (force = false) => {
     const cached = ytdlpStatusCache.peek('status');
@@ -202,45 +210,20 @@ export default function SettingsPage() {
     if (storageOpen) void loadStorage();
   }, [storageOpen]);
 
-  const checkAi = async () => {
-    setAiStatus('checking');
-    setAiError('');
-    const config = {
-      provider: aiProvider,
-      baseUrl: aiBaseUrl.trim() || DEFAULT_OLLAMA_URL,
-      model: aiModel,
-      apiKey: aiProvider === 'openai' ? aiApiKey : undefined,
-    };
-    const fingerprint = JSON.stringify({ provider: config.provider, baseUrl: config.baseUrl, apiKey: config.apiKey });
-    try {
-      await invoke('ai_status', { config });
-      setAiStatus('ready');
-      setAiFingerprint(fingerprint);
-      try {
-        const models = await invoke<{ name: string }[]>('ai_models', { config });
-        setAiModels(models.map((item) => item.name));
-      } catch (error) {
-        console.error('Failed to load AI model list:', error);
-        setAiModels([]);
-      }
-    } catch (error) {
-      console.error('Failed to connect to AI service:', error);
-      setAiStatus('error');
-      setAiError(String(error));
-      setAiFingerprint(fingerprint);
-    }
-  };
 
   useEffect(() => {
-    const fingerprint = JSON.stringify({
+    const fingerprint = getAiConnectionFingerprint({
       provider: aiProvider,
-      baseUrl: aiBaseUrl.trim() || DEFAULT_OLLAMA_URL,
-      apiKey: aiProvider === 'openai' ? aiApiKey : undefined,
+      baseUrl: aiBaseUrl.trim() || (aiProvider === 'ollama' ? DEFAULT_OLLAMA_URL : ''),
+      model: aiModel,
+      apiKey: aiApiKey,
     });
     if (aiStatus !== 'idle' && aiFingerprint && aiFingerprint !== fingerprint) {
       resetAiCheck();
     }
-  }, [aiProvider, aiBaseUrl, aiApiKey, aiStatus, aiFingerprint, resetAiCheck]);
+  }, [aiProvider, aiBaseUrl, aiModel, aiApiKey, aiStatus, aiFingerprint, resetAiCheck]);
+
+  useEffect(() => { if (!aiOpen) return; const timer = setTimeout(() => void ensureAiConnection(), 350); return () => clearTimeout(timer); }, [aiOpen, aiEnabled, aiProvider, aiBaseUrl, aiApiKey]);
 
   const switchProvider = (provider: AiProvider) => {
     setAiProvider(provider);
@@ -380,17 +363,12 @@ export default function SettingsPage() {
                     aria-label={t('settings.ai.ollamaUrlAria')}
                     className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200"
                   />
-                  <select
-                    value={aiModel}
-                    onChange={(event) => setAiModel(event.target.value)}
+                  <AppSelect value={aiModel} onChange={setAiModel} searchable
                     aria-label={t('settings.ai.ollamaModelAria')}
-                    className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200"
-                  >
-                    <option value="">{t('settings.ai.selectModel')}</option>
-                    {aiModels.map((model) => <option key={model} value={model}>{model}</option>)}
-                  </select>
+                    options={[...new Set(aiModel ? [aiModel, ...aiModels] : aiModels)].map(model => ({ value: model, label: model }))}
+                    placeholder={t('settings.ai.selectModel')} />
                   <button
-                    onClick={() => void checkAi()}
+                    onClick={() => void checkAiConnection()}
                     disabled={aiStatus === 'checking'}
                     className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-purple-700 disabled:opacity-50"
                   >
@@ -400,16 +378,9 @@ export default function SettingsPage() {
               ) : (
                 <div className="space-y-3">
                   <div className="grid gap-3 sm:grid-cols-[200px_1fr]">
-                    <select
-                      value={OPENAI_PRESETS.some((preset) => preset.baseUrl === aiBaseUrl) ? aiBaseUrl : 'custom'}
-                      onChange={(event) => selectPreset(event.target.value)}
-                      aria-label={t('settings.ai.cloudServiceAria')}
-                      className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200"
-                    >
-                      {OPENAI_PRESETS.map((preset) => (
-                        <option key={preset.label} value={preset.baseUrl || 'custom'}>{preset.key === 'custom' ? t('settings.ai.custom') : preset.label}</option>
-                      ))}
-                    </select>
+                    <AppSelect value={OPENAI_PRESETS.some(preset => preset.baseUrl === aiBaseUrl) ? aiBaseUrl : 'custom'}
+                      onChange={selectPreset} aria-label={t('settings.ai.cloudServiceAria')}
+                      options={OPENAI_PRESETS.map(preset => ({ value: preset.baseUrl || 'custom', label: preset.key === 'custom' ? t('settings.ai.custom') : preset.label }))} />
                     <input
                       value={aiBaseUrl}
                       onChange={(event) => setAiBaseUrl(event.target.value)}
@@ -447,22 +418,17 @@ export default function SettingsPage() {
                       {t('settings.ai.clearKey')}
                     </button>
                     <button
-                      onClick={() => void checkAi()}
+                      onClick={() => void checkAiConnection()}
                       disabled={aiStatus === 'checking'}
                       className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-purple-700 disabled:opacity-50"
                     >
                       {aiStatus === 'checking' ? t('settings.ai.connecting') : t('settings.ai.connect')}
                     </button>
                   </div>
-                  <select
-                    value={aiModel}
-                    onChange={(event) => setAiModel(event.target.value)}
+                  <AppSelect value={aiModel} onChange={setAiModel} searchable
                     aria-label={t('settings.ai.cloudModelAria')}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200"
-                  >
-                    <option value="">{t('settings.ai.selectModel')}</option>
-                    {aiModels.map((model) => <option key={model} value={model}>{model}</option>)}
-                  </select>
+                    options={[...new Set(aiModel ? [aiModel, ...aiModels] : aiModels)].map(model => ({ value: model, label: model }))}
+                    placeholder={t('settings.ai.selectModel')} />
                 </div>
               )}
 
@@ -473,6 +439,7 @@ export default function SettingsPage() {
                 </span>
               </div>
               {aiError && <p className="break-all text-xs text-red-600">{aiError}</p>}
+              {(aiProvider === 'ollama' || location.hash === '#ai-models') && <GemmaModelManager />}
             </div>
           ) : (
             <p className="mt-4 rounded-lg bg-gray-50 px-4 py-3 text-sm text-gray-500">{t('settings.ai.disabledHint')}</p>

@@ -33,6 +33,7 @@ export default function FlashCard({ card, revealed, onReveal }: FlashCardProps) 
   const occ = card.occurrences[0];
   const [dictionary, setDictionary] = useState<DictionaryEntry | null>(null);
   const [phraseDictionary, setPhraseDictionary] = useState<PhraseDictionaryEntry | null>(null);
+  const [expandedSenses, setExpandedSenses] = useState(false);
   const [audioLoading, setAudioLoading] = useState(false);
   const wordText = getWordText(card);
   const phraseMode = isPhraseCard(card);
@@ -53,6 +54,7 @@ export default function FlashCard({ card, revealed, onReveal }: FlashCardProps) 
   };
 
   useEffect(() => {
+    setExpandedSenses(false);
     if (!revealed) return;
     if (phraseMode) {
       setPhraseDictionary(null);
@@ -115,14 +117,21 @@ export default function FlashCard({ card, revealed, onReveal }: FlashCardProps) 
             )}
 
             {phraseMode && (phraseDictionary || occ?.meaning_zh || occ?.meaning_en) && (
-              <div className="mt-3 space-y-2 rounded-xl bg-purple-50/60 p-3">
-                <div className="flex items-center gap-2">
-                  <p className={`text-purple-700 ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}>{occ?.meaning_zh || phraseDictionary?.translation || occ?.meaning_en || phraseDictionary?.meaning_en || phraseDictionary?.collins_senses[0]?.definition}</p>
-                </div>
-                {card.language === 'en' && (occ?.meaning_en || phraseDictionary?.meaning_en) && <p className={`text-gray-500 ${CONTENT_FONT_CLASS.auxiliary[auxiliaryFontSize]}`}>{occ?.meaning_en ?? phraseDictionary?.meaning_en}</p>}
-                {phraseDictionary?.category && (
-                  <p className={`text-purple-500 ${CONTENT_FONT_CLASS.auxiliary[auxiliaryFontSize]}`}>{phraseDictionary.category}</p>
-                )}
+              <div className="dictionary-evidence mt-3 space-y-2">
+                {(occ?.meaning_zh || phraseDictionary?.translation || occ?.meaning_en || phraseDictionary?.meaning_en) && <p className={CONTENT_FONT_CLASS.definition[definitionFontSize]}>{occ?.meaning_zh || phraseDictionary?.translation || occ?.meaning_en || phraseDictionary?.meaning_en}</p>}
+                {card.language === 'en' && (occ?.meaning_en || phraseDictionary?.meaning_en) && <p className={`dictionary-evidence__muted ${CONTENT_FONT_CLASS.auxiliary[auxiliaryFontSize]}`}>{occ?.meaning_en ?? phraseDictionary?.meaning_en}</p>}
+                {phraseDictionary?.category && <p className="dictionary-evidence__muted">{phraseDictionary.category}</p>}
+                {card.language === 'en' && !(card.definition || occ?.meaning_zh || occ?.meaning_en || phraseDictionary?.translation || phraseDictionary?.meaning_en) && <>
+                  <p className="dictionary-evidence__label">Collins · {t('phraseDetail.referenceOnly')}</p>
+                  {phraseDictionary?.collins_senses.length ? <>
+                    {phraseDictionary.collins_senses.slice(0, expandedSenses ? undefined : 3).map(sense => <div key={sense.id} className="dictionary-evidence__sense">
+                      <p className="dictionary-evidence__muted">{sense.headword} · {sense.grammar}</p>
+                      <p className={CONTENT_FONT_CLASS.definition[definitionFontSize]}>{sense.definition}</p>
+                      {sense.example && <p className="dictionary-evidence__example">{sense.example}</p>}
+                    </div>)}
+                    {phraseDictionary.collins_senses.length > 3 && <button type="button" className="analysis-preview__button" aria-expanded={expandedSenses} onClick={event => { event.stopPropagation(); setExpandedSenses(value => !value); }}>{t(expandedSenses ? 'phraseDetail.collapseSenses' : 'phraseDetail.showAllSenses')}</button>}
+                  </> : <p className="dictionary-evidence__muted">{t(phraseDictionary?.collins_available ? 'phraseDetail.noCollinsEntry' : 'phraseDetail.collinsUnavailable')}</p>}
+                </>}
               </div>
             )}
 

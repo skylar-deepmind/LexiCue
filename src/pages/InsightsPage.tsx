@@ -1,8 +1,10 @@
+import LearningProgressRing from '../components/LearningProgressRing';
+import AppSelect from '../components/AppSelect';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import EmptyState from '../components/EmptyState';
 import Pagination from '../components/Pagination';
-import { learningIndex, learningStage } from '../lib/fileProgress';
+import { learningIndex } from '../lib/fileProgress';
 import { LANGUAGES, type Language } from '../lib/languages';
 import { useInsightsStore } from '../stores/insightsStore';
 import { usePreferencesStore } from '../stores/preferencesStore';
@@ -74,14 +76,9 @@ export default function InsightsPage() {
           <div className="flex items-center gap-3">
             <label className="flex items-center gap-2 text-xs text-gray-500">
               <span>{t('insights.viewLanguage')}</span>
-              <select
-                value={insightsLanguage}
-                onChange={(event) => setInsightsLanguage(event.target.value as Language | 'all')}
-                className="rounded-md border border-gray-200 bg-white px-2 py-1 text-sm text-gray-700 focus:border-blue-500 focus:outline-none"
-              >
-                <option value="all">{t('common.all')}</option>
-                {LANGUAGES.map((language) => <option key={language.id} value={language.id}>{language.label}</option>)}
-              </select>
+              <AppSelect value={insightsLanguage} onChange={value => setInsightsLanguage(value as Language | 'all')}
+                aria-label={t('insights.viewLanguage')}
+                options={[{ value: 'all', label: t('common.all') }, ...LANGUAGES.map(language => ({ value: language.id, label: language.label }))]} />
             </label>
             <span className="text-xs text-gray-400">{t('insights.reviewed', { count: stats.total_reviews + stats.total_phrase_reviews })}</span>
           </div>
@@ -176,23 +173,16 @@ export default function InsightsPage() {
                 },
                 file.phrase_analyzed,
               );
-              const stage = learningStage(index);
               return (
                 <div key={file.id}>
                   <div className="flex items-center justify-between gap-2 text-sm">
                     <span className="truncate text-gray-800">{file.name} <span className="text-xs text-gray-400">({file.language})</span></span>
-                    {stage === null ? (
-                      <span className="shrink-0 text-xs text-gray-400">{t('fileCard.noLearningContent')}</span>
-                    ) : (
-                      <span className={`learning-stage learning-stage-${stage} shrink-0 flex items-center gap-1.5 text-xs font-medium`}>
-                        <span className="learning-stage-dot" aria-hidden="true" />
-                        <span>{t(`fileCard.stage.${stage}`)}</span>
-                      </span>
-                    )}
+                    <LearningProgressRing value={index} />
                   </div>
-                  <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-gray-100">
+                  <div aria-label={t('learningRing.knownRatio', { percent: knownRatio })} title={t('learningRing.knownRatio', { percent: knownRatio })} className="mt-1.5 h-2 overflow-hidden rounded-full bg-gray-100">
                     <div className="h-full rounded-full bg-green-500" style={{ width: `${knownRatio}%` }} />
                   </div>
+                  <p className="mt-1 text-xs text-gray-500">{t('learningRing.knownRatio', { percent: knownRatio })}</p>
                   <div className="mt-1 text-xs text-gray-400">{t('insights.fileStatusSummary', { unprocessed: file.unprocessed, learning: file.learning, ignored: file.ignored })}</div>
                   {!file.phrase_analyzed && <div className="mt-1 text-xs text-gray-400">{t('fileCard.wordsOnlyPending')}</div>}
                 </div>

@@ -61,6 +61,7 @@ pub async fn analyze_word_occurrence(
     occurrence_id: i64,
     config: AiConfig,
 ) -> Result<WordOccurrenceMeaning, String> {
+    let _activity_guard = super::models::generation_guard(&config, &app)?;
     let token = CancellationToken::default();
     {
         let mut values = cancellations().lock().map_err(|error| error.to_string())?;

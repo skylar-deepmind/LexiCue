@@ -18,7 +18,11 @@
       "definition": "释义与译文",
       "auxiliary": "辅助信息"
     },
-    "sizes": { "sm": "小", "md": "标准", "lg": "大" }
+    "sizes": {
+      "sm": "小",
+      "md": "标准",
+      "lg": "大"
+    }
   },
   "status": {
     "unprocessed": "未处理",
@@ -75,26 +79,132 @@
       "title": "界面语言",
       "description": "选择应用界面的显示语言。"
     },
-    "frequencyBaseline": { "title": "高频词基线" },
+    "frequencyBaseline": {
+      "title": "高频词基线"
+    },
     "cloudSync": {
       "title": "云同步",
       "description": "以端到端加密方式，在多台设备间同步资料库和学习进度。",
       "notConnected": "尚未连接",
-      "state": { "synced": "已同步", "syncing": "正在同步", "offline": "离线等待", "authRequired": "需要重新登录", "error": "同步需要处理" },
-      "lastSynced": "上次成功同步：{{time}}", "preparing": "正在准备同步…", "pending": "{{count}} 项等待上传", "conflicts": "已保存 {{count}} 个文本冲突供稍后处理", "progressLabel": "同步进度", "downloadedBytes": "已下载 {{size}}", "eta": "预计剩余 {{seconds}} 秒", "progress": { "preparing": "准备本地资料", "downloading": "下载云端资料", "applying": "应用云端资料", "uploading": "上传本地资料", "retrying": "等待重试" },
-      "restoreProgress": "恢复 {{completed}}/{{total}}",
-      "syncNow": "立即同步", "pauseAuto": "暂停自动同步", "enableAuto": "开启自动同步",
-      "advanced": "高级选项", "devices": "设备管理", "refresh": "刷新", "currentDevice": "本机", "revoke": "撤销", "disconnect": "在本机退出登录",
-      "dangerTitle": "删除同步账户", "deleteHint": "将删除云端加密副本并退出所有设备，本机资料不会被删除。", "deleteAccount": "删除账户", "deleteConfirm": "确定删除同步账户及其云端加密资料吗？本机资料不会被删除。",
-      "accountMode": "账户操作", "createAccount": "创建账户", "login": "已有账户，登录", "email": "邮箱", "recoveryKey": "恢复密钥", "newPassword": "新密码", "password": "密码", "hidePassword": "隐藏密码", "showPassword": "显示密码", "passwordHint": "密码至少需要 10 个字符。",
-      "createAndSync": "创建账户并同步", "recoverAction": "恢复账户", "loginAndSync": "登录并同步", "forgotPassword": "忘记密码？使用恢复密钥", "backToLogin": "返回登录",
-      "saveRecoveryTitle": "请保存恢复密钥", "saveRecoveryDescription": "忘记密码后，这是恢复加密资料的唯一方式。LexiCue 无法替你找回。", "copyRecovery": "复制恢复密钥", "downloadRecovery": "将恢复密钥保存为文件", "recoveryFileTitle": "LexiCue 恢复密钥——请妥善保管并勿与他人分享",
-      "diagnostic": { "summary": "诊断：{{stage}} · {{kind}}", "copy": "复制诊断信息", "copied": "已复制", "kinds": { "sqlite_busy": "数据库正忙", "sqlite_constraint": "本机资料约束冲突", "sqlite_foreign_key": "资料关联缺失", "storage_write": "本机存储无法写入", "missing_reference": "云端资料关联缺失", "local_write": "本机资料写入失败" } },
-      "errors": {
-        "auth_required": "请重新登录后继续同步。", "session_expired": "登录已过期，请重新登录。", "invalid_credentials": "邮箱或密码不正确。", "invalid_email": "请输入有效的邮箱地址。", "invalid_password": "密码至少需要 10 个字符。", "invalid_recovery_code": "恢复密钥无效。", "email_exists": "该邮箱已创建同步账户。", "invalid_registration": "注册信息无效，请检查后重试。", "invalid_device": "设备信息无效，请重试。", "network_unavailable": "当前无网络，LexiCue 会自动重试。", "rate_limited": "同步请求过于频繁，请稍后再试。", "server_internal": "同步服务遇到内部错误，请稍后重试。", "credential_store_unavailable": "安全凭据存储不可用。请先启用设备锁屏，然后重启 LexiCue。", "credential_store_write_failed": "无法安全保存登录凭据，请检查设备锁定设置后重试。", "credential_missing": "未找到已保存的登录凭据，请重新登录。", "credential_corrupted": "登录凭据已损坏，请退出后重新登录。", "sync_service_not_configured": "此版本未配置官方同步服务地址。", "unsupported_sync_protocol": "请更新 LexiCue 后继续同步。", "invalid_server_response": "同步服务返回了无法识别的数据，请更新 LexiCue 或稍后重试。", "invalid_key_package": "登录加密资料无法验证，密码可能不正确或资料已损坏。请重试或使用恢复密钥。", "invalid_local_sync_key": "本机同步密钥无效，请退出后重新登录。", "record_encryption_failed": "无法加密本地记录，资料未上传，请重试。", "invalid_encrypted_record": "加密记录无效，已拒绝应用，请重试。", "record_authentication_failed": "一条加密记录未通过校验，已拒绝应用。", "invalid_record_batch": "云端记录批次无效，未应用这些记录，请重试。", "invalid_record": "云端记录格式无效，未应用该记录，请重试。", "record_precondition_failed": "云端记录版本冲突，LexiCue 将重新获取并合并后重试。", "invalid_blob_manifest": "同步文件块清单无效，未应用云端资料，请重试。", "invalid_blob": "同步文件块无效，未应用云端资料，请重试。", "blob_hash_mismatch": "同步文件块完整性校验失败，未应用云端资料，请重试。", "blob_not_found": "找不到同步文件块，云端资料可能不完整，请重试。", "cannot_revoke_current_device": "不能撤销当前设备，请从其他设备操作。", "device_not_found": "找不到该设备，可能已被撤销，请刷新设备列表。", "metrics_disabled": "同步服务监控未启用，请联系管理员。", "metrics_unauthorized": "无权访问同步服务监控，请联系管理员。", "sync_service_error": "同步服务暂时不可用，LexiCue 会自动重试。", "unknown": "发生未识别的同步错误，请重试；如果持续发生，请更新 LexiCue。"
-        ,"local_backup_failed": "无法创建本机安全备份，原始资料未修改。请检查可用存储空间后重试。", "local_sync_storage_error": "无法安全写入本机同步资料，原始资料未修改。请重启 LexiCue 后重试。", "local_identity_conflict": "本机存在无法安全处理的重复同步身份，原始资料未修改且备份已保留。请联系支持团队。", "local_delete_failed": "无法安全删除本机文件，原始资料可能仍保留且备份已保留。请重试或重启 LexiCue。", "record_too_large": "本地记录超过单条同步大小限制，未上传。请拆分文件或减少资料后重试。"
+      "state": {
+        "synced": "已同步",
+        "syncing": "正在同步",
+        "offline": "离线等待",
+        "authRequired": "需要重新登录",
+        "error": "同步需要处理"
       },
-      "notices": { "accountCreated": "账户已创建，资料正在自动同步。", "connected": "登录成功，正在准备资料。", "synced": "同步完成。", "accountDeleted": "同步账户已删除，本机资料已保留。", "recoverySaved": "恢复密钥已保存。" }
+      "lastSynced": "上次成功同步：{{time}}",
+      "preparing": "正在准备同步…",
+      "pending": "{{count}} 项等待上传",
+      "conflicts": "已保存 {{count}} 个文本冲突供稍后处理",
+      "progressLabel": "同步进度",
+      "downloadedBytes": "已下载 {{size}}",
+      "eta": "预计剩余 {{seconds}} 秒",
+      "progress": {
+        "preparing": "准备本地资料",
+        "downloading": "下载云端资料",
+        "applying": "应用云端资料",
+        "uploading": "上传本地资料",
+        "retrying": "等待重试"
+      },
+      "restoreProgress": "恢复 {{completed}}/{{total}}",
+      "syncNow": "立即同步",
+      "pauseAuto": "暂停自动同步",
+      "enableAuto": "开启自动同步",
+      "advanced": "高级选项",
+      "devices": "设备管理",
+      "refresh": "刷新",
+      "currentDevice": "本机",
+      "revoke": "撤销",
+      "disconnect": "在本机退出登录",
+      "dangerTitle": "删除同步账户",
+      "deleteHint": "将删除云端加密副本并退出所有设备，本机资料不会被删除。",
+      "deleteAccount": "删除账户",
+      "deleteConfirm": "确定删除同步账户及其云端加密资料吗？本机资料不会被删除。",
+      "accountMode": "账户操作",
+      "createAccount": "创建账户",
+      "login": "已有账户，登录",
+      "email": "邮箱",
+      "recoveryKey": "恢复密钥",
+      "newPassword": "新密码",
+      "password": "密码",
+      "hidePassword": "隐藏密码",
+      "showPassword": "显示密码",
+      "passwordHint": "密码至少需要 10 个字符。",
+      "createAndSync": "创建账户并同步",
+      "recoverAction": "恢复账户",
+      "loginAndSync": "登录并同步",
+      "forgotPassword": "忘记密码？使用恢复密钥",
+      "backToLogin": "返回登录",
+      "saveRecoveryTitle": "请保存恢复密钥",
+      "saveRecoveryDescription": "忘记密码后，这是恢复加密资料的唯一方式。LexiCue 无法替你找回。",
+      "copyRecovery": "复制恢复密钥",
+      "downloadRecovery": "将恢复密钥保存为文件",
+      "recoveryFileTitle": "LexiCue 恢复密钥——请妥善保管并勿与他人分享",
+      "diagnostic": {
+        "summary": "诊断：{{stage}} · {{kind}}",
+        "copy": "复制诊断信息",
+        "copied": "已复制",
+        "kinds": {
+          "sqlite_busy": "数据库正忙",
+          "sqlite_constraint": "本机资料约束冲突",
+          "sqlite_foreign_key": "资料关联缺失",
+          "storage_write": "本机存储无法写入",
+          "missing_reference": "云端资料关联缺失",
+          "local_write": "本机资料写入失败"
+        }
+      },
+      "errors": {
+        "auth_required": "请重新登录后继续同步。",
+        "session_expired": "登录已过期，请重新登录。",
+        "invalid_credentials": "邮箱或密码不正确。",
+        "invalid_email": "请输入有效的邮箱地址。",
+        "invalid_password": "密码至少需要 10 个字符。",
+        "invalid_recovery_code": "恢复密钥无效。",
+        "email_exists": "该邮箱已创建同步账户。",
+        "invalid_registration": "注册信息无效，请检查后重试。",
+        "invalid_device": "设备信息无效，请重试。",
+        "network_unavailable": "当前无网络，LexiCue 会自动重试。",
+        "rate_limited": "同步请求过于频繁，请稍后再试。",
+        "server_internal": "同步服务遇到内部错误，请稍后重试。",
+        "credential_store_unavailable": "安全凭据存储不可用。请先启用设备锁屏，然后重启 LexiCue。",
+        "credential_store_write_failed": "无法安全保存登录凭据，请检查设备锁定设置后重试。",
+        "credential_missing": "未找到已保存的登录凭据，请重新登录。",
+        "credential_corrupted": "登录凭据已损坏，请退出后重新登录。",
+        "sync_service_not_configured": "此版本未配置官方同步服务地址。",
+        "unsupported_sync_protocol": "请更新 LexiCue 后继续同步。",
+        "invalid_server_response": "同步服务返回了无法识别的数据，请更新 LexiCue 或稍后重试。",
+        "invalid_key_package": "登录加密资料无法验证，密码可能不正确或资料已损坏。请重试或使用恢复密钥。",
+        "invalid_local_sync_key": "本机同步密钥无效，请退出后重新登录。",
+        "record_encryption_failed": "无法加密本地记录，资料未上传，请重试。",
+        "invalid_encrypted_record": "加密记录无效，已拒绝应用，请重试。",
+        "record_authentication_failed": "一条加密记录未通过校验，已拒绝应用。",
+        "invalid_record_batch": "云端记录批次无效，未应用这些记录，请重试。",
+        "invalid_record": "云端记录格式无效，未应用该记录，请重试。",
+        "record_precondition_failed": "云端记录版本冲突，LexiCue 将重新获取并合并后重试。",
+        "invalid_blob_manifest": "同步文件块清单无效，未应用云端资料，请重试。",
+        "invalid_blob": "同步文件块无效，未应用云端资料，请重试。",
+        "blob_hash_mismatch": "同步文件块完整性校验失败，未应用云端资料，请重试。",
+        "blob_not_found": "找不到同步文件块，云端资料可能不完整，请重试。",
+        "cannot_revoke_current_device": "不能撤销当前设备，请从其他设备操作。",
+        "device_not_found": "找不到该设备，可能已被撤销，请刷新设备列表。",
+        "metrics_disabled": "同步服务监控未启用，请联系管理员。",
+        "metrics_unauthorized": "无权访问同步服务监控，请联系管理员。",
+        "sync_service_error": "同步服务暂时不可用，LexiCue 会自动重试。",
+        "unknown": "发生未识别的同步错误，请重试；如果持续发生，请更新 LexiCue。",
+        "local_backup_failed": "无法创建本机安全备份，原始资料未修改。请检查可用存储空间后重试。",
+        "local_sync_storage_error": "无法安全写入本机同步资料，原始资料未修改。请重启 LexiCue 后重试。",
+        "local_identity_conflict": "本机存在无法安全处理的重复同步身份，原始资料未修改且备份已保留。请联系支持团队。",
+        "local_delete_failed": "无法安全删除本机文件，原始资料可能仍保留且备份已保留。请重试或重启 LexiCue。",
+        "record_too_large": "本地记录超过单条同步大小限制，未上传。请拆分文件或减少资料后重试。"
+      },
+      "notices": {
+        "accountCreated": "账户已创建，资料正在自动同步。",
+        "connected": "登录成功，正在准备资料。",
+        "synced": "同步完成。",
+        "accountDeleted": "同步账户已删除，本机资料已保留。",
+        "recoverySaved": "恢复密钥已保存。"
+      }
     },
     "ai": {
       "title": "AI 功能",
@@ -224,11 +334,15 @@
     "emptyFolderDescription": "新建子文件夹，或把文件拖到这里"
   },
   "fileCard": {
+    "analysisOptions": "{{name}} 的 AI 分析选项",
+    "forceReanalyze": "强制重新分析",
+    "forceReanalyzeHint": "跳过缓存，重新调用 AI",
     "segments": "{{count}} 段",
     "aiDone": "已完成 AI 词组分析",
     "analysisFailed": "AI 词组分析失败",
     "diagnosticId": "诊断编号 {{id}}",
     "diagnosticCodes": {
+      "STREAM_INTERRUPTED": "连接中断，未完成批已撤回，可继续分析",
       "ALL_ITEMS_INVALID": "模型结果缺少必要字段或无法对应原句",
       "INVALID_JSON": "模型回复为空或 JSON 无法解析",
       "OUTPUT_TRUNCATED": "模型回复被截断",
@@ -275,11 +389,15 @@
       "flowing": "渐入佳境",
       "nearlyDone": "接近完成",
       "complete": "已完成"
-    }
+    },
+    "analyze": "分析",
+    "reanalyze": "重新分析",
+    "continueAnalysis": "继续分析"
   },
   "fileDetail": {
     "back": "返回文件",
-    "notFound": "找不到此文件", "notFoundHint": "文件可能已被删除，请返回文件列表"
+    "notFound": "找不到此文件",
+    "notFoundHint": "文件可能已被删除，请返回文件列表"
   },
   "frequencyBaseline": {
     "introTitle": "试试高频词基线",
@@ -312,10 +430,26 @@
     "disable": "停止未来自动预标记",
     "revoke": "撤销尚未确认的预标记",
     "tiers": {
-      "1000": { "title": "基础起步", "count": "前 1,000 高频词", "description": "覆盖最常用的基础词；适合刚开始建立核心词汇时参考。" },
-      "3000": { "title": "日常沟通", "count": "前 3,000 高频词", "description": "覆盖更多日常交流和常见内容中的词；具体掌握仍应以样本判断。" },
-      "5000": { "title": "较熟练使用", "count": "前 5,000 高频词", "description": "覆盖较多学习、工作与一般阅读中的常见词；不是能力认证。" },
-      "10000": { "title": "广泛阅读", "count": "前 10,000 高频词", "description": "覆盖更广的媒体和阅读常见词；是否跳过应以实际熟悉度为准。" }
+      "1000": {
+        "title": "基础起步",
+        "count": "前 1,000 高频词",
+        "description": "覆盖最常用的基础词；适合刚开始建立核心词汇时参考。"
+      },
+      "3000": {
+        "title": "日常沟通",
+        "count": "前 3,000 高频词",
+        "description": "覆盖更多日常交流和常见内容中的词；具体掌握仍应以样本判断。"
+      },
+      "5000": {
+        "title": "较熟练使用",
+        "count": "前 5,000 高频词",
+        "description": "覆盖较多学习、工作与一般阅读中的常见词；不是能力认证。"
+      },
+      "10000": {
+        "title": "广泛阅读",
+        "count": "前 10,000 高频词",
+        "description": "覆盖更广的媒体和阅读常见词；是否跳过应以实际熟悉度为准。"
+      }
     }
   },
   "words": {
@@ -540,7 +674,12 @@
     "hideOccurrenceAria": "隐藏例句",
     "restoreOccurrence": "恢复该例句",
     "restoreOccurrenceAria": "恢复例句",
-    "hiddenOccurrences": "已隐藏例句 ({{count}})"
+    "hiddenOccurrences": "已隐藏例句 ({{count}})",
+    "manualExample": "手动例句",
+    "manualChineseSenses": "补充中文释义和例句",
+    "manualEnglishSenses": "补充英文释义和例句",
+    "showAllSenses": "展开全部义项",
+    "collapseSenses": "收起义项"
   },
   "youtube": {
     "title": "从 YouTube 导入",
@@ -678,5 +817,139 @@
     "newSubfolder": "新建子文件夹",
     "move": "移动到…",
     "actionsAria": "{{name}} 的操作"
+  },
+  "analysisModel": {
+    "title": "AI 分析模型",
+    "refresh": "刷新模型列表",
+    "settings": "配置 AI 服务",
+    "disabled": "AI 分析已关闭，可在设置中开启。",
+    "loading": "正在连接并获取模型…",
+    "empty": "点击刷新获取模型，或打开设置配置服务。",
+    "loadFailed": "无法获取模型列表，请重试或检查 AI 设置。",
+    "nextAnalysis": "选择应用于之后启动的分析。"
+  },
+  "analysisPreview": {
+    "analyzing": "分析中",
+    "continue": "继续分析",
+    "currentBatch": "第 {{batch}} 批 · 字幕 {{start}}–{{end}} · 已等待 {{seconds}} 秒",
+    "snapshotFailed": "预览核对失败，已显示的结果仍可查看。",
+    "temporary": "当前批圈选为临时结果，完整成功后确认；全部完成后保存。",
+    "title": "词组分析预览",
+    "open": "查看分析",
+    "processed": "已处理",
+    "segments": "字幕 {{processed}} / {{total}}",
+    "counts": "{{phrases}} 个词组 · {{occurrences}} 次出现",
+    "follow": "跟随最新结果",
+    "cancelling": "正在取消",
+    "retry": "继续分析",
+    "viewSaved": "查看已保存词组",
+    "phraseList": "已发现的词组",
+    "loading": "正在加载字幕…",
+    "loadFailed": "字幕预览加载失败，后台分析仍会继续。",
+    "reload": "重新加载字幕",
+    "waiting": "等待首个词组…",
+    "empty": "本次尚未提取到词组。",
+    "notSaved": "完整词组随到随显示；全部分析成功才正式保存。关闭侧栏不会取消分析。",
+    "savedHint": "本次提取结果已保存，可在阅读和词组模块中查看。",
+    "incomplete": "分析未完成，以上为预览，尚未正式保存。",
+    "status": {
+      "waitingFirst": "等待首个词组",
+      "receiving": "正在接收分析结果",
+      "interrupted": "连接中断，尚未保存",
+      "processing": "正在提取词组",
+      "saving": "正在保存结果",
+      "saved": "已保存",
+      "error": "分析失败 · 尚未保存",
+      "cancelled": "已取消 · 尚未保存"
+    },
+    "categories": {
+      "phrasal_verb": "短语动词",
+      "idiom": "习语",
+      "fixed_expression": "固定表达",
+      "collocation": "搭配"
+    }
+  },
+  "gemmaModels": {
+    "getModels": "获取模型",
+    "title": "适合本机的 Gemma 4",
+    "refresh": "重新检测",
+    "detecting": "正在检测本机环境…",
+    "unknownCpu": "处理器未知",
+    "unknownMemory": "内存信息未知",
+    "unifiedMemory": "{{size}} 统一内存",
+    "memory": "{{size}} 系统内存",
+    "environmentError": "无法读取本机环境，请重新检测。",
+    "remote": "服务器配置未知。当前 Ollama 地址不是本机地址，不能根据这台设备推荐或下载模型。",
+    "accelerationUnknown": "加速能力尚未确认。系统内存不等于显存，CPU 推理可能较慢。",
+    "noRecommendation": "本机信息不足或内存较少，暂不指定首选。可手动选择以下模型。",
+    "memoryHint": "推荐为保守估算。下载大小不等于运行内存；首次加载和长上下文还需要额外内存。",
+    "loadingInstalled": "正在加载已安装模型…",
+    "serviceUnavailable": "无法连接本地 Ollama。请确认服务已启动，然后重新检测。",
+    "preferred": "本机首选",
+    "installed": "已安装",
+    "estimatedSize": "下载约 {{size}}",
+    "useAfter": "下载完成后用于分析",
+    "selected": "当前使用",
+    "use": "使用此模型",
+    "download": "下载",
+    "showOther": "查看其他版本",
+    "hideOther": "收起其他版本",
+    "progressTitle": "模型下载进度",
+    "layerProgress": "当前层下载进度",
+    "layerBytes": "当前层 {{completed}} / {{total}}",
+    "errorDetails": "查看错误详情",
+    "nowSelected": "已用于后续分析。运行中的分析继续使用原模型。",
+    "cancel": "取消下载",
+    "retry": "继续下载",
+    "reason": {
+      "preferred": "在当前内存条件下，优先推荐这个版本。",
+      "lightweight": "更小的版本，适合比较效果或减少内存占用。",
+      "larger": "本机内存允许尝试，实际速度与效果需验证。",
+      "manual": "超出本机保守推荐范围，可手动选择。"
+    },
+    "phase": {
+      "manifest": "获取模型清单",
+      "downloading": "正在下载",
+      "verifying": "校验文件",
+      "installing": "确认安装",
+      "completed": "下载完成",
+      "cancelled": "已取消，可继续下载",
+      "error": "下载未完成",
+      "cancelling": "正在取消…"
+    },
+    "error": {
+      "idle": "长时间未收到下载数据，请继续下载。",
+      "connection": "下载连接中断，请继续下载。",
+      "busy": "另一个模型正在下载，请等待完成。",
+      "space": "磁盘空间不足，请释放空间后继续下载。",
+      "notFound": "未找到这个模型版本，请重新检测或选择其他版本。",
+      "failed": "下载或安装确认失败，请查看详情后重试。"
+    }
+  },
+  "appSelect": {
+    "choose": "请选择",
+    "search": "搜索选项…",
+    "empty": "没有匹配的选项"
+  },
+  "learningRing": {
+    "progress": "学习进度 {{percent}}%",
+    "calculation": "学习中计 50%，已掌握和已忽略计 100%。",
+    "knownRatio": "已掌握单词比例：{{percent}}%"
+  },
+  "modelManagement": {
+    "installedTitle": "已安装的本地模型",
+    "empty": "尚未安装本地模型。",
+    "unknownSize": "大小未知",
+    "delete": "删除",
+    "deleteAria": "删除模型 {{model}}",
+    "deleteTitle": "删除本地模型",
+    "deleteConfirm": "确定删除 {{model}} 吗？此模型由本机 Ollama 管理，其他使用它的应用也将无法使用，直到重新安装。已有学习数据和分析结果会保留。",
+    "busy": "本机 AI 正在运行或下载，请完成或取消任务后再删除模型。",
+    "deleting": "正在删除模型…",
+    "failed": "删除未能确认，请刷新或重试。",
+    "deleted": "已删除 {{model}}。如删除的是当前模型，请选择其他模型。",
+    "alreadyAbsent": "{{model}} 已不存在，模型列表已刷新。",
+    "retry": "重试删除",
+    "service": "Ollama 服务：{{address}}"
   }
 }

@@ -1,5 +1,6 @@
+import AppSelect from './AppSelect';
 import { NavLink } from 'react-router-dom';
-import { FileText, BookOpen, Layers, Globe, Brain, BarChart3, Settings, ChevronDown } from 'lucide-react';
+import { FileText, BookOpen, Layers, Globe, Brain, BarChart3, Settings } from 'lucide-react';
 import { ask } from '@tauri-apps/plugin-dialog';
 import { useTranslation } from 'react-i18next';
 import { LANGUAGES, type Language } from '../lib/languages';
@@ -48,34 +49,23 @@ export default function Sidebar() {
         <span className="hidden sm:inline">LexiCue</span>
       </div>
       {NAV_ITEMS.map((item) => <NavLinkItem key={item.to} {...item} t={t} />)}
-      <div className="w-full mt-auto hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl transition-colors hover:bg-gray-50">
+      <div className="w-full mt-auto hidden sm:flex items-center gap-1 px-2 py-2 rounded-xl">
         <Globe size={20} className="text-gray-400 shrink-0" />
-        <select
-          value={language}
-          onChange={async (event) => {
-            const next = event.target.value as Language | 'all';
+        <AppSelect value={language} className="app-select--sidebar" aria-label={t('sidebar.languageAria')}
+          options={[{ value: 'all', label: t('common.all') }, ...LANGUAGES.map(item => ({ value: item.id, label: item.label }))]}
+          onChange={async value => {
+            const next = value as Language | 'all';
             if (next === language) return;
             if (hasActiveSession(useReviewStore.getState())) {
               const ok = await ask(t('sidebar.switchLanguageConfirm'), {
-                title: t('sidebar.switchLanguageTitle'),
-                kind: 'warning',
-                okLabel: t('sidebar.switch'),
-                cancelLabel: t('common.cancel'),
+                title: t('sidebar.switchLanguageTitle'), kind: 'warning',
+                okLabel: t('sidebar.switch'), cancelLabel: t('common.cancel'),
               });
-              if (!ok) {
-                event.currentTarget.value = language;
-                return;
-              }
+              if (!ok) return;
             }
             setLanguage(next);
-          }}
-          aria-label={t('sidebar.languageAria')}
-          className="flex-1 min-w-0 bg-transparent text-sm text-gray-600 appearance-none focus:outline-none cursor-pointer"
-        >
-          <option value="all">{t('common.all')}</option>
-          {LANGUAGES.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-        </select>
-        <ChevronDown size={16} className="text-gray-400 shrink-0 pointer-events-none" />
+          }} />
+
       </div>
       <NavLinkItem {...SETTINGS_ITEM} t={t} />
     </aside>
