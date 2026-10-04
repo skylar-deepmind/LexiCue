@@ -55,13 +55,13 @@ export default function FolderCard({
       <Folder size={28} className="shrink-0 text-amber-500" />
       <div className="min-w-0 flex-1">
         <h3 className="truncate text-sm font-medium text-gray-900" title={folder.name}>
-          {folder.name}
+          <button type="button" className="folder-card__open" onClick={event => { event.stopPropagation(); onSelect(folder.id); }}>{folder.name}</button>
         </h3>
         <p className="text-xs text-gray-500">
           {t('files.folderCount', { count: folder.file_count })}
         </p>
       </div>
-      <div className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100">
+      <div className="touch-actions shrink-0 transition-opacity">
         <FolderActionsMenu
           folder={folder}
           onNewSubfolder={onNewSubfolder}

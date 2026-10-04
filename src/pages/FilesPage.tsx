@@ -1,3 +1,5 @@
+import Overlay from '../components/Overlay';
+import AdaptiveMenu from '../components/AdaptiveMenu';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -7,6 +9,7 @@ import {
   Clapperboard,
   MoreHorizontal,
   FolderPlus,
+  FolderOpen,
   ChevronRight,
   ChevronLeft,
   Home,
@@ -52,31 +55,20 @@ const DRAG_TYPE = 'application/x-lexicue';
 
 export default function FilesPage() {
   const { t } = useTranslation();
-  const [youtubeDialogOpen, setYoutubeDialogOpen] = useState(() => useYoutubeStore.getState().dialogDraft !== null);
+  const [youtubeDialogOpen, setYoutubeDialogOpen] = useState(() => useYoutubeStore.getState().dialogDraft?.resumeAfterSettings === true);
+  useEffect(() => {
+    const draft = useYoutubeStore.getState().dialogDraft;
+    if (draft?.resumeAfterSettings) useYoutubeStore.setState({ dialogDraft: { ...draft, resumeAfterSettings: false } });
+  }, []);
   const [moreOpen, setMoreOpen] = useState(false);
   const [treeOpen, setTreeOpen] = useState(true);
+  const [folderDrawerOpen, setFolderDrawerOpen] = useState(false);
+  const listRef = useRef<HTMLDivElement>(null);
   const [moveTarget, setMoveTarget] = useState<MoveTarget | null>(null);
   const [promptTarget, setPromptTarget] = useState<PromptTarget | null>(null);
   const [drag, setDrag] = useState<DragPayload | null>(null);
   const moreRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!moreOpen) return;
-    const handler = (event: MouseEvent) => {
-      if (moreRef.current && !moreRef.current.contains(event.target as Node)) {
-        setMoreOpen(false);
-      }
-    };
-    const keyHandler = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setMoreOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    document.addEventListener('keydown', keyHandler);
-    return () => {
-      document.removeEventListener('mousedown', handler);
-      document.removeEventListener('keydown', keyHandler);
-    };
-  }, [moreOpen]);
 
   const {
     files,
@@ -136,6 +128,15 @@ export default function FilesPage() {
   const openPreview = useOllamaStore(state => state.openPreview);
   const startAnalysis = useOllamaStore((state) => state.startAnalysis);
   const cancelAnalysis = useOllamaStore((state) => state.cancelAnalysis);
+  useEffect(() => {
+    const node = listRef.current;
+    if (!node) return;
+    const key = `lexicue-file-scroll-${currentFolderId ?? 'root'}`;
+    node.scrollTop = Number(sessionStorage.getItem(key) ?? 0);
+    const save = () => sessionStorage.setItem(key, String(node.scrollTop));
+    node.addEventListener('scroll', save, { passive: true });
+    return () => node.removeEventListener('scroll', save);
+  }, [currentFolderId, loading]);
   const globalLanguage = usePreferencesStore((state) => state.language);
 
   useEffect(() => {
@@ -258,12 +259,30 @@ export default function FilesPage() {
     </div>
   );
 
+  const renderFolderTree = () => (
+    <FolderTree
+                  folders={folders}
+                  currentFolderId={currentFolderId}
+                  drag={drag}
+                  descendantIds={descendantIds}
+                  onSelect={(folderId) => { setCurrentFolder(folderId); setFolderDrawerOpen(false); }}
+                  onDragStart={handleDragStart}
+                  onDragEnd={() => setDrag(null)}
+                  onDrop={handleDrop}
+                  onNewSubfolder={(parentId) => setPromptTarget({ mode: 'create', parentId })}
+                  onRename={(folder) => setPromptTarget({ mode: 'rename', parentId: null, folder })}
+                  onMove={(folder) => setMoveTarget({ kind: 'folder', id: folder.id })}
+                  onDelete={(folder) => void handleDeleteFolder(folder)}
+                />
+  );
+
   return (
     <div className="h-full flex flex-col">
       <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-b border-gray-100">
-        <nav className="flex min-w-0 items-center gap-1.5 text-sm" aria-label={t('files.breadcrumbAria')}>
+        <nav className="file-breadcrumb flex min-w-0 flex-wrap items-center gap-1.5 text-sm" aria-label={t('files.breadcrumbAria')}>
           <button
             onClick={() => setCurrentFolder(null)}
+            aria-label={t('files.root')}
             className={`flex shrink-0 items-center gap-1 rounded px-1 py-0.5 transition-colors ${
               currentFolderId === null
                 ? 'font-medium text-blue-600'
@@ -290,6 +309,7 @@ export default function FilesPage() {
           ))}
         </nav>
         <div className="flex min-w-0 flex-wrap gap-2">
+          <button className="ui-button compact-folders-trigger" onClick={() => setFolderDrawerOpen(true)} aria-label={t('shell.expandFolders')}><FolderOpen size={18} aria-hidden="true" />{t('shell.folders')}</button>
           <button
             onClick={() => setPromptTarget({ mode: 'create', parentId: currentFolderId })}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 transition-colors hover:bg-gray-50"
@@ -323,10 +343,7 @@ export default function FilesPage() {
               <span className="hidden sm:inline">{t('files.more')}</span>
             </button>
             {moreOpen && (
-              <div
-                role="menu"
-                className="absolute right-0 top-full mt-1 z-50 min-w-[200px] rounded-xl border border-gray-200 bg-white py-1 shadow-lg"
-              >
+              <AdaptiveMenu anchorRef={moreRef} label={t('files.moreAria')} onClose={() => setMoreOpen(false)}>
                 <button
                   role="menuitem"
                   onClick={() => {
@@ -361,7 +378,7 @@ export default function FilesPage() {
                   <ImportIcon size={15} className="text-gray-400" />
                   {t('files.restoreBackup')}
                 </button>
-              </div>
+              </AdaptiveMenu>
             )}
           </div>
         </div>
@@ -399,14 +416,16 @@ export default function FilesPage() {
           placeholder={t('folders.namePlaceholder')}
           initial={promptTarget.folder?.name ?? ''}
           confirmLabel={t(promptTarget.mode === 'create' ? 'folders.create' : 'folders.rename')}
-          onConfirm={(value) => {
+          onConfirm={async (value) => {
             const target = promptTarget;
-            setPromptTarget(null);
+            let saved = false;
             if (target.mode === 'create') {
-              void createFolder(value, target.parentId);
+              saved = await createFolder(value, target.parentId);
             } else if (target.folder) {
-              void renameFolder(target.folder.id, value);
+              saved = await renameFolder(target.folder.id, value);
             }
+            if (saved) setPromptTarget(null);
+            return saved;
           }}
           onCancel={() => setPromptTarget(null)}
         />
@@ -417,7 +436,7 @@ export default function FilesPage() {
           <ImportLanguageDialog
             fileName={pendingImport.name}
             defaultLanguage={globalLanguage}
-            onConfirm={(language) => void setImportLanguage(language)}
+            onConfirm={setImportLanguage}
             onCancel={cancelImport}
           />
         ) : <ImportPreview
@@ -437,9 +456,13 @@ export default function FilesPage() {
         />
       )}
 
+      {folderDrawerOpen && <Overlay variant="sheet" label={t('shell.folders')} onClose={() => setFolderDrawerOpen(false)} className="folder-drawer">
+        <div className="action-sheet__header"><h2>{t('shell.folders')}</h2><button className="ui-button" onClick={() => setFolderDrawerOpen(false)}>{t('common.close')}</button></div>
+        {renderFolderTree()}
+      </Overlay>}
       <div className="flex min-h-0 flex-1">
         <aside
-          className={`hidden shrink-0 border-r border-gray-100 sm:flex ${treeOpen ? 'w-52' : 'w-9'}`}
+          className={`file-folder-sidebar shrink-0 border-r border-gray-100 ${treeOpen ? 'w-52' : 'w-9'}`}
         >
           {treeOpen ? (
             <div className="flex min-h-0 flex-1 flex-col">
@@ -456,20 +479,7 @@ export default function FilesPage() {
                 </button>
               </div>
               <div className="min-h-0 flex-1">
-                <FolderTree
-                  folders={folders}
-                  currentFolderId={currentFolderId}
-                  drag={drag}
-                  descendantIds={descendantIds}
-                  onSelect={(folderId) => setCurrentFolder(folderId)}
-                  onDragStart={handleDragStart}
-                  onDragEnd={() => setDrag(null)}
-                  onDrop={handleDrop}
-                  onNewSubfolder={(parentId) => setPromptTarget({ mode: 'create', parentId })}
-                  onRename={(folder) => setPromptTarget({ mode: 'rename', parentId: null, folder })}
-                  onMove={(folder) => setMoveTarget({ kind: 'folder', id: folder.id })}
-                  onDelete={(folder) => void handleDeleteFolder(folder)}
-                />
+                {renderFolderTree()}
               </div>
             </div>
           ) : (
@@ -485,7 +495,7 @@ export default function FilesPage() {
           )}
         </aside>
 
-        <div className="file-list-container min-w-0 flex-1 overflow-y-auto p-6">
+        <div ref={listRef} className="file-list-container min-w-0 flex-1 overflow-y-auto p-4 md:p-6">
           {loading ? (
             <div className="file-grid">
               {Array.from({ length: 6 }).map((_, index) => (

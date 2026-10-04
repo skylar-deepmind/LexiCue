@@ -381,6 +381,10 @@
     "learningProgress": "学習進捗",
     "learningProgressAria": "学習進捗：{{stage}}",
     "noLearningContent": "学習内容はありません",
+    "wordsOnly": "単語のみ",
+    "wordsAndPhrases": "単語 + フレーズ",
+    "analysisLabel": "フレーズ分析",
+    "analysisComplete": "分析済み",
     "wordsOnlyPending": "単語のみ · フレーズ未分析",
     "stage": {
       "notStarted": "未開始",
@@ -1068,5 +1072,21 @@
     "operationFailed": "操作が完了しませんでした。再試行するか、保存済みの進捗を再確認してください。",
     "conflict": "項目が別の場所で変更されました。直接取り消しや上書きはできません。セッションを再確認するか、新しく開始してください。",
     "ignore": "対象外"
+  },
+  "shell": {
+    "vocabulary": "語彙",
+    "learningLanguage": "学習言語",
+    "allLanguages": "すべての言語",
+    "expandDetail": "詳細を展開",
+    "collapseDetail": "詳細を縮小",
+    "close": "閉じる",
+    "saveFailed": "保存できませんでした。閉じる前に再試行してください。",
+    "folders": "フォルダー",
+    "expandFolders": "フォルダーを開く",
+    "collapseFolders": "フォルダーを閉じる",
+    "cancel": "キャンセル",
+    "back": "戻る",
+    "taskContinues": "処理はバックグラウンドで続行します",
+    "statistics": "統計"
   }
 }

@@ -41,6 +41,8 @@ interface WordStore {
   clearSelection: () => void;
 }
 
+let detailGeneration = 0;
+
 const wordCache = new QueryCache<WordInfo[]>();
 registerCacheInvalidator('words', () => wordCache.invalidate());
 
@@ -89,19 +91,22 @@ export const useWordStore = create<WordStore>((set, get) => ({
   invalidate: () => wordCache.invalidate(),
 
   loadDetail: async (wordId: number) => {
+    const request = ++detailGeneration;
     set({ detailLoading: true, detailError: false, detailErrorId: wordId });
     try {
       const detail: WordDetail = await invoke('word_detail', { wordId });
+      if (request !== detailGeneration) return;
       set({ detail, detailError: false, detailErrorId: null });
     } catch (e) {
+      if (request !== detailGeneration) return;
       console.error('Failed to load word detail:', e);
       set({ detail: null, detailError: true });
     } finally {
-      set({ detailLoading: false });
+      if (request === detailGeneration) set({ detailLoading: false });
     }
   },
 
-  closeDetail: () => set({ detail: null, detailError: false, detailErrorId: null }),
+  closeDetail: () => { detailGeneration++; set({ detail: null, detailLoading: false, detailError: false, detailErrorId: null }); },
 
   setFilter: (f) => {
     set({ filter: f, selected: new Set() });

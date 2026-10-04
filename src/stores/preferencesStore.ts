@@ -13,6 +13,8 @@ const FONT_SIZES: ContentFontSize[] = ['sm', 'md', 'lg'];
 const LINE_HEIGHTS: ReadingLineHeight[] = ['compact', 'normal', 'loose'];
 
 interface PreferencesState {
+  vocabularyKind: 'word' | 'phrase';
+  setVocabularyKind: (kind: 'word' | 'phrase') => void;
   youtube: YouTubePreferences;
   toggleYouTubeFavorite: (language: string) => void;
   setYouTubeBrowserSession: (session: BrowserSession) => void;
@@ -37,6 +39,8 @@ export const usePreferencesStore = create<PreferencesState>()(
   subscribeWithSelector(
     persist(
       (set) => ({
+        vocabularyKind: 'word',
+        setVocabularyKind: vocabularyKind => set({ vocabularyKind }),
         youtube: normalizeYouTubePreferences(null),
         toggleYouTubeFavorite: (language) => set(state => {
           const key = languageKey(language);
@@ -67,6 +71,7 @@ export const usePreferencesStore = create<PreferencesState>()(
         storage: createJSONStorage(() => localStorage),
         merge: (persisted, current) => {
           const saved = (persisted ?? {}) as {
+            vocabularyKind?: unknown;
             youtube?: unknown;
             annotationModes?: Partial<Record<AnnotationKind, unknown>>;
             language?: unknown;
@@ -103,7 +108,7 @@ export const usePreferencesStore = create<PreferencesState>()(
             word: saved.annotationModes?.word === 'single' ? 'single' : 'batch',
             phrase: saved.annotationModes?.phrase === 'single' ? 'single' : 'batch',
           };
-          return { ...current, youtube: normalizeYouTubePreferences(saved.youtube), annotationModes, language, uiLanguage, learningTextFontSize, definitionFontSize, auxiliaryFontSize, readingLineHeight };
+          return { ...current, vocabularyKind: saved.vocabularyKind === 'phrase' ? 'phrase' : 'word', youtube: normalizeYouTubePreferences(saved.youtube), annotationModes, language, uiLanguage, learningTextFontSize, definitionFontSize, auxiliaryFontSize, readingLineHeight };
         },
       },
     ),

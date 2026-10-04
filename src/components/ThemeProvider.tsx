@@ -11,6 +11,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
+    const systemUi = (window as Window & { LexiCueSystemUi?: { setDarkTheme: (dark: boolean) => void } }).LexiCueSystemUi;
+    if (systemUi) {
+      document.documentElement.dataset.nativeInsets = 'true';
+      systemUi.setDarkTheme(theme === 'midnight');
+    }
     for (const [stage, color] of Object.entries(STAGE_THEME_COLORS[theme])) {
       document.documentElement.style.setProperty(`--stage-${stage}`, color);
     }

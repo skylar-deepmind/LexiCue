@@ -1,3 +1,4 @@
+import Overlay from './Overlay';
 import { Folder, HardDrive } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { FolderInfo } from '../lib/types';
@@ -49,8 +50,7 @@ export default function MoveToFolderDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="flex max-h-[70vh] w-full max-w-sm flex-col rounded-2xl bg-white shadow-xl">
+    <Overlay label={title} onClose={onCancel} variant="sheet" className="flex max-h-[70vh] w-full max-w-sm flex-col rounded-2xl bg-white shadow-xl">
         <div className="border-b border-gray-100 p-5">
           <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
         </div>
@@ -76,7 +76,6 @@ export default function MoveToFolderDialog({
             {t('common.cancel')}
           </button>
         </div>
-      </div>
-    </div>
+    </Overlay>
   );
 }

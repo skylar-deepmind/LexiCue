@@ -1,3 +1,6 @@
+import { useMediaQuery } from './useMediaQuery';
+import { X } from 'lucide-react';
+import { useOverlay } from './useOverlay';
 import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, ChevronDown, Search } from 'lucide-react';
@@ -11,6 +14,7 @@ interface Props {
 }
 export default function AppSelect({ id, value, options, onChange, placeholder, disabled, searchable, className = '', ...aria }: Props) {
   const { t } = useTranslation();
+  const mobile = useMediaQuery('(max-width: 767px)');
   const generated = useId();
   const listId = `${id ?? generated}-options`;
   const trigger = useRef<HTMLButtonElement>(null);
@@ -32,8 +36,9 @@ export default function AppSelect({ id, value, options, onChange, placeholder, d
   const activeValue = enabled.some(item => item.value === active) ? active : enabled[0]?.value;
   const activeIndex = filtered.findIndex(item => item.value === activeValue);
   const close = (restore = true) => { setOpen(false); if (restore) trigger.current?.focus(); };
+  useOverlay(panel, () => close(), mobile, open);
   const show = () => { if (!disabled) {
-    setPortalRoot(trigger.current?.closest('[role="dialog"]') ?? document.body);
+    setPortalRoot(document.body);
     setAccessibleLabel(trigger.current?.labels?.[0]?.textContent ?? '');
     const rect = trigger.current?.getBoundingClientRect();
     if (rect) setPosition(previous => ({ ...previous, width: Math.min(Math.max(0, window.innerWidth - 16), rect.width) }));
@@ -42,7 +47,8 @@ export default function AppSelect({ id, value, options, onChange, placeholder, d
   const choose = (next: string) => { close(); if (next !== value) void onChange(next); };
   const onKeys = (event: KeyboardEvent) => {
     if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(); return; }
-    if (event.key === 'Tab') { close(); return; }
+    if (event.key === 'Tab' && !mobile) { close(); return; }
+    if (event.target instanceof HTMLElement && event.target.closest('button')) return;
     if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
       event.preventDefault();
       const index = enabled.findIndex(item => item.value === activeValue);
@@ -116,13 +122,16 @@ export default function AppSelect({ id, value, options, onChange, placeholder, d
       <span className={!current ? 'app-select__placeholder' : ''} title={current?.label}>{current?.label ?? placeholder ?? t('appSelect.choose')}</span>
       <ChevronDown size={16} aria-hidden="true" />
     </button>
-    {open && portalRoot && createPortal(<div ref={panel} className="app-select__popover" style={position} onKeyDown={onKeys}>
+    {open && portalRoot && createPortal(<div className={mobile ? 'mobile-select-layer' : 'select-layer'} data-overlay-layer="">
+      {mobile && <div className="overlay-scrim" aria-hidden="true" onClick={() => close()} />}
+      <div ref={panel} className="app-select__popover" role={mobile ? 'dialog' : undefined} aria-modal={mobile || undefined} aria-label={label} tabIndex={-1} style={position} onKeyDown={onKeys}>
+      {mobile && <div className="action-sheet__header"><h2>{label ?? t('appSelect.choose')}</h2><button className="ui-button ui-button--icon" onClick={() => close()} aria-label={t('common.close')}><X size={18} /></button></div>}
       {withSearch && <div className="app-select__search"><Search size={15} aria-hidden="true" /><input ref={search} value={query}
         onChange={event => { setQuery(event.target.value); setActiveInteraction(null); }} placeholder={t('appSelect.search')} aria-label={t('appSelect.search')}
         role="combobox" aria-expanded="true" aria-controls={listId} aria-autocomplete="list"
         aria-activedescendant={activeIndex >= 0 ? `${listId}-${activeIndex}` : undefined} /></div>}
       <div ref={list} id={listId} className="app-select__list" role="listbox" aria-label={label ?? t('appSelect.choose')}
-        tabIndex={-1} aria-activedescendant={activeIndex >= 0 ? `${listId}-${activeIndex}` : undefined}>
+        tabIndex={0} aria-activedescendant={activeIndex >= 0 ? `${listId}-${activeIndex}` : undefined}>
         {filtered.map((item, index) => <div key={item.value} id={`${listId}-${index}`} role="option" aria-selected={value === item.value}
           aria-disabled={item.disabled || undefined} className={`app-select__option${activeInteraction && activeValue === item.value ? ' is-focused' : ''}${value === item.value ? ' is-selected' : ''}`}
           onPointerMove={() => { if (!item.disabled) { setActive(item.value); setActiveInteraction('pointer'); } }}
@@ -131,6 +140,7 @@ export default function AppSelect({ id, value, options, onChange, placeholder, d
           <span>{item.label}</span>{value === item.value && <Check size={16} aria-hidden="true" />}
         </div>)}
         {!filtered.length && <p className="app-select__empty" role="status">{t('appSelect.empty')}</p>}
+      </div>
       </div>
     </div>, portalRoot)}
   </>;

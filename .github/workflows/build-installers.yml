@@ -114,7 +114,22 @@ jobs:
         with:
           workspaces: src-tauri
       - run: npm ci
+      - name: Build Windows branch installer
+        if: ${{ github.ref != 'refs/heads/main' && !inputs.publish_release }}
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          NODE_OPTIONS: --use-system-ca
+        run: npm run tauri build -- --bundles nsis
+      - name: Upload Windows branch installer
+        if: ${{ github.ref != 'refs/heads/main' && !inputs.publish_release }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: LexiCue-Windows-${{ github.sha }}
+          path: src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: error
       - uses: tauri-apps/tauri-action@v1
+        if: ${{ github.ref == 'refs/heads/main' || inputs.publish_release }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -292,7 +307,8 @@ jobs:
         env:
           NODE_OPTIONS: --use-system-ca
         run: npx tauri android build --apk --target aarch64
-      - name: Sign, verify, and publish Android APK
+      - name: Sign, verify, and optionally publish Android APK
+        id: android-apk
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -308,7 +324,7 @@ jobs:
           signed_apk="$RUNNER_TEMP/lexicue-signed.apk"
           checksum_file="$RUNNER_TEMP/LexiCue_${version}_universal.apk.sha256"
           download_dir="$(mktemp -d)"
-          trap 'rm -rf "$download_dir" "$signed_apk" "$checksum_file"' EXIT
+          trap 'rm -rf "$download_dir" "$signed_apk"' EXIT
 
           if [ ! -s "$keystore_path" ]; then
             echo "Android keystore is missing or empty: $keystore_path"
@@ -403,6 +419,13 @@ jobs:
           cp "$signed_apk" "$staged_apk"
           checksum="$(sha256sum "$staged_apk" | awk '{print $1}')"
           printf '%s  %s\n' "$checksum" "$apk_name" | tee "$checksum_file"
+          echo "apk_path=$staged_apk" >> "$GITHUB_OUTPUT"
+          echo "checksum_path=$checksum_file" >> "$GITHUB_OUTPUT"
+
+          if [ "$GITHUB_REF" != "refs/heads/main" ] && [ "${{ inputs.publish_release }}" != "true" ]; then
+            echo "Verified branch APK is ready for artifact upload"
+            exit 0
+          fi
 
           create_args=(--target "$GITHUB_SHA" --title "LexiCue v${version}" --notes "Android release ${version}")
           if [ "${{ inputs.draft }}" = "true" ]; then
@@ -434,3 +457,12 @@ jobs:
             exit 1
           fi
           echo "Published APK verified successfully (${published_checksum})"
+      - name: Upload Android branch installer
+        if: ${{ github.ref != 'refs/heads/main' && !inputs.publish_release }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: LexiCue-Android-arm64-${{ github.sha }}
+          path: |
+            ${{ steps.android-apk.outputs.apk_path }}
+            ${{ steps.android-apk.outputs.checksum_path }}
+          if-no-files-found: error

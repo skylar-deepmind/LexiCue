@@ -387,6 +387,10 @@
     "learningProgress": "Lernfortschritt",
     "learningProgressAria": "Lernfortschritt: {{stage}}",
     "noLearningContent": "Keine Lerninhalte",
+    "wordsOnly": "Nur Wörter",
+    "wordsAndPhrases": "Wörter + Ausdrücke",
+    "analysisLabel": "Ausdrucksanalyse",
+    "analysisComplete": "Analysiert",
     "wordsOnlyPending": "Nur Wörter · Phrasen ausstehend",
     "stage": {
       "notStarted": "Nicht begonnen",
@@ -1085,5 +1089,21 @@
     "operationFailed": "Der Vorgang wurde nicht abgeschlossen. Erneut versuchen oder den gespeicherten Fortschritt prüfen.",
     "conflict": "Dieser Eintrag wurde an anderer Stelle geändert. Rückgängig machen oder Überschreiben ist nicht direkt möglich. Sitzung prüfen oder eine neue Runde starten.",
     "ignore": "Ignorieren"
+  },
+  "shell": {
+    "vocabulary": "Wortschatz",
+    "learningLanguage": "Lernsprache",
+    "allLanguages": "Alle Sprachen",
+    "expandDetail": "Details erweitern",
+    "collapseDetail": "Details verkleinern",
+    "close": "Schließen",
+    "saveFailed": "Speichern fehlgeschlagen. Bitte vor dem Schließen erneut versuchen.",
+    "folders": "Ordner",
+    "expandFolders": "Ordner öffnen",
+    "collapseFolders": "Ordner schließen",
+    "cancel": "Abbrechen",
+    "back": "Zurück",
+    "taskContinues": "Die Aufgabe wird im Hintergrund fortgesetzt",
+    "statistics": "Statistik"
   }
 }

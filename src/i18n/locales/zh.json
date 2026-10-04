@@ -381,6 +381,10 @@
     "learningProgress": "学习进度",
     "learningProgressAria": "学习进度：{{stage}}",
     "noLearningContent": "暂无学习内容",
+    "wordsOnly": "仅单词",
+    "wordsAndPhrases": "单词 + 词组",
+    "analysisLabel": "词组分析",
+    "analysisComplete": "已分析",
     "wordsOnlyPending": "仅计单词 · 词组待分析",
     "stage": {
       "notStarted": "未开始",
@@ -1068,5 +1072,21 @@
     "operationFailed": "操作未完成。请重试，或重新核对已保存的进度。",
     "conflict": "项目已在其他位置改变，无法直接撤销或覆盖。请重新核对会话，必要时开始新一轮。",
     "ignore": "忽略"
+  },
+  "shell": {
+    "vocabulary": "词库",
+    "learningLanguage": "学习语言",
+    "allLanguages": "全部语言",
+    "expandDetail": "展开详情",
+    "collapseDetail": "收起详情",
+    "close": "关闭",
+    "saveFailed": "保存失败，请重试后再关闭",
+    "folders": "文件夹",
+    "expandFolders": "打开文件夹",
+    "collapseFolders": "关闭文件夹",
+    "cancel": "取消",
+    "back": "返回",
+    "taskContinues": "任务将在后台继续",
+    "statistics": "统计"
   }
 }

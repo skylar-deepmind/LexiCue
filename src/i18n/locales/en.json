@@ -387,6 +387,10 @@
     "learningProgress": "Learning progress",
     "learningProgressAria": "Learning progress: {{stage}}",
     "noLearningContent": "No learning content",
+    "wordsOnly": "Words only",
+    "wordsAndPhrases": "Words + phrases",
+    "analysisLabel": "Phrase analysis",
+    "analysisComplete": "Analyzed",
     "wordsOnlyPending": "Words only · phrases pending",
     "stage": {
       "notStarted": "Not started",
@@ -1085,5 +1089,21 @@
     "operationFailed": "The operation did not finish. Retry or recheck your saved progress.",
     "conflict": "This item changed elsewhere and cannot be undone or overwritten directly. Recheck the session or start a new round.",
     "ignore": "Ignore"
+  },
+  "shell": {
+    "vocabulary": "Vocabulary",
+    "learningLanguage": "Learning language",
+    "allLanguages": "All languages",
+    "expandDetail": "Expand details",
+    "collapseDetail": "Collapse details",
+    "close": "Close",
+    "saveFailed": "Could not save. Please retry before closing.",
+    "folders": "Folders",
+    "expandFolders": "Open folders",
+    "collapseFolders": "Close folders",
+    "cancel": "Cancel",
+    "back": "Back",
+    "taskContinues": "The task will continue in the background",
+    "statistics": "Statistics"
   }
 }

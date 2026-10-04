@@ -23,8 +23,14 @@ export default function AnalysisModelPicker() {
   const listedModels = current ? models : [];
   const options = [...new Set(model && !listedModels.includes(model) ? [model, ...listedModels] : listedModels)];
   const checking = current && status === 'checking';
-  useEffect(() => { const timer = setTimeout(() => void ensureAiConnection(), 350); return () => clearTimeout(timer); }, [enabled, provider, baseUrl, apiKey]);
+  useEffect(() => {
+    if (!enabled) return;
+    const timer = setTimeout(() => void ensureAiConnection(), 350);
+    return () => clearTimeout(timer);
+  }, [enabled, provider, baseUrl, apiKey]);
   const service = provider === 'ollama' ? 'Ollama' : OPENAI_PRESETS.find(preset => preset.baseUrl && preset.baseUrl.replace(/\/+$/, '') === baseUrl.trim().replace(/\/+$/, ''))?.label ?? t('settings.ai.custom');
+
+  if (!enabled) return null;
 
   return (
     <section className="analysis-model-picker" aria-label={t('analysisModel.title')}>
@@ -40,7 +46,7 @@ export default function AnalysisModelPicker() {
         <Link to="/settings#ai" className="analysis-model-picker__action" aria-label={t('analysisModel.settings')} title={t('analysisModel.settings')}><Settings2 size={16} aria-hidden="true" /></Link>
       </div>
       <p id={`${id}-hint`} className="analysis-model-picker__hint" role="status">
-        {!enabled ? t('analysisModel.disabled') : checking ? t('analysisModel.loading') : current && error ? t('analysisModel.loadFailed') : !options.length ? t('analysisModel.empty') : t('analysisModel.nextAnalysis')}
+        {checking ? t('analysisModel.loading') : current && error ? t('analysisModel.loadFailed') : !options.length ? t('analysisModel.empty') : t('analysisModel.nextAnalysis')}
       </p>
     </section>
   );

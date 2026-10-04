@@ -1,3 +1,4 @@
+import Overlay from './Overlay';
 import { X, BookOpen, RefreshCw, EyeOff, Eye, Pencil, Plus, Trash2, Volume2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -43,6 +44,11 @@ export default function PhraseDetailPanel({ detail, onClose, onStatusChange, onD
   const [explanationError, setExplanationError] = useState(false);
   const [statusSaving, setStatusSaving] = useState<WordStatus | null>(null);
   const [definitionSaved, setDefinitionSaved] = useState(false);
+  const [definitionError, setDefinitionError] = useState(false);
+  const [definitionSaving, setDefinitionSaving] = useState(false);
+  const closingDetail = useRef(false);
+  const savingDefinition = useRef<Promise<boolean> | null>(null);
+  const savedDefinition = useRef(detail.phrase.definition ?? '');
   const [occurrences, setOccurrences] = useState<OccurrenceDetail[]>(detail.occurrences);
   const [showHidden, setShowHidden] = useState(false);
   const [hideSaving, setHideSaving] = useState(false);
@@ -55,6 +61,8 @@ export default function PhraseDetailPanel({ detail, onClose, onStatusChange, onD
 
   useEffect(() => {
     setDefinition(detail.phrase.definition ?? '');
+    savedDefinition.current = detail.phrase.definition ?? '';
+    setDefinitionError(false);
   }, [detail.phrase.definition, detail.phrase.id]);
 
   useEffect(() => {
@@ -63,13 +71,6 @@ export default function PhraseDetailPanel({ detail, onClose, onStatusChange, onD
     setPage(1);
   }, [detail.phrase.id, detail.occurrences]);
 
-  useEffect(() => {
-    const handler = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [onClose]);
 
   const handleStatusChange = async (status: WordStatus) => {
     if (statusSaving) return;
@@ -81,16 +82,38 @@ export default function PhraseDetailPanel({ detail, onClose, onStatusChange, onD
     }
   };
 
-  const handleDefinitionSave = async () => {
-    if (definition === (detail.phrase.definition ?? '')) return;
-    try {
-      await onDefinitionSave(detail.phrase.id, definition);
-      setDefinitionSaved(true);
-      if (savedTimerRef.current) window.clearTimeout(savedTimerRef.current);
-      savedTimerRef.current = window.setTimeout(() => setDefinitionSaved(false), 2000);
-    } catch {
-      setDefinitionSaved(false);
+  const handleDefinitionSave = async (): Promise<boolean> => {
+    if (savingDefinition.current) {
+      if (!await savingDefinition.current) return false;
     }
+    if (definition === savedDefinition.current) return true;
+    const value = definition;
+    setDefinitionSaving(true);
+    const save = (async () => {
+      try {
+        await onDefinitionSave(detail.phrase.id, value);
+        savedDefinition.current = value;
+        setDefinitionSaved(true); setDefinitionError(false);
+        if (savedTimerRef.current) window.clearTimeout(savedTimerRef.current);
+        savedTimerRef.current = window.setTimeout(() => setDefinitionSaved(false), 2000);
+        return true;
+      } catch { setDefinitionSaved(false); setDefinitionError(true); return false; }
+    })();
+    savingDefinition.current = save;
+    try { return await save; } finally { if (savingDefinition.current === save) { savingDefinition.current = null; setDefinitionSaving(false); } }
+  };
+  const requestClose = async () => {
+    if (closingDetail.current) return false;
+    closingDetail.current = true;
+    try {
+      if (statusSaving || hideSaving || savingExplanation) return false;
+      if (!await handleDefinitionSave()) return false;
+      if (editingOccurrence !== null && !await saveOccurrenceMeaning(editingOccurrence)) return false;
+      if (editingChineseOccurrence !== null && !await saveOccurrenceMeaningZh(editingChineseOccurrence)) return false;
+      if (editingSenses && !await saveOtherSenses()) return false;
+      if (editingSensesZh && !await saveOtherSensesZh()) return false;
+      onClose(); return true;
+    } finally { closingDetail.current = false; }
   };
 
   const handleSetHidden = async (occurrenceId: number, hidden: boolean) => {
@@ -119,56 +142,66 @@ export default function PhraseDetailPanel({ detail, onClose, onStatusChange, onD
   }, [detail.phrase.id, detail.phrase.text, detail.phrase.language]);
 
   const saveOccurrenceMeaning = async (occurrenceId: number) => {
-    if (!meaningDraft.trim()) return;
+    if (!meaningDraft.trim()) { setExplanationError(true); return false; }
     setSavingExplanation(true);
     setExplanationError(false);
     try {
       await invoke('update_phrase_occurrence_meaning_en', { occurrenceId, meaningEn: meaningDraft, usageEn: usageDraft });
       setOccurrences((current) => current.map((occ) => occ.id === occurrenceId ? { ...occ, meaning_en: meaningDraft.trim(), usage_en: usageDraft.trim(), meaning_en_edited: true, collins_sense_id: null } : occ));
       setEditingOccurrence(null);
+      return true;
     } catch (error) {
       console.error('Failed to save phrase meaning:', error);
       setExplanationError(true);
+      return false;
     } finally { setSavingExplanation(false); }
   };
 
   const saveOccurrenceMeaningZh = async (occurrenceId: number) => {
-    if (!meaningZhDraft.trim()) return;
+    if (!meaningZhDraft.trim()) { setExplanationError(true); return false; }
     setSavingExplanation(true);
     setExplanationError(false);
     try {
       await invoke('update_phrase_occurrence_meaning', { occurrenceId, meaningZh: meaningZhDraft, usageZh: usageZhDraft });
       setOccurrences((current) => current.map((occ) => occ.id === occurrenceId ? { ...occ, meaning_zh: meaningZhDraft.trim(), usage_zh: usageZhDraft.trim(), meaning_edited: true } : occ));
       setEditingChineseOccurrence(null);
+      return true;
     } catch (error) {
       console.error('Failed to save Chinese phrase meaning:', error);
       setExplanationError(true);
+      return false;
     } finally { setSavingExplanation(false); }
   };
 
   const saveOtherSensesZh = async () => {
+    if (otherSensesZh.some(sense => !sense.meaning_zh.trim() || !sense.example_en.trim())) { setExplanationError(true); return false; }
     setSavingExplanation(true);
     setExplanationError(false);
     try {
       await invoke('update_phrase_other_senses', { text: detail.phrase.text, language: detail.phrase.language, otherSenses: otherSensesZh });
       setDictionary((current) => current ? { ...current, other_senses: otherSensesZh, other_senses_edited: true } : current);
       setEditingSensesZh(false);
+      return true;
     } catch (error) {
       console.error('Failed to save other Chinese phrase meanings:', error);
       setExplanationError(true);
+      return false;
     } finally { setSavingExplanation(false); }
   };
 
   const saveOtherSenses = async () => {
+    if (otherSensesEn.some(sense => !sense.meaning_en.trim() || !sense.example_en.trim())) { setExplanationError(true); return false; }
     setSavingExplanation(true);
     setExplanationError(false);
     try {
       await invoke('update_phrase_other_senses_en', { text: detail.phrase.text, otherSenses: otherSensesEn });
       setDictionary((current) => current ? { ...current, other_senses_en: otherSensesEn, other_senses_en_edited: true } : current);
       setEditingSenses(false);
+      return true;
     } catch (error) {
       console.error('Failed to save other senses:', error);
       setExplanationError(true);
+      return false;
     } finally { setSavingExplanation(false); }
   };
 
@@ -201,7 +234,7 @@ export default function PhraseDetailPanel({ detail, onClose, onStatusChange, onD
   };
 
   return (
-    <div className="fixed inset-y-0 right-0 w-full sm:w-96 bg-white border-l border-gray-200 shadow-xl z-40 flex flex-col">
+    <Overlay variant="detail" label={detail.phrase.text} onClose={requestClose} className="detail-panel">
       <div className="flex items-center justify-between p-4 border-b border-gray-100">
         <h2 className={`min-w-0 break-words font-semibold text-gray-900 ${CONTENT_FONT_CLASS.learning[learningTextFontSize]}`}>{detail.phrase.text}</h2>
         <div className="flex items-center gap-1">
@@ -216,11 +249,12 @@ export default function PhraseDetailPanel({ detail, onClose, onStatusChange, onD
             <Volume2 size={18} aria-hidden="true" />
           </button>
           <DisplaySettingsMenu />
-          <button onClick={onClose} aria-label={t('common.close')} className="text-gray-400 hover:text-gray-600 p-1"><X size={20} /></button>
+          <button onClick={() => void requestClose()} aria-label={t('common.close')} className="text-gray-400 hover:text-gray-600 p-1"><X size={20} /></button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="detail-panel__body p-4 space-y-4">
+        {definitionError && <p role="alert" className="annotation-error">{t('shell.saveFailed')}</p>}
         {explanationError && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{t('phraseDetail.saveFailed')}</p>}
         <div className="flex items-center gap-2 flex-wrap">
           <StatusBadge status={detail.phrase.status} />
@@ -327,7 +361,7 @@ export default function PhraseDetailPanel({ detail, onClose, onStatusChange, onD
               {definitionSaved && <span className="text-xs text-green-600">{t('common.saved')}</span>}
               <button
                 onClick={() => void handleDefinitionSave()}
-                disabled={definition === (detail.phrase.definition ?? '')}
+                disabled={definitionSaving || definition === (detail.phrase.definition ?? '')}
                 className="rounded-lg bg-purple-600 px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-purple-700 disabled:opacity-40"
               >
                 {t('common.save')}
@@ -335,6 +369,7 @@ export default function PhraseDetailPanel({ detail, onClose, onStatusChange, onD
             </div>
           </div>
           <textarea
+            disabled={definitionSaving}
             value={definition}
             onChange={(e) => setDefinition(e.target.value)}
             onBlur={() => void handleDefinitionSave()}
@@ -350,7 +385,7 @@ export default function PhraseDetailPanel({ detail, onClose, onStatusChange, onD
             {pagedOccurrences.map((occ) => (
               <div
                 key={occ.id}
-                onClick={() => onOccurrenceOpen?.(occ)}
+                onClick={() => { if (onOccurrenceOpen) void requestClose().then(ok => { if (ok) onOccurrenceOpen(occ); }); }}
                 className={`bg-gray-50 rounded-lg p-3 ${onOccurrenceOpen ? 'cursor-pointer hover:bg-purple-50' : ''} ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}
               >
                 <div className="flex items-start justify-between gap-2">
@@ -428,7 +463,7 @@ export default function PhraseDetailPanel({ detail, onClose, onStatusChange, onD
               {showHidden && (
                 <div className="mt-2 space-y-2">
                   {hiddenOccurrences.map((occ) => (
-                    <div key={occ.id} onClick={() => onOccurrenceOpen?.(occ)} className={`bg-gray-50 rounded-lg p-3 opacity-70 ${onOccurrenceOpen ? 'cursor-pointer hover:bg-purple-50' : ''} ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}>
+                    <div key={occ.id} onClick={() => { if (onOccurrenceOpen) void requestClose().then(ok => { if (ok) onOccurrenceOpen(occ); }); }} className={`bg-gray-50 rounded-lg p-3 opacity-70 ${onOccurrenceOpen ? 'cursor-pointer hover:bg-purple-50' : ''} ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}>
                       <div className="flex items-start justify-between gap-2">
                         <p className="text-gray-700 leading-relaxed line-through decoration-gray-300">
                           <OccurrenceText
@@ -465,6 +500,6 @@ export default function PhraseDetailPanel({ detail, onClose, onStatusChange, onD
           )}
         </div>
       </div>
-    </div>
+    </Overlay>
   );
 }

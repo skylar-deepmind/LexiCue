@@ -1,3 +1,5 @@
+import Overlay from '../components/Overlay';
+import { blocksPageShortcut } from '../lib/backNavigation';
 import AnnotationModeSwitch from '../components/AnnotationModeSwitch';
 import AnnotationWorkspace from '../components/AnnotationWorkspace';
 import { annotationItems, type AnnotationMode } from '../lib/annotation';
@@ -177,6 +179,7 @@ export default function WordsPage() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (blocksPageShortcut(e)) return;
       if (mode !== 'batch') return;
       const target = e.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
@@ -425,7 +428,6 @@ export default function WordsPage() {
 
       {(detail || detailLoading || detailError) && (
         <>
-          <div className="fixed inset-0 bg-black/20 z-30" onClick={store.closeDetail} />
           {detail ? (
             <WordDetailPanel
               detail={detail}
@@ -439,11 +441,13 @@ export default function WordsPage() {
               }}
             />
           ) : detailLoading ? (
-            <div className="fixed inset-y-0 right-0 w-full sm:w-96 bg-white border-l border-gray-200 shadow-xl z-40 flex items-center justify-center text-gray-400">
+            <Overlay variant="detail" label={t('shell.vocabulary')} onClose={store.closeDetail} className="detail-panel detail-placeholder">
+              <button className="ui-button detail-placeholder__close" onClick={store.closeDetail}>{t('common.close')}</button>
               {t('common.loading')}
-            </div>
+            </Overlay>
           ) : detailError ? (
-            <div className="fixed inset-y-0 right-0 w-full sm:w-96 bg-white border-l border-gray-200 shadow-xl z-40 flex flex-col items-center justify-center gap-3 p-6 text-center">
+            <Overlay variant="detail" label={t('shell.vocabulary')} onClose={store.closeDetail} className="detail-panel detail-placeholder">
+              <button className="ui-button detail-placeholder__close" onClick={store.closeDetail}>{t('common.close')}</button>
               <p className="text-sm text-gray-500">{t('errors.detailLoadFailed')}</p>
               <button
                 onClick={() => {
@@ -454,7 +458,7 @@ export default function WordsPage() {
               >
                 {t('common.retry')}
               </button>
-            </div>
+            </Overlay>
           ) : null}
         </>
       )}

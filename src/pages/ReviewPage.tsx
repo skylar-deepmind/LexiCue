@@ -1,3 +1,4 @@
+import { blocksPageShortcut } from '../lib/backNavigation';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -68,6 +69,7 @@ export default function ReviewPage() {
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
+      if (blocksPageShortcut(event)) return;
       const target = event.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
       if (!revealed && event.code === 'Space') {

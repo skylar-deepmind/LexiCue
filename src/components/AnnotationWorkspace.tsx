@@ -1,3 +1,4 @@
+import { blocksPageShortcut } from '../lib/backNavigation';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -90,6 +91,7 @@ export default function AnnotationWorkspace({ scope, items, loading, onModeChang
   };
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
+      if (blocksPageShortcut(event)) return;
       const target = event.target as HTMLElement | null;
       const editable = !!target?.closest('input,textarea,select,[contenteditable="true"],[role="textbox"]');
       const status = annotationShortcut(event, editable, !active || drawer || blocked || !detail || detailLoading);
@@ -162,6 +164,6 @@ export default function AnnotationWorkspace({ scope, items, loading, onModeChang
       </div>
       {busy && <p role="status" className="annotation-muted">{t('words.processing')}</p>}
     </footer>}
-    {drawer && detail && <><div className="fixed inset-0 bg-black/20 z-30" onClick={closeDrawer} />{'word' in detail ? <WordDetailPanel detail={detail} onClose={closeDrawer} onStatusChange={changeStatus} onDefinitionSave={saveDefinition} onWordResolved={() => { closeDrawer(); void resume(); }} onOccurrenceOpen={occ => { closeDrawer(); navigate(occurrenceRoute(occ, 'word', detail.word.id)); }} /> : <PhraseDetailPanel detail={detail} onClose={closeDrawer} onStatusChange={changeStatus} onDefinitionSave={saveDefinition} onOccurrenceOpen={occ => { closeDrawer(); navigate(occurrenceRoute(occ, 'phrase', detail.phrase.id)); }} />}</>}
+    {drawer && detail && <>{'word' in detail ? <WordDetailPanel detail={detail} onClose={closeDrawer} onStatusChange={changeStatus} onDefinitionSave={saveDefinition} onWordResolved={() => { closeDrawer(); void resume(); }} onOccurrenceOpen={occ => { closeDrawer(); navigate(occurrenceRoute(occ, 'word', detail.word.id)); }} /> : <PhraseDetailPanel detail={detail} onClose={closeDrawer} onStatusChange={changeStatus} onDefinitionSave={saveDefinition} onOccurrenceOpen={occ => { closeDrawer(); navigate(occurrenceRoute(occ, 'phrase', detail.phrase.id)); }} />}</>}
   </div>;
 }

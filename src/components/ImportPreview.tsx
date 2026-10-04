@@ -1,3 +1,4 @@
+import Overlay from './Overlay';
 import { useTranslation } from 'react-i18next';
 import { RefreshCw } from 'lucide-react';
 import type { Language } from '../lib/languages';
@@ -30,8 +31,7 @@ export default function ImportPreview({
 }: ImportPreviewProps) {
   const { t } = useTranslation();
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 max-h-[80vh] flex flex-col">
+    <Overlay label={t('importPreview.title')} onClose={() => { if (busy) return false; onCancel(); }} className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 max-h-[80vh] flex flex-col">
         <div className="p-4 border-b border-gray-100">
           <h3 className="text-lg font-semibold text-gray-900">{t('importPreview.title')}</h3>
           <p className="text-sm text-gray-500 mt-1 truncate" title={fileName}>{fileName}</p>
@@ -76,7 +76,6 @@ export default function ImportPreview({
             {busy ? t('fileStore.importing') : t('importPreview.confirm')}
           </button>
         </div>
-      </div>
-    </div>
+    </Overlay>
   );
 }

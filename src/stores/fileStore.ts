@@ -87,8 +87,8 @@ interface FileStore {
   loadFolders: (force?: boolean) => Promise<void>;
   invalidateFiles: () => void;
   setCurrentFolder: (folderId: number | null) => void;
-  createFolder: (name: string, parentId: number | null) => Promise<void>;
-  renameFolder: (folderId: number, name: string) => Promise<void>;
+  createFolder: (name: string, parentId: number | null) => Promise<boolean>;
+  renameFolder: (folderId: number, name: string) => Promise<boolean>;
   deleteFolder: (folderId: number) => Promise<void>;
   moveFolder: (folderId: number, targetParentId: number | null) => Promise<void>;
   moveFile: (fileId: number, folderId: number | null) => Promise<void>;
@@ -322,9 +322,11 @@ export const useFileStore = create<FileStore>((set, get) => ({
       await invoke('create_folder', { name, parentId });
       folderCache.invalidate();
       await get().loadFolders(true);
+      return true;
     } catch (e) {
       console.error('Failed to create folder:', e);
       useFeedbackStore.getState().show(i18n.t('fileStore.folderOpFailed'), 'error');
+      return false;
     }
   },
 
@@ -333,9 +335,11 @@ export const useFileStore = create<FileStore>((set, get) => ({
       await invoke('rename_folder', { folderId, name });
       folderCache.invalidate();
       await get().loadFolders(true);
+      return true;
     } catch (e) {
       console.error('Failed to rename folder:', e);
       useFeedbackStore.getState().show(i18n.t('fileStore.folderOpFailed'), 'error');
+      return false;
     }
   },
 

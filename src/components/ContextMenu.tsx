@@ -1,4 +1,5 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import AdaptiveMenu from './AdaptiveMenu';
+import { useTranslation } from 'react-i18next';
 import { STATUS_CONFIG } from './StatusBadge';
 
 export interface ContextMenuItem {
@@ -17,42 +18,9 @@ interface ContextMenuProps {
 }
 
 export default function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [position, setPosition] = useState<{ left: number; top: number }>({ left: x, top: y });
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        onClose();
-      }
-    };
-    const keyHandler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('mousedown', handler);
-    document.addEventListener('keydown', keyHandler);
-    return () => {
-      document.removeEventListener('mousedown', handler);
-      document.removeEventListener('keydown', keyHandler);
-    };
-  }, [onClose]);
-
-  useLayoutEffect(() => {
-    if (!ref.current) return;
-    const rect = ref.current.getBoundingClientRect();
-    const padding = 8;
-    const left = Math.min(x, Math.max(padding, window.innerWidth - rect.width - padding));
-    const top = Math.min(y, Math.max(padding, window.innerHeight - rect.height - padding));
-    setPosition({ left, top });
-  }, [x, y]);
-
+  const { t } = useTranslation();
   return (
-    <div
-      ref={ref}
-      role="menu"
-      style={{ position: 'fixed', left: position.left, top: position.top, zIndex: 100 }}
-      className="bg-white rounded-xl shadow-lg border border-gray-200 py-1 min-w-[140px]"
-    >
+    <AdaptiveMenu x={x} y={y} label={t('shell.vocabulary')} onClose={onClose}>
       {items.map((item, i) => {
         const badgeStyle = item.status
           ? STATUS_CONFIG[item.status] ?? STATUS_CONFIG.unprocessed
@@ -86,6 +54,6 @@ export default function ContextMenu({ x, y, items, onClose }: ContextMenuProps) 
           </button>
         );
       })}
-    </div>
+    </AdaptiveMenu>
   );
 }

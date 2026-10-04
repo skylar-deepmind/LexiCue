@@ -70,6 +70,7 @@ export interface DownloadProgress {
 }
 
 export interface YouTubeDialogDraft {
+  resumeAfterSettings?: boolean;
   url: string; info: VideoSubInfo | null; selection: { primary: TrackSelection | null; secondary: TrackSelection | null };
   language: string; query: string; aiTranslate: boolean;
 }

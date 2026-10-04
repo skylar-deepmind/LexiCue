@@ -1,6 +1,11 @@
+import { normalizeNavigationPath } from './NavigationItems';
+import LearningLanguageSelect from './LearningLanguageSelect';
+import VocabularyTabs from './VocabularyTabs';
+import { backNavigation } from '../lib/backNavigation';
+import { useFileStore } from '../stores/fileStore';
 import { initializeLocalActivity } from '../stores/modelDownloadStore';
 import { useEffect, useRef } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import Sidebar from './Sidebar';
 import AnalysisPreviewDrawer from './AnalysisPreviewDrawer';
@@ -17,6 +22,34 @@ import { prepareSpeechVoices } from '../lib/tts';
 
 export default function Layout() {
   const { t } = useTranslation();
+  const { pathname: rawPathname } = useLocation();
+  const pathname = normalizeNavigationPath(rawPathname);
+  const navigate = useNavigate();
+  const reading = pathname.startsWith('/files/');
+  const vocabulary = pathname === '/words' || pathname === '/phrases';
+  useEffect(() => {
+    const release = backNavigation.setPage(() => {
+      const files = useFileStore.getState();
+      if (pathname.startsWith('/files/')) { navigate('/files'); return true; }
+      if (pathname === '/files' && files.currentFolderId !== null) {
+        files.setCurrentFolder(files.folders.find(folder => folder.id === files.currentFolderId)?.parent_id ?? null);
+        return true;
+      }
+      return false;
+    });
+    const nativeBack = () => backNavigation.back();
+    Object.assign(window, { __lexicueBack: nativeBack });
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && backNavigation.hasLayers()) {
+        event.preventDefault(); event.stopImmediatePropagation(); backNavigation.dismiss();
+      }
+    };
+    document.addEventListener('keydown', escape, true);
+    return () => {
+      release(); delete (window as Window & { __lexicueBack?: () => boolean }).__lexicueBack;
+      document.removeEventListener('keydown', escape, true);
+    };
+  }, [pathname, navigate]);
   const initializeOllama = useOllamaStore((state) => state.initialize);
   const initializeDict = useDictionaryStore((state) => state.initialize);
   const initializeYoutube = useYoutubeStore((state) => state.initialize);
@@ -51,15 +84,17 @@ export default function Layout() {
   useEffect(() => syncCoordinator.start(), []);
 
   return (
-    <div className="h-screen flex overflow-hidden">
+    <div className="app-layout">
       <Sidebar />
-      <main className="@container min-w-0 flex-1 overflow-hidden flex flex-col">
+      <main className="@container app-main">
         {!dictReady && (
           <div className="pointer-events-none fixed right-4 top-4 z-[90] rounded border px-3 py-1.5 text-xs text-amber-600">
             {t('layout.dictInit')}
           </div>
         )}
-        <div className="flex-1 min-h-0 overflow-hidden">
+        {!reading && <div className="mobile-language-bar"><span>{t('shell.learningLanguage')}</span><LearningLanguageSelect /></div>}
+        {vocabulary && <VocabularyTabs />}
+        <div className="app-page">
           <Outlet />
         </div>
         <MobileNav />

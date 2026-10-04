@@ -1,4 +1,4 @@
-import { useDialogFocus } from './useDialogFocus';
+import Overlay from './Overlay';
 import YouTubeDownloadSettings from './YouTubeDownloadSettings';
 import { useNavigate } from 'react-router-dom';
 import { cooldownRemaining, EMPTY_BROWSER_SESSION, isYouTubeCancelled } from '../lib/youtubeDownload';
@@ -37,23 +37,20 @@ export default function YouTubeDialog({ onClose }: { onClose: () => void }) {
   const submitting = useRef(false);
   const closeDialog = () => {
     request.current++;
-    void useFileStore.getState().cancelYouTubeImport();
-    useFileStore.getState().resetYouTubeRecovery();
-    useYoutubeStore.setState({ dialogDraft: null });
+    if (!useFileStore.getState().importingYouTube) useFileStore.getState().resetYouTubeRecovery();
+    useYoutubeStore.setState({ dialogDraft: { url, info, selection, language, query, aiTranslate } });
     onClose();
   };
-  useDialogFocus(dialogRef, closeDialog);
   useEffect(() => {
-    useYoutubeStore.setState({ dialogDraft: null });
     // The counter invalidates asynchronous work rather than referring to a DOM node.
     // oxlint-disable-next-line react-hooks/exhaustive-deps
-    return () => { request.current++; if (useFileStore.getState().importingYouTube) void useFileStore.getState().cancelYouTubeImport(); };
+    return () => { request.current++; };
   }, []);
   const navigate = useNavigate();
   const [draft] = useState(() => useYoutubeStore.getState().dialogDraft);
   const { t, i18n } = useTranslation();
   const locale = i18n.resolvedLanguage ?? 'zh';
-  const [step, setStep] = useState<Step>(draft?.info ? 'select' : 'url');
+  const [step, setStep] = useState<Step>(useFileStore.getState().importingYouTube ? 'running' : draft?.info ? 'select' : 'url');
   const [url, setUrl] = useState(draft?.url ?? '');
   const [info, setInfo] = useState<VideoSubInfo | null>(draft?.info ?? null);
   const [selection, setSelection] = useState<YouTubeSelection>(draft?.selection ?? { primary: null, secondary: null });
@@ -98,6 +95,12 @@ export default function YouTubeDialog({ onClose }: { onClose: () => void }) {
   const session = preferences.browserSession ?? EMPTY_BROWSER_SESSION;
   const listedSession = useRef(JSON.stringify(session));
   const busy = step === 'running' || importing;
+  useEffect(() => {
+    if (step !== 'running' || importing) return;
+    if (useFileStore.getState().pendingImport) {
+      useYoutubeStore.setState({ dialogDraft: null }); onClose();
+    } else setStep(info ? 'select' : 'url');
+  }, [step, importing, info, onClose]);
   const label = (code: string) => subtitleLanguageLabel(code, locale);
   const roleLabel = (role: keyof YouTubeSelection) => t(`youtube.${role === 'primary' ? 'originalTrack' : 'translationTrack'}`);
   const sourceLabel = (track: TrackSelection) => t(`youtube.sources.${track.source ?? (track.is_auto ? 'unknown' : 'manual')}`);
@@ -165,7 +168,7 @@ export default function YouTubeDialog({ onClose }: { onClose: () => void }) {
         language, aiTranslate: aiTranslate && !selection.secondary, config: getAiConfig(), session: { ...session }, fallback,
       });
       if (id !== request.current) return;
-      if (prepared) closeDialog();
+      if (prepared) { useYoutubeStore.setState({ dialogDraft: null }); onClose(); }
       else { setNow(Date.now()); setStep('select'); }
     } catch (e) {
       if (id !== request.current) return;
@@ -182,7 +185,7 @@ export default function YouTubeDialog({ onClose }: { onClose: () => void }) {
   };
   const handleCancelRunning = () => { void useFileStore.getState().cancelYouTubeImport(); };
   const configureAi = () => {
-    useYoutubeStore.setState({ dialogDraft: { url, info, selection, language, query, aiTranslate } });
+    useYoutubeStore.setState({ dialogDraft: { url, info, selection, language, query, aiTranslate, resumeAfterSettings: true } });
     navigate('/settings#ai', { state: { youtubeReturn: true } });
   };
   const returnFromSettings = () => {
@@ -227,8 +230,7 @@ export default function YouTubeDialog({ onClose }: { onClose: () => void }) {
           </div>;
 
   return (
-    <div className="youtube-dialog__overlay">
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={t('youtube.title')} className="youtube-dialog">
+    <Overlay label={t('youtube.title')} onClose={closeDialog} panelRef={dialogRef} variant="sheet" className="youtube-dialog">
         <div className="youtube-dialog__header">
           <h3><Clapperboard size={20} aria-hidden="true" />{t('youtube.title')}</h3>
           <button type="button" onClick={closeDialog} aria-label={t('youtube.closeAria')} className="ui-button ui-button--icon"><X size={18} /></button>
@@ -316,6 +318,7 @@ export default function YouTubeDialog({ onClose }: { onClose: () => void }) {
           </div>}
         </div>
         <div className="youtube-dialog__footer">
+          {busy && <span className="text-sm text-gray-500">{t('shell.taskContinues')}</span>}
           {step === 'settings' && <button type="button" className="ui-button" onClick={returnFromSettings}>{t('youtube.returnToImport')}</button>}
           {step === 'url' && <button type="button" onClick={() => void handleSearch()} className="ui-button youtube-primary"><Search size={15} aria-hidden="true" />{t('youtube.findSubtitles')}</button>}
           {(step === 'select' || step === 'listing') && <>
@@ -325,7 +328,6 @@ export default function YouTubeDialog({ onClose }: { onClose: () => void }) {
           </>}
           {step === 'running' && <button id="youtube-cancel" type="button" onClick={handleCancelRunning} disabled={!importing} className="ui-button">{t('youtube.cancel')}</button>}
         </div>
-      </div>
-    </div>
+    </Overlay>
   );
 }

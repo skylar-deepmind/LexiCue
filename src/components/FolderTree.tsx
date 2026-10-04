@@ -108,7 +108,7 @@ function TreeNode({
         {folder.file_count > 0 && (
           <span className="shrink-0 text-xs text-gray-400">{folder.file_count}</span>
         )}
-        <div className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100">
+        <div className="touch-actions shrink-0 transition-opacity">
           <FolderActionsMenu
             folder={folder}
             onNewSubfolder={onNewSubfolder}

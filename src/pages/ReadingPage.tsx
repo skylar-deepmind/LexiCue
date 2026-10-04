@@ -1,3 +1,6 @@
+import AdaptiveMenu from '../components/AdaptiveMenu';
+import Overlay from '../components/Overlay';
+import { blocksPageShortcut } from '../lib/backNavigation';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { invoke } from '@tauri-apps/api/core';
@@ -42,6 +45,8 @@ export default function ReadingPage({ fileId }: { fileId: number }) {
   const auxiliaryFontSize = usePreferencesStore((state) => state.auxiliaryFontSize);
   const readingLineHeight = usePreferencesStore((state) => state.readingLineHeight);
   const setReadingLineHeight = usePreferencesStore((state) => state.setReadingLineHeight);
+  const detailGeneration = useRef(0);
+  const phraseGeneration = useRef(0);
   const [detail, setDetail] = useState<WordDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [phraseDetail, setPhraseDetail] = useState<PhraseDetailType | null>(null);
@@ -54,24 +59,9 @@ export default function ReadingPage({ fileId }: { fileId: number }) {
   const [showHint, setShowHint] = useState(true);
   const toolsRef = useRef<HTMLDivElement>(null);
   const segmentRefs = useRef<Record<number, HTMLDivElement | null>>({});
+  useEffect(() => () => { detailGeneration.current++; phraseGeneration.current++; }, [fileId]);
 
-  useEffect(() => {
-    if (!toolsOpen) return;
-    const handler = (event: MouseEvent) => {
-      if (toolsRef.current && !toolsRef.current.contains(event.target as Node)) {
-        setToolsOpen(false);
-      }
-    };
-    const keyHandler = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setToolsOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    document.addEventListener('keydown', keyHandler);
-    return () => {
-      document.removeEventListener('mousedown', handler);
-      document.removeEventListener('keydown', keyHandler);
-    };
-  }, [toolsOpen]);
+
   const [contextMenu, setContextMenu] = useState<{
     x: number; y: number;
     lemma: string;
@@ -131,6 +121,7 @@ export default function ReadingPage({ fileId }: { fileId: number }) {
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
+      if (blocksPageShortcut(event)) return;
       const target = event.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
       if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
@@ -154,6 +145,7 @@ export default function ReadingPage({ fileId }: { fileId: number }) {
   };
 
   const handleWordClick = async (lemma: string, wordId: number | null) => {
+    const request = ++detailGeneration.current;
     try {
       setDetailLoading(true);
       let id = wordId;
@@ -166,26 +158,30 @@ export default function ReadingPage({ fileId }: { fileId: number }) {
         id = allWords.find((word) => word.lemma === lemma)?.id ?? null;
       }
       if (id !== null) {
-        setDetail(await invoke<WordDetail>('word_detail', { wordId: id }));
+        const next = await invoke<WordDetail>('word_detail', { wordId: id });
+        if (request === detailGeneration.current) setDetail(next);
       }
     } catch (e) {
+      if (request !== detailGeneration.current) return;
       console.error('Failed to load word detail:', e);
       useFeedbackStore.getState().show(t('reading.cannotLoadWord'), 'error');
     } finally {
-      setDetailLoading(false);
+      if (request === detailGeneration.current) setDetailLoading(false);
     }
   };
 
   const handlePhraseClick = async (phraseId: number) => {
+    const request = ++phraseGeneration.current;
     try {
       setPhraseDetailLoading(true);
       const detail: PhraseDetailType = await invoke('phrase_detail', { phraseId });
-      setPhraseDetail(detail);
+      if (request === phraseGeneration.current) setPhraseDetail(detail);
     } catch (e) {
+      if (request !== phraseGeneration.current) return;
       console.error('Failed to load phrase detail:', e);
       useFeedbackStore.getState().show(t('reading.cannotLoadPhrase'), 'error');
     } finally {
-      setPhraseDetailLoading(false);
+      if (request === phraseGeneration.current) setPhraseDetailLoading(false);
     }
   };
 
@@ -292,10 +288,7 @@ export default function ReadingPage({ fileId }: { fileId: number }) {
               <span className="hidden sm:inline">{t('reading.tools')}</span>
             </button>
             {toolsOpen && (
-              <div
-                role="menu"
-                className="absolute right-0 top-full mt-1 z-50 min-w-[200px] rounded-xl border border-gray-200 bg-white py-1 shadow-lg"
-              >
+              <AdaptiveMenu anchorRef={toolsRef} label={t('reading.tools')} onClose={() => setToolsOpen(false)}>
                 <div className="px-4 py-2.5">
                   <div className="flex items-center justify-between gap-3 text-xs">
                     <span className="text-gray-500">{t('reading.lineHeight')}</span>
@@ -326,7 +319,7 @@ export default function ReadingPage({ fileId }: { fileId: number }) {
                   <span className="flex-1">{t('reading.showHint')}</span>
                   {showHint && <span className="text-blue-500 text-xs">✓</span>}
                 </button>
-              </div>
+              </AdaptiveMenu>
             )}
           </div>
           <DisplaySettingsMenu />
@@ -428,11 +421,11 @@ export default function ReadingPage({ fileId }: { fileId: number }) {
 
       {(detail || detailLoading) && (
         <>
-          <div className="fixed inset-0 bg-black/20 z-30" onClick={() => setDetail(null)} />
           {detailLoading ? (
-            <div className="fixed inset-y-0 right-0 w-full sm:w-96 bg-white border-l border-gray-200 shadow-xl z-40 flex items-center justify-center text-gray-400">
+            <Overlay variant="detail" label={t('common.loading')} onClose={() => { detailGeneration.current++; setDetail(null); setDetailLoading(false); }} className="detail-panel detail-placeholder">
+              <button className="ui-button detail-placeholder__close" onClick={() => { detailGeneration.current++; setDetail(null); setDetailLoading(false); }}>{t('common.close')}</button>
               {t('common.loading')}
-            </div>
+            </Overlay>
           ) : detail ? (
             <WordDetailPanel
               detail={detail}
@@ -456,11 +449,11 @@ export default function ReadingPage({ fileId }: { fileId: number }) {
 
       {(phraseDetail || phraseDetailLoading) && (
         <>
-          <div className="fixed inset-0 bg-black/20 z-30" onClick={() => setPhraseDetail(null)} />
           {phraseDetailLoading ? (
-            <div className="fixed inset-y-0 right-0 w-full sm:w-96 bg-white border-l border-gray-200 shadow-xl z-40 flex items-center justify-center text-gray-400">
+            <Overlay variant="detail" label={t('common.loading')} onClose={() => { phraseGeneration.current++; setPhraseDetail(null); setPhraseDetailLoading(false); }} className="detail-panel detail-placeholder">
+              <button className="ui-button detail-placeholder__close" onClick={() => { phraseGeneration.current++; setPhraseDetail(null); setPhraseDetailLoading(false); }}>{t('common.close')}</button>
               {t('common.loading')}
-            </div>
+            </Overlay>
           ) : phraseDetail ? (
             <PhraseDetailPanel
               detail={phraseDetail}

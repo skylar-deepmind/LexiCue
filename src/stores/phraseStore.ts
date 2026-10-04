@@ -41,6 +41,8 @@ interface PhraseStore {
   clearSelection: () => void;
 }
 
+let detailGeneration = 0;
+
 const phraseCache = new QueryCache<PhraseInfo[]>();
 registerCacheInvalidator('phrases', () => phraseCache.invalidate());
 
@@ -89,19 +91,22 @@ export const usePhraseStore = create<PhraseStore>((set, get) => ({
   invalidate: () => phraseCache.invalidate(),
 
   loadDetail: async (phraseId: number) => {
+    const request = ++detailGeneration;
     set({ detailLoading: true, detailError: false, detailErrorId: phraseId });
     try {
       const detail: PhraseDetail = await invoke('phrase_detail', { phraseId });
+      if (request !== detailGeneration) return;
       set({ detail, detailError: false, detailErrorId: null });
     } catch (e) {
+      if (request !== detailGeneration) return;
       console.error('Failed to load phrase detail:', e);
       set({ detail: null, detailError: true });
     } finally {
-      set({ detailLoading: false });
+      if (request === detailGeneration) set({ detailLoading: false });
     }
   },
 
-  closeDetail: () => set({ detail: null, detailError: false, detailErrorId: null }),
+  closeDetail: () => { detailGeneration++; set({ detail: null, detailLoading: false, detailError: false, detailErrorId: null }); },
 
   setFilter: (f) => {
     set({ filter: f, selected: new Set() });

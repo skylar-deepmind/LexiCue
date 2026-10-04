@@ -1,5 +1,6 @@
+import AdaptiveMenu from './AdaptiveMenu';
 import { SlidersHorizontal } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePreferencesStore, type ContentFontSize } from '../stores/preferencesStore';
 
@@ -15,21 +16,6 @@ export default function DisplaySettingsMenu({ className = '' }: { className?: st
   const rootRef = useRef<HTMLDivElement>(null);
   const preferences = usePreferencesStore();
 
-  useEffect(() => {
-    if (!open) return;
-    const onPointerDown = (event: MouseEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false);
-    };
-    document.addEventListener('mousedown', onPointerDown);
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('mousedown', onPointerDown);
-      document.removeEventListener('keydown', onKeyDown);
-    };
-  }, [open]);
 
   return (
     <div ref={rootRef} className={`relative ${className}`}>
@@ -45,7 +31,7 @@ export default function DisplaySettingsMenu({ className = '' }: { className?: st
         <span>{t('display.title')}</span>
       </button>
       {open && (
-        <div role="menu" className="absolute right-0 top-full z-50 mt-1 min-w-[236px] rounded-xl border border-gray-200 bg-white p-2 shadow-lg">
+        <AdaptiveMenu anchorRef={rootRef} label={t('display.title')} onClose={() => setOpen(false)}>
           {CATEGORIES.map(([category, valueKey, setterKey]) => {
             const value = preferences[valueKey] as ContentFontSize;
             const setValue = preferences[setterKey] as (size: ContentFontSize) => void;
@@ -68,7 +54,7 @@ export default function DisplaySettingsMenu({ className = '' }: { className?: st
               </div>
             );
           })}
-        </div>
+        </AdaptiveMenu>
       )}
     </div>
   );

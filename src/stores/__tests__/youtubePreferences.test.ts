@@ -11,6 +11,14 @@ const store = () => usePreferencesStore.getState();
 beforeEach(() => { storage.clear(); usePreferencesStore.setState({ youtube: normalizeYouTubePreferences(null) }); });
 
 describe('YouTube preferences persistence', () => {
+  it('preserves the vocabulary category while retaining old language and font preferences', () => {
+    const merge = usePreferencesStore.persist.getOptions().merge!;
+    const old = merge({ language: 'ja', learningTextFontSize: 'lg' }, store());
+    expect(old.vocabularyKind).toBe('word');
+    expect(old.language).toBe('ja'); expect(old.learningTextFontSize).toBe('lg');
+    expect(merge({ vocabularyKind: 'phrase' }, store()).vocabularyKind).toBe('phrase');
+    expect(merge({ vocabularyKind: 'invalid' }, store()).vocabularyKind).toBe('word');
+  });
   it('persists explicitly enabled browser assistance while old preferences remain anonymous', async () => {
     expect(store().youtube.browserSession?.enabled).toBe(false);
     store().setYouTubeBrowserSession({ enabled: true, browser: 'firefox', profile: 'default-release' });

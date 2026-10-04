@@ -1,3 +1,4 @@
+import Overlay from './Overlay';
 import AppSelect from './AppSelect';
 import { X, Volume2, RefreshCw, Download, EyeOff, Eye } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -40,13 +41,17 @@ export default function WordDetailPanel({ detail, onClose, onStatusChange, onDef
   const [audioLoading, setAudioLoading] = useState(false);
   const [statusSaving, setStatusSaving] = useState<WordStatus | null>(null);
   const [definitionSaved, setDefinitionSaved] = useState(false);
+  const [definitionError, setDefinitionError] = useState(false);
+  const [definitionSaving, setDefinitionSaving] = useState(false);
+  const closingDetail = useRef(false);
+  const savingDefinition = useRef<Promise<boolean> | null>(null);
+  const savedDefinition = useRef(detail.word.definition ?? '');
   const [occurrences, setOccurrences] = useState<OccurrenceDetail[]>(detail.occurrences);
   const [showHidden, setShowHidden] = useState(false);
   const [hideSaving, setHideSaving] = useState(false);
   const [page, setPage] = useState(1);
   const savedTimerRef = useRef<number | null>(null);
   const panelTitleRef = useRef<HTMLHeadingElement>(null);
-  const returnFocusRef = useRef<HTMLElement | null>(null);
   const [lemmaCandidates, setLemmaCandidates] = useState<string[]>([]);
   const [selectedLemma, setSelectedLemma] = useState(detail.word.lemma);
 
@@ -54,14 +59,11 @@ export default function WordDetailPanel({ detail, onClose, onStatusChange, onDef
     if (savedTimerRef.current) window.clearTimeout(savedTimerRef.current);
   }, []);
 
-  useEffect(() => {
-    returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    panelTitleRef.current?.focus();
-    return () => returnFocusRef.current?.focus();
-  }, []);
 
   useEffect(() => {
     setDefinition(detail.word.definition ?? '');
+    savedDefinition.current = detail.word.definition ?? '';
+    setDefinitionError(false);
   }, [detail.word.definition, detail.word.id]);
 
   useEffect(() => {
@@ -76,13 +78,6 @@ export default function WordDetailPanel({ detail, onClose, onStatusChange, onDef
     void invoke<string[]>('english_word_candidates', { word: detail.word.lemma }).then(setLemmaCandidates).catch(() => setLemmaCandidates([detail.word.lemma]));
   }, [detail.word.id, detail.word.lemma, detail.word.word_kind]);
 
-  useEffect(() => {
-    const handler = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [onClose]);
 
   const handleStatusChange = async (status: WordStatus) => {
     if (statusSaving) return;
@@ -94,16 +89,34 @@ export default function WordDetailPanel({ detail, onClose, onStatusChange, onDef
     }
   };
 
-  const handleDefinitionSave = async () => {
-    if (definition === (detail.word.definition ?? '')) return;
-    try {
-      await onDefinitionSave(detail.word.id, definition);
-      setDefinitionSaved(true);
-      if (savedTimerRef.current) window.clearTimeout(savedTimerRef.current);
-      savedTimerRef.current = window.setTimeout(() => setDefinitionSaved(false), 2000);
-    } catch {
-      setDefinitionSaved(false);
+  const handleDefinitionSave = async (): Promise<boolean> => {
+    if (savingDefinition.current) {
+      if (!await savingDefinition.current) return false;
     }
+    if (definition === savedDefinition.current) return true;
+    const value = definition;
+    setDefinitionSaving(true);
+    const save = (async () => {
+      try {
+        await onDefinitionSave(detail.word.id, value);
+        savedDefinition.current = value;
+        setDefinitionSaved(true); setDefinitionError(false);
+        if (savedTimerRef.current) window.clearTimeout(savedTimerRef.current);
+        savedTimerRef.current = window.setTimeout(() => setDefinitionSaved(false), 2000);
+        return true;
+      } catch { setDefinitionSaved(false); setDefinitionError(true); return false; }
+    })();
+    savingDefinition.current = save;
+    try { return await save; } finally { if (savingDefinition.current === save) { savingDefinition.current = null; setDefinitionSaving(false); } }
+  };
+  const requestClose = async () => {
+    if (closingDetail.current) return false;
+    closingDetail.current = true;
+    try {
+      if (statusSaving || hideSaving) return false;
+      if (!await handleDefinitionSave()) return false;
+      onClose(); return true;
+    } finally { closingDetail.current = false; }
   };
 
   const handleSetHidden = async (occurrenceId: number, hidden: boolean) => {
@@ -227,16 +240,17 @@ export default function WordDetailPanel({ detail, onClose, onStatusChange, onDef
   );
 
   return (
-    <div className="fixed inset-y-0 right-0 w-full sm:w-96 bg-white border-l border-gray-200 shadow-xl z-40 flex flex-col" role="dialog" aria-modal="true" aria-labelledby="word-detail-title">
+    <Overlay variant="detail" label={detail.word.lemma} onClose={requestClose} className="detail-panel">
       <div className="flex items-center justify-between p-4 border-b border-gray-100">
         <h2 ref={panelTitleRef} tabIndex={-1} id="word-detail-title" className={`font-semibold text-gray-900 outline-none ${CONTENT_FONT_CLASS.learning[learningTextFontSize]}`}>{detail.word.lemma}</h2>
         <div className="flex items-center gap-1">
           <DisplaySettingsMenu />
-          <button onClick={onClose} aria-label={t('common.close')} className="text-gray-400 hover:text-gray-600 p-1"><X size={20} /></button>
+          <button onClick={() => void requestClose()} aria-label={t('common.close')} className="text-gray-400 hover:text-gray-600 p-1"><X size={20} /></button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="detail-panel__body p-4 space-y-4">
+        {definitionError && <p role="alert" className="annotation-error">{t('shell.saveFailed')}</p>}
         <div className="flex items-center gap-2">
           <StatusBadge status={detail.word.status} />
           <span className={`${CONTENT_FONT_CLASS.auxiliary[auxiliaryFontSize]} text-gray-500`}>{t('wordDetail.frequency', { count: detail.word.frequency })}</span>
@@ -365,7 +379,7 @@ export default function WordDetailPanel({ detail, onClose, onStatusChange, onDef
               {definitionSaved && <span className="text-xs text-green-600">{t('common.saved')}</span>}
               <button
                 onClick={() => void handleDefinitionSave()}
-                disabled={definition === (detail.word.definition ?? '')}
+                disabled={definitionSaving || definition === (detail.word.definition ?? '')}
                 className="rounded-lg bg-blue-600 px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-40"
               >
                 {t('common.save')}
@@ -373,6 +387,7 @@ export default function WordDetailPanel({ detail, onClose, onStatusChange, onDef
             </div>
           </div>
           <textarea
+            disabled={definitionSaving}
             value={definition}
             onChange={(e) => setDefinition(e.target.value)}
             onBlur={() => void handleDefinitionSave()}
@@ -388,7 +403,7 @@ export default function WordDetailPanel({ detail, onClose, onStatusChange, onDef
             {pagedOccurrences.map((occ) => (
               <div
                 key={occ.id}
-                onClick={() => onOccurrenceOpen?.(occ)}
+                onClick={() => { if (onOccurrenceOpen) void requestClose().then(ok => { if (ok) onOccurrenceOpen(occ); }); }}
                 className={`word-occurrence bg-gray-50 rounded-lg p-3 ${onOccurrenceOpen ? 'cursor-pointer hover:bg-blue-50' : ''} ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}
               >
                 <div className="flex items-start justify-between gap-2">
@@ -439,7 +454,7 @@ export default function WordDetailPanel({ detail, onClose, onStatusChange, onDef
               {showHidden && (
                 <div className="mt-2 space-y-2">
                   {hiddenOccurrences.map((occ) => (
-                    <div key={occ.id} onClick={() => onOccurrenceOpen?.(occ)} className={`word-occurrence bg-gray-50 rounded-lg p-3 ${onOccurrenceOpen ? 'cursor-pointer hover:bg-blue-50' : ''} ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}>
+                    <div key={occ.id} onClick={() => { if (onOccurrenceOpen) void requestClose().then(ok => { if (ok) onOccurrenceOpen(occ); }); }} className={`word-occurrence bg-gray-50 rounded-lg p-3 ${onOccurrenceOpen ? 'cursor-pointer hover:bg-blue-50' : ''} ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}>
                       <div className="flex items-start justify-between gap-2">
                         <p className="text-gray-700 leading-relaxed line-through decoration-gray-300">
                           <OccurrenceText text={occ.en_text} surface={occ.original_form} language={detail.word.language} />
@@ -469,6 +484,6 @@ export default function WordDetailPanel({ detail, onClose, onStatusChange, onDef
           )}
         </div>
       </div>
-    </div>
+    </Overlay>
   );
 }

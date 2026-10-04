@@ -1,3 +1,5 @@
+import Overlay from './Overlay';
+import { useOverlay } from './useOverlay';
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -129,7 +131,8 @@ function PreviewContent({ preview }: { preview: AnalysisPreview }) {
   const [actionError, setActionError] = useState('');
   const [cancelling, setCancelling] = useState(false);
   const [narrow, setNarrow] = useState(() => matchMedia('(max-width: 1359px)').matches);
-  const panelRef = useRef<HTMLElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useOverlay(panelRef, close, false, !narrow);
   const closeRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     const query = matchMedia('(max-width: 1359px)');
@@ -137,21 +140,6 @@ function PreviewContent({ preview }: { preview: AnalysisPreview }) {
     query.addEventListener('change', changed);
     return () => query.removeEventListener('change', changed);
   }, []);
-  useEffect(() => {
-    const previousFocus = document.activeElement as HTMLElement | null;
-    closeRef.current?.focus();
-    const handler = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') { event.preventDefault(); close(); return; }
-      if (event.key !== 'Tab' || !narrow) return;
-      const controls = [...(panelRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], [tabindex="0"]') ?? [])];
-      const first = controls[0], last = controls.at(-1);
-      if (!panelRef.current?.contains(document.activeElement)) { event.preventDefault(); first?.focus(); return; }
-      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
-      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
-    };
-    document.addEventListener('keydown', handler);
-    return () => { document.removeEventListener('keydown', handler); if (previousFocus?.isConnected) previousFocus.focus(); };
-  }, [narrow, close]);
   const { segments: sourceSegments, processed } = preview;
   const batches = useMemo(() => Object.values(preview.pending), [preview.pending]);
   const currentBatch = useMemo(() => [...batches].sort((a,b) => b.sequence-a.sequence)[0], [batches]);
@@ -201,9 +189,8 @@ function PreviewContent({ preview }: { preview: AnalysisPreview }) {
     setCancelling(true); setActionError('');
     try { await cancel(fileId); } catch (error) { setActionError(String(error)); setCancelling(false); }
   };
-  return <>
-    {narrow && <button type="button" className="analysis-preview__backdrop" aria-label={t('common.close')} onClick={close} />}
-    <aside ref={panelRef} className="analysis-preview" role={narrow ? 'dialog' : 'complementary'} aria-modal={narrow || undefined} aria-labelledby="analysis-preview-title">
+  const contents = <>
+    <div className="analysis-preview__contents" aria-labelledby="analysis-preview-title">
       <header className="analysis-preview__header">
         <div><h2 id="analysis-preview-title">{t('analysisPreview.title')}</h2><p className="analysis-preview__filename">{preview.fileName}</p></div>
         <button ref={closeRef} type="button" className="analysis-preview__button" aria-label={t('common.close')} onClick={close}><X size={18} /></button>
@@ -236,6 +223,8 @@ function PreviewContent({ preview }: { preview: AnalysisPreview }) {
         : segments.length ? <SubtitlePreview key={preview.runId} segments={segments} bySegment={preview.bySegment} processed={processed} targetIndex={preview.latestSegmentIndex} selectedKey={effectiveSelectedKey} onSelect={select} follow={follow} onPause={pause} />
         : !preview.loading && <p className="analysis-preview__empty">{t(active ? 'analysisPreview.waiting' : 'analysisPreview.empty')}</p>}
       <footer className="analysis-preview__footer">{t(active ? currentBatch ? 'analysisPreview.temporary' : 'analysisPreview.notSaved' : preview.status === 'saved' ? 'analysisPreview.savedHint' : 'analysisPreview.incomplete')}</footer>
-    </aside>
+    </div>
   </>;
+  return narrow ? <Overlay variant="sheet" label={t('analysisPreview.title')} panelRef={panelRef} onClose={close} className="analysis-preview-modal">{contents}</Overlay>
+    : <aside ref={panelRef} className="analysis-preview" aria-labelledby="analysis-preview-title" tabIndex={-1}>{contents}</aside>;
 }

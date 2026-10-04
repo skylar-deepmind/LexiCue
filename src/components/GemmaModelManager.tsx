@@ -1,3 +1,4 @@
+import Overlay from './Overlay';
 import { useEffect, useRef, useState } from 'react';
 import { Download, Check, RefreshCw, Cpu, X, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -17,33 +18,15 @@ function formatBytes(bytes: number): string {
 
 function DeleteConfirmation({ model, baseUrl, onCancel, onConfirm }: { model: string; baseUrl: string; onCancel: () => void; onConfirm: () => void }) {
   const { t } = useTranslation();
-  const panel = useRef<HTMLDivElement>(null);
-  const cancel = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    const previous = document.activeElement as HTMLElement | null;
-    cancel.current?.focus();
-    return () => { if (previous?.isConnected) previous.focus(); };
-  }, []);
-  return <div className="model-delete-dialog" onClick={event => { if (event.target === event.currentTarget) onCancel(); }}>
-    <div ref={panel} className="model-delete-dialog__panel" role="dialog" aria-modal="true" aria-labelledby="model-delete-title" aria-describedby="model-delete-description"
-      onKeyDown={event => {
-        if (event.key === 'Escape') { event.stopPropagation(); onCancel(); }
-        if (event.key === 'Tab') {
-          const buttons = panel.current?.querySelectorAll<HTMLButtonElement>('button');
-          if (!buttons?.length) return;
-          if (event.shiftKey && document.activeElement === buttons[0]) { event.preventDefault(); buttons[buttons.length - 1].focus(); }
-          else if (!event.shiftKey && document.activeElement === buttons[buttons.length - 1]) { event.preventDefault(); buttons[0].focus(); }
-        }
-      }}>
+  return <Overlay label={t('modelManagement.deleteTitle')} onClose={onCancel} className="model-delete-dialog__panel">
       <h3 id="model-delete-title">{t('modelManagement.deleteTitle')}</h3>
       <p className="gemma-model-manager__hint">{t('modelManagement.service', { address: baseUrl })}</p>
       <p id="model-delete-description">{t('modelManagement.deleteConfirm', { model })}</p>
       <div className="model-delete-dialog__actions">
-        <button ref={cancel} className="ui-button" onClick={onCancel}>{t('common.cancel')}</button>
+        <button className="ui-button" onClick={onCancel}>{t('common.cancel')}</button>
         <button className="ui-button ui-button--danger" onClick={onConfirm}><Trash2 size={16} aria-hidden="true" />{t('modelManagement.delete')}</button>
       </div>
-    </div>
-  </div>;
+  </Overlay>;
 }
 function ModelCard({ item, installed, busy, baseUrl }: { item: ModelRecommendation; installed: boolean; busy: boolean; baseUrl: string }) {
   const { t } = useTranslation();

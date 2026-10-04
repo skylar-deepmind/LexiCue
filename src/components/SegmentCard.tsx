@@ -1,8 +1,12 @@
-import type { ReactElement } from 'react';
+import type { ReactElement, KeyboardEvent } from 'react';
 import type { Segment } from '../lib/types';
 import type { SegmentPhrase, SegmentToken } from '../stores/readerStore';
 import type { ContentFontSize, ReadingLineHeight } from '../stores/preferencesStore';
 import { CONTENT_FONT_CLASS } from '../lib/contentTypography';
+
+const activateTerm = (event: KeyboardEvent<HTMLSpanElement>, action: () => void) => {
+  if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); action(); }
+};
 
 const LINE_CLASS: Record<ReadingLineHeight, string> = { compact: 'leading-snug', normal: 'leading-relaxed', loose: 'leading-loose' };
 
@@ -114,7 +118,9 @@ export default function SegmentCard({
       const selectedPhrase = phraseByTokenPos.get(rt.wordIndex);
       if (selectedPhrase && onPhraseClick) {
         phraseElements.push(
-          <span key={i} onClick={() => onPhraseClick(selectedPhrase.phrase_id, selectedPhrase.text)}
+          <span key={i} role="button" tabIndex={0}
+            onKeyDown={event => activateTerm(event, () => onPhraseClick(selectedPhrase.phrase_id, selectedPhrase.text))}
+            onClick={() => onPhraseClick(selectedPhrase.phrase_id, selectedPhrase.text)}
             className={`cursor-pointer rounded-sm underline decoration-dotted ${selectedPhrase.status === 'ignored' ? 'text-gray-400 line-through' : 'text-purple-700 font-medium bg-purple-50/60'}`}>
             {rt.token}
           </span>
@@ -131,6 +137,8 @@ export default function SegmentCard({
           phraseElements.push(
             <span
               key={i}
+              role="button" tabIndex={0}
+              onKeyDown={event => activateTerm(event, () => onPhraseClick(phrase.phrase_id, phrase.text))}
               onClick={() => onPhraseClick(phrase.phrase_id, phrase.text)}
               className={`cursor-pointer rounded-sm underline decoration-dotted ${
                 phrase.status === 'learning'
@@ -157,6 +165,14 @@ export default function SegmentCard({
       phraseElements.push(
         <span
           key={i}
+          role="button" tabIndex={0}
+          onKeyDown={event => {
+            activateTerm(event, () => onWordClick(lemma, info?.id ?? null));
+            if (event.key === 'ContextMenu' || event.shiftKey && event.key === 'F10') {
+              event.preventDefault(); const rect = event.currentTarget.getBoundingClientRect();
+              onWordContextMenu(lemma, info?.id ?? null, rect.left, rect.bottom);
+            }
+          }}
           onClick={() => onWordClick(lemma, info?.id ?? null)}
           onContextMenu={(e) => {
             e.preventDefault();
