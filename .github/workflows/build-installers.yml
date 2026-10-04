@@ -156,10 +156,17 @@ jobs:
       - name: Verify official sync endpoint
         shell: bash
         run: test -n "$LEXICUE_SYNC_ENDPOINT" && [[ "$LEXICUE_SYNC_ENDPOINT" == https://* ]]
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Read Android toolchain version
+        id: android-toolchain
+        run: node -e "const fs = require('fs'); const t = require('./scripts/android-toolchain.json'); fs.appendFileSync(process.env.GITHUB_OUTPUT, 'java_major=' + t.javaMajor + '\n');"
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: ${{ steps.android-toolchain.outputs.java_major }}
       - uses: android-actions/setup-android@v3
         with:
           # The action's legacy default also requests the removed `tools`
@@ -167,7 +174,11 @@ jobs:
           packages: platform-tools
       - name: Install Android SDK packages
         run: |
-          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" "ndk;26.3.11579264"
+          sdk_api="$(node -p "require('./scripts/android-toolchain.json').sdkApi")"
+          build_tools="$(node -p "require('./scripts/android-toolchain.json').buildTools")"
+          ndk_version="$(node -p "require('./scripts/android-toolchain.json').ndkVersion")"
+          sdkmanager "platform-tools" "platforms;android-$sdk_api" "build-tools;$build_tools" "ndk;$ndk_version"
+          echo "NDK_HOME=$ANDROID_HOME/ndk/$ndk_version" >> "$GITHUB_ENV"
           yes | sdkmanager --licenses > /dev/null
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -175,35 +186,11 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
       - run: npm ci
       - name: Generate Android project
-        run: npx tauri android init
-      - name: Initialize Android secure credential context
-        run: |
-          set -euo pipefail
-          source_dir="src-tauri/android-template"
-          java_dir="src-tauri/gen/android/app/src/main/java"
-          install -D -m 0644 "$source_dir/MainActivity.kt" "$java_dir/com/lexicue/app/MainActivity.kt"
-          install -D -m 0644 "$source_dir/Keyring.kt" "$java_dir/io/crates/keyring/Keyring.kt"
-      - name: Install and verify LexiCue Android icons
-        shell: bash
-        run: |
-          set -euo pipefail
-          icon_source="src-tauri/icons/android"
-          resource_dir="src-tauri/gen/android/app/src/main/res"
-          cp -R "$icon_source/." "$resource_dir/"
-          while IFS= read -r source; do
-            relative="${source#${icon_source}/}"
-            cmp "$source" "$resource_dir/$relative"
-          done < <(find "$icon_source" -type f -print)
-          test -f "$resource_dir/mipmap-anydpi-v26/ic_launcher.xml"
-          test -f "$resource_dir/mipmap-xxxhdpi/ic_launcher.png"
-          test -f "$resource_dir/mipmap-xxxhdpi/ic_launcher_foreground.png"
-          test -f "$resource_dir/mipmap-xxxhdpi/ic_launcher_round.png"
+        run: npx tauri android init --ci --skip-targets-install
+      - name: Prepare Android activity, credentials, and icons
+        run: node scripts/prepare-android.mjs
       - name: Configure Android release signing
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}

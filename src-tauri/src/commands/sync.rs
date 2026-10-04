@@ -47,7 +47,6 @@ pub fn init_secret_store() -> Result<(), String> {
         .get_or_init(|| {
             #[cfg(target_os = "android")]
             {
-                use keyring_core::api::CredentialStoreApi;
                 let store = android_native_keyring_store::Store::new_with_configuration(
                     &std::collections::HashMap::new(),
                 )

@@ -10,7 +10,8 @@
     "test": "vitest run",
     "preview": "vite preview",
     "tauri": "tauri",
-    "test:ui": "node scripts/ui-smoke.mjs"
+    "test:ui": "node scripts/ui-smoke.mjs",
+    "check:release": "node scripts/check-release.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.11.1",

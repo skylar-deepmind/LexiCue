@@ -210,10 +210,10 @@ async fn system_query(program: &str, args: &[&str]) -> Option<String> {
 pub async fn get_local_ai_environment() -> LocalAiEnvironment {
     #[cfg(not(target_os = "macos"))]
     #[allow(unused_mut)]
-    let mut cpu = None;
+    let mut cpu: Option<String> = None;
     #[cfg(not(target_os = "macos"))]
     #[allow(unused_mut)]
-    let mut memory_bytes = None;
+    let mut memory_bytes: Option<u64> = None;
     #[cfg(target_os = "macos")]
     let (cpu, memory_bytes) = (
         system_query("/usr/sbin/sysctl", &["-n", "machdep.cpu.brand_string"]).await,
