@@ -33,7 +33,7 @@ async function fixture(page, theme = 'ocean', language = 'zh', hasDueCards = fal
         window.__uiCalls.push({ command, args });
         if (command === 'dictionary_status') return true;
         if (command === 'plugin:event|listen') return 1;
-        if (command === 'plugin:app|version') return '0.4.1';
+        if (command === 'plugin:app|version') return '0.4.2';
         if (command === 'plugin:dialog|ask') return true;
         if (command === 'list_files') return args.folderId == null ? files : [{ ...files[0], id: 100 + args.folderId, folder_id: args.folderId }];
         if (command === 'list_folders') return folders;
