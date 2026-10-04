@@ -8,12 +8,14 @@ import { parseFile, type ParsedResult } from '../lib/parser';
 import type { Language } from '../lib/languages';
 import type { OccurrenceInput } from '../lib/types';
 import type { AiConfig } from '../lib/ai';
-import type { TrackSelection } from './youtubeStore';
+import { downloadError, EMPTY_BROWSER_SESSION, isYouTubeCancelled, type BrowserSession, type YouTubeDownloadError } from '../lib/youtubeDownload';
+import { trackLanguage } from '../lib/youtubeSelection';
+import type { TrackSelection, SubtitleResult } from './youtubeStore';
+import type { YouTubeLanguagePair } from '../lib/youtubeSelection';
 import { useYoutubeStore } from './youtubeStore';
 import { useFeedbackStore } from './feedbackStore';
 import { usePreferencesStore } from './preferencesStore';
 import i18n from '../i18n';
-import { isCancelledError } from '../lib/errors';
 import { errorCode } from '../lib/syncErrors';
 import { QueryCache } from '../lib/queryCache';
 import { invalidateCaches, registerCacheInvalidator } from '../lib/cacheInvalidation';
@@ -30,6 +32,7 @@ export interface DeleteJobStatus {
 }
 
 interface PendingImport {
+  youtubeSelection?: YouTubeLanguagePair;
   name: string;
   fileType: 'txt' | 'srt';
   content: string;
@@ -53,6 +56,17 @@ function sanitizeFileName(title: string): string {
   return trimmed.length > 0 ? trimmed : i18n.t('fileStore.youtubeTitle');
 }
 
+export interface YouTubeImportInput {
+  url: string; title: string; primary: TrackSelection; secondary?: TrackSelection | null;
+  language: Language; aiTranslate: boolean; config: AiConfig; session?: BrowserSession;
+  fallback?: 'ai' | 'original';
+}
+export interface YouTubeRecovery {
+  primary: SubtitleResult; error: YouTubeDownloadError; pair: YouTubeLanguagePair;
+  url: string; primaryTrack: TrackSelection;
+}
+let youtubeImportGeneration = 0;
+
 interface FileStore {
   files: FileRecord[];
   folders: FolderInfo[];
@@ -61,6 +75,12 @@ interface FileStore {
   pendingImport: PendingImport | null;
   importingYouTube: boolean;
   youtubePhase: YoutubePhase | null;
+  youtubeActiveJobId: number | null;
+  youtubeRecovery: YouTubeRecovery | null;
+  youtubeFailure: YouTubeDownloadError | null;
+  youtubeCooldownUntil: number;
+  resetYouTubeRecovery: () => void;
+  cancelYouTubeImport: () => Promise<void>;
   confirming: boolean;
   deletingFiles: Record<number, DeleteJobStatus>;
   loadFiles: (force?: boolean) => Promise<void>;
@@ -81,15 +101,7 @@ interface FileStore {
   deleteFile: (id: number) => Promise<void>;
   exportAll: () => Promise<void>;
   restoreAll: () => Promise<void>;
-  importFromYouTube: (input: {
-    url: string;
-    title: string;
-    primary: TrackSelection;
-    secondary?: TrackSelection | null;
-    language: Language;
-    aiTranslate: boolean;
-    config: AiConfig;
-  }) => Promise<void>;
+  importFromYouTube: (input: YouTubeImportInput) => Promise<boolean>;
 }
 
 interface JapaneseToken {
@@ -243,6 +255,20 @@ export const useFileStore = create<FileStore>((set, get) => ({
   currentFolderId: null,
   loading: true,
   pendingImport: null,
+  youtubeActiveJobId: null,
+  youtubeRecovery: null,
+  youtubeFailure: null,
+  youtubeCooldownUntil: 0,
+  resetYouTubeRecovery: () => set({ youtubeRecovery: null, youtubeFailure: null, youtubeCooldownUntil: 0 }),
+  cancelYouTubeImport: async () => {
+    youtubeImportGeneration++;
+    const id = get().youtubeActiveJobId;
+    if (id != null) {
+      const youtube = useYoutubeStore.getState();
+      if (get().youtubePhase === 'translating') await youtube.cancelTranslate(id);
+      else await youtube.cancelJob(id);
+    }
+  },
   importingYouTube: false,
   youtubePhase: null,
   confirming: false,
@@ -495,6 +521,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
           folderId: get().currentFolderId,
         },
       });
+      if (pending.youtubeSelection) usePreferencesStore.getState().recordYouTubeImport(pending.youtubeSelection);
       invalidateCaches('words', 'phrases', 'review', 'insights', 'storage');
       set({ pendingImport: null });
       if (usePreferencesStore.getState().language === pending.language) {
@@ -518,77 +545,76 @@ export const useFileStore = create<FileStore>((set, get) => ({
     }
   },
 
-  importFromYouTube: async ({ url, title, primary, secondary, language, aiTranslate, config }) => {
-    set({ importingYouTube: true, youtubePhase: 'downloading' });
+  importFromYouTube: async ({ url, title, primary, secondary, language, aiTranslate, config, session, fallback }) => {
+    if (get().importingYouTube) return false;
+    const generation = ++youtubeImportGeneration;
+    const ensureCurrent = () => { if (generation !== youtubeImportGeneration) throw { code: 'cancelled' }; };
+    const recovery = get().youtubeRecovery;
+    const matchesRecovery = recovery?.url === url && recovery.primaryTrack.lang === primary.lang && recovery.primaryTrack.is_auto === primary.is_auto;
+    const pair: YouTubeLanguagePair = matchesRecovery ? recovery.pair : { primary: trackLanguage(primary), secondary: secondary ? trackLanguage(secondary) : null };
+    let original: SubtitleResult | null = matchesRecovery ? recovery.primary : null;
+    set({ importingYouTube: true, youtubePhase: 'downloading', youtubeFailure: null });
     try {
       const youtube = useYoutubeStore.getState();
-      const jobId = nextJobId();
-      const sub = secondary
-        ? await youtube.mergeSubs(jobId, url, primary, secondary)
-        : await youtube.downloadSub(jobId, url, primary.lang, primary.is_auto);
-
-      set({ youtubePhase: 'parsing' });
+      let sub: SubtitleResult;
+      if (fallback && original) {
+        sub = original;
+      } else {
+        const jobId = nextJobId();
+        set({ youtubeActiveJobId: jobId });
+        const prepared = await youtube.prepareSubtitles(jobId, url, primary, secondary ?? null, session ?? usePreferencesStore.getState().youtube.browserSession ?? EMPTY_BROWSER_SESSION);
+        ensureCurrent();
+        if (prepared.status === 'partial') {
+          set({ youtubeRecovery: { primary: prepared.primary, error: prepared.error, pair, url, primaryTrack: primary },
+            youtubeFailure: prepared.error, youtubeCooldownUntil: Date.now() + prepared.error.cooldown_seconds * 1000 });
+          return false;
+        }
+        sub = prepared.subtitle;
+        // Single-track AI imports also retain their source if translation fails.
+        if (!secondary) original = sub;
+      }
+      ensureCurrent();
+      set({ youtubePhase: 'parsing', youtubeActiveJobId: null });
       let parsed = await parseContent(sub.content, 'srt', language);
-
-      if (aiTranslate) {
+      ensureCurrent();
+      if (fallback === 'ai' || !fallback && aiTranslate) {
         set({ youtubePhase: 'translating' });
         const translateJobId = nextJobId();
-        const translations = await youtube.translateSegments(
-          translateJobId,
-          language,
-          parsed.segments.map((segment) => ({ index: segment.index, text: segment.en_text })),
-          config,
-        );
-        const map = new Map(translations.map((t) => [t.index, t.translation]));
-        parsed = {
-          ...parsed,
-          segments: parsed.segments.map((segment) => ({
-            ...segment,
-            zh_text: map.get(segment.index) ?? segment.zh_text,
-          })),
-        };
+        set({ youtubeActiveJobId: translateJobId });
+        const translations = await youtube.translateSegments(translateJobId, language,
+          parsed.segments.map(segment => ({ index: segment.index, text: segment.en_text })), config);
+        ensureCurrent();
+        const map = new Map(translations.map(item => [item.index, item.translation]));
+        parsed = { ...parsed, segments: parsed.segments.map(segment => ({ ...segment, zh_text: map.get(segment.index) ?? segment.zh_text })) };
       }
-
-      set({ youtubePhase: 'importing' });
+      ensureCurrent();
+      set({ youtubePhase: 'importing', youtubeActiveJobId: null });
       const hash = await computeHash(sub.content);
+      ensureCurrent();
       const duplicate: { file_id: number; name: string } | null = await invoke('check_duplicate', { hash });
+      ensureCurrent();
       let replaceFileId: number | null = null;
       let replaceFileName: string | null = null;
       if (duplicate) {
         const confirmed = await ask(i18n.t('fileStore.duplicateAsk', { name: duplicate.name }), {
-          title: i18n.t('fileStore.duplicateTitle'),
-          kind: 'warning',
-          okLabel: i18n.t('fileStore.overwrite'),
-          cancelLabel: i18n.t('common.cancel'),
+          title: i18n.t('fileStore.duplicateTitle'), kind: 'warning', okLabel: i18n.t('fileStore.overwrite'), cancelLabel: i18n.t('common.cancel'),
         });
-        if (!confirmed) return;
-        replaceFileId = duplicate.file_id;
-        replaceFileName = duplicate.name;
+        ensureCurrent();
+        if (!confirmed) return false;
+        replaceFileId = duplicate.file_id; replaceFileName = duplicate.name;
       }
-
-      set({
-        pendingImport: {
-          name: `${sanitizeFileName(title)}.srt`,
-          fileType: 'srt',
-          content: sub.content,
-          hash,
-          parsed,
-          replaceFileId,
-          replaceFileName,
-          language,
-        },
-      });
-    } catch (e) {
-      console.error('YouTube import failed:', e);
-      const messageText = String(e);
-      if (isCancelledError(messageText)) {
-        useFeedbackStore.getState().show(i18n.t('fileStore.importCancelled'), 'info', 2000);
-      } else {
-        useFeedbackStore.getState().show(messageText, 'error', 6000);
-      }
-      throw e;
+      set({ pendingImport: { youtubeSelection: pair, name: `${sanitizeFileName(title)}.srt`, fileType: 'srt', content: sub.content, hash, parsed, replaceFileId, replaceFileName, language },
+        youtubeRecovery: null, youtubeFailure: null, youtubeCooldownUntil: 0 });
+      return true;
+    } catch (error) {
+      if (generation !== youtubeImportGeneration || isYouTubeCancelled(error)) throw { ...downloadError(error), code: 'cancelled' };
+      const failure = downloadError(error);
+      if (get().youtubePhase === 'translating') { failure.code = 'translation_failed'; failure.stage = 'translate'; failure.role = 'secondary'; failure.language = 'zh-Hans'; }
+      set({ youtubeFailure: failure, youtubeCooldownUntil: Date.now() + failure.cooldown_seconds * 1000,
+        ...(original ? { youtubeRecovery: { primary: original, error: failure, pair, url, primaryTrack: primary } } : {}) });
+      throw failure;
     } finally {
-      set({ importingYouTube: false, youtubePhase: null });
+      set({ importingYouTube: false, youtubePhase: null, youtubeActiveJobId: null });
     }
   },
 

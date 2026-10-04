@@ -10,13 +10,14 @@ const STATUS_CONFIG: Record<string, { className: string }> = {
 
 interface StatusBadgeProps {
   status: string;
+  label?: string;
   onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
-export default function StatusBadge({ status, onClick }: StatusBadgeProps) {
+export default function StatusBadge({ status, label: customLabel, onClick }: StatusBadgeProps) {
   const { t } = useTranslation();
   const config = STATUS_CONFIG[status] ?? STATUS_CONFIG.unprocessed;
-  const label = t(`status.${status}`);
+  const label = customLabel ?? t(`status.${status}`);
 
   if (onClick) {
     return (

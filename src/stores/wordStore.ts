@@ -119,9 +119,6 @@ export const useWordStore = create<WordStore>((set, get) => ({
 
   updateStatus: async (wordId, status) => {
     await invoke('update_word_status', { wordId, status });
-    if (status === 'learning') {
-      await invoke('create_review_card', { wordId });
-    }
     const result = applyStatusUpdates(get().words, [{ id: wordId, status }], get().filter);
     const keptIds = new Set(result.words.map((w) => w.id));
     set({

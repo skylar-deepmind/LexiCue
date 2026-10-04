@@ -1,3 +1,4 @@
+pub mod annotations;
 pub mod chinese;
 pub mod collins;
 pub mod dictionary;

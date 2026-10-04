@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -9,16 +9,23 @@ use tauri::{AppHandle, Emitter};
 
 const UA: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36";
 const CANCELLED_MESSAGE: &str = "ERR_CANCELLED";
-const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(60);
+const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(180);
 const LIST_TIMEOUT: Duration = Duration::from_secs(30);
-const OPERATION_TIMEOUT: Duration = Duration::from_secs(120);
+const OPERATION_TIMEOUT: Duration = Duration::from_secs(300);
 const METADATA_TTL: Duration = Duration::from_secs(600);
 const YTDLP_VERSION_TIMEOUT: Duration = Duration::from_secs(3);
 
-#[derive(Serialize, Clone)]
+#[path = "youtube_download.rs"]
+pub mod downloads;
+pub use downloads::{init_subtitle_cache, youtube_prepare_subtitles};
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct SubtitleTrack {
     pub lang: String,
     pub is_auto: bool,
+    pub language: String,
+    pub source: downloads::SubtitleSource,
+    pub source_language: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -30,7 +37,7 @@ pub struct VideoSubInfo {
     pub automatic: Vec<SubtitleTrack>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct SubtitleResult {
     pub name: String,
     pub content: String,
@@ -40,52 +47,45 @@ pub struct SubtitleResult {
 pub struct YtDlpStatus {
     pub available: bool,
     pub version: Option<String>,
+    pub path: Option<String>,
+    pub javascript: Option<String>,
+    pub ejs: String,
+    pub ffmpeg: Option<String>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct TrackSelection {
     pub lang: String,
     #[serde(default)]
     pub is_auto: bool,
 }
 
-fn ytdlp_path() -> Option<&'static Path> {
-    static CACHED: OnceLock<Option<PathBuf>> = OnceLock::new();
-    CACHED
-        .get_or_init(|| {
-            let mut candidates: Vec<PathBuf> = vec![
-                PathBuf::from("/opt/homebrew/bin/yt-dlp"),
-                PathBuf::from("/usr/local/bin/yt-dlp"),
-                PathBuf::from("/usr/bin/yt-dlp"),
-            ];
-            if let Some(home) = std::env::var_os("HOME") {
-                let home = PathBuf::from(home);
-                candidates.push(home.join(".local/bin/yt-dlp"));
-                candidates.push(home.join(".cargo/bin/yt-dlp"));
-            }
-            candidates.into_iter().find(|p| p.is_file()).or_else(|| {
-                std::env::var_os("PATH").and_then(|paths| {
-                    std::env::split_paths(&paths)
-                        .map(|dir| dir.join("yt-dlp"))
-                        .find(|candidate| candidate.is_file())
-                })
+fn tool_path(name: &str) -> Option<PathBuf> {
+    let mut dirs = vec![
+        PathBuf::from("/opt/homebrew/bin"),
+        PathBuf::from("/usr/local/bin"),
+        PathBuf::from("/usr/bin"),
+    ];
+    if let Some(home) = std::env::var_os("HOME") {
+        dirs.push(PathBuf::from(&home).join(".local/bin"));
+        dirs.push(PathBuf::from(&home).join(".cargo/bin"));
+    }
+    if let Some(path) = std::env::var_os("PATH") {
+        dirs.extend(std::env::split_paths(&path));
+    }
+    dirs.into_iter()
+        .map(|dir| {
+            dir.join(if cfg!(windows) {
+                format!("{name}.exe")
+            } else {
+                name.to_string()
             })
         })
-        .as_deref()
+        .find(|path| path.is_file())
 }
 
-fn ytdlp_version() -> Option<String> {
-    let path = ytdlp_path()?;
-    let output = Command::new(path).arg("--version").output().ok()?;
-    if !output.status.success() {
-        return None;
-    }
-    let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if version.is_empty() {
-        None
-    } else {
-        Some(version)
-    }
+fn ytdlp_path() -> Option<PathBuf> {
+    tool_path("yt-dlp")
 }
 
 fn ytdlp_version_from_output(success: bool, output: &[u8]) -> Option<String> {
@@ -228,15 +228,9 @@ fn tracks_from_player_json(json: &serde_json::Value) -> (Vec<SubtitleTrack>, Vec
         };
         let is_asr = track["kind"].as_str() == Some("asr");
         if is_asr {
-            automatic.push(SubtitleTrack {
-                lang: lang.to_string(),
-                is_auto: true,
-            });
+            automatic.push(downloads::player_track(lang, true));
         } else {
-            manual.push(SubtitleTrack {
-                lang: lang.to_string(),
-                is_auto: false,
-            });
+            manual.push(downloads::player_track(lang, false));
         }
     }
     sort_tracks(&mut manual);
@@ -258,21 +252,6 @@ struct DownloadJob {
 }
 
 impl DownloadJob {
-    fn progress(&self, status: &str, stage: &str, percent: f64, message: &str) {
-        if let Some(app) = &self.app {
-            let _ = app.emit(
-                "youtube-progress",
-                serde_json::json!({
-                    "jobId": self.job_id,
-                    "status": status,
-                    "stage": stage,
-                    "percent": percent,
-                    "message": message,
-                }),
-            );
-        }
-    }
-
     fn cancelled(&self) -> bool {
         self.token.load(Ordering::Relaxed)
     }
@@ -290,16 +269,22 @@ fn download_registry() -> &'static Mutex<HashMap<i64, Arc<DownloadJob>>> {
     DOWNLOAD_REGISTRY.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
-fn create_download_job(app: AppHandle, job_id: i64) -> Arc<DownloadJob> {
-    let job = Arc::new(DownloadJob {
-        app: Some(app),
-        job_id,
-        token: Arc::new(AtomicBool::new(false)),
-    });
-    if let Ok(mut registry) = download_registry().lock() {
-        registry.insert(job_id, job.clone());
-    }
+fn register_download_job(app: Option<AppHandle>, job_id: i64) -> Arc<DownloadJob> {
+    // Register and preserve early cancellation under the same lock.
+    let mut registry = download_registry()
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    let token = registry
+        .get(&job_id)
+        .map(|job| job.token.clone())
+        .unwrap_or_else(|| Arc::new(AtomicBool::new(false)));
+    let job = Arc::new(DownloadJob { app, job_id, token });
+    registry.insert(job_id, job.clone());
     job
+}
+
+fn create_download_job(app: AppHandle, job_id: i64) -> Arc<DownloadJob> {
+    register_download_job(Some(app), job_id)
 }
 
 struct JobGuard {
@@ -316,10 +301,15 @@ impl Drop for JobGuard {
 
 #[tauri::command]
 pub async fn youtube_cancel_job(job_id: i64) -> Result<(), String> {
-    if let Ok(registry) = download_registry().lock() {
-        if let Some(job) = registry.get(&job_id) {
-            job.token.store(true, Ordering::Relaxed);
-        }
+    if let Ok(mut registry) = download_registry().lock() {
+        let job = registry.entry(job_id).or_insert_with(|| {
+            Arc::new(DownloadJob {
+                app: None,
+                job_id,
+                token: Arc::new(AtomicBool::new(true)),
+            })
+        });
+        job.token.store(true, Ordering::Relaxed);
     }
     Ok(())
 }
@@ -332,6 +322,7 @@ fn spawn_error(error: &std::io::Error) -> String {
     }
 }
 
+#[cfg(test)]
 fn friendly_ytdlp_error(stderr: &str) -> String {
     let lower = stderr.to_lowercase();
     let pick = |fragments: &[&str], message: &str| -> Option<String> {
@@ -370,7 +361,7 @@ fn friendly_ytdlp_error(stderr: &str) -> String {
     .or_else(|| {
         pick(
             &["http error 429", "too many requests"],
-            "请求过于频繁（HTTP 429），请稍后重试。",
+            "YouTube 限制了字幕请求（HTTP 429）。",
         )
     })
     .or_else(|| {
@@ -420,6 +411,7 @@ async fn run_ytdlp_capture(
     let mut child = cmd
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
+        .kill_on_drop(true)
         .spawn()
         .map_err(|e| spawn_error(&e))?;
     let stdout_handle = child.stdout.take();
@@ -472,12 +464,14 @@ async fn run_ytdlp_capture(
     match outcome {
         RunOutcome::Cancelled => {
             let _ = child.kill().await;
+            let _ = child.wait().await;
             out_reader.abort();
             err_reader.abort();
             Err(CANCELLED_MESSAGE.to_string())
         }
         RunOutcome::Timeout => {
             let _ = child.kill().await;
+            let _ = child.wait().await;
             out_reader.abort();
             err_reader.abort();
             Err("yt-dlp 执行超时，已终止。请检查网络后重试。".to_string())
@@ -497,6 +491,7 @@ async fn run_ytdlp_capture(
     }
 }
 
+#[cfg(test)]
 async fn run_ytdlp(
     cmd: &mut tokio::process::Command,
     job: &DownloadJob,
@@ -541,28 +536,45 @@ fn cache_metadata(video_id: &str, json: &serde_json::Value) {
 async fn fetch_ytdlp_json(
     cancel: Option<&DownloadJob>,
     url: &str,
+    session: &downloads::BrowserSession,
+    timeout: Duration,
 ) -> Result<serde_json::Value, String> {
     let video_id = extract_video_id(url).unwrap_or_else(|| "video".to_string());
-    if let Some(json) = get_cached_metadata(&video_id) {
+    let cache_key = format!("{video_id}:{}", session.cache_identity());
+    if let Some(json) = get_cached_metadata(&cache_key) {
         return Ok(json);
     }
     let mut cmd = tokio::process::Command::new(ytdlp_path().expect("yt-dlp not found"));
     cmd.arg("--skip-download")
         .arg("--no-playlist")
         .arg("--dump-single-json")
-        .arg(url);
-    let (status, stdout, stderr) = run_ytdlp_capture(&mut cmd, cancel, LIST_TIMEOUT).await?;
+        .arg("--retries")
+        .arg("0")
+        .arg("--extractor-retries")
+        .arg("0");
+    downloads::configure_session(&mut cmd, session)?;
+    cmd.arg(format!("https://www.youtube.com/watch?v={video_id}"));
+    let (status, stdout, stderr) = run_ytdlp_capture(&mut cmd, cancel, timeout).await?;
     if !status.success() {
-        return Err(friendly_ytdlp_error(&stderr));
+        return Err(downloads::DownloadError::from_message(
+            &stderr,
+            "primary",
+            "",
+            downloads::SubtitleSource::Unknown,
+        )
+        .code);
     }
     let json: serde_json::Value = serde_json::from_slice(&stdout)
         .map_err(|error| format!("解析 yt-dlp 信息失败：{error}"))?;
-    cache_metadata(&video_id, &json);
+    cache_metadata(&cache_key, &json);
     Ok(json)
 }
 
-async fn list_subs_ytdlp(url: &str) -> Result<VideoSubInfo, String> {
-    let json = fetch_ytdlp_json(None, url).await?;
+async fn list_subs_ytdlp(
+    url: &str,
+    session: &downloads::BrowserSession,
+) -> Result<VideoSubInfo, String> {
+    let json = fetch_ytdlp_json(None, url, session, LIST_TIMEOUT).await?;
 
     let title = json["title"].as_str().unwrap_or("视频").to_string();
     let thumbnail = json["thumbnails"]
@@ -580,10 +592,7 @@ async fn list_subs_ytdlp(url: &str) -> Result<VideoSubInfo, String> {
                 continue;
             }
             if entries.as_array().map(|a| !a.is_empty()).unwrap_or(false) {
-                manual.push(SubtitleTrack {
-                    lang: lang.clone(),
-                    is_auto: false,
-                });
+                manual.push(downloads::metadata_track(lang, false, entries));
             }
         }
     }
@@ -594,10 +603,7 @@ async fn list_subs_ytdlp(url: &str) -> Result<VideoSubInfo, String> {
                 continue;
             }
             if entries.as_array().map(|a| !a.is_empty()).unwrap_or(false) {
-                automatic.push(SubtitleTrack {
-                    lang: lang.clone(),
-                    is_auto: true,
-                });
+                automatic.push(downloads::metadata_track(lang, true, entries));
             }
         }
     }
@@ -656,17 +662,20 @@ async fn list_subs_http(url: &str) -> Result<VideoSubInfo, String> {
 }
 
 #[tauri::command]
-pub async fn youtube_list_subs(url: String) -> Result<VideoSubInfo, String> {
-    if ytdlp_version().is_some() {
-        match list_subs_ytdlp(&url).await {
-            Ok(info) => {
-                if !info.manual.is_empty() || !info.automatic.is_empty() {
-                    return Ok(info);
-                }
-                log::info!("yt-dlp 未发现字幕，尝试 HTTP 回退确认");
-            }
-            Err(e) => log::warn!("yt-dlp 列字幕失败，尝试 HTTP 回退：{e}"),
-        }
+pub async fn youtube_list_subs(
+    url: String,
+    session: Option<downloads::BrowserSession>,
+) -> Result<VideoSubInfo, String> {
+    let session = session.unwrap_or_default();
+    session.validate()?;
+    if extract_video_id(&url).is_none() {
+        return Err("invalid_url".into());
+    }
+    if ytdlp_path().is_some() {
+        return list_subs_ytdlp(&url, &session).await;
+    }
+    if session.enabled {
+        return Err("missing_tool".into());
     }
     list_subs_http(&url).await
 }
@@ -706,85 +715,7 @@ fn find_subtitle_file(dir: &Path, video_id: &str, lang: &str) -> Option<PathBuf>
     None
 }
 
-async fn download_sub_ytdlp(
-    job: &DownloadJob,
-    base_percent: f64,
-    span_percent: f64,
-    url: &str,
-    lang: &str,
-    is_auto: bool,
-) -> Result<SubtitleResult, String> {
-    let video_id = extract_video_id(url).unwrap_or_else(|| "video".to_string());
-    let dir = create_temp_dir()?;
-    let mut cmd = tokio::process::Command::new(ytdlp_path().expect("yt-dlp not found"));
-    cmd.arg("--skip-download")
-        .arg("--no-playlist")
-        .arg("--retries")
-        .arg("5")
-        .arg("--sub-langs")
-        .arg(lang)
-        .arg("--sub-format")
-        .arg("srt/best")
-        .arg("--convert-subs")
-        .arg("srt")
-        .arg("-o")
-        .arg(dir.join("%(id)s").to_string_lossy().to_string())
-        .arg(url);
-    if is_auto {
-        cmd.arg("--write-auto-subs");
-    } else {
-        cmd.arg("--write-subs");
-    }
-
-    job.progress(
-        "processing",
-        "解析视频信息",
-        base_percent + span_percent * 0.05,
-        &format!("正在解析视频信息，准备下载字幕（{lang}）..."),
-    );
-    let (status, stderr) = match run_ytdlp(&mut cmd, job, DOWNLOAD_TIMEOUT).await {
-        Ok(value) => value,
-        Err(error) => {
-            cleanup_dir(&dir);
-            return Err(error);
-        }
-    };
-    job.progress(
-        "processing",
-        "下载字幕轨",
-        base_percent + span_percent * 0.6,
-        &format!("正在下载字幕轨（{lang}）..."),
-    );
-
-    // Even if yt-dlp reported a non-zero exit, a subtitle file may still exist.
-    let Some(path) = find_subtitle_file(&dir, &video_id, lang) else {
-        cleanup_dir(&dir);
-        if !status.success() {
-            return Err(friendly_ytdlp_error(&stderr));
-        }
-        return Err(format!("未找到语言“{lang}”的字幕文件"));
-    };
-    job.progress(
-        "processing",
-        "处理字幕文件",
-        base_percent + span_percent * 0.95,
-        "正在整理字幕文件...",
-    );
-    let content = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
-    let is_vtt = path.extension().and_then(|e| e.to_str()) == Some("vtt");
-    let content = if is_vtt {
-        vtt_to_srt(&content)
-    } else {
-        content
-    };
-    let name = format!("{video_id}.{lang}.srt");
-    cleanup_dir(&dir);
-    if content.trim().is_empty() {
-        return Err(format!("语言“{lang}”的字幕内容为空"));
-    }
-    Ok(SubtitleResult { name, content })
-}
-
+#[cfg(test)]
 fn choose_subtitle_format(
     json: &serde_json::Value,
     lang: &str,
@@ -811,271 +742,23 @@ fn choose_subtitle_format(
     None
 }
 
-async fn download_sub_ytdlp_direct(
-    job: &DownloadJob,
-    base_percent: f64,
-    span_percent: f64,
-    url: &str,
-    lang: &str,
-    is_auto: bool,
-) -> Result<SubtitleResult, String> {
-    let video_id = extract_video_id(url).unwrap_or_else(|| "video".to_string());
-    job.progress(
-        "processing",
-        "解析视频信息",
-        base_percent + span_percent * 0.05,
-        &format!("正在获取字幕地址（{lang}）..."),
-    );
-    let json = fetch_ytdlp_json(Some(job), url).await?;
-    let Some((ext, subtitle_url)) = choose_subtitle_format(&json, lang, is_auto) else {
-        return Err(if is_auto {
-            format!("yt-dlp 未提供“{lang}”自动字幕的可下载格式")
-        } else {
-            format!("yt-dlp 未提供“{lang}”字幕的可下载格式")
-        });
-    };
-
-    if job.cancelled() {
-        return Err(CANCELLED_MESSAGE.to_string());
-    }
-    job.progress(
-        "processing",
-        "下载字幕轨",
-        base_percent + span_percent * 0.6,
-        &format!("正在直接下载字幕轨（{lang}）..."),
-    );
-    let client = youtube_client()?;
-    let mut body = None;
-    let mut last_status = None;
-    for attempt in 0..2 {
-        let response = client
-            .get(&subtitle_url)
-            .header("User-Agent", UA)
-            .header("Accept", "text/plain, text/vtt, application/json, */*")
-            .send()
-            .await
-            .map_err(|error| format!("下载字幕失败：{error}"))?;
-        let status = response.status();
-        last_status = Some(status);
-        let text = response.text().await.unwrap_or_default();
-        if status.is_success() && !text.trim().is_empty() {
-            body = Some(text);
-            break;
-        }
-        if status.as_u16() == 429 && attempt == 0 {
-            job.progress(
-                "processing",
-                "重试",
-                base_percent + span_percent * 0.3,
-                "字幕地址受到限流，正在等待后重试...",
-            );
-            tokio::time::sleep(Duration::from_secs(3)).await;
-            continue;
-        }
-        if !status.is_success() {
-            return Err(format!("字幕接口返回 HTTP {}", status.as_u16()));
-        }
-        return Err("字幕接口返回空内容".to_string());
-    }
-    let content = body.ok_or_else(|| {
-        format!(
-            "字幕下载失败（HTTP {}）",
-            last_status
-                .map(|status| status.as_u16())
-                .unwrap_or_default()
-        )
-    })?;
-    job.progress(
-        "processing",
-        "处理字幕文件",
-        base_percent + span_percent * 0.95,
-        "正在整理字幕文件...",
-    );
-    let content = match ext.as_str() {
-        "srt" => content,
-        "vtt" => vtt_to_srt(&content),
-        "json3" | "srv3" | "srv2" | "srv1" => json3_to_srt(&content)?,
-        "ttml" => return Err("字幕格式为 TTML，当前无法转换为 SRT".to_string()),
-        _ => content,
-    };
-    if content.trim().is_empty() {
-        return Err(format!("语言“{lang}”的字幕内容为空"));
-    }
-    Ok(SubtitleResult {
-        name: format!("{video_id}.{lang}.srt"),
-        content,
-    })
-}
-
-async fn download_sub_ytdlp_preferred(
-    job: &DownloadJob,
-    base_percent: f64,
-    span_percent: f64,
-    url: &str,
-    lang: &str,
-    is_auto: bool,
-) -> Result<SubtitleResult, String> {
-    match download_sub_ytdlp_direct(job, base_percent, span_percent, url, lang, is_auto).await {
-        Ok(result) => Ok(result),
-        Err(direct_error) => {
-            log::warn!("直接下载字幕失败，回退到 yt-dlp 子进程：{direct_error}");
-            download_sub_ytdlp(job, base_percent, span_percent, url, lang, is_auto).await
-        }
-    }
-}
-
-async fn download_sub_http(url: &str, lang: &str, is_auto: bool) -> Result<SubtitleResult, String> {
-    let video_id = extract_video_id(url).ok_or("无法从 URL 解析视频 ID")?;
-    let client = youtube_client()?;
-    let html = client
-        .get(format!("https://www.youtube.com/watch?v={video_id}"))
-        .header("User-Agent", UA)
-        .header("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
-        .send()
-        .await
-        .map_err(|e| format!("请求 YouTube 失败：{e}"))?
-        .text()
-        .await
-        .unwrap_or_default();
-    let json_text = extract_initial_player_response(&html)
-        .ok_or("无法解析 YouTube 页面（视频可能不可用或需要登录）")?;
-    let json: serde_json::Value =
-        serde_json::from_str(&json_text).map_err(|e| format!("解析页面数据失败：{e}"))?;
-
-    let tracks = json["captions"]["playerCaptionsTracklistRenderer"]["captionTracks"]
-        .as_array()
-        .cloned()
-        .unwrap_or_default();
-    let base_url = tracks
-        .iter()
-        .find(|t| {
-            t["languageCode"].as_str() == Some(lang)
-                && (t["kind"].as_str() == Some("asr")) == is_auto
-        })
-        .or_else(|| tracks.iter().find(|t| t["languageCode"].as_str() == Some(lang)))
-        .and_then(|t| t["baseUrl"].as_str())
-        .map(String::from)
-        .ok_or_else(|| {
-            if is_auto {
-                format!("网页端未列出“{lang}”的自动字幕轨（自动字幕列表可能不完整，建议安装 yt-dlp 后重试）")
-            } else {
-                format!("未找到语言“{lang}”的字幕轨")
-            }
-        })?;
-
-    let url = format!("{base_url}&fmt=json3");
-    let resp = client
-        .get(&url)
-        .header("User-Agent", UA)
-        .send()
-        .await
-        .map_err(|e| format!("下载字幕失败：{e}"))?;
-    let status = resp.status();
-    let text = resp.text().await.unwrap_or_default();
-    if !status.is_success() {
-        return Err(format!("字幕接口返回 {status}"));
-    }
-    if text.trim().is_empty() {
-        return Err("YouTube 未返回字幕内容。请安装 yt-dlp 后重试（网址字幕受 YouTube 会话保护，纯 HTTP 方式无法下载）".to_string());
-    }
-    let srt = json3_to_srt(&text).map_err(|e| e.to_string())?;
-    if srt.trim().is_empty() {
-        return Err("字幕内容为空".to_string());
-    }
-    Ok(SubtitleResult {
-        name: format!("{video_id}.{lang}.srt"),
-        content: srt,
-    })
-}
-
-/// Transient failures worth one automatic retry before giving up.
-fn is_transient_error(error: &str) -> bool {
-    let lower = error.to_lowercase();
-    lower.contains("429")
-        || lower.contains("too many requests")
-        || lower.contains("403")
-        || lower.contains("超时")
-        || lower.contains("timeout")
-        || lower.contains("connection")
-        || lower.contains("连接")
-        || lower.contains("请求 youtube 失败")
-}
-
+#[cfg(test)]
 async fn download_sub_with_job(
     job: &DownloadJob,
-    base_percent: f64,
-    span_percent: f64,
+    _base: f64,
+    _span: f64,
     url: &str,
     lang: &str,
     is_auto: bool,
 ) -> Result<SubtitleResult, String> {
-    let mut ytdlp_error: Option<String> = None;
-
-    if ytdlp_version().is_some() {
-        let first =
-            download_sub_ytdlp_preferred(job, base_percent, span_percent, url, lang, is_auto).await;
-        match first {
-            Ok(result) => return Ok(result),
-            Err(error) if error == CANCELLED_MESSAGE => return Err(error),
-            Err(error) => {
-                log::warn!("yt-dlp 下载字幕失败：{error}");
-                if is_transient_error(&error) && !job.cancelled() {
-                    job.progress(
-                        "processing",
-                        "重试",
-                        base_percent + span_percent * 0.3,
-                        "遇到请求限制，正在自动重试...",
-                    );
-                    tokio::time::sleep(Duration::from_secs(3)).await;
-                    if job.cancelled() {
-                        return Err(CANCELLED_MESSAGE.to_string());
-                    }
-                    match download_sub_ytdlp_preferred(
-                        job,
-                        base_percent,
-                        span_percent,
-                        url,
-                        lang,
-                        is_auto,
-                    )
-                    .await
-                    {
-                        Ok(result) => return Ok(result),
-                        Err(retry_error) if retry_error == CANCELLED_MESSAGE => {
-                            return Err(retry_error);
-                        }
-                        Err(retry_error) => {
-                            log::warn!("yt-dlp 重试仍失败：{retry_error}");
-                            ytdlp_error = Some(retry_error);
-                        }
-                    }
-                } else {
-                    ytdlp_error = Some(error);
-                }
-            }
-        }
-    }
-
-    if job.cancelled() {
-        return Err(CANCELLED_MESSAGE.to_string());
-    }
-
-    match download_sub_http(url, lang, is_auto).await {
-        Ok(result) => Ok(result),
-        // When the HTTP fallback also fails, surface the more informative
-        // yt-dlp error instead of the fallback's (often misleading) message.
-        Err(http_error) => Err(ytdlp_error.unwrap_or(http_error)),
-    }
+    downloads::test_download(job, url, lang, is_auto).await
 }
 
-fn finish_progress(job: &DownloadJob, result: &Result<SubtitleResult, String>) {
-    match result {
-        Ok(_) => job.progress("completed", "完成", 100.0, "字幕下载完成"),
-        Err(error) if error == CANCELLED_MESSAGE => {
-            job.progress("error", "已取消", 0.0, "操作已取消")
-        }
-        Err(error) => job.progress("error", "失败", 0.0, error),
-    }
+#[cfg(test)]
+fn is_transient_error(error: &str) -> bool {
+    downloads::DownloadError::from_message(error, "primary", "", downloads::SubtitleSource::Unknown)
+        .code
+        == "network"
 }
 
 #[tauri::command]
@@ -1085,27 +768,17 @@ pub async fn youtube_download_sub(
     url: String,
     lang: String,
     is_auto: bool,
-) -> Result<SubtitleResult, String> {
-    let job = create_download_job(app, job_id);
-    let _guard = JobGuard { job_id };
-    let result = match tokio::time::timeout(
-        OPERATION_TIMEOUT,
-        download_sub_with_job(&job, 0.0, 100.0, &url, &lang, is_auto),
+) -> Result<SubtitleResult, downloads::DownloadError> {
+    let result = youtube_prepare_subtitles(
+        app,
+        job_id,
+        url,
+        TrackSelection { lang, is_auto },
+        None,
+        None,
     )
-    .await
-    {
-        Ok(result) => result,
-        Err(_) => {
-            job.token.store(true, Ordering::Relaxed);
-            finish_progress(
-                &job,
-                &Err("操作超时（超过 2 分钟），请稍后重试。".to_string()),
-            );
-            return Err("操作超时（超过 2 分钟），请稍后重试。".to_string());
-        }
-    };
-    finish_progress(&job, &result);
-    result
+    .await?;
+    result.into_complete()
 }
 
 #[tauri::command]
@@ -1115,62 +788,15 @@ pub async fn youtube_merge_subs(
     url: String,
     primary: TrackSelection,
     secondary: TrackSelection,
-) -> Result<SubtitleResult, String> {
-    let job = create_download_job(app, job_id);
-    let _guard = JobGuard { job_id };
-    let body = async {
-        let sub_a =
-            download_sub_with_job(&job, 5.0, 35.0, &url, &primary.lang, primary.is_auto).await?;
-        if job.cancelled() {
-            return Err(CANCELLED_MESSAGE.to_string());
-        }
-        let sub_b =
-            download_sub_with_job(&job, 40.0, 35.0, &url, &secondary.lang, secondary.is_auto)
-                .await?;
-        job.progress(
-            "processing",
-            "合并字幕",
-            95.0,
-            "正在按时间轴合并双语字幕...",
-        );
-        let cues_a = parse_srt(&sub_a.content);
-        let cues_b = parse_srt(&sub_b.content);
-        if cues_a.is_empty() {
-            return Err("主字幕解析为空，无法合并".to_string());
-        }
-        if cues_b.is_empty() {
-            return Err("翻译字幕解析为空，无法合并".to_string());
-        }
-        let merged = merge_srt_cues(&cues_a, &cues_b);
-        let video_id = extract_video_id(&url).unwrap_or_else(|| "video".to_string());
-        Ok(SubtitleResult {
-            name: format!("{video_id}.{}-{}.srt", primary.lang, secondary.lang),
-            content: merged,
-        })
-    };
-
-    let result = match tokio::time::timeout(OPERATION_TIMEOUT, body).await {
-        Ok(result) => result,
-        Err(_) => {
-            job.token.store(true, Ordering::Relaxed);
-            finish_progress(
-                &job,
-                &Err("操作超时（超过 2 分钟），请稍后重试。".to_string()),
-            );
-            return Err("操作超时（超过 2 分钟），请稍后重试。".to_string());
-        }
-    };
-    finish_progress(&job, &result);
-    result
+) -> Result<SubtitleResult, downloads::DownloadError> {
+    let result =
+        youtube_prepare_subtitles(app, job_id, url, primary, Some(secondary), None).await?;
+    result.into_complete()
 }
 
 #[tauri::command]
 pub async fn youtube_ytdlp_status() -> YtDlpStatus {
-    let version = ytdlp_version_with_timeout().await;
-    YtDlpStatus {
-        available: version.is_some(),
-        version,
-    }
+    downloads::tool_status().await
 }
 
 fn ms_to_srt_ts(ms: f64) -> String {
@@ -1208,6 +834,9 @@ fn json3_to_srt(content: &str) -> Result<String, String> {
         if text.is_empty() {
             continue;
         }
+        if dur <= 0.0 {
+            continue;
+        }
         let end = start + dur;
         out.push_str(&format!(
             "{}\n{} --> {}\n{}\n\n",
@@ -1241,31 +870,52 @@ fn vtt_ts_to_srt_ts(ts: &str) -> String {
 }
 
 fn vtt_to_srt(content: &str) -> String {
+    let normalized = content.replace("\r\n", "\n").replace('\u{feff}', "");
+    let normalized = normalized
+        .lines()
+        .map(str::trim_end)
+        .collect::<Vec<_>>()
+        .join("\n");
     let mut out = String::new();
-    let mut idx = 1u32;
-    for line in content.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty()
-            || trimmed.starts_with("WEBVTT")
-            || trimmed.starts_with("NOTE")
-            || trimmed.starts_with("STYLE")
-            || trimmed.starts_with("Kind:")
-            || trimmed.starts_with("Language:")
-            || trimmed.starts_with("X-TIMESTAMP")
-        {
+    let mut index = 1;
+    for block in normalized.split("\n\n") {
+        let lines: Vec<_> = block.lines().collect();
+        if lines.first().is_some_and(|line| {
+            line.starts_with("NOTE") || line.starts_with("STYLE") || line.starts_with("REGION")
+        }) {
             continue;
         }
-        if let Some(arrow) = trimmed.find("-->") {
-            let start = vtt_ts_to_srt_ts(trimmed[..arrow].trim());
-            let after = &trimmed[arrow + 3..];
-            let end_raw = after.split_whitespace().next().unwrap_or("");
-            let end = vtt_ts_to_srt_ts(end_raw);
-            out.push_str(&format!("{idx}\n{start} --> {end}\n"));
-            idx += 1;
-        } else {
-            out.push_str(trimmed);
-            out.push('\n');
+        let Some(timing) = lines.iter().position(|line| line.contains("-->")) else {
+            continue;
+        };
+        let (start, end) = lines[timing].split_once("-->").unwrap();
+        let start = vtt_ts_to_srt_ts(start.trim());
+        let end = vtt_ts_to_srt_ts(end.split_whitespace().next().unwrap_or(""));
+        let Some((start_ms, end_ms)) = parse_ts(&start).zip(parse_ts(&end)) else {
+            continue;
+        };
+        if end_ms <= start_ms {
+            continue;
         }
+        let mut text = String::new();
+        for line in &lines[timing + 1..] {
+            let mut inside_tag = false;
+            for character in line.chars() {
+                match character {
+                    '<' => inside_tag = true,
+                    '>' if inside_tag => inside_tag = false,
+                    _ if !inside_tag => text.push(character),
+                    _ => {}
+                }
+            }
+            text.push('\n');
+        }
+        let text = text.trim();
+        if text.is_empty() {
+            continue;
+        }
+        out.push_str(&format!("{index}\n{start} --> {end}\n{text}\n\n"));
+        index += 1;
     }
     out
 }
@@ -2052,9 +1702,9 @@ mod tests {
 
     #[test]
     fn classifies_transient_errors() {
-        assert!(is_transient_error("HTTP Error 429: Too Many Requests"));
-        assert!(is_transient_error("请求过于频繁（HTTP 429），请稍后重试。"));
-        assert!(is_transient_error("HTTP Error 403: Forbidden"));
+        assert!(!is_transient_error("HTTP Error 429: Too Many Requests"));
+        assert!(!is_transient_error("YouTube 限制了字幕请求（HTTP 429）。"));
+        assert!(!is_transient_error("HTTP Error 403: Forbidden"));
         assert!(is_transient_error("yt-dlp 执行超时，已终止。"));
         assert!(is_transient_error("请求 YouTube 失败：connect timeout"));
         assert!(!is_transient_error("该视频没有可用字幕。"));

@@ -1,45 +1,21 @@
 import { useDialogFocus } from './useDialogFocus';
+import YouTubeDownloadSettings from './YouTubeDownloadSettings';
+import { useNavigate } from 'react-router-dom';
+import { cooldownRemaining, EMPTY_BROWSER_SESSION, isYouTubeCancelled } from '../lib/youtubeDownload';
 import AppSelect from './AppSelect';
-import { useRef, useState } from 'react';
-import { Check, Clapperboard, Loader2, Search, Sparkles, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { ArrowLeftRight, Check, Clapperboard, Loader2, Search, Sparkles, Star, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import {
-  useYoutubeStore,
-  type SubtitleTrack,
-  type TrackSelection,
-  type VideoSubInfo,
-} from '../stores/youtubeStore';
+import { useYoutubeStore, type SubtitleTrack, type TrackSelection, type VideoSubInfo } from '../stores/youtubeStore';
 import { useFileStore } from '../stores/fileStore';
 import { useAiStore } from '../stores/aiStore';
+import { usePreferencesStore } from '../stores/preferencesStore';
 import { getAiConfig } from '../lib/ai';
 import { LANGUAGES, type Language } from '../lib/languages';
-import { isCancelledError } from '../lib/errors';
-
-function trackLabel(track: SubtitleTrack, locale: string): string {
-  const base = track.lang.split('-')[0];
-  try {
-    return new Intl.DisplayNames([locale], { type: 'language', fallback: 'code' }).of(base) ?? track.lang;
-  } catch {
-    return track.lang;
-  }
-}
-
-function suggestLanguage(lang: string): Language | null {
-  const base = lang.toLowerCase().split('-')[0];
-  switch (base) {
-    case 'en':
-      return 'en';
-    case 'ja':
-    case 'jp':
-      return 'ja';
-    case 'de':
-      return 'de';
-    case 'zh':
-      return 'zh';
-    default:
-      return null;
-  }
-}
+import {
+  filterSubtitleTracks, languageKey, quickLanguages, restoreYouTubeSelection, sameTrack,
+  trackLanguage, subtitleLanguageLabel, suggestLearningLanguage, toggleYouTubeTrack, type YouTubeSelection,
+} from '../lib/youtubeSelection';
 
 function formatDuration(seconds: number | null): string | null {
   if (seconds == null) return null;
@@ -50,345 +26,304 @@ function formatDuration(seconds: number | null): string | null {
   return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
 }
 
-type Step = 'url' | 'listing' | 'select' | 'running';
+type Step = 'url' | 'listing' | 'select' | 'running' | 'settings';
+type MissingTrack = { role: keyof YouTubeSelection; lang: string };
 
-interface YouTubeDialogProps {
-  onClose: () => void;
-}
-
-export default function YouTubeDialog({ onClose }: YouTubeDialogProps) {
+export default function YouTubeDialog({ onClose }: { onClose: () => void }) {
   const dialogRef = useRef<HTMLDivElement>(null);
-  useDialogFocus(dialogRef, onClose);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const request = useRef(0);
+  const listing = useRef(false);
+  const submitting = useRef(false);
+  const closeDialog = () => {
+    request.current++;
+    void useFileStore.getState().cancelYouTubeImport();
+    useFileStore.getState().resetYouTubeRecovery();
+    useYoutubeStore.setState({ dialogDraft: null });
+    onClose();
+  };
+  useDialogFocus(dialogRef, closeDialog);
+  useEffect(() => {
+    useYoutubeStore.setState({ dialogDraft: null });
+    // The counter invalidates asynchronous work rather than referring to a DOM node.
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
+    return () => { request.current++; if (useFileStore.getState().importingYouTube) void useFileStore.getState().cancelYouTubeImport(); };
+  }, []);
+  const navigate = useNavigate();
+  const [draft] = useState(() => useYoutubeStore.getState().dialogDraft);
   const { t, i18n } = useTranslation();
-  const [step, setStep] = useState<Step>('url');
-  const [url, setUrl] = useState('');
-  const [info, setInfo] = useState<VideoSubInfo | null>(null);
-  const [selected, setSelected] = useState<TrackSelection[]>([]);
-  const [language, setLanguage] = useState<Language | ''>('');
-  const [aiTranslate, setAiTranslate] = useState(false);
+  const locale = i18n.resolvedLanguage ?? 'zh';
+  const [step, setStep] = useState<Step>(draft?.info ? 'select' : 'url');
+  const [url, setUrl] = useState(draft?.url ?? '');
+  const [info, setInfo] = useState<VideoSubInfo | null>(draft?.info ?? null);
+  const [selection, setSelection] = useState<YouTubeSelection>(draft?.selection ?? { primary: null, secondary: null });
+  const [missing, setMissing] = useState<MissingTrack[]>([]);
+  const [restored, setRestored] = useState(false);
+  const [query, setQuery] = useState(draft?.query ?? '');
+  const [language, setLanguage] = useState<Language | ''>((draft?.language as Language) ?? '');
+  const [aiTranslate, setAiTranslate] = useState(draft?.aiTranslate ?? false);
   const [error, setError] = useState('');
-
-  const aiEnabled = useAiStore((state) => state.enabled);
-  const translateProgress = useYoutubeStore((state) => state.translateProgress);
-  const downloadProgress = useYoutubeStore((state) => state.downloadProgress);
-  const listSubs = useYoutubeStore((state) => state.listSubs);
-  const cancelTranslate = useYoutubeStore((state) => state.cancelTranslate);
-  const cancelJob = useYoutubeStore((state) => state.cancelJob);
-  const importFromYouTube = useFileStore((state) => state.importFromYouTube);
-  const importing = useFileStore((state) => state.importingYouTube);
-  const youtubePhase = useFileStore((state) => state.youtubePhase);
-
-  const activeDownload = Object.values(downloadProgress).find((p) => p.status === 'processing');
-  const activeJob = Object.values(translateProgress).find((p) => p.status === 'processing');
-
-  const handleSearch = async () => {
-    if (!url.trim()) {
-      setError(t('youtube.urlRequired'));
-      return;
+  const [notice, setNotice] = useState('');
+  useEffect(() => {
+    if (step === 'select') {
+      if (useFileStore.getState().youtubeFailure) dialogRef.current?.querySelector<HTMLButtonElement>('.youtube-error button:not(:disabled)')?.focus();
+      else searchRef.current?.focus();
     }
-    setStep('listing');
-    setError('');
+    else if (step === 'url') dialogRef.current?.querySelector<HTMLInputElement>('#youtube-url')?.focus();
+    else if (step === 'settings') dialogRef.current?.querySelector<HTMLButtonElement>('[role="switch"]')?.focus();
+    else if (step === 'running') dialogRef.current?.querySelector<HTMLButtonElement>('#youtube-cancel')?.focus();
+  }, [step]);
+
+  const preferences = usePreferencesStore(state => state.youtube);
+  const toggleFavorite = usePreferencesStore(state => state.toggleYouTubeFavorite);
+  const aiEnabled = useAiStore(state => state.enabled);
+  const aiModel = useAiStore(state => state.model);
+  const aiReady = aiEnabled && !!aiModel.trim();
+  const translateProgress = useYoutubeStore(state => state.translateProgress);
+  const downloadProgress = useYoutubeStore(state => state.downloadProgress);
+  const listSubs = useYoutubeStore(state => state.listSubs);
+
+  const importFromYouTube = useFileStore(state => state.importFromYouTube);
+  const importing = useFileStore(state => state.importingYouTube);
+  const youtubePhase = useFileStore(state => state.youtubePhase);
+  const activeId = useFileStore(state => state.youtubeActiveJobId);
+  const recovery = useFileStore(state => state.youtubeRecovery);
+  const failure = useFileStore(state => state.youtubeFailure);
+  const cooldownUntil = useFileStore(state => state.youtubeCooldownUntil);
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { if (!cooldownUntil) return; const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, [cooldownUntil]);
+  const cooldown = cooldownRemaining(cooldownUntil, now);
+  const activeDownload = activeId != null ? downloadProgress[activeId] : undefined;
+  const activeJob = activeId != null ? translateProgress[activeId] : undefined;
+  const session = preferences.browserSession ?? EMPTY_BROWSER_SESSION;
+  const listedSession = useRef(JSON.stringify(session));
+  const busy = step === 'running' || importing;
+  const label = (code: string) => subtitleLanguageLabel(code, locale);
+  const roleLabel = (role: keyof YouTubeSelection) => t(`youtube.${role === 'primary' ? 'originalTrack' : 'translationTrack'}`);
+  const sourceLabel = (track: TrackSelection) => t(`youtube.sources.${track.source ?? (track.is_auto ? 'unknown' : 'manual')}`);
+  const manual = info ? filterSubtitleTracks(info.manual, query, locale) : [];
+  const automatic = info ? filterSubtitleTracks(info.automatic, query, locale) : [];
+  const quick = info ? quickLanguages(info, preferences) : { favorites: [], recent: [] };
+  const hasTracks = !!info && info.manual.length + info.automatic.length > 0;
+
+  const handleSearch = async (preserve = false) => {
+    if (listing.current) return;
+    if (!url.trim()) { setError(t('youtube.urlRequired')); return; }
+    const id = ++request.current;
+    const videoUrl = url.trim();
+    const pair = preserve && selection.primary ? { primary: trackLanguage(selection.primary), secondary: selection.secondary ? trackLanguage(selection.secondary) : null }
+      : usePreferencesStore.getState().youtube.lastSelection;
+    const requestedSession = { ...session };
+    listedSession.current = JSON.stringify(requestedSession);
+    useFileStore.getState().resetYouTubeRecovery();
+    listing.current = true;
+    setStep('listing'); setError(''); setNotice(''); setInfo(null); setQuery('');
+    setSelection({ primary: null, secondary: null }); setMissing([]); setRestored(false);
+    setLanguage(''); setAiTranslate(false);
     try {
-      const result = await listSubs(url.trim());
-      setInfo(result);
-      const first = result.manual[0] ?? result.automatic[0];
-      if (first) {
-        setLanguage(suggestLanguage(first.lang) ?? '');
-      }
+      const result = await listSubs(videoUrl, requestedSession);
+      if (id !== request.current) return;
+      const recovered = restoreYouTubeSelection(result, pair);
+      setInfo(result); setSelection(recovered.selection); setMissing(recovered.missing);
+      setRestored(!!pair && recovered.missing.length === 0 && !!recovered.selection.primary);
+      setLanguage(recovered.selection.primary ? suggestLearningLanguage(trackLanguage(recovered.selection.primary)) : '');
       setStep('select');
     } catch (e) {
-      setError(String(e));
-      setStep('url');
+      if (id !== request.current) return;
+      const code = typeof e === 'string' ? e : 'download_failed';
+      setError(t(`youtube.errors.${code}`, { defaultValue: t('youtube.errors.download_failed'), role: roleLabel('primary'), language: '' })); setStep('url');
+    } finally {
+      if (id === request.current) listing.current = false;
     }
   };
 
+  const applySelection = (next: YouTubeSelection) => {
+    if (!sameTrack(next.primary, selection.primary)) {
+      setLanguage(next.primary ? suggestLearningLanguage(trackLanguage(next.primary)) : '');
+      setAiTranslate(false);
+    }
+    if (next.secondary) setAiTranslate(false);
+    useFileStore.getState().resetYouTubeRecovery();
+    setMissing(current => current.filter(item => !next[item.role]));
+    setRestored(false); setError(''); setNotice(''); setSelection(next);
+  };
   const toggleTrack = (track: TrackSelection) => {
-    setError('');
-    setSelected((prev) => {
-      const index = prev.findIndex((t) => t.lang === track.lang && t.is_auto === track.is_auto);
-      if (index >= 0) return prev.filter((_, i) => i !== index);
-      if (prev.length >= 2) return prev;
-      return [...prev, track];
-    });
+    if (busy) return;
+    const next = toggleYouTubeTrack(selection, track);
+    if (next.limitReached) { setNotice(t('youtube.selectionLimit')); return; }
+    applySelection(next.selection);
   };
 
-  const isSelected = (track: TrackSelection) =>
-    selected.some((t) => t.lang === track.lang && t.is_auto === track.is_auto);
-
-  const handleImport = async () => {
-    if (selected.length === 0 || !language) return;
-    setError('');
-    setStep('running');
+  const handleImport = async (fallback?: 'ai' | 'original') => {
+    if (submitting.current || !selection.primary || !language || !info) return;
+    const id = request.current;
+    submitting.current = true;
+    setError(''); setNotice(''); setStep('running');
     try {
-      const primary = selected[0];
-      const secondary = selected[1] ?? null;
-      await importFromYouTube({
-        url: url.trim(),
-        title: info?.title ?? t('fileStore.youtubeTitle'),
-        primary,
-        secondary,
-        language,
-        aiTranslate: aiTranslate && !secondary,
-        config: getAiConfig(),
+      const prepared = await importFromYouTube({
+        url: url.trim(), title: info.title, primary: selection.primary, secondary: selection.secondary,
+        language, aiTranslate: aiTranslate && !selection.secondary, config: getAiConfig(), session: { ...session }, fallback,
       });
-      onClose();
+      if (id !== request.current) return;
+      if (prepared) closeDialog();
+      else { setNow(Date.now()); setStep('select'); }
     } catch (e) {
-      const message = String(e);
-      if (isCancelledError(message)) {
-        setStep('select');
-      } else {
-        setError(message);
-        setStep('select');
-      }
-    }
+      if (id !== request.current) return;
+      if (!isYouTubeCancelled(e) && !useFileStore.getState().youtubeFailure) setError(t('youtube.errors.download_failed', { role: roleLabel('primary'), language: '' }));
+      setNow(Date.now()); setStep('select');
+    } finally { submitting.current = false; }
+  };
+  const handleBack = () => {
+    request.current++; listing.current = false;
+    useFileStore.getState().resetYouTubeRecovery();
+    setStep('url'); setError(''); setNotice(''); setInfo(null); setQuery('');
+    setSelection({ primary: null, secondary: null }); setMissing([]); setRestored(false);
+    setLanguage(''); setAiTranslate(false);
+  };
+  const handleCancelRunning = () => { void useFileStore.getState().cancelYouTubeImport(); };
+  const configureAi = () => {
+    useYoutubeStore.setState({ dialogDraft: { url, info, selection, language, query, aiTranslate } });
+    navigate('/settings#ai', { state: { youtubeReturn: true } });
+  };
+  const returnFromSettings = () => {
+    if (listedSession.current !== JSON.stringify(session) && info) void handleSearch(true);
+    else setStep(info ? 'select' : 'url');
   };
 
-  const handleCancelRunning = () => {
-    if (activeDownload) {
-      void cancelJob(activeDownload.jobId);
-    } else if (activeJob) {
-      void cancelTranslate(activeJob.jobId);
-    } else {
-      onClose();
-    }
-  };
-
-  const renderTrack = (track: SubtitleTrack) => {
-    const selectedFlag = isSelected(track);
+  const renderTrack = (track: SubtitleTrack | null, code: string) => {
+    const role = track && sameTrack(selection.primary, track) ? 'primary'
+      : track && sameTrack(selection.secondary, track) ? 'secondary' : null;
+    const favorite = preferences.favoriteLanguages.some(item => languageKey(item) === languageKey(code));
     return (
-      <button
-        key={`${track.is_auto ? 'a' : 'm'}-${track.lang}`}
-        type="button"
-        onClick={() => toggleTrack(track)}
-        disabled={step === 'running' || importing}
-        className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
-          selectedFlag
-            ? 'border-blue-500 bg-blue-50 text-blue-700'
-            : 'border-gray-200 text-gray-700 hover:bg-gray-50'
-        }`}
-      >
-        <span className="truncate">{trackLabel(track, i18n.resolvedLanguage ?? 'zh')}</span>
-        <span className="shrink-0 text-xs text-gray-400">{track.lang}</span>
-        {selectedFlag && <Check size={15} className="shrink-0 text-blue-600" />}
-      </button>
+      <div key={`${track?.is_auto ?? 'missing'}-${track?.lang ?? code}`} className="youtube-track" data-selected={!!role}>
+        <button type="button" className="youtube-track__choose" disabled={!track || busy} aria-pressed={!!role}
+          onClick={() => track && toggleTrack(track)}>
+          <span className="youtube-track__name">{label(code)}</span>
+          <span className="youtube-track__meta">
+            <span>{code}</span><span>{track ? sourceLabel(track) : t('youtube.unavailable')}</span>
+            {role && <span className="youtube-track__role"><Check size={12} aria-hidden="true" />{roleLabel(role)}</span>}
+          </span>
+        </button>
+        <button type="button" className="youtube-track__favorite" disabled={busy} aria-pressed={favorite}
+          aria-label={t(favorite ? 'youtube.removeFavorite' : 'youtube.addFavorite', { language: label(code) })}
+          title={t(favorite ? 'youtube.removeFavorite' : 'youtube.addFavorite', { language: label(code) })}
+          onClick={() => { toggleFavorite(code); searchRef.current?.focus(); }}>
+          <Star size={16} fill={favorite ? 'currentColor' : 'none'} aria-hidden="true" />
+        </button>
+      </div>
     );
   };
 
-  const showAiOption = selected.length === 1 && aiEnabled;
+  const recoveryPanel = failure && <div className="youtube-error" role="alert">
+            <p>{t(`youtube.errors.${failure.code}`, { role: roleLabel(failure.role), language: failure.language ? `${label(failure.language)} (${failure.language})` : '', defaultValue: t('youtube.errors.download_failed') })}</p>
+            {recovery && <p>{t('youtube.originalSaved')}</p>}
+            {cooldown > 0 && <p role="status">{t('youtube.cooldown', { count: cooldown })}</p>}
+            {recovery && <div className="youtube-recovery-actions">
+              <button type="button" className="ui-button" disabled={cooldown > 0 || busy || failure.stage === 'translate' && !aiReady} onClick={() => void handleImport(failure.stage === 'translate' ? 'ai' : undefined)}>{t(failure.stage === 'translate' ? 'youtube.retryAi' : 'youtube.retryTranslation')}</button>
+              {(failure.stage !== 'translate' || !aiReady) && <button type="button" className="ui-button" disabled={busy} onClick={() => aiReady ? void handleImport('ai') : configureAi()}>{t(aiReady ? 'youtube.fallbackAi' : 'youtube.configureAi')}</button>}
+              <button type="button" className="ui-button" disabled={busy} onClick={() => void handleImport('original')}>{t('youtube.importOriginal')}</button>
+            </div>}
+            {['rate_limited', 'access_denied', 'browser_session', 'missing_tool'].includes(failure.code) && <button type="button" className="ui-button" onClick={() => setStep('settings')}>{t('youtube.openDownloadSettings')}</button>}
+          </div>;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={t('youtube.title')} className="flex max-h-[85vh] w-full max-w-lg flex-col rounded-2xl bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-gray-100 p-5">
-          <div className="flex items-center gap-2">
-            <Clapperboard size={20} className="text-red-600" />
-            <h3 className="text-lg font-semibold text-gray-900">{t('youtube.title')}</h3>
-          </div>
-          <button
-            onClick={onClose}
-            aria-label={t('youtube.closeAria')}
-            className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
-          >
-            <X size={18} />
-          </button>
+    <div className="youtube-dialog__overlay">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={t('youtube.title')} className="youtube-dialog">
+        <div className="youtube-dialog__header">
+          <h3><Clapperboard size={20} aria-hidden="true" />{t('youtube.title')}</h3>
+          <button type="button" onClick={closeDialog} aria-label={t('youtube.closeAria')} className="ui-button ui-button--icon"><X size={18} /></button>
         </div>
-
-        <div className="flex-1 overflow-y-auto p-5">
-          {error && (
-            <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
-              <p className="break-all">{error}</p>
-              {(error.includes('yt-dlp') || error.includes('安装')) && (
-                <p className="mt-1.5 text-xs text-red-500">
-                  {t('youtube.ytdlpErrorHint')}
-                </p>
-              )}
-            </div>
-          )}
-
-          {step === 'url' && (
-            <div className="space-y-4">
-              <label className="block text-sm font-medium text-gray-700" htmlFor="youtube-url">
-                {t('youtube.urlLabel')}
-              </label>
-              <input
-                id="youtube-url"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && void handleSearch()}
-                placeholder="https://www.youtube.com/watch?v=..."
-                className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              />
-              <p className="text-xs leading-5 text-gray-500">
-                {t('youtube.urlHint')}
-              </p>
-            </div>
-          )}
-
-          {step === 'listing' && (
-            <div className="flex flex-col items-center gap-3 py-10 text-gray-400">
-              <Loader2 size={26} className="animate-spin" />
-              <p className="text-sm">{t('youtube.searching')}</p>
-            </div>
-          )}
-
-          {step === 'select' && info && (
-            <div className="space-y-4">
-              <div>
-                <p className="font-medium text-gray-900">{info.title}</p>
-                <p className="mt-0.5 text-xs text-gray-500">
-                  {formatDuration(info.duration) ?? t('youtube.unknownDuration')} · {t('youtube.trackSummary', { count: info.manual.length, autoCount: info.automatic.length })}
-                </p>
+        <div className={`youtube-dialog__body${step === 'select' ? ' youtube-dialog__body--select' : ''}`}>
+          {error && <div role="alert" className="youtube-error">
+            <p>{error}</p>
+            {(error.includes('yt-dlp') || error.includes('安装')) && <p>{t('youtube.ytdlpErrorHint')}</p>}
+          </div>}
+          {step === 'settings' && <YouTubeDownloadSettings />}
+          {step === 'url' && <div className="youtube-url">
+            <label htmlFor="youtube-url">{t('youtube.urlLabel')}</label>
+            <input id="youtube-url" value={url} onChange={e => setUrl(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); void handleSearch(); } }}
+              placeholder="https://www.youtube.com/watch?v=..." className="youtube-input" />
+            <p className="youtube-muted">{t('youtube.urlHint')}</p>
+          </div>}
+          {step === 'listing' && <div className="youtube-running" role="status"><Loader2 size={26} className="animate-spin" /><p>{t('youtube.searching')}</p></div>}
+          {step === 'select' && info && <>
+            <div className="youtube-selection-summary">
+              <div className="youtube-video"><p>{info.title}</p><span className="youtube-muted">{formatDuration(info.duration) ?? t('youtube.unknownDuration')} · {t('youtube.trackSummary', { count: info.manual.length, autoCount: info.automatic.length })}</span></div>
+              <div className="youtube-selected" aria-label={t('youtube.selectedTracks')}>
+                {(['primary', 'secondary'] as const).map(role => {
+                  const track = selection[role];
+                  const unavailable = missing.find(item => item.role === role);
+                  return <div key={role} className="youtube-selected__slot">
+                    <span className="youtube-muted">{roleLabel(role)}</span>
+                    <span className="youtube-selected__value">{track ? `${label(trackLanguage(track))} · ${sourceLabel(track)}`
+                      : unavailable ? t('youtube.missingLanguage', { language: `${label(unavailable.lang)} (${unavailable.lang})` }) : t('youtube.notSelected')}</span>
+                    {track && <button type="button" className="ui-button ui-button--icon" onClick={() => { applySelection({ ...selection, [role]: null }); searchRef.current?.focus(); }}
+                      aria-label={t('youtube.clearTrack', { role: roleLabel(role) })}><X size={15} /></button>}
+                  </div>;
+                })}
               </div>
-
-              {info.manual.length === 0 && info.automatic.length === 0 && (
-                <div className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                  {t('youtube.noSubtitles')}
-                </div>
-              )}
-
-              {info.manual.length > 0 && (
-                <div>
-                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400">{t('youtube.manualSubtitles')}</p>
-                  <div className="grid grid-cols-2 gap-2">{info.manual.map(renderTrack)}</div>
-                </div>
-              )}
-
-              {info.automatic.length > 0 && (
-                <div>
-                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400">{t('youtube.autoSubtitles')}</p>
-                  <div className="grid grid-cols-2 gap-2">{info.automatic.map(renderTrack)}</div>
-                </div>
-              )}
-
-              {selected.length > 0 && (
-                <div className="space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
-                  <p className="text-xs text-gray-500">
-                    {t('youtube.selectedCount', { count: selected.length })}
-                    {selected.length === 2 && t('youtube.secondAsTranslation')}
-                  </p>
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-gray-700" htmlFor="youtube-language">
-                      {t('youtube.learningLanguage')}
-                    </label>
-                    <AppSelect id="youtube-language" value={language} onChange={value => setLanguage(value as Language)}
-                      placeholder={t('youtube.selectLanguage')} options={LANGUAGES.map(item => ({ value: item.id, label: item.label }))} />
-                  </div>
-                  {showAiOption && (
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={aiTranslate}
-                      onClick={() => setAiTranslate(!aiTranslate)}
-                      className="flex w-full items-center justify-between gap-3 rounded-lg border border-purple-200 bg-white px-3 py-2.5 text-left"
-                    >
-                      <span className="flex items-center gap-2 text-sm text-gray-700">
-                        <Sparkles size={15} className="text-purple-600" />
-                        {t('youtube.aiTranslate')}
-                      </span>
-                      <span className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${aiTranslate ? 'bg-purple-600' : 'bg-gray-300'}`}>
-                        <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${aiTranslate ? 'left-[18px]' : 'left-0.5'}`} />
-                      </span>
-                    </button>
-                  )}
-                  {!showAiOption && selected.length === 1 && (
-                    <p className="text-xs text-gray-400">{t('youtube.aiTranslateHint')}</p>
-                  )}
-                </div>
-              )}
             </div>
-          )}
-
-          {step === 'running' && (
-            <div className="flex flex-col items-center gap-4 py-10">
-              {activeDownload ? (
-                <>
-                  <div className="flex w-full items-center justify-between text-sm text-gray-600">
-                    <span>{activeDownload.message || t('youtube.downloadingSubs')}</span>
-                    <span>{Math.round(activeDownload.percent)}%</span>
-                  </div>
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
-                    <div
-                      className="h-full rounded-full bg-blue-600 transition-all"
-                      style={{ width: `${Math.max(2, Math.round(activeDownload.percent))}%` }}
-                    />
-                  </div>
-                  <p className="text-xs text-gray-400">{activeDownload.stage}</p>
-                </>
-              ) : activeJob ? (
-                <>
-                  <div className="flex w-full items-center justify-between text-sm text-gray-500">
-                    <span>{t('youtube.aiTranslating')}</span>
-                    <span>{activeJob.percent}%</span>
-                  </div>
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
-                    <div
-                      className="h-full rounded-full bg-purple-600 transition-all"
-                      style={{ width: `${activeJob.percent}%` }}
-                    />
-                  </div>
-                  <p className="text-xs text-gray-400">
-                    {t('youtube.segmentsProgress', { processed: activeJob.processedSegments, total: activeJob.totalSegments })}
-                  </p>
-                </>
-              ) : (
-                <>
-                  <Loader2 size={26} className="animate-spin text-gray-400" />
-                  <p className="text-sm text-gray-500">
-                    {youtubePhase === 'parsing'
-                      ? t('youtube.parsing')
-                      : youtubePhase === 'importing'
-                        ? t('youtube.checkingImport')
-                        : selected.length === 2
-                          ? t('youtube.merging')
-                          : t('youtube.downloadingSubs')}
-                  </p>
-                </>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="flex justify-end gap-3 border-t border-gray-100 p-4">
-          {step === 'url' && (
-            <button
-              onClick={() => void handleSearch()}
-              className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
-            >
-              <Search size={15} />
-              {t('youtube.findSubtitles')}
-            </button>
-          )}
-          {(step === 'select' || step === 'listing') && (
-            <>
-              <button
-                onClick={() => {
-                  setStep('url');
-                  setError('');
-                }}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
-              >
-                {t('youtube.back')}
-              </button>
-              {step === 'select' && (
-                <button
-                  onClick={() => void handleImport()}
-                  disabled={selected.length === 0 || !language}
-                  className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
-                >
-                  {t('youtube.downloadImport')}
+            <div className="youtube-picker-controls">
+              {recoveryPanel}
+              <div className="youtube-selection-tools">
+                <button type="button" className="ui-button" disabled={!selection.primary && !selection.secondary}
+                  onClick={() => applySelection({ primary: selection.secondary, secondary: selection.primary })}>
+                  <ArrowLeftRight size={15} aria-hidden="true" />{t('youtube.swapTracks')}
                 </button>
-              )}
-            </>
-          )}
-          {step === 'running' && (
-            <button
-              onClick={handleCancelRunning}
-              disabled={!activeDownload && !activeJob && !importing}
-              className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-40"
-            >
-              {activeDownload || activeJob ? t('youtube.cancel') : t('youtube.close')}
-            </button>
-          )}
+                <label htmlFor="youtube-language">{t('youtube.learningLanguage')}</label>
+                <AppSelect id="youtube-language" value={language} disabled={!selection.primary}
+                  onChange={value => setLanguage(value as Language)} placeholder={t('youtube.selectLanguage')}
+                  options={LANGUAGES.map(item => ({ value: item.id, label: item.label }))} />
+              </div>
+              {restored && <p className="youtube-muted" role="status">{t('youtube.restoredSelection')}</p>}
+              {selection.primary && !selection.secondary && (aiEnabled
+                ? <button type="button" role="switch" aria-checked={aiTranslate} className="youtube-ai"
+                    onClick={() => setAiTranslate(!aiTranslate)}><Sparkles size={15} aria-hidden="true" />{t('youtube.aiTranslate')}<span>{t(aiTranslate ? 'youtube.aiOn' : 'youtube.aiOff')}</span></button>
+                : <p className="youtube-muted">{t('youtube.aiTranslateHint')}</p>)}
+              <div className="youtube-search">
+                <Search size={17} aria-hidden="true" />
+                <input ref={searchRef} value={query} onChange={e => setQuery(e.target.value)} className="youtube-input"
+                  aria-label={t('youtube.searchLanguages')} placeholder={t('youtube.searchLanguages')} />
+                {query && <button type="button" className="ui-button ui-button--icon" aria-label={t('youtube.clearSearch')}
+                  onClick={() => { setQuery(''); searchRef.current?.focus(); }}><X size={16} /></button>}
+              </div>
+              <p className="youtube-muted" role="status">{t('youtube.matchCount', { count: manual.length + automatic.length })}</p>
+              <p className="youtube-notice" role="status" aria-live="polite">{notice || t('youtube.selectionHint')}</p>
+            </div>
+            <div className="youtube-track-list" aria-label={t('youtube.availableTracks')} tabIndex={0}>
+              {!hasTracks && <p className="youtube-warning">{t('youtube.noSubtitles')}</p>}
+              {!query.trim() && quick.favorites.length > 0 && <section><h4>{t('youtube.favorites')}</h4><div className="youtube-track-grid">{quick.favorites.map(item => renderTrack(item.track, item.lang))}</div></section>}
+              {!query.trim() && quick.recent.length > 0 && <section><h4>{t('youtube.recentLanguages')}</h4><div className="youtube-track-grid">{quick.recent.map(item => renderTrack(item.track, item.lang))}</div></section>}
+              {!query.trim() && quick.favorites.length === 0 && quick.recent.length === 0 && hasTracks && <p className="youtube-muted">{t('youtube.quickHint')}</p>}
+              {manual.length > 0 && <section><h4>{t('youtube.manualSubtitles')}</h4><div className="youtube-track-grid">{manual.map(track => renderTrack(track, trackLanguage(track)))}</div></section>}
+              {automatic.length > 0 && <section><h4>{t('youtube.autoSubtitles')}</h4><div className="youtube-track-grid">{automatic.map(track => renderTrack(track, trackLanguage(track)))}</div></section>}
+              {hasTracks && manual.length + automatic.length === 0 && <div className="youtube-empty"><p>{t('youtube.noLanguageMatches')}</p>
+                <button type="button" className="ui-button" onClick={() => { setQuery(''); searchRef.current?.focus(); }}>{t('youtube.clearSearch')}</button></div>}
+            </div>
+          </>}
+          {step === 'running' && <div className="youtube-running" role="status">
+            {activeDownload ? <>
+              <p>{t(`youtube.stages.${activeDownload.stage}`, { defaultValue: t('youtube.downloadingSubs') })}</p>
+              <progress max={100} value={activeDownload.percent} aria-label={t('youtube.downloadingSubs')} />
+              <p className="youtube-muted">{activeDownload.role && roleLabel(activeDownload.role)} {activeDownload.language && label(activeDownload.language)}</p>
+              {activeDownload.remainingSeconds != null && <p>{t('youtube.waitCountdown', { count: activeDownload.remainingSeconds })}</p>}
+            </> : activeJob ? <>
+              <p>{t('youtube.aiTranslating')} · {activeJob.percent}%</p>
+              <progress max={100} value={activeJob.percent} aria-label={t('youtube.aiTranslating')} />
+              <p className="youtube-muted">{t('youtube.segmentsProgress', { processed: activeJob.processedSegments, total: activeJob.totalSegments })}</p>
+            </> : <><Loader2 size={26} className="animate-spin" /><p>{t(youtubePhase === 'parsing' ? 'youtube.parsing' : youtubePhase === 'importing' ? 'youtube.checkingImport' : selection.secondary ? 'youtube.merging' : 'youtube.downloadingSubs')}</p></>}
+          </div>}
+        </div>
+        <div className="youtube-dialog__footer">
+          {step === 'settings' && <button type="button" className="ui-button" onClick={returnFromSettings}>{t('youtube.returnToImport')}</button>}
+          {step === 'url' && <button type="button" onClick={() => void handleSearch()} className="ui-button youtube-primary"><Search size={15} aria-hidden="true" />{t('youtube.findSubtitles')}</button>}
+          {(step === 'select' || step === 'listing') && <>
+            <button type="button" onClick={handleBack} className="ui-button">{t('youtube.back')}</button>
+            {step === 'select' && <button type="button" onClick={() => void handleImport()} disabled={!selection.primary || !language || importing || cooldown > 0}
+              className="ui-button youtube-primary">{t('youtube.downloadImport')}</button>}
+          </>}
+          {step === 'running' && <button id="youtube-cancel" type="button" onClick={handleCancelRunning} disabled={!importing} className="ui-button">{t('youtube.cancel')}</button>}
         </div>
       </div>
     </div>

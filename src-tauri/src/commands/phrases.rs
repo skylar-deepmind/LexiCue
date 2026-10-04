@@ -293,22 +293,10 @@ pub fn update_phrase_status(
     status: String,
 ) -> Result<(), String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    let tx = conn.unchecked_transaction().map_err(|e| e.to_string())?;
+    super::annotations::save_status(&tx, "phrase", phrase_id, &status)?;
+    tx.commit().map_err(|e| e.to_string())
 
-    let valid = matches!(
-        status.as_str(),
-        "unprocessed" | "learning" | "known" | "ignored"
-    );
-    if !valid {
-        return Err(format!("Invalid status: {}", status));
-    }
-
-    conn.execute(
-        "UPDATE phrases SET status = ?1 WHERE id = ?2",
-        params![status, phrase_id],
-    )
-    .map_err(|e| e.to_string())?;
-
-    Ok(())
 }
 
 #[tauri::command]

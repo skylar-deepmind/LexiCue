@@ -28,6 +28,7 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Regular);
 
+            commands::youtube::init_subtitle_cache(app.handle());
             let app_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&app_dir)?;
             // Sync remains optional: a damaged or unavailable platform store
@@ -99,6 +100,10 @@ pub fn run() {
             commands::sync::sync_devices,
             commands::sync::sync_revoke_device,
             commands::sync::sync_delete_account,
+            commands::annotations::annotation_identities,
+            commands::annotations::annotate_item,
+            commands::annotations::undo_annotation,
+            commands::annotations::annotation_operation,
             commands::words::list_words,
             commands::words::word_detail,
             commands::words::update_word_status,
@@ -173,6 +178,8 @@ pub fn run() {
             commands::ollama::translate_segments,
             commands::ollama::cancel_translate_segments,
             commands::youtube::youtube_list_subs,
+            commands::youtube::downloads::youtube_prepare_subtitles,
+            commands::youtube::downloads::youtube_clear_subtitle_cache,
             commands::youtube::youtube_download_sub,
             commands::youtube::youtube_merge_subs,
             commands::youtube::youtube_cancel_job,

@@ -367,23 +367,10 @@ pub fn update_word_status(
     status: String,
 ) -> Result<(), String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    let tx = conn.unchecked_transaction().map_err(|e| e.to_string())?;
+    super::annotations::save_status(&tx, "word", word_id, &status)?;
+    tx.commit().map_err(|e| e.to_string())
 
-    let valid = matches!(
-        status.as_str(),
-        "unprocessed" | "learning" | "known" | "ignored"
-    );
-    if !valid {
-        return Err(format!("Invalid status: {}", status));
-    }
-
-    conn.execute(
-        "UPDATE words SET status = ?1 WHERE id = ?2",
-        params![status, word_id],
-    )
-    .map_err(|e| e.to_string())?;
-    frequency_baseline::record_manual_status(&conn, word_id, &status).map_err(|e| e.to_string())?;
-
-    Ok(())
 }
 
 #[tauri::command]

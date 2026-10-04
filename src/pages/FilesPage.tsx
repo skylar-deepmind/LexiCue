@@ -22,6 +22,7 @@ import FolderTree, { type DragPayload } from '../components/FolderTree';
 import EmptyState from '../components/EmptyState';
 import ImportPreview from '../components/ImportPreview';
 import ImportLanguageDialog from '../components/ImportLanguageDialog';
+import { useYoutubeStore } from '../stores/youtubeStore';
 import YouTubeDialog from '../components/YouTubeDialog';
 import MoveToFolderDialog from '../components/MoveToFolderDialog';
 import PromptDialog from '../components/PromptDialog';
@@ -51,7 +52,7 @@ const DRAG_TYPE = 'application/x-lexicue';
 
 export default function FilesPage() {
   const { t } = useTranslation();
-  const [youtubeDialogOpen, setYoutubeDialogOpen] = useState(false);
+  const [youtubeDialogOpen, setYoutubeDialogOpen] = useState(() => useYoutubeStore.getState().dialogDraft !== null);
   const [moreOpen, setMoreOpen] = useState(false);
   const [treeOpen, setTreeOpen] = useState(true);
   const [moveTarget, setMoveTarget] = useState<MoveTarget | null>(null);

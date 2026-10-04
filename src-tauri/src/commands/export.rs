@@ -219,6 +219,7 @@ pub fn restore_backup(conn: &rusqlite::Connection, backup: &BackupPayload) -> Re
         .map_err(|e| e.to_string())?;
 
     let result = (|| -> Result<(), String> {
+        conn.execute("DELETE FROM annotation_actions", []).map_err(|e| e.to_string())?;
         conn.execute("DELETE FROM phrase_review_logs", [])
             .map_err(|e| e.to_string())?;
         conn.execute("DELETE FROM file_phrase_analysis", [])

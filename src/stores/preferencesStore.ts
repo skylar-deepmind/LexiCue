@@ -1,7 +1,10 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage, subscribeWithSelector } from 'zustand/middleware';
+import { normalizeBrowserSession, type BrowserSession } from '../lib/youtubeDownload';
+import type { AnnotationKind, AnnotationMode } from '../lib/annotation';
 import type { Language, UILanguage } from '../lib/languages';
 import { isLanguage, detectSystemLanguage, isUILanguage } from '../lib/languages';
+import { languageKey, normalizeYouTubePreferences, rememberYouTubeImport, type YouTubeLanguagePair, type YouTubePreferences } from '../lib/youtubeSelection';
 
 export type ContentFontSize = 'sm' | 'md' | 'lg';
 export type ReadingLineHeight = 'compact' | 'normal' | 'loose';
@@ -10,6 +13,12 @@ const FONT_SIZES: ContentFontSize[] = ['sm', 'md', 'lg'];
 const LINE_HEIGHTS: ReadingLineHeight[] = ['compact', 'normal', 'loose'];
 
 interface PreferencesState {
+  youtube: YouTubePreferences;
+  toggleYouTubeFavorite: (language: string) => void;
+  setYouTubeBrowserSession: (session: BrowserSession) => void;
+  recordYouTubeImport: (pair: YouTubeLanguagePair) => void;
+  annotationModes: Record<AnnotationKind, AnnotationMode>;
+  setAnnotationMode: (kind: AnnotationKind, mode: AnnotationMode) => void;
   language: Language | 'all';
   setLanguage: (language: Language | 'all') => void;
   uiLanguage: UILanguage;
@@ -28,6 +37,18 @@ export const usePreferencesStore = create<PreferencesState>()(
   subscribeWithSelector(
     persist(
       (set) => ({
+        youtube: normalizeYouTubePreferences(null),
+        toggleYouTubeFavorite: (language) => set(state => {
+          const key = languageKey(language);
+          if (!key) return {};
+          const favorites = state.youtube.favoriteLanguages;
+          return { youtube: { ...state.youtube, favoriteLanguages: favorites.some(code => languageKey(code) === key)
+            ? favorites.filter(code => languageKey(code) !== key) : [...favorites, language.trim()] } };
+        }),
+        setYouTubeBrowserSession: session => set(state => ({ youtube: { ...state.youtube, browserSession: normalizeBrowserSession(session) } })),
+        recordYouTubeImport: (pair) => set(state => ({ youtube: rememberYouTubeImport(state.youtube, pair) })),
+        annotationModes: { word: 'batch', phrase: 'batch' },
+        setAnnotationMode: (kind, mode) => set(state => ({ annotationModes: { ...state.annotationModes, [kind]: mode } })),
         language: 'all',
         setLanguage: (language) => set({ language }),
         uiLanguage: detectSystemLanguage(),
@@ -46,6 +67,8 @@ export const usePreferencesStore = create<PreferencesState>()(
         storage: createJSONStorage(() => localStorage),
         merge: (persisted, current) => {
           const saved = (persisted ?? {}) as {
+            youtube?: unknown;
+            annotationModes?: Partial<Record<AnnotationKind, unknown>>;
             language?: unknown;
             uiLanguage?: unknown;
             readingFontSize?: unknown;
@@ -76,7 +99,11 @@ export const usePreferencesStore = create<PreferencesState>()(
           const readingLineHeight = LINE_HEIGHTS.includes(saved.readingLineHeight as ReadingLineHeight)
             ? saved.readingLineHeight as ReadingLineHeight
             : current.readingLineHeight;
-          return { ...current, language, uiLanguage, learningTextFontSize, definitionFontSize, auxiliaryFontSize, readingLineHeight };
+          const annotationModes: Record<AnnotationKind, AnnotationMode> = {
+            word: saved.annotationModes?.word === 'single' ? 'single' : 'batch',
+            phrase: saved.annotationModes?.phrase === 'single' ? 'single' : 'batch',
+          };
+          return { ...current, youtube: normalizeYouTubePreferences(saved.youtube), annotationModes, language, uiLanguage, learningTextFontSize, definitionFontSize, auxiliaryFontSize, readingLineHeight };
         },
       },
     ),

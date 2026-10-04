@@ -120,9 +120,6 @@ export const usePhraseStore = create<PhraseStore>((set, get) => ({
 
   updateStatus: async (phraseId, status) => {
     await invoke('update_phrase_status', { phraseId, status });
-    if (status === 'learning') {
-      await invoke('create_phrase_review_card', { phraseId });
-    }
     const result = applyStatusUpdates(get().phrases, [{ id: phraseId, status }], get().filter);
     const keptIds = new Set(result.words.map((p) => p.id));
     set({

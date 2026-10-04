@@ -947,6 +947,13 @@ fn create_tables(conn: &Connection) -> Result<(), rusqlite::Error> {
             category TEXT
         ) STRICT;
 
+        -- Local-only receipts for crash-safe annotation submit and undo.
+        CREATE TABLE IF NOT EXISTS annotation_actions (
+            operation_id TEXT PRIMARY KEY,
+            payload TEXT NOT NULL,
+            undone INTEGER NOT NULL DEFAULT 0
+        ) STRICT;
+
         -- Opaque local state for the optional cloud-sync client. No learning
         -- data is duplicated here; encrypted payloads are generated on demand.
         CREATE TABLE IF NOT EXISTS sync_metadata (

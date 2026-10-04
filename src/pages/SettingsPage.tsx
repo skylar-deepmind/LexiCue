@@ -1,3 +1,5 @@
+import YouTubeDownloadSettings from '../components/YouTubeDownloadSettings';
+import type { YtDlpStatus } from '../stores/youtubeStore';
 import AppSelect from '../components/AppSelect';
 import { useEffect, useState } from 'react';
 import { BookOpen, Brain, Clapperboard, Database, Download, Eye, EyeOff, HardDrive, RefreshCw, Trash2, Upload } from 'lucide-react';
@@ -6,7 +8,7 @@ import { getVersion } from '@tauri-apps/api/app';
 import { ask } from '@tauri-apps/plugin-dialog';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { useTranslation } from 'react-i18next';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useFileStore } from '../stores/fileStore';
 import { useUpdateStore } from '../stores/updateStore';
 import { DEFAULT_OLLAMA_URL, OPENAI_PRESETS, useAiStore, type AiProvider } from '../stores/aiStore';
@@ -25,10 +27,6 @@ import { checkAiConnection, ensureAiConnection, getAiConnectionFingerprint } fro
 
 import GemmaModelManager from '../components/GemmaModelManager';
 
-interface YtDlpStatus {
-  available: boolean;
-  version: string | null;
-}
 
 interface StorageComponent {
   key: string;
@@ -75,6 +73,7 @@ registerCacheInvalidator('storage', () => storageUsageCache.invalidate('storage'
 export default function SettingsPage() {
   const { t, i18n } = useTranslation();
   const location = useLocation();
+  const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
   const uiLanguage = usePreferencesStore((state) => state.uiLanguage);
   const setUiLanguage = usePreferencesStore((state) => state.setUiLanguage);
@@ -446,6 +445,7 @@ export default function SettingsPage() {
           )}
         </SettingsCollapsibleSection>
 
+        {location.state?.youtubeReturn && <button type="button" className="ui-button" onClick={() => navigate('/files')}>{t('youtube.returnToImport')}</button>}
         <section id="youtube" className="scroll-mt-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex items-start gap-3">
@@ -499,6 +499,7 @@ export default function SettingsPage() {
               )}
             </div>
           )}
+          <YouTubeDownloadSettings status={ytdlp} />
         </section>
 
         <section id="theme" className="scroll-mt-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">

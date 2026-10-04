@@ -2,9 +2,15 @@ import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import type { AiConfig } from '../lib/ai';
+import type { BrowserSession, PreparedSubtitles } from '../lib/youtubeDownload';
 import i18n from '../i18n';
 
+export type SubtitleSource = 'manual' | 'original' | 'translated' | 'unknown';
+
 export interface SubtitleTrack {
+  language?: string;
+  source?: SubtitleSource;
+  source_language?: string | null;
   lang: string;
   is_auto: boolean;
 }
@@ -25,9 +31,15 @@ export interface SubtitleResult {
 export interface YtDlpStatus {
   available: boolean;
   version: string | null;
+  path: string | null;
+  javascript: string | null;
+  ejs: string;
+  ffmpeg: string | null;
 }
 
 export interface TrackSelection {
+  language?: string;
+  source?: SubtitleSource;
   lang: string;
   is_auto: boolean;
 }
@@ -46,6 +58,10 @@ export interface TranslateProgress {
 }
 
 export interface DownloadProgress {
+  role?: 'primary' | 'secondary';
+  language?: string;
+  source?: SubtitleSource;
+  remainingSeconds?: number | null;
   jobId: number;
   status: 'processing' | 'completed' | 'error';
   stage: string;
@@ -53,11 +69,17 @@ export interface DownloadProgress {
   message: string;
 }
 
+export interface YouTubeDialogDraft {
+  url: string; info: VideoSubInfo | null; selection: { primary: TrackSelection | null; secondary: TrackSelection | null };
+  language: string; query: string; aiTranslate: boolean;
+}
 interface YoutubeStore {
+  dialogDraft: YouTubeDialogDraft | null;
   translateProgress: Record<number, TranslateProgress>;
   downloadProgress: Record<number, DownloadProgress>;
   initialize: () => Promise<void>;
-  listSubs: (url: string) => Promise<VideoSubInfo>;
+  listSubs: (url: string, session?: BrowserSession) => Promise<VideoSubInfo>;
+  prepareSubtitles: (jobId: number, url: string, primary: TrackSelection, secondary: TrackSelection | null, session: BrowserSession) => Promise<PreparedSubtitles>;
   downloadSub: (jobId: number, url: string, lang: string, isAuto: boolean) => Promise<SubtitleResult>;
   mergeSubs: (jobId: number, url: string, primary: TrackSelection, secondary: TrackSelection) => Promise<SubtitleResult>;
   cancelJob: (jobId: number) => Promise<void>;
@@ -74,6 +96,7 @@ interface YoutubeStore {
 let initialized = false;
 
 export const useYoutubeStore = create<YoutubeStore>((set) => ({
+  dialogDraft: null,
   translateProgress: {},
   downloadProgress: {},
 
@@ -81,18 +104,20 @@ export const useYoutubeStore = create<YoutubeStore>((set) => ({
     if (initialized) return;
     initialized = true;
     await listen<TranslateProgress>('translate-progress', (event) => {
-      set((state) => ({
-        translateProgress: { ...state.translateProgress, [event.payload.jobId]: event.payload },
-      }));
+      set(state => state.translateProgress[event.payload.jobId] ? { translateProgress: { ...state.translateProgress, [event.payload.jobId]: event.payload } } : {});
     });
     await listen<DownloadProgress>('youtube-progress', (event) => {
-      set((state) => ({
-        downloadProgress: { ...state.downloadProgress, [event.payload.jobId]: event.payload },
-      }));
+      set(state => state.downloadProgress[event.payload.jobId] ? { downloadProgress: { ...state.downloadProgress, [event.payload.jobId]: event.payload } } : {});
     });
   },
 
-  listSubs: async (url) => invoke('youtube_list_subs', { url }),
+  listSubs: async (url, session) => invoke('youtube_list_subs', { url, session }),
+
+  prepareSubtitles: async (jobId, url, primary, secondary, session) => {
+    set(state => ({ downloadProgress: { ...state.downloadProgress, [jobId]: { jobId, status: 'processing', stage: 'queued', percent: 0, message: '' } } }));
+    try { return await invoke<PreparedSubtitles>('youtube_prepare_subtitles', { jobId, url, primary, secondary, session }); }
+    finally { set(state => { const next = { ...state.downloadProgress }; delete next[jobId]; return { downloadProgress: next }; }); }
+  },
 
   downloadSub: async (jobId, url, lang, isAuto) => {
     set((state) => ({

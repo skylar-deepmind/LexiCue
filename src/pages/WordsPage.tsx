@@ -1,3 +1,6 @@
+import AnnotationModeSwitch from '../components/AnnotationModeSwitch';
+import AnnotationWorkspace from '../components/AnnotationWorkspace';
+import { annotationItems, type AnnotationMode } from '../lib/annotation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWordStore } from '../stores/wordStore';
@@ -58,6 +61,11 @@ export default function WordsPage() {
   const learningTextFontSize = usePreferencesStore((state) => state.learningTextFontSize);
   const auxiliaryFontSize = usePreferencesStore((state) => state.auxiliaryFontSize);
   const selectedLanguage = usePreferencesStore((state) => state.language);
+  const mode = usePreferencesStore(state => state.annotationModes.word);
+  const changeMode = (value: AnnotationMode) => {
+    store.clearSelection(); store.closeDetail(); setContextMenu(null);
+    usePreferencesStore.getState().setAnnotationMode('word', value);
+  };
   const {
     words,
     filter,
@@ -65,6 +73,7 @@ export default function WordsPage() {
     includeProperNouns,
     selected,
     loading,
+    loadedKey,
     batchUpdating,
     lastBatchAction,
     detail,
@@ -77,6 +86,7 @@ export default function WordsPage() {
     sortBy: state.sortBy,
     includeProperNouns: state.includeProperNouns,
     selected: state.selected,
+    loadedKey: state.loadedKey,
     loading: state.loading,
     batchUpdating: state.batchUpdating,
     lastBatchAction: state.lastBatchAction,
@@ -167,6 +177,7 @@ export default function WordsPage() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (mode !== 'batch') return;
       const target = e.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
 
@@ -193,14 +204,22 @@ export default function WordsPage() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [selected, store, pageWords]);
+  }, [selected, store, pageWords, mode]);
+
+  if (mode === 'single') return <AnnotationWorkspace
+    key={selectedLanguage}
+    scope={{ kind: 'word', language: selectedLanguage, filter, sortBy, query, includeProperNouns }}
+    items={annotationItems(visibleWords)}
+    loading={loading || loadedKey !== JSON.stringify([selectedLanguage, filter, sortBy, includeProperNouns])}
+    onModeChange={changeMode}
+  />;
 
   return (
     <div className="h-full flex flex-col relative">
       <div className="px-6 py-4 border-b border-gray-100">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
           <h1 className="text-xl font-semibold text-gray-900">{t('words.title')}</h1>
-          <DisplaySettingsMenu />
+          <div className="flex flex-wrap items-center gap-3"><AnnotationModeSwitch mode={mode} onChange={changeMode} disabled={batchUpdating} /><DisplaySettingsMenu /></div>
         </div>
           <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
