@@ -53,3 +53,12 @@ Android release 构建仍会重新构建前端。`scripts/prepare-android.mjs` �
 - lint 无错误，保留已有 30 条警告；前端构建保留已有体积提示，Android 依赖保留弃用 API 等提示。
 - APK 包名 `com.lexicue.app`、版本 `0.4.1`、versionCode `4001`，ABI 为 `arm64-v8a`。APK ZIP 和原生 ELF LOAD 段的 16 KB 对齐通过。
 - Windows 及 macOS Intel 安装包由对应 Actions runner 验证；本机没有执行 Android 手势、键盘、旋转的设备交互验收。
+
+## 0.4.3 推送前验证（2026-10-06）
+
+- 完整 `npm run check:release` 通过：按锁文件安装依赖、lint、前端构建、macOS release 程序与 Android arm64 release APK 均成功。
+- 前端 186 项测试通过；Rust 196 项测试通过、7 项外部资源测试按已有配置忽略。
+- 内置 Gemma 的 macOS arm64 原生库 ABI 检查通过，接口版本 1、动态库成功加载。
+- npm、Tauri、Cargo 及锁文件的应用版本统一为 0.4.3；沿用 Java 17、SDK 36、Build Tools 36.0.0、NDK 29.0.14206865。
+- 保留已有的前端体积、3 条 lint 警告及 Gradle 弃用提示，未出现构建错误。
+- 本地 Android APK 不签 release 密钥；签名以及 Windows、macOS Intel 安装包由 Build Installers Actions 执行。Release 使用草稿形式。

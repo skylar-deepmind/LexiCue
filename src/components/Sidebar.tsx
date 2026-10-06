@@ -3,13 +3,14 @@ import { useTranslation } from 'react-i18next';
 import { navigationActive, navigationItems } from './NavigationItems';
 import LearningLanguageSelect from './LearningLanguageSelect';
 import { usePreferencesStore } from '../stores/preferencesStore';
+import appLogo from '../media/app-logo.png';
 
 export default function Sidebar() {
   const { t } = useTranslation();
   const { pathname } = useLocation();
   const kind = usePreferencesStore(state => state.vocabularyKind);
   return <aside className="app-sidebar">
-    <Link to="/files" className="app-brand" aria-label="LexiCue"><span className="brand-mark">L</span><span className="brand-name">LexiCue</span></Link>
+    <Link to="/files" className="app-brand" aria-label="LexiCue"><img className="brand-mark" src={appLogo} alt="" width={36} height={36} /><span className="brand-name">LexiCue</span></Link>
     <nav aria-label={t('sidebar.navAria')}>
       {navigationItems.map(item => {
         const active = navigationActive(pathname, item.to, item.vocabulary);

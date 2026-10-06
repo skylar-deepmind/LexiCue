@@ -86,6 +86,8 @@ async function fixture(page, theme = 'ocean', language = 'zh', hasDueCards = fal
         if (command === 'get_file_segments') return Array.from({ length: 24 }, (_, index) => ({ id: index + 1, index_num: index, en_text: 'Curiosity makes learning a joyful daily habit.', zh_text: '好奇心让学习成为快乐的日常习惯。', start_time: null, end_time: null }));
         if (command === 'get_due_cards') return window.__uiHasDueCards ? [{ word_id: 1, lemma: 'curiosity', definition: 'A desire to learn.', language: 'en', reading: null, part_of_speech: 'noun', stability: 1, difficulty: 5, elapsed_days: 0, scheduled_days: 1, reps: 1, lapses: 0, state: 2, baseline_pending: false, occurrences: [] }] : [];
         if (command === 'get_due_phrase_cards') return [];
+        if (command === 'get_learning_stats' && window.__uiStatsError) throw new Error('fixture stats unavailable');
+        if (command === 'get_learning_stats' && window.__uiLearningStats) return structuredClone(window.__uiLearningStats);
         if (command === 'get_learning_stats') return { total_words: 10, unprocessed: 4, learning: 3, known: 3, ignored: 0, due_cards: 0, total_reviews: 0, total_phrases: 0, phrases_unprocessed: 0, phrases_learning: 0, phrases_known: 0, phrases_ignored: 0, due_phrase_cards: 0, total_phrase_reviews: 0, daily_reviews: [], files: [] };
         if (command === 'get_local_gemma_activity') return { generations: 0, pulling: false, deleting: false, sequence: 0 };
         if (command === 'get_frequency_baseline') return { tier: null, enabled: false, pending: 0, total: 0 };
@@ -109,6 +111,7 @@ async function noOverflow(page, label) {
   assert.deepEqual(issues, [], `${label}: elements overflow viewport`); checks++;
 }
 try {
+  if (!process.env.LEXICUE_UI_INSIGHTS_ONLY) {
   for (const theme of ['ocean', 'midnight']) {
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
     const page = await context.newPage(); await fixture(page, theme); await page.goto(`${url}/files`);
@@ -401,6 +404,113 @@ try {
       await noOverflow(page, `${theme} ${language} file cards`);
       await context.close();
     }
+  }
+  }
+  // Insights use exact-count fixtures; browser checks cover graphical summaries and modal behavior.
+  for (const theme of ['ocean', 'amber', 'midnight']) {
+    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
+    const page = await context.newPage(); await fixture(page, theme);
+    await page.addInitScript(() => {
+      const files = Array.from({ length: 26 }, (_, i) => ({ id: i + 1, name: i === 0 ? 'English Podcast_ Belief and Confidence _ Advanced.srt' : i === 1 ? 'Long file title '.repeat(18) + '.srt' : `Reading ${i + 1}.srt`, language: 'en', total_words: 100, known: 70, learning: 10, unprocessed: 15, ignored: 5, total_phrases: 20, phrases_known: 2, phrases_learning: 2, phrases_unprocessed: 16, phrases_ignored: 0, phrase_analyzed: i % 2 === 1 }));
+      files[2] = { ...files[2], total_words: 0, known: 0, learning: 0, unprocessed: 0, ignored: 0 };
+      window.__uiLearningStats = { total_words: 4480, known: 3176, learning: 122, unprocessed: 1169, ignored: 13, due_cards: 121, total_reviews: 71, total_phrases: 2056, phrases_known: 148, phrases_learning: 26, phrases_unprocessed: 1882, phrases_ignored: 0, due_phrase_cards: 26, total_phrase_reviews: 10, daily_reviews: [4,12,0,8,18,9,5].map((count, i) => ({ day_start: Date.UTC(2026,9,i + 1), count })), files };
+    });
+    await page.goto(`${url}/insights`); await page.locator('.insights-mastery-ring').first().waitFor();
+    assert.deepEqual(await page.locator('.insights-mastery-center strong').allTextContents(), ['71%', '7%']); checks++;
+    assert.match(await page.locator('.insights-due').innerText(), /147/); checks++;
+    assert.equal(await page.locator('.insights-file-row').count(),20); checks++;
+    assert.ok(await page.locator('.insights-file-row').nth(1).locator('h3').evaluate(node=>node.getBoundingClientRect().height<=parseFloat(getComputedStyle(node).lineHeight)*2+1));checks++;
+    assert.equal(await page.locator('.insights-file-row').nth(2).locator('.learning-ring__value').innerText(), '—'); checks++;
+    assert.equal(await page.locator('.insights-chart-bar').nth(2).evaluate(node => node.getBoundingClientRect().height),0); checks++;
+    await page.locator('.insights-chart-day').nth(1).click();
+    assert.match(await page.locator('.insights-review-footer [role=status]').innerText(), /12/); checks++;
+
+    const contrast = async button => button.evaluate(node => {
+      const rgb = value => value.match(/[\d.]+/g).map(Number);
+      const lum = values => values.slice(0,3).map(n => {const c=n/255;return c<=.04045?c/12.92:((c+.055)/1.055)**2.4}).reduce((sum,n,i)=>sum+n*[.2126,.7152,.0722][i],0);
+      const css=getComputedStyle(node),foreground=rgb(css.color);
+      let background=rgb(css.backgroundColor);
+      if(background[3]===0) background=rgb(getComputedStyle(node.closest('.insights-dashboard')).backgroundColor);
+      const a=lum(foreground),b=lum(background);return (Math.max(a,b)+.05)/(Math.min(a,b)+.05);
+    });
+    assert.ok(await contrast(page.locator('.insights-chart-day[aria-pressed=true]'))>=4.5);checks++;
+    const openSummary = page.locator('.insights-overview .insights-detail-link');
+    for(const state of ['default','hover','focus','disabled']) {
+      if(state==='hover')await openSummary.hover();
+      if(state==='focus')await openSummary.focus();
+      if(state==='disabled')await openSummary.evaluate(node=>node.disabled=true);
+      assert.ok(await contrast(openSummary)>=4.5, `${theme} details ${state} contrast`);checks++;
+    }
+    await openSummary.evaluate(node=>node.disabled=false);
+
+    await openSummary.focus(); await page.keyboard.press('Enter');
+    await page.getByRole('dialog').waitFor();
+    assert.match(await page.locator('.insights-table').innerText(), /3,176/); checks++;
+    assert.equal(await page.locator('#root').evaluate(node => node.inert),true); checks++;
+    await page.locator('.insights-detail-header button').focus(); await page.keyboard.press('Tab');
+    assert.ok(await page.getByRole('dialog').evaluate(node => node.contains(document.activeElement))); checks++;
+    await page.keyboard.press('Escape'); await page.getByRole('dialog').waitFor({state:'detached'});
+    assert.ok(await openSummary.evaluate(node=>node===document.activeElement)); checks++;
+    await page.locator('.insights-file-row').first().getByRole('button').click(); await page.getByRole('dialog').waitFor();
+    assert.equal(await page.locator('.insights-table tbody tr').count(),5); checks++;
+    assert.equal(await page.locator('.insights-table tbody tr').first().locator('td').last().innerText(),'—'); checks++;
+    assert.match(await page.locator('.insights-file-metrics').innerText(),/80%/); checks++;
+    await page.evaluate(()=>window.__lexicueBack()); await page.getByRole('dialog').waitFor({state:'detached'}); checks++;
+    await page.locator('.insights-file-row').nth(1).getByRole('button').click();await page.getByRole('dialog').waitFor();
+    assert.ok((await page.locator('.insights-detail-filename').innerText()).length>200);checks++;
+    assert.notEqual(await page.locator('.insights-table tbody tr').first().locator('td').last().innerText(),'—');checks++;
+    await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'detached'});
+    await page.locator('.insights-language .app-select').click(); await page.getByRole('option',{name:'English',exact:true}).click();
+    await page.waitForFunction(()=>document.querySelectorAll('.insights-file-row').length===20);
+    await page.locator('.pagination button').last().click();
+    assert.equal(await page.locator('.insights-file-row').count(),6); checks++;
+    await page.locator('.insights-language .app-select').click(); await page.getByRole('option',{name:'全部',exact:true}).click();
+    await page.waitForFunction(()=>document.querySelectorAll('.insights-file-row').length===20); checks++;
+    assert.ok(await page.evaluate(()=>window.__uiCalls.some(call=>call.command==='get_learning_stats'&&call.args.language===null))); checks++;
+    for (const language of ['zh','en','ja','de']) {
+      await page.evaluate(async language => { const { default: i18n }=await import('/src/i18n/index.ts'); await i18n.changeLanguage(language); }, language);
+      for(const width of [320,390,768,1024,1440]) {
+        await page.setViewportSize({width,height:844}); await noOverflow(page,`insights ${theme} ${language} ${width}`);
+        if(width===320 || width===1440) {
+          await page.locator('.insights-overview .insights-detail-link').click(); await page.getByRole('dialog').waitFor();
+          await noOverflow(page,`insights detail ${theme} ${language} ${width}`);
+          await page.keyboard.press('Escape'); await page.getByRole('dialog').waitFor({state:'detached'});
+        }
+        if(language==='zh' && [390,1440].includes(width)) await page.screenshot({animations:'disabled',path:`${output}/${theme}-${width}-insights.png`});
+        const logo = page.locator('.app-brand img');
+        assert.equal(await logo.isVisible(),width>=768); checks++;
+        if(width>=768) { assert.ok(await logo.evaluate(node=>node.complete&&node.naturalWidth>0)); checks++; }
+      }
+    }
+    await page.evaluate(async()=>{const {default:i18n}=await import('/src/i18n/index.ts');await i18n.changeLanguage('zh')});
+    await page.setViewportSize({width:390,height:844});
+    await page.locator('.insights-overview .insights-detail-link').click(); await page.getByRole('dialog').waitFor();
+    await page.screenshot({animations:'disabled',path:`${output}/${theme}-390-insights-details.png`});
+    await page.locator('.detail-sheet-control button').click();
+    assert.ok(await page.locator('.overlay-layer').evaluate(node=>node.classList.contains('is-expanded'))); checks++;
+    await page.locator('.insights-detail-header button').click(); await page.getByRole('dialog').waitFor({state:'detached'});
+    await page.locator('.insights-overview .insights-detail-link').click(); await page.getByRole('dialog').waitFor();
+    await page.locator('.overlay-scrim').click({position:{x:2,y:2}}); await page.getByRole('dialog').waitFor({state:'detached'});checks++;
+    await page.setViewportSize({width:812,height:375}); await noOverflow(page,`insights landscape ${theme}`);
+    await page.evaluate(()=>document.documentElement.style.fontSize='20px');await noOverflow(page,`insights enlarged ${theme}`);
+    await page.evaluate(()=>document.documentElement.style.fontSize='');
+    await page.emulateMedia({reducedMotion:'reduce'});
+    assert.ok(await page.locator('.insights-chart-bar').first().evaluate(node=>parseFloat(getComputedStyle(node).transitionDuration)<=.00001)); checks++;
+    // All-zero datasets show honest empty states and never NaN percentages.
+    await page.evaluate(async()=>{
+      const {useInsightsStore}=await window.__uiStoreModule('insightsStore');
+      const empty={...window.__uiLearningStats,total_words:0,known:0,learning:0,unprocessed:0,ignored:0,total_phrases:0,phrases_known:0,phrases_learning:0,phrases_unprocessed:0,due_cards:0,due_phrase_cards:0,files:[],daily_reviews:window.__uiLearningStats.daily_reviews.map(day=>({...day,count:0}))};
+      window.__uiLearningStats=empty;useInsightsStore.setState({stats:empty});
+    });
+    assert.deepEqual(await page.locator('.insights-mastery-center strong').allTextContents(),['—','—']); checks++;
+    assert.equal(await page.locator('.insights-chart-bar').count(),0); checks++;
+    assert.ok(await page.locator('.insights-review-empty').isVisible());checks++;
+    assert.ok(await page.locator('.insights-no-files').isVisible());checks++;
+    await page.evaluate(async()=>{const {useInsightsStore}=await window.__uiStoreModule('insightsStore');useInsightsStore.setState({stats:null,loading:true})});
+    assert.ok(await page.locator('.insights-loading').isVisible());checks++;
+    await page.evaluate(async()=>{const {useInsightsStore}=await window.__uiStoreModule('insightsStore');useInsightsStore.setState({loading:false,error:true})});
+    assert.ok(await page.getByText('暂时无法加载进度').isVisible());checks++;
+    await context.close();
   }
   assert.deepEqual(errors, [], 'Unexpected application errors');
   console.log(`PASS: ${checks} layout and interaction checks; screenshots: ${output}`);
