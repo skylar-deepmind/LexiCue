@@ -571,11 +571,57 @@ fn set_runtime_phase(conn: &rusqlite::Connection, phase: &str) -> Result<(), Str
 }
 
 fn stable_sync_error(value: String) -> String {
-    // Never surface SQLite/OS text to the UI. Keep protocol codes intact and
-    // classify the remaining local failures into actionable, stable buckets.
-    if value.contains("_error") || value.contains("_failed") || value == "unsupported_sync_protocol"
-    {
-        return value;
+    // Apply context is diagnostic-only. Preserve recognized protocol codes,
+    // but never pass arbitrary SQLite/OS text through to the UI.
+    let code = value
+        .strip_prefix("sync_apply::")
+        .and_then(|context| context.split_once("::").map(|(_, code)| code))
+        .unwrap_or(&value);
+    if matches!(
+        code,
+        "auth_required"
+            | "session_expired"
+            | "invalid_credentials"
+            | "invalid_email"
+            | "invalid_password"
+            | "invalid_recovery_code"
+            | "email_exists"
+            | "invalid_registration"
+            | "invalid_device"
+            | "network_unavailable"
+            | "rate_limited"
+            | "server_internal"
+            | "credential_store_unavailable"
+            | "credential_store_write_failed"
+            | "credential_missing"
+            | "credential_corrupted"
+            | "local_backup_failed"
+            | "local_sync_storage_error"
+            | "local_identity_conflict"
+            | "local_delete_failed"
+            | "sync_service_not_configured"
+            | "unsupported_sync_protocol"
+            | "invalid_server_response"
+            | "invalid_key_package"
+            | "invalid_local_sync_key"
+            | "record_encryption_failed"
+            | "record_too_large"
+            | "invalid_encrypted_record"
+            | "record_authentication_failed"
+            | "invalid_record_batch"
+            | "invalid_record"
+            | "record_precondition_failed"
+            | "invalid_blob_manifest"
+            | "invalid_blob"
+            | "blob_hash_mismatch"
+            | "blob_not_found"
+            | "cannot_revoke_current_device"
+            | "device_not_found"
+            | "metrics_disabled"
+            | "metrics_unauthorized"
+            | "sync_service_error"
+    ) {
+        return code.to_string();
     }
     let normalized = value.to_ascii_lowercase();
     if normalized.contains("unique constraint") && normalized.contains("sync_entity_state") {
@@ -1183,6 +1229,28 @@ fn optional_string(
     record.get(key).and_then(|v| v.as_str()).map(str::to_owned)
 }
 
+/// Old file snapshots may still contain occurrences removed later through a
+/// vocabulary deletion. Respect that tombstone without rejecting the whole
+/// file; an unknown identity is still an incomplete/invalid snapshot.
+fn library_reference_id(
+    conn: &rusqlite::Connection,
+    table: &str,
+    sync_id: &str,
+) -> Result<Option<i64>, String> {
+    if let Some(id) = local_id_for(conn, table, sync_id)? {
+        return Ok(Some(id));
+    }
+    let deleted: bool = conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sync_entity_state WHERE table_name=?1 AND deleted_at IS NOT NULL AND sync_id=COALESCE((SELECT canonical_sync_id FROM sync_identity_aliases WHERE table_name=?1 AND alias_sync_id=?2),?2))",
+        rusqlite::params![table, sync_id], |row| row.get(0),
+    ).map_err(|error| error.to_string())?;
+    if deleted {
+        Ok(None)
+    } else {
+        Err("invalid_encrypted_record".into())
+    }
+}
+
 fn apply_library_item_event(
     conn: &rusqlite::Connection,
     sync_id: &str,
@@ -1196,14 +1264,14 @@ fn apply_library_item_event(
             [sync_id],
             |row| row.get(0),
         )
-        .map_err(|_| "local_sync_storage_error".to_string())?;
+        .map_err(|error| error.to_string())?;
     if pending_local {
         return Ok(false);
     }
     if operation == "delete" {
         if let Some(file_id) = local_id_for(conn, "files", sync_id)? {
             conn.execute("DELETE FROM files WHERE id=?1", [file_id])
-                .map_err(|_| "local_sync_storage_error".to_string())?;
+                .map_err(|error| error.to_string())?;
             mark_state(conn, "files", file_id, sync_id, clock, true)?;
         }
         return Ok(true);
@@ -1223,48 +1291,50 @@ fn apply_library_item_event(
         conn.execute("INSERT OR IGNORE INTO file_tag_state(file_id) VALUES(?1)", [file_id]).map_err(|e| e.to_string())?;
     }
     conn.execute("DELETE FROM segments WHERE file_id=?1", [file_id])
-        .map_err(|_| "local_sync_storage_error".to_string())?;
+        .map_err(|error| error.to_string())?;
     for segment in snapshot.segments {
         conn.execute(
             "INSERT INTO segments(file_id,index_num,en_text,zh_text,start_time,end_time) VALUES(?1,?2,?3,?4,?5,?6)",
             rusqlite::params![file_id, segment.index_num, segment.en_text, segment.zh_text, segment.start_time, segment.end_time],
         )
-        .map_err(|_| "local_sync_storage_error".to_string())?;
+        .map_err(|error| error.to_string())?;
         let segment_id = conn.last_insert_rowid();
         for occurrence in segment.occurrences {
-            let word_id = local_id_for(conn, "words", &occurrence.word_sync_id)?
-                .ok_or("invalid_encrypted_record")?;
+            let Some(word_id) = library_reference_id(conn, "words", &occurrence.word_sync_id)? else {
+                continue;
+            };
             conn.execute(
                 "INSERT INTO occurrences(word_id,segment_id,original_form,position,hidden,meaning_zh,usage_zh,collins_sense_id,meaning_edited,analysis_model,analyzed_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)",
                 rusqlite::params![word_id, segment_id, occurrence.original_form, occurrence.position, occurrence.hidden, occurrence.meaning_zh, occurrence.usage_zh, occurrence.collins_sense_id, occurrence.meaning_edited, occurrence.analysis_model, occurrence.analyzed_at],
             )
-            .map_err(|_| "local_sync_storage_error".to_string())?;
+            .map_err(|error| error.to_string())?;
             conn.execute(
                 "INSERT OR IGNORE INTO word_aliases(word_id,alias,alias_kind) VALUES(?1,lower(?2),'surface')",
                 rusqlite::params![word_id, occurrence.original_form],
-            ).map_err(|_| "local_sync_storage_error".to_string())?;
+            ).map_err(|error| error.to_string())?;
         }
         for occurrence in segment.phrase_occurrences {
-            let phrase_id = local_id_for(conn, "phrases", &occurrence.phrase_sync_id)?
-                .ok_or("invalid_encrypted_record")?;
+            let Some(phrase_id) = library_reference_id(conn, "phrases", &occurrence.phrase_sync_id)? else {
+                continue;
+            };
             conn.execute(
                 "INSERT INTO phrase_occurrences(phrase_id,segment_id,position,hidden,surface_text,token_positions_json,meaning_zh,usage_zh,meaning_edited,meaning_en,usage_en,meaning_en_edited,collins_sense_id) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)",
                 rusqlite::params![phrase_id, segment_id, occurrence.position, occurrence.hidden, occurrence.surface_text, occurrence.token_positions_json, occurrence.meaning_zh, occurrence.usage_zh, occurrence.meaning_edited, occurrence.meaning_en, occurrence.usage_en, occurrence.meaning_en_edited, occurrence.collins_sense_id],
             )
-            .map_err(|_| "local_sync_storage_error".to_string())?;
+            .map_err(|error| error.to_string())?;
         }
     }
     conn.execute(
         "DELETE FROM file_phrase_analysis WHERE file_id=?1",
         [file_id],
     )
-    .map_err(|_| "local_sync_storage_error".to_string())?;
+    .map_err(|error| error.to_string())?;
     if let Some(analysis) = snapshot.phrase_analysis {
         conn.execute(
             "INSERT INTO file_phrase_analysis(file_id,model,completed_at,pipeline_version,collins_evidence_available,skipped_items) VALUES(?1,?2,?3,?4,?5,?6)",
             rusqlite::params![file_id, analysis.model, analysis.completed_at, analysis.pipeline_version, analysis.collins_evidence_available, analysis.skipped_items],
         )
-        .map_err(|_| "local_sync_storage_error".to_string())?;
+        .map_err(|error| error.to_string())?;
     }
     for entry in snapshot.phrase_dictionary_entries {
         conn.execute(
@@ -1273,7 +1343,7 @@ fn apply_library_item_event(
              ON CONFLICT(language,text) DO UPDATE SET translation=excluded.translation,pinyin=excluded.pinyin,usage_zh=excluded.usage_zh,category=excluded.category,provider=excluded.provider,updated_at=excluded.updated_at,other_senses_json=excluded.other_senses_json,other_senses_edited=excluded.other_senses_edited,meaning_en=excluded.meaning_en,usage_en=excluded.usage_en,other_senses_en_json=excluded.other_senses_en_json,other_senses_en_edited=excluded.other_senses_en_edited",
             rusqlite::params![entry.language, entry.text, entry.translation, entry.pinyin, entry.usage_zh, entry.category, entry.provider, entry.updated_at, entry.other_senses_json, entry.other_senses_edited, entry.meaning_en, entry.usage_en, entry.other_senses_en_json, entry.other_senses_en_edited],
         )
-        .map_err(|_| "local_sync_storage_error".to_string())?;
+        .map_err(|error| error.to_string())?;
     }
     mark_state(conn, "files", file_id, sync_id, clock, false)?;
     Ok(true)
@@ -3975,7 +4045,174 @@ mod tests {
     }
 
     #[test]
+    fn tombstoned_vocabulary_does_not_block_old_library_snapshot() {
+        let directory = tempfile::tempdir().unwrap();
+        let conn = crate::db::init_db(&directory.path().join("lexicue.db")).unwrap();
+        conn.execute("INSERT INTO files(name,type,content,content_hash,imported_at,language) VALUES('original','txt','text','hash',1,'en')", []).unwrap();
+        let file_id = conn.last_insert_rowid();
+        conn.execute(
+            "INSERT INTO segments(file_id,index_num,en_text) VALUES(?1,0,'keep removed phrase')",
+            [file_id],
+        )
+        .unwrap();
+        let segment_id = conn.last_insert_rowid();
+        for lemma in ["keep", "removed"] {
+            conn.execute("INSERT INTO words(language,lemma) VALUES('en',?1)", [lemma])
+                .unwrap();
+            let word_id = conn.last_insert_rowid();
+            conn.execute(
+                "INSERT INTO occurrences(word_id,segment_id,original_form,position) VALUES(?1,?2,?3,0)",
+                rusqlite::params![word_id, segment_id, lemma],
+            )
+            .unwrap();
+            conn.execute(
+                "INSERT INTO phrases(language,text,source) VALUES('en',?1,'detected')",
+                [lemma],
+            )
+            .unwrap();
+            let phrase_id = conn.last_insert_rowid();
+            conn.execute(
+                "INSERT INTO phrase_occurrences(phrase_id,segment_id,position) VALUES(?1,?2,0)",
+                rusqlite::params![phrase_id, segment_id],
+            )
+            .unwrap();
+        }
+        let sync_id = sync_id_for(&conn, "files", file_id).unwrap();
+        let mut snapshot = library_item_record(&conn, file_id).unwrap();
+        snapshot.file["name"] = "restored".into();
+        snapshot.segments[0].zh_text = Some("restored translation".into());
+        let removed_word = &mut snapshot.segments[0].occurrences[1];
+        conn.execute("INSERT INTO sync_identity_aliases(table_name,alias_sync_id,canonical_sync_id) VALUES('words','old-word',?1)",[&removed_word.word_sync_id]).unwrap();
+        removed_word.word_sync_id = "old-word".into();
+        conn.execute("DELETE FROM words WHERE lemma='removed'", [])
+            .unwrap();
+        conn.execute("DELETE FROM phrases WHERE text='removed'", [])
+            .unwrap();
+        conn.execute("UPDATE sync_changes SET uploaded_at=1", [])
+            .unwrap();
+        let event = EntityEvent {
+            version: 4,
+            table_name: "library_item".into(),
+            sync_id,
+            operation: "upsert".into(),
+            record: Some(serde_json::to_value(snapshot).unwrap()),
+        };
+        conn.execute_batch("BEGIN IMMEDIATE").unwrap();
+        assert!(apply_entity_event(&conn, &event, "00000000000000000001:00000000:test").unwrap());
+        conn.execute_batch("COMMIT").unwrap();
+        assert_eq!(
+            conn.query_row("SELECT name FROM files WHERE id=?1", [file_id], |r| r
+                .get::<_, String>(0))
+                .unwrap(),
+            "restored"
+        );
+        assert_eq!(
+            conn.query_row(
+                "SELECT zh_text FROM segments WHERE file_id=?1",
+                [file_id],
+                |r| r.get::<_, String>(0)
+            )
+            .unwrap(),
+            "restored translation"
+        );
+        for table in ["occurrences", "phrase_occurrences", "words", "phrases"] {
+            assert_eq!(
+                conn.query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |r| r
+                    .get::<_, i64>(0))
+                    .unwrap(),
+                1
+            );
+        }
+        assert_eq!(
+            library_reference_id(&conn, "words", "unknown").unwrap_err(),
+            "invalid_encrypted_record"
+        );
+        assert_eq!(
+            library_reference_id(&conn, "phrases", "unknown").unwrap_err(),
+            "invalid_encrypted_record"
+        );
+        assert_eq!(
+            conn.query_row("SELECT COUNT(*) FROM pragma_foreign_key_check", [], |r| r
+                .get::<_, i64>(
+                0
+            ))
+            .unwrap(),
+            0
+        );
+    }
+
+    #[test]
+    fn library_write_failure_preserves_diagnostic_and_rolls_back() {
+        let directory = tempfile::tempdir().unwrap();
+        let conn = crate::db::init_db(&directory.path().join("lexicue.db")).unwrap();
+        conn.execute("INSERT INTO files(name,type,content,content_hash,imported_at,language) VALUES('original','txt','text','hash',1,'en')", []).unwrap();
+        let file_id = conn.last_insert_rowid();
+        conn.execute(
+            "INSERT INTO segments(file_id,index_num,en_text) VALUES(?1,0,'original segment')",
+            [file_id],
+        )
+        .unwrap();
+        let sync_id = sync_id_for(&conn, "files", file_id).unwrap();
+        let mut snapshot = library_item_record(&conn, file_id).unwrap();
+        snapshot.file["name"] = "remote change".into();
+        conn.execute("UPDATE sync_changes SET uploaded_at=1", [])
+            .unwrap();
+        // Simulate SQLite rejecting the replacement after the old segments
+        // have been removed, so this also verifies transaction rollback.
+        conn.execute_batch("CREATE TRIGGER reject_restored_segment BEFORE INSERT ON segments BEGIN SELECT RAISE(ABORT,'FOREIGN KEY constraint failed'); END;").unwrap();
+        let mut records = [StagedRemoteRecord {
+            remote: RemoteRecord {
+                entity_type: "library_item".into(),
+                entity_id: sync_id.clone(),
+                etag: "etag".into(),
+                seq: 1,
+                schema_version: 1,
+                deleted: false,
+                nonce: String::new(),
+                ciphertext: String::new(),
+            },
+            event: EntityEvent {
+                version: 4,
+                table_name: "library_item".into(),
+                sync_id,
+                operation: "upsert".into(),
+                record: Some(serde_json::to_value(snapshot).unwrap()),
+            },
+            clock: "00000000000000000001:00000000:test".into(),
+        }];
+        let error = apply_remote_records(&conn, &mut records).unwrap_err();
+        assert_eq!(diagnostic_kind(&error), "sqlite_foreign_key");
+        assert_eq!(stable_sync_error(error), "local_sync_storage_error");
+        assert_eq!(
+            conn.query_row("SELECT name FROM files WHERE id=?1", [file_id], |r| r
+                .get::<_, String>(0))
+                .unwrap(),
+            "original"
+        );
+        assert_eq!(
+            conn.query_row(
+                "SELECT en_text FROM segments WHERE file_id=?1",
+                [file_id],
+                |r| r.get::<_, String>(0)
+            )
+            .unwrap(),
+            "original segment"
+        );
+        assert_eq!(
+            conn.query_row("SELECT COUNT(*) FROM sync_remote_state", [], |r| r
+                .get::<_, i64>(0))
+                .unwrap(),
+            0
+        );
+    }
+
+    #[test]
     fn native_storage_failures_are_never_exposed_as_unknown_errors() {
+        for code in ["invalid_encrypted_record", "session_expired", "network_unavailable", "record_authentication_failed", "blob_not_found"] {
+            assert_eq!(stable_sync_error(code.into()), code);
+            assert_eq!(stable_sync_error(format!("sync_apply::library_item::{code}")), code);
+        }
+        assert_eq!(stable_sync_error("private_error_text".into()), "local_sync_storage_error");
         assert_eq!(
             stable_sync_error("database is locked".into()),
             "local_sync_storage_error"
