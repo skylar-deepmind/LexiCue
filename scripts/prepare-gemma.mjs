@@ -20,8 +20,8 @@ if (!platform) {
 }
 const cache = join(root, 'scripts/cache/gemma-native');
 mkdirSync(cache, { recursive: true });
-function run(command, args) {
-  const result = spawnSync(command, args, { stdio: 'inherit', cwd: root });
+function run(command, args, cwd = root) {
+  const result = spawnSync(command, args, { stdio: 'inherit', cwd });
   if (result.error || result.status !== 0) throw result.error || new Error(`${command} failed (${result.status})`);
 }
 const digest = path => createHash('sha256').update(readFileSync(path)).digest('hex');
@@ -35,7 +35,15 @@ function archive(info, destination) {
   }
   if (!existsSync(destination)) {
     mkdirSync(destination, { recursive: true });
-    run('tar', ['-xf', path, '-C', destination]);
+    try {
+      // CMake/libarchive handles both ZIP and tar.gz on every supported host.
+      // GNU tar on Android's Ubuntu runner cannot extract the LiteRT ZIP.
+      run('cmake', ['-E', 'tar', 'xf', path], destination);
+    } catch (error) {
+      // A partial directory must not be mistaken for a usable cached archive.
+      rmSync(destination, { recursive: true, force: true });
+      throw error;
+    }
   }
 }
 const intel = platform === 'macos_x86_64';

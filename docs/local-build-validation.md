@@ -62,3 +62,4 @@ Android release 构建仍会重新构建前端。`scripts/prepare-android.mjs` �
 - npm、Tauri、Cargo 及锁文件的应用版本统一为 0.4.3；沿用 Java 17、SDK 36、Build Tools 36.0.0、NDK 29.0.14206865。
 - 保留已有的前端体积、3 条 lint 警告及 Gradle 弃用提示，未出现构建错误。
 - 本地 Android APK 不签 release 密钥；签名以及 Windows、macOS Intel 安装包由 Build Installers Actions 执行。Release 使用草稿形式。
+- 首次 Actions 暴露了 ZIP 解压的宿主平台差异：GNU tar 无法处理 LiteRT SDK ZIP。原生准备脚本已统一采用 CMake/libarchive，失败时移除不完整目录；真实 SDK ZIP 从零解压、macOS 原生库准备及 Android release APK 重建均通过。
