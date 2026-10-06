@@ -76,11 +76,7 @@ console.log(`Android toolchain: Java ${toolchain.javaMajor}, SDK ${toolchain.sdk
 // Match Actions rather than whatever compatible versions happen to be installed.
 run(npm, ['ci']);
 if (!args.includes('--android-only')) {
-  run(npm, ['run', 'lint']);
-  run(npm, ['test']);
-  run(npm, ['run', 'prepare:gemma']);
-  run(npm, ['run', 'build']);
-  run('cargo', ['test', '--lib', '--locked'], join(root, 'src-tauri'));
+  run(npm, ['run', 'check:release:tests']);
   run(npm, ['run', 'tauri', 'build', '--', '--no-bundle', '--config', '{"build":{"beforeBuildCommand":""}}']);
 }
 run(npx, ['tauri', 'android', 'init', '--ci', '--skip-targets-install']);

@@ -7,13 +7,14 @@ on:
   workflow_dispatch:
     inputs:
       platform:
-        description: 'Platform(s) to build (all / macos / windows / android)'
+        description: 'Build all / macos / windows / android, or run checks only'
         type: choice
         options:
           - all
           - macos
           - windows
           - android
+          - checks
         default: all
       draft:
         description: 'Create the GitHub release as a draft (updates stay invisible until published)'
@@ -25,7 +26,39 @@ on:
         default: false
 
 jobs:
+  release-checks:
+    name: Release regression checks
+    runs-on: macos-latest
+    timeout-minutes: 35
+    permissions:
+      contents: read
+    env:
+      LINDERA_DICTIONARIES_PATH: ${{ github.workspace }}/scripts/cache/lindera
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify official sync endpoint
+        shell: bash
+        run: test -n "$LEXICUE_SYNC_ENDPOINT" && [[ "$LEXICUE_SYNC_ENDPOINT" == https://* ]]
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Cache Japanese tokenizer dictionary
+        uses: actions/cache@v4
+        with:
+          path: scripts/cache/lindera
+          key: ${{ runner.os }}-lindera-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-lindera-
+      - run: npm ci
+      - name: Run frontend and native regression checks
+        run: npm run check:release:tests
+
   macos:
+    needs: release-checks
     name: macOS (Apple Silicon / Intel)
     if: ${{ inputs.platform == 'all' || inputs.platform == 'macos' }}
     runs-on: macos-latest
@@ -90,6 +123,7 @@ jobs:
           args: --target ${{ matrix.target }} --bundles app,dmg
 
   windows:
+    needs: release-checks
     name: Windows Installer
     if: ${{ inputs.platform == 'all' || inputs.platform == 'windows' }}
     runs-on: windows-latest
@@ -150,6 +184,7 @@ jobs:
           args: --bundles nsis
 
   android:
+    needs: release-checks
     name: Android APK
     if: ${{ inputs.platform == 'all' || inputs.platform == 'android' }}
     runs-on: ubuntu-latest

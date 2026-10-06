@@ -4060,6 +4060,7 @@ mod tests {
             conn.execute("INSERT INTO words(language,lemma) VALUES('en',?1)", [lemma])
                 .unwrap();
             let word_id = conn.last_insert_rowid();
+            conn.execute("UPDATE sync_entity_state SET sync_id=?1 WHERE table_name='words' AND local_id=?2",rusqlite::params![format!("words-{lemma}"),word_id]).unwrap();
             conn.execute(
                 "INSERT INTO occurrences(word_id,segment_id,original_form,position) VALUES(?1,?2,?3,0)",
                 rusqlite::params![word_id, segment_id, lemma],
@@ -4071,6 +4072,7 @@ mod tests {
             )
             .unwrap();
             let phrase_id = conn.last_insert_rowid();
+            conn.execute("UPDATE sync_entity_state SET sync_id=?1 WHERE table_name='phrases' AND local_id=?2",rusqlite::params![format!("phrases-{lemma}"),phrase_id]).unwrap();
             conn.execute(
                 "INSERT INTO phrase_occurrences(phrase_id,segment_id,position) VALUES(?1,?2,0)",
                 rusqlite::params![phrase_id, segment_id],
@@ -4078,9 +4080,14 @@ mod tests {
             .unwrap();
         }
         let sync_id = sync_id_for(&conn, "files", file_id).unwrap();
-        let mut snapshot = library_item_record(&conn, file_id).unwrap();
-        snapshot.file["name"] = "restored".into();
-        snapshot.segments[0].zh_text = Some("restored translation".into());
+        // Frozen, synthetic v1 payload intentionally lacks newer AI/tag
+        // fields. Do not regenerate it with the current serializer: that
+        // would hide backwards-compatibility regressions.
+        let mut snapshot: LibraryItemRecord = serde_json::from_str(include_str!(
+            "../../tests/fixtures/library-snapshot-v1.json"
+        )).unwrap();
+        assert_eq!(snapshot.segments[0].occurrences[0].meaning_edited, 0);
+        assert_eq!(snapshot.segments[0].phrase_occurrences[0].meaning_en, None);
         let removed_word = &mut snapshot.segments[0].occurrences[1];
         conn.execute("INSERT INTO sync_identity_aliases(table_name,alias_sync_id,canonical_sync_id) VALUES('words','old-word',?1)",[&removed_word.word_sync_id]).unwrap();
         removed_word.word_sync_id = "old-word".into();
@@ -4090,8 +4097,8 @@ mod tests {
             .unwrap();
         conn.execute("UPDATE sync_changes SET uploaded_at=1", [])
             .unwrap();
-        let event = EntityEvent {
-            version: 4,
+        let mut event = EntityEvent {
+            version: 3,
             table_name: "library_item".into(),
             sync_id,
             operation: "upsert".into(),
@@ -4100,6 +4107,9 @@ mod tests {
         conn.execute_batch("BEGIN IMMEDIATE").unwrap();
         assert!(apply_entity_event(&conn, &event, "00000000000000000001:00000000:test").unwrap());
         conn.execute_batch("COMMIT").unwrap();
+        // The current envelope can replay the same historical payload too.
+        event.version = 4;
+        assert!(apply_entity_event(&conn, &event, "00000000000000000002:00000000:test").unwrap());
         assert_eq!(
             conn.query_row("SELECT name FROM files WHERE id=?1", [file_id], |r| r
                 .get::<_, String>(0))
