@@ -2,7 +2,6 @@ import { normalizeNavigationPath } from './NavigationItems';
 import LearningLanguageSelect from './LearningLanguageSelect';
 import VocabularyTabs from './VocabularyTabs';
 import { backNavigation } from '../lib/backNavigation';
-import { useFileStore } from '../stores/fileStore';
 import { initializeLocalActivity } from '../stores/modelDownloadStore';
 import { useEffect, useRef } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
@@ -30,12 +29,7 @@ export default function Layout() {
   const vocabulary = pathname === '/words' || pathname === '/phrases';
   useEffect(() => {
     const release = backNavigation.setPage(() => {
-      const files = useFileStore.getState();
       if (pathname.startsWith('/files/')) { navigate('/files'); return true; }
-      if (pathname === '/files' && files.currentFolderId !== null) {
-        files.setCurrentFolder(files.folders.find(folder => folder.id === files.currentFolderId)?.parent_id ?? null);
-        return true;
-      }
       return false;
     });
     const nativeBack = () => backNavigation.back();

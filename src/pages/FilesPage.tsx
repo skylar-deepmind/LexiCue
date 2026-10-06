@@ -1,173 +1,79 @@
-import Overlay from '../components/Overlay';
-import AdaptiveMenu from '../components/AdaptiveMenu';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Upload,
-  Download,
-  Upload as ImportIcon,
-  Clapperboard,
-  MoreHorizontal,
-  FolderPlus,
-  FolderOpen,
-  ChevronRight,
-  ChevronLeft,
-  Home,
-} from 'lucide-react';
+import { Upload, Download, Upload as ImportIcon, Clapperboard, MoreHorizontal } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { ask } from '@tauri-apps/plugin-dialog';
+import { useShallow } from 'zustand/react/shallow';
 import { useFileStore } from '../stores/fileStore';
 import { useOllamaStore } from '../stores/ollamaStore';
-import FileCard from '../components/FileCard';
-import AnalysisModelPicker from '../components/AnalysisModelPicker';
-import FolderCard from '../components/FolderCard';
-import FolderTree, { type DragPayload } from '../components/FolderTree';
-import EmptyState from '../components/EmptyState';
-import ImportPreview from '../components/ImportPreview';
-import ImportLanguageDialog from '../components/ImportLanguageDialog';
 import { useYoutubeStore } from '../stores/youtubeStore';
-import YouTubeDialog from '../components/YouTubeDialog';
-import MoveToFolderDialog from '../components/MoveToFolderDialog';
-import PromptDialog from '../components/PromptDialog';
-import Skeleton from '../components/Skeleton';
 import { useFeedbackStore } from '../stores/feedbackStore';
 import { usePreferencesStore } from '../stores/preferencesStore';
 import { useAiStore } from '../stores/aiStore';
 import { getAiConfig } from '../lib/ai';
 import { isCancelledError } from '../lib/errors';
-import { getFolderPath, getFolderDescendantIds } from '../lib/folderTree';
-import type { FileRecord, FolderInfo } from '../lib/types';
-import { useShallow } from 'zustand/react/shallow';
 import { invalidateCaches } from '../lib/cacheInvalidation';
-
-interface MoveTarget {
-  kind: 'file' | 'folder';
-  id: number;
-}
-
-interface PromptTarget {
-  mode: 'create' | 'rename';
-  parentId: number | null;
-  folder?: FolderInfo;
-}
-
-const DRAG_TYPE = 'application/x-lexicue';
+import type { FileRecord } from '../lib/types';
+import AdaptiveMenu from '../components/AdaptiveMenu';
+import AnalysisModelPicker from '../components/AnalysisModelPicker';
+import FileCard from '../components/FileCard';
+import EmptyState from '../components/EmptyState';
+import ImportPreview from '../components/ImportPreview';
+import ImportLanguageDialog from '../components/ImportLanguageDialog';
+import YouTubeDialog from '../components/YouTubeDialog';
+import Skeleton from '../components/Skeleton';
+import TagFilterBar from '../components/TagFilterBar';
+import TagManager from '../components/TagManager';
+import TagEditDialog from '../components/TagEditDialog';
 
 export default function FilesPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [youtubeDialogOpen, setYoutubeDialogOpen] = useState(() => useYoutubeStore.getState().dialogDraft?.resumeAfterSettings === true);
   useEffect(() => {
     const draft = useYoutubeStore.getState().dialogDraft;
     if (draft?.resumeAfterSettings) useYoutubeStore.setState({ dialogDraft: { ...draft, resumeAfterSettings: false } });
   }, []);
   const [moreOpen, setMoreOpen] = useState(false);
-  const [treeOpen, setTreeOpen] = useState(true);
-  const [folderDrawerOpen, setFolderDrawerOpen] = useState(false);
+  const [managerOpen, setManagerOpen] = useState(false);
+  const [editFile, setEditFile] = useState<FileRecord | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
-  const [moveTarget, setMoveTarget] = useState<MoveTarget | null>(null);
-  const [promptTarget, setPromptTarget] = useState<PromptTarget | null>(null);
-  const [drag, setDrag] = useState<DragPayload | null>(null);
   const moreRef = useRef<HTMLDivElement>(null);
-
-
-  const {
-    files,
-    folders,
-    currentFolderId,
-    loading,
-    pendingImport,
-    confirming,
-    deletingFiles,
-    loadFiles,
-    loadFolders,
-    setCurrentFolder,
-    createFolder,
-    renameFolder,
-    deleteFolder,
-    moveFolder,
-    moveFile,
-    importFile,
-    setImportLanguage,
-    importKnownWords,
-    confirmImport,
-    cancelImport,
-    deleteFile,
-    exportAll,
-    restoreAll,
-  } = useFileStore(useShallow((state) => ({
-    files: state.files,
-    folders: state.folders,
-    currentFolderId: state.currentFolderId,
-    loading: state.loading,
-    pendingImport: state.pendingImport,
-    confirming: state.confirming,
-    deletingFiles: state.deletingFiles,
-    loadFiles: state.loadFiles,
-    loadFolders: state.loadFolders,
-    setCurrentFolder: state.setCurrentFolder,
-    createFolder: state.createFolder,
-    renameFolder: state.renameFolder,
-    deleteFolder: state.deleteFolder,
-    moveFolder: state.moveFolder,
-    moveFile: state.moveFile,
-    importFile: state.importFile,
-    setImportLanguage: state.setImportLanguage,
-    importKnownWords: state.importKnownWords,
-    confirmImport: state.confirmImport,
-    cancelImport: state.cancelImport,
-    deleteFile: state.deleteFile,
-    exportAll: state.exportAll,
-    restoreAll: state.restoreAll,
+  const { files, tags, loading, loadingTags, tagsError, selectedTagIds, untaggedOnly, pendingImport, confirming, deletingFiles,
+    loadFiles, loadTags, setTagFilter, importFile, setImportLanguage, setImportTags, importKnownWords, confirmImport, cancelImport, deleteFile, exportAll, restoreAll,
+  } = useFileStore(useShallow(state => ({
+    files: state.files, tags: state.tags, loading: state.loading, loadingTags: state.loadingTags, tagsError: state.tagsError,
+    selectedTagIds: state.selectedTagIds, untaggedOnly: state.untaggedOnly, pendingImport: state.pendingImport, confirming: state.confirming,
+    deletingFiles: state.deletingFiles, loadFiles: state.loadFiles, loadTags: state.loadTags, setTagFilter: state.setTagFilter,
+    importFile: state.importFile, setImportLanguage: state.setImportLanguage, setImportTags: state.setImportTags,
+    importKnownWords: state.importKnownWords, confirmImport: state.confirmImport, cancelImport: state.cancelImport,
+    deleteFile: state.deleteFile, exportAll: state.exportAll, restoreAll: state.restoreAll,
   })));
-  const navigate = useNavigate();
-  const aiEnabled = useAiStore((state) => state.enabled);
-  const analysisProgress = useOllamaStore((state) => state.progress);
-  const analysisDiagnostics = useOllamaStore((state) => state.diagnostics);
-  const retrying = useOllamaStore((state) => state.retrying);
+  const globalLanguage = usePreferencesStore(state => state.language);
+  const aiEnabled = useAiStore(state => state.enabled);
+  const analysisProgress = useOllamaStore(state => state.progress);
+  const analysisDiagnostics = useOllamaStore(state => state.diagnostics);
+  const retrying = useOllamaStore(state => state.retrying);
   const previews = useOllamaStore(state => state.previews);
   const openPreview = useOllamaStore(state => state.openPreview);
-  const startAnalysis = useOllamaStore((state) => state.startAnalysis);
-  const cancelAnalysis = useOllamaStore((state) => state.cancelAnalysis);
+  const startAnalysis = useOllamaStore(state => state.startAnalysis);
+  const cancelAnalysis = useOllamaStore(state => state.cancelAnalysis);
+  const scrollKey = JSON.stringify([globalLanguage, selectedTagIds, untaggedOnly]);
+  useEffect(() => { void loadFiles(); void loadTags(); }, [loadFiles, loadTags, globalLanguage]);
+  useEffect(() => {
+    const refresh = () => { void loadTags(true).then(() => loadFiles(true)); };
+    window.addEventListener('lexicue-sync-applied', refresh);
+    return () => window.removeEventListener('lexicue-sync-applied', refresh);
+  }, [loadFiles, loadTags]);
   useEffect(() => {
     const node = listRef.current;
-    if (!node) return;
-    const key = `lexicue-file-scroll-${currentFolderId ?? 'root'}`;
+    if (!node || loading) return;
+    const key = `lexicue-tag-scroll-${scrollKey}`;
     node.scrollTop = Number(sessionStorage.getItem(key) ?? 0);
     const save = () => sessionStorage.setItem(key, String(node.scrollTop));
     node.addEventListener('scroll', save, { passive: true });
     return () => node.removeEventListener('scroll', save);
-  }, [currentFolderId, loading]);
-  const globalLanguage = usePreferencesStore((state) => state.language);
-
-  useEffect(() => {
-    void loadFiles();
-    void loadFolders();
-  }, [loadFiles, loadFolders, globalLanguage]);
-
-  const path = useMemo(
-    () => getFolderPath(folders, currentFolderId),
-    [folders, currentFolderId],
-  );
-  const subfolders = useMemo(
-    () => folders.filter((folder) => folder.parent_id === currentFolderId),
-    [folders, currentFolderId],
-  );
-  const pathById = useMemo(() => {
-    const map = new Map<number, string>();
-    for (const folder of folders) {
-      map.set(folder.id, getFolderPath(folders, folder.id).map((item) => item.name).join(' / '));
-    }
-    return map;
-  }, [folders]);
-  const descendantIds = useMemo(
-    () => (drag?.kind === 'folder' ? getFolderDescendantIds(folders, drag.id) : new Set<number>()),
-    [drag, folders],
-  );
-
-  const handleFileClick = (fileId: number) => {
-    navigate(`/files/${fileId}`);
-  };
-
+  }, [scrollKey, loading]);
+  const handleFileClick = (fileId: number) => navigate(`/files/${fileId}`);
   const handleAnalyze = async (fileId: number, forceRefresh = false) => {
     const config = getAiConfig();
     if (!aiEnabled || !config.model) {
@@ -193,52 +99,12 @@ export default function FilesPage() {
     }
   };
 
-  const handleDragStart = (event: React.DragEvent, payload: DragPayload) => {
-    setDrag(payload);
-    event.dataTransfer.setData(DRAG_TYPE, JSON.stringify(payload));
-    event.dataTransfer.effectAllowed = 'move';
-  };
-
-  const handleDrop = (targetFolderId: number | null) => {
-    if (!drag) return;
-    const payload = drag;
-    setDrag(null);
-    if (payload.kind === 'file') {
-      void moveFile(payload.id, targetFolderId);
-    } else if (
-      targetFolderId === null ||
-      (targetFolderId !== payload.id && !descendantIds.has(targetFolderId))
-    ) {
-      void moveFolder(payload.id, targetFolderId);
-    }
-  };
-
-  const handleDeleteFolder = async (folder: FolderInfo) => {
-    const confirmed = await ask(t('folders.deleteConfirm', { name: folder.name }), {
-      title: t('folders.deleteTitle'),
-      kind: 'warning',
-      okLabel: t('folders.delete'),
-      cancelLabel: t('common.cancel'),
-    });
-    if (!confirmed) return;
-    const subtree = getFolderDescendantIds(folders, folder.id);
-    await deleteFolder(folder.id);
-    if (currentFolderId !== null && subtree.has(currentFolderId)) {
-      setCurrentFolder(null);
-    }
-  };
-
   const renderFileGrid = (list: FileRecord[]) => (
     <div className="file-grid">
       {list.map((file) => (
         <FileCard
           key={file.id}
           file={file}
-          folderPath={
-            currentFolderId === null && file.folder_id !== null
-              ? pathById.get(file.folder_id)
-              : undefined
-          }
           aiEnabled={aiEnabled}
           onDelete={(id) => void deleteFile(id).then(() => {
             if (!useFileStore.getState().files.some(file => file.id === id)) useOllamaStore.getState().clearPreview(id);
@@ -246,7 +112,7 @@ export default function FilesPage() {
           onAnalyze={(id, forceRefresh) => void handleAnalyze(id, forceRefresh)}
           onViewAnalysis={previews[file.id] ? openPreview : undefined}
           onCancel={(id) => void cancelAnalysis(id)}
-          onMove={(item) => setMoveTarget({ kind: 'file', id: item.id })}
+          onEditTags={setEditFile}
           analysisProgress={analysisProgress[file.id]}
           diagnostic={analysisDiagnostics[file.id]}
           analysisCompleted={file.phrase_analyzed}
@@ -259,64 +125,11 @@ export default function FilesPage() {
     </div>
   );
 
-  const renderFolderTree = () => (
-    <FolderTree
-                  folders={folders}
-                  currentFolderId={currentFolderId}
-                  drag={drag}
-                  descendantIds={descendantIds}
-                  onSelect={(folderId) => { setCurrentFolder(folderId); setFolderDrawerOpen(false); }}
-                  onDragStart={handleDragStart}
-                  onDragEnd={() => setDrag(null)}
-                  onDrop={handleDrop}
-                  onNewSubfolder={(parentId) => setPromptTarget({ mode: 'create', parentId })}
-                  onRename={(folder) => setPromptTarget({ mode: 'rename', parentId: null, folder })}
-                  onMove={(folder) => setMoveTarget({ kind: 'folder', id: folder.id })}
-                  onDelete={(folder) => void handleDeleteFolder(folder)}
-                />
-  );
-
-  return (
-    <div className="h-full flex flex-col">
-      <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-b border-gray-100">
-        <nav className="file-breadcrumb flex min-w-0 flex-wrap items-center gap-1.5 text-sm" aria-label={t('files.breadcrumbAria')}>
-          <button
-            onClick={() => setCurrentFolder(null)}
-            aria-label={t('files.root')}
-            className={`flex shrink-0 items-center gap-1 rounded px-1 py-0.5 transition-colors ${
-              currentFolderId === null
-                ? 'font-medium text-blue-600'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <Home size={14} />
-            <span className="hidden sm:inline">{t('files.root')}</span>
-          </button>
-          {path.map((folder) => (
-            <span key={folder.id} className="flex min-w-0 items-center gap-1.5">
-              <ChevronRight size={14} className="shrink-0 text-gray-300" />
-              <button
-                onClick={() => setCurrentFolder(folder.id)}
-                className={`truncate rounded px-1 py-0.5 transition-colors ${
-                  folder.id === currentFolderId
-                    ? 'font-medium text-blue-600'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                {folder.name}
-              </button>
-            </span>
-          ))}
-        </nav>
-        <div className="flex min-w-0 flex-wrap gap-2">
-          <button className="ui-button compact-folders-trigger" onClick={() => setFolderDrawerOpen(true)} aria-label={t('shell.expandFolders')}><FolderOpen size={18} aria-hidden="true" />{t('shell.folders')}</button>
-          <button
-            onClick={() => setPromptTarget({ mode: 'create', parentId: currentFolderId })}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 transition-colors hover:bg-gray-50"
-          >
-            <FolderPlus size={16} />
-            {t('files.newFolder')}
-          </button>
+  const filtered = selectedTagIds.length > 0 || untaggedOnly;
+  return <div className="h-full flex flex-col">
+    <header className="files-header">
+      <h1>{t('tags.filesTitle')}</h1>
+      <div className="flex min-w-0 flex-wrap gap-2">
           <button
             onClick={() => setYoutubeDialogOpen(true)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 transition-colors hover:bg-gray-50"
@@ -382,191 +195,26 @@ export default function FilesPage() {
             )}
           </div>
         </div>
-      </div>
+      </header>
+      <TagFilterBar onManage={() => setManagerOpen(true)} />
 
       <AnalysisModelPicker />
-
       {youtubeDialogOpen && <YouTubeDialog onClose={() => setYoutubeDialogOpen(false)} />}
-
-      {moveTarget && (
-        <MoveToFolderDialog
-          title={
-            moveTarget.kind === 'file'
-              ? t('files.moveFileTitle')
-              : t('files.moveFolderTitle')
-          }
-          folders={folders}
-          excludeFolderId={moveTarget.kind === 'folder' ? moveTarget.id : null}
-          onSelect={(targetId) => {
-            const target = moveTarget;
-            setMoveTarget(null);
-            if (target.kind === 'file') {
-              void moveFile(target.id, targetId);
-            } else {
-              void moveFolder(target.id, targetId);
-            }
-          }}
-          onCancel={() => setMoveTarget(null)}
-        />
-      )}
-
-      {promptTarget && (
-        <PromptDialog
-          title={promptTarget.mode === 'create' ? t('folders.newTitle') : t('folders.renameTitle')}
-          placeholder={t('folders.namePlaceholder')}
-          initial={promptTarget.folder?.name ?? ''}
-          confirmLabel={t(promptTarget.mode === 'create' ? 'folders.create' : 'folders.rename')}
-          onConfirm={async (value) => {
-            const target = promptTarget;
-            let saved = false;
-            if (target.mode === 'create') {
-              saved = await createFolder(value, target.parentId);
-            } else if (target.folder) {
-              saved = await renameFolder(target.folder.id, value);
-            }
-            if (saved) setPromptTarget(null);
-            return saved;
-          }}
-          onCancel={() => setPromptTarget(null)}
-        />
-      )}
-
-      {pendingImport && (
-        pendingImport.parsed === null || pendingImport.language === null ? (
-          <ImportLanguageDialog
-            fileName={pendingImport.name}
-            defaultLanguage={globalLanguage}
-            onConfirm={setImportLanguage}
-            onCancel={cancelImport}
-          />
-        ) : <ImportPreview
-          fileName={pendingImport.name}
-          segmentCount={pendingImport.parsed.segments.length}
-          wordCount={pendingImport.parsed.lemmas.length}
-          language={pendingImport.language}
-          replaceFileName={pendingImport.replaceFileName}
-          targetFolder={currentFolderId === null ? t('files.root') : path.map((item) => item.name).join(' / ') || t('files.root')}
-          preview={pendingImport.parsed.segments.slice(0, 8).map((segment) => ({
-            en: segment.en_text,
-            zh: segment.zh_text,
-          }))}
-          busy={confirming}
-          onConfirm={confirmImport}
-          onCancel={cancelImport}
-        />
-      )}
-
-      {folderDrawerOpen && <Overlay variant="sheet" label={t('shell.folders')} onClose={() => setFolderDrawerOpen(false)} className="folder-drawer">
-        <div className="action-sheet__header"><h2>{t('shell.folders')}</h2><button className="ui-button" onClick={() => setFolderDrawerOpen(false)}>{t('common.close')}</button></div>
-        {renderFolderTree()}
-      </Overlay>}
-      <div className="flex min-h-0 flex-1">
-        <aside
-          className={`file-folder-sidebar shrink-0 border-r border-gray-100 ${treeOpen ? 'w-52' : 'w-9'}`}
-        >
-          {treeOpen ? (
-            <div className="flex min-h-0 flex-1 flex-col">
-              <div className="flex shrink-0 items-center justify-between px-3 py-2">
-                <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                  {t('files.folders')}
-                </span>
-                <button
-                  onClick={() => setTreeOpen(false)}
-                  aria-label={t('files.collapseTree')}
-                  className="p-1 text-gray-400 transition-colors hover:text-gray-700"
-                >
-                  <ChevronLeft size={16} />
-                </button>
-              </div>
-              <div className="min-h-0 flex-1">
-                {renderFolderTree()}
-              </div>
-            </div>
-          ) : (
-            <div className="flex w-9 justify-center pt-2">
-              <button
-                onClick={() => setTreeOpen(true)}
-                aria-label={t('files.expandTree')}
-                className="p-1 text-gray-400 transition-colors hover:text-gray-700"
-              >
-                <ChevronRight size={16} />
-              </button>
-            </div>
-          )}
-        </aside>
-
-        <div ref={listRef} className="file-list-container min-w-0 flex-1 overflow-y-auto p-4 md:p-6">
-          {loading ? (
-            <div className="file-grid">
-              {Array.from({ length: 6 }).map((_, index) => (
-                <div key={index} className="rounded-lg border border-gray-200 p-4">
-                  <div className="flex items-start gap-3">
-                    <Skeleton className="h-8 w-8" />
-                    <div className="flex-1 space-y-2">
-                      <Skeleton className="h-4 w-2/3" />
-                      <Skeleton className="h-3 w-1/2" />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : subfolders.length === 0 && files.length === 0 ? (
-            currentFolderId === null ? (
-              <EmptyState
-                icon="📂"
-                title={t('files.emptyTitle')}
-                description={t('files.emptyDescription')}
-                action={{ label: t('files.emptyAction'), onClick: importFile }}
-              />
-            ) : (
-              <EmptyState
-                icon="📂"
-                title={t('files.emptyFolderTitle')}
-                description={t('files.emptyFolderDescription')}
-                action={{ label: t('files.newFolder'), onClick: () => setPromptTarget({ mode: 'create', parentId: currentFolderId }) }}
-              />
-            )
-          ) : (
-            <div className="space-y-8">
-              {subfolders.length > 0 && (
-                <section>
-                  <div className="file-grid">
-                    {subfolders.map((folder) => (
-                      <FolderCard
-                        key={folder.id}
-                        folder={folder}
-                        drag={drag}
-                        descendantIds={descendantIds}
-                        onSelect={(folderId) => setCurrentFolder(folderId)}
-                        onDragStart={handleDragStart}
-                        onDragEnd={() => setDrag(null)}
-                        onDrop={handleDrop}
-                        onNewSubfolder={(parentId) => setPromptTarget({ mode: 'create', parentId })}
-                        onRename={(item) => setPromptTarget({ mode: 'rename', parentId: null, folder: item })}
-                        onMove={(item) => setMoveTarget({ kind: 'folder', id: item.id })}
-                        onDelete={(item) => void handleDeleteFolder(item)}
-                      />
-                    ))}
-                  </div>
-                </section>
-              )}
-              {files.length > 0 && (
-                <section>
-                  <div className="mb-3 flex items-baseline gap-2">
-                    <h2 className="text-sm font-semibold text-gray-700">
-                      {currentFolderId === null ? t('files.rootFiles') : t('files.folderFiles')}
-                    </h2>
-                    <span className="text-xs text-gray-400">
-                      {t('files.categoryCount', { count: files.length })}
-                    </span>
-                  </div>
-                  {renderFileGrid(files)}
-                </section>
-              )}
-            </div>
-          )}
-        </div>
+      {managerOpen && <TagManager onClose={() => setManagerOpen(false)} />}
+      {editFile && <TagEditDialog file={editFile} onClose={() => setEditFile(null)} />}
+      {pendingImport && (pendingImport.parsed === null || pendingImport.language === null
+        ? <ImportLanguageDialog fileName={pendingImport.name} defaultLanguage={globalLanguage} onConfirm={setImportLanguage} onCancel={cancelImport} />
+        : <ImportPreview fileName={pendingImport.name} segmentCount={pendingImport.parsed.segments.length}
+          wordCount={pendingImport.parsed.lemmas.length} language={pendingImport.language} replaceFileName={pendingImport.replaceFileName}
+          tags={tags} tagSelection={pendingImport.tags} onTagsChange={setImportTags} tagsLoading={loadingTags} tagsError={tagsError} onTagsRetry={() => void loadTags(true)}
+          preview={pendingImport.parsed.segments.slice(0,8).map(segment => ({ en: segment.en_text, zh: segment.zh_text }))}
+          busy={confirming} onConfirm={() => void confirmImport()} onCancel={cancelImport} />)}
+      <div ref={listRef} className="file-list-container min-h-0 min-w-0 flex-1 overflow-y-auto p-4 md:p-6">
+        {loading ? <div className="file-grid">{Array.from({ length: 6 }).map((_, index) => <div key={index} className="file-card p-4"><Skeleton className="h-4 w-2/3" /><Skeleton className="mt-3 h-3 w-1/2" /></div>)}</div>
+          : files.length === 0 ? <EmptyState icon="📂" title={t(filtered ? 'tags.emptyResult' : 'files.emptyTitle')}
+            description={t(filtered ? 'tags.emptyResultHint' : 'files.emptyDescription')}
+            action={filtered ? { label: t('tags.clearFilter'), onClick: () => setTagFilter([]) } : { label: t('files.emptyAction'), onClick: importFile }} />
+          : <section><div className="files-results" role="status"><h2>{t(untaggedOnly ? 'tags.untagged' : filtered ? 'tags.filteredFiles' : 'tags.allFiles')}</h2><span>{t('files.categoryCount', { count: files.length })}</span></div>{renderFileGrid(files)}</section>}
       </div>
-    </div>
-  );
+    </div>;
 }

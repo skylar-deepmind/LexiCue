@@ -22,7 +22,9 @@ pub struct ImportPayload {
     pub phrase_occurrences: Option<Vec<PhraseOccurrenceInput>>,
     pub replace_file_id: Option<i64>,
     #[serde(default)]
-    pub folder_id: Option<i64>,
+    pub tag_ids: Vec<i64>,
+    #[serde(default)]
+    pub new_tag_names: Vec<String>,
     #[serde(default = "default_language")]
     pub language: String,
 }
@@ -369,6 +371,10 @@ pub fn detect_japanese_phrases_in_segments(
 pub fn import_file(state: State<DbState>, payload: ImportPayload) -> Result<i64, String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
 
+    import_payload(&conn, payload)
+}
+
+pub fn import_payload(conn: &rusqlite::Connection, payload: ImportPayload) -> Result<i64, String> {
     conn.execute("BEGIN IMMEDIATE", [])
         .map_err(|e| e.to_string())?;
 
@@ -381,10 +387,11 @@ pub fn import_file(state: State<DbState>, payload: ImportPayload) -> Result<i64,
         }
 
         conn.execute(
-            "INSERT INTO files (name, type, content, content_hash, imported_at, language, folder_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-            params![payload.name, payload.file_type, payload.content, payload.content_hash, now, payload.language, payload.folder_id],
+            "INSERT INTO files (name, type, content, content_hash, imported_at, language) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![payload.name, payload.file_type, payload.content, payload.content_hash, now, payload.language],
         ).map_err(|e| e.to_string())?;
         let file_id = conn.last_insert_rowid();
+        super::tags::replace_file_tags(&conn, file_id, &payload.tag_ids, &payload.new_tag_names)?;
 
         {
             let mut stmt = conn

@@ -1,4 +1,4 @@
-import { Trash2, FolderInput, Copy, Download, FileText, Captions, Brain, Check, TriangleAlert } from 'lucide-react';
+import { Trash2, Tags, Copy, Download, FileText, Captions, Brain, Check, TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
 import LearningProgressRing from './LearningProgressRing';
 import PhraseAnalysisActions from './PhraseAnalysisActions';
@@ -13,12 +13,11 @@ import type { DeleteJobStatus } from '../stores/fileStore';
 
 interface FileCardProps {
   file: FileRecord;
-  folderPath?: string;
   onDelete: (id: number) => void;
   onAnalyze: (id: number, forceRefresh?: boolean) => void;
   onCancel: (id: number) => void;
   onViewAnalysis?: (id: number) => void;
-  onMove: (file: FileRecord) => void;
+  onEditTags: (file: FileRecord) => void;
   aiEnabled: boolean;
   analysisProgress?: {
     status: 'processing' | 'completed' | 'error';
@@ -36,7 +35,7 @@ interface FileCardProps {
   onClick: () => void;
 }
 
-export default function FileCard({ file, folderPath, onDelete, onAnalyze, onCancel, onViewAnalysis, onMove, aiEnabled, analysisProgress, analysisCompleted, interrupted = false, diagnostic, retrying, deleteProgress, onClick }: FileCardProps) {
+export default function FileCard({ file, onDelete, onAnalyze, onCancel, onViewAnalysis, onEditTags, aiEnabled, analysisProgress, analysisCompleted, interrupted = false, diagnostic, retrying, deleteProgress, onClick }: FileCardProps) {
   const { t, i18n } = useTranslation();
   const [diagnosticNotice, setDiagnosticNotice] = useState('');
   const [diagnosticBusy, setDiagnosticBusy] = useState(false);
@@ -96,13 +95,14 @@ export default function FileCard({ file, folderPath, onDelete, onAnalyze, onCanc
             <span className="file-card__metadata">
               <span>{file.type.toUpperCase()}</span><span>{t('fileCard.segments', { count: file.segment_count })}</span><span>{date}</span>
             </span>
-            {folderPath && <span className="file-card__folder" title={folderPath}>
-              <FolderInput size={12} aria-hidden="true" /><span>{folderPath}</span>
-            </span>}
           </span>
           <span className="ui-tooltip" role="tooltip">{file.name}</span>
         </button>
       </h3>
+
+      {file.tags.length > 0 && <div className="file-card__tags" aria-label={t('tags.fileTags')}>
+        {file.tags.map(tag => <span key={tag.id} className="file-tag">{tag.name}</span>)}
+      </div>}
 
       <div className="file-card__footer" onClick={event => event.stopPropagation()}>
         <div className="file-card__progress">
@@ -113,9 +113,9 @@ export default function FileCard({ file, folderPath, onDelete, onAnalyze, onCanc
           </div>
         </div>
         <div className="file-card__actions">
-          <button type="button" onClick={() => onMove(file)} className="ui-button ui-button--icon"
-            aria-label={t('fileCard.moveAria', { name: file.name })} title={t('fileCard.moveTitle')}>
-            <FolderInput size={20} aria-hidden="true" />
+          <button type="button" onClick={() => onEditTags(file)} className="ui-button ui-button--icon"
+            aria-label={t('tags.editNamed', { name: file.name })} title={t('tags.edit')}>
+            <Tags size={20} aria-hidden="true" />
           </button>
           <button type="button" onClick={() => onDelete(file.id)} disabled={Boolean(deleteProgress)}
             className="ui-button ui-button--icon ui-button--danger"

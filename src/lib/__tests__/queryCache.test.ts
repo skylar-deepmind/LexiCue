@@ -44,4 +44,15 @@ describe('QueryCache', () => {
     expect(cache.isFresh('en')).toBe(false);
     expect(cache.isFresh('de')).toBe(false);
   });
+  it('starts a new request after invalidation and ignores a late stale result', async () => {
+    const cache = new QueryCache<number>();
+    let oldResolve!: (value: number) => void;
+    const old = cache.fetch('tags', () => new Promise(done => { oldResolve = done; }));
+    cache.invalidate();
+    await expect(cache.fetch('tags', async () => 2)).resolves.toBe(2);
+    oldResolve(1);
+    await expect(old).resolves.toBe(1);
+    expect(cache.peek('tags')).toBe(2);
+    expect(cache.isFresh('tags')).toBe(true);
+  });
 });

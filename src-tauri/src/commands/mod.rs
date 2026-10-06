@@ -5,6 +5,7 @@ pub mod dictionary;
 pub mod english;
 pub mod export;
 pub mod files;
+pub mod tags;
 pub mod frequency_baseline;
 pub mod german;
 pub mod import;

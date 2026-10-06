@@ -13,7 +13,7 @@ export interface FileRecord {
   phrase_analysis_at: number | null;
   phrase_skipped_items: number;
   language: Language;
-  folder_id: number | null;
+  tags: TagInfo[];
   word_progress: LearningProgress;
   phrase_progress: LearningProgress;
 }
@@ -26,12 +26,15 @@ export interface LearningProgress {
   ignored: number;
 }
 
-export interface FolderInfo {
+export interface TagInfo {
   id: number;
   name: string;
-  parent_id: number | null;
   created_at: number;
-  file_count: number;
+}
+
+export interface TagSelection {
+  tagIds: number[];
+  newTagNames: string[];
 }
 
 export interface Segment {
@@ -165,7 +168,8 @@ export interface ImportPayload {
   occurrences: OccurrenceInput[];
   phrase_occurrences?: PhraseOccurrenceInput[];
   replace_file_id?: number;
-  folder_id?: number | null;
+  tag_ids: number[];
+  new_tag_names: string[];
   language: Language;
 }
 
@@ -272,6 +276,11 @@ export interface BackupPayload {
   app_version: string;
   data: {
     files: Record<string, unknown>[];
+    tags?: Record<string, unknown>[];
+    file_tags?: Record<string, unknown>[];
+    legacy_tag_folders?: Record<string, unknown>[];
+    file_tag_state?: Record<string, unknown>[];
+    folders?: Record<string, unknown>[];
     segments: Record<string, unknown>[];
     words: Record<string, unknown>[];
     occurrences: Record<string, unknown>[];

@@ -18,7 +18,7 @@ async function fixture(page, theme, uiLanguage = 'en', failed = false) {
     const words = Array.from({length:100}, (_,i) => ({...word,id:i+1,lemma:i ? `vocabulary${String(i).padStart(3,'0')}` : 'curiosity'}));
     const phrases = Array.from({length:100}, (_,i) => ({id:i+1,text:`phrase ${i+1}`, language:'en',status:'unprocessed',definition:null,frequency:5,category:'fixed_expression',unverified:false}));
     const progress = {total:100,unprocessed:100,learning:0,known:0,ignored:0};
-    const file = {id:1,name:'Reader fixture',type:'txt',language:'en',folder_id:null,imported_at:1,segment_count:24,phrase_analyzed:true,phrase_analysis_at:null,phrase_skipped_items:0,word_progress:progress,phrase_progress:progress};
+    const file = {id:1,name:'Reader fixture',type:'txt',language:'en',tags:[],imported_at:1,segment_count:24,phrase_analyzed:true,phrase_analysis_at:null,phrase_skipped_items:0,word_progress:progress,phrase_progress:progress};
     const text = "😀 Let's Curiosity picked it up; novelty, unseen. novelty.";
     const tokens = Array.from(text.matchAll(/[A-Za-z]+(?:['’][A-Za-z]+)*/g), m => ({segment_index:0,language:'en',surface:m[0],lemma:m[0].toLowerCase()==='picked'?'pick':m[0].toLowerCase(),start:m.index,end:m.index+m[0].length,legacy_position:text.slice(0,m.index).trim().split(/\s+/).length,builtin_position:text.slice(0,m.index).replace(/[.,!?;:()[\]{}"'`«»–—…@#$%^&*+=<>/\\|~]/g,' ').replace(/--/g,' ').trim().split(/\s+/).length,word_id:m[0]==='Curiosity'?1:null,status:m[0]==='Curiosity'?'unprocessed':null}));
     let state = failed ? 'failed' : 'ready';

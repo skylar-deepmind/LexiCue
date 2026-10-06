@@ -6,7 +6,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import EmptyState from '../components/EmptyState';
 import ReadingPage from './ReadingPage';
-import { useFileStore } from '../stores/fileStore';
 import type { FileRecord } from '../lib/types';
 
 export default function FileDetailPage() {
@@ -44,7 +43,6 @@ export default function FileDetailPage() {
   }, [fileId, revision]);
 
   useEffect(() => backNavigation.setPage(() => {
-    if (file) useFileStore.getState().setCurrentFolder(file.folder_id);
     navigate('/files'); return true;
   }, 10), [file, navigate]);
 

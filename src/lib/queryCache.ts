@@ -25,16 +25,19 @@ export class QueryCache<T> {
   }
 
   prime(key: string, value: T): void {
+    this.pending.delete(key);
     this.entries.delete(key);
     this.entries.set(key, { value, stale: false });
   }
 
   invalidate(key?: string): void {
     if (key !== undefined) {
+      this.pending.delete(key);
       const entry = this.entries.get(key);
       if (entry) entry.stale = true;
       return;
     }
+    this.pending.clear();
     for (const entry of this.entries.values()) entry.stale = true;
   }
 
@@ -46,6 +49,7 @@ export class QueryCache<T> {
     if (running) return running;
 
     const request = loader().then((value) => {
+      if (this.pending.get(key) !== request) return value;
       this.entries.delete(key);
       this.entries.set(key, { value, stale: false });
       while (this.entries.size > this.maxEntries) {
@@ -55,7 +59,7 @@ export class QueryCache<T> {
       }
       return value;
     }).finally(() => {
-      this.pending.delete(key);
+      if (this.pending.get(key) === request) this.pending.delete(key);
     });
     this.pending.set(key, request);
     return request;

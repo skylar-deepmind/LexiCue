@@ -24,7 +24,7 @@ export default function ToastHost() {
             className={`pointer-events-auto flex items-start gap-2.5 rounded-lg border px-3 py-2.5 text-sm shadow-lg ${style.container}`}
           >
             <Icon size={17} className={`mt-0.5 shrink-0 ${style.iconColor}`} />
-            <span className="flex-1 break-words">{item.message}</span>
+            <div className="flex-1 break-words">{item.message}{item.action && <button type="button" className="ui-button toast-action" onClick={() => { item.action?.onClick(); dismiss(item.id); }}>{item.action.label}</button>}</div>
             {item.type === 'error' && (
               <button
                 onClick={() => navigator.clipboard.writeText(item.message)}

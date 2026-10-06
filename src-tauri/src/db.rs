@@ -35,10 +35,12 @@ pub fn init_db(db_path: &Path) -> Result<Connection, rusqlite::Error> {
     CREATE INDEX IF NOT EXISTS phrase_analysis_cache_expiry ON phrase_analysis_cache(expires_at);
     CREATE INDEX IF NOT EXISTS phrase_analysis_cache_lru ON phrase_analysis_cache(last_used_at);
     DELETE FROM phrase_analysis_cache WHERE stage='explanation' OR expires_at <= CAST(strftime('%s','now') AS INTEGER)*1000;")?;
+    crate::commands::tags::create_tables(&conn)?;
     create_sync_tracking(&conn)?;
     migrate_legacy_constraints(&conn)?;
     backfill_phrase_provider(&conn)?;
     migrate_file_folder(&conn)?;
+    crate::commands::tags::migrate_legacy(&conn).map_err(|e| rusqlite::Error::InvalidParameterName(e))?;
     migrate_occurrence_hidden(&conn)?;
     migrate_review_log_schedule(&conn)?;
     migrate_english_learning(&conn)?;
@@ -177,13 +179,17 @@ fn create_sync_tracking(conn: &Connection) -> Result<(), rusqlite::Error> {
     // large subtitle import from becoming tens of thousands of HTTP records.
     // Dictionary caches and local device configuration remain device-local.
     for (table, key) in [
-        ("folders", "id"),
+        ("tags", "id"),
+        ("file_tags", "id"),
         ("files", "id"),
         ("words", "id"),
         ("review_logs", "id"),
         ("phrases", "id"),
         ("phrase_review_logs", "id"),
     ] {
+        let identity = if table == "file_tags" {
+            "'ft-' || (SELECT sync_id FROM sync_entity_state WHERE table_name='files' AND local_id=NEW.file_id) || '-' || (SELECT sync_id FROM sync_entity_state WHERE table_name='tags' AND local_id=NEW.tag_id)"
+        } else { "lower(hex(randomblob(16)))" };
         let trigger = format!(
             "DROP TRIGGER IF EXISTS sync_{table}_insert;
             DROP TRIGGER IF EXISTS sync_{table}_update;
@@ -191,8 +197,8 @@ fn create_sync_tracking(conn: &Connection) -> Result<(), rusqlite::Error> {
             CREATE TRIGGER sync_{table}_insert AFTER INSERT ON {table}
               WHEN COALESCE((SELECT value FROM sync_runtime WHERE key='applying'),'0') <> '1' BEGIN
                 INSERT INTO sync_entity_state(table_name,local_id,sync_id,updated_at,deleted_at)
-                  VALUES ('{table}', NEW.{key}, lower(hex(randomblob(16))), CAST(strftime('%s','now') AS INTEGER)*1000, NULL)
-                  ON CONFLICT(table_name,local_id) DO UPDATE SET deleted_at=NULL, updated_at=excluded.updated_at;
+                  VALUES ('{table}', NEW.{key}, {identity}, CAST(strftime('%s','now') AS INTEGER)*1000, NULL)
+                  ON CONFLICT DO UPDATE SET local_id=excluded.local_id,deleted_at=NULL,updated_at=excluded.updated_at;
                 INSERT INTO sync_changes(table_name,sync_id,operation,changed_at)
                   SELECT '{table}',sync_id,'upsert',CAST(strftime('%s','now') AS INTEGER)*1000 FROM sync_entity_state WHERE table_name='{table}' AND local_id=NEW.{key};
             END;
@@ -216,10 +222,12 @@ fn create_sync_tracking(conn: &Connection) -> Result<(), rusqlite::Error> {
         ))?;
     }
 
+    conn.execute("DELETE FROM sync_changes WHERE table_name='folders' AND uploaded_at IS NULL", [])?;
     // Remove the pre-snapshot triggers during upgrade. Their old state rows
     // are harmless and are retained so older encrypted records can still be
     // read, but new local work must never recreate row-level upload queues.
     for table in [
+        "folders",
         "segments",
         "occurrences",
         "phrase_occurrences",
@@ -394,7 +402,7 @@ fn create_sync_tracking(conn: &Connection) -> Result<(), rusqlite::Error> {
             "INSERT INTO sync_changes(table_name,sync_id,operation,changed_at)
              SELECT table_name,sync_id,CASE WHEN deleted_at IS NULL THEN 'upsert' ELSE 'delete' END,?1
              FROM sync_entity_state
-             WHERE table_name IN ('folders','files','words','phrases','review_logs','phrase_review_logs')",
+             WHERE table_name IN ('tags','file_tags','files','words','phrases','review_logs','phrase_review_logs')",
             [now_ms_for_sync_tracking()],
         )?;
         conn.execute(

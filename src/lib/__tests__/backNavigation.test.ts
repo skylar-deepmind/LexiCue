@@ -34,7 +34,7 @@ describe('Back ownership', () => {
     release(); back.register(() => { throw new Error('save failed'); });
     expect(back.back()).toBe(true); expect(page).not.toHaveBeenCalled();
   });
-  it('lets the page own folder/file Back, independent of parent effect order', () => {
+  it('lets the page own reader Back, independent of parent effect order', () => {
     const back = new BackNavigation();
     const file = vi.fn(() => true), shell = vi.fn(() => false);
     const releaseFile = back.setPage(file, 10);

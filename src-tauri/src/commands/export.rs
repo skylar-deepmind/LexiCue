@@ -16,6 +16,14 @@ pub struct BackupData {
     pub files: Vec<serde_json::Value>,
     #[serde(default)]
     pub folders: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub tags: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub file_tags: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub legacy_tag_folders: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub file_tag_state: Vec<serde_json::Value>,
     pub segments: Vec<serde_json::Value>,
     pub words: Vec<serde_json::Value>,
     #[serde(default)]
@@ -167,12 +175,16 @@ pub fn backup_payload(conn: &rusqlite::Connection) -> Result<BackupPayload, Stri
     let file_phrase_analysis = query_all(conn, "file_phrase_analysis")?;
 
     Ok(BackupPayload {
-        schema_version: 7,
+        schema_version: 8,
         exported_at: now_ms(),
         app_version: env!("CARGO_PKG_VERSION").to_string(),
         data: BackupData {
             files,
             folders,
+            tags: query_all(conn, "tags")?,
+            file_tags: query_all(conn, "file_tags")?,
+            legacy_tag_folders: query_all(conn, "legacy_tag_folders")?,
+            file_tag_state: query_all(conn, "file_tag_state")?,
             segments,
             words,
             word_aliases,
@@ -208,6 +220,7 @@ pub fn restore_backup(conn: &rusqlite::Connection, backup: &BackupPayload) -> Re
         && backup.schema_version != 5
         && backup.schema_version != 6
         && backup.schema_version != 7
+        && backup.schema_version != 8
     {
         return Err(format!(
             "Unsupported backup schema version: {}",
@@ -219,6 +232,7 @@ pub fn restore_backup(conn: &rusqlite::Connection, backup: &BackupPayload) -> Re
         .map_err(|e| e.to_string())?;
 
     let result = (|| -> Result<(), String> {
+        conn.execute_batch("DELETE FROM legacy_tag_folders; DELETE FROM file_tags; DELETE FROM file_tag_state; DELETE FROM tags;").map_err(|e| e.to_string())?;
         conn.execute("DELETE FROM annotation_actions", []).map_err(|e| e.to_string())?;
         conn.execute("DELETE FROM phrase_review_logs", [])
             .map_err(|e| e.to_string())?;
@@ -255,6 +269,12 @@ pub fn restore_backup(conn: &rusqlite::Connection, backup: &BackupPayload) -> Re
 
         insert_from_json(conn, "files", &backup.data.files)?;
         insert_from_json(conn, "folders", &backup.data.folders)?;
+        insert_from_json(conn, "tags", &backup.data.tags)?;
+        insert_from_json(conn, "file_tags", &backup.data.file_tags)?;
+        insert_from_json(conn, "legacy_tag_folders", &backup.data.legacy_tag_folders)?;
+        insert_from_json(conn, "file_tag_state", &backup.data.file_tag_state)?;
+        if backup.schema_version < 8 { super::tags::migrate_legacy(conn)?; }
+        else { conn.execute("INSERT OR IGNORE INTO file_tag_state(file_id) SELECT id FROM files", []).map_err(|e| e.to_string())?; }
         insert_from_json(conn, "words", &backup.data.words)?;
         insert_from_json(conn, "word_aliases", &backup.data.word_aliases)?;
         insert_from_json(conn, "segments", &backup.data.segments)?;
@@ -340,7 +360,7 @@ mod english_learning_tests {
         source.execute("INSERT INTO phrase_dictionary_entries(language,text,translation,provider,updated_at,other_senses_json,other_senses_edited) VALUES('en','pick up','拾起','test-model',1,'[{\"meaning_zh\":\"学会\",\"example_en\":\"She picked it up quickly.\"}]',1)", []).unwrap();
         source.execute("INSERT INTO file_phrase_analysis(file_id,model,completed_at,pipeline_version) VALUES(?1,'test-model',1,2)", [file_id]).unwrap();
         let backup = backup_payload(&source).unwrap();
-        assert_eq!(backup.schema_version, 7);
+        assert_eq!(backup.schema_version, 8);
 
         let target_file = tempfile::NamedTempFile::new().unwrap();
         let target = crate::db::init_db(target_file.path()).unwrap();

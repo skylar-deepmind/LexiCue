@@ -19,10 +19,9 @@ async function fixture(page, theme = 'ocean', language = 'zh', hasDueCards = fal
     localStorage.setItem('lexicue-frequency-baseline-intro-seen', 'true');
     if (!localStorage.getItem('lexicue-preferences')) localStorage.setItem('lexicue-preferences', JSON.stringify({ state: { uiLanguage: language, annotationModes: { word: 'batch', phrase: 'batch' } }, version: 0 }));
     const progress = { total: 10, unprocessed: 4, learning: 3, known: 3, ignored: 0 };
-    const files = Array.from({ length: 26 }, (_, n) => ({ id: n + 1, name: `Reading ${n + 1} — a story about language`, type: n % 2 ? 'srt' : 'txt', imported_at: Date.now(), segment_count: 24, phrase_analyzed: n % 3 === 1, phrase_analysis_at: null, phrase_skipped_items: 0, language: 'en', folder_id: null, word_progress: progress, phrase_progress: { ...progress, total: 0, unprocessed: 0, learning: 0, known: 0 } }));
+    const files = Array.from({ length: 26 }, (_, n) => ({ id: n + 1, name: `Reading ${n + 1} — a story about language`, type: n % 2 ? 'srt' : 'txt', imported_at: Date.now(), segment_count: 24, phrase_analyzed: n % 3 === 1, phrase_analysis_at: null, phrase_skipped_items: 0, language: 'en', tags: [], word_progress: progress, phrase_progress: { ...progress, total: 0, unprocessed: 0, learning: 0, known: 0 } }));
     const word = { id: 1, lemma: 'curiosity', status: 'unprocessed', definition: 'A desire to learn.', frequency: 12, language: 'en', reading: null, part_of_speech: 'noun', word_kind: 'common', search_aliases: [] };
     const phrase = { id: 1, text: 'make sense', status: 'unprocessed', definition: 'Be understandable.', frequency: 6, language: 'en', category: 'fixed_expression' };
-    const folders = [{ id: 1, name: 'Stories', parent_id: null, created_at: 1, file_count: 1 }, { id: 2, name: 'Short stories', parent_id: 1, created_at: 1, file_count: 1 }];
     window.__uiCalls = [];
     window.__uiFailSave = false;
     window.__uiHasDueCards = hasDueCards;
@@ -36,8 +35,8 @@ async function fixture(page, theme = 'ocean', language = 'zh', hasDueCards = fal
         if (command === 'plugin:event|listen') return 1;
         if (command === 'plugin:app|version') return '0.4.2';
         if (command === 'plugin:dialog|ask') return true;
-        if (command === 'list_files') return args.folderId == null ? files : [{ ...files[0], id: 100 + args.folderId, folder_id: args.folderId }];
-        if (command === 'list_folders') return folders;
+        if (command === 'list_files') return files;
+        if (command === 'list_tags') return [];
         if (command === 'list_words') return [{ ...word }];
         if (command === 'list_phrases') return [{ ...phrase }];
         if (command === 'word_detail') return { word: { ...word }, occurrences: [] };
@@ -50,7 +49,7 @@ async function fixture(page, theme = 'ocean', language = 'zh', hasDueCards = fal
           return null;
         }
         if (command === 'lookup_dictionary' || command === 'lookup_phrase_dictionary' || command === 'lookup_online_dictionary') throw new Error('fixture dictionary unavailable');
-        if (command === 'get_file_info') return args.fileId > 100 ? { ...files[0], id: args.fileId, folder_id: args.fileId - 100 } : files.find(file => file.id === args.fileId) || files[0];
+        if (command === 'get_file_info') return files.find(file => file.id === args.fileId) || files[0];
         if (command === 'get_file_segments') return Array.from({ length: 24 }, (_, index) => ({ id: index + 1, index_num: index, en_text: 'Curiosity makes learning a joyful daily habit.', zh_text: '好奇心让学习成为快乐的日常习惯。', start_time: null, end_time: null }));
         if (command === 'get_due_cards') return window.__uiHasDueCards ? [{ word_id: 1, lemma: 'curiosity', definition: 'A desire to learn.', language: 'en', reading: null, part_of_speech: 'noun', stability: 1, difficulty: 5, elapsed_days: 0, scheduled_days: 1, reps: 1, lapses: 0, state: 2, baseline_pending: false, occurrences: [] }] : [];
         if (command === 'get_due_phrase_cards') return [];
