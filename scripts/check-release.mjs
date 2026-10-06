@@ -78,6 +78,7 @@ run(npm, ['ci']);
 if (!args.includes('--android-only')) {
   run(npm, ['run', 'lint']);
   run(npm, ['test']);
+  run(npm, ['run', 'prepare:gemma']);
   run(npm, ['run', 'build']);
   run('cargo', ['test', '--lib', '--locked'], join(root, 'src-tauri'));
   run(npm, ['run', 'tauri', 'build', '--', '--no-bundle', '--config', '{"build":{"beforeBuildCommand":""}}']);

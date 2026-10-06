@@ -11,7 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useFileStore } from '../stores/fileStore';
 import { useUpdateStore } from '../stores/updateStore';
-import { DEFAULT_OLLAMA_URL, OPENAI_PRESETS, useAiStore, type AiProvider } from '../stores/aiStore';
+import { OPENAI_PRESETS, useAiStore, type AiProvider } from '../stores/aiStore';
 import type { DictionarySource } from '../lib/types';
 import { useTheme } from '../components/useTheme';
 import { THEMES } from '../lib/themes';
@@ -23,7 +23,7 @@ import { registerCacheInvalidator } from '../lib/cacheInvalidation';
 import FrequencyBaselineSettings from '../components/FrequencyBaselineSettings';
 import SettingsCollapsibleSection from '../components/SettingsCollapsibleSection';
 import CloudSyncSettings from '../components/CloudSyncSettings';
-import { checkAiConnection, ensureAiConnection, getAiConnectionFingerprint } from '../lib/ai';
+import { checkAiConnection, ensureAiConnection, getAiConnectionFingerprint, aiModelLabel } from '../lib/ai';
 
 import GemmaModelManager from '../components/GemmaModelManager';
 
@@ -213,7 +213,7 @@ export default function SettingsPage() {
   useEffect(() => {
     const fingerprint = getAiConnectionFingerprint({
       provider: aiProvider,
-      baseUrl: aiBaseUrl.trim() || (aiProvider === 'ollama' ? DEFAULT_OLLAMA_URL : ''),
+      baseUrl: aiProvider === 'gemma' ? undefined : aiBaseUrl.trim(),
       model: aiModel,
       apiKey: aiApiKey,
     });
@@ -319,7 +319,7 @@ export default function SettingsPage() {
           icon={<span className="rounded-xl bg-purple-50 p-2 text-purple-600"><Brain size={20} /></span>}
           title={t('settings.ai.title')}
           description={t('settings.ai.description')}
-          summary={aiEnabled ? t('settings.ai.summaryEnabled', { provider: aiProvider === 'ollama' ? t('settings.ai.providerLocal') : t('settings.ai.providerCloud') }) : t('settings.ai.summaryDisabled')}
+          summary={aiEnabled ? t('settings.ai.summaryEnabled', { provider: aiProvider === 'gemma' ? t('settings.ai.providerLocal') : t('settings.ai.providerCloud') }) : t('settings.ai.summaryDisabled')}
           open={aiOpen}
           onOpenChange={setAiOpen}
           expandLabel={t('settings.expand')}
@@ -341,30 +341,24 @@ export default function SettingsPage() {
           {aiEnabled ? (
             <div className="mt-4 space-y-3">
               <div className="flex gap-2">
-                {(['ollama', 'openai'] as AiProvider[]).map((provider) => (
+                {(['gemma', 'openai'] as AiProvider[]).map((provider) => (
                   <button
                     key={provider}
                     type="button"
                     onClick={() => switchProvider(provider)}
-                    className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${aiProvider === provider ? 'border-purple-300 bg-purple-50 text-purple-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                    aria-pressed={aiProvider === provider}
+                    className={`gemma-button${aiProvider === provider ? ' ai-provider--selected' : ''}`}
                   >
-                    {provider === 'ollama' ? t('settings.ai.providerLocal') : t('settings.ai.providerCloud')}
+                    {provider === 'gemma' ? t('settings.ai.providerLocal') : t('settings.ai.providerCloud')}
                   </button>
                 ))}
               </div>
 
-              {aiProvider === 'ollama' ? (
-                <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
-                  <input
-                    value={aiBaseUrl}
-                    onChange={(event) => setAiBaseUrl(event.target.value)}
-                    placeholder={DEFAULT_OLLAMA_URL}
-                    aria-label={t('settings.ai.ollamaUrlAria')}
-                    className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200"
-                  />
+              {aiProvider === 'gemma' ? (
+                <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
                   <AppSelect value={aiModel} onChange={setAiModel} searchable
-                    aria-label={t('settings.ai.ollamaModelAria')}
-                    options={[...new Set(aiModel ? [aiModel, ...aiModels] : aiModels)].map(model => ({ value: model, label: model }))}
+                    aria-label={t('settings.ai.gemmaModelAria')}
+                    options={[...new Set(aiModel ? [aiModel, ...aiModels] : aiModels)].map(model => ({ value: model, label: aiModelLabel(model) }))}
                     placeholder={t('settings.ai.selectModel')} />
                   <button
                     onClick={() => void checkAiConnection()}
@@ -426,7 +420,7 @@ export default function SettingsPage() {
                   </div>
                   <AppSelect value={aiModel} onChange={setAiModel} searchable
                     aria-label={t('settings.ai.cloudModelAria')}
-                    options={[...new Set(aiModel ? [aiModel, ...aiModels] : aiModels)].map(model => ({ value: model, label: model }))}
+                    options={[...new Set(aiModel ? [aiModel, ...aiModels] : aiModels)].map(model => ({ value: model, label: aiModelLabel(model) }))}
                     placeholder={t('settings.ai.selectModel')} />
                 </div>
               )}
@@ -438,7 +432,7 @@ export default function SettingsPage() {
                 </span>
               </div>
               {aiError && <p className="break-all text-xs text-red-600">{aiError}</p>}
-              {(aiProvider === 'ollama' || location.hash === '#ai-models') && <GemmaModelManager />}
+              {(aiProvider === 'gemma' || location.hash === '#ai-models') && <GemmaModelManager />}
             </div>
           ) : (
             <p className="mt-4 rounded-lg bg-gray-50 px-4 py-3 text-sm text-gray-500">{t('settings.ai.disabledHint')}</p>

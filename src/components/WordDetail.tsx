@@ -9,7 +9,7 @@ import OccurrenceText from './OccurrenceText';
 import Pagination from './Pagination';
 import DisplaySettingsMenu from './DisplaySettingsMenu';
 import { usePreferencesStore } from '../stores/preferencesStore';
-import { useDictionaryStore } from '../stores/dictionaryStore';
+import { dictionaryLanguageState, useDictionaryStore } from '../stores/dictionaryStore';
 import { CONTENT_FONT_CLASS } from '../lib/contentTypography';
 import { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
@@ -30,12 +30,13 @@ export default function WordDetailPanel({ detail, onClose, onStatusChange, onDef
   const learningTextFontSize = usePreferencesStore((state) => state.learningTextFontSize);
   const definitionFontSize = usePreferencesStore((state) => state.definitionFontSize);
   const auxiliaryFontSize = usePreferencesStore((state) => state.auxiliaryFontSize);
-  const dictionaryReady = useDictionaryStore((state) => state.ready);
+  const dictionaryReady = useDictionaryStore((state) => dictionaryLanguageState(state, detail.word.language));
   const [definition, setDefinition] = useState(detail.word.definition ?? '');
   const [dictionary, setDictionary] = useState<DictionaryEntry | null>(null);
   const [onlineDictionary, setOnlineDictionary] = useState<DictionaryEntry | null>(null);
   const [dictionaryLoading, setDictionaryLoading] = useState(false);
   const [dictionaryError, setDictionaryError] = useState(false);
+  const [dictionaryReason, setDictionaryReason] = useState('');
   const [localDictionaryState, setLocalDictionaryState] = useState<'idle' | 'loading' | 'hit' | 'missing' | 'unavailable'>('idle');
   const [onlineDictionaryError, setOnlineDictionaryError] = useState(false);
   const [audioLoading, setAudioLoading] = useState(false);
@@ -132,27 +133,34 @@ export default function WordDetailPanel({ detail, onClose, onStatusChange, onDef
     }
   };
 
+  const dictionaryRequest = useRef(0);
   const loadDictionary = async (refresh = false) => {
+    const request = ++dictionaryRequest.current;
     setDictionaryLoading(true);
     setDictionaryError(false);
+    setDictionaryReason('');
     setOnlineDictionaryError(false);
     try {
       const entry = await invoke<DictionaryEntry>('lookup_dictionary', {
         lemma: detail.word.lemma,
         language: detail.word.language,
         refresh,
+        mode: refresh ? 'online' : 'local',
       });
+      if (request !== dictionaryRequest.current) return;
       if (detail.word.language === 'en') {
         if (entry.provider.startsWith('dictionaryapi.dev')) setOnlineDictionary(entry);
+        else setDictionary(entry);
       } else {
         setDictionary(entry);
       }
     } catch (error) {
+      if (request !== dictionaryRequest.current) return;
       console.error('Failed to load dictionary entry:', error);
-      setDictionaryError(true);
+      setDictionaryError(true); setDictionaryReason(String(error));
       if (detail.word.language === 'en' && dictionary) setOnlineDictionaryError(true);
     } finally {
-      setDictionaryLoading(false);
+      if (request === dictionaryRequest.current) setDictionaryLoading(false);
     }
   };
 
@@ -189,44 +197,31 @@ export default function WordDetailPanel({ detail, onClose, onStatusChange, onDef
 
   useEffect(() => {
     let active = true;
+    dictionaryRequest.current++;
     setDictionary(null);
     setOnlineDictionary(null);
     setDictionaryLoading(true);
     setDictionaryError(false);
+    setDictionaryReason('');
     setOnlineDictionaryError(false);
     setLocalDictionaryState(detail.word.language === 'en' ? 'loading' : 'idle');
     void (async () => {
       try {
-        if (detail.word.language === 'en') {
-          try {
-            const local = await invoke<DictionaryEntry>('lookup_local_dictionary', { lemma: detail.word.lemma });
-            if (active) { setDictionary(local); setLocalDictionaryState('hit'); }
-            try {
-              const online = await invoke<DictionaryEntry>('lookup_dictionary', { lemma: detail.word.lemma, language: 'en', refresh: true });
-              if (active && online.provider.startsWith('dictionaryapi.dev')) setOnlineDictionary(online);
-            } catch (onlineError) {
-              console.info('Online dictionary supplement unavailable:', onlineError);
-              if (active) setOnlineDictionaryError(true);
-            }
-            return;
-          } catch (error) {
-            const message = String(error);
-            if (active) setLocalDictionaryState(message.includes('not installed') ? 'unavailable' : 'missing');
-            if (!message.includes('Collins entry not found:') && !message.includes('Collins index is not installed')) throw error;
-          }
-        }
-        const entry = await invoke<DictionaryEntry>('lookup_dictionary', { lemma: detail.word.lemma, language: detail.word.language, refresh: false });
+        const entry = await invoke<DictionaryEntry>('lookup_dictionary', { lemma: detail.word.lemma, language: detail.word.language, refresh: false, mode: 'local' });
         if (!active) return;
         if (detail.word.language === 'en' && entry.provider.startsWith('dictionaryapi.dev')) setOnlineDictionary(entry);
         else setDictionary(entry);
+        if (active && detail.word.language === 'en') setLocalDictionaryState(entry.provider === 'Collins COBUILD V3' ? 'hit' : 'unavailable');
       } catch (error) {
         console.error('Failed to load dictionary entry:', error);
-        if (active) setDictionaryError(true);
+        if (active) { setDictionaryError(true); setDictionaryReason(String(error)); setLocalDictionaryState('unavailable'); }
       } finally {
         if (active) setDictionaryLoading(false);
       }
     })();
-    return () => { active = false; };
+    // This counter owns asynchronous requests, rather than a DOM node.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => { active = false; dictionaryRequest.current++; };
   }, [detail.word.id, detail.word.lemma, detail.word.language, dictionaryReady]);
 
   const statuses: WordStatus[] = ['unprocessed', 'learning', 'known', 'ignored'];
@@ -308,16 +303,16 @@ export default function WordDetailPanel({ detail, onClose, onStatusChange, onDef
               <button
                 onClick={() => void loadDictionary(true)}
                 disabled={dictionaryLoading}
-                aria-label={t('wordDetail.refreshAria')}
-                className="word-audio-action rounded-md p-1.5 text-gray-500 hover:bg-blue-100"
+                aria-label={t('lookup.online')}
+                className="word-audio-action flex items-center gap-1 rounded-md p-1.5 text-gray-500 hover:bg-blue-100"
               >
-                <RefreshCw size={15} className={dictionaryLoading ? 'animate-spin' : ''} />
+                <RefreshCw size={15} className={dictionaryLoading ? 'animate-spin' : ''} /><span>{t('lookup.online')}</span>
               </button>
             </div>
           </div>
           {dictionaryLoading && <p className="mt-2 text-xs text-gray-400">{dictionary ? t('wordDetail.onlineLoading') : t('wordDetail.loading')}</p>}
           {!dictionaryLoading && dictionaryError && !dictionary && (
-            <p className="mt-2 text-xs text-gray-500">{localDictionaryState === 'missing' ? t('wordDetail.noResults') : localDictionaryState === 'unavailable' ? t('wordDetail.localUnavailable') : t('wordDetail.loadError')}</p>
+            <p className="mt-2 text-xs text-gray-500">{t(dictionaryReason.includes('PREPARING') ? 'lookup.preparing' : dictionaryReason.includes('NOT_FOUND') ? 'lookup.notFound' : 'lookup.failed')}</p>
           )}
           {localDictionaryState === 'missing' && (dictionaryLoading || onlineDictionary) && <p className="mt-2 text-xs text-gray-500">{t('wordDetail.localNoEntry')}</p>}
           {onlineDictionaryError && dictionary && <p className="mt-2 text-xs text-gray-500">{t('wordDetail.onlineFailedLocalKept')}</p>}

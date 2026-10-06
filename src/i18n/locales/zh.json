@@ -208,12 +208,10 @@
     },
     "ai": {
       "title": "AI 功能",
-      "description": "开启后可解释段落并自动识别词组。支持本地 Ollama 或自填云端 API Key。",
+      "description": "开启后可离线使用 Gemma，或使用自填云端 API Key。模型需要单独下载。",
       "toggleAria": "开启 AI 功能",
-      "providerLocal": "本地 Ollama",
+      "providerLocal": "本地 Gemma",
       "providerCloud": "云端 API",
-      "ollamaUrlAria": "Ollama 地址",
-      "ollamaModelAria": "Ollama 模型",
       "selectModel": "选择模型...",
       "connect": "连接并加载模型",
       "connecting": "连接中...",
@@ -230,7 +228,8 @@
       "disabledHint": "AI 功能已关闭，阅读与文件页的 AI 按钮将隐藏。需要时可在此重新开启。",
       "summaryEnabled": "已开启 · {{provider}}",
       "summaryDisabled": "已关闭",
-      "custom": "自定义"
+      "custom": "自定义",
+      "gemmaModelAria": "Gemma 模型"
     },
     "youtube": {
       "title": "YouTube 字幕工具",
@@ -506,7 +505,7 @@
     "selectFile": "选择文件...",
     "hideTranslation": "隐藏翻译",
     "showTranslation": "显示翻译",
-    "hint": "点击单词查看释义 · 右键快速标记",
+    "hint": "点击文字查词 · 长按或右键查看操作",
     "prevSegment": "上一段",
     "nextSegment": "下一段",
     "segmentPosition": "第 {{current}} / {{total}} 段",
@@ -536,7 +535,8 @@
     "emptyContent": "暂无内容",
     "cannotLoadWord": "无法加载单词详情",
     "cannotLoadPhrase": "无法加载词组详情",
-    "definitionSaved": "释义已保存"
+    "definitionSaved": "释义已保存",
+    "cannotLoadFile": "文件加载失败，请重试。"
   },
   "review": {
     "completedTitle": "本次复习完成",
@@ -964,12 +964,10 @@
     "unifiedMemory": "{{size}} 统一内存",
     "memory": "{{size}} 系统内存",
     "environmentError": "无法读取本机环境，请重新检测。",
-    "remote": "服务器配置未知。当前 Ollama 地址不是本机地址，不能根据这台设备推荐或下载模型。",
     "accelerationUnknown": "加速能力尚未确认。系统内存不等于显存，CPU 推理可能较慢。",
     "noRecommendation": "本机信息不足或内存较少，暂不指定首选。可手动选择以下模型。",
-    "memoryHint": "推荐为保守估算。下载大小不等于运行内存；首次加载和长上下文还需要额外内存。",
+    "memoryHint": "默认使用 E2B，E4B 可手动选择。下载大小不等于运行内存；首次加载还需要额外内存。",
     "loadingInstalled": "正在加载已安装模型…",
-    "serviceUnavailable": "无法连接本地 Ollama。请确认服务已启动，然后重新检测。",
     "preferred": "本机首选",
     "installed": "已安装",
     "estimatedSize": "下载约 {{size}}",
@@ -981,16 +979,16 @@
     "hideOther": "收起其他版本",
     "progressTitle": "模型下载进度",
     "layerProgress": "当前层下载进度",
-    "layerBytes": "当前层 {{completed}} / {{total}}",
+    "layerBytes": "{{completed}} / {{total}}",
     "errorDetails": "查看错误详情",
     "nowSelected": "已用于后续分析。运行中的分析继续使用原模型。",
     "cancel": "取消下载",
     "retry": "继续下载",
     "reason": {
-      "preferred": "在当前内存条件下，优先推荐这个版本。",
+      "preferred": "适合先体验本地推理，首次使用前会检查文件和加载结果。",
       "lightweight": "更小的版本，适合比较效果或减少内存占用。",
       "larger": "本机内存允许尝试，实际速度与效果需验证。",
-      "manual": "超出本机保守推荐范围，可手动选择。"
+      "manual": "更高的内存与存储要求，请按设备能力手动选择。"
     },
     "phase": {
       "manifest": "获取模型清单",
@@ -1009,6 +1007,17 @@
       "space": "磁盘空间不足，请释放空间后继续下载。",
       "notFound": "未找到这个模型版本，请重新检测或选择其他版本。",
       "failed": "下载或安装确认失败，请查看详情后重试。"
+    },
+    "resume": "继续下载",
+    "import": "导入文件",
+    "incompatible": "可用内存或存储空间不足，请释放资源后重新检测。",
+    "freeStorage": "可用存储 {{size}}",
+    "runtimeStatus": "{{state}} · {{backend}}",
+    "runtime": {
+      "unloaded": "按需加载",
+      "loading": "正在加载",
+      "ready": "已加载",
+      "error": "加载失败"
     }
   },
   "appSelect": {
@@ -1028,14 +1037,13 @@
     "delete": "删除",
     "deleteAria": "删除模型 {{model}}",
     "deleteTitle": "删除本地模型",
-    "deleteConfirm": "确定删除 {{model}} 吗？此模型由本机 Ollama 管理，其他使用它的应用也将无法使用，直到重新安装。已有学习数据和分析结果会保留。",
+    "deleteConfirm": "确定删除 {{model}} 吗？仅删除 LexiCue 管理的模型文件，已有学习数据和分析结果会保留。",
     "busy": "本机 AI 正在运行或下载，请完成或取消任务后再删除模型。",
     "deleting": "正在删除模型…",
     "failed": "删除未能确认，请刷新或重试。",
     "deleted": "已删除 {{model}}。如删除的是当前模型，请选择其他模型。",
     "alreadyAbsent": "{{model}} 已不存在，模型列表已刷新。",
-    "retry": "重试删除",
-    "service": "Ollama 服务：{{address}}"
+    "retry": "重试删除"
   },
   "annotation": {
     "mode": "标注模式",
@@ -1088,5 +1096,25 @@
     "back": "返回",
     "taskContinues": "任务将在后台继续",
     "statistics": "统计"
+  },
+  "dictionaryInit": {
+    "title": "词典准备状态",
+    "progress": "词典准备中（{{completed}}/{{total}}）",
+    "failed": "部分词典准备失败，其他词典仍可使用",
+    "rows": "已处理 {{count}} 条",
+    "details": "查看原因"
+  },
+  "lookup": {
+    "title": "查询 {{term}}",
+    "online": "联网查询",
+    "open": "查词",
+    "preparing": "该语言词典正在准备，完成后可重试。",
+    "notFound": "离线词典未找到释义。",
+    "failed": "词典暂不可用，请重试或手动联网查询。"
+  },
+  "mobileBrowse": {
+    "status": "学习状态",
+    "filters": "筛选",
+    "options": "显示选项"
   }
 }

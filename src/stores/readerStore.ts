@@ -28,6 +28,8 @@ export interface SegmentToken {
   position: number;
 }
 
+export interface ReaderToken { segment_index: number; language: Language; surface: string; lemma: string; start: number; end: number; legacy_position?: number | null; builtin_position?: number | null; word_id: number | null; status: string | null }
+let fileGeneration = 0;
 interface ReaderStore {
   currentFileId: number | null;
   currentLanguage: Language;
@@ -36,6 +38,8 @@ interface ReaderStore {
   phraseMap: Map<number, SegmentPhrase[]>;
   segmentTokens: Map<number, SegmentToken[]>;
   activeSegmentIndex: number;
+  readerTokens: Map<number, ReaderToken[]>;
+  error: string;
   loading: boolean;
   setFile: (fileId: number) => Promise<void>;
   setActiveSegmentIndex: (index: number) => void;
@@ -49,6 +53,8 @@ export const useReaderStore = create<ReaderStore>((set) => ({
   phraseMap: new Map(),
   segmentTokens: new Map(),
   activeSegmentIndex: 0,
+  readerTokens: new Map(),
+  error: '',
   loading: false,
   setActiveSegmentIndex: (index) => set((state) => ({
     activeSegmentIndex: Math.min(
@@ -58,27 +64,25 @@ export const useReaderStore = create<ReaderStore>((set) => ({
   })),
 
   setFile: async (fileId: number) => {
-    set({ loading: true });
+    const request = ++fileGeneration;
+    set({ loading: true, error: '', currentFileId: fileId, segments: [], readerTokens: new Map(), wordStatusMap: new Map(), phraseMap: new Map(), segmentTokens: new Map() });
     try {
-      const segments: Segment[] = await invoke('get_file_segments', { fileId });
-      const file: { language: Language } = await invoke('get_file_info', { fileId });
+      const [segments, file, fileTokens, phrases, raw, fullTokens] = await Promise.all([
+        invoke<Segment[]>('get_file_segments', { fileId }),
+        invoke<{ language: Language }>('get_file_info', { fileId }),
+        invoke<{ original_form: string; lemma: string; id: number; status: string }[]>('list_file_word_tokens', { fileId }),
+        invoke<SegmentPhrase[]>('get_file_phrases', { fileId }),
+        invoke<SegmentToken[]>('get_file_segment_tokens', { fileId }),
+        invoke<ReaderToken[]>('get_file_reader_tokens', { fileId }),
+      ]);
+      if (request !== fileGeneration) return;
       const currentLanguage = file.language;
-
-      const allWords: WordStatusInfo[] = await invoke('list_words', {
-        statusFilter: null,
-        sortBy: 'frequency',
-        language: currentLanguage,
-      });
       const wordMap = new Map<string, WordStatusInfo>();
-      for (const w of allWords) {
-        wordMap.set(w.lemma, w);
-      }
-      const fileTokens: { original_form: string; lemma: string; id: number; status: string }[] = await invoke('list_file_word_tokens', { fileId });
       for (const token of fileTokens) {
+        wordMap.set(token.lemma, { id: token.id, lemma: token.lemma, status: token.status });
         wordMap.set(token.original_form, { id: token.id, lemma: token.lemma, status: token.status });
       }
 
-      const phrases: SegmentPhrase[] = await invoke('get_file_phrases', { fileId });
       const phraseMap = new Map<number, SegmentPhrase[]>();
       for (const ph of phrases) {
         const list = phraseMap.get(ph.segment_index) ?? [];
@@ -86,9 +90,8 @@ export const useReaderStore = create<ReaderStore>((set) => ({
         phraseMap.set(ph.segment_index, list);
       }
 
-      let segTokens: Map<number, SegmentToken[]> = new Map();
+      const segTokens: Map<number, SegmentToken[]> = new Map();
       if (currentLanguage === 'en' || currentLanguage === 'ja' || currentLanguage === 'de' || currentLanguage === 'zh') {
-        const raw: SegmentToken[] = await invoke('get_file_segment_tokens', { fileId });
         for (const t of raw) {
           const list = segTokens.get(t.segment_index) ?? [];
           list.push(t);
@@ -96,19 +99,24 @@ export const useReaderStore = create<ReaderStore>((set) => ({
         }
       }
 
+      const readerTokens = new Map<number, ReaderToken[]>();
+      for (const token of fullTokens) { const list=readerTokens.get(token.segment_index) ?? []; list.push(token); readerTokens.set(token.segment_index,list); }
+      for (const token of fullTokens) if (token.word_id !== null) wordMap.set(token.lemma, { id: token.word_id, lemma: token.lemma, status: token.status ?? 'unprocessed' });
+      if (request !== fileGeneration) return;
       set({
         currentFileId: fileId,
         currentLanguage,
         segments,
+        readerTokens,
         wordStatusMap: wordMap,
         phraseMap,
         segmentTokens: segTokens,
         activeSegmentIndex: 0,
       });
     } catch (e) {
-      console.error('Failed to load segments:', e);
+      if (request === fileGeneration) set({ error: String(e) });
     } finally {
-      set({ loading: false });
+      if (request === fileGeneration) set({ loading: false });
     }
   },
 }));

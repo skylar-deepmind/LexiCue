@@ -17,3 +17,9 @@ pub mod sync;
 pub mod updater;
 pub mod words;
 pub mod youtube;
+
+pub mod gemma;
+
+pub mod dictionary_init;
+
+pub mod reader;

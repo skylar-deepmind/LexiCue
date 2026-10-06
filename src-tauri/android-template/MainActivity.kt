@@ -17,6 +17,18 @@ import io.crates.keyring.Keyring
  * before Tauri starts Rust application setup.
  */
 class MainActivity : TauriActivity() {
+    private external fun nativeGemmaBackground(background: Boolean)
+
+    override fun onPause() {
+        nativeGemmaBackground(true)
+        super.onPause()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        nativeGemmaBackground(false)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         Keyring.initializeNdkContext(applicationContext)
         super.onCreate(savedInstanceState)

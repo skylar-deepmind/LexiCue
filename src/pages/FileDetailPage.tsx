@@ -17,8 +17,11 @@ export default function FileDetailPage() {
   const [file, setFile] = useState<FileRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [revision, setRevision] = useState(0);
 
   useEffect(() => {
+    let active = true;
+    setFile(null);
     if (!Number.isInteger(fileId)) {
       setError(true);
       setLoading(false);
@@ -27,15 +30,18 @@ export default function FileDetailPage() {
     setLoading(true);
     invoke<FileRecord>('get_file_info', { fileId })
       .then((nextFile) => {
+        if (!active) return;
         setFile(nextFile);
         setError(false);
       })
       .catch((reason) => {
+        if (!active) return;
         console.error('Failed to load file:', reason);
         setError(true);
       })
-      .finally(() => setLoading(false));
-  }, [fileId]);
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [fileId, revision]);
 
   useEffect(() => backNavigation.setPage(() => {
     if (file) useFileStore.getState().setCurrentFolder(file.folder_id);
@@ -52,7 +58,7 @@ export default function FileDetailPage() {
       </header>
       <div className="min-h-0 flex-1">
         {loading ? <div className="flex h-full items-center justify-center text-gray-500">{t('common.loading')}</div>
-          : error || !file ? <EmptyState icon="📭" title={t('fileDetail.notFound')} description={t('fileDetail.notFoundHint')} />
+          : error || !file ? <div className="reader-load-error"><EmptyState icon="📭" title={t('fileDetail.notFound')} description={t('fileDetail.notFoundHint')} /><button className="ui-button" onClick={() => setRevision(v => v + 1)}>{t('common.retry')}</button></div>
           : <ReadingPage fileId={fileId} />}
       </div>
     </div>

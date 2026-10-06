@@ -1,5 +1,5 @@
 import { blocksPageShortcut } from '../lib/backNavigation';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { invoke } from '@tauri-apps/api/core';
@@ -17,8 +17,8 @@ import DisplaySettingsMenu from './DisplaySettingsMenu';
 import WordDetailPanel from './WordDetail';
 import PhraseDetailPanel from './PhraseDetail';
 
-export default function AnnotationWorkspace({ scope, items, loading, onModeChange }: {
-  scope: AnnotationScope; items: AnnotationIdentity[]; loading: boolean; onModeChange: (mode: AnnotationMode) => void;
+export default function AnnotationWorkspace({ scope, items, loading, onModeChange, toolbar }: {
+  toolbar?: ReactNode; scope: AnnotationScope; items: AnnotationIdentity[]; loading: boolean; onModeChange: (mode: AnnotationMode) => void;
 }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -123,9 +123,12 @@ export default function AnnotationWorkspace({ scope, items, loading, onModeChang
   const range = active && session ? session.scope : scope;
   const currentStatus = detail && ('word' in detail ? detail.word.status : detail.phrase.status);
   return <div className="annotation-workspace">
-    <header className="annotation-header">
+    {toolbar}
+    <header className={`annotation-header ${toolbar ? 'annotation-header--compact' : ''}`}>
+      {!toolbar && <>
       <div className="annotation-header__row"><h1>{t(scope.kind === 'word' ? 'words.title' : 'phrases.title')}</h1><DisplaySettingsMenu /></div>
       <div className="annotation-header__row"><AnnotationModeSwitch mode="single" onChange={onModeChange} disabled={busy} /><button type="button" className="ui-button" disabled={busy} onClick={() => onModeChange('batch')}>{t('annotation.adjustRange')}</button></div>
+      </>}
       <p className="annotation-range">{t('annotation.range', { language: range.language === 'all' ? t('common.all') : range.language.toUpperCase(), filter: t(range.filter === 'all' ? 'common.all' : range.filter === 'ignored' ? 'annotation.ignore' : `status.${range.filter}`), sort: t(`sort.${range.sortBy}`) })}{range.query && ` · “${range.query}”`}{range.includeProperNouns && ` · ${t('words.showProperNouns')}`}{range.includeUnverified && ` · ${t('phrases.showUnverified')}`}</p>
     </header>
     <div className="annotation-scroll" ref={scrollRef}>

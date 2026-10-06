@@ -289,6 +289,12 @@ pub(super) async fn chat(
     fragment: impl Fn(&str),
     activity: impl Fn(),
 ) -> Result<ChatResult, ChatFailure> {
+    if config.is_gemma() {
+        diagnostics::stream_request(file_id, true);
+        return crate::commands::gemma::runtime::chat(&config.model, prompt, schema, token, fragment, activity).await;
+    }
+    #[cfg(not(test))]
+    if !config.is_openai() { return Err(failure("ERR_AI_PROVIDER", "INVALID_PROVIDER", None)); }
     let url = chat_endpoint(config);
     loop {
         let stream = session.stream.load(Ordering::Relaxed);

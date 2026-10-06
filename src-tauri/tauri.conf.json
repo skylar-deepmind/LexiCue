@@ -6,8 +6,8 @@
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
-    "beforeDevCommand": "npm run dev",
-    "beforeBuildCommand": "npm run build"
+    "beforeDevCommand": "npm run prepare:gemma && npm run dev",
+    "beforeBuildCommand": "npm run prepare:gemma && npm run build"
   },
   "app": {
     "windows": [
@@ -36,7 +36,8 @@
       "resources/PHRASEDICT-LICENSE.txt",
       "resources/JMDICT-LICENSE.txt",
       "resources/CC-CEDICT-LICENSE.txt",
-      "resources/GERMAN-LICENSE.txt"
+      "resources/GERMAN-LICENSE.txt",
+      "resources/gemma-runtime/"
     ],
     "icon": [
       "icons/32x32.png",

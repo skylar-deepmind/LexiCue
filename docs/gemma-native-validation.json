@@ -1,0 +1,542 @@
+{
+  "date": "2026-10-05",
+  "host": {
+    "model": "Apple M4",
+    "memoryGiB": 32,
+    "os": "macOS",
+    "architecture": "arm64"
+  },
+  "performanceCaveat": "Development test process with parallel native tests and release compilation; not a standardized performance comparison. Loading request includes full SHA-256 verification. RSS is process RSS, not total GPU allocation. Production idle timeout is 300 s; test uses 1 s. Test uses a private temporary lexicon fixture and no user learning database.",
+  "assets": "../src-tauri/native/gemma/models.json",
+  "runtimes": "../src-tauri/native/gemma/runtimes.json",
+  "businessRuns": [
+    {
+      "firstValidPreviewMs": 6251,
+      "loadingRequestMs": 11128,
+      "peakProcessResidentBytes": 2184740864,
+      "phrases": [
+        {
+          "canonical": "pick up",
+          "category": "phrasal_verb",
+          "ranges": [
+            {
+              "end": 8,
+              "start": 2
+            },
+            {
+              "end": 14,
+              "start": 12
+            }
+          ],
+          "segmentIndex": 0,
+          "surface": "picked up",
+          "tokenPositions": [
+            1,
+            3
+          ]
+        },
+        {
+          "canonical": "run into",
+          "category": "phrasal_verb",
+          "ranges": [
+            {
+              "end": 7,
+              "start": 4
+            },
+            {
+              "end": 12,
+              "start": 8
+            }
+          ],
+          "segmentIndex": 1,
+          "surface": "ran into",
+          "tokenPositions": [
+            1,
+            2
+          ]
+        },
+        {
+          "canonical": "break the ice",
+          "category": "idiom",
+          "ranges": [
+            {
+              "end": 16,
+              "start": 11
+            },
+            {
+              "end": 20,
+              "start": 17
+            },
+            {
+              "end": 24,
+              "start": 21
+            }
+          ],
+          "segmentIndex": 2,
+          "surface": "break the ice",
+          "tokenPositions": [
+            3,
+            4,
+            5
+          ]
+        }
+      ],
+      "qualityErrors": [],
+      "runtime": {
+        "backend": "gpu",
+        "error": null,
+        "loadMs": 3728,
+        "model": "gemma4-e2b-litert-181938105e0e",
+        "state": "ready"
+      },
+      "totalExtractionMs": 35957,
+      "writesLearningData": false,
+      "generationRequests": 5,
+      "contentRetries": 2,
+      "fixtures": {
+        "TRANSLATION_en": {
+          "translations": [
+            {
+              "index": 0,
+              "translation": "世界，你好。"
+            }
+          ]
+        },
+        "TRANSLATION_ja": {
+          "translations": [
+            {
+              "index": 0,
+              "translation": "明天我去图书馆。"
+            }
+          ]
+        },
+        "TRANSLATION_de": {
+          "translations": [
+            {
+              "index": 0,
+              "translation": "我每天都在学习德语。"
+            }
+          ]
+        },
+        "ANALYSIS_ja": {
+          "phrases": [
+            {
+              "category": "搭配",
+              "meaning_zh": "非常忙碌",
+              "segment_index": 0,
+              "text": "忙しくて猫の手も借りたい。",
+              "usage_zh": "表示非常忙碌，急需帮助。"
+            }
+          ]
+        },
+        "ANALYSIS_de": {
+          "phrases": [
+            {
+              "category": "习语或搭配",
+              "meaning_zh": "表示祝愿、祈祷",
+              "segment_index": 0,
+              "text": "die Daumen drücken",
+              "usage_zh": "表示为某人祈祷或祝愿好运。"
+            }
+          ]
+        },
+        "ANALYSIS_zh": {
+          "phrases": [
+            {
+              "category": "成语",
+              "meaning_zh": "突然开窍，领悟了",
+              "segment_index": 0,
+              "text": "恍然大悟",
+              "usage_zh": "表示突然的领悟，顿悟。"
+            }
+          ]
+        }
+      },
+      "analysisNote": "Analysis fixtures are raw model output. The application validates source positions and uses existing JMdict/CC-CEDICT expression boundaries before accepting results; the strict test checks the resulting boundary.",
+      "passed": true
+    },
+    {
+      "firstValidPreviewMs": 11908,
+      "loadingRequestMs": 19593,
+      "peakProcessResidentBytes": 3542515712,
+      "phrases": [
+        {
+          "canonical": "pick up",
+          "category": "phrasal_verb",
+          "ranges": [
+            {
+              "end": 8,
+              "start": 2
+            },
+            {
+              "end": 14,
+              "start": 12
+            }
+          ],
+          "segmentIndex": 0,
+          "surface": "picked up",
+          "tokenPositions": [
+            1,
+            3
+          ]
+        },
+        {
+          "canonical": "run into",
+          "category": "phrasal_verb",
+          "ranges": [
+            {
+              "end": 7,
+              "start": 4
+            },
+            {
+              "end": 12,
+              "start": 8
+            }
+          ],
+          "segmentIndex": 1,
+          "surface": "ran into",
+          "tokenPositions": [
+            1,
+            2
+          ]
+        },
+        {
+          "canonical": "break the ice",
+          "category": "idiom",
+          "ranges": [
+            {
+              "end": 16,
+              "start": 11
+            },
+            {
+              "end": 20,
+              "start": 17
+            },
+            {
+              "end": 24,
+              "start": 21
+            }
+          ],
+          "segmentIndex": 2,
+          "surface": "break the ice",
+          "tokenPositions": [
+            3,
+            4,
+            5
+          ]
+        }
+      ],
+      "qualityErrors": [],
+      "runtime": {
+        "backend": "gpu",
+        "error": null,
+        "loadMs": 6133,
+        "model": "gemma4-e4b-litert-0b2a8980ce15",
+        "state": "ready"
+      },
+      "totalExtractionMs": 13581,
+      "writesLearningData": false,
+      "generationRequests": 1,
+      "contentRetries": 0,
+      "fixtures": {
+        "TRANSLATION_en": {
+          "translations": [
+            {
+              "index": 0,
+              "translation": "你好世界。"
+            }
+          ]
+        },
+        "TRANSLATION_ja": {
+          "translations": [
+            {
+              "index": 0,
+              "translation": "明天我要去图书馆。"
+            }
+          ]
+        },
+        "TRANSLATION_de": {
+          "translations": [
+            {
+              "index": 0,
+              "translation": "我每天都学德语。"
+            }
+          ]
+        },
+        "ANALYSIS_ja": {
+          "phrases": [
+            {
+              "category": "习语",
+              "meaning_zh": "非常忙碌，忙得不可开交",
+              "segment_index": 0,
+              "text": "猫の手も借りたい",
+              "usage_zh": "形容人非常忙碌，甚至想借用猫爪子来帮忙干活。"
+            }
+          ]
+        },
+        "ANALYSIS_de": {
+          "phrases": [
+            {
+              "category": "习语",
+              "meaning_zh": "祈祷、祝愿成功",
+              "segment_index": 0,
+              "text": "die Daumen drücken",
+              "usage_zh": "当祝愿某人成功或希望某事顺利时使用。"
+            }
+          ]
+        },
+        "ANALYSIS_zh": {
+          "phrases": [
+            {
+              "category": "成语",
+              "meaning_zh": "突然明白过来，恍然大悟。",
+              "segment_index": 0,
+              "text": "恍然大悟",
+              "usage_zh": "指突然明白过来，恍然大悟。"
+            }
+          ]
+        }
+      },
+      "analysisNote": "Analysis fixtures are raw model output. The application validates source positions and uses existing JMdict/CC-CEDICT expression boundaries before accepting results; the strict test checks the resulting boundary.",
+      "passed": true
+    },
+    {
+      "firstValidPreviewMs": 8028,
+      "loadingRequestMs": 11182,
+      "peakProcessResidentBytes": 5160615936,
+      "phrases": [
+        {
+          "canonical": "pick up",
+          "category": "phrasal_verb",
+          "ranges": [
+            {
+              "end": 8,
+              "start": 2
+            },
+            {
+              "end": 14,
+              "start": 12
+            }
+          ],
+          "segmentIndex": 0,
+          "surface": "picked up",
+          "tokenPositions": [
+            1,
+            3
+          ]
+        },
+        {
+          "canonical": "run into",
+          "category": "phrasal_verb",
+          "ranges": [
+            {
+              "end": 7,
+              "start": 4
+            },
+            {
+              "end": 12,
+              "start": 8
+            }
+          ],
+          "segmentIndex": 1,
+          "surface": "ran into",
+          "tokenPositions": [
+            1,
+            2
+          ]
+        },
+        {
+          "canonical": "break the ice",
+          "category": "idiom",
+          "ranges": [
+            {
+              "end": 16,
+              "start": 11
+            },
+            {
+              "end": 20,
+              "start": 17
+            },
+            {
+              "end": 24,
+              "start": 21
+            }
+          ],
+          "segmentIndex": 2,
+          "surface": "break the ice",
+          "tokenPositions": [
+            3,
+            4,
+            5
+          ]
+        }
+      ],
+      "qualityErrors": [],
+      "runtime": {
+        "backend": "cpu",
+        "error": null,
+        "loadMs": 3937,
+        "model": "gemma4-e2b-litert-181938105e0e",
+        "state": "ready"
+      },
+      "totalExtractionMs": 29064,
+      "writesLearningData": false,
+      "generationRequests": 5,
+      "contentRetries": 2,
+      "fixtures": {
+        "TRANSLATION_en": {
+          "translations": [
+            {
+              "index": 0,
+              "translation": "世界你好。"
+            }
+          ]
+        },
+        "TRANSLATION_ja": {
+          "translations": [
+            {
+              "index": 0,
+              "translation": "我明天要去图书馆。"
+            }
+          ]
+        },
+        "TRANSLATION_de": {
+          "translations": [
+            {
+              "index": 0,
+              "translation": "我每天都在学习德语。"
+            }
+          ]
+        },
+        "ANALYSIS_ja": {
+          "phrases": [
+            {
+              "category": "习语或搭配",
+              "meaning_zh": "非常忙碌",
+              "segment_index": 0,
+              "text": "忙しくて猫の手も借りたい",
+              "usage_zh": "表示非常忙碌，需要帮助。"
+            }
+          ]
+        },
+        "ANALYSIS_de": {
+          "phrases": [
+            {
+              "category": "习语或搭配",
+              "meaning_zh": "祈祷，希望某事成功",
+              "segment_index": 0,
+              "text": "die Daumen drücken",
+              "usage_zh": "我们必须祈祷/希望某事成功。"
+            }
+          ]
+        },
+        "ANALYSIS_zh": {
+          "phrases": [
+            {
+              "category": "成语",
+              "meaning_zh": "突然明白过来",
+              "segment_index": 0,
+              "text": "恍然大悟",
+              "usage_zh": "他终于恍然大悟。"
+            }
+          ]
+        }
+      },
+      "analysisNote": "Analysis fixtures are raw model output. The application validates source positions and uses existing JMdict/CC-CEDICT expression boundaries before accepting results; the strict test checks the resulting boundary.",
+      "passed": true
+    }
+  ],
+  "intelRosettaEngineCheck": {
+    "asset": "gemma4-e2b-gguf-8e30dff3ac4c",
+    "target": "x86_64-apple-darwin",
+    "backend": "cpu",
+    "loadMs": 3907,
+    "firstFragmentMs": 4286,
+    "generationMs": 10654,
+    "tokenCount": 27,
+    "constraint": true,
+    "stream": true,
+    "cancel": true,
+    "unload": true,
+    "businessQualityVerified": false
+  },
+  "checks": {
+    "frontendTests": 175,
+    "rustUnitTests": 177,
+    "rustIntegrationTests": 4,
+    "rustIgnored": 7,
+    "themeAndLayoutChecks": 18,
+    "frontendBuild": true,
+    "macosArm64AppBuild": true,
+    "macosBundledNativeHashAndAbi": true,
+    "macosAdHocSignatureVerified": true,
+    "macosNotarized": false,
+    "androidArm64ReleaseBuild": true,
+    "android16KiBElfAndZipAlignment": true,
+    "androidLifecycleJniExported": true,
+    "fullCargoFmtCheck": false,
+    "strictClippyZeroWarnings": false,
+    "clippyWithoutDenyWarnings": true,
+    "formatAndClippyNote": "Existing repository baseline issues; Gemma Rust modules formatted. No unrelated bulk formatting performed."
+  },
+  "androidPackage": {
+    "apkBytes": 312875997,
+    "sha256": "4d327e312804b81337229274eba6c6801b7fd9a4a4c0e3e102d6cdacbdbfe17c",
+    "nativeLibraries": {
+      "lib/arm64-v8a/libapp_lib.so": 267758376,
+      "lib/arm64-v8a/libc++_shared.so": 1374336,
+      "lib/arm64-v8a/liblexicue_gemma.so": 18976,
+      "lib/arm64-v8a/liblitert-lm.so": 38969320
+    },
+    "modelWeightsBundled": false,
+    "nativeNoticesBundled": true,
+    "signedForRelease": false
+  },
+  "remainingReleaseGates": [
+    "Windows native build and physical E2B/E4B offline business acceptance",
+    "Android physical device offline inference, lifecycle, GPU/CPU fallback and content URI import",
+    "Physical Intel Mac and E4B GGUF full business acceptance",
+    "Extended positive and negative corpus, model switching, active deletion guards, download interruption/resume and disk/memory exhaustion on supported hardware",
+    "Sustained performance, thermal/battery and stability benchmarks",
+    "Production release signing/notarization"
+  ],
+  "modelSwitchCheck": {
+    "sequence": [
+      {
+        "loadAndGenerateMs": 14093,
+        "runtime": {
+          "backend": "gpu",
+          "error": null,
+          "loadMs": 3065,
+          "model": "gemma4-e2b-litert-181938105e0e",
+          "state": "ready"
+        },
+        "tokenCount": 21
+      },
+      {
+        "loadAndGenerateMs": 20905,
+        "runtime": {
+          "backend": "gpu",
+          "error": null,
+          "loadMs": 3975,
+          "model": "gemma4-e4b-litert-0b2a8980ce15",
+          "state": "ready"
+        },
+        "tokenCount": 21
+      },
+      {
+        "loadAndGenerateMs": 11238,
+        "runtime": {
+          "backend": "gpu",
+          "error": null,
+          "loadMs": 706,
+          "model": "gemma4-e2b-litert-181938105e0e",
+          "state": "ready"
+        },
+        "tokenCount": 21
+      }
+    ],
+    "unloaded": true,
+    "writesLearningData": false
+  }
+}

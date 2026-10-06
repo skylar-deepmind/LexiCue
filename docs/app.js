@@ -203,7 +203,7 @@
       privacy: {
         kicker: "Local-first by default",
         title: "Your reading stays on your computer.",
-        body: "All data lives on your device — no forced sign-ups, no mandatory cloud. If you want AI, point it at local Ollama or your own API.",
+        body: "All data lives on your device — no forced sign-ups, no mandatory cloud. If you want AI, download Gemma for offline inference or use your own API.",
         list: ["Study records saved in a local database", "Dictionaries work offline once imported", "Export and restore whenever you like", "AI optional, off by default"]
       },
       local: {
@@ -338,7 +338,7 @@
       privacy: {
         kicker: "デフォルトでローカルファースト",
         title: "読んでいる内容は、自分のコンピューターに残ります。",
-        body: "すべてのデータは端末内に保存。強制サインアップもクラウド必須もありません。AI を使いたい場合は、ローカルの Ollama か自分の API に接続できます。",
+        body: "すべてのデータは端末内に保存。強制サインアップもクラウド必須もありません。AI を使いたい場合は、Gemma をダウンロードしてオフラインで使うか、自分の API に接続できます。",
         list: ["学習記録はローカルデータベースに保存", "辞書は一度取り込めばオフラインで利用可能", "いつでもエクスポート・リストア可能", "AI はオプション、デフォルトでオフ"]
       },
       local: {

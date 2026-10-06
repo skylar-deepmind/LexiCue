@@ -5,7 +5,7 @@ import { Volume2, BookOpen, ExternalLink } from 'lucide-react';
 import type { DictionaryEntry, OccurrenceDetail, PhraseDetail, PhraseDictionaryEntry, WordDetail } from '../lib/types';
 import { CONTENT_FONT_CLASS, FLASHCARD_TERM_FONT_CLASS } from '../lib/contentTypography';
 import { usePreferencesStore } from '../stores/preferencesStore';
-import { useDictionaryStore } from '../stores/dictionaryStore';
+import { dictionaryLanguageState, useDictionaryStore } from '../stores/dictionaryStore';
 import { playPronunciation, speakText } from '../lib/tts';
 import OccurrenceText from './OccurrenceText';
 import StatusBadge from './StatusBadge';
@@ -20,18 +20,20 @@ export default function AnnotationCard({ detail, onDetail, onOccurrence }: {
   const item = 'word' in detail ? detail.word : detail.phrase;
   const term = 'lemma' in item ? item.lemma : item.text;
   const kind = word ? 'word' : 'phrase';
-  const dictionaryReady = useDictionaryStore(state => state.ready);
+  const [onlineTarget, setOnlineTarget] = useState<WordDetail | PhraseDetail | null>(null);
+  const mode = onlineTarget === detail ? 'online' : 'local';
+  const dictionaryReady = useDictionaryStore(state => dictionaryLanguageState(state, item.language));
   const learningSize = usePreferencesStore(state => state.learningTextFontSize);
   const definitionSize = usePreferencesStore(state => state.definitionFontSize);
   const auxiliarySize = usePreferencesStore(state => state.auxiliaryFontSize);
   const [lookup, setLookup] = useState<{
-    source: WordDetail | PhraseDetail; revision: number; ready: boolean;
+    source: WordDetail | PhraseDetail; mode: string; revision: number; ready: string;
     dictionary: DictionaryEntry | null; phraseDictionary: PhraseDictionaryEntry | null; failed: boolean;
   } | null>(null);
   const [revision, setRevision] = useState(0);
   const [expanded, setExpanded] = useState(false);
   const [audioLoading, setAudioLoading] = useState(false);
-  const validLookup = lookup?.source === detail && lookup.revision === revision && lookup.ready === dictionaryReady;
+  const validLookup = lookup?.source === detail && lookup.revision === revision && lookup.mode === mode && lookup.ready === (mode === 'local' ? dictionaryReady : '');
   const dictionary = validLookup ? lookup.dictionary : null;
   const phraseDictionary = validLookup ? lookup.phraseDictionary : null;
   const loading = !validLookup;
@@ -39,6 +41,7 @@ export default function AnnotationCard({ detail, onDetail, onOccurrence }: {
   const alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
 
+  const localSourceState = mode === 'local' ? dictionaryReady : '';
   useEffect(() => {
     let active = true;
     void (async () => {
@@ -50,20 +53,14 @@ export default function AnnotationCard({ detail, onDetail, onOccurrence }: {
           const entry = await invoke<PhraseDictionaryEntry>('lookup_phrase_dictionary', { text: term, language: item.language });
           phraseDictionary = entry;
         } else {
-          let entry: DictionaryEntry;
-          if (item.language === 'en') {
-            try { entry = await invoke<DictionaryEntry>('lookup_local_dictionary', { lemma: term }); }
-            catch { entry = await invoke<DictionaryEntry>('lookup_dictionary', { lemma: term, language: item.language, refresh: false }); }
-          } else {
-            entry = await invoke<DictionaryEntry>('lookup_dictionary', { lemma: term, language: item.language, refresh: false });
-          }
+          const entry = await invoke<DictionaryEntry>('lookup_dictionary', { lemma: term, language: item.language, mode, refresh: mode === 'online' });
           dictionary = entry;
         }
       } catch { failed = true; }
-      if (active) setLookup({ source: detail, revision, ready: dictionaryReady, dictionary, phraseDictionary, failed });
+      if (active) setLookup({ source: detail, revision, mode, ready: localSourceState, dictionary, phraseDictionary, failed });
     })();
     return () => { active = false; };
-  }, [item.id, term, item.language, kind, dictionaryReady, revision, detail]);
+  }, [item.id, term, item.language, kind, localSourceState, mode, revision, detail]);
 
   const play = async () => {
     if (audioLoading) return;
@@ -117,6 +114,7 @@ export default function AnnotationCard({ detail, onDetail, onOccurrence }: {
         {phraseDictionary.collins_senses.map(sense => <div className="annotation-sense" key={sense.id}><p className="annotation-muted">{sense.headword} · {sense.grammar}</p><p>{sense.definition}</p>{sense.example && <p className="annotation-muted">{sense.example}</p>}</div>)}
       </div>}
       {loading && <p className="annotation-muted" role="status">{t('common.loading')}</p>}
+      {word && <button className="ui-button" disabled={loading} onClick={() => { setOnlineTarget(detail); setRevision(v => v + 1); }}>{t('lookup.online')}</button>}
       {!loading && failed && <div className="annotation-dictionary-error"><p className="annotation-muted">{t('annotation.dictionaryUnavailable')}</p><button type="button" className="ui-button" onClick={() => setRevision(value => value + 1)}>{t('common.retry')}</button></div>}
       {!loading && !failed && !item.definition && !contextMeaning && !dictionary?.definitions.length && !hasPhraseMeaning && <p className="annotation-muted">{t('flashcard.noDefinition')}</p>}
     </section>

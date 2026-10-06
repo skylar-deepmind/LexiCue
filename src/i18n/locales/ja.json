@@ -208,12 +208,10 @@
     },
     "ai": {
       "title": "AI 機能",
-      "description": "有効にすると段落の説明やフレーズの自動認識ができます。ローカルの Ollama またはクラウド API キーに対応しています。",
+      "description": "Gemma をオフラインで使用するか、クラウド API キーを設定できます。モデルは別途ダウンロードします。",
       "toggleAria": "AI 機能を有効にする",
-      "providerLocal": "ローカル Ollama",
+      "providerLocal": "ローカル Gemma",
       "providerCloud": "クラウド API",
-      "ollamaUrlAria": "Ollama の URL",
-      "ollamaModelAria": "Ollama のモデル",
       "selectModel": "モデルを選択...",
       "connect": "接続してモデルを読み込む",
       "connecting": "接続中...",
@@ -230,7 +228,8 @@
       "disabledHint": "AI は無効です。読書・ファイルページの AI ボタンは非表示になります。ここからいつでも再度有効にできます。",
       "summaryEnabled": "有効 · {{provider}}",
       "summaryDisabled": "無効",
-      "custom": "カスタム"
+      "custom": "カスタム",
+      "gemmaModelAria": "Gemma のモデル"
     },
     "youtube": {
       "title": "YouTube 字幕ツール",
@@ -506,7 +505,7 @@
     "selectFile": "ファイルを選択...",
     "hideTranslation": "翻訳を隠す",
     "showTranslation": "翻訳を表示",
-    "hint": "単語をクリックで意味を表示 · 右クリックで素早くマーク",
+    "hint": "単語をタップして調べる · 長押し・右クリックで操作",
     "prevSegment": "前へ",
     "nextSegment": "次へ",
     "segmentPosition": "{{current}} / {{total}} セグメント",
@@ -536,7 +535,8 @@
     "emptyContent": "コンテンツはまだありません",
     "cannotLoadWord": "単語の詳細を読み込めませんでした",
     "cannotLoadPhrase": "フレーズの詳細を読み込めませんでした",
-    "definitionSaved": "意味を保存しました"
+    "definitionSaved": "意味を保存しました",
+    "cannotLoadFile": "ファイルを読み込めません。再試行してください。"
   },
   "review": {
     "completedTitle": "セッション完了",
@@ -964,12 +964,10 @@
     "unifiedMemory": "{{size}} ユニファイドメモリ",
     "memory": "{{size}} システムメモリ",
     "environmentError": "端末情報を取得できませんでした。再検出してください。",
-    "remote": "サーバーの構成は不明です。この Ollama は別の端末にあるため、この端末の情報による推奨やダウンロードは利用できません。",
     "accelerationUnknown": "高速化機能は未確認です。システムメモリは VRAM ではありません。CPU での処理は遅くなる場合があります。",
     "noRecommendation": "端末情報が不足しているか、メモリが少ないため、下からモデルを手動で選択してください。",
-    "memoryHint": "推奨は保守的な目安です。ダウンロード容量と実行時メモリは異なり、読み込みや長いコンテキストには追加メモリが必要です。",
+    "memoryHint": "まず E2B を推奨します。E4B は任意です。読み込みにはファイルサイズ以上のメモリが必要です。",
     "loadingInstalled": "インストール済みモデルを読み込み中…",
-    "serviceUnavailable": "ローカル Ollama に接続できません。サービスを起動して再検出してください。",
     "preferred": "推奨",
     "installed": "インストール済み",
     "estimatedSize": "ダウンロード約 {{size}}",
@@ -981,16 +979,16 @@
     "hideOther": "他のバージョンを閉じる",
     "progressTitle": "モデルのダウンロード状況",
     "layerProgress": "現在のレイヤーの進捗",
-    "layerBytes": "現在のレイヤー {{completed}} / {{total}}",
+    "layerBytes": "{{completed}} / {{total}}",
     "errorDetails": "エラーの詳細",
     "nowSelected": "今後の分析で使用します。実行中の分析は元のモデルを使用し続けます。",
     "cancel": "ダウンロードを中止",
     "retry": "ダウンロードを再開",
     "reason": {
-      "preferred": "この端末のメモリ容量に適した推奨バージョンです。",
+      "preferred": "初めてのローカル推論に推奨。初回使用前にファイルと読み込みを確認します。",
       "lightweight": "比較やメモリ使用量の削減に適した小さいモデルです。",
       "larger": "メモリ容量上は試せますが、速度と品質の確認が必要です。",
-      "manual": "保守的な推奨範囲外です。手動で選択できます。"
+      "manual": "より多くのメモリとストレージが必要です。端末に応じて選択してください。"
     },
     "phase": {
       "manifest": "モデル情報を取得中",
@@ -1009,6 +1007,17 @@
       "space": "ディスク容量が不足しています。空き容量を確保して再開してください。",
       "notFound": "モデルが見つかりません。再検出するか別のモデルを選択してください。",
       "failed": "ダウンロードまたはインストール確認に失敗しました。詳細を確認して再試行してください。"
+    },
+    "resume": "ダウンロードを再開",
+    "import": "ファイルをインポート",
+    "incompatible": "空きメモリまたはストレージが不足しています。リソースを解放して再確認してください。",
+    "freeStorage": "空きストレージ {{size}}",
+    "runtimeStatus": "{{state}} · {{backend}}",
+    "runtime": {
+      "unloaded": "必要時に読み込み",
+      "loading": "読み込み中",
+      "ready": "読み込み済み",
+      "error": "読み込み失敗"
     }
   },
   "appSelect": {
@@ -1028,14 +1037,13 @@
     "delete": "削除",
     "deleteAria": "モデル {{model}} を削除",
     "deleteTitle": "ローカルモデルを削除",
-    "deleteConfirm": "{{model}} を削除しますか？このモデルはローカル Ollama が管理しています。他のアプリでも再インストールするまで使用できなくなります。学習データと分析結果は保持されます。",
+    "deleteConfirm": "{{model}} を削除しますか？LexiCue が管理するモデルファイルのみ削除します。学習データと解析結果は保持されます。",
     "busy": "ローカルAIが実行中またはダウンロード中です。タスクを完了または中止してから削除してください。",
     "deleting": "モデルを削除中…",
     "failed": "削除を確認できませんでした。更新または再試行してください。",
     "deleted": "{{model}} を削除しました。必要に応じて別のモデルを選択してください。",
     "alreadyAbsent": "{{model}} は既に存在しません。モデル一覧を更新しました。",
-    "retry": "削除を再試行",
-    "service": "Ollama サービス：{{address}}"
+    "retry": "削除を再試行"
   },
   "annotation": {
     "mode": "分類モード",
@@ -1088,5 +1096,25 @@
     "back": "戻る",
     "taskContinues": "処理はバックグラウンドで続行します",
     "statistics": "統計"
+  },
+  "dictionaryInit": {
+    "title": "辞書の準備状況",
+    "progress": "辞書を準備中（{{completed}}/{{total}}）",
+    "failed": "一部の辞書の準備に失敗しました。他の辞書は利用できます",
+    "rows": "{{count}} 件処理済み",
+    "details": "詳細"
+  },
+  "lookup": {
+    "title": "{{term}} を調べる",
+    "online": "オンラインで調べる",
+    "open": "辞書で調べる",
+    "preparing": "この言語の辞書を準備中です。完了後に再試行してください。",
+    "notFound": "オフライン辞書に意味が見つかりません。",
+    "failed": "辞書を利用できません。再試行するか、オンラインで調べてください。"
+  },
+  "mobileBrowse": {
+    "status": "学習状態",
+    "filters": "絞り込み",
+    "options": "表示オプション"
   }
 }

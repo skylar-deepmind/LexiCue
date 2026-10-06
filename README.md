@@ -36,13 +36,15 @@ If any of these sound like you, LexiCue is built for you. If not, you'll know in
 
 ## Privacy
 
-All your study data is stored in a local database on your device. Nothing is uploaded unless you explicitly ask — for example, when you turn on AI or download YouTube subtitles.
+All your study data is stored in a local database on your device. Gemma inference runs on your device after a separate model download. Cloud AI sends the selected text only when you choose a cloud API; YouTube subtitle downloads also require a network connection.
 
 ## Download & install
 
 Grab the latest installer for **macOS / Windows / Android** from the [Releases page](https://github.com/skylar-deepmind/LexiCue/releases/latest).
 
 > Installers are currently **unsigned** — your system may show a security warning on first install. That's expected. See [DISTRIBUTION.md](DISTRIBUTION.md) for the platform-by-platform guide.
+
+Local AI is optional and off by default. Enable Gemma in Settings, download E2B or E4B, and select it. Ollama is no longer required. Weights are not included in installers. Platform verification status is recorded in [embedded Gemma](docs/embedded-gemma.md).
 
 ## Support the project
 
@@ -54,7 +56,7 @@ A star on GitHub also goes a long way: [github.com/skylar-deepmind/LexiCue](http
 
 ## Development
 
-For contributors. Requires Node.js 20+ and Rust 1.77.2+.
+For contributors. Requires Node.js 20+, Rust, and CMake 3.22+. Desktop builds prepare the pinned native inference libraries automatically. See [embedded Gemma setup and validation](docs/embedded-gemma.md).
 
 ```bash
 npm install        # install frontend dependencies

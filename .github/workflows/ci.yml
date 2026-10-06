@@ -127,3 +127,5 @@ jobs:
       - run: npm ci
       - name: Build Tauri application (verify only)
         run: npm run tauri build -- --no-bundle
+      - name: Verify embedded runtime ABI
+        run: python scripts/gemma-native-smoke.py --runtime src-tauri/resources/gemma-runtime --abi-only

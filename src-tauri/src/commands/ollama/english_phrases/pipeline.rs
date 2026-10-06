@@ -88,7 +88,7 @@ impl Pipeline<'_> {
             .await
             {
                 Ok(outcome) => outcome,
-                Err(error) if error.code == "OUTPUT_TRUNCATED" && source.len() > 1 => {
+                Err(error) if matches!(error.code, "OUTPUT_TRUNCATED" | "CONTEXT_LIMIT") && source.len() > 1 => {
                     diagnostics::split(file_id, "extraction");
                     self.checkpoints.write(
                         "extraction_split",
@@ -150,12 +150,7 @@ impl Pipeline<'_> {
         preview: impl Fn(&[SegmentRow], PreviewUpdate) + Send + Sync,
     ) -> Result<Vec<Accepted>, String> {
         let session = streaming::Session::default();
-        let ranges = batch_ranges(
-            &segments
-                .iter()
-                .map(|s| (s.index, s.text.clone()))
-                .collect::<Vec<_>>(),
-        );
+        let ranges = extraction_ranges(self.config, segments);
         let mut candidates = Vec::new();
         for (number, (start, end)) in ranges.iter().enumerate() {
             candidates.extend(

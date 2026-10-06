@@ -1,0 +1,14 @@
+{
+  "litert": {
+    "version": "v0.16.0",
+    "archive": "litert_lm_c_api-0.1.0.zip",
+    "url": "https://github.com/google-ai-edge/LiteRT-LM/releases/download/v0.16.0/litert_lm_c_api-0.1.0.zip",
+    "sha256": "f0f3ae7b5730af783d1f018f7ad9a8de20c25fedf01af4e35fc11d4382246f7d"
+  },
+  "llama": {
+    "version": "b9568",
+    "archive": "llama-b9568.tar.gz",
+    "url": "https://codeload.github.com/ggml-org/llama.cpp/tar.gz/refs/tags/b9568",
+    "sha256": "faa345e72e61a33eedccc56d1c853e348b1de5cae30525397155f459e0580b6a"
+  }
+}

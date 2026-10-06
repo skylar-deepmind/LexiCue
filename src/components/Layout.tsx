@@ -12,6 +12,7 @@ import AnalysisPreviewDrawer from './AnalysisPreviewDrawer';
 import MobileNav from './MobileNav';
 import ToastHost from './ToastHost';
 import { useOllamaStore } from '../stores/ollamaStore';
+import DictionaryInitNotice from './DictionaryInitNotice';
 import { useDictionaryStore } from '../stores/dictionaryStore';
 import { useYoutubeStore } from '../stores/youtubeStore';
 import { useAiStore } from '../stores/aiStore';
@@ -53,7 +54,6 @@ export default function Layout() {
   const initializeOllama = useOllamaStore((state) => state.initialize);
   const initializeDict = useDictionaryStore((state) => state.initialize);
   const initializeYoutube = useYoutubeStore((state) => state.initialize);
-  const dictReady = useDictionaryStore((state) => state.ready);
   const aiEnabled = useAiStore((state) => state.enabled);
   const checkUpdate = useUpdateStore((state) => state.check);
   const showFeedback = useFeedbackStore((state) => state.show);
@@ -87,12 +87,8 @@ export default function Layout() {
     <div className="app-layout">
       <Sidebar />
       <main className="@container app-main">
-        {!dictReady && (
-          <div className="pointer-events-none fixed right-4 top-4 z-[90] rounded border px-3 py-1.5 text-xs text-amber-600">
-            {t('layout.dictInit')}
-          </div>
-        )}
-        {!reading && <div className="mobile-language-bar"><span>{t('shell.learningLanguage')}</span><LearningLanguageSelect /></div>}
+        <DictionaryInitNotice />
+        {!reading && !vocabulary && <div className="mobile-language-bar"><span>{t('shell.learningLanguage')}</span><LearningLanguageSelect /></div>}
         {vocabulary && <VocabularyTabs />}
         <div className="app-page">
           <Outlet />

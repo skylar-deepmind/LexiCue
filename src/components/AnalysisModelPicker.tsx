@@ -3,8 +3,8 @@ import { useEffect, useId } from 'react';
 import { Brain, Download, RefreshCw, Settings2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useAiStore, OPENAI_PRESETS, DEFAULT_OLLAMA_URL } from '../stores/aiStore';
-import { checkAiConnection, ensureAiConnection, getAiConnectionFingerprint } from '../lib/ai';
+import { useAiStore, OPENAI_PRESETS } from '../stores/aiStore';
+import { checkAiConnection, ensureAiConnection, getAiConnectionFingerprint, aiModelLabel } from '../lib/ai';
 
 export default function AnalysisModelPicker() {
   const { t } = useTranslation();
@@ -19,7 +19,7 @@ export default function AnalysisModelPicker() {
   const error = useAiStore(state => state.aiError);
   const fingerprint = useAiStore(state => state.aiFingerprint);
   const setModel = useAiStore(state => state.setModel);
-  const current = fingerprint === getAiConnectionFingerprint({ provider, baseUrl: baseUrl.trim() || (provider === 'ollama' ? DEFAULT_OLLAMA_URL : ''), apiKey, model });
+  const current = fingerprint === getAiConnectionFingerprint({ provider, baseUrl: provider === 'gemma' ? undefined : baseUrl.trim(), apiKey, model });
   const listedModels = current ? models : [];
   const options = [...new Set(model && !listedModels.includes(model) ? [model, ...listedModels] : listedModels)];
   const checking = current && status === 'checking';
@@ -28,7 +28,7 @@ export default function AnalysisModelPicker() {
     const timer = setTimeout(() => void ensureAiConnection(), 350);
     return () => clearTimeout(timer);
   }, [enabled, provider, baseUrl, apiKey]);
-  const service = provider === 'ollama' ? 'Ollama' : OPENAI_PRESETS.find(preset => preset.baseUrl && preset.baseUrl.replace(/\/+$/, '') === baseUrl.trim().replace(/\/+$/, ''))?.label ?? t('settings.ai.custom');
+  const service = provider === 'gemma' ? 'Gemma' : OPENAI_PRESETS.find(preset => preset.baseUrl && preset.baseUrl.replace(/\/+$/, '') === baseUrl.trim().replace(/\/+$/, ''))?.label ?? t('settings.ai.custom');
 
   if (!enabled) return null;
 
@@ -38,7 +38,7 @@ export default function AnalysisModelPicker() {
         <label htmlFor={id} className="analysis-model-picker__label"><Brain size={16} aria-hidden="true" />{t('analysisModel.title')}</label>
         <span className="analysis-model-picker__service">{service}</span>
         <AppSelect id={id} className="analysis-model-picker__select" value={model} onChange={setModel} disabled={!enabled || checking}
-          aria-describedby={`${id}-hint`} placeholder={t('settings.ai.selectModel')} searchable options={options.map(name => ({ value: name, label: name }))} />
+          aria-describedby={`${id}-hint`} placeholder={t('settings.ai.selectModel')} searchable options={options.map(name => ({ value: name, label: aiModelLabel(name) }))} />
         <button type="button" className="analysis-model-picker__action" onClick={() => void checkAiConnection()} disabled={!enabled || checking} aria-label={t('analysisModel.refresh')} title={t('analysisModel.refresh')}>
           <RefreshCw size={16} aria-hidden="true" />
         </button>

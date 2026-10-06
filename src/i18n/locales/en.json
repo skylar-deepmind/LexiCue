@@ -208,12 +208,10 @@
     },
     "ai": {
       "title": "AI Features",
-      "description": "When enabled, can explain paragraphs and detect phrases automatically. Supports local Ollama or your own cloud API key.",
+      "description": "Use Gemma offline or your own cloud API key. Models are downloaded separately.",
       "toggleAria": "Enable AI features",
-      "providerLocal": "Local Ollama",
+      "providerLocal": "Local Gemma",
       "providerCloud": "Cloud API",
-      "ollamaUrlAria": "Ollama URL",
-      "ollamaModelAria": "Ollama model",
       "selectModel": "Select model...",
       "connect": "Connect & load models",
       "connecting": "Connecting...",
@@ -231,7 +229,8 @@
       "disabledHint": "AI is disabled; AI buttons in the Reading and Files pages are hidden. You can re-enable it here anytime.",
       "summaryEnabled": "Enabled · {{provider}}",
       "summaryDisabled": "Disabled",
-      "custom": "Custom"
+      "custom": "Custom",
+      "gemmaModelAria": "Gemma model"
     },
     "youtube": {
       "title": "YouTube Subtitle Tool",
@@ -514,7 +513,7 @@
     "selectFile": "Select a file...",
     "hideTranslation": "Hide translation",
     "showTranslation": "Show translation",
-    "hint": "Click a word for definition · Right-click to mark quickly",
+    "hint": "Tap or click a word to look it up · Hold or right-click for actions",
     "prevSegment": "Previous",
     "nextSegment": "Next",
     "segmentPosition": "Segment {{current}} / {{total}}",
@@ -544,7 +543,8 @@
     "emptyContent": "No content yet",
     "cannotLoadWord": "Failed to load word details",
     "cannotLoadPhrase": "Failed to load phrase details",
-    "definitionSaved": "Definition saved"
+    "definitionSaved": "Definition saved",
+    "cannotLoadFile": "Could not load this file. Please retry."
   },
   "review": {
     "completedTitle": "Session complete",
@@ -981,12 +981,10 @@
     "unifiedMemory": "{{size}} unified memory",
     "memory": "{{size}} system RAM",
     "environmentError": "Could not read device information. Check again.",
-    "remote": "Server configuration unknown. This Ollama address is remote; this device cannot determine its model recommendations or downloads.",
     "accelerationUnknown": "Acceleration is unconfirmed. System RAM is not VRAM; CPU inference may be slow.",
     "noRecommendation": "Device information is incomplete or memory is limited. Choose a model manually below.",
-    "memoryHint": "Recommendations are conservative estimates. Download size differs from runtime memory; loading and longer contexts need additional memory.",
+    "memoryHint": "Start with E2B; E4B is optional. Download size differs from runtime memory, and loading needs additional memory.",
     "loadingInstalled": "Loading installed models…",
-    "serviceUnavailable": "Cannot connect to local Ollama. Start the service, then check again.",
     "preferred": "Recommended",
     "installed": "Installed",
     "estimatedSize": "About {{size}} download",
@@ -998,16 +996,16 @@
     "hideOther": "Hide other versions",
     "progressTitle": "Model download progress",
     "layerProgress": "Current layer progress",
-    "layerBytes": "Current layer {{completed}} / {{total}}",
+    "layerBytes": "{{completed}} / {{total}}",
     "errorDetails": "Error details",
     "nowSelected": "Selected for future analyses. Running analyses keep their original model.",
     "cancel": "Cancel download",
     "retry": "Continue download",
     "reason": {
-      "preferred": "Preferred for the memory available on this device.",
+      "preferred": "Recommended for getting started. Files and loading are checked before first use.",
       "lightweight": "A smaller option for comparison or lower memory use.",
       "larger": "Memory permits a trial; speed and quality need validation.",
-      "manual": "Outside the conservative recommendation; available for manual selection."
+      "manual": "Requires more memory and storage. Select according to your device."
     },
     "phase": {
       "manifest": "Getting model manifest",
@@ -1026,6 +1024,17 @@
       "space": "Insufficient disk space. Free some space and continue.",
       "notFound": "Model version not found. Check again or choose another version.",
       "failed": "Download or installation check failed. View details and retry."
+    },
+    "resume": "Resume download",
+    "import": "Import file",
+    "incompatible": "Available memory or storage is insufficient. Free resources and refresh.",
+    "freeStorage": "{{size}} free storage",
+    "runtimeStatus": "{{state}} · {{backend}}",
+    "runtime": {
+      "unloaded": "Loads on demand",
+      "loading": "Loading",
+      "ready": "Loaded",
+      "error": "Load failed"
     }
   },
   "appSelect": {
@@ -1045,14 +1054,13 @@
     "delete": "Delete",
     "deleteAria": "Delete model {{model}}",
     "deleteTitle": "Delete local model",
-    "deleteConfirm": "Delete {{model}}? This model is managed by local Ollama. Other apps using it will also need it reinstalled. Your learning data and analysis results will be kept.",
+    "deleteConfirm": "Delete {{model}}? Only model files managed by LexiCue will be removed. Learning data and analysis results are retained.",
     "busy": "Local AI is running or downloading. Finish or cancel the task before deleting models.",
     "deleting": "Deleting model…",
     "failed": "Deletion could not be confirmed. Refresh or retry.",
     "deleted": "Deleted {{model}}. Choose another model if this was your selected model.",
     "alreadyAbsent": "{{model}} is already absent. The model list has been refreshed.",
-    "retry": "Retry deletion",
-    "service": "Ollama service: {{address}}"
+    "retry": "Retry deletion"
   },
   "annotation": {
     "mode": "Annotation mode",
@@ -1105,5 +1113,25 @@
     "back": "Back",
     "taskContinues": "The task will continue in the background",
     "statistics": "Statistics"
+  },
+  "dictionaryInit": {
+    "title": "Dictionary preparation",
+    "progress": "Preparing dictionaries ({{completed}}/{{total}})",
+    "failed": "Some dictionaries failed; available sources still work",
+    "rows": "{{count}} rows processed",
+    "details": "Details"
+  },
+  "lookup": {
+    "title": "Look up {{term}}",
+    "online": "Look up online",
+    "open": "Look up",
+    "preparing": "This language’s dictionary is being prepared. Try again when it finishes.",
+    "notFound": "No definition found offline.",
+    "failed": "Dictionary unavailable. Retry or look up online."
+  },
+  "mobileBrowse": {
+    "status": "Learning status",
+    "filters": "Filters",
+    "options": "Display options"
   }
 }

@@ -84,10 +84,10 @@ fn extraction_schema() -> serde_json::Value {
             "type":"object","properties":{
                 "segment_index":{"type":"integer"},
                 "canonical":{"type":"string"},
-                "token_positions":{"type":"array","items":{"type":"integer"}},
-                "category":{"type":"string"}
-            },"required":["segment_index","canonical","token_positions","category"]
-        }}},"required":["phrases"]
+                "token_positions":{"type":"array","items":{"type":"integer","minimum":0},"minItems":2},
+                "category":{"type":"string","enum":CATEGORIES}
+            },"required":["segment_index","canonical","token_positions","category"],"additionalProperties":false
+        }}},"required":["phrases"],"additionalProperties":false
     })
 }
 
@@ -218,9 +218,37 @@ fn extraction_prompt(segments: &[SegmentRow]) -> String {
         let tokens = english::tokenize_english_text(&segment.text).iter()
             .map(|(surface, position)| format!("{position}:{surface}"))
             .collect::<Vec<_>>().join(" ");
-        format!("[{}] {}\n词位: {}", segment.index, segment.text, tokens)
+        format!("[{}] {}\nTokens: {}", segment.index, segment.text, tokens)
     }).collect::<Vec<_>>().join("\n");
-    format!("从英文学习材料提取值得作为整体学习的习语、短语动词、固定表达和高价值搭配。只选择有约定用法且在本句有学习价值的表达。排除普通临时组合、专名、不能确定词位的表达。每一项必须包含整数 segment_index、标准形式 canonical、原句 token_positions、category。可分离短语动词只列词组本身的词位。其他类别必须是连续词位。category 仅可为 phrasal_verb、idiom、fixed_expression、collocation。宁可遗漏，不要猜测。示例：输入 [12] I picked it up.，输出 {{\"phrases\":[{{\"segment_index\":12,\"canonical\":\"pick up\",\"token_positions\":[1,3],\"category\":\"phrasal_verb\"}}]}}。没有目标词组时返回 {{\"phrases\":[]}}。只返回 JSON。\n{input}")
+    format!("Extract established English phrasal verbs, idioms, fixed expressions and useful collocations from the INPUT. Exclude arbitrary combinations and proper names. For each item: segment_index MUST equal the number in square brackets on that exact source line; canonical is the lowercase dictionary form; token_positions are the explicitly supplied ZERO-BASED token numbers for its words; category is phrasal_verb, idiom, fixed_expression or collocation. A separable phrasal verb may skip the intervening object. Other categories require consecutive token positions. Never include a word that is not part of the expression. Return JSON phrases only. Return an empty array when none are present.\nExample INPUT: [12] I picked it up. Tokens: 0:I 1:picked 2:it 3:up. OUTPUT: {{\"phrases\":[{{\"segment_index\":12,\"canonical\":\"pick up\",\"token_positions\":[1,3],\"category\":\"phrasal_verb\"}}]}}. The example is not an input line.\nINPUT:\n{input}")
+}
+
+fn extraction_ranges(config: &AiConfig, segments: &[SegmentRow]) -> Vec<(usize, usize)> {
+    if config.is_gemma() {
+        // E2B missed expressions when several independent sentences shared a
+        // request in device checks. Keep its extraction sentence-by-sentence.
+        let width = if config.model.contains("-e2b-") { 1 } else { 8 };
+        (0..segments.len()).step_by(width).map(|start| (start, (start+width).min(segments.len()))).collect()
+    } else { batch_ranges(&segments.iter().map(|s| (s.index, s.text.clone())).collect::<Vec<_>>()) }
+}
+
+fn locating_feedback(content: &str, segments: &[SegmentRow]) -> String {
+    let Ok(value) = super::parse_ai_json::<serde_json::Value>(content) else { return String::new(); };
+    let Some(items) = value.get("phrases").and_then(serde_json::Value::as_array) else { return String::new(); };
+    let mut feedback = Vec::new();
+    for value in items.iter().take(32) {
+        let Ok(candidate) = serde_json::from_value::<Candidate>(value.clone()) else { continue; };
+        let Some(segment) = segments.iter().find(|s| s.index == candidate.segment_index) else { continue; };
+        if validate_candidate(&candidate, segment).is_some() { continue; }
+        let tokens = english::tokenize_english_text(&segment.text);
+        let canonical = normalized(&candidate.canonical);
+        let choices: Vec<_> = canonical.split_whitespace().take(8).map(|word| {
+            let indices: Vec<_> = tokens.iter().filter(|(surface,_)| english::surface_matches_lemma(surface,word)).map(|(_,index)| *index).collect();
+            format!("{word}: {indices:?}")
+        }).collect();
+        feedback.push(format!("Segment {}: canonical {} needs exactly {} indices, one per canonical word. Allowed source positions by word: {}. Exclude surrounding words. If any word has no source position, omit the item.", segment.index, serde_json::json!(canonical), choices.len(), choices.join("; ")));
+    }
+    feedback.join("\n")
 }
 
 #[cfg(test)]
@@ -231,17 +259,22 @@ async fn request_extraction(client: &Client, config: &AiConfig, token: &Cancella
 async fn request_extraction_streaming(client: &Client, config: &AiConfig, token: &CancellationToken, notifier: Option<&RetryNotifier>, file_id: i64, batch: usize, segments: &[SegmentRow], allow_retry: bool, session: &streaming::Session, preview: &pipeline::PreviewCallback<'_>) -> Result<ParseOutcome<Candidate>, BatchFailure> {
     let base_prompt = extraction_prompt(segments);
     let attempts = if allow_retry { 2 } else { 1 };
+    let mut feedback = String::new();
     for attempt in 0..attempts {
         if token.cancelled() { return Err(BatchFailure { code: "CANCELLED", stage: "提取", batch }); }
-        let prompt = if attempt == 0 { base_prompt.clone() } else { format!("{base_prompt}\n上一次回复无效。请严格检查每项都有 segment_index、canonical、token_positions、category；不要输出无法定位的项。") };
+        let prompt = if attempt == 0 { base_prompt.clone() } else { format!("{base_prompt}\nPrevious response was invalid. Copy each actual segment_index exactly, including zero. Use only the token positions printed on that SAME line, and match the canonical words to those positions. Do not output the example or an item you cannot locate.\n{feedback}") };
         diagnostics::begin_request(file_id, "extraction", &prompt, attempt > 0);
         let started = Instant::now();
         let attempt_id = uuid::Uuid::new_v4().to_string();
         let emit = |operation,items| preview(segments,pipeline::PreviewUpdate {operation,batch_id:batch,attempt_id:attempt_id.clone(),origin:"ai",items});
         emit("begin",Vec::new());
+        let mut schema = extraction_schema();
+        if config.is_gemma() {
+            schema["properties"]["phrases"]["items"]["properties"]["segment_index"]["enum"] = serde_json::json!(segments.iter().map(|s| s.index).collect::<Vec<_>>());
+        }
         let parser = std::sync::Mutex::new(parsing::IncrementalCandidates::new(segments));
         let last_activity = std::sync::Mutex::new(None::<Instant>);
-        let response = match streaming::chat(client, config, token, notifier, prompt, extraction_schema(),file_id,session,
+        let response = match streaming::chat(client, config, token, notifier, prompt, schema,file_id,session,
             |fragment| {
                 let items = parser.lock().unwrap().push(fragment);
                 if !items.is_empty() { emit("append",pipeline::accepted(segments,&items)); }
@@ -251,11 +284,17 @@ async fn request_extraction_streaming(client: &Client, config: &AiConfig, token:
             }).await {
             Ok(value) => value,
             Err(_) if token.cancelled() => { emit("rollback",Vec::new()); diagnostics::response_usage(file_id, "extraction", None); return Err(BatchFailure { code: "CANCELLED", stage: "提取", batch }); },
+            Err(failure) if failure.kind == "INVALID_JSON" && attempt + 1 < attempts => {
+                emit("rollback",Vec::new());
+                diagnostics::response_usage(file_id, "extraction", None);
+                record_request_failure(file_id, "extraction", batch, &failure, started.elapsed().as_millis());
+                continue;
+            },
             Err(failure) => {
                 emit("rollback",Vec::new());
                 diagnostics::response_usage(file_id, "extraction", None);
                 record_request_failure(file_id, "extraction", batch, &failure, started.elapsed().as_millis());
-                return Err(BatchFailure { code: if failure.kind.starts_with("STREAM_") { "STREAM_INTERRUPTED" } else { "REQUEST_FAILED" }, stage: "提取", batch });
+                return Err(BatchFailure { code: if failure.kind == "CONTEXT_LIMIT" { "CONTEXT_LIMIT" } else if failure.kind == "OUTPUT_TRUNCATED" { "OUTPUT_TRUNCATED" } else if failure.kind.starts_with("STREAM_") { "STREAM_INTERRUPTED" } else { "REQUEST_FAILED" }, stage: "提取", batch });
             }
         };
         diagnostics::response_usage(file_id, "extraction", Some(&response));
@@ -278,6 +317,7 @@ async fn request_extraction_streaming(client: &Client, config: &AiConfig, token:
             }
             Ok(outcome) => {
                 emit("rollback",Vec::new());
+                if config.is_gemma() { feedback = locating_feedback(&response.content, segments); }
                 let last = attempt + 1 == attempts;
                 record_batch(file_id, "extraction", batch, "ALL_ITEMS_INVALID", Some(&response), elapsed, 0, outcome.skipped_count, outcome.missing_fields.iter().cloned().collect(), last.then_some(response.content.as_str()));
                 if last { return Err(BatchFailure { code: "ALL_ITEMS_INVALID", stage: "提取", batch }); }
@@ -462,6 +502,19 @@ mod tests {
     use super::*;
     use std::io::{Read, Write};
     use std::net::TcpListener;
+
+    #[test]
+    fn retry_feedback_uses_original_tokens_without_accepting_invalid_positions() {
+        let source = [SegmentRow {index:7,text:"We need to break the ice.".into()}];
+        let response = r#"{"phrases":[{"canonical":"break the ice","segment_index":7,"token_positions":[2,3,4,5],"category":"idiom"}]}"#;
+        assert!(parsing::candidates(response,&source).unwrap().items.is_empty());
+        let feedback = locating_feedback(response,&source);
+        assert!(feedback.contains("exactly 3 indices"));
+        assert!(feedback.contains("break: [3]; the: [4]; ice: [5]"));
+        let config = AiConfig {provider:"gemma".into(),model:"gemma4-e2b-litert-fixture".into(),base_url:String::new(),api_key:None};
+        let source = vec![source[0].clone();3];
+        assert_eq!(extraction_ranges(&config,&source),vec![(0,1),(1,2),(2,3)]);
+    }
 
     pub(super) fn mock_deepseek(replies: &[(&str, &str)]) -> (AiConfig, std::thread::JoinHandle<Vec<serde_json::Value>>) {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
@@ -705,15 +758,22 @@ mod gemma_model_smoke {
     use std::sync::Mutex;
 
     #[tokio::test]
-    #[ignore = "requires the explicitly downloaded local Gemma 4 12B model"]
+    #[ignore = "requires pinned Gemma weights and prepared native engine"]
     async fn gemma4_local_streaming_smoke() {
-        let config = AiConfig { provider: "ollama".into(), base_url: "http://localhost:11434".into(), model: "gemma4:12b-it-q4_K_M".into(), api_key: None };
+        use crate::commands::gemma::{models, runtime};
+        let model = std::env::var("LEXICUE_GEMMA_SMOKE_ASSET").unwrap_or_else(|_| "gemma4-e2b-litert-181938105e0e".into());
+        let item = models::asset(&model).unwrap();
+        let source = std::env::var("LEXICUE_GEMMA_SMOKE_MODEL").expect("set model path");
+        let library = std::env::var("LEXICUE_GEMMA_SMOKE_LIBRARY").expect("set native library directory");
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::hard_link(source, models::installed_path(dir.path(), &item)).unwrap();
+        runtime::start_smoke(dir.path().into(), library.into()).unwrap();
+        let config = AiConfig { provider: "gemma".into(), base_url: "".into(), model, api_key: None };
         let client = ai_client(std::time::Duration::from_secs(600), &config.base_url).unwrap();
         let loading_started = Instant::now();
-        let loaded: serde_json::Value = client.post("http://localhost:11434/api/chat")
-            .json(&serde_json::json!({"model":config.model,"messages":[],"stream":false}))
-            .send().await.unwrap().error_for_status().unwrap().json().await.unwrap();
+        runtime::count(&config.model, "预热".into(), &CancellationToken::default()).await.unwrap();
         let loading_request_ms = loading_started.elapsed().as_millis();
+        let runtime_state = runtime::status();
         let segments: Vec<_> = ["I picked it up.", "She ran into an old friend.", "We need to break the ice."]
             .into_iter().enumerate().map(|(index, text)| SegmentRow { index: index as i32, text: text.into() }).collect();
         let file_id = -40_004;
@@ -721,28 +781,120 @@ mod gemma_model_smoke {
         let started = Instant::now();
         let first = Mutex::new(None);
         let phases = Mutex::new(Vec::new());
-        let result = request_extraction_streaming(&client, &config, &CancellationToken::default(), None, file_id, 1, &segments, false, &streaming::Session::default(), &|_, update| {
+        let mut items = Vec::new();
+        for (number,(start,end)) in extraction_ranges(&config,&segments).into_iter().enumerate() {
+        let result = request_extraction_streaming(&client, &config, &CancellationToken::default(), None, file_id, number+1, &segments[start..end], true, &streaming::Session::default(), &|_, update| {
             if update.operation == "append" && !update.items.is_empty() {
                 let mut time = first.lock().unwrap();
                 if time.is_none() { *time = Some(started.elapsed().as_millis()); }
             }
             phases.lock().unwrap().push(update.operation);
         }).await;
-        let outcome = result.unwrap_or_else(|error| panic!("{}", error.code));
-        let accepted = pipeline::accepted(&segments, &outcome.items);
+        let outcome = result.unwrap_or_else(|error| panic!("{}: {:?}", error.code, diagnostics::raw_report(file_id)));
+        items.extend(outcome.items);
+        }
+        let accepted = pipeline::accepted(&segments, &items);
         assert!(!accepted.is_empty(), "the fixed phrases must produce a locally validated result");
         let phrases: Vec<_> = accepted.iter().map(|item| preview_phrase(item, &segments[item.candidate.segment_index as usize])).collect();
         let pick = phrases.iter().find(|phrase| phrase.canonical == "pick up").expect("separated pick up must be recognized");
+        assert!(phrases.iter().any(|phrase| phrase.canonical=="run into"), "run into must be recognized");
+        assert!(phrases.iter().any(|phrase| phrase.canonical=="break the ice"), "break the ice must be recognized");
         let highlighted: Vec<_> = pick.ranges.iter().map(|range| String::from_utf16(&segments[0].text.encode_utf16().skip(range.start).take(range.end-range.start).collect::<Vec<_>>()).unwrap()).collect();
         assert_eq!(highlighted, ["picked", "up"]);
         assert!(phases.lock().unwrap().contains(&"commit"));
         assert!(first.lock().unwrap().is_some());
+        let extraction_ms = started.elapsed().as_millis();
+        let mut quality_errors = Vec::new();
+        let lexicon=crate::db::init_db(&dir.path().join("fixture-lexicon.db")).unwrap();
+        crate::commands::dictionary::initialize_builtin_japanese_phrase_dictionary(&lexicon).unwrap();
+        crate::commands::dictionary::initialize_builtin_chinese_phrase_dictionary(&lexicon).unwrap();
+        // The same native adapter powers subtitle and non-English analysis.
+        for (language, input) in [("en", "Hello world."), ("ja", "明日は図書館に行きます。"), ("de", "Ich lerne jeden Tag Deutsch.")] {
+            let translated = runtime::chat(&config.model, super::super::build_translation_prompt(language, &format!("[0] {input}")), super::super::local_translation_schema(&[(0,input.into())]), &CancellationToken::default(), |_| {}, || {}).await.unwrap();
+            let value: serde_json::Value = serde_json::from_str(&translated.content).unwrap();
+            assert_eq!(value["translations"][0]["index"], 0);
+            assert!(!value["translations"][0]["translation"].as_str().unwrap().trim().is_empty());
+            println!("TRANSLATION_{language}={}", translated.content);
+        }
+        for (language, input) in [("ja", "忙しくて猫の手も借りたい。"), ("de", "Wir müssen die Daumen drücken."), ("zh", "他终于恍然大悟。") ] {
+            let analyzed = match super::super::chat_detailed(&client, &config, &CancellationToken::default(), None, super::super::phrase_prompt(&config, language, &format!("[0] {input}")), super::super::local_phrase_schema(language,&[(0,input.into())])).await {
+                Ok(value) => value, Err(error) => { quality_errors.push(format!("{language}: {}", error.message)); continue; }
+            };
+            let mut parsed: super::super::PhraseAnalysisResponse = super::super::parse_ai_json(&analyzed.content).unwrap();
+            let source=vec![(0,input.to_string())];
+            let known=match language {"ja"=>crate::commands::import::detect_japanese_phrases_in_segments(&lexicon,&source).unwrap(),"zh"=>crate::commands::import::detect_chinese_phrases_in_segments(&lexicon,&source).unwrap(),_=>Vec::new()};
+            for phrase in &mut parsed.phrases { if let Some(text)=super::super::grounded_phrase_text(&phrase.text,phrase.segment_index,&known) {phrase.text=text;} }
+            if parsed.phrases.is_empty() { quality_errors.push(format!("{language}: empty phrases for a known expression")); }
+            assert!(parsed.phrases.iter().all(|item| item.segment_index == 0 && super::super::find_phrase_position(input, &item.text, language).is_some()));
+            if parsed.phrases.iter().any(|item| [&item.meaning_zh,&item.usage_zh].iter().any(|text| !text.as_deref().unwrap_or("").chars().any(|c| ('一'..='鿿').contains(&c)))) { quality_errors.push(format!("{language}: Chinese explanation required")); }
+            println!("ANALYSIS_{language}={}", analyzed.content);
+            let expected=match language {"ja"=>"猫の手も借りたい","de"=>"die Daumen drücken",_=>"恍然大悟"};
+            if !parsed.phrases.iter().any(|phrase|phrase.text==expected) { quality_errors.push(format!("{language}: expression boundary must exclude surrounding words")); }
+            if language=="zh" {
+                if !parsed.phrases.iter().any(|phrase|phrase.text=="恍然大悟") { quality_errors.push("zh: idiom must exclude surrounding sentence words".into()); }
+                let details=super::super::local_chinese_details(&client,&config,&CancellationToken::default(),None,"恍然大悟").await.unwrap();
+                println!("CHINESE_DETAILS={details:?}");
+            }
+        }
+        if let Err(error) = super::super::word_context::native_smoke(&config.model).await { quality_errors.push(format!("word meaning: {error}")); }
+        let token = CancellationToken::default();
+        let cancel_token = token.clone();
+        let cancelled = runtime::chat(&config.model, "生成一百条中文长句。".into(), serde_json::json!({"type":"object","properties":{"text":{"type":"string"}},"required":["text"]}), &token, |_| cancel_token.cancel(), || {}).await;
+        assert!(cancelled.is_err_and(|error| error.kind == "CANCELLED"));
+        let queued = CancellationToken::default(); queued.cancel();
+        assert!(runtime::count(&config.model, "排队取消".into(), &queued).await.is_err());
+        let active_token = CancellationToken::default();
+        let active_model = config.model.clone();
+        let active_cancel = active_token.clone();
+        let active = tokio::spawn(async move { runtime::chat(&active_model,"生成一百条中文长句。".into(),serde_json::json!({"type":"object","properties":{"text":{"type":"string"}},"required":["text"]}),&active_cancel, |_| {}, || {}).await });
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        let queued_token = CancellationToken::default();
+        let queued_model = config.model.clone();
+        let queued_cancel = queued_token.clone();
+        let queued = tokio::spawn(async move { runtime::count(&queued_model,"已排队的请求".into(),&queued_cancel).await });
+        tokio::task::yield_now().await;
+        queued_token.cancel(); active_token.cancel();
+        assert!(queued.await.unwrap().is_err());
+        assert!(active.await.unwrap().is_err_and(|error|error.kind=="CANCELLED"));
+        for _ in 0..3 {
+            let repeated = runtime::chat(&config.model,super::super::build_translation_prompt("en","[0] Hello world."),super::super::local_translation_schema(&[(0,"Hello world.".into())]),&CancellationToken::default(), |_| {}, || {}).await.unwrap();
+            let value:serde_json::Value = serde_json::from_str(&repeated.content).unwrap();
+            assert!(value["translations"][0]["translation"].as_str().unwrap().contains("世界"));
+        }
+        let background_model=config.model.clone();
+        let interrupted=tokio::spawn(async move {runtime::chat(&background_model,"生成一百条中文长句。".into(),serde_json::json!({"type":"object","properties":{"text":{"type":"string"}},"required":["text"]}),&CancellationToken::default(), |_| {}, || {}).await});
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        runtime::set_gemma_background(true);
+        assert!(runtime::count(&config.model,"后台请求".into(),&CancellationToken::default()).await.is_err());
+        runtime::set_gemma_background(false);
+        assert!(interrupted.await.unwrap().is_err_and(|error|error.kind=="CANCELLED"));
+        for _ in 0..100 { if runtime::status().state=="unloaded" { break; } tokio::time::sleep(std::time::Duration::from_millis(10)).await; }
+        assert_eq!(runtime::status().state,"unloaded","returning to the foreground must not resume old work");
+        runtime::count(&config.model,"前台重新加载".into(),&CancellationToken::default()).await.unwrap();
+        let too_long = "你好 ".repeat(10_000);
+        assert!(runtime::count(&config.model, too_long.clone(), &CancellationToken::default()).await.unwrap() > runtime::INPUT_LIMIT);
+        let exceeded = runtime::chat(&config.model, too_long, serde_json::json!({"type":"object"}), &CancellationToken::default(), |_| {}, || {}).await;
+        assert!(exceeded.is_err_and(|error| error.kind == "CONTEXT_LIMIT"));
+        tokio::time::sleep(std::time::Duration::from_millis(1200)).await;
+        assert_eq!(runtime::status().state, "unloaded", "idle timeout must release the model");
+        runtime::set_gemma_background(true);
+        runtime::unload().await.unwrap();
+        assert_eq!(runtime::status().state, "unloaded");
+        runtime::set_gemma_background(false);
+        #[cfg(unix)]
+        let peak_resident_bytes = unsafe {
+            let mut usage: libc::rusage = std::mem::zeroed();
+            if libc::getrusage(libc::RUSAGE_SELF, &mut usage) == 0 { Some(usage.ru_maxrss as u64 * if cfg!(target_os="macos") { 1 } else { 1024 }) } else { None }
+        };
+        #[cfg(not(unix))]
+        let peak_resident_bytes: Option<u64> = None;
         println!("GEMMA_SMOKE_REPORT={}", serde_json::json!({
             "loadingRequestMs":loading_request_ms,
-            "loadMs":loaded.get("load_duration").and_then(serde_json::Value::as_u64).map(|ns| ns / 1_000_000),
-            "firstValidPreviewMs":*first.lock().unwrap(), "totalExtractionMs":started.elapsed().as_millis(),
-            "phrases":phrases, "diagnostic":diagnostic_summary(file_id), "writesLearningData":false,
-            "loadingRequests":1
+            "runtime":runtime_state,
+            "firstValidPreviewMs":*first.lock().unwrap(), "totalExtractionMs":extraction_ms,
+            "qualityErrors":quality_errors, "phrases":phrases, "diagnostic":diagnostic_summary(file_id), "writesLearningData":false,
+            "peakProcessResidentBytes":peak_resident_bytes
         }));
+        assert!(quality_errors.is_empty(), "business quality gate failed: {quality_errors:?}");
     }
 }

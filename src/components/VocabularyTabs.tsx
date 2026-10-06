@@ -1,3 +1,4 @@
+import LearningLanguageSelect from './LearningLanguageSelect';
 import { normalizeNavigationPath } from './NavigationItems';
 import { useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
@@ -10,8 +11,8 @@ export default function VocabularyTabs() {
   const pathname = normalizeNavigationPath(rawPathname);
   const setVocabularyKind = usePreferencesStore(state => state.setVocabularyKind);
   useEffect(() => { setVocabularyKind(pathname === '/phrases' ? 'phrase' : 'word'); }, [pathname, setVocabularyKind]);
-  return <nav className="vocabulary-tabs" aria-label={t('shell.vocabulary')}>
+  return <div className="vocabulary-shell"><nav className="vocabulary-tabs" aria-label={t('shell.vocabulary')}>
     <NavLink to="/words">{t('sidebar.words')}</NavLink>
     <NavLink to="/phrases">{t('sidebar.phrases')}</NavLink>
-  </nav>;
+  </nav><div className="vocabulary-shell__language"><LearningLanguageSelect /></div></div>;
 }

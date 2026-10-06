@@ -3,11 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({ invoke: vi.fn() }));
 vi.mock('@tauri-apps/api/core', () => ({ invoke: mocks.invoke }));
 import { useAiStore } from '../../stores/aiStore';
-import { checkAiConnection, ensureAiConnection, getAiConfig, getAiConnectionFingerprint, isLocalOllamaUrl, invalidateAiDiscovery } from '../ai';
+import { checkAiConnection, ensureAiConnection, getAiConfig, getAiConnectionFingerprint, invalidateAiDiscovery } from '../ai';
 
 beforeEach(() => {
   mocks.invoke.mockReset();
-  useAiStore.setState({ enabled: true, provider: 'ollama', baseUrl: 'http://localhost:11434', model: 'chosen-model', apiKey: '', aiModels: [], aiFingerprint: '', aiStatus: 'idle', aiError: '' });
+  useAiStore.setState({ enabled: true, provider: 'gemma', baseUrl: 'http://localhost:11434', model: 'chosen-model', apiKey: '', aiModels: [], aiFingerprint: '', aiStatus: 'idle', aiError: '' });
 });
 
 describe('shared AI model discovery', () => {
@@ -65,12 +65,13 @@ describe('automatic discovery', () => {
     expect(mocks.invoke).not.toHaveBeenCalled();
   });
   it('strips cloud credentials from local analysis configurations', () => {
-    useAiStore.setState({ provider: 'ollama', apiKey: 'cloud-only' });
+    useAiStore.setState({ provider: 'gemma', apiKey: 'cloud-only' });
     expect(getAiConfig().apiKey).toBeUndefined();
   });
-  it('checks exact loopback addresses rather than hostname prefixes', () => {
-    for (const url of ['http://localhost:11434', 'http://127.0.0.1:11434', 'http://[::1]:11434']) expect(isLocalOllamaUrl(url)).toBe(true);
-    for (const url of ['http://localhost.evil.test', 'http://127.0.0.1.evil.test', 'http://user@localhost:11434', 'http://192.168.1.5:11434']) expect(isLocalOllamaUrl(url)).toBe(false);
+  it('local configurations have no HTTP endpoint or credentials', () => {
+    expect(getAiConfig()).toMatchObject({ provider: 'gemma', model: 'chosen-model' });
+    expect(getAiConfig().baseUrl).toBeUndefined();
+    expect(getAiConfig().apiKey).toBeUndefined();
   });
 });
 

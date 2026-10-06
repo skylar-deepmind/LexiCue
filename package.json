@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "test:ui": "node scripts/ui-smoke.mjs",
-    "check:release": "node scripts/check-release.mjs"
+    "check:release": "node scripts/check-release.mjs",
+    "prepare:gemma": "node scripts/prepare-gemma.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.11.1",

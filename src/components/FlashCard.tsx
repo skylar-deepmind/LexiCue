@@ -5,6 +5,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { playPronunciation, speakText } from '../lib/tts';
 import type { DictionaryEntry, DueCard, DuePhraseCard, PhraseDictionaryEntry } from '../lib/types';
 import OccurrenceText from './OccurrenceText';
+import { dictionaryLanguageState, useDictionaryStore } from '../stores/dictionaryStore';
 import { usePreferencesStore } from '../stores/preferencesStore';
 import { CONTENT_FONT_CLASS, FLASHCARD_DEFINITION_FONT_CLASS, FLASHCARD_TERM_FONT_CLASS } from '../lib/contentTypography';
 
@@ -30,6 +31,7 @@ function getWordText(card: DueCard | DuePhraseCard): string {
 
 export default function FlashCard({ card, revealed, onReveal }: FlashCardProps) {
   const { t } = useTranslation();
+  const dictionaryState = useDictionaryStore(s => dictionaryLanguageState(s, card.language));
   const occ = card.occurrences[0];
   const [dictionary, setDictionary] = useState<DictionaryEntry | null>(null);
   const [phraseDictionary, setPhraseDictionary] = useState<PhraseDictionaryEntry | null>(null);
@@ -54,23 +56,19 @@ export default function FlashCard({ card, revealed, onReveal }: FlashCardProps) 
   };
 
   useEffect(() => {
+    let active = true;
     setExpandedSenses(false);
+    setPhraseDictionary(null); setDictionary(null);
     if (!revealed) return;
     if (phraseMode) {
-      setPhraseDictionary(null);
-       void invoke<PhraseDictionaryEntry>('lookup_phrase_dictionary', { text: wordText, language: card.language })
-        .then(setPhraseDictionary)
-        .catch(() => {});
+      void invoke<PhraseDictionaryEntry>('lookup_phrase_dictionary', { text: wordText, language: card.language })
+        .then(entry => { if (active) setPhraseDictionary(entry); }).catch(() => {});
     } else {
-      setDictionary(null);
-      const lookup = card.language === 'en'
-        ? invoke<DictionaryEntry>('lookup_dictionary', { lemma: wordText, language: card.language, refresh: false })
-        : card.language === 'de'
-        ? invoke<DictionaryEntry>('lookup_dictionary', { lemma: wordText, language: card.language, refresh: false })
-        : invoke<DictionaryEntry>('get_cached_dictionary', { lemma: wordText, language: card.language });
-      void lookup.then(setDictionary).catch(() => {});
+      void invoke<DictionaryEntry>('lookup_dictionary', { lemma: wordText, language: card.language, mode: 'local', refresh: false })
+        .then(entry => { if (active) setDictionary(entry); }).catch(() => {});
     }
-  }, [wordText, revealed, phraseMode, card.language]);
+    return () => { active = false; };
+  }, [wordText, revealed, phraseMode, card.language, dictionaryState]);
 
   return (
     <div className="w-full max-w-lg mx-auto break-words">

@@ -39,8 +39,8 @@ export default function Pagination({ page, pageSize, total, onPageChange }: Pagi
   const end = Math.min(page * pageSize, total);
 
   return (
-    <div className="px-6 py-3 border-t border-gray-100 flex items-center justify-between gap-3 flex-wrap">
-      <span className="text-xs text-gray-400">
+    <div className="pagination px-6 py-3 border-t border-gray-100 flex items-center justify-between gap-3 flex-wrap">
+      <span className="pagination-range text-xs text-gray-400">
         {t('pagination.range', { start, end, total })}
       </span>
       <div className="flex items-center gap-1">
@@ -51,15 +51,16 @@ export default function Pagination({ page, pageSize, total, onPageChange }: Pagi
         >
           {t('pagination.prev')}
         </button>
+        <span className="pagination-mobile-position">{page} / {totalPages}</span>
         {getPageNumbers(page, totalPages).map((p, i) =>
           p === '…' ? (
-            <span key={`e-${i}`} className="px-1 h-8 flex items-center text-gray-400 text-sm">
+            <span key={`e-${i}`} className="pagination-number px-1 h-8 flex items-center text-gray-400 text-sm">
               …
             </span>
           ) : (
             <button
               key={p}
-              className={`${btnCls} ${
+              className={`pagination-number ${btnCls} ${
                 p === page
                   ? 'pagination-page-active bg-gray-900 text-white'
                   : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'

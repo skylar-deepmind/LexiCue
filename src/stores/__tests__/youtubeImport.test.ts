@@ -16,7 +16,7 @@ import { usePreferencesStore } from '../preferencesStore';
 import { useFeedbackStore } from '../feedbackStore';
 import { normalizeYouTubePreferences } from '../../lib/youtubeSelection';
 const store = () => useFileStore.getState();
-const input = { url: 'https://www.youtube.com/watch?v=test', title: 'Test', primary: { lang: 'en', is_auto: false }, secondary: { lang: 'zh-Hans', is_auto: true }, language: 'en' as const, aiTranslate: false, config: { provider: 'ollama' as const, baseUrl: 'http://localhost:11434', model: 'test' } };
+const input = { url: 'https://www.youtube.com/watch?v=test', title: 'Test', primary: { lang: 'en', is_auto: false }, secondary: { lang: 'zh-Hans', is_auto: true }, language: 'en' as const, aiTranslate: false, config: { provider: 'gemma' as const, baseUrl: 'http://localhost:11434', model: 'test' } };
 
 beforeEach(() => {
   vi.clearAllMocks();

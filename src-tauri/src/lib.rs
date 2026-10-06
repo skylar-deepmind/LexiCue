@@ -3,7 +3,7 @@ mod db;
 
 use db::{init_db, DbState, DictionaryStatus};
 use std::sync::{Arc, Mutex};
-use tauri::{Emitter, Manager};
+use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -28,6 +28,7 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Regular);
 
+            commands::gemma::runtime::initialize(app.handle())?;
             commands::youtube::init_subtitle_cache(app.handle());
             let app_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&app_dir)?;
@@ -47,39 +48,7 @@ pub fn run() {
             let status = DictionaryStatus::default();
             app.manage(status.clone());
 
-            let app_handle = app.handle().clone();
-            let dict_dir = app_dir.clone();
-            let thread_status = status.clone();
-            std::thread::spawn(move || {
-                let result = (|| -> Result<(), String> {
-                    let conn = init_db(&dict_dir.join("lexicue.db")).map_err(|e| e.to_string())?;
-                    commands::dictionary::initialize_builtin_dictionary(&conn)?;
-                    commands::dictionary::initialize_builtin_japanese_dictionary(&conn)?;
-                    commands::dictionary::initialize_builtin_german_dictionary(&conn)?;
-                    commands::dictionary::initialize_builtin_chinese_dictionary(&conn)?;
-                    commands::dictionary::initialize_builtin_chinese_phrase_dictionary(&conn)?;
-                    commands::dictionary::initialize_builtin_phrase_dictionary(&conn)?;
-                    commands::dictionary::initialize_builtin_japanese_phrase_dictionary(&conn)?;
-                    Ok(())
-                })();
-                match result {
-                    Ok(()) => {
-                        thread_status.set_ready();
-                        let _ = app_handle.emit("dictionary-ready", true);
-                    }
-                    Err(e) => {
-                        log::error!("dictionary init failed: {e}");
-                        let _ = app_handle.emit("dictionary-ready", false);
-                    }
-                }
-                // One-time, idempotent migration that normalizes English word
-                // lemmas to their base form so lookups resolve offline.
-                if let Ok(conn) = init_db(&dict_dir.join("lexicue.db")) {
-                    if let Err(e) = commands::english::run_migrate_english_lemmas(&conn) {
-                        log::error!("english lemma migration failed: {e}");
-                    }
-                }
-            });
+            commands::dictionary_init::start(app.handle().clone(), status);
 
             Ok(())
         })
@@ -112,6 +81,7 @@ pub fn run() {
             commands::words::set_occurrence_hidden,
             commands::words::list_file_word_tokens,
             commands::words::get_file_segment_tokens,
+            commands::reader::get_file_reader_tokens,
             commands::frequency_baseline::get_frequency_baseline,
             commands::frequency_baseline::configure_frequency_baseline,
             commands::frequency_baseline::revoke_frequency_baseline,
@@ -161,11 +131,14 @@ pub fn run() {
             commands::dictionary::import_dictionary_pack,
             commands::stats::get_learning_stats,
             commands::stats::get_storage_usage,
-            commands::ollama::models::get_local_ai_environment,
-            commands::ollama::models::pull_ollama_model,
-            commands::ollama::models::delete_ollama_model,
-            commands::ollama::models::get_local_ollama_activity,
-            commands::ollama::models::cancel_ollama_model_download,
+            commands::gemma::models::get_local_gemma_environment,
+            commands::gemma::models::download_gemma_model,
+            commands::gemma::models::delete_gemma_model,
+            commands::gemma::models::get_local_gemma_activity,
+            commands::gemma::models::cancel_gemma_model_download,
+            commands::gemma::models::import_gemma_model,
+            commands::gemma::runtime::gemma_runtime_status,
+            commands::gemma::runtime::set_gemma_background,
             commands::ollama::ai_status,
             commands::ollama::ai_models,
             commands::ollama::analyze_file_phrases,
@@ -196,6 +169,8 @@ pub fn run() {
             commands::chinese::tokenize_chinese,
             commands::chinese::tokenize_chinese_batch,
             commands::dictionary::dictionary_status,
+            commands::dictionary_init::dictionary_init_status,
+            commands::dictionary_init::retry_dictionary_init,
             commands::updater::check_github_release,
         ])
         .run(tauri::generate_context!())

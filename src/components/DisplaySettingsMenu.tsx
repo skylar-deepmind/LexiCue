@@ -14,7 +14,6 @@ export default function DisplaySettingsMenu({ className = '' }: { className?: st
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
-  const preferences = usePreferencesStore();
 
 
   return (
@@ -32,7 +31,17 @@ export default function DisplaySettingsMenu({ className = '' }: { className?: st
       </button>
       {open && (
         <AdaptiveMenu anchorRef={rootRef} label={t('display.title')} onClose={() => setOpen(false)}>
-          {CATEGORIES.map(([category, valueKey, setterKey]) => {
+          <DisplaySettingsControls />
+        </AdaptiveMenu>
+      )}
+    </div>
+  );
+}
+
+export function DisplaySettingsControls() {
+  const { t } = useTranslation();
+  const preferences = usePreferencesStore();
+  return <div className="display-settings-controls">{CATEGORIES.map(([category, valueKey, setterKey]) => {
             const value = preferences[valueKey] as ContentFontSize;
             const setValue = preferences[setterKey] as (size: ContentFontSize) => void;
             return (
@@ -53,9 +62,5 @@ export default function DisplaySettingsMenu({ className = '' }: { className?: st
                 </div>
               </div>
             );
-          })}
-        </AdaptiveMenu>
-      )}
-    </div>
-  );
+          })}</div>;
 }

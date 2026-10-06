@@ -12,7 +12,7 @@ const MAX_BYTES: i64 = 100 * 1024 * 1024;
 pub(super) fn fingerprint(config: &AiConfig, stage: &str, input: &Value) -> String {
     // Exact prompts retain extraction work when only presentation changes.
     let value = serde_json::json!({
-        "stage": stage, "version": if stage == "extraction" { 1 } else { 2 },
+        "stage": stage, "version": 2,
         "tokenizer_version": 1, "system": SYSTEM_PROMPT,
         "provider": config.provider, "base_url": config.base_url.trim().trim_end_matches('/'),
         "model": config.model, "temperature": 0, "input": input

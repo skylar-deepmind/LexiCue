@@ -4,6 +4,11 @@ LexiCue 的预编译安装包由 [GitHub Actions](.github/workflows/build-instal
 
 以下按平台说明正确的安装方法。**每个安装包副本只需处理一次**，之后可正常使用。
 
+本地 AI 使用内置 Gemma 引擎，默认关闭。安装后在设置中单独下载 E2B/E4B，
+或导入清单匹配的模型文件。权重不随安装包捆绑，也无需另装 Ollama。
+Android 需要 arm64、Android 9/API 28 或更新版本；模型还需约 2.6–3.7 GB 私有存储及足够可用内存。
+各平台构建与实机验证状态见 [内置 Gemma 验收](docs/embedded-gemma.md)。
+
 ---
 
 ## macOS

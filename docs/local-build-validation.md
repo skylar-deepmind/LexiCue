@@ -6,6 +6,8 @@
 
 ## Android 工具链
 
+内置 Gemma 构建另需 CMake 3.22+ 和 C++17 工具链。`prepare-gemma.mjs` 下载固定版本引擎并检查 SHA-256；不会下载模型权重。Android 的最低 API 为 28、ABI 为 arm64。原生库与许可复制由受版本控制的 `prepare-android.mjs` 完成；前后台取消由 Activity 模板和 Rust JNI 接口衔接。验收状态见 [embedded-gemma.md](embedded-gemma.md)。
+
 版本集中保存在 `scripts/android-toolchain.json`：Java 17、SDK 36、Build Tools 36.0.0、NDK 29.0.14206865。本地和 Actions 都读取该文件，并明确设置 `NDK_HOME`，避免自动选取其他已安装版本。SDK 36 与当前 Tauri Android 模块的 `compileSdk` 一致。
 
 macOS 默认使用 `~/Library/Android/sdk`，自动选择 Java 17；其他位置可以设置 `ANDROID_HOME`。Linux、Windows 还需设置 `JAVA_HOME`。首次安装需要 Android 官方命令行工具，然后运行：

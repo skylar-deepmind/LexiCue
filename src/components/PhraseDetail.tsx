@@ -1,4 +1,5 @@
 import Overlay from './Overlay';
+import { dictionaryLanguageState, useDictionaryStore } from '../stores/dictionaryStore';
 import { X, BookOpen, RefreshCw, EyeOff, Eye, Pencil, Plus, Trash2, Volume2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -24,6 +25,9 @@ interface PhraseDetailProps {
 
 export default function PhraseDetailPanel({ detail, onClose, onStatusChange, onDefinitionSave, onOccurrenceOpen }: PhraseDetailProps) {
   const { t } = useTranslation();
+  const dictionaryState = useDictionaryStore(s => dictionaryLanguageState(s, detail.phrase.language));
+  const [dictionaryReason, setDictionaryReason] = useState('');
+  const [dictionaryRevision, setDictionaryRevision] = useState(0);
   const learningTextFontSize = usePreferencesStore((state) => state.learningTextFontSize);
   const definitionFontSize = usePreferencesStore((state) => state.definitionFontSize);
   const auxiliaryFontSize = usePreferencesStore((state) => state.auxiliaryFontSize);
@@ -130,16 +134,21 @@ export default function PhraseDetailPanel({ detail, onClose, onStatusChange, onD
   };
 
   useEffect(() => {
+    // Resource progress must not replace an unsaved sense draft.
+    if (editingSenses || editingSensesZh || savingExplanation) return;
+    let active = true;
+    setDictionaryReason('');
     setDictionary(null);
     setOtherSensesEn([]);
     setOtherSensesZh([]);
     setExplanationError(false);
     setDictionaryLoading(true);
     invoke<PhraseDictionaryEntry>('lookup_phrase_dictionary', { text: detail.phrase.text, language: detail.phrase.language })
-      .then((entry) => { setDictionary(entry); setOtherSensesEn(entry.other_senses_en ?? []); setOtherSensesZh(entry.other_senses ?? []); })
-      .catch(() => {})
-      .finally(() => setDictionaryLoading(false));
-  }, [detail.phrase.id, detail.phrase.text, detail.phrase.language]);
+      .then((entry) => { if (!active) return; setDictionary(entry); setOtherSensesEn(entry.other_senses_en ?? []); setOtherSensesZh(entry.other_senses ?? []); })
+      .catch(error => { if (active) setDictionaryReason(String(error)); })
+      .finally(() => { if (active) setDictionaryLoading(false); });
+    return () => { active = false; };
+  }, [detail.phrase.id, detail.phrase.text, detail.phrase.language, dictionaryState, dictionaryRevision, editingSenses, editingSensesZh, savingExplanation]);
 
   const saveOccurrenceMeaning = async (occurrenceId: number) => {
     if (!meaningDraft.trim()) { setExplanationError(true); return false; }
@@ -280,11 +289,11 @@ export default function PhraseDetailPanel({ detail, onClose, onStatusChange, onD
               {dictionary.pinyin && (
                 <p className={`text-purple-600 ${CONTENT_FONT_CLASS.auxiliary[auxiliaryFontSize]}`}>{dictionary.pinyin}</p>
               )}
-              {detail.phrase.language !== 'en' && <p className={`text-gray-700 ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}>{dictionary.translation}</p>}
+              {(detail.phrase.language !== 'en' || dictionary.provider === 'PhraseDict') && <p className={`text-gray-700 ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}>{dictionary.translation}</p>}
               {detail.phrase.language !== 'en' && dictionary.usage_zh && (
                 <p className={`leading-relaxed text-gray-500 ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}>{t('phraseDetail.usage', { usage: dictionary.usage_zh })}</p>
               )}
-              {detail.phrase.language !== 'en' && <p className="text-[11px] text-gray-400">{t('phraseDetail.source', { provider: dictionary.provider })}</p>}
+              {(detail.phrase.language !== 'en' || dictionary.provider === 'PhraseDict') && <p className="text-[11px] text-gray-400">{t('phraseDetail.source', { provider: dictionary.provider })}</p>}
               {detail.phrase.language === 'en' && (
                 <div className="mt-3 space-y-3">
                   <div className="dictionary-evidence">
@@ -332,7 +341,7 @@ export default function PhraseDetailPanel({ detail, onClose, onStatusChange, onD
             </div>
           )}
           {!dictionaryLoading && !dictionary && (
-            <p className="mt-2 text-xs text-gray-400">{t('phraseDetail.noDictionary')}</p>
+            <div role="status"><p className="mt-2 text-xs text-gray-500">{t(dictionaryReason.includes('PREPARING') ? 'lookup.preparing' : dictionaryReason.includes('NOT_FOUND') ? 'lookup.notFound' : 'lookup.failed')}</p><button className="ui-button" onClick={() => setDictionaryRevision(v => v + 1)}>{t('common.retry')}</button></div>
           )}
         </section>
 

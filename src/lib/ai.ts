@@ -1,9 +1,9 @@
-import { useAiStore, DEFAULT_OLLAMA_URL, type AiProvider, type AiModelInfo } from '../stores/aiStore';
+import { useAiStore, type AiProvider, type AiModelInfo } from '../stores/aiStore';
 import { invoke } from '@tauri-apps/api/core';
 
 export interface AiConfig {
   provider: AiProvider;
-  baseUrl: string;
+  baseUrl?: string;
   model: string;
   apiKey?: string;
 }
@@ -12,7 +12,7 @@ export function getAiConfig(): AiConfig {
   const { provider, baseUrl, model, apiKey } = useAiStore.getState();
   return {
     provider,
-    baseUrl: baseUrl.trim() || (provider === 'ollama' ? DEFAULT_OLLAMA_URL : ''),
+    baseUrl: provider === 'openai' ? baseUrl.trim() : undefined,
     model,
     apiKey: provider === 'openai' ? apiKey : undefined,
   };
@@ -23,7 +23,7 @@ export function isAiEnabled(): boolean {
 }
 
 export function getAiConnectionFingerprint(config = getAiConfig()): string {
-  return JSON.stringify({ provider: config.provider, baseUrl: config.baseUrl, apiKey: config.provider === 'openai' ? config.apiKey : undefined });
+  return JSON.stringify({ provider: config.provider, baseUrl: config.provider === 'openai' ? config.baseUrl : undefined, apiKey: config.provider === 'openai' ? config.apiKey : undefined });
 }
 
 let connectionCheck = 0;
@@ -31,17 +31,10 @@ const discoveryVersions = new Map<string, number>();
 let inFlight: { fingerprint: string; promise: Promise<void> } | undefined;
 let lastSuccess: { fingerprint: string; at: number } | undefined;
 
-export function isLocalOllamaUrl(value: string): boolean {
-  try {
-    const url = new URL(value);
-    return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname.toLowerCase());
-  } catch { return false; }
-}
-
 /** Auto discovery never generates text and shares pending checks across mounted views. */
 export function ensureAiConnection(): Promise<void> {
   const state = useAiStore.getState();
-  if (!state.enabled || state.provider !== 'ollama') return Promise.resolve();
+  if (!state.enabled || state.provider !== 'gemma') return Promise.resolve();
   return checkAiConnection(false);
 }
 
@@ -59,7 +52,7 @@ export function checkAiConnection(force = true): Promise<void> {
 async function discoverAiConnection(): Promise<void> {
   const attempt = ++connectionCheck;
   const config = getAiConfig();
-  if (config.provider === 'ollama') config.apiKey = undefined;
+  if (config.provider === 'gemma') config.apiKey = undefined;
   const fingerprint = getAiConnectionFingerprint(config);
   const version = discoveryVersions.get(fingerprint) ?? 0;
   useAiStore.setState({ aiStatus: 'checking', aiError: '', aiFingerprint: fingerprint });
@@ -87,4 +80,9 @@ export function invalidateAiDiscovery(config = getAiConfig()): void {
   if (inFlight?.fingerprint === fingerprint) inFlight = undefined;
   if (lastSuccess?.fingerprint === fingerprint) lastSuccess = undefined;
   if (getAiConnectionFingerprint() === fingerprint) useAiStore.getState().resetAiCheck();
+}
+
+export function aiModelLabel(model: string): string {
+  const match = /^gemma4-(e2b|e4b)-(litert|gguf)-/.exec(model);
+  return match ? `Gemma 4 ${match[1].toUpperCase()}` : model;
 }

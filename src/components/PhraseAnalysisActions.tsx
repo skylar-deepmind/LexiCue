@@ -1,7 +1,6 @@
 import { Brain, RefreshCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useModelDownloadStore } from '../stores/modelDownloadStore';
-import { isLocalOllamaUrl } from '../lib/ai';
 import { useAiStore } from '../stores/aiStore';
 
 import { analysisAction } from '../lib/analysisAction';
@@ -12,10 +11,10 @@ export default function PhraseAnalysisActions({ name, completed, disabled, allow
 }) {
   const { t } = useTranslation();
   const deleting = useModelDownloadStore(s => Boolean(s.deletion || s.activity?.deleting));
-  const baseUrl = useAiStore(s => s.baseUrl);
+  const provider = useAiStore(s => s.provider);
   const action = analysisAction(completed, interrupted, allowForce);
   const label = t(`fileCard.${processing ? 'analyzing' : action.label}`);
-  return <button type="button" className="ui-button file-analysis-button" disabled={disabled || deleting && isLocalOllamaUrl(baseUrl)}
+  return <button type="button" className="ui-button file-analysis-button" disabled={disabled || deleting && provider === 'gemma'}
     aria-label={`${label} · ${name}`} title={action.force ? t('fileCard.forceReanalyzeHint') : label}
     onClick={event => { event.stopPropagation(); onAnalyze(action.force); }}>
     {completed || interrupted ? <RefreshCw size={16} aria-hidden="true" /> : <Brain size={16} aria-hidden="true" />}{label}

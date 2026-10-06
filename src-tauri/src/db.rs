@@ -1,6 +1,5 @@
 use rusqlite::{Connection, OptionalExtension};
 use std::path::Path;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -8,18 +7,7 @@ pub struct DbState {
     pub conn: Arc<Mutex<Connection>>,
 }
 
-#[derive(Clone, Default)]
-pub struct DictionaryStatus(Arc<AtomicBool>);
-
-impl DictionaryStatus {
-    pub fn set_ready(&self) {
-        self.0.store(true, Ordering::Relaxed);
-    }
-
-    pub fn is_ready(&self) -> bool {
-        self.0.load(Ordering::Relaxed)
-    }
-}
+pub use crate::commands::dictionary_init::DictionaryStatus;
 
 pub fn init_db(db_path: &Path) -> Result<Connection, rusqlite::Error> {
     let conn = Connection::open(db_path)?;

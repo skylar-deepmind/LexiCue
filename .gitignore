@@ -37,3 +37,7 @@ __pycache__/
 *.sln
 *.sw?
 todo.md
+
+# Prepared native engines; pinned sources/checksums are versioned instead.
+src-tauri/resources/gemma-runtime/*
+!src-tauri/resources/gemma-runtime/.gitkeep

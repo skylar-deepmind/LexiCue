@@ -76,51 +76,76 @@ fn now_ms() -> i64 {
         .as_millis() as i64
 }
 
-fn tokenize_en_text(text: &str) -> Vec<(String, i32)> {
-    let cleaned = text
-        .replace(
-            |c: char| {
-                c == '.'
-                    || c == ','
-                    || c == '!'
-                    || c == '?'
-                    || c == ';'
-                    || c == ':'
-                    || c == '('
-                    || c == ')'
-                    || c == '['
-                    || c == ']'
-                    || c == '{'
-                    || c == '}'
-                    || c == '"'
-                    || c == '\''
-                    || c == '`'
-                    || c == '«'
-                    || c == '»'
-                    || c == '–'
-                    || c == '—'
-                    || c == '…'
-                    || c == '@'
-                    || c == '#'
-                    || c == '$'
-                    || c == '%'
-                    || c == '^'
-                    || c == '&'
-                    || c == '*'
-                    || c == '+'
-                    || c == '='
-                    || c == '<'
-                    || c == '>'
-                    || c == '/'
-                    || c == '\\'
-                    || c == '|'
-                    || c == '~'
-            },
-            " ",
-        )
+fn is_en_phrase_delimiter(c: char) -> bool {
+    c == '.'
+        || c == ','
+        || c == '!'
+        || c == '?'
+        || c == ';'
+        || c == ':'
+        || c == '('
+        || c == ')'
+        || c == '['
+        || c == ']'
+        || c == '{'
+        || c == '}'
+        || c == '"'
+        || c == '\''
+        || c == '`'
+        || c == '«'
+        || c == '»'
+        || c == '–'
+        || c == '—'
+        || c == '…'
+        || c == '@'
+        || c == '#'
+        || c == '$'
+        || c == '%'
+        || c == '^'
+        || c == '&'
+        || c == '*'
+        || c == '+'
+        || c == '='
+        || c == '<'
+        || c == '>'
+        || c == '/'
+        || c == '\\'
+        || c == '|'
+        || c == '~'
+}
+fn clean_en_phrase_text(text: &str) -> String {
+    text.replace(is_en_phrase_delimiter, " ")
         .replace("--", " ")
-        .to_lowercase();
+        .to_lowercase()
+}
 
+pub(crate) fn en_phrase_positions(text: &str) -> std::collections::HashMap<usize, i32> {
+    let mut chars = text.chars().peekable();
+    let mut offset = 0;
+    let mut position = -1;
+    let mut in_word = false;
+    let mut positions = std::collections::HashMap::new();
+    while let Some(c) = chars.next() {
+        if c == '-' && chars.peek() == Some(&'-') {
+            chars.next();
+            offset += 2;
+            in_word = false;
+            continue;
+        }
+        if c.is_whitespace() || is_en_phrase_delimiter(c) {
+            in_word = false;
+        } else if !in_word {
+            position += 1;
+            positions.insert(offset, position);
+            in_word = true;
+        }
+        offset += c.len_utf16();
+    }
+    positions
+}
+
+fn tokenize_en_text(text: &str) -> Vec<(String, i32)> {
+    let cleaned = clean_en_phrase_text(text);
     let words: Vec<&str> = cleaned.split_whitespace().collect();
     words
         .iter()

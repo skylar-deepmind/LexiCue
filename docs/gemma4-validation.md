@@ -1,5 +1,7 @@
 # Gemma 4 recommendation and download validation
 
+> Historical Ollama 12B validation. Current embedded E2B/E4B implementation and platform acceptance are recorded in [embedded-gemma.md](embedded-gemma.md). This record does not validate the embedded engines.
+
 Validated on 2026-10-01: Apple M4, 32 GiB unified memory, Ollama 0.34.4.
 
 - Installed `gemma4:12b-it-q4_K_M` through the Settings download button. Ollama digest prefix: `6114515d63c1`.

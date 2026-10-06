@@ -7,7 +7,7 @@ vi.mock('../feedbackStore', () => ({ useFeedbackStore: { getState: () => ({ show
 import { useOllamaStore } from '../ollamaStore';
 import { previewPhraseKey } from '../../lib/analysisPreview';
 
-const config = { provider: 'ollama' as const, baseUrl: 'http://localhost:11434', model: 'fixture', apiKey: '' };
+const config = { provider: 'gemma' as const, baseUrl: 'http://localhost:11434', model: 'fixture', apiKey: '' };
 const phrase = { segmentIndex: 0, canonical: 'pick up', category: 'phrasal_verb', surface: 'picked up', tokenPositions: [1,3], ranges: [{ start: 2,end: 8 },{ start: 12,end: 14 }] };
 function deferred<T>() { let resolve!: (value: T) => void; let reject!: (reason: string) => void; const promise = new Promise<T>((yes,no) => { resolve = yes; reject = no; }); return { promise,resolve,reject }; }
 

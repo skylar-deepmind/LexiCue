@@ -35,6 +35,7 @@ jobs:
     env:
       SCCACHE_GHA_ENABLED: "true"
       RUSTC_WRAPPER: "sccache"
+      TAURI_ENV_TARGET_TRIPLE: ${{ matrix.target }}
     strategy:
       fail-fast: false
       matrix:
@@ -114,6 +115,10 @@ jobs:
         with:
           workspaces: src-tauri
       - run: npm ci
+      - name: Verify embedded Windows runtime ABI
+        run: |
+          npm run prepare:gemma
+          python scripts/gemma-native-smoke.py --runtime src-tauri/resources/gemma-runtime --abi-only
       - name: Build Windows branch installer
         if: ${{ github.ref != 'refs/heads/main' && !inputs.publish_release }}
         env:
@@ -189,7 +194,7 @@ jobs:
       - run: npm ci
       - name: Generate Android project
         run: npx tauri android init --ci --skip-targets-install
-      - name: Prepare Android activity, credentials, and icons
+      - name: Prepare Android activity, credentials, icons, and embedded Gemma
         run: node scripts/prepare-android.mjs
       - name: Configure Android release signing
         env:
@@ -398,6 +403,17 @@ jobs:
             echo "The signed APK does not contain the arm64-v8a ABI"
             echo "APK lib/ entries:"
             "$unzip_bin" -Z1 "$signed_apk" | grep '^lib/' || true
+            exit 1
+          fi
+
+          for native_asset in lib/arm64-v8a/liblexicue_gemma.so lib/arm64-v8a/liblitert-lm.so lib/arm64-v8a/libc++_shared.so assets/gemma-runtime/NOTICE.md assets/gemma-runtime/LICENSE-LiteRT-LM; do
+            if ! "$unzip_bin" -Z1 "$signed_apk" | grep -qx "$native_asset"; then
+              echo "Missing embedded Gemma asset: $native_asset"
+              exit 1
+            fi
+          done
+          if "$unzip_bin" -Z1 "$signed_apk" | grep -Eq '\.(gguf|litertlm|dylib|dll)$'; then
+            echo "APK contains model weights or desktop native libraries"
             exit 1
           fi
 

@@ -1,6 +1,6 @@
 import Overlay from '../components/Overlay';
 import { blocksPageShortcut } from '../lib/backNavigation';
-import AnnotationModeSwitch from '../components/AnnotationModeSwitch';
+import VocabularyToolbar from '../components/VocabularyToolbar';
 import AnnotationWorkspace from '../components/AnnotationWorkspace';
 import { annotationItems, type AnnotationMode } from '../lib/annotation';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -15,7 +15,6 @@ import type { ContextMenuItem } from '../components/ContextMenu';
 import EmptyState from '../components/EmptyState';
 import Pagination from '../components/Pagination';
 import Skeleton from '../components/Skeleton';
-import DisplaySettingsMenu from '../components/DisplaySettingsMenu';
 import { usePreferencesStore } from '../stores/preferencesStore';
 import { CONTENT_FONT_CLASS } from '../lib/contentTypography';
 import { useNavigate } from 'react-router-dom';
@@ -23,20 +22,6 @@ import { occurrenceRoute } from '../lib/fileProgress';
 import { useShallow } from 'zustand/react/shallow';
 
 const PAGE_SIZE = 50;
-
-const FILTER_TABS: { key: WordStatus | 'all'; labelKey: string }[] = [
-  { key: 'unprocessed', labelKey: 'status.unprocessed' },
-  { key: 'learning', labelKey: 'status.learning' },
-  { key: 'known', labelKey: 'status.known' },
-  { key: 'ignored', labelKey: 'status.ignored' },
-  { key: 'all', labelKey: 'common.all' },
-];
-
-const SORT_OPTIONS: { key: 'frequency' | 'alpha' | 'recent'; labelKey: string }[] = [
-  { key: 'frequency', labelKey: 'sort.frequency' },
-  { key: 'alpha', labelKey: 'sort.alpha' },
-  { key: 'recent', labelKey: 'sort.recent' },
-];
 
 const STATUS_CYCLE: WordStatus[] = ['unprocessed', 'learning', 'known', 'ignored'];
 
@@ -207,8 +192,11 @@ export default function PhrasesPage() {
     return () => window.removeEventListener('keydown', handler);
   }, [selected, store, pagePhrases, mode]);
 
+  const toolbar = <VocabularyToolbar kind="phrase" query={query} onQuery={value => { setQuery(value); store.clearSelection(); }} filter={filter} onFilter={store.setFilter} sort={sortBy} onSort={store.setSortBy} mode={mode} onMode={changeMode} disabled={batchUpdating} extra={(selectedLanguage === 'en' || selectedLanguage === 'all') ? { value: includeUnverified, onChange: store.setIncludeUnverified, label: t('phrases.showUnverified') } : undefined} />;
+
   if (mode === 'single') return <AnnotationWorkspace
     key={selectedLanguage}
+    toolbar={toolbar}
     scope={{ kind: 'phrase', language: selectedLanguage, filter, sortBy, query, includeUnverified }}
     items={annotationItems(visiblePhrases)}
     loading={loading || loadedKey !== JSON.stringify([selectedLanguage, filter, sortBy, includeUnverified])}
@@ -217,66 +205,7 @@ export default function PhrasesPage() {
 
   return (
     <div className="h-full flex flex-col relative">
-      <div className="px-6 py-4 border-b border-gray-100">
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-          <h1 className="text-xl font-semibold text-gray-900">{t('phrases.title')}</h1>
-          <div className="flex flex-wrap items-center gap-3"><AnnotationModeSwitch mode={mode} onChange={changeMode} disabled={batchUpdating} /><DisplaySettingsMenu /></div>
-        </div>
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-            {FILTER_TABS.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => store.setFilter(tab.key)}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                  filter === tab.key
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                {t(tab.labelKey)}
-              </button>
-            ))}
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="text-xs text-gray-400">{t('common.sort')}</span>
-            {SORT_OPTIONS.map((opt) => (
-              <button
-                key={opt.key}
-                onClick={() => store.setSortBy(opt.key)}
-                className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
-                  sortBy === opt.key
-                    ? 'bg-purple-50 text-purple-600'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                {t(opt.labelKey)}
-              </button>
-            ))}
-          </div>
-        </div>
-        {(selectedLanguage === 'en' || selectedLanguage === 'all') && (
-          <label className="phrase-candidate-toggle mt-3 inline-flex items-center gap-2 rounded-md px-2 py-1 text-xs cursor-pointer">
-            <input
-              type="checkbox"
-              checked={includeUnverified}
-              onChange={(event) => store.setIncludeUnverified(event.target.checked)}
-              className="phrase-candidate-toggle__input h-4 w-4"
-            />
-            <span>{t('phrases.showUnverified')}</span>
-          </label>
-        )}
-        <input
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            store.clearSelection();
-          }}
-          placeholder={t('phrases.searchPlaceholder')}
-          aria-label={t('phrases.searchAria')}
-          className="mt-3 w-full max-w-sm px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-        />
-      </div>
+      {toolbar}
 
       {(selected.size > 0 || lastBatchAction) && (
         <div className="px-6 py-2 bg-purple-50 border-b border-purple-100 flex flex-wrap items-center gap-2">
@@ -372,7 +301,7 @@ export default function PhrasesPage() {
                     status: phrase.status as WordStatus,
                   });
                 }}
-                className="flex items-start gap-3 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors group"
+                className="vocabulary-row flex items-start gap-3 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors group"
               >
                 <input
                   type="checkbox"
@@ -380,8 +309,8 @@ export default function PhrasesPage() {
                   onChange={() => store.toggleSelected(phrase.id)}
                   className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500 shrink-0 mt-0.5"
                 />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
+                <div className="vocabulary-row__main flex-1 min-w-0">
+                  <div className="vocabulary-row__heading flex items-center gap-2">
                     <button
                       onClick={() => store.loadDetail(phrase.id)}
                       className={`font-medium text-gray-900 hover:text-purple-600 transition-colors truncate ${CONTENT_FONT_CLASS.learning[learningTextFontSize]}`}
@@ -391,7 +320,7 @@ export default function PhrasesPage() {
                     <span className={`${CONTENT_FONT_CLASS.auxiliary[auxiliaryFontSize]} text-gray-400 shrink-0`}>×{phrase.frequency}</span>
                     {includeUnverified && phrase.unverified && <span className="phrase-candidate-badge shrink-0 rounded px-1.5 py-0.5 text-[10px]">{t('phrases.unverifiedBadge')}</span>}
                   </div>
-                  <div className="mt-1 flex items-center gap-2">
+                  <div className="vocabulary-row__status mt-1 flex items-center gap-2">
                     <StatusBadge
                       status={phrase.status}
                       onClick={(e) => setContextMenu({

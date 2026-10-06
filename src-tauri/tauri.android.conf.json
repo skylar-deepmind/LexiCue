@@ -1,0 +1,15 @@
+{
+  "build": {
+    "beforeBuildCommand": "node scripts/prepare-android.mjs && npm run build",
+    "beforeDevCommand": "node scripts/prepare-android.mjs && npm run dev"
+  },
+  "bundle": {
+    "resources": [
+      "resources/ECDICT-LICENSE.txt",
+      "resources/PHRASEDICT-LICENSE.txt",
+      "resources/JMDICT-LICENSE.txt",
+      "resources/CC-CEDICT-LICENSE.txt",
+      "resources/GERMAN-LICENSE.txt"
+    ]
+  }
+}

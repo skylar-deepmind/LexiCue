@@ -32,6 +32,8 @@ async function fixture(page, theme = 'ocean', language = 'zh', hasDueCards = fal
       invoke: async (command, args = {}) => {
         window.__uiCalls.push({ command, args });
         if (command === 'dictionary_status') return true;
+        if (command === 'dictionary_init_status') return { runId: 1, sequence: 10, state: 'ready', currentSource: null, sources: [] };
+        if (command === 'get_file_reader_tokens') return Array.from({length:24}, (_,segment_index) => ({ segment_index, language:'en', surface:'Curiosity', lemma:'curiosity', start:0, end:9, word_id:1, status:'unprocessed' }));
         if (command === 'plugin:event|listen') return 1;
         if (command === 'plugin:app|version') return '0.4.2';
         if (command === 'plugin:dialog|ask') return true;
@@ -54,7 +56,7 @@ async function fixture(page, theme = 'ocean', language = 'zh', hasDueCards = fal
         if (command === 'get_due_cards') return window.__uiHasDueCards ? [{ word_id: 1, lemma: 'curiosity', definition: 'A desire to learn.', language: 'en', reading: null, part_of_speech: 'noun', stability: 1, difficulty: 5, elapsed_days: 0, scheduled_days: 1, reps: 1, lapses: 0, state: 2, baseline_pending: false, occurrences: [] }] : [];
         if (command === 'get_due_phrase_cards') return [];
         if (command === 'get_learning_stats') return { total_words: 10, unprocessed: 4, learning: 3, known: 3, ignored: 0, due_cards: 0, total_reviews: 0, total_phrases: 0, phrases_unprocessed: 0, phrases_learning: 0, phrases_known: 0, phrases_ignored: 0, due_phrase_cards: 0, total_phrase_reviews: 0, daily_reviews: [], files: [] };
-        if (command === 'get_local_ollama_activity') return { generations: 0, pulling: false, deleting: false, sequence: 0 };
+        if (command === 'get_local_gemma_activity') return { generations: 0, pulling: false, deleting: false, sequence: 0 };
         if (command === 'get_frequency_baseline') return { tier: null, enabled: false, pending: 0, total: 0 };
         if (command === 'get_storage_usage') return { total_bytes: 0, categories: [] };
         if (command === 'youtube_ytdlp_status') return { available: false, version: null, path: null };
@@ -287,6 +289,7 @@ try {
         if (state === 'hover') await button.hover();
         if (state === 'focus') await button.focus();
         if (state === 'disabled') await button.evaluate(node => { node.disabled = true; });
+        await page.waitForTimeout(180);
         const value = await button.evaluate(node => {
           const parse = value => value.match(/[\d.]+/g).slice(0, 3).map(Number);
           const lum = value => parse(value).map(n => { const c = n / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; }).reduce((sum, n, i) => sum + n * [0.2126, 0.7152, 0.0722][i], 0);

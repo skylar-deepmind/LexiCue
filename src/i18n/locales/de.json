@@ -208,12 +208,10 @@
     },
     "ai": {
       "title": "KI-Funktionen",
-      "description": "Wenn aktiviert, können Absätze erklärt und Phrasen automatisch erkannt werden. Unterstützt lokales Ollama oder eigene Cloud-API-Schlüssel.",
+      "description": "Gemma offline oder einen eigenen Cloud-API-Schlüssel verwenden. Modelle werden separat heruntergeladen.",
       "toggleAria": "KI-Funktionen aktivieren",
-      "providerLocal": "Lokales Ollama",
+      "providerLocal": "Lokales Gemma",
       "providerCloud": "Cloud-API",
-      "ollamaUrlAria": "Ollama-URL",
-      "ollamaModelAria": "Ollama-Modell",
       "selectModel": "Modell auswählen...",
       "connect": "Verbinden & Modelle laden",
       "connecting": "Verbinde...",
@@ -231,7 +229,8 @@
       "disabledHint": "KI ist deaktiviert; die KI-Schaltflächen auf den Seiten „Lesen“ und „Dateien“ sind ausgeblendet. Sie können sie hier jederzeit wieder aktivieren.",
       "summaryEnabled": "Aktiviert · {{provider}}",
       "summaryDisabled": "Deaktiviert",
-      "custom": "Benutzerdefiniert"
+      "custom": "Benutzerdefiniert",
+      "gemmaModelAria": "Gemma-Modell"
     },
     "youtube": {
       "title": "YouTube-Untertitel-Tool",
@@ -514,7 +513,7 @@
     "selectFile": "Datei auswählen...",
     "hideTranslation": "Übersetzung ausblenden",
     "showTranslation": "Übersetzung anzeigen",
-    "hint": "Wort anklicken für Definition · Rechtsklick zum schnellen Markieren",
+    "hint": "Wort antippen oder anklicken · Für Aktionen gedrückt halten oder rechtsklicken",
     "prevSegment": "Zurück",
     "nextSegment": "Weiter",
     "segmentPosition": "Segment {{current}} / {{total}}",
@@ -544,7 +543,8 @@
     "emptyContent": "Noch kein Inhalt",
     "cannotLoadWord": "Wortdetails konnten nicht geladen werden",
     "cannotLoadPhrase": "Phrasendetails konnten nicht geladen werden",
-    "definitionSaved": "Definition gespeichert"
+    "definitionSaved": "Definition gespeichert",
+    "cannotLoadFile": "Die Datei konnte nicht geladen werden. Bitte erneut versuchen."
   },
   "review": {
     "completedTitle": "Sitzung abgeschlossen",
@@ -981,12 +981,10 @@
     "unifiedMemory": "{{size}} gemeinsamer Speicher",
     "memory": "{{size}} Arbeitsspeicher",
     "environmentError": "Geräteinformationen konnten nicht gelesen werden. Erneut prüfen.",
-    "remote": "Serverkonfiguration unbekannt. Die Ollama-Adresse ist nicht lokal; Empfehlungen und Downloads anhand dieses Geräts sind nicht verfügbar.",
     "accelerationUnknown": "Beschleunigung nicht bestätigt. RAM ist kein Grafikspeicher; CPU-Ausführung kann langsam sein.",
     "noRecommendation": "Geräteinformationen fehlen oder der Speicher ist knapp. Wählen Sie unten ein Modell manuell.",
-    "memoryHint": "Die Empfehlungen sind konservative Schätzungen. Downloadgröße und Laufzeitspeicher unterscheiden sich; Laden und längere Kontexte benötigen zusätzlichen Speicher.",
+    "memoryHint": "Mit E2B beginnen; E4B ist optional. Beim Laden wird zusätzlicher Arbeitsspeicher benötigt.",
     "loadingInstalled": "Installierte Modelle werden geladen…",
-    "serviceUnavailable": "Lokales Ollama nicht erreichbar. Dienst starten und erneut prüfen.",
     "preferred": "Empfohlen",
     "installed": "Installiert",
     "estimatedSize": "Download ca. {{size}}",
@@ -998,16 +996,16 @@
     "hideOther": "Weitere Versionen ausblenden",
     "progressTitle": "Modell-Downloadfortschritt",
     "layerProgress": "Fortschritt der aktuellen Schicht",
-    "layerBytes": "Aktuelle Schicht {{completed}} / {{total}}",
+    "layerBytes": "{{completed}} / {{total}}",
     "errorDetails": "Fehlerdetails",
     "nowSelected": "Für künftige Analysen ausgewählt. Laufende Analysen behalten ihr ursprüngliches Modell.",
     "cancel": "Download abbrechen",
     "retry": "Download fortsetzen",
     "reason": {
-      "preferred": "Bevorzugte Version für den verfügbaren Arbeitsspeicher.",
+      "preferred": "Für den Einstieg empfohlen. Dateien und Laden werden vor der ersten Nutzung geprüft.",
       "lightweight": "Kleinere Option zum Vergleichen oder für weniger Speicherverbrauch.",
       "larger": "Der Speicher erlaubt einen Versuch; Geschwindigkeit und Qualität müssen geprüft werden.",
-      "manual": "Außerhalb der konservativen Empfehlung; manuell wählbar."
+      "manual": "Benötigt mehr Arbeits- und Gerätespeicher. Passend zum Gerät auswählen."
     },
     "phase": {
       "manifest": "Modellübersicht wird geladen",
@@ -1026,6 +1024,17 @@
       "space": "Nicht genug Speicherplatz. Platz freigeben und fortsetzen.",
       "notFound": "Modellversion nicht gefunden. Erneut prüfen oder andere Version wählen.",
       "failed": "Download oder Installationsprüfung fehlgeschlagen. Details ansehen und erneut versuchen."
+    },
+    "resume": "Download fortsetzen",
+    "import": "Datei importieren",
+    "incompatible": "Zu wenig verfügbarer Speicher. Ressourcen freigeben und erneut prüfen.",
+    "freeStorage": "{{size}} freier Speicher",
+    "runtimeStatus": "{{state}} · {{backend}}",
+    "runtime": {
+      "unloaded": "Lädt bei Bedarf",
+      "loading": "Wird geladen",
+      "ready": "Geladen",
+      "error": "Laden fehlgeschlagen"
     }
   },
   "appSelect": {
@@ -1045,14 +1054,13 @@
     "delete": "Löschen",
     "deleteAria": "Modell {{model}} löschen",
     "deleteTitle": "Lokales Modell löschen",
-    "deleteConfirm": "{{model}} löschen? Dieses Modell wird vom lokalen Ollama verwaltet. Andere Apps benötigen danach ebenfalls eine Neuinstallation des Modells. Lerndaten und Analyseergebnisse bleiben erhalten.",
+    "deleteConfirm": "{{model}} löschen? Nur von LexiCue verwaltete Modelldateien werden gelöscht. Lerndaten und Analyseergebnisse bleiben erhalten.",
     "busy": "Die lokale KI arbeitet oder lädt ein Modell herunter. Aufgabe vor dem Löschen beenden oder abbrechen.",
     "deleting": "Modell wird gelöscht…",
     "failed": "Löschen konnte nicht bestätigt werden. Liste aktualisieren oder erneut versuchen.",
     "deleted": "{{model}} gelöscht. Bei Bedarf ein anderes Modell auswählen.",
     "alreadyAbsent": "{{model}} ist bereits entfernt. Die Modellliste wurde aktualisiert.",
-    "retry": "Löschen erneut versuchen",
-    "service": "Ollama-Dienst: {{address}}"
+    "retry": "Löschen erneut versuchen"
   },
   "annotation": {
     "mode": "Markierungsmodus",
@@ -1105,5 +1113,25 @@
     "back": "Zurück",
     "taskContinues": "Die Aufgabe wird im Hintergrund fortgesetzt",
     "statistics": "Statistik"
+  },
+  "dictionaryInit": {
+    "title": "Wörterbuchvorbereitung",
+    "progress": "Wörterbücher werden vorbereitet ({{completed}}/{{total}})",
+    "failed": "Einige Wörterbücher sind fehlgeschlagen. Verfügbare Quellen bleiben nutzbar",
+    "rows": "{{count}} Einträge verarbeitet",
+    "details": "Details"
+  },
+  "lookup": {
+    "title": "{{term}} nachschlagen",
+    "online": "Online nachschlagen",
+    "open": "Nachschlagen",
+    "preparing": "Das Wörterbuch dieser Sprache wird vorbereitet. Danach erneut versuchen.",
+    "notFound": "Offline keine Definition gefunden.",
+    "failed": "Wörterbuch nicht verfügbar. Erneut versuchen oder online nachschlagen."
+  },
+  "mobileBrowse": {
+    "status": "Lernstatus",
+    "filters": "Filter",
+    "options": "Anzeigeoptionen"
   }
 }

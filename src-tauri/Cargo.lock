@@ -2510,6 +2510,8 @@ dependencies = [
  "jieba-rs",
  "keyring",
  "keyring-core",
+ "libc",
+ "libloading",
  "lindera",
  "log",
  "rand 0.8.7",
