@@ -111,6 +111,14 @@ fn bridge_path(dir: &Path) -> PathBuf {
         dir.join(bridge_filename())
     }
 }
+fn library_load_error(error: impl std::fmt::Display) -> String {
+    let message = error.to_string();
+    if message.contains("different Team IDs") || message.contains("library load disallowed by system policy") {
+        "ERR_RUNTIME_SIGNATURE".into()
+    } else {
+        format!("ERR_RUNTIME_LIBRARY: {message}")
+    }
+}
 fn update(status: &Mutex<RuntimeStatus>, app: Option<&AppHandle>, next: RuntimeStatus) {
     if let Ok(mut value) = status.lock() {
         *value = next.clone();
@@ -153,13 +161,13 @@ fn load(
         let dependency = if cfg!(target_os = "windows") {
             Some(
                 Library::new(dir.join("litert-lm.dll"))
-                    .map_err(|e| format!("ERR_RUNTIME_LIBRARY: {e}"))?,
+                    .map_err(library_load_error)?,
             )
         } else {
             None
         };
         let library =
-            Library::new(bridge_path(dir)).map_err(|e| format!("ERR_RUNTIME_LIBRARY: {e}"))?;
+            Library::new(bridge_path(dir)).map_err(library_load_error)?;
         let abi = library
             .get::<unsafe extern "C" fn() -> i32>(b"lx_abi\0")
             .map_err(|e| e.to_string())?;
@@ -449,6 +457,8 @@ fn start(
                         match load(&library, &models, &model, &status, app.as_ref(), &token) {
                             Ok(value) => engine = Some(value),
                             Err(e) => {
+                                // Log the stable reason only, without private model paths.
+                                log::error!(target: "lexicue::gemma", "model load failed: {}", e.split(':').next().unwrap_or("ERR_MODEL_LOAD"));
                                 update(
                                     &status,
                                     app.as_ref(),
@@ -671,6 +681,12 @@ pub(crate) fn start_smoke(models: PathBuf, library: PathBuf) -> Result<(), Strin
 #[cfg(test)]
 mod native_switch_tests {
     use super::*;
+
+    #[test]
+    fn signing_rejection_has_a_stable_reason_without_private_paths() {
+        assert_eq!(library_load_error("/private/model/path: mapping process and mapped file (non-platform) have different Team IDs"), "ERR_RUNTIME_SIGNATURE");
+        assert!(library_load_error("image not found").starts_with("ERR_RUNTIME_LIBRARY:"));
+    }
 
     #[tokio::test]
     #[ignore = "requires both pinned Gemma models and the matching native engine"]

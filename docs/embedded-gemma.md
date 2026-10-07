@@ -52,6 +52,11 @@ node scripts/prepare-gemma.mjs --target x86_64-apple-darwin --cache-only
 本地 Gemma 要求 macOS 14+；较早系统仍保留云端入口。
 Windows 桥使用静态 MSVC 运行库；官方引擎 DLL 与桥放在同一资源目录。
 macOS 修正官方 dylib 的安装名，并为嵌入库进行 ad-hoc 签名。
+ad-hoc 签名不带 Team ID；Hardened Runtime 的默认 library validation 会拒绝
+加载这些库，即使开发测试能加载。`Entitlements.plist` 为本应用声明
+`com.apple.security.cs.disable-library-validation`，其余 Hardened Runtime 保持启用。
+`scripts/check-gemma-macos-signing.mjs` 使用相同签名条件的进程加载桥及其依赖，
+纳入 release preflight；传入 `--app /path/LexiCue.app` 可验证最终安装包的权限。
 
 Android 配置来自受版本控制的 `tauri.android.conf.json`、`prepare-android.mjs` 和
 `android-template/MainActivity.kt`。最低 API 28，仅 arm64。
@@ -78,6 +83,9 @@ Intel 使用 greedy + schema grammar。最终仍需 JSON、词典编号和原文
 重试有上限，流式预览回滚后再生成，最终校验通过才保存。
 E2B 的英语提取逐句执行，以减少多句任务漏检；E4B 每批至多八句，仍检查 token 上限。
 错误重试可提供原文中每个 canonical 单词允许的位置，结果仍经过完整定位校验。
+本地模型整批位置无效时，重试 schema 限制为原文验证过的位置组合；没有可定位
+组合的候选只能被省略。错误回复先回滚，新的生成结果仍完整校验，不改写错误高亮。
+canonical 文本保留生成与校验，避免 LiteRT 对带空格的强制字符串出现 tokenizer 错误。
 
 私有模型目录为 app data 下的 `gemma-models`。下载使用固定 URL、Range 和 `.part`，
 检查 Content-Range、剩余空间、完整长度和 SHA-256，校验后原子安装并写收据。
@@ -142,6 +150,18 @@ UI 检查由 `scripts/gemma-ui-smoke.mjs` 使用 fixture 执行，覆盖默认�
 它不替代原生下载、导入或真实设备操作验收。
 
 历史 Ollama 12B 的记录保留在 `gemma4-validation.md`，不能作为内置 E2B/E4B 的证据。
+
+2026-10-06 修复安装包签名导致的首批失败：旧安装包的同条件加载检查稳定复现
+`different Team IDs`，修复后的 `.app` 通过同一检查和严格签名验证。
+启用 Hardened Runtime 并使用相同 entitlement 的原生测试进程，在 Apple M4 上
+用真实 E2B / GPU 提取三句测试文本，验证 `pick up`、`run into`、`break the ice`
+通过原文位置校验；最终定位约束版本约 35 秒完成，不读写学习数据。常规 Rust 回归为
+202 项通过、9 项忽略。这项签名验证补充开发测试，不能代替所有平台业务验收。
+原先第 2 句必失败的 39 句字幕，在相同签名条件下全部完成提取，得到
+20 条通过原文定位校验的候选。此检查使用只读导出的本机字幕 fixture 与临时模型
+缓存，不写学习数据；原文定位通过不代表词组类别或教学价值已人工审核。
+修复版安装后的应用也完成同一字幕的 39/39 处理并正式保存：19 个去重词组、
+20 次出现，界面显示“已保存”。
 模型使用受 [Gemma 条款](https://ai.google.dev/gemma/terms) 约束；
 来源与许可详见 `THIRD-PARTY-NOTICES.md` 和随包附带的 notices。
 

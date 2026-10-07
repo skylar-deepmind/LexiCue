@@ -17,6 +17,7 @@ function run(command, args, cwd = root) {
 run(npm, ['run', 'lint']);
 run(npm, ['test']);
 run(npm, ['run', 'prepare:gemma']);
+run(process.execPath, ['scripts/check-gemma-macos-signing.mjs']);
 run(npm, ['run', 'build']);
 run('cargo', ['test', '--lib', '--locked'], join(root, 'src-tauri'));
 console.log('Release regression checks passed.');

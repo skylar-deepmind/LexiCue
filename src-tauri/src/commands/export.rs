@@ -359,6 +359,9 @@ mod english_learning_tests {
         source.execute("INSERT INTO phrase_occurrences(phrase_id,segment_id,position,surface_text,token_positions_json,meaning_zh,usage_zh,meaning_edited) VALUES(?1,?2,1,'picked up','[1,3]','拾起','可分离短语动词',1)", rusqlite::params![phrase_id,segment_id]).unwrap();
         source.execute("INSERT INTO phrase_dictionary_entries(language,text,translation,provider,updated_at,other_senses_json,other_senses_edited) VALUES('en','pick up','拾起','test-model',1,'[{\"meaning_zh\":\"学会\",\"example_en\":\"She picked it up quickly.\"}]',1)", []).unwrap();
         source.execute("INSERT INTO file_phrase_analysis(file_id,model,completed_at,pipeline_version) VALUES(?1,'test-model',1,2)", [file_id]).unwrap();
+        let metadata=r#"{"register_tags":["informal"],"regions":[],"cautions":[],"evidence_kind":"model"}"#;
+        source.execute("UPDATE phrase_occurrences SET expression_meta_json=?1 WHERE phrase_id=?2",rusqlite::params![metadata,phrase_id]).unwrap();
+        source.execute("UPDATE phrase_dictionary_entries SET expression_meta_json=?1 WHERE text='pick up'",[metadata]).unwrap();
         let backup = backup_payload(&source).unwrap();
         assert_eq!(backup.schema_version, 8);
 
@@ -373,6 +376,9 @@ mod english_learning_tests {
         assert_eq!(restored.1, "[1,3]");
         assert!(restored.2.contains("学会"));
         assert_eq!((restored.3,restored.4), (1,2));
+        let metadata_restored:(Option<String>,Option<String>)=target.query_row("SELECT po.expression_meta_json,pde.expression_meta_json FROM phrase_occurrences po JOIN phrase_dictionary_entries pde ON pde.text='pick up' LIMIT 1",[],|r|Ok((r.get(0)?,r.get(1)?))).unwrap();
+        assert_eq!(metadata_restored,(Some(metadata.into()),Some(metadata.into())));
+
         let restored_word: (String,String,String,i64) = target.query_row(
             "SELECT w.lemma,a.alias,o.meaning_zh,o.meaning_edited FROM words w JOIN word_aliases a ON a.word_id=w.id JOIN occurrences o ON o.word_id=w.id WHERE w.lemma='enroll'",
             [], |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?)),

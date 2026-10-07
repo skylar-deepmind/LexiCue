@@ -1,5 +1,5 @@
 use super::{
-    ai_client, batch_ranges, cancel_registry, now_ms, AiConfig, ChatFailure, ChatResult,
+    ai_client, cancel_registry, now_ms, AiConfig, ChatFailure, ChatResult,
     CancelGuard, CancellationToken, OllamaAnalysisResult, RetryNotifier, CANCELLED_MESSAGE,
 };
 use crate::commands::english;
@@ -14,12 +14,19 @@ use tauri::{AppHandle, Emitter, State};
 mod cache;
 mod pipeline;
 mod diagnostics;
+#[cfg(test)]
 mod parsing;
 mod streaming;
 mod preview;
+#[cfg(test)]
+mod grounding;
+mod quality;
+#[cfg(test)]
 use parsing::ParseOutcome;
+#[cfg(test)]
+use super::batch_ranges;
 
-const PIPELINE_VERSION: i64 = 5;
+const PIPELINE_VERSION: i64 = 6;
 const CATEGORIES: [&str; 4] = ["phrasal_verb", "idiom", "fixed_expression", "collocation"];
 
 #[derive(Clone)]
@@ -40,6 +47,7 @@ struct Candidate {
 struct Accepted {
     candidate: Candidate,
     surface: String,
+    metadata: english::ExpressionMetadata,
 }
 
 #[derive(Clone, serde::Serialize)]
@@ -78,6 +86,7 @@ fn access_allowed(config: &AiConfig) -> bool {
     !config.model.trim().is_empty()
 }
 
+#[cfg(test)]
 fn extraction_schema() -> serde_json::Value {
     serde_json::json!({
         "type":"object", "properties":{"phrases":{"type":"array","items":{
@@ -92,13 +101,14 @@ fn extraction_schema() -> serde_json::Value {
 }
 
 fn normalized(text: &str) -> String {
-    text.split_whitespace().collect::<Vec<_>>().join(" ").to_lowercase()
+    text.split_whitespace().collect::<Vec<_>>().join(" ").to_lowercase().replace('’', "'")
 }
 
 fn key(index: i32, canonical: &str, positions: &[i32]) -> String {
     format!("{index}|{}|{:?}", normalized(canonical), positions)
 }
 
+#[cfg(test)]
 fn validate_candidate(candidate: &Candidate, segment: &SegmentRow) -> Option<String> {
     if candidate.segment_index != segment.index || !CATEGORIES.contains(&candidate.category.as_str()) {
         return None;
@@ -203,16 +213,24 @@ struct BatchFailure {
     code: &'static str,
     stage: &'static str,
     batch: usize,
+    local_error: Option<String>,
 }
 
 impl BatchFailure {
     fn as_error(&self) -> String {
         if self.code == "CANCELLED" { return CANCELLED_MESSAGE.to_string(); }
         if self.code == "STREAM_INTERRUPTED" { return format!("STREAM_INTERRUPTED: 第 {} 批连接中断，尚未保存；可继续分析",self.batch); }
+        if let Some(reason) = &self.local_error {
+            let hint = if reason == "ERR_RUNTIME_SIGNATURE" {
+                "macOS 拒绝加载内置 Gemma 引擎，安装包签名不兼容；请使用修复后的安装包"
+            } else { "内置 Gemma 运行失败" };
+            return format!("{}: {}（{}）；旧分析已保留", self.code, hint, reason);
+        }
         format!("{}: {}第 {} 批无法获得有效结果；旧分析已保留", self.code, self.stage, self.batch)
     }
 }
 
+#[cfg(test)]
 fn extraction_prompt(segments: &[SegmentRow]) -> String {
     let input = segments.iter().map(|segment| {
         let tokens = english::tokenize_english_text(&segment.text).iter()
@@ -223,6 +241,7 @@ fn extraction_prompt(segments: &[SegmentRow]) -> String {
     format!("Extract established English phrasal verbs, idioms, fixed expressions and useful collocations from the INPUT. Exclude arbitrary combinations and proper names. For each item: segment_index MUST equal the number in square brackets on that exact source line; canonical is the lowercase dictionary form; token_positions are the explicitly supplied ZERO-BASED token numbers for its words; category is phrasal_verb, idiom, fixed_expression or collocation. A separable phrasal verb may skip the intervening object. Other categories require consecutive token positions. Never include a word that is not part of the expression. Return JSON phrases only. Return an empty array when none are present.\nExample INPUT: [12] I picked it up. Tokens: 0:I 1:picked 2:it 3:up. OUTPUT: {{\"phrases\":[{{\"segment_index\":12,\"canonical\":\"pick up\",\"token_positions\":[1,3],\"category\":\"phrasal_verb\"}}]}}. The example is not an input line.\nINPUT:\n{input}")
 }
 
+#[cfg(test)]
 fn extraction_ranges(config: &AiConfig, segments: &[SegmentRow]) -> Vec<(usize, usize)> {
     if config.is_gemma() {
         // E2B missed expressions when several independent sentences shared a
@@ -232,6 +251,7 @@ fn extraction_ranges(config: &AiConfig, segments: &[SegmentRow]) -> Vec<(usize, 
     } else { batch_ranges(&segments.iter().map(|s| (s.index, s.text.clone())).collect::<Vec<_>>()) }
 }
 
+#[cfg(test)]
 fn locating_feedback(content: &str, segments: &[SegmentRow]) -> String {
     let Ok(value) = super::parse_ai_json::<serde_json::Value>(content) else { return String::new(); };
     let Some(items) = value.get("phrases").and_then(serde_json::Value::as_array) else { return String::new(); };
@@ -256,19 +276,21 @@ async fn request_extraction(client: &Client, config: &AiConfig, token: &Cancella
     request_extraction_streaming(client,config,token,notifier,file_id,batch,segments,allow_retry,&streaming::Session::default(),&|_,_| {}).await
 }
 
+#[cfg(test)]
 async fn request_extraction_streaming(client: &Client, config: &AiConfig, token: &CancellationToken, notifier: Option<&RetryNotifier>, file_id: i64, batch: usize, segments: &[SegmentRow], allow_retry: bool, session: &streaming::Session, preview: &pipeline::PreviewCallback<'_>) -> Result<ParseOutcome<Candidate>, BatchFailure> {
     let base_prompt = extraction_prompt(segments);
     let attempts = if allow_retry { 2 } else { 1 };
     let mut feedback = String::new();
+    let mut retry_schema = None;
     for attempt in 0..attempts {
-        if token.cancelled() { return Err(BatchFailure { code: "CANCELLED", stage: "提取", batch }); }
+        if token.cancelled() { return Err(BatchFailure { code: "CANCELLED", stage: "提取", batch, local_error: None }); }
         let prompt = if attempt == 0 { base_prompt.clone() } else { format!("{base_prompt}\nPrevious response was invalid. Copy each actual segment_index exactly, including zero. Use only the token positions printed on that SAME line, and match the canonical words to those positions. Do not output the example or an item you cannot locate.\n{feedback}") };
         diagnostics::begin_request(file_id, "extraction", &prompt, attempt > 0);
         let started = Instant::now();
         let attempt_id = uuid::Uuid::new_v4().to_string();
         let emit = |operation,items| preview(segments,pipeline::PreviewUpdate {operation,batch_id:batch,attempt_id:attempt_id.clone(),origin:"ai",items});
         emit("begin",Vec::new());
-        let mut schema = extraction_schema();
+        let mut schema = retry_schema.clone().unwrap_or_else(extraction_schema);
         if config.is_gemma() {
             schema["properties"]["phrases"]["items"]["properties"]["segment_index"]["enum"] = serde_json::json!(segments.iter().map(|s| s.index).collect::<Vec<_>>());
         }
@@ -283,7 +305,7 @@ async fn request_extraction_streaming(client: &Client, config: &AiConfig, token:
                 if last.is_none_or(|time|time.elapsed().as_secs()>=1) { emit("activity",Vec::new()); *last=Some(Instant::now()); }
             }).await {
             Ok(value) => value,
-            Err(_) if token.cancelled() => { emit("rollback",Vec::new()); diagnostics::response_usage(file_id, "extraction", None); return Err(BatchFailure { code: "CANCELLED", stage: "提取", batch }); },
+            Err(_) if token.cancelled() => { emit("rollback",Vec::new()); diagnostics::response_usage(file_id, "extraction", None); return Err(BatchFailure { code: "CANCELLED", stage: "提取", batch, local_error: None }); },
             Err(failure) if failure.kind == "INVALID_JSON" && attempt + 1 < attempts => {
                 emit("rollback",Vec::new());
                 diagnostics::response_usage(file_id, "extraction", None);
@@ -294,18 +316,18 @@ async fn request_extraction_streaming(client: &Client, config: &AiConfig, token:
                 emit("rollback",Vec::new());
                 diagnostics::response_usage(file_id, "extraction", None);
                 record_request_failure(file_id, "extraction", batch, &failure, started.elapsed().as_millis());
-                return Err(BatchFailure { code: if failure.kind == "CONTEXT_LIMIT" { "CONTEXT_LIMIT" } else if failure.kind == "OUTPUT_TRUNCATED" { "OUTPUT_TRUNCATED" } else if failure.kind.starts_with("STREAM_") { "STREAM_INTERRUPTED" } else { "REQUEST_FAILED" }, stage: "提取", batch });
+                return Err(BatchFailure { code: if failure.kind == "CONTEXT_LIMIT" { "CONTEXT_LIMIT" } else if failure.kind == "OUTPUT_TRUNCATED" { "OUTPUT_TRUNCATED" } else if failure.kind.starts_with("STREAM_") { "STREAM_INTERRUPTED" } else { "REQUEST_FAILED" }, stage: "提取", batch, local_error: (failure.kind == "LOCAL_RUNTIME_ERROR").then(|| failure.message.split(':').next().unwrap_or("ERR_MODEL_LOAD").to_string()) });
             }
         };
         diagnostics::response_usage(file_id, "extraction", Some(&response));
-        if token.cancelled() { emit("rollback",Vec::new()); return Err(BatchFailure {code:"CANCELLED",stage:"提取",batch}); }
+        if token.cancelled() { emit("rollback",Vec::new()); return Err(BatchFailure {code:"CANCELLED",stage:"提取",batch,local_error:None}); }
         let elapsed = started.elapsed().as_millis();
         if response.finish_reason.as_deref() == Some("length") {
             emit("rollback",Vec::new());
             let final_failure = segments.len() == 1 && attempt + 1 == attempts;
             record_batch(file_id, "extraction", batch, "OUTPUT_TRUNCATED", Some(&response), elapsed, 0, 0, Vec::new(), final_failure.then_some(response.content.as_str()));
             if segments.len() > 1 || final_failure {
-                return Err(BatchFailure { code: "OUTPUT_TRUNCATED", stage: "提取", batch });
+                return Err(BatchFailure { code: "OUTPUT_TRUNCATED", stage: "提取", batch, local_error: None });
             }
             continue;
         }
@@ -317,16 +339,19 @@ async fn request_extraction_streaming(client: &Client, config: &AiConfig, token:
             }
             Ok(outcome) => {
                 emit("rollback",Vec::new());
-                if config.is_gemma() { feedback = locating_feedback(&response.content, segments); }
+                if config.is_gemma() {
+                    feedback = locating_feedback(&response.content, segments);
+                    retry_schema = Some(grounding::retry_schema(&response.content, segments));
+                }
                 let last = attempt + 1 == attempts;
                 record_batch(file_id, "extraction", batch, "ALL_ITEMS_INVALID", Some(&response), elapsed, 0, outcome.skipped_count, outcome.missing_fields.iter().cloned().collect(), last.then_some(response.content.as_str()));
-                if last { return Err(BatchFailure { code: "ALL_ITEMS_INVALID", stage: "提取", batch }); }
+                if last { return Err(BatchFailure { code: "ALL_ITEMS_INVALID", stage: "提取", batch, local_error: None }); }
             }
             Err(code) => {
                 emit("rollback",Vec::new());
                 let last = attempt + 1 == attempts;
                 record_batch(file_id, "extraction", batch, &code, Some(&response), elapsed, 0, 0, Vec::new(), last.then_some(response.content.as_str()));
-                if last { return Err(BatchFailure { code: "INVALID_JSON", stage: "提取", batch }); }
+                if last { return Err(BatchFailure { code: "INVALID_JSON", stage: "提取", batch, local_error: None }); }
             }
         }
     }
@@ -464,21 +489,22 @@ fn save_results_on_connection(conn: &Connection, file_id: i64, config: &AiConfig
             let segment_id: i64 = conn.query_row("SELECT id FROM segments WHERE file_id=?1 AND index_num=?2", params![file_id,item.candidate.segment_index], |row| row.get(0)).map_err(|error| error.to_string())?;
             let position = item.candidate.token_positions[0];
             let positions_json = serde_json::to_string(&item.candidate.token_positions).map_err(|error| error.to_string())?;
+            let metadata_json = serde_json::to_string(&item.metadata).map_err(|error| error.to_string())?;
             let exact_key = (text.clone(),item.candidate.segment_index,positions_json.clone());
             let legacy_key = (text.clone(),item.candidate.segment_index,format!("[{position}]"));
             let previous = old_map.get(&exact_key).or_else(|| old_map.get(&legacy_key));
             if let Some(previous) = previous.filter(|previous| retained.insert(**previous)) {
                 // Updating locating fields preserves all legacy context fields, edits and ID.
-                conn.execute("UPDATE phrase_occurrences SET position=?2,surface_text=?3,token_positions_json=?4 WHERE id=?1",
-                    params![previous, position, item.surface, positions_json]).map_err(|e| e.to_string())?;
+                conn.execute("UPDATE phrase_occurrences SET position=?2,surface_text=?3,token_positions_json=?4,expression_meta_json=?5 WHERE id=?1",
+                    params![previous, position, item.surface, positions_json, metadata_json]).map_err(|e| e.to_string())?;
             } else {
-                conn.execute("INSERT INTO phrase_occurrences(phrase_id,segment_id,position,surface_text,token_positions_json) VALUES(?1,?2,?3,?4,?5)",
-                    params![phrase_id,segment_id,position,item.surface,positions_json]).map_err(|e| e.to_string())?;
+                conn.execute("INSERT INTO phrase_occurrences(phrase_id,segment_id,position,surface_text,token_positions_json,expression_meta_json) VALUES(?1,?2,?3,?4,?5,?6)",
+                    params![phrase_id,segment_id,position,item.surface,positions_json,metadata_json]).map_err(|e| e.to_string())?;
                 retained.insert(conn.last_insert_rowid());
             }
             if unique.insert(text.clone()) {
-                conn.execute("INSERT INTO phrase_dictionary_entries(language,text,translation,category,provider,updated_at) VALUES('en',?1,'',?2,?3,?4) ON CONFLICT(language,text) DO UPDATE SET category=excluded.category",
-                    params![text,item.candidate.category,config.model,now_ms()]).map_err(|e| e.to_string())?;
+                conn.execute("INSERT INTO phrase_dictionary_entries(language,text,translation,category,provider,updated_at,expression_meta_json) VALUES('en',?1,'',?2,?3,?4,?5) ON CONFLICT(language,text) DO UPDATE SET category=excluded.category,expression_meta_json=excluded.expression_meta_json",
+                    params![text,item.candidate.category,config.model,now_ms(),metadata_json]).map_err(|e| e.to_string())?;
             }
         }
         let mut stmt = conn.prepare("SELECT po.id FROM phrase_occurrences po JOIN segments s ON s.id=po.segment_id JOIN phrases p ON p.id=po.phrase_id WHERE s.file_id=?1 AND po.hidden=0 AND po.meaning_edited=0 AND po.meaning_en_edited=0 AND p.source='detected'").map_err(|e| e.to_string())?;
@@ -502,6 +528,14 @@ mod tests {
     use super::*;
     use std::io::{Read, Write};
     use std::net::TcpListener;
+
+    #[test]
+    fn local_runtime_failure_explains_signing_and_preserves_old_results() {
+        let error = BatchFailure { code: "REQUEST_FAILED", stage: "提取", batch: 1, local_error: Some("ERR_RUNTIME_SIGNATURE".into()) }.as_error();
+        assert!(error.contains("macOS 拒绝加载内置 Gemma 引擎"));
+        assert!(error.contains("ERR_RUNTIME_SIGNATURE"));
+        assert!(error.contains("旧分析已保留"));
+    }
 
     #[test]
     fn retry_feedback_uses_original_tokens_without_accepting_invalid_positions() {
@@ -693,7 +727,7 @@ mod tests {
         let edited_id = conn.last_insert_rowid();
         conn.execute("INSERT INTO phrase_occurrences(phrase_id,segment_id,position,hidden,meaning_zh,meaning_edited) VALUES(?1,?2,2,0,'保留此释义',1)", params![edited_id,segment_id]).unwrap();
         let config = AiConfig { provider: "ollama".into(), base_url: "http://localhost".into(), model: "test".into(), api_key: None };
-        let accepted = Accepted { candidate: Candidate { segment_index: 0, canonical: "pick up".into(), token_positions: vec![1,3], category: "phrasal_verb".into() }, surface: "picked up".into() };
+        let accepted = Accepted { candidate: Candidate { segment_index: 0, canonical: "pick up".into(), token_positions: vec![1,3], category: "phrasal_verb".into() }, surface: "picked up".into(), metadata: english::ExpressionMetadata { evidence_kind: "dictionary".into(), source: "test".into(), context_meaning_en: Some("lift or collect".into()), ..Default::default() } };
         save_results_on_connection(&conn, file_id, &config, &[accepted], 0).unwrap();
         let preserved: (i64,String,String,i64,i64,String,String,i64) = conn.query_row(
             "SELECT po.hidden,po.meaning_zh,po.usage_zh,po.meaning_edited,pr.reps,p.status,pde.other_senses_json,pde.other_senses_edited FROM phrase_occurrences po JOIN phrases p ON p.id=po.phrase_id JOIN phrase_reviews pr ON pr.phrase_id=p.id JOIN phrase_dictionary_entries pde ON pde.text=p.text WHERE p.text='pick up'",
@@ -703,10 +737,15 @@ mod tests {
         assert_eq!((preserved.1.as_str(),preserved.2.as_str(),preserved.3,preserved.4,preserved.5.as_str()), ("我的修订","我的用法",1,4,"learning"));
         assert!(preserved.6.contains("自定义"));
         assert_eq!(preserved.7, 1);
+        let occurrence_meta: String = conn.query_row("SELECT expression_meta_json FROM phrase_occurrences WHERE phrase_id=?1", [phrase_id], |r| r.get(0)).unwrap();
+        let dictionary_meta: String = conn.query_row("SELECT expression_meta_json FROM phrase_dictionary_entries WHERE text='pick up'", [], |r| r.get(0)).unwrap();
+        assert_eq!(occurrence_meta, dictionary_meta);
+        let metadata: english::ExpressionMetadata = serde_json::from_str(&occurrence_meta).unwrap();
+        assert_eq!(metadata.context_meaning_en.as_deref(), Some("lift or collect"));
         let retained: i64 = conn.query_row("SELECT COUNT(*) FROM phrase_occurrences WHERE phrase_id IN (?1,?2)", params![manual_id,edited_id], |row| row.get(0)).unwrap();
         assert_eq!(retained, 2);
 
-        let invalid = Accepted { candidate: Candidate { segment_index: 99, canonical: "pick up".into(), token_positions: vec![1,3], category: "phrasal_verb".into() }, surface: "picked up".into() };
+        let invalid = Accepted { candidate: Candidate { segment_index: 99, canonical: "pick up".into(), token_positions: vec![1,3], category: "phrasal_verb".into() }, surface: "picked up".into(), metadata: Default::default() };
         assert!(save_results_on_connection(&conn, file_id, &config, &[invalid], 0).is_err());
         let meaning: String = conn.query_row("SELECT meaning_zh FROM phrase_occurrences WHERE phrase_id=?1", [phrase_id], |row| row.get(0)).unwrap();
         assert_eq!(meaning, "我的修订");
@@ -723,7 +762,7 @@ mod tests {
         conn.execute("INSERT INTO phrase_occurrences(id,phrase_id,segment_id,position,meaning_zh,usage_zh,meaning_en,usage_en,collins_sense_id) VALUES(41,1,1,1,'旧释义','旧用法','old meaning','old usage',17),(42,2,1,0,NULL,NULL,NULL,NULL,NULL)", []).unwrap();
         conn.execute("INSERT INTO phrase_dictionary_entries(language,text,translation,meaning_en,provider,updated_at,other_senses_json) VALUES('en','pick up','旧翻译','old definition','old model',1,'[{\"meaning_zh\":\"旧含义\",\"example_en\":\"Pick it up.\"}]')", []).unwrap();
         let config = AiConfig { provider: "ollama".into(), base_url: "http://localhost".into(), model: "new".into(), api_key: None };
-        let accepted = Accepted { candidate: Candidate { segment_index: 0, canonical: "pick up".into(), token_positions: vec![1,3], category: "phrasal_verb".into() }, surface: "picked up".into() };
+        let accepted = Accepted { candidate: Candidate { segment_index: 0, canonical: "pick up".into(), token_positions: vec![1,3], category: "phrasal_verb".into() }, surface: "picked up".into(), metadata: Default::default() };
         save_results_on_connection(&conn, 1, &config, &[accepted], 0).unwrap();
         let old: (i64,String,String,i64,String) = conn.query_row("SELECT id,meaning_zh,meaning_en,collins_sense_id,token_positions_json FROM phrase_occurrences", [], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?))).unwrap();
         assert_eq!(old, (41,"旧释义".into(),"old meaning".into(),17,"[1,3]".into()));
@@ -741,7 +780,7 @@ mod tests {
         conn.execute("INSERT INTO files(name,type,content,content_hash,imported_at) VALUES('demo.txt','txt','I picked it up.','hash',1)", []).unwrap();
         conn.execute("INSERT INTO segments(file_id,index_num,en_text) VALUES(1,0,'I picked it up.')", []).unwrap();
         let config = AiConfig { provider: "ollama".into(), base_url: "http://localhost".into(), model: "test".into(), api_key: None };
-        let accepted = Accepted { candidate: Candidate { segment_index: 0, canonical: "pick up".into(), token_positions: vec![1,3], category: "phrasal_verb".into() }, surface: "picked up".into() };
+        let accepted = Accepted { candidate: Candidate { segment_index: 0, canonical: "pick up".into(), token_positions: vec![1,3], category: "phrasal_verb".into() }, surface: "picked up".into(), metadata: Default::default() };
         save_results_on_connection(&conn, 1, &config, &[accepted], 7).unwrap();
         let fields: (Option<String>,Option<String>,Option<i64>) = conn.query_row("SELECT meaning_zh,meaning_en,collins_sense_id FROM phrase_occurrences", [], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?))).unwrap();
         assert_eq!(fields, (None,None,None));
@@ -756,6 +795,171 @@ mod tests {
 mod gemma_model_smoke {
     use super::*;
     use std::sync::Mutex;
+
+    #[tokio::test]
+    #[ignore = "requires pinned Gemma weights; sign the test host to verify packaged runtime conditions"]
+    async fn gemma4_packaged_extraction_smoke() {
+        use crate::commands::gemma::{models, runtime};
+        let model = "gemma4-e2b-litert-181938105e0e".to_string();
+        let item = models::asset(&model).unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::hard_link(std::env::var("LEXICUE_GEMMA_SMOKE_MODEL").unwrap(), models::installed_path(dir.path(), &item)).unwrap();
+        runtime::start_smoke(dir.path().into(), std::env::var("LEXICUE_GEMMA_SMOKE_LIBRARY").unwrap().into()).unwrap();
+        let config = AiConfig { provider: "gemma".into(), base_url: "".into(), model, api_key: None };
+        let client = ai_client(std::time::Duration::from_secs(600), "").unwrap();
+        let segments: Vec<_> = ["I picked it up.", "She ran into an old friend.", "We need to break the ice."]
+            .into_iter().enumerate().map(|(index,text)| SegmentRow { index: index as i32, text: text.into() }).collect();
+        let file_id = -40_006;
+        diagnostics::start(file_id, &config.provider, &config.model);
+        let mut items = Vec::new();
+        for (index, segment) in segments.iter().enumerate() {
+            items.extend(request_extraction(&client, &config, &CancellationToken::default(), None, file_id, index + 1, std::slice::from_ref(segment), true).await.unwrap().items);
+        }
+        let accepted = pipeline::accepted(&segments, &items);
+        for expected in ["pick up", "run into", "break the ice"] {
+            assert!(accepted.iter().any(|item| item.candidate.canonical == expected), "missing {expected}");
+        }
+        println!("PACKAGED_GEMMA_REPORT={}", serde_json::json!({"runtime":runtime::status(),"acceptedPhrases":accepted.iter().map(|item| &item.candidate.canonical).collect::<Vec<_>>(),"diagnostic":diagnostics::summary(file_id),"writesLearningData":false}));
+        runtime::unload().await.unwrap();
+    }
+
+    #[tokio::test]
+    #[ignore = "requires pinned Gemma weights and a local subtitle JSON fixture; no learning data writes"]
+    async fn gemma4_subtitle_extraction_smoke() {
+        use crate::commands::gemma::{models, runtime};
+        let model = "gemma4-e2b-litert-181938105e0e".to_string();
+        let item = models::asset(&model).unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::hard_link(std::env::var("LEXICUE_GEMMA_SMOKE_MODEL").unwrap(), models::installed_path(dir.path(), &item)).unwrap();
+        runtime::start_smoke(dir.path().into(), std::env::var("LEXICUE_GEMMA_SMOKE_LIBRARY").unwrap().into()).unwrap();
+        let rows: Vec<(i32,String)> = serde_json::from_str(&std::fs::read_to_string(std::env::var("LEXICUE_GEMMA_SMOKE_SUBTITLE").unwrap()).unwrap()).unwrap();
+        let segments: Vec<_> = rows.into_iter().map(|(index,text)|SegmentRow { index,text }).collect();
+        let config = AiConfig { provider: "gemma".into(), base_url: "".into(), model, api_key: None };
+        let client = ai_client(std::time::Duration::from_secs(600), "").unwrap();
+        let file_id = -40_007;
+        diagnostics::start(file_id, &config.provider, &config.model);
+        let started = Instant::now();
+        let mut all_items = Vec::new();
+        let mut count = 0;
+        for (index,segment) in segments.iter().enumerate() {
+            let outcome = request_extraction(&client, &config, &CancellationToken::default(), None, file_id, index + 1, std::slice::from_ref(segment), true).await
+                .unwrap_or_else(|error|panic!("{}: {:?}", error.as_error(), diagnostics::raw_report(file_id)));
+            count += outcome.items.len();
+            all_items.extend(outcome.items);
+            println!("SUBTITLE_BATCH={} PHRASES={}", index + 1, all_items.len());
+        }
+        println!("SUBTITLE_GEMMA_REPORT={}", serde_json::json!({"segments":segments.len(),"phrases":count,"items":all_items,"elapsedMs":started.elapsed().as_millis(),"runtime":runtime::status(),"writesLearningData":false}));
+        runtime::unload().await.unwrap();
+    }
+
+    #[tokio::test]
+    #[ignore = "local Gemma reviewer feasibility probe; no learning data writes"]
+    async fn gemma4_phrase_review_probe() {
+        use crate::commands::gemma::{models,runtime};
+        let model="gemma4-e2b-litert-181938105e0e";let item=models::asset(model).unwrap();let dir=tempfile::tempdir().unwrap();
+        std::fs::hard_link(std::env::var("LEXICUE_GEMMA_SMOKE_MODEL").unwrap(),models::installed_path(dir.path(),&item)).unwrap();
+        runtime::start_smoke(dir.path().into(),std::env::var("LEXICUE_GEMMA_SMOKE_LIBRARY").unwrap().into()).unwrap();
+        let token=CancellationToken::default();
+        if std::env::var("LEXICUE_GEMMA_REVIEW_PAIRS").is_ok() {
+            let rows: Vec<(i32,String)> = serde_json::from_str(&std::fs::read_to_string(std::env::var("LEXICUE_GEMMA_SMOKE_SUBTITLE").unwrap()).unwrap()).unwrap();
+            for (index,text) in rows {
+                let Some(expression) = ["see you", "spill the tea", "no cap", "throw shade", "take the piss", "break the ice"].into_iter().find(|e| text.to_lowercase().contains(e) || (*e=="spill the tea" && text.contains("spilled the tea")) || (*e=="break the ice" && text.contains("broke the ice"))) else {continue};
+                let (lexical,literal,options)=quality::sense_pair(expression).unwrap();
+                let source=SegmentRow{index,text};
+                let item=Accepted{candidate:Candidate{segment_index:index,canonical:expression.into(),category:"idiom".into(),token_positions:vec![0,1]},surface:expression.into(),metadata:Default::default()};
+                let schema=serde_json::json!({"type":"object","properties":{"meaning":{"type":"string","enum":[lexical,literal]}},"required":["meaning"],"additionalProperties":false});
+                let result=runtime::chat(model,quality::sense_prompt(&item,&source,&[],options,"meaning"),schema,&token,|_|{},||{}).await.unwrap();
+                println!("SENSE_PAIR_PROBE={}",serde_json::json!({"source":source.text,"response":result.content}));
+            }
+            runtime::unload().await.unwrap(); return;
+        }
+        let extended=std::env::var("LEXICUE_GEMMA_REVIEW_EXTENDED").is_ok();
+        for (expression,source,hint) in [
+            ("see you","Our teacher smiles and says see you tomorrow before closing the classroom door.","farewell"),
+            ("see you","From this balcony I can see you standing beside the fountain.","farewell"),
+            ("no cap","I tell her the story is true, no cap, because I personally helped decorate the room.","honestly, without lying"),
+            ("no cap","The bottle has no cap on its neck, so the water could spill.","honestly, without lying"),
+            ("throw shade","Nobody wants to throw shade at the organizer, although the decorations provide opportunities for jokes.","indirectly criticize"),
+            ("spill the tea","Maya asks me to spill the tea about the surprise party organized without telling her.","tell gossip"),
+            ("read the report","I read the report before breakfast.","an established reusable lexical expression"),
+        ].into_iter().take(if extended{0}else{7}) {
+            let schema=serde_json::json!({"type":"object","properties":{"label":{"type":"string","enum":["expression","fragment","literal"]}},"required":["label"],"additionalProperties":false});
+            let prompt=format!("Classify ONE phrase in its sentence. expression = established idiom, phrasal verb, useful conventional collocation or conversational formula used in its lexical meaning. fragment = ordinary grammar or arbitrary combinations. literal = the words only describe literal objects, not the proposed idiomatic meaning.
+Positive examples: have a go (try), no worries (reassurance), spare time. Negative examples: to the, want to watch, makes learning, reading an arbitrary report.
+PHRASE: {expression}
+PROPOSED MEANING: {hint}
+SENTENCE: {source}
+Return JSON label only.");
+            let result=runtime::chat(model,prompt,schema,&token,|_|{},||{}).await.unwrap();
+            println!("REVIEW_PROBE={}",serde_json::json!({"expression":expression,"source":source,"response":result.content}));
+        }
+        for source in ["Our teacher smiles and says see you tomorrow before closing the classroom door.","From this balcony I can see you standing beside the fountain."] {
+            let schema=serde_json::json!({"type":"object","properties":{"meaning":{"type":"string","enum":["farewell","visual"]}},"required":["meaning"],"additionalProperties":false});
+            let result=runtime::chat(model,format!("What does 'see you' mean in this sentence? Choose farewell when saying goodbye, visual when seeing a person. Return JSON meaning only. SENTENCE: {source}"),schema,&token,|_|{},||{}).await.unwrap();
+            println!("SENSE_PROBE={}",serde_json::json!({"source":source,"response":result.content}));
+        }
+        for source in ["Our teacher smiles and says see you tomorrow before closing the classroom door.","From this balcony I can see you standing beside the fountain."] {
+            let schema=serde_json::json!({"type":"object","properties":{"meaning_index":{"type":"integer","enum":[0,1]}},"required":["meaning_index"],"additionalProperties":false});
+            let result=runtime::chat(model,format!("Which meaning describes 'see you' IN THIS sentence? 0 = saying goodbye before a future meeting; 1 = visually observing a person. Return JSON meaning_index only. SENTENCE: {source}"),schema,&token,|_|{},||{}).await.unwrap();
+            println!("INDEX_PROBE={}",serde_json::json!({"source":source,"response":result.content}));
+        }
+        for headword in ["kick the bucket","read the report","plan for"] {
+            let result=runtime::chat(model,quality::profile_prompt(headword),quality::profile_schema(),&token,|_|{},||{}).await.unwrap();
+            println!("PROFILE_PROBE={}",serde_json::json!({"headword":headword,"response":result.content}));
+        }
+        runtime::unload().await.unwrap();
+    }
+
+    #[tokio::test]
+    #[ignore = "explicit full product-quality benchmark; pinned local model, temporary database only"]
+    async fn gemma4_phrase_quality_benchmark() {
+        use crate::commands::gemma::{models, runtime};
+        let model = std::env::var("LEXICUE_GEMMA_SMOKE_ASSET")
+            .unwrap_or_else(|_| "gemma4-e2b-litert-181938105e0e".into());
+        let item = models::asset(&model).unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::hard_link(std::env::var("LEXICUE_GEMMA_SMOKE_MODEL").unwrap(), models::installed_path(dir.path(), &item)).unwrap();
+        runtime::start_smoke(dir.path().into(), std::env::var("LEXICUE_GEMMA_SMOKE_LIBRARY").unwrap().into()).unwrap();
+        let rows: Vec<(i32,String)> = serde_json::from_str(&std::fs::read_to_string(std::env::var("LEXICUE_GEMMA_SMOKE_SUBTITLE").unwrap()).unwrap()).unwrap();
+        let limit=std::env::var("LEXICUE_GEMMA_SMOKE_LIMIT").ok().and_then(|v|v.parse().ok()).unwrap_or(rows.len());
+        let segments: Vec<_> = rows.into_iter().take(limit).map(|(index,text)|SegmentRow{index,text}).collect();
+        let config = AiConfig { provider: "gemma".into(), base_url: "".into(), model, api_key: None };
+        let client=ai_client(std::time::Duration::from_secs(600),"").unwrap();
+        let conn=crate::db::init_db(&dir.path().join("evaluation.sqlite")).unwrap();
+        if let Ok(database)=std::env::var("LEXICUE_GEMMA_SMOKE_DICTIONARY_DB") {
+            let source=Connection::open_with_flags(database,rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
+            let mut stmt=source.prepare("SELECT text,category,translation,part_of_speech FROM builtin_phrase_dictionary").unwrap();
+            for row in stmt.query_map([],|row|Ok((row.get::<_,String>(0)?,row.get::<_,Option<String>>(1)?,row.get::<_,String>(2)?,row.get::<_,Option<String>>(3)?))).unwrap() {
+                let (text,category,translation,pos)=row.unwrap();
+                conn.execute("INSERT OR IGNORE INTO builtin_phrase_dictionary(text,category,translation,part_of_speech) VALUES(?1,?2,?3,?4)",params![text,category,translation,pos]).unwrap();
+            }
+        }
+        let conn=Mutex::new(conn);let token=CancellationToken::default();
+        let repeats=std::env::var("LEXICUE_GEMMA_SMOKE_REPEATS").ok().and_then(|v|v.parse().ok()).unwrap_or(1usize);
+        for iteration in 0..repeats {
+            let file_id=-40_100-iteration as i64;
+            conn.lock().unwrap().execute("INSERT INTO files(id,name,type,content,content_hash,imported_at) VALUES(?1,'evaluation.srt','srt','temporary',?2,1)",params![file_id,format!("eval-{iteration}")]).unwrap();
+            diagnostics::start(file_id,&config.provider,&config.model);
+            let pipeline=pipeline::Pipeline{client:&client,config:&config,token:&token,notifier:None,checkpoints:cache::Checkpoints{conn:&conn,file_id,force:true}};
+            let started=Instant::now();
+            let accepted=pipeline.run_events(&segments,|source,update| {
+                if update.operation=="commit" {
+                    println!("QUALITY_PROGRESS={} ITEMS={}",source.last().map(|s|s.index+1).unwrap_or(0),update.items.len());
+                } else if update.operation=="activity" && update.attempt_id=="meaning" {
+                    println!("QUALITY_REVIEW_REQUEST={} CUE={}",update.batch_id,source.last().map(|s|s.index+1).unwrap_or(0));
+                }
+            }).await.unwrap();
+            diagnostics::finish(file_id,"COMPLETED","completed");
+            let discovery_responses: Vec<serde_json::Value> = {
+                let db=conn.lock().unwrap();let mut stmt=db.prepare("SELECT result_json FROM phrase_analysis_cache WHERE file_id=?1 ORDER BY rowid").unwrap();
+                stmt.query_map([file_id],|r|r.get::<_,String>(0)).unwrap().map(|r|serde_json::from_str::<serde_json::Value>(&r.unwrap()).unwrap()).filter(|v|v.get("text").is_some()).collect()
+            };
+            let report=serde_json::json!({"discoveryResponses":discovery_responses,"iteration":iteration,"model":config.model,"segments":segments.len(),"segmentIndices":segments.iter().map(|s|s.index).collect::<Vec<_>>(),"sourceRows":segments.iter().map(|s|(s.index,&s.text)).collect::<Vec<_>>(),"items":accepted.iter().map(|i|{let mut value=serde_json::to_value(&i.candidate).unwrap();value["metadata"]=serde_json::to_value(&i.metadata).unwrap();value}).collect::<Vec<_>>(),"elapsedMs":started.elapsed().as_millis(),"diagnostic":diagnostics::summary(file_id),"writesLearningData":false});
+            if let Ok(prefix)=std::env::var("LEXICUE_GEMMA_SMOKE_REPORT_PREFIX") {std::fs::write(format!("{prefix}-{iteration}.json"),serde_json::to_string_pretty(&report).unwrap()).unwrap();}
+            println!("QUALITY_GEMMA_REPORT={report}");
+        }
+        runtime::unload().await.unwrap();
+    }
 
     #[tokio::test]
     #[ignore = "requires pinned Gemma weights and prepared native engine"]

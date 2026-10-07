@@ -73,6 +73,7 @@ export interface OccurrenceDetail {
   end_time: string | null;
   file_name: string;
   hidden: boolean;
+  expression_metadata?: ExpressionMetadata | null;
   surface_text?: string | null;
   token_positions?: number[] | null;
   meaning_zh?: string | null;
@@ -213,7 +214,18 @@ export interface PhraseDetail {
   occurrences: OccurrenceDetail[];
 }
 
+export interface ExpressionMetadata {
+  context_meaning_en?: string | null;
+  register_tags: string[];
+  regions: string[];
+  cautions: string[];
+  domains: string[];
+  evidence_kind: string;
+  source: string;
+}
+
 export interface PhraseDictionaryEntry {
+  expression_metadata?: ExpressionMetadata | null;
   text: string;
   translation: string;
   pinyin: string | null;

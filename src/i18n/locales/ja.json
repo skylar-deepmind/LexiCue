@@ -1189,5 +1189,15 @@
     "sharedHint": "すべての学習言語でタグを共有します。",
     "search": "タグを検索",
     "namePlaceholder": "タグ名を入力"
+  },
+  "expressionTags": {
+    "label": "語域と使用上の注意",
+    "informal": "口語",
+    "slang": "スラング",
+    "UK": "英国用法",
+    "US": "米国用法",
+    "offensive": "不快感を与える表現",
+    "language_learning": "言語学習用語",
+    "inferred": "AI の推定"
   }
 }

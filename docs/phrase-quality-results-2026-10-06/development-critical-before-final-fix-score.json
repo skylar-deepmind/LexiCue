@@ -1,0 +1,168 @@
+{
+  "fixtureHash": "7aba15eafd46aac709c9788733c0e1df1482563e030c1ad5ec5501ecc026e1a7",
+  "model": "gemma4-e2b-litert-181938105e0e",
+  "elapsedMs": 194619,
+  "overall": {
+    "predictions": 17,
+    "required": 10,
+    "hit": 10,
+    "uniqueExpressionRecall": 1,
+    "uniqueExpressionPrecision": 0.8333,
+    "occurrencePrecision": 0.7059,
+    "precision": 0.7059,
+    "recall": 1,
+    "boundaryAccuracy": 1,
+    "categoryAccuracy": 1,
+    "informalRecall": 1,
+    "registerPrecision": 0.75,
+    "misses": [],
+    "falsePositives": [
+      {
+        "cue": 20,
+        "canonical": "see you tomorrow",
+        "positions": [
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "cue": 34,
+        "canonical": "see you tomorrow",
+        "positions": [
+          3,
+          4,
+          5
+        ]
+      },
+      {
+        "cue": 68,
+        "canonical": "spill the tea",
+        "positions": [
+          2,
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 69,
+        "canonical": "no cap",
+        "positions": [
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 117,
+        "canonical": "plan for",
+        "positions": [
+          9,
+          10
+        ]
+      }
+    ],
+    "boundaryErrors": [],
+    "categoryErrors": [],
+    "negativeHits": [
+      {
+        "cue": 68,
+        "canonical": "spill the tea"
+      },
+      {
+        "cue": 69,
+        "canonical": "no cap"
+      }
+    ]
+  },
+  "development": {
+    "predictions": 17,
+    "required": 10,
+    "hit": 10,
+    "uniqueExpressionRecall": 1,
+    "uniqueExpressionPrecision": 0.8333,
+    "occurrencePrecision": 0.7059,
+    "precision": 0.7059,
+    "recall": 1,
+    "boundaryAccuracy": 1,
+    "categoryAccuracy": 1,
+    "informalRecall": 1,
+    "registerPrecision": 0.75,
+    "misses": [],
+    "falsePositives": [
+      {
+        "cue": 20,
+        "canonical": "see you tomorrow",
+        "positions": [
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "cue": 34,
+        "canonical": "see you tomorrow",
+        "positions": [
+          3,
+          4,
+          5
+        ]
+      },
+      {
+        "cue": 68,
+        "canonical": "spill the tea",
+        "positions": [
+          2,
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 69,
+        "canonical": "no cap",
+        "positions": [
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 117,
+        "canonical": "plan for",
+        "positions": [
+          9,
+          10
+        ]
+      }
+    ],
+    "boundaryErrors": [],
+    "categoryErrors": [],
+    "negativeHits": [
+      {
+        "cue": 68,
+        "canonical": "spill the tea"
+      },
+      {
+        "cue": 69,
+        "canonical": "no cap"
+      }
+    ]
+  },
+  "holdout": {
+    "predictions": 0,
+    "required": 0,
+    "hit": 0,
+    "uniqueExpressionRecall": null,
+    "uniqueExpressionPrecision": null,
+    "occurrencePrecision": null,
+    "precision": null,
+    "recall": null,
+    "boundaryAccuracy": null,
+    "categoryAccuracy": null,
+    "informalRecall": null,
+    "registerPrecision": null,
+    "misses": [],
+    "falsePositives": [],
+    "boundaryErrors": [],
+    "categoryErrors": [],
+    "negativeHits": []
+  }
+}

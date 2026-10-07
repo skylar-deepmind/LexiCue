@@ -1,0 +1,53 @@
+{
+  "words": {
+    "count": 7246,
+    "unchanged": false,
+    "allOtherColumnsUnchanged": true,
+    "lemmaChanges": 2,
+    "note": "Existing migrate_english_lemmas runs at app startup; untouched by phrase-quality changes."
+  },
+  "occurrences": {
+    "count": 89015,
+    "unchanged": true
+  },
+  "phrases": {
+    "count": 2027,
+    "unchanged": true
+  },
+  "phrase_occurrences": {
+    "count": 3579,
+    "unchanged": true
+  },
+  "phrase_dictionary_entries": {
+    "count": 2068,
+    "unchanged": true
+  },
+  "dictionary_entries": {
+    "count": 39136,
+    "unchanged": true
+  },
+  "reviews": {
+    "count": 216,
+    "unchanged": true
+  },
+  "review_logs": {
+    "count": 80,
+    "unchanged": true
+  },
+  "phrase_reviews": {
+    "count": 27,
+    "unchanged": true
+  },
+  "phrase_review_logs": {
+    "count": 6,
+    "unchanged": true
+  },
+  "files": {
+    "count": 27,
+    "unchanged": true
+  },
+  "segments": {
+    "count": 17621,
+    "unchanged": true
+  }
+}

@@ -38,7 +38,7 @@ export default function AnalysisModelPicker() {
         <label htmlFor={id} className="analysis-model-picker__label"><Brain size={16} aria-hidden="true" />{t('analysisModel.title')}</label>
         <span className="analysis-model-picker__service">{service}</span>
         <AppSelect id={id} className="analysis-model-picker__select" value={model} onChange={setModel} disabled={!enabled || checking}
-          aria-describedby={`${id}-hint`} placeholder={t('settings.ai.selectModel')} searchable options={options.map(name => ({ value: name, label: aiModelLabel(name) }))} />
+          aria-describedby={`${id}-hint`} placeholder={t('settings.ai.selectModel')} options={options.map(name => ({ value: name, label: aiModelLabel(name) }))} />
         <button type="button" className="analysis-model-picker__action" onClick={() => void checkAiConnection()} disabled={!enabled || checking} aria-label={t('analysisModel.refresh')} title={t('analysisModel.refresh')}>
           <RefreshCw size={16} aria-hidden="true" />
         </button>

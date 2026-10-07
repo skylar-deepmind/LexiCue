@@ -16,6 +16,7 @@ pub(super) struct Pipeline<'a> {
     pub notifier: Option<&'a RetryNotifier>,
     pub checkpoints: cache::Checkpoints<'a>,
 }
+#[cfg(test)]
 pub(super) fn accepted(source: &[SegmentRow], candidates: &[Candidate]) -> Vec<Accepted> {
     candidates
         .iter()
@@ -24,10 +25,12 @@ pub(super) fn accepted(source: &[SegmentRow], candidates: &[Candidate]) -> Vec<A
             Some(Accepted {
                 candidate: candidate.clone(),
                 surface: validate_candidate(candidate, segment)?,
+                metadata: Default::default(),
             })
         })
         .collect()
 }
+#[cfg(test)]
 impl Pipeline<'_> {
     fn extraction_key(&self, source: &[SegmentRow]) -> String {
         cache::fingerprint(
@@ -144,7 +147,7 @@ impl Pipeline<'_> {
         }
         Ok(combined)
     }
-    pub async fn run_events(
+    pub async fn run_legacy_events(
         &self,
         segments: &[SegmentRow],
         preview: impl Fn(&[SegmentRow], PreviewUpdate) + Send + Sync,
@@ -187,7 +190,7 @@ impl Pipeline<'_> {
         segments: &[SegmentRow],
         preview: impl Fn(&[SegmentRow], &[Accepted], &str) + Send + Sync,
     ) -> Result<Vec<Accepted>, String> {
-        self.run_events(segments, |source, update| {
+        self.run_legacy_events(segments, |source, update| {
             if update.operation == "commit" {
                 preview(source, &update.items, update.origin);
             }
@@ -448,7 +451,7 @@ mod tests {
         diagnostics::start(605, "openai", "fixture");
         let events = Mutex::new(Vec::new());
         let result = pipeline
-            .run_events(&segments(), |_, update| {
+            .run_legacy_events(&segments(), |_, update| {
                 if update.operation == "append" {
                     assert_eq!(update.items.len(), 1);
                     release.send(()).unwrap();
@@ -477,7 +480,7 @@ mod tests {
         assert_eq!(server.join().unwrap().len(), 1);
         diagnostics::start(605, "openai", "fixture");
         pipeline
-            .run_events(&segments(), |_, update| {
+            .run_legacy_events(&segments(), |_, update| {
                 assert_eq!(update.operation, "commit")
             })
             .await
@@ -516,7 +519,7 @@ mod tests {
             };
             let events = Mutex::new(Vec::new());
             let result = pipeline
-                .run_events(&segments(), |_, update| {
+                .run_legacy_events(&segments(), |_, update| {
                     if update.operation == "append" && cancel {
                         token.cancel();
                         release.send(()).unwrap();
@@ -545,7 +548,7 @@ mod tests {
             };
             assert_eq!(
                 resumed
-                    .run_events(&segments(), |_, _| {})
+                    .run_legacy_events(&segments(), |_, _| {})
                     .await
                     .unwrap()
                     .len(),
@@ -592,7 +595,7 @@ mod tests {
                 .unwrap()
                 .push((update.batch_id, update.operation, update.origin))
         };
-        assert!(pipeline.run_events(&source, &callback).await.is_err());
+        assert!(pipeline.run_legacy_events(&source, &callback).await.is_err());
         let first = events.lock().unwrap().clone();
         assert!(
             first
@@ -609,7 +612,7 @@ mod tests {
         assert!(first.contains(&(102, "rollback", "ai")));
         events.lock().unwrap().clear();
         assert_eq!(
-            pipeline.run_events(&source, &callback).await.unwrap().len(),
+            pipeline.run_legacy_events(&source, &callback).await.unwrap().len(),
             2
         );
         assert!(events.lock().unwrap().contains(&(101, "commit", "cache")));
@@ -640,7 +643,7 @@ mod tests {
         let events = Mutex::new(Vec::new());
         assert_eq!(
             pipeline
-                .run_events(&segments(), |_, update| events
+                .run_legacy_events(&segments(), |_, update| events
                     .lock()
                     .unwrap()
                     .push((update.attempt_id, update.operation)))
@@ -655,5 +658,11 @@ mod tests {
         assert_ne!(rolled.0, committed.0);
         assert!(events.iter().any(|e| e.0 == rolled.0 && e.1 == "append"));
         assert_eq!(server.join().unwrap().len(), 2);
+    }
+}
+
+impl Pipeline<'_> {
+    pub async fn run_events(&self, segments: &[SegmentRow], preview: impl Fn(&[SegmentRow], PreviewUpdate) + Send + Sync) -> Result<Vec<Accepted>, String> {
+        quality::run(self, segments, &preview).await
     }
 }

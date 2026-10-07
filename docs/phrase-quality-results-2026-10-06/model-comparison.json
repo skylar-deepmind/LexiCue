@@ -1,0 +1,61 @@
+{
+  "fixture": "17a327e13cf6d051d0209ce62fdfad77e858e0d2bd24959f7b4b6365174fd644",
+  "identicalSourceRows": true,
+  "freshGeneration": true,
+  "productionPipelineUnchangedBetweenModels": true,
+  "machine": "Apple M4 / 32 GB / Metal",
+  "e2b": {
+    "model": "gemma4-e2b-litert-181938105e0e",
+    "coldElapsedMs": 742030,
+    "warmElapsedMs": [
+      676827,
+      690065
+    ],
+    "overall": {
+      "predictions": 48,
+      "required": 40,
+      "hit": 32,
+      "uniqueExpressionRecall": 0.8,
+      "uniqueExpressionPrecision": 0.75,
+      "occurrencePrecision": 0.6875,
+      "precision": 0.6875,
+      "recall": 0.8,
+      "boundaryAccuracy": 1,
+      "categoryAccuracy": 0.9394,
+      "informalRecall": 0.7,
+      "registerPrecision": 0.25,
+      "tagVerificationCoverage": 0.8,
+      "emittedTags": 5,
+      "unverifiedTags": 1
+    }
+  },
+  "e4b": {
+    "model": "gemma4-e4b-litert-0b2a8980ce15",
+    "coldElapsedMs": 802717,
+    "warmElapsedMs": [],
+    "overall": {
+      "predictions": 41,
+      "required": 40,
+      "hit": 33,
+      "uniqueExpressionRecall": 0.825,
+      "uniqueExpressionPrecision": 0.8293,
+      "occurrencePrecision": 0.8293,
+      "precision": 0.8293,
+      "recall": 0.825,
+      "boundaryAccuracy": 1,
+      "categoryAccuracy": 1,
+      "informalRecall": 0.9,
+      "registerPrecision": 0.8,
+      "tagVerificationCoverage": 0.8333,
+      "emittedTags": 6,
+      "unverifiedTags": 1
+    }
+  },
+  "limitations": [
+    "Agent-authored frozen annotations, not expert human review.",
+    "Both fixtures have now been inspected; future tuning requires a fresh unseen acceptance set.",
+    "E4B had one measured run; warm timing and multi-run stability are not measured.",
+    "E4B emitted-tag precision is 80%, below the reference 85% goal; only five independently checkable emitted labels.",
+    "Frozen exact lexical forms penalize some useful headword variants."
+  ]
+}

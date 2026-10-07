@@ -1,3 +1,4 @@
+import { ExpressionTags } from './ExpressionTags';
 import Overlay from './Overlay';
 import { dictionaryLanguageState, useDictionaryStore } from '../stores/dictionaryStore';
 import { X, BookOpen, RefreshCw, EyeOff, Eye, Pencil, Plus, Trash2, Volume2 } from 'lucide-react';
@@ -286,6 +287,7 @@ export default function PhraseDetailPanel({ detail, onClose, onStatusChange, onD
                   {categoryLabel(dictionary.category)}
                 </span>
               )}
+              <ExpressionTags metadata={dictionary.expression_metadata} />
               {dictionary.pinyin && (
                 <p className={`text-purple-600 ${CONTENT_FONT_CLASS.auxiliary[auxiliaryFontSize]}`}>{dictionary.pinyin}</p>
               )}
@@ -420,6 +422,7 @@ export default function PhraseDetailPanel({ detail, onClose, onStatusChange, onD
                     </button>
                   )}
                 </div>
+                <ExpressionTags metadata={occ.expression_metadata} />
                 {occ.zh_text && (
                   <p className={`mt-1 text-gray-400 ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}>{occ.zh_text}</p>
                 )}
@@ -494,7 +497,8 @@ export default function PhraseDetailPanel({ detail, onClose, onStatusChange, onD
                           <Eye size={14} />
                         </button>
                       </div>
-                      {occ.zh_text && (
+                      <ExpressionTags metadata={occ.expression_metadata} />
+                {occ.zh_text && (
                         <p className={`mt-1 text-gray-400 ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}>{occ.zh_text}</p>
                       )}
                       <p className={`mt-1 text-gray-400 ${CONTENT_FONT_CLASS.auxiliary[auxiliaryFontSize]}`}>

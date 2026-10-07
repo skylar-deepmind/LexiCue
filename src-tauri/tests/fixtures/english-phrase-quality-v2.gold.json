@@ -1,0 +1,1877 @@
+{
+  "version": 2,
+  "annotation_origin": "Independently authored fresh expressions and source annotations, frozen before v2 inference; not extraction model results",
+  "srt_sha256": "17a327e13cf6d051d0209ce62fdfad77e858e0d2bd24959f7b4b6365174fd644",
+  "cues": 60,
+  "words": 1123,
+  "duration_seconds": 599,
+  "register_scoring_note": "Only explicit verified labels are scored; unspecified register is not treated as neutral. Report coverage separately. v1 remains unchanged.",
+  "rows": [
+    {
+      "cue": 1,
+      "segment_index": 0,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "Give me a break, that excuse is ridiculous, and everyone has already waited thirty minutes for the missing driver.",
+      "annotations": [
+        {
+          "canonical": "give me a break",
+          "surface": "Give me a break",
+          "char_start": 0,
+          "char_end": 15,
+          "token_positions": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [
+            "informal"
+          ],
+          "regions": [],
+          "cautions": [],
+          "source": "https://www.collinsdictionary.com/us/dictionary/english/give-me-a-break",
+          "register_verified": true,
+          "requirement": "must_include",
+          "sense_en": "",
+          "rationale": "Independently authored expression in its intended lexical use."
+        }
+      ]
+    },
+    {
+      "cue": 2,
+      "segment_index": 1,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "You should get a life instead of spending every evening counting strangers who liked a photo on your phone.",
+      "annotations": [
+        {
+          "canonical": "get a life",
+          "surface": "get a life",
+          "char_start": 11,
+          "char_end": 21,
+          "token_positions": [
+            2,
+            3,
+            4
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [
+            "informal",
+            "slang"
+          ],
+          "regions": [],
+          "cautions": [],
+          "source": "https://dictionary.cambridge.org/us/dictionary/english/get-a-life; https://www.dictionary.com/browse/get-a-life",
+          "register_verified": true,
+          "requirement": "must_include",
+          "sense_en": "",
+          "rationale": "Independently authored expression in its intended lexical use."
+        }
+      ]
+    },
+    {
+      "cue": 3,
+      "segment_index": 2,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "What the heck happened to this kitchen, because the flour covers every chair and nobody remembers making any bread.",
+      "annotations": [
+        {
+          "canonical": "what the heck",
+          "surface": "What the heck",
+          "char_start": 0,
+          "char_end": 13,
+          "token_positions": [
+            0,
+            1,
+            2
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [
+            "informal"
+          ],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_include",
+          "sense_en": "",
+          "rationale": "Independently authored expression in its intended lexical use."
+        }
+      ]
+    },
+    {
+      "cue": 4,
+      "segment_index": 3,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "I am all ears while you explain the unexpected message, because the situation sounds much stranger than yesterday.",
+      "annotations": [
+        {
+          "canonical": "be all ears",
+          "surface": "am all ears",
+          "char_start": 2,
+          "char_end": 13,
+          "token_positions": [
+            1,
+            2,
+            3
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_include",
+          "sense_en": "",
+          "rationale": "Independently authored expression in its intended lexical use.",
+          "allowed_canonicals": [
+            "all ears"
+          ],
+          "acceptable_token_positions": [
+            [
+              2,
+              3
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "cue": 5,
+      "segment_index": 4,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "Please hang in there during this difficult week, because your friends will support you until the exams are finished.",
+      "annotations": [
+        {
+          "canonical": "hang in there",
+          "surface": "hang in there",
+          "char_start": 7,
+          "char_end": 20,
+          "token_positions": [
+            1,
+            2,
+            3
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_include",
+          "sense_en": "",
+          "rationale": "Independently authored expression in its intended lexical use."
+        }
+      ]
+    },
+    {
+      "cue": 6,
+      "segment_index": 5,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "You bet, I can help tomorrow, and I will bring enough boxes for the books and the kitchen equipment.",
+      "annotations": [
+        {
+          "canonical": "you bet",
+          "surface": "You bet",
+          "char_start": 0,
+          "char_end": 7,
+          "token_positions": [
+            0,
+            1
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [
+            "informal"
+          ],
+          "regions": [],
+          "cautions": [],
+          "source": "https://en.wiktionary.org/wiki/you_bet",
+          "register_verified": true,
+          "requirement": "must_include",
+          "sense_en": "",
+          "rationale": "Independently authored expression in its intended lexical use."
+        }
+      ]
+    },
+    {
+      "cue": 7,
+      "segment_index": 6,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "Fair enough, I understand why you refused the invitation after discovering that the organizer changed the ticket price.",
+      "annotations": [
+        {
+          "canonical": "fair enough",
+          "surface": "Fair enough",
+          "char_start": 0,
+          "char_end": 11,
+          "token_positions": [
+            0,
+            1
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [
+            "informal"
+          ],
+          "regions": [
+            "UK"
+          ],
+          "cautions": [],
+          "source": "https://dictionary.cambridge.org/us/dictionary/english/fair-enough",
+          "register_verified": true,
+          "requirement": "must_include",
+          "sense_en": "",
+          "rationale": "Independently authored expression in its intended lexical use."
+        }
+      ]
+    },
+    {
+      "cue": 8,
+      "segment_index": 7,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "No way, I refuse to lend you my bicycle again after you returned it yesterday with a damaged wheel.",
+      "annotations": [
+        {
+          "canonical": "no way",
+          "surface": "No way",
+          "char_start": 0,
+          "char_end": 6,
+          "token_positions": [
+            0,
+            1
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [
+            "informal"
+          ],
+          "regions": [],
+          "cautions": [],
+          "source": "https://dictionary.cambridge.org/us/dictionary/english/no-way",
+          "register_verified": true,
+          "requirement": "must_include",
+          "sense_en": "",
+          "rationale": "Independently authored expression in its intended lexical use."
+        }
+      ]
+    },
+    {
+      "cue": 9,
+      "segment_index": 8,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "Not a chance, the team cannot finish an entire film tonight when the camera battery is completely empty.",
+      "annotations": [
+        {
+          "canonical": "not a chance",
+          "surface": "Not a chance",
+          "char_start": 0,
+          "char_end": 12,
+          "token_positions": [
+            0,
+            1,
+            2
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [
+            "informal"
+          ],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_include",
+          "sense_en": "",
+          "rationale": "Independently authored expression in its intended lexical use."
+        }
+      ]
+    },
+    {
+      "cue": 10,
+      "segment_index": 9,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "We are fed up with the constant noise from that restaurant, especially when the music continues after midnight.",
+      "annotations": [
+        {
+          "canonical": "be fed up with",
+          "surface": "are fed up with",
+          "char_start": 3,
+          "char_end": 18,
+          "token_positions": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [
+            "informal"
+          ],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_include",
+          "sense_en": "",
+          "rationale": "Independently authored expression in its intended lexical use.",
+          "allowed_canonicals": [
+            "fed up with"
+          ],
+          "acceptable_token_positions": [
+            [
+              2,
+              3,
+              4
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "cue": 11,
+      "segment_index": 10,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "The teenagers mess around during rehearsal instead of practicing, although the audience will arrive within another hour.",
+      "annotations": [
+        {
+          "canonical": "mess around",
+          "surface": "mess around",
+          "char_start": 14,
+          "char_end": 25,
+          "token_positions": [
+            2,
+            3
+          ],
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [
+            "informal"
+          ],
+          "regions": [],
+          "cautions": [],
+          "source": "https://dictionary.cambridge.org/us/dictionary/english/mess-around",
+          "register_verified": true,
+          "requirement": "must_include",
+          "sense_en": "",
+          "rationale": "Independently authored expression in its intended lexical use."
+        }
+      ]
+    },
+    {
+      "cue": 12,
+      "segment_index": 11,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "Do not screw up this final payment, because another wrong account number would delay the project for several days.",
+      "annotations": [
+        {
+          "canonical": "screw up",
+          "surface": "screw up",
+          "char_start": 7,
+          "char_end": 15,
+          "token_positions": [
+            2,
+            3
+          ],
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [
+            "informal"
+          ],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_include",
+          "sense_en": "",
+          "rationale": "Independently authored expression in its intended lexical use."
+        }
+      ]
+    },
+    {
+      "cue": 13,
+      "segment_index": 12,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "After another dishonest excuse, our unreliable colleague is on thin ice with the manager who previously defended him.",
+      "annotations": [
+        {
+          "canonical": "on thin ice",
+          "surface": "on thin ice",
+          "char_start": 60,
+          "char_end": 71,
+          "token_positions": [
+            8,
+            9,
+            10
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_include",
+          "sense_en": "",
+          "rationale": "Independently authored expression in its intended lexical use."
+        }
+      ]
+    },
+    {
+      "cue": 14,
+      "segment_index": 13,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "In a nutshell, the new schedule gives everyone longer breaks and reduces the number of meetings during the morning.",
+      "annotations": [
+        {
+          "canonical": "in a nutshell",
+          "surface": "In a nutshell",
+          "char_start": 0,
+          "char_end": 13,
+          "token_positions": [
+            0,
+            1,
+            2
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_include",
+          "sense_en": "",
+          "rationale": "Independently authored expression in its intended lexical use."
+        }
+      ]
+    },
+    {
+      "cue": 15,
+      "segment_index": 14,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "Those concert tickets cost an arm and a leg, so we decided to listen to the broadcast from home.",
+      "annotations": [
+        {
+          "canonical": "cost an arm and a leg",
+          "surface": "cost an arm and a leg",
+          "char_start": 22,
+          "char_end": 43,
+          "token_positions": [
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_include",
+          "sense_en": "",
+          "rationale": "Independently authored expression in its intended lexical use."
+        },
+        {
+          "canonical": "listen to",
+          "surface": "listen to",
+          "char_start": 62,
+          "char_end": 71,
+          "token_positions": [
+            13,
+            14
+          ],
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "LexiCue editorial core expressions v1",
+          "register_verified": true,
+          "requirement": "allowed",
+          "sense_en": "",
+          "rationale": "Explicit physical use or ordinary grammar; not the target idiom."
+        }
+      ]
+    },
+    {
+      "cue": 16,
+      "segment_index": 15,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "I must bite the bullet and arrange the dental appointment, although I have avoided that conversation for months.",
+      "annotations": [
+        {
+          "canonical": "bite the bullet",
+          "surface": "bite the bullet",
+          "char_start": 7,
+          "char_end": 22,
+          "token_positions": [
+            2,
+            3,
+            4
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_include",
+          "sense_en": "",
+          "rationale": "Independently authored expression in its intended lexical use."
+        }
+      ]
+    },
+    {
+      "cue": 17,
+      "segment_index": 16,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "The failed experiment leaves us back to square one, and we must design a completely different method next week.",
+      "annotations": [
+        {
+          "canonical": "back to square one",
+          "surface": "back to square one",
+          "char_start": 32,
+          "char_end": 50,
+          "token_positions": [
+            5,
+            6,
+            7,
+            8
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_include",
+          "sense_en": "",
+          "rationale": "Independently authored expression in its intended lexical use."
+        }
+      ]
+    },
+    {
+      "cue": 18,
+      "segment_index": 17,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "That unnecessary insult was the last straw, and our patient coordinator finally decided to resign from the committee.",
+      "annotations": [
+        {
+          "canonical": "the last straw",
+          "surface": "the last straw",
+          "char_start": 28,
+          "char_end": 42,
+          "token_positions": [
+            4,
+            5,
+            6
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_include",
+          "sense_en": "",
+          "rationale": "Independently authored expression in its intended lexical use."
+        }
+      ]
+    },
+    {
+      "cue": 19,
+      "segment_index": 18,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "Your spare camera could save the day because our photographer discovered a serious technical problem before the ceremony.",
+      "annotations": [
+        {
+          "canonical": "save the day",
+          "surface": "save the day",
+          "char_start": 24,
+          "char_end": 36,
+          "token_positions": [
+            4,
+            5,
+            6
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_include",
+          "sense_en": "",
+          "rationale": "Independently authored expression in its intended lexical use."
+        }
+      ]
+    },
+    {
+      "cue": 20,
+      "segment_index": 19,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "Please do not beat around the bush, because we need a clear answer about the missing money before lunch.",
+      "annotations": [
+        {
+          "canonical": "beat around the bush",
+          "surface": "beat around the bush",
+          "char_start": 14,
+          "char_end": 34,
+          "token_positions": [
+            3,
+            4,
+            5,
+            6
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_include",
+          "sense_en": "",
+          "rationale": "Independently authored expression in its intended lexical use."
+        }
+      ]
+    },
+    {
+      "cue": 21,
+      "segment_index": 20,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "We will burn the midnight oil tonight to finish the application before the scholarship deadline tomorrow morning.",
+      "annotations": [
+        {
+          "canonical": "burn the midnight oil",
+          "surface": "burn the midnight oil",
+          "char_start": 8,
+          "char_end": 29,
+          "token_positions": [
+            2,
+            3,
+            4,
+            5
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_include",
+          "sense_en": "",
+          "rationale": "Independently authored expression in its intended lexical use."
+        }
+      ]
+    },
+    {
+      "cue": 22,
+      "segment_index": 21,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "I might get cold feet before the performance, even though I have rehearsed the same music for several weeks.",
+      "annotations": [
+        {
+          "canonical": "get cold feet",
+          "surface": "get cold feet",
+          "char_start": 8,
+          "char_end": 21,
+          "token_positions": [
+            2,
+            3,
+            4
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_include",
+          "sense_en": "",
+          "rationale": "Independently authored expression in its intended lexical use."
+        }
+      ]
+    },
+    {
+      "cue": 23,
+      "segment_index": 22,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "The cancelled interview was a blessing in disguise because it allowed me to accept a much better offer later.",
+      "annotations": [
+        {
+          "canonical": "a blessing in disguise",
+          "surface": "a blessing in disguise",
+          "char_start": 28,
+          "char_end": 50,
+          "token_positions": [
+            4,
+            5,
+            6,
+            7
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_include",
+          "sense_en": "",
+          "rationale": "Independently authored expression in its intended lexical use."
+        }
+      ]
+    },
+    {
+      "cue": 24,
+      "segment_index": 23,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "I have second thoughts about joining the tour after discovering that the company ignores several important safety rules.",
+      "annotations": [
+        {
+          "canonical": "have second thoughts",
+          "surface": "have second thoughts",
+          "char_start": 2,
+          "char_end": 22,
+          "token_positions": [
+            1,
+            2,
+            3
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression",
+            "collocation"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_include",
+          "sense_en": "",
+          "rationale": "Independently authored expression in its intended lexical use."
+        }
+      ]
+    },
+    {
+      "cue": 25,
+      "segment_index": 24,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "The supervisor should not turn a blind eye to repeated bullying simply because the employee sells many products.",
+      "annotations": [
+        {
+          "canonical": "turn a blind eye",
+          "surface": "turn a blind eye",
+          "char_start": 26,
+          "char_end": 42,
+          "token_positions": [
+            4,
+            5,
+            6,
+            7
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_include",
+          "sense_en": "",
+          "rationale": "Independently authored expression in its intended lexical use."
+        }
+      ]
+    },
+    {
+      "cue": 26,
+      "segment_index": 25,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "This excellent presentation will raise the bar for the remaining speakers, who now have a difficult example to match.",
+      "annotations": [
+        {
+          "canonical": "raise the bar",
+          "surface": "raise the bar",
+          "char_start": 33,
+          "char_end": 46,
+          "token_positions": [
+            4,
+            5,
+            6
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_include",
+          "sense_en": "",
+          "rationale": "Independently authored expression in its intended lexical use."
+        }
+      ]
+    },
+    {
+      "cue": 27,
+      "segment_index": 26,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "I cannot keep a straight face when the actor delivers that absurd speech while wearing a giant paper crown.",
+      "annotations": [
+        {
+          "canonical": "keep a straight face",
+          "surface": "keep a straight face",
+          "char_start": 9,
+          "char_end": 29,
+          "token_positions": [
+            2,
+            3,
+            4,
+            5
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_include",
+          "sense_en": "",
+          "rationale": "Independently authored expression in its intended lexical use."
+        }
+      ]
+    },
+    {
+      "cue": 28,
+      "segment_index": 27,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "Our youngest teammate is on cloud nine after receiving the scholarship that her family thought was almost impossible.",
+      "annotations": [
+        {
+          "canonical": "on cloud nine",
+          "surface": "on cloud nine",
+          "char_start": 25,
+          "char_end": 38,
+          "token_positions": [
+            4,
+            5,
+            6
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_include",
+          "sense_en": "",
+          "rationale": "Independently authored expression in its intended lexical use."
+        }
+      ]
+    },
+    {
+      "cue": 29,
+      "segment_index": 28,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "Winning the competition is a long shot, but the experience would help us understand the weaknesses in our design.",
+      "annotations": [
+        {
+          "canonical": "a long shot",
+          "surface": "a long shot",
+          "char_start": 27,
+          "char_end": 38,
+          "token_positions": [
+            4,
+            5,
+            6
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_include",
+          "sense_en": "",
+          "rationale": "Independently authored expression in its intended lexical use."
+        }
+      ]
+    },
+    {
+      "cue": 30,
+      "segment_index": 29,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "We need to think outside the box because the usual advertising methods have produced disappointing results for months.",
+      "annotations": [
+        {
+          "canonical": "think outside the box",
+          "surface": "think outside the box",
+          "char_start": 11,
+          "char_end": 32,
+          "token_positions": [
+            3,
+            4,
+            5,
+            6
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_include",
+          "sense_en": "",
+          "rationale": "Independently authored expression in its intended lexical use."
+        }
+      ]
+    },
+    {
+      "cue": 31,
+      "segment_index": 30,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "You should sleep on it before accepting the expensive contract, because a calmer decision tomorrow might protect your savings.",
+      "annotations": [
+        {
+          "canonical": "sleep on it",
+          "surface": "sleep on it",
+          "char_start": 11,
+          "char_end": 22,
+          "token_positions": [
+            2,
+            3,
+            4
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_include",
+          "sense_en": "",
+          "rationale": "Independently authored expression in its intended lexical use."
+        }
+      ]
+    },
+    {
+      "cue": 32,
+      "segment_index": 31,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "Please pull yourself together before the interview, because you know the material and deserve the same respect as everyone.",
+      "annotations": [
+        {
+          "canonical": "pull yourself together",
+          "surface": "pull yourself together",
+          "char_start": 7,
+          "char_end": 29,
+          "token_positions": [
+            1,
+            2,
+            3
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_include",
+          "sense_en": "",
+          "rationale": "Independently authored expression in its intended lexical use."
+        }
+      ]
+    },
+    {
+      "cue": 33,
+      "segment_index": 32,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "The documents back up her explanation of the accident, although the witness originally described a very different sequence.",
+      "annotations": [
+        {
+          "canonical": "back up",
+          "surface": "back up",
+          "char_start": 14,
+          "char_end": 21,
+          "token_positions": [
+            2,
+            3
+          ],
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_include",
+          "sense_en": "",
+          "rationale": "Independently authored expression in its intended lexical use."
+        }
+      ]
+    },
+    {
+      "cue": 34,
+      "segment_index": 33,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "We cannot put up with this unreliable service forever, especially when the company charges more than every competitor.",
+      "annotations": [
+        {
+          "canonical": "put up with",
+          "surface": "put up with",
+          "char_start": 10,
+          "char_end": 21,
+          "token_positions": [
+            2,
+            3,
+            4
+          ],
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_include",
+          "sense_en": "",
+          "rationale": "Independently authored expression in its intended lexical use."
+        }
+      ]
+    },
+    {
+      "cue": 35,
+      "segment_index": 34,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "Our new accountant works by the book and refuses to approve expenses without the required receipts and signatures.",
+      "annotations": [
+        {
+          "canonical": "by the book",
+          "surface": "by the book",
+          "char_start": 25,
+          "char_end": 36,
+          "token_positions": [
+            4,
+            5,
+            6
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_include",
+          "sense_en": "",
+          "rationale": "Independently authored expression in its intended lexical use."
+        }
+      ]
+    },
+    {
+      "cue": 36,
+      "segment_index": 35,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "The festival was a mixed bag because the music was excellent but the food was cold and expensive.",
+      "annotations": [
+        {
+          "canonical": "a mixed bag",
+          "surface": "a mixed bag",
+          "char_start": 17,
+          "char_end": 28,
+          "token_positions": [
+            3,
+            4,
+            5
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_include",
+          "sense_en": "",
+          "rationale": "Independently authored expression in its intended lexical use."
+        }
+      ]
+    },
+    {
+      "cue": 37,
+      "segment_index": 36,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "I am on edge before the medical appointment, although the nurse explained that the examination should be routine.",
+      "annotations": [
+        {
+          "canonical": "be on edge",
+          "surface": "am on edge",
+          "char_start": 2,
+          "char_end": 12,
+          "token_positions": [
+            1,
+            2,
+            3
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_include",
+          "sense_en": "",
+          "rationale": "Independently authored expression in its intended lexical use.",
+          "allowed_canonicals": [
+            "on edge"
+          ],
+          "acceptable_token_positions": [
+            [
+              2,
+              3
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "cue": 38,
+      "segment_index": 37,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "Does that surname ring a bell, because I think the woman studied with us during the first summer course.",
+      "annotations": [
+        {
+          "canonical": "ring a bell",
+          "surface": "ring a bell",
+          "char_start": 18,
+          "char_end": 29,
+          "token_positions": [
+            3,
+            4,
+            5
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_include",
+          "sense_en": "",
+          "rationale": "Independently authored expression in its intended lexical use."
+        }
+      ]
+    },
+    {
+      "cue": 39,
+      "segment_index": 38,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "The captain must face the music after admitting that he ignored the safety report before the dangerous voyage.",
+      "annotations": [
+        {
+          "canonical": "face the music",
+          "surface": "face the music",
+          "char_start": 17,
+          "char_end": 31,
+          "token_positions": [
+            3,
+            4,
+            5
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_include",
+          "sense_en": "",
+          "rationale": "Independently authored expression in its intended lexical use."
+        }
+      ]
+    },
+    {
+      "cue": 40,
+      "segment_index": 39,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "The children will go bananas when they discover the puppy, but we should explain the responsibilities before any celebration.",
+      "annotations": [
+        {
+          "canonical": "go bananas",
+          "surface": "go bananas",
+          "char_start": 18,
+          "char_end": 28,
+          "token_positions": [
+            3,
+            4
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_include",
+          "sense_en": "",
+          "rationale": "Independently authored expression in its intended lexical use."
+        }
+      ]
+    },
+    {
+      "cue": 41,
+      "segment_index": 40,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "The skating instructor stood on thin ice near the shore, where the frozen water measured only two centimeters.",
+      "annotations": [
+        {
+          "canonical": "on thin ice",
+          "surface": "on thin ice",
+          "char_start": 29,
+          "char_end": 40,
+          "token_positions": [
+            4,
+            5,
+            6
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_reject",
+          "sense_en": "",
+          "rationale": "Explicit physical use or ordinary grammar; not the target idiom."
+        }
+      ]
+    },
+    {
+      "cue": 42,
+      "segment_index": 41,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "The historical demonstration used a lantern to burn the midnight oil that the merchant had bottled for night lighting.",
+      "annotations": [
+        {
+          "canonical": "burn the midnight oil",
+          "surface": "burn the midnight oil",
+          "char_start": 47,
+          "char_end": 68,
+          "token_positions": [
+            7,
+            8,
+            9,
+            10
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_reject",
+          "sense_en": "",
+          "rationale": "Explicit physical use or ordinary grammar; not the target idiom."
+        }
+      ]
+    },
+    {
+      "cue": 43,
+      "segment_index": 42,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "The sculptor used two rulers to keep a straight face on the wooden block instead of carving a curved surface.",
+      "annotations": [
+        {
+          "canonical": "keep a straight face",
+          "surface": "keep a straight face",
+          "char_start": 32,
+          "char_end": 52,
+          "token_positions": [
+            6,
+            7,
+            8,
+            9
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_reject",
+          "sense_en": "",
+          "rationale": "Explicit physical use or ordinary grammar; not the target idiom."
+        }
+      ]
+    },
+    {
+      "cue": 44,
+      "segment_index": 43,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "The technician used a jack to raise the bar above the machine, allowing the heavy metal rod to move vertically.",
+      "annotations": [
+        {
+          "canonical": "raise the bar",
+          "surface": "raise the bar",
+          "char_start": 30,
+          "char_end": 43,
+          "token_positions": [
+            6,
+            7,
+            8
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_reject",
+          "sense_en": "",
+          "rationale": "Explicit physical use or ordinary grammar; not the target idiom."
+        }
+      ]
+    },
+    {
+      "cue": 45,
+      "segment_index": 44,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "The film director requested a long shot that showed the whole hillside, rather than a close view of the actor.",
+      "annotations": [
+        {
+          "canonical": "a long shot",
+          "surface": "a long shot",
+          "char_start": 28,
+          "char_end": 39,
+          "token_positions": [
+            4,
+            5,
+            6
+          ],
+          "category": "collocation",
+          "allowed_categories": [
+            "collocation",
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "allowed",
+          "sense_en": "",
+          "rationale": "Established film-framing term in this context; not the improbable-success idiom, but valid domain vocabulary.",
+          "allowed_canonicals": [
+            "long shot"
+          ],
+          "acceptable_token_positions": [
+            [
+              5,
+              6
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "cue": 46,
+      "segment_index": 45,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "The robot designer could turn a blind eye toward the wall by rotating the damaged camera that no longer detected light.",
+      "annotations": [
+        {
+          "canonical": "turn a blind eye",
+          "surface": "turn a blind eye",
+          "char_start": 25,
+          "char_end": 41,
+          "token_positions": [
+            4,
+            5,
+            6,
+            7
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_reject",
+          "sense_en": "",
+          "rationale": "Explicit physical use or ordinary grammar; not the target idiom."
+        }
+      ]
+    },
+    {
+      "cue": 47,
+      "segment_index": 46,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "My brother might want to read the blue report after breakfast, although the teacher did not require any extra homework.",
+      "annotations": [
+        {
+          "canonical": "want to read",
+          "surface": "want to read",
+          "char_start": 17,
+          "char_end": 29,
+          "token_positions": [
+            3,
+            4,
+            5
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_reject",
+          "sense_en": "",
+          "rationale": "Explicit physical use or ordinary grammar; not the target idiom."
+        }
+      ]
+    },
+    {
+      "cue": 48,
+      "segment_index": 47,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "The speaker described a really ordinary room containing six chairs, a small table and a cabinet beside the window.",
+      "annotations": [
+        {
+          "canonical": "really ordinary",
+          "surface": "really ordinary",
+          "char_start": 24,
+          "char_end": 39,
+          "token_positions": [
+            4,
+            5
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_reject",
+          "sense_en": "",
+          "rationale": "Explicit physical use or ordinary grammar; not the target idiom."
+        }
+      ]
+    },
+    {
+      "cue": 49,
+      "segment_index": 48,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "There were three yellow chairs beside the desk, but their owner could not remember which shop originally sold them.",
+      "annotations": [
+        {
+          "canonical": "three yellow chairs",
+          "surface": "three yellow chairs",
+          "char_start": 11,
+          "char_end": 30,
+          "token_positions": [
+            2,
+            3,
+            4
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_reject",
+          "sense_en": "",
+          "rationale": "Explicit physical use or ordinary grammar; not the target idiom."
+        }
+      ]
+    },
+    {
+      "cue": 50,
+      "segment_index": 49,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "Please open the red box containing yesterday's envelopes, because I need the receipt that arrived with the replacement cable.",
+      "annotations": [
+        {
+          "canonical": "open the red box",
+          "surface": "open the red box",
+          "char_start": 7,
+          "char_end": 23,
+          "token_positions": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_reject",
+          "sense_en": "",
+          "rationale": "Explicit physical use or ordinary grammar; not the target idiom."
+        }
+      ]
+    },
+    {
+      "cue": 51,
+      "segment_index": 50,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "The comfortable lamp makes studying easier during dark evenings, although good lighting cannot replace preparation for a difficult examination.",
+      "annotations": [
+        {
+          "canonical": "makes studying",
+          "surface": "makes studying",
+          "char_start": 21,
+          "char_end": 35,
+          "token_positions": [
+            3,
+            4
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_reject",
+          "sense_en": "",
+          "rationale": "Explicit physical use or ordinary grammar; not the target idiom."
+        }
+      ]
+    },
+    {
+      "cue": 52,
+      "segment_index": 51,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "You should not forget any appointments tomorrow, because your calendar contains several meetings that cannot easily be rearranged.",
+      "annotations": [
+        {
+          "canonical": "forget any appointments",
+          "surface": "forget any appointments",
+          "char_start": 15,
+          "char_end": 38,
+          "token_positions": [
+            3,
+            4,
+            5
+          ],
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "register_verified": false,
+          "requirement": "must_reject",
+          "sense_en": "",
+          "rationale": "Explicit physical use or ordinary grammar; not the target idiom."
+        }
+      ]
+    },
+    {
+      "cue": 53,
+      "segment_index": 52,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "The notebook contained eighteen pages of measurements, and the assistant checked every number before signing the laboratory record.",
+      "annotations": []
+    },
+    {
+      "cue": 54,
+      "segment_index": 53,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "A short announcement explained the timetable, while the passengers waited quietly beside a row of wooden seats near the entrance.",
+      "annotations": []
+    },
+    {
+      "cue": 55,
+      "segment_index": 54,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "The artist selected a blue pencil and drew a narrow line between the two circles printed on the paper.",
+      "annotations": []
+    },
+    {
+      "cue": 56,
+      "segment_index": 55,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "The visitor described an empty apartment with white walls, a wooden door and several windows overlooking the quiet street.",
+      "annotations": []
+    },
+    {
+      "cue": 57,
+      "segment_index": 56,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "Our cousin bought twelve envelopes and wrote the addresses carefully before placing the stamps beside the new telephone.",
+      "annotations": []
+    },
+    {
+      "cue": 58,
+      "segment_index": 57,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "The teacher showed a diagram containing four arrows, then asked the class to describe the direction of each arrow.",
+      "annotations": []
+    },
+    {
+      "cue": 59,
+      "segment_index": 58,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "The envelope contained a receipt and a handwritten note confirming the date of the next meeting at the central office.",
+      "annotations": []
+    },
+    {
+      "cue": 60,
+      "segment_index": 59,
+      "scene": "fresh_acceptance",
+      "split": "holdout",
+      "text": "A small photograph showed the old station before renovation, with two bicycles leaning against the wall beside the ticket window.",
+      "annotations": []
+    }
+  ]
+}

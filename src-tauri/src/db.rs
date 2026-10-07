@@ -1012,6 +1012,8 @@ fn migrate_english_learning(conn: &Connection) -> Result<(), rusqlite::Error> {
         ("file_phrase_analysis", "collins_evidence_available", "INTEGER NOT NULL DEFAULT 0"),
         ("file_phrase_analysis", "skipped_items", "INTEGER NOT NULL DEFAULT 0"),
         ("phrase_occurrences", "surface_text", "TEXT"),
+        ("phrase_occurrences", "expression_meta_json", "TEXT"),
+        ("phrase_dictionary_entries", "expression_meta_json", "TEXT"),
         ("phrase_occurrences", "token_positions_json", "TEXT"),
         ("phrase_occurrences", "meaning_zh", "TEXT"),
         ("phrase_occurrences", "usage_zh", "TEXT"),

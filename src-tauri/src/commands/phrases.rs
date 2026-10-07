@@ -46,6 +46,7 @@ pub struct PhraseOccurrenceDetail {
     pub usage_en: Option<String>,
     pub meaning_en_edited: bool,
     pub collins_sense_id: Option<i64>,
+    pub expression_metadata: Option<crate::commands::english::ExpressionMetadata>,
 }
 
 fn query_phrases(
@@ -188,7 +189,7 @@ pub fn phrase_detail(state: State<DbState>, phrase_id: i64) -> Result<PhraseDeta
                         s.en_text, s.zh_text, s.start_time, s.end_time,
                         f.name AS file_name, po.hidden, po.surface_text,
                         po.token_positions_json, po.meaning_zh, po.usage_zh, po.meaning_edited,
-                        po.meaning_en, po.usage_en, po.meaning_en_edited, po.collins_sense_id
+                        po.meaning_en, po.usage_en, po.meaning_en_edited, po.collins_sense_id, po.expression_meta_json
                  FROM phrase_occurrences po
                  JOIN segments s ON s.id = po.segment_id
                  JOIN files f ON f.id = s.file_id
@@ -220,6 +221,7 @@ pub fn phrase_detail(state: State<DbState>, phrase_id: i64) -> Result<PhraseDeta
                     usage_en: row.get(17)?,
                     meaning_en_edited: row.get::<_, i64>(18)? != 0,
                     collins_sense_id: row.get(19)?,
+                    expression_metadata: row.get::<_, Option<String>>(20)?.and_then(|raw|serde_json::from_str(&raw).ok()),
                 })
             })
             .map_err(|e| e.to_string())?;

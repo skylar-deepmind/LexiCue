@@ -845,7 +845,7 @@ pub fn lookup_phrase_dictionary(
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
     let ollama_result = conn.query_row(
         "SELECT text, translation, pinyin, usage_zh, category, provider, other_senses_json, other_senses_edited,
-                meaning_en, usage_en, other_senses_en_json, other_senses_en_edited
+                meaning_en, usage_en, other_senses_en_json, other_senses_en_edited, expression_meta_json
          FROM phrase_dictionary_entries WHERE language = ?1 AND text = ?2",
         [&language, &normalized],
         |row| {
@@ -864,6 +864,7 @@ pub fn lookup_phrase_dictionary(
                 other_senses_en_edited: row.get::<_, i64>(11)? != 0,
                 collins_senses: collins_senses.clone(),
                 collins_available,
+                expression_metadata: row.get::<_, Option<String>>(12)?.and_then(|raw| serde_json::from_str(&raw).ok()),
             })
         },
     );
@@ -888,6 +889,7 @@ pub fn lookup_phrase_dictionary(
             other_senses_en_edited: false,
             collins_senses,
             collins_available,
+                expression_metadata: None,
         });
     }
     if language == "zh" || language == "ja" {
@@ -917,6 +919,7 @@ pub fn lookup_phrase_dictionary(
                 other_senses_en_edited: false,
                 collins_senses: Vec::new(),
                 collins_available: false,
+                expression_metadata: None,
             })
         });
         return match result {
@@ -946,6 +949,7 @@ pub fn lookup_phrase_dictionary(
                 other_senses_en_edited: false,
                 collins_senses: Vec::new(),
                 collins_available: false,
+                expression_metadata: None,
             })
         },
     );
@@ -963,6 +967,8 @@ pub struct PhraseDictionaryEntry {
     pub pinyin: Option<String>,
     pub usage_zh: Option<String>,
     pub category: Option<String>,
+    #[serde(default)]
+    pub expression_metadata: Option<crate::commands::english::ExpressionMetadata>,
     pub provider: String,
     pub other_senses: Vec<PhraseOtherSense>,
     pub other_senses_edited: bool,

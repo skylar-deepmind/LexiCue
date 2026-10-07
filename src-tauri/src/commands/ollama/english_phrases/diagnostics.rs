@@ -133,6 +133,7 @@ pub(super) fn response_usage(file_id: i64, stage: &str, response: Option<&super:
 pub(super) fn cache_hit(file_id: i64, stage: &str) {
     mutate(file_id, |summary| stage_usage(summary, stage).cache_hits += 1);
 }
+#[cfg(test)]
 pub(super) fn split(file_id: i64, stage: &str) {
     mutate(file_id, |summary| stage_usage(summary, stage).splits += 1);
 }

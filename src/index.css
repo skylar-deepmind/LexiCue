@@ -219,6 +219,8 @@ body { margin: 0; background: var(--app-bg); color: var(--text-body); }
 .app-select__option > span { min-width: 0; overflow-wrap: anywhere; }
 .app-select__option > svg { flex-shrink: 0; }
 .app-select__option.is-focused { background: var(--surface-muted); color: var(--text-strong); }
+.app-select__option.is-selected { background: var(--accent-50); color: var(--accent-700); }
+.app-select__option.is-selected.is-focused { background: var(--accent-100); }
 .app-select__option[aria-disabled='true'] { color: var(--text-muted); background: var(--surface-muted); cursor: not-allowed; }
 .app-select__empty { padding: 0.75rem; font-size: 0.8125rem; color: var(--text-muted); }
 .file-list-container { container: file-list / inline-size; }
@@ -1176,3 +1178,25 @@ button:disabled:is([class*='bg-blue-'], [class*='bg-purple-'], [class*='bg-gray-
   .overlay-layer--detail .insights-detail-panel { height: 100dvh; }
 }
 .insights-file-name h3 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* Non-interactive expression labels share the semantic light/midnight palette. */
+.expression-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
+.expression-tag { display: inline-flex; white-space: nowrap; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface-muted); color: var(--text-body); font-size: .75rem; line-height: 1.5; }
+.expression-tag--caution { background: var(--sync-warning-bg); color: var(--sync-warning-text); border-color: var(--sync-warning-border); }
+.expression-tag--inferred { background: var(--surface); color: var(--text-muted); }
+
+/* Mouse-driven desktop selectors use denser spacing; touch sheets stay roomy. */
+@media (min-width: 768px) and (pointer: fine) {
+  .app-select { min-height: 36px; padding: 6px 10px; gap: 8px; border-radius: 8px; line-height: 20px; }
+  .app-select__popover { padding: 4px; border-radius: 10px; }
+  .app-select__option { min-height: 32px; padding: 6px 8px; gap: 8px; line-height: 20px; }
+  .app-select__search { padding: 6px 8px; }
+  .analysis-model-picker { padding-block: 8px; }
+  .analysis-model-picker__select { width: min(14rem, 100%); }
+  .analysis-model-picker__action { width: 36px; height: 36px; }
+  .analysis-model-picker__get { min-height: 36px; padding: 6px 10px; }
+  .tag-filter { padding-block: 8px; }
+  .tag-filter__scroll { padding-block: 4px; }
+  .tag-chip { min-height: 36px; padding: 6px 12px; }
+  .tag-filter .ui-button { min-width: 36px; min-height: 36px; padding: 6px 10px; }
+}

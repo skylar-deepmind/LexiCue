@@ -100,6 +100,9 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           NODE_OPTIONS: --use-system-ca
         run: npm run tauri build -- --target ${{ matrix.target }} --bundles app,dmg
+      - name: Verify packaged Gemma library signing
+        if: ${{ github.ref != 'refs/heads/main' && !inputs.publish_release }}
+        run: node scripts/check-gemma-macos-signing.mjs --app src-tauri/target/${{ matrix.target }}/release/bundle/macos/LexiCue.app
       - name: Upload macOS branch installer
         if: ${{ github.ref != 'refs/heads/main' && !inputs.publish_release }}
         uses: actions/upload-artifact@v4
@@ -121,6 +124,9 @@ jobs:
           prerelease: false
           retryAttempts: 2
           args: --target ${{ matrix.target }} --bundles app,dmg
+      - name: Verify packaged release Gemma library signing
+        if: ${{ github.ref == 'refs/heads/main' || inputs.publish_release }}
+        run: node scripts/check-gemma-macos-signing.mjs --app src-tauri/target/${{ matrix.target }}/release/bundle/macos/LexiCue.app
 
   windows:
     needs: release-checks

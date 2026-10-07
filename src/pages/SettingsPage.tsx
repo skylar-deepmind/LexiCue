@@ -356,7 +356,7 @@ export default function SettingsPage() {
 
               {aiProvider === 'gemma' ? (
                 <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
-                  <AppSelect value={aiModel} onChange={setAiModel} searchable
+                  <AppSelect value={aiModel} onChange={setAiModel}
                     aria-label={t('settings.ai.gemmaModelAria')}
                     options={[...new Set(aiModel ? [aiModel, ...aiModels] : aiModels)].map(model => ({ value: model, label: aiModelLabel(model) }))}
                     placeholder={t('settings.ai.selectModel')} />
@@ -418,7 +418,7 @@ export default function SettingsPage() {
                       {aiStatus === 'checking' ? t('settings.ai.connecting') : t('settings.ai.connect')}
                     </button>
                   </div>
-                  <AppSelect value={aiModel} onChange={setAiModel} searchable
+                  <AppSelect value={aiModel} onChange={setAiModel}
                     aria-label={t('settings.ai.cloudModelAria')}
                     options={[...new Set(aiModel ? [aiModel, ...aiModels] : aiModels)].map(model => ({ value: model, label: aiModelLabel(model) }))}
                     placeholder={t('settings.ai.selectModel')} />

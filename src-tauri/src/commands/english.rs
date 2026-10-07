@@ -130,6 +130,19 @@ fn resolved_form(surface: &str) -> (String, Option<String>, bool) {
         .filter(|(lemma, _)| lemma != &lower && seen_non_self.insert(lemma.as_str()))
         .collect();
     if (lower.ends_with('s') || lower.ends_with("ies")) && non_self.len() == 1 {
+        // A frequent independent headword may have an obscure plural analysis
+        // in the source dictionary: species -> specie, series -> serie, or
+        // physics -> physic. Do not let that rare analysis override the word.
+        let alternate_frequency = detailed.iter()
+            .filter(|candidate| candidate.lemma == non_self[0].0)
+            .map(|candidate| candidate.frequency).max().unwrap_or(0);
+        if let Some(headword) = detailed.iter()
+            .filter(|candidate| candidate.lemma == lower && candidate.relation == "headword")
+            .max_by_key(|candidate| candidate.frequency)
+            .filter(|candidate| candidate.frequency > 0 && (alternate_frequency == 0
+                || candidate.frequency >= alternate_frequency.saturating_mul(8))) {
+            return (lower, headword.pos.clone(), false);
+        }
         return (non_self[0].0.clone(), non_self[0].1.clone(), false);
     }
 
@@ -619,6 +632,20 @@ mod tests {
     }
 
     #[test]
+    fn rare_plural_analyses_do_not_replace_independent_headwords() {
+        for word in ["species", "series", "physics", "headphones"] {
+            assert_eq!(lemma_of_surface(word), word, "{word}");
+            let tokens = tokenize_english(word.to_string()).unwrap();
+            assert_eq!(tokens[0].lemma, word);
+            assert_eq!(tokens[0].word_kind, "common");
+        }
+        for (surface, lemma) in [("cats", "cat"), ("months", "month"), ("years", "year")] {
+            assert_eq!(lemma_of_surface(surface), lemma);
+        }
+        assert!(surface_matches_lemma("species", "specie"), "explicit dictionary alternatives remain available");
+    }
+
+    #[test]
     fn batch_matches_single_calls() {
         let texts = vec![
             "I went to the store.".to_string(),
@@ -677,6 +704,25 @@ mod tests {
         )
         .unwrap();
         conn
+    }
+
+    #[test]
+    fn startup_migration_preserves_independent_headwords_and_learning_records() {
+        let conn = migration_conn();
+        for (id, lemma) in [(1, "species"), (2, "series"), (3, "physics")] {
+            conn.execute("INSERT INTO words(id,lemma,definition,status) VALUES(?1,?2,'learner note','learning')", rusqlite::params![id, lemma]).unwrap();
+            conn.execute("INSERT INTO occurrences(word_id,segment_id,original_form,position) VALUES(?1,0,?2,0)", rusqlite::params![id, lemma]).unwrap();
+            conn.execute("INSERT INTO reviews(word_id,due_at,reps,last_review_at) VALUES(?1,200,4,100)", [id]).unwrap();
+            conn.execute("INSERT INTO review_logs(word_id,rating,reviewed_at) VALUES(?1,3,100)", [id]).unwrap();
+        }
+        assert_eq!(migrate_english_lemmas(&conn).unwrap(), 0);
+        assert_eq!(migrate_english_lemmas(&conn).unwrap(), 0);
+        for (id, lemma) in [(1, "species"), (2, "series"), (3, "physics")] {
+            let row: (String, String, String, i64, i64) = conn.query_row(
+                "SELECT w.lemma,w.definition,w.status,r.reps,l.word_id FROM words w JOIN reviews r ON r.word_id=w.id JOIN review_logs l ON l.word_id=w.id WHERE w.id=?1",
+                [id], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?))).unwrap();
+            assert_eq!(row, (lemma.into(),"learner note".into(),"learning".into(),4,id));
+        }
     }
 
     #[test]
@@ -769,4 +815,16 @@ mod tests {
         // Idempotent: a second run is a no-op.
         assert_eq!(migrate_english_lemmas(&conn).unwrap(), 0);
     }
+}
+
+/// Expression type is separate from contextual register and usage restrictions.
+#[derive(Clone, Default, Debug, serde::Serialize, serde::Deserialize)]
+pub struct ExpressionMetadata {
+    #[serde(default)] pub register_tags: Vec<String>,
+    #[serde(default)] pub regions: Vec<String>,
+    #[serde(default)] pub cautions: Vec<String>,
+    #[serde(default)] pub domains: Vec<String>,
+    #[serde(default)] pub evidence_kind: String,
+    #[serde(default)] pub source: String,
+    #[serde(default)] pub context_meaning_en: Option<String>,
 }

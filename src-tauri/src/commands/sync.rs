@@ -332,6 +332,8 @@ struct LibraryPhraseOccurrence {
     meaning_en_edited: i64,
     #[serde(default)]
     collins_sense_id: Option<i64>,
+    #[serde(default)]
+    expression_meta_json: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -370,6 +372,8 @@ struct LibraryPhraseDictionaryEntry {
     other_senses_en_json: String,
     #[serde(default)]
     other_senses_en_edited: i64,
+    #[serde(default)]
+    expression_meta_json: Option<String>,
 }
 
 fn default_other_senses_json() -> String { "[]".to_string() }
@@ -1050,7 +1054,7 @@ fn library_item_record(
             .map_err(|_| "local_sync_storage_error".to_string())?;
         let mut phrase_occurrence_statement = conn
             .prepare(
-                "SELECT state.sync_id,occurrence.position,occurrence.hidden,occurrence.surface_text,occurrence.token_positions_json,occurrence.meaning_zh,occurrence.usage_zh,occurrence.meaning_edited,occurrence.meaning_en,occurrence.usage_en,occurrence.meaning_en_edited,occurrence.collins_sense_id
+                "SELECT state.sync_id,occurrence.position,occurrence.hidden,occurrence.surface_text,occurrence.token_positions_json,occurrence.meaning_zh,occurrence.usage_zh,occurrence.meaning_edited,occurrence.meaning_en,occurrence.usage_en,occurrence.meaning_en_edited,occurrence.collins_sense_id,occurrence.expression_meta_json
                  FROM phrase_occurrences occurrence
                  JOIN sync_entity_state state ON state.table_name='phrases' AND state.local_id=occurrence.phrase_id
                  WHERE occurrence.segment_id=?1 ORDER BY occurrence.position,occurrence.id",
@@ -1071,6 +1075,7 @@ fn library_item_record(
                     usage_en: row.get(9)?,
                     meaning_en_edited: row.get(10)?,
                     collins_sense_id: row.get(11)?,
+                    expression_meta_json: row.get(12)?,
                 })
             })
             .map_err(|_| "local_sync_storage_error".to_string())?
@@ -1104,7 +1109,7 @@ fn library_item_record(
         .map_err(|_| "local_sync_storage_error".to_string())?;
     let mut dictionary_statement = conn
         .prepare(
-            "SELECT DISTINCT entry.language,entry.text,entry.translation,entry.pinyin,entry.usage_zh,entry.category,entry.provider,entry.updated_at,entry.other_senses_json,entry.other_senses_edited,entry.meaning_en,entry.usage_en,entry.other_senses_en_json,entry.other_senses_en_edited
+            "SELECT DISTINCT entry.language,entry.text,entry.translation,entry.pinyin,entry.usage_zh,entry.category,entry.provider,entry.updated_at,entry.other_senses_json,entry.other_senses_edited,entry.meaning_en,entry.usage_en,entry.other_senses_en_json,entry.other_senses_en_edited,entry.expression_meta_json
              FROM phrase_dictionary_entries entry
              JOIN phrases phrase ON phrase.language=entry.language AND phrase.text=entry.text
              JOIN phrase_occurrences occurrence ON occurrence.phrase_id=phrase.id
@@ -1129,6 +1134,7 @@ fn library_item_record(
                 usage_en: row.get(11)?,
                 other_senses_en_json: row.get(12)?,
                 other_senses_en_edited: row.get(13)?,
+                expression_meta_json: row.get(14)?,
             })
         })
         .map_err(|_| "local_sync_storage_error".to_string())?
@@ -1318,8 +1324,8 @@ fn apply_library_item_event(
                 continue;
             };
             conn.execute(
-                "INSERT INTO phrase_occurrences(phrase_id,segment_id,position,hidden,surface_text,token_positions_json,meaning_zh,usage_zh,meaning_edited,meaning_en,usage_en,meaning_en_edited,collins_sense_id) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)",
-                rusqlite::params![phrase_id, segment_id, occurrence.position, occurrence.hidden, occurrence.surface_text, occurrence.token_positions_json, occurrence.meaning_zh, occurrence.usage_zh, occurrence.meaning_edited, occurrence.meaning_en, occurrence.usage_en, occurrence.meaning_en_edited, occurrence.collins_sense_id],
+                "INSERT INTO phrase_occurrences(phrase_id,segment_id,position,hidden,surface_text,token_positions_json,meaning_zh,usage_zh,meaning_edited,meaning_en,usage_en,meaning_en_edited,collins_sense_id,expression_meta_json) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14)",
+                rusqlite::params![phrase_id, segment_id, occurrence.position, occurrence.hidden, occurrence.surface_text, occurrence.token_positions_json, occurrence.meaning_zh, occurrence.usage_zh, occurrence.meaning_edited, occurrence.meaning_en, occurrence.usage_en, occurrence.meaning_en_edited, occurrence.collins_sense_id, occurrence.expression_meta_json],
             )
             .map_err(|error| error.to_string())?;
         }
@@ -1338,10 +1344,10 @@ fn apply_library_item_event(
     }
     for entry in snapshot.phrase_dictionary_entries {
         conn.execute(
-            "INSERT INTO phrase_dictionary_entries(language,text,translation,pinyin,usage_zh,category,provider,updated_at,other_senses_json,other_senses_edited,meaning_en,usage_en,other_senses_en_json,other_senses_en_edited)
-             VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14)
-             ON CONFLICT(language,text) DO UPDATE SET translation=excluded.translation,pinyin=excluded.pinyin,usage_zh=excluded.usage_zh,category=excluded.category,provider=excluded.provider,updated_at=excluded.updated_at,other_senses_json=excluded.other_senses_json,other_senses_edited=excluded.other_senses_edited,meaning_en=excluded.meaning_en,usage_en=excluded.usage_en,other_senses_en_json=excluded.other_senses_en_json,other_senses_en_edited=excluded.other_senses_en_edited",
-            rusqlite::params![entry.language, entry.text, entry.translation, entry.pinyin, entry.usage_zh, entry.category, entry.provider, entry.updated_at, entry.other_senses_json, entry.other_senses_edited, entry.meaning_en, entry.usage_en, entry.other_senses_en_json, entry.other_senses_en_edited],
+            "INSERT INTO phrase_dictionary_entries(language,text,translation,pinyin,usage_zh,category,provider,updated_at,other_senses_json,other_senses_edited,meaning_en,usage_en,other_senses_en_json,other_senses_en_edited,expression_meta_json)
+             VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15)
+             ON CONFLICT(language,text) DO UPDATE SET translation=excluded.translation,pinyin=excluded.pinyin,usage_zh=excluded.usage_zh,category=excluded.category,provider=excluded.provider,updated_at=excluded.updated_at,other_senses_json=excluded.other_senses_json,other_senses_edited=excluded.other_senses_edited,meaning_en=excluded.meaning_en,usage_en=excluded.usage_en,other_senses_en_json=excluded.other_senses_en_json,other_senses_en_edited=excluded.other_senses_en_edited,expression_meta_json=excluded.expression_meta_json",
+            rusqlite::params![entry.language, entry.text, entry.translation, entry.pinyin, entry.usage_zh, entry.category, entry.provider, entry.updated_at, entry.other_senses_json, entry.other_senses_edited, entry.meaning_en, entry.usage_en, entry.other_senses_en_json, entry.other_senses_en_edited, entry.expression_meta_json],
         )
         .map_err(|error| error.to_string())?;
     }
@@ -3593,6 +3599,9 @@ mod tests {
                 [],
             )
             .unwrap();
+        let metadata=r#"{"register_tags":["informal"],"regions":["UK"],"cautions":["offensive"],"evidence_kind":"dictionary"}"#;
+        source.execute("UPDATE phrase_occurrences SET expression_meta_json=?1 WHERE phrase_id=?2",rusqlite::params![metadata,phrase_id]).unwrap();
+        source.execute("UPDATE phrase_dictionary_entries SET expression_meta_json=?1 WHERE text='hello world'",[metadata]).unwrap();
         let source_word_sync = sync_id_for(&source, "words", word_id).unwrap();
         let source_phrase_sync = sync_id_for(&source, "phrases", phrase_id).unwrap();
         let source_file_sync = sync_id_for(&source, "files", file_id).unwrap();
@@ -3604,6 +3613,8 @@ mod tests {
         assert_eq!(snapshot.segments[0].phrase_occurrences[0].hidden, 1);
         assert_eq!(snapshot.segments[0].phrase_occurrences[0].meaning_zh.as_deref(), Some("本句问候"));
         assert_eq!(snapshot.segments[0].phrase_occurrences[0].meaning_en.as_deref(), Some("A greeting"));
+        assert_eq!(snapshot.segments[0].phrase_occurrences[0].expression_meta_json.as_deref(),Some(metadata));
+        assert_eq!(snapshot.phrase_dictionary_entries[0].expression_meta_json.as_deref(),Some(metadata));
 
         let event = EntityEvent {
             version: 3,
@@ -3657,6 +3668,9 @@ mod tests {
             )
             .unwrap();
         assert_eq!(restored, ("你好，世界".into(), "你好世界".into(), 1, 1));
+        let restored_metadata:(Option<String>,Option<String>)=target.query_row("SELECT po.expression_meta_json,pde.expression_meta_json FROM phrase_occurrences po JOIN phrase_dictionary_entries pde ON pde.text='hello world' LIMIT 1",[],|r|Ok((r.get(0)?,r.get(1)?))).unwrap();
+        assert_eq!(restored_metadata,(Some(metadata.into()),Some(metadata.into())));
+
         let restored_word_ai: (Option<String>, Option<String>, Option<i64>, i64, Option<String>, Option<i64>) = target.query_row(
             "SELECT meaning_zh,usage_zh,collins_sense_id,meaning_edited,analysis_model,analyzed_at FROM occurrences LIMIT 1", [],
             |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?,row.get(4)?,row.get(5)?)),

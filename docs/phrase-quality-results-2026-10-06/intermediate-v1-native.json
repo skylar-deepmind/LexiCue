@@ -1,0 +1,3315 @@
+{
+  "diagnostic": {
+    "batch": 180,
+    "cacheErrors": 0,
+    "code": "COMPLETED",
+    "completionTokens": null,
+    "durationMs": 0,
+    "errorKind": null,
+    "explanation": {
+      "cacheHits": 0,
+      "completionTokens": 0,
+      "contentRetries": 0,
+      "inputChars": 0,
+      "promptTokens": 0,
+      "requests": 0,
+      "splits": 0,
+      "transportRetries": 0
+    },
+    "extraction": {
+      "cacheHits": 0,
+      "completionTokens": 3107,
+      "contentRetries": 0,
+      "inputChars": 250455,
+      "promptTokens": 52091,
+      "requests": 254,
+      "splits": 0,
+      "transportRetries": 0
+    },
+    "fileId": -40100,
+    "finishReason": null,
+    "firstPreviewMs": null,
+    "httpStatus": null,
+    "missingFields": [],
+    "model": "gemma4-e2b-litert-181938105e0e",
+    "occurredAt": 1791288231844,
+    "promptTokens": null,
+    "provider": "gemma",
+    "rawAvailable": false,
+    "requestId": null,
+    "runId": "ab0ad49a5fe240a7b0786577310b7207",
+    "skippedCount": 0,
+    "stage": "completed",
+    "status": "completed",
+    "streamFallbacks": 0,
+    "streamRequests": 254,
+    "totalSkipped": 0,
+    "usageIncomplete": false,
+    "validCount": 1
+  },
+  "elapsedMs": 1250327,
+  "items": [
+    {
+      "canonical": "listen to",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 0,
+      "token_positions": [
+        1,
+        2
+      ]
+    },
+    {
+      "canonical": "memorize vocabulary",
+      "category": "collocation",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 2,
+      "token_positions": [
+        1,
+        2
+      ]
+    },
+    {
+      "canonical": "acquire language",
+      "category": "collocation",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 3,
+      "token_positions": [
+        5,
+        6
+      ]
+    },
+    {
+      "canonical": "comprehensible input",
+      "category": "collocation",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [
+          "language_learning"
+        ],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 4,
+      "token_positions": [
+        4,
+        5
+      ]
+    },
+    {
+      "canonical": "recognize patterns",
+      "category": "collocation",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 5,
+      "token_positions": [
+        2,
+        3
+      ]
+    },
+    {
+      "canonical": "language learning",
+      "category": "collocation",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 7,
+      "token_positions": [
+        4,
+        5
+      ]
+    },
+    {
+      "canonical": "have a go",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 8,
+      "token_positions": [
+        5,
+        6,
+        7
+      ]
+    },
+    {
+      "canonical": "pick up",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 9,
+      "token_positions": [
+        1,
+        2
+      ]
+    },
+    {
+      "canonical": "listen to",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 10,
+      "token_positions": [
+        1,
+        2
+      ]
+    },
+    {
+      "canonical": "over and over again",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 10,
+      "token_positions": [
+        5,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "canonical": "a lot of",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 11,
+      "token_positions": [
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "canonical": "start with",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 12,
+      "token_positions": [
+        5,
+        6
+      ]
+    },
+    {
+      "canonical": "become fluent",
+      "category": "collocation",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 13,
+      "token_positions": [
+        3,
+        4
+      ]
+    },
+    {
+      "canonical": "on a daily basis",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 14,
+      "token_positions": [
+        3,
+        4,
+        5,
+        6
+      ]
+    },
+    {
+      "canonical": "sit down",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 15,
+      "token_positions": [
+        2,
+        3
+      ]
+    },
+    {
+      "canonical": "at least",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 16,
+      "token_positions": [
+        2,
+        3
+      ]
+    },
+    {
+      "canonical": "each other",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 17,
+      "token_positions": [
+        3,
+        4
+      ]
+    },
+    {
+      "canonical": "as well",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 17,
+      "token_positions": [
+        12,
+        13
+      ]
+    },
+    {
+      "canonical": "spare time",
+      "category": "collocation",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 18,
+      "token_positions": [
+        4,
+        5
+      ]
+    },
+    {
+      "canonical": "see you",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 19,
+      "token_positions": [
+        5,
+        6
+      ]
+    },
+    {
+      "canonical": "acquire language",
+      "category": "collocation",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 20,
+      "token_positions": [
+        4,
+        5
+      ]
+    },
+    {
+      "canonical": "be easy",
+      "category": "idiom",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": "to be uncomplicated or straightforward",
+        "domains": [],
+        "evidence_kind": "model",
+        "regions": [],
+        "register_tags": [],
+        "source": "gemma4-e2b-litert-181938105e0e"
+      },
+      "segment_index": 24,
+      "token_positions": [
+        3,
+        4
+      ]
+    },
+    {
+      "canonical": "listen to",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 26,
+      "token_positions": [
+        1,
+        2
+      ]
+    },
+    {
+      "canonical": "listen to",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 27,
+      "token_positions": [
+        7,
+        8
+      ]
+    },
+    {
+      "canonical": "over and over again",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 28,
+      "token_positions": [
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "canonical": "over and over again",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 28,
+      "token_positions": [
+        11,
+        12,
+        13,
+        14
+      ]
+    },
+    {
+      "canonical": "a lot of",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 29,
+      "token_positions": [
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "canonical": "a lot of",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 29,
+      "token_positions": [
+        10,
+        11,
+        12
+      ]
+    },
+    {
+      "canonical": "become fluent",
+      "category": "collocation",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 30,
+      "token_positions": [
+        1,
+        2
+      ]
+    },
+    {
+      "canonical": "pick up",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 31,
+      "token_positions": [
+        1,
+        3
+      ]
+    },
+    {
+      "canonical": "pick up",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 32,
+      "token_positions": [
+        1,
+        5
+      ]
+    },
+    {
+      "canonical": "see you",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 33,
+      "token_positions": [
+        3,
+        4
+      ]
+    },
+    {
+      "canonical": "recognize patterns",
+      "category": "collocation",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 35,
+      "token_positions": [
+        3,
+        4
+      ]
+    },
+    {
+      "canonical": "memorize vocabulary",
+      "category": "collocation",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 36,
+      "token_positions": [
+        1,
+        2
+      ]
+    },
+    {
+      "canonical": "on a daily basis",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 37,
+      "token_positions": [
+        3,
+        4,
+        5,
+        6
+      ]
+    },
+    {
+      "canonical": "break the ice",
+      "category": "idiom",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 41,
+      "token_positions": [
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "canonical": "figure out",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 42,
+      "token_positions": [
+        5,
+        6
+      ]
+    },
+    {
+      "canonical": "make a decision",
+      "category": "collocation",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 43,
+      "token_positions": [
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "canonical": "take care of",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 44,
+      "token_positions": [
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "canonical": "keep in mind",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 45,
+      "token_positions": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "canonical": "work together",
+      "category": "collocation",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 46,
+      "token_positions": [
+        6,
+        7
+      ]
+    },
+    {
+      "canonical": "look forward to",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 47,
+      "token_positions": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "canonical": "deal with",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 48,
+      "token_positions": [
+        3,
+        4
+      ]
+    },
+    {
+      "canonical": "get in touch",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 49,
+      "token_positions": [
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "canonical": "as soon as",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 49,
+      "token_positions": [
+        9,
+        10,
+        11
+      ]
+    },
+    {
+      "canonical": "pay attention",
+      "category": "collocation",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 50,
+      "token_positions": [
+        2,
+        3
+      ]
+    },
+    {
+      "canonical": "have a go",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 53,
+      "token_positions": [
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "canonical": "run into",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 54,
+      "token_positions": [
+        1,
+        2
+      ]
+    },
+    {
+      "canonical": "set up",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 55,
+      "token_positions": [
+        2,
+        3
+      ]
+    },
+    {
+      "canonical": "turn down",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 56,
+      "token_positions": [
+        1,
+        4
+      ]
+    },
+    {
+      "canonical": "look up",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 57,
+      "token_positions": [
+        1,
+        4
+      ]
+    },
+    {
+      "canonical": "no worries",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 58,
+      "token_positions": [
+        3,
+        4
+      ]
+    },
+    {
+      "canonical": "each other",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 59,
+      "token_positions": [
+        2,
+        3
+      ]
+    },
+    {
+      "canonical": "as well",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 59,
+      "token_positions": [
+        16,
+        17
+      ]
+    },
+    {
+      "canonical": "spill the tea",
+      "category": "idiom",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "dictionary",
+        "regions": [],
+        "register_tags": [
+          "informal"
+        ],
+        "source": "https://dictionary.cambridge.org/dictionary/english/spill-the-tea"
+      },
+      "segment_index": 61,
+      "token_positions": [
+        4,
+        5,
+        6
+      ]
+    },
+    {
+      "canonical": "no cap",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "dictionary",
+        "regions": [],
+        "register_tags": [
+          "slang"
+        ],
+        "source": "https://www.dictionary.com/culture/slang/no-cap"
+      },
+      "segment_index": 62,
+      "token_positions": [
+        7,
+        8
+      ]
+    },
+    {
+      "canonical": "my bad",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "dictionary",
+        "regions": [],
+        "register_tags": [
+          "informal"
+        ],
+        "source": "https://downloads.bbc.co.uk/learningenglish/eiam/unit-2/200724_ways_to_say_sorry_1.pdf"
+      },
+      "segment_index": 63,
+      "token_positions": [
+        11,
+        12
+      ]
+    },
+    {
+      "canonical": "no biggie",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "dictionary",
+        "regions": [],
+        "register_tags": [
+          "informal"
+        ],
+        "source": "https://www.dictionary.com/browse/no%20biggie"
+      },
+      "segment_index": 64,
+      "token_positions": [
+        2,
+        3
+      ]
+    },
+    {
+      "canonical": "throw shade",
+      "category": "idiom",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "dictionary",
+        "regions": [],
+        "register_tags": [
+          "slang"
+        ],
+        "source": "https://www.dictionary.com/culture/slang/throwing-shade"
+      },
+      "segment_index": 65,
+      "token_positions": [
+        3,
+        4
+      ]
+    },
+    {
+      "canonical": "take the piss",
+      "category": "idiom",
+      "metadata": {
+        "cautions": [
+          "offensive"
+        ],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "dictionary",
+        "regions": [
+          "UK"
+        ],
+        "register_tags": [
+          "informal"
+        ],
+        "source": "https://dictionary.cambridge.org/dictionary/english/take-the-piss-out-of"
+      },
+      "segment_index": 66,
+      "token_positions": [
+        8,
+        9,
+        10
+      ]
+    },
+    {
+      "canonical": "what is up",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "dictionary",
+        "regions": [],
+        "register_tags": [
+          "informal"
+        ],
+        "source": "https://dictionary.cambridge.org/us/dictionary/english/what-s-up?q=what%27s+up"
+      },
+      "segment_index": 70,
+      "token_positions": [
+        4,
+        5
+      ]
+    },
+    {
+      "canonical": "hang out",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "dictionary",
+        "regions": [],
+        "register_tags": [
+          "informal"
+        ],
+        "source": "https://dictionary.cambridge.org/us/dictionary/english/hang-out"
+      },
+      "segment_index": 71,
+      "token_positions": [
+        2,
+        3
+      ]
+    },
+    {
+      "canonical": "chill out",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "dictionary",
+        "regions": [],
+        "register_tags": [
+          "informal"
+        ],
+        "source": "https://www.collinsdictionary.com/dictionary/english/chill-out"
+      },
+      "segment_index": 72,
+      "token_positions": [
+        3,
+        4
+      ]
+    },
+    {
+      "canonical": "catch up",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 73,
+      "token_positions": [
+        1,
+        2
+      ]
+    },
+    {
+      "canonical": "break the ice",
+      "category": "idiom",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 74,
+      "token_positions": [
+        4,
+        5,
+        6
+      ]
+    },
+    {
+      "canonical": "have a go",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 75,
+      "token_positions": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "canonical": "keep in touch",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 79,
+      "token_positions": [
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "canonical": "set off",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 81,
+      "token_positions": [
+        1,
+        2
+      ]
+    },
+    {
+      "canonical": "watch out",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 82,
+      "token_positions": [
+        4,
+        5
+      ]
+    },
+    {
+      "canonical": "find out",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 83,
+      "token_positions": [
+        1,
+        2
+      ]
+    },
+    {
+      "canonical": "take a break",
+      "category": "collocation",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 84,
+      "token_positions": [
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "canonical": "make sure",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 85,
+      "token_positions": [
+        2,
+        3
+      ]
+    },
+    {
+      "canonical": "drop off",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 86,
+      "token_positions": [
+        4,
+        6
+      ]
+    },
+    {
+      "canonical": "look after",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 87,
+      "token_positions": [
+        5,
+        6
+      ]
+    },
+    {
+      "canonical": "run out of",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 88,
+      "token_positions": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "canonical": "carry on",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 89,
+      "token_positions": [
+        7,
+        8
+      ]
+    },
+    {
+      "canonical": "slow down",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 90,
+      "token_positions": [
+        5,
+        6
+      ]
+    },
+    {
+      "canonical": "pick up",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 91,
+      "token_positions": [
+        1,
+        5
+      ]
+    },
+    {
+      "canonical": "come across",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 92,
+      "token_positions": [
+        1,
+        2
+      ]
+    },
+    {
+      "canonical": "on a daily basis",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 93,
+      "token_positions": [
+        3,
+        4,
+        5,
+        6
+      ]
+    },
+    {
+      "canonical": "sit down",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 94,
+      "token_positions": [
+        2,
+        3
+      ]
+    },
+    {
+      "canonical": "wait for",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 94,
+      "token_positions": [
+        14,
+        15
+      ]
+    },
+    {
+      "canonical": "at least",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 98,
+      "token_positions": [
+        2,
+        3
+      ]
+    },
+    {
+      "canonical": "spare time",
+      "category": "collocation",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 99,
+      "token_positions": [
+        3,
+        4
+      ]
+    },
+    {
+      "canonical": "turn on",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 101,
+      "token_positions": [
+        4,
+        5
+      ]
+    },
+    {
+      "canonical": "put away",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 102,
+      "token_positions": [
+        1,
+        4
+      ]
+    },
+    {
+      "canonical": "bring up",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 103,
+      "token_positions": [
+        4,
+        5
+      ]
+    },
+    {
+      "canonical": "calm down",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 104,
+      "token_positions": [
+        5,
+        6
+      ]
+    },
+    {
+      "canonical": "help out",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 105,
+      "token_positions": [
+        3,
+        4
+      ]
+    },
+    {
+      "canonical": "give up",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 106,
+      "token_positions": [
+        5,
+        6
+      ]
+    },
+    {
+      "canonical": "make me",
+      "category": "idiom",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": "to transform or change someone's state",
+        "domains": [],
+        "evidence_kind": "model",
+        "regions": [],
+        "register_tags": [],
+        "source": "gemma4-e2b-litert-181938105e0e"
+      },
+      "segment_index": 106,
+      "token_positions": [
+        14,
+        15
+      ]
+    },
+    {
+      "canonical": "add up",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 107,
+      "token_positions": [
+        6,
+        7
+      ]
+    },
+    {
+      "canonical": "work out",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 108,
+      "token_positions": [
+        2,
+        3
+      ]
+    },
+    {
+      "canonical": "get along",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 109,
+      "token_positions": [
+        2,
+        3
+      ]
+    },
+    {
+      "canonical": "listen to",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 110,
+      "token_positions": [
+        2,
+        3
+      ]
+    },
+    {
+      "canonical": "acquire language",
+      "category": "collocation",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 111,
+      "token_positions": [
+        1,
+        2
+      ]
+    },
+    {
+      "canonical": "a lot of",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 112,
+      "token_positions": [
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "canonical": "over and over again",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 113,
+      "token_positions": [
+        5,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "canonical": "recognize patterns",
+      "category": "collocation",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 114,
+      "token_positions": [
+        2,
+        3
+      ]
+    },
+    {
+      "canonical": "plan for",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": "to make a detailed arrangement or strategy.",
+        "domains": [],
+        "evidence_kind": "model",
+        "regions": [],
+        "register_tags": [],
+        "source": "gemma4-e2b-litert-181938105e0e"
+      },
+      "segment_index": 116,
+      "token_positions": [
+        9,
+        10
+      ]
+    },
+    {
+      "canonical": "heavy rain",
+      "category": "collocation",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 116,
+      "token_positions": [
+        17,
+        18
+      ]
+    },
+    {
+      "canonical": "be easy",
+      "category": "idiom",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": "to be uncomplicated or straightforward",
+        "domains": [],
+        "evidence_kind": "model",
+        "regions": [],
+        "register_tags": [],
+        "source": "gemma4-e2b-litert-181938105e0e"
+      },
+      "segment_index": 117,
+      "token_positions": [
+        5,
+        6
+      ]
+    },
+    {
+      "canonical": "see you",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 119,
+      "token_positions": [
+        2,
+        3
+      ]
+    },
+    {
+      "canonical": "under the weather",
+      "category": "idiom",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": "feeling slightly ill or unwell",
+        "domains": [],
+        "evidence_kind": "model",
+        "regions": [],
+        "register_tags": [
+          "informal"
+        ],
+        "source": "gemma4-e2b-litert-181938105e0e"
+      },
+      "segment_index": 123,
+      "token_positions": [
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "canonical": "cut corners",
+      "category": "idiom",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": "To compromise quality for speed or cost.",
+        "domains": [],
+        "evidence_kind": "model",
+        "regions": [],
+        "register_tags": [],
+        "source": "gemma4-e2b-litert-181938105e0e"
+      },
+      "segment_index": 124,
+      "token_positions": [
+        3,
+        4
+      ]
+    },
+    {
+      "canonical": "let the cat out of the bag",
+      "category": "idiom",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": "accidentally disclose confidential information",
+        "domains": [],
+        "evidence_kind": "model",
+        "regions": [],
+        "register_tags": [
+          "informal"
+        ],
+        "source": "gemma4-e2b-litert-181938105e0e"
+      },
+      "segment_index": 125,
+      "token_positions": [
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ]
+    },
+    {
+      "canonical": "cut corners",
+      "category": "idiom",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": "To compromise quality for speed or cost.",
+        "domains": [],
+        "evidence_kind": "model",
+        "regions": [],
+        "register_tags": [],
+        "source": "gemma4-e2b-litert-181938105e0e"
+      },
+      "segment_index": 126,
+      "token_positions": [
+        3,
+        4
+      ]
+    },
+    {
+      "canonical": "under the weather",
+      "category": "idiom",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": "feeling slightly ill or unwell",
+        "domains": [],
+        "evidence_kind": "model",
+        "regions": [],
+        "register_tags": [
+          "informal"
+        ],
+        "source": "gemma4-e2b-litert-181938105e0e"
+      },
+      "segment_index": 127,
+      "token_positions": [
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "canonical": "call it a day",
+      "category": "idiom",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": "to conclude work for the current period",
+        "domains": [],
+        "evidence_kind": "model",
+        "regions": [],
+        "register_tags": [],
+        "source": "gemma4-e2b-litert-181938105e0e"
+      },
+      "segment_index": 129,
+      "token_positions": [
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "canonical": "check on",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": "to follow up on a person or situation",
+        "domains": [],
+        "evidence_kind": "model",
+        "regions": [],
+        "register_tags": [],
+        "source": "gemma4-e2b-litert-181938105e0e"
+      },
+      "segment_index": 130,
+      "token_positions": [
+        6,
+        7
+      ]
+    },
+    {
+      "canonical": "a piece of cake",
+      "category": "idiom",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": "a pleasant, effortless success",
+        "domains": [],
+        "evidence_kind": "model",
+        "regions": [],
+        "register_tags": [],
+        "source": "gemma4-e2b-litert-181938105e0e"
+      },
+      "segment_index": 131,
+      "token_positions": [
+        9,
+        10,
+        11,
+        12
+      ]
+    },
+    {
+      "canonical": "piece of cake",
+      "category": "idiom",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": "very easy task",
+        "domains": [],
+        "evidence_kind": "model",
+        "regions": [],
+        "register_tags": [
+          "informal"
+        ],
+        "source": "gemma4-e2b-litert-181938105e0e"
+      },
+      "segment_index": 131,
+      "token_positions": [
+        10,
+        11,
+        12
+      ]
+    },
+    {
+      "canonical": "wait for",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 140,
+      "token_positions": [
+        12,
+        13
+      ]
+    },
+    {
+      "canonical": "come from",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": "to have an origin or background.",
+        "domains": [],
+        "evidence_kind": "model",
+        "regions": [],
+        "register_tags": [],
+        "source": "gemma4-e2b-litert-181938105e0e"
+      },
+      "segment_index": 143,
+      "token_positions": [
+        8,
+        9
+      ]
+    },
+    {
+      "canonical": "work together",
+      "category": "collocation",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 143,
+      "token_positions": [
+        15,
+        16
+      ]
+    },
+    {
+      "canonical": "pull someone's leg",
+      "category": "idiom",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": "to trick someone playfully",
+        "domains": [],
+        "evidence_kind": "model",
+        "regions": [],
+        "register_tags": [
+          "informal"
+        ],
+        "source": "gemma4-e2b-litert-181938105e0e"
+      },
+      "segment_index": 144,
+      "token_positions": [
+        5,
+        7
+      ]
+    },
+    {
+      "canonical": "come through",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": "to arrive or be successfully delivered",
+        "domains": [],
+        "evidence_kind": "model",
+        "regions": [],
+        "register_tags": [],
+        "source": "gemma4-e2b-litert-181938105e0e"
+      },
+      "segment_index": 146,
+      "token_positions": [
+        5,
+        6
+      ]
+    },
+    {
+      "canonical": "i know",
+      "category": "idiom",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": "to be familiar with or understand something",
+        "domains": [],
+        "evidence_kind": "model",
+        "regions": [],
+        "register_tags": [],
+        "source": "gemma4-e2b-litert-181938105e0e"
+      },
+      "segment_index": 148,
+      "token_positions": [
+        10,
+        11
+      ]
+    },
+    {
+      "canonical": "give up",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 149,
+      "token_positions": [
+        3,
+        7
+      ]
+    },
+    {
+      "canonical": "come through",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": "to arrive or be successfully delivered",
+        "domains": [],
+        "evidence_kind": "model",
+        "regions": [],
+        "register_tags": [],
+        "source": "gemma4-e2b-litert-181938105e0e"
+      },
+      "segment_index": 152,
+      "token_positions": [
+        7,
+        8
+      ]
+    },
+    {
+      "canonical": "be easy",
+      "category": "idiom",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": "to be uncomplicated or straightforward",
+        "domains": [],
+        "evidence_kind": "model",
+        "regions": [],
+        "register_tags": [],
+        "source": "gemma4-e2b-litert-181938105e0e"
+      },
+      "segment_index": 158,
+      "token_positions": [
+        7,
+        8
+      ]
+    },
+    {
+      "canonical": "play it by ear",
+      "category": "idiom",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": "to improvise a plan or action",
+        "domains": [],
+        "evidence_kind": "model",
+        "regions": [],
+        "register_tags": [
+          "informal"
+        ],
+        "source": "gemma4-e2b-litert-181938105e0e"
+      },
+      "segment_index": 164,
+      "token_positions": [
+        5,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "canonical": "depend on",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 174,
+      "token_positions": [
+        8,
+        9
+      ]
+    },
+    {
+      "canonical": "on the ball",
+      "category": "idiom",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": "performing well and being competent.",
+        "domains": [],
+        "evidence_kind": "model",
+        "regions": [],
+        "register_tags": [],
+        "source": "gemma4-e2b-litert-181938105e0e"
+      },
+      "segment_index": 176,
+      "token_positions": [
+        9,
+        10,
+        11
+      ]
+    },
+    {
+      "canonical": "make a difference",
+      "category": "idiom",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": "to cause a noticeable change",
+        "domains": [],
+        "evidence_kind": "model",
+        "regions": [],
+        "register_tags": [],
+        "source": "gemma4-e2b-litert-181938105e0e"
+      },
+      "segment_index": 177,
+      "token_positions": [
+        5,
+        6,
+        7
+      ]
+    },
+    {
+      "canonical": "switch off",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": "to turn off a light or appliance",
+        "domains": [],
+        "evidence_kind": "model",
+        "regions": [],
+        "register_tags": [],
+        "source": "gemma4-e2b-litert-181938105e0e"
+      },
+      "segment_index": 179,
+      "token_positions": [
+        19,
+        20
+      ]
+    }
+  ],
+  "iteration": 0,
+  "model": "gemma4-e2b-litert-181938105e0e",
+  "segmentIndices": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    59,
+    60,
+    61,
+    62,
+    63,
+    64,
+    65,
+    66,
+    67,
+    68,
+    69,
+    70,
+    71,
+    72,
+    73,
+    74,
+    75,
+    76,
+    77,
+    78,
+    79,
+    80,
+    81,
+    82,
+    83,
+    84,
+    85,
+    86,
+    87,
+    88,
+    89,
+    90,
+    91,
+    92,
+    93,
+    94,
+    95,
+    96,
+    97,
+    98,
+    99,
+    100,
+    101,
+    102,
+    103,
+    104,
+    105,
+    106,
+    107,
+    108,
+    109,
+    110,
+    111,
+    112,
+    113,
+    114,
+    115,
+    116,
+    117,
+    118,
+    119,
+    120,
+    121,
+    122,
+    123,
+    124,
+    125,
+    126,
+    127,
+    128,
+    129,
+    130,
+    131,
+    132,
+    133,
+    134,
+    135,
+    136,
+    137,
+    138,
+    139,
+    140,
+    141,
+    142,
+    143,
+    144,
+    145,
+    146,
+    147,
+    148,
+    149,
+    150,
+    151,
+    152,
+    153,
+    154,
+    155,
+    156,
+    157,
+    158,
+    159,
+    160,
+    161,
+    162,
+    163,
+    164,
+    165,
+    166,
+    167,
+    168,
+    169,
+    170,
+    171,
+    172,
+    173,
+    174,
+    175,
+    176,
+    177,
+    178,
+    179
+  ],
+  "segments": 180,
+  "sourceRows": [
+    [
+      0,
+      "I listen to English podcasts before breakfast while the rest of the house is still quiet."
+    ],
+    [
+      1,
+      "My brother tries to want to watch every lesson, but his schedule rarely permits that."
+    ],
+    [
+      2,
+      "We memorize vocabulary using short stories instead of copying isolated words into a notebook every evening."
+    ],
+    [
+      3,
+      "A clear example helps us acquire language naturally, although practice still requires attention and a little patience."
+    ],
+    [
+      4,
+      "Our teacher says that comprehensible input should be understandable without translating every unfamiliar word in a sentence."
+    ],
+    [
+      5,
+      "You can recognize patterns more easily when familiar expressions appear in several different conversations during the week."
+    ],
+    [
+      6,
+      "That method makes learning English less intimidating for students who previously struggled to understand ordinary conversations outside the classroom."
+    ],
+    [
+      7,
+      "Please forget any complex language learning plans that promise perfect results without regular listening or meaningful conversation."
+    ],
+    [
+      8,
+      "The teacher asks us to have a go even when our pronunciation is still rather uncertain."
+    ],
+    [
+      9,
+      "I picked up several useful expressions from the story without consulting a dictionary after every single sentence."
+    ],
+    [
+      10,
+      "We listen to one recording over and over again until its rhythm begins to sound familiar."
+    ],
+    [
+      11,
+      "There is a lot of English in my neighborhood, especially when tourists arrive during the summer holidays."
+    ],
+    [
+      12,
+      "Our instructor recommends that we start with simple material rather than an unfamiliar technical lecture about mathematics."
+    ],
+    [
+      13,
+      "I hope to become fluent eventually, but today I only need to explain my train journey clearly."
+    ],
+    [
+      14,
+      "We use English on a daily basis at the workshop, even during short conversations about lunch."
+    ],
+    [
+      15,
+      "Everyone should sit down before the recording begins, because moving chairs make the dialogue difficult to hear."
+    ],
+    [
+      16,
+      "We need at least ten minutes of conversation, and the quieter students should have enough time to respond."
+    ],
+    [
+      17,
+      "The students help each other with pronunciation and share their own examples as well."
+    ],
+    [
+      18,
+      "I practice in my spare time after dinner, when nobody needs the kitchen table for anything else."
+    ],
+    [
+      19,
+      "Our teacher smiles and says see you tomorrow before closing the classroom door and carrying her books downstairs."
+    ],
+    [
+      20,
+      "Yesterday I learned to acquire language through stories, and today I want to test that approach independently."
+    ],
+    [
+      21,
+      "My cousin likes to watch it in English, although the film itself is originally from France."
+    ],
+    [
+      22,
+      "I do it because I enjoy the exercise, rather than because anyone promised me an examination certificate."
+    ],
+    [
+      23,
+      "The introduction seems really simple, but the speaker gradually includes longer sentences and less familiar vocabulary later."
+    ],
+    [
+      24,
+      "This activity should be easy enough for the new students, provided the instructions remain clear and short."
+    ],
+    [
+      25,
+      "Some students get input from radio programs, while others prefer quiet reading because they dislike background music."
+    ],
+    [
+      26,
+      "I listen to the speaker carefully, even when the recording includes unfamiliar names and numbers near the beginning."
+    ],
+    [
+      27,
+      "We need to listen and listen and listen to hundreds of hours of understandable English over several years."
+    ],
+    [
+      28,
+      "I over and over again repeated the sentence, then repeated it over and over again."
+    ],
+    [
+      29,
+      "There are a lot of examples in this chapter and a lot of explanations in the appendix."
+    ],
+    [
+      30,
+      "I became fluent gradually while living abroad, rather than suddenly after watching a single exciting video online."
+    ],
+    [
+      31,
+      "She picked it up quickly when the local children demonstrated the game without translating any of the instructions."
+    ],
+    [
+      32,
+      "He picks the small notebook up from the desk and returns it to its owner after the lesson."
+    ],
+    [
+      33,
+      "The tutor says see you tomorrow at the workshop while waving goodbye to everyone from the entrance."
+    ],
+    [
+      34,
+      "From this balcony I can see you standing beside the fountain, although your face is difficult to recognize."
+    ],
+    [
+      35,
+      "The same students recognized patterns in the new story after comparing it with material from the previous week."
+    ],
+    [
+      36,
+      "We memorized vocabulary before the exam, but the teacher also required us to use every word in context."
+    ],
+    [
+      37,
+      "My sister works on a daily basis with visitors who need directions to nearby museums and restaurants."
+    ],
+    [
+      38,
+      "The recording contains ordinary descriptions of a wooden shelf, three green chairs, and a window facing the garden."
+    ],
+    [
+      39,
+      "The worksheet lists seven numbers in ascending order and asks students to copy them into the empty boxes below."
+    ],
+    [
+      40,
+      "Our small office is preparing a community event, and today the team finally meets to discuss the arrangements together."
+    ],
+    [
+      41,
+      "We should break the ice with a friendly introduction before discussing the serious problems in the schedule."
+    ],
+    [
+      42,
+      "The coordinator asks us to figure out how many volunteers will be available on the opening morning next week."
+    ],
+    [
+      43,
+      "We need to make a decision about the venue before the printer can prepare the invitations for everyone."
+    ],
+    [
+      44,
+      "Maya will take care of the registration desk while Daniel checks the microphones in the main meeting room."
+    ],
+    [
+      45,
+      "Please keep in mind that several visitors use wheelchairs and need enough space beside the entrance doors."
+    ],
+    [
+      46,
+      "The new manager hopes we can work together without repeatedly sending the same documents to different people by mistake."
+    ],
+    [
+      47,
+      "I look forward to meeting the volunteers after hearing so many enthusiastic stories about their previous projects."
+    ],
+    [
+      48,
+      "We have to deal with a delayed delivery before it affects the food supplies for the afternoon session."
+    ],
+    [
+      49,
+      "The receptionist will get in touch with the supplier as soon as the meeting ends this morning."
+    ],
+    [
+      50,
+      "Someone should pay attention to the emergency exits when arranging the chairs around the edges of the room."
+    ],
+    [
+      51,
+      "A tired volunteer does not want to watch another demonstration before trying the equipment herself during the rehearsal."
+    ],
+    [
+      52,
+      "The sign has a blue border and white lettering, and its measurements are printed clearly beside the technical drawing."
+    ],
+    [
+      53,
+      "Our visitors can have a go at the activity while an experienced volunteer explains the instructions beside them."
+    ],
+    [
+      54,
+      "I ran into an old colleague outside the office, and she offered to help with the event preparation."
+    ],
+    [
+      55,
+      "We will set up the display after lunch, when the main room is empty and the floor has dried."
+    ],
+    [
+      56,
+      "Daniel turned the music down because the speaker beside the desk was making conversation unnecessarily difficult for everyone."
+    ],
+    [
+      57,
+      "Maya looked the address up before writing the directions in an email to the volunteers from another town."
+    ],
+    [
+      58,
+      "The organizer says no worries when I apologize for arriving a few minutes later than we originally agreed."
+    ],
+    [
+      59,
+      "We thank each other for the help and invite the afternoon volunteers to join the meeting as well."
+    ],
+    [
+      60,
+      "After the event we meet at a quiet cafe, where our friends are discussing the latest neighborhood news together."
+    ],
+    [
+      61,
+      "Maya asks me to spill the tea about the surprise party that everyone apparently organized without telling her."
+    ],
+    [
+      62,
+      "I tell her the story is true, no cap, because I personally helped decorate the room before the guests arrived."
+    ],
+    [
+      63,
+      "Daniel accidentally sends the photograph to the wrong group and says my bad when he realizes his mistake."
+    ],
+    [
+      64,
+      "Maya replies no biggie because the photograph does not reveal anything that the guests should not see yet."
+    ],
+    [
+      65,
+      "Nobody wants to throw shade at the organizer, although the unusual decorations provide plenty of opportunities for jokes."
+    ],
+    [
+      66,
+      "Our British friend warns that we should not take the piss out of someone who seems genuinely upset."
+    ],
+    [
+      67,
+      "The waiter spilled the tea across the tray, and the hot liquid soaked several paper napkins beside the cups."
+    ],
+    [
+      68,
+      "The bottle has no cap on its neck, so the remaining water could easily spill inside the shopping bag."
+    ],
+    [
+      69,
+      "A tall tree will throw shade across this terrace in summer, although there is almost no shade here today."
+    ],
+    [
+      70,
+      "I ask my friend what's up when she arrives looking unusually excited about the message on her phone."
+    ],
+    [
+      71,
+      "We usually hang out here after work because the cafe remains open later than most shops in the neighborhood."
+    ],
+    [
+      72,
+      "Daniel needs to chill out after a stressful afternoon, so he orders a drink and stops checking his messages."
+    ],
+    [
+      73,
+      "We catch up after several months apart, sharing stories about our families and the projects that kept us busy."
+    ],
+    [
+      74,
+      "The atmosphere helps us break the ice with the new member of our group who moved here recently."
+    ],
+    [
+      75,
+      "I had a go at describing the surprise in English, and my friends understood almost everything I said."
+    ],
+    [
+      76,
+      "The menu lists coffee, tea, milk, and three varieties of cake, with their prices printed beside each item clearly."
+    ],
+    [
+      77,
+      "The waiter carries a brown tray to the window table while another customer searches quietly for a missing glove."
+    ],
+    [
+      78,
+      "Nobody does it for a reward, because helping our friends organize a small celebration is enjoyable by itself."
+    ],
+    [
+      79,
+      "We promise to keep in touch after Maya leaves for her new job in another city next month."
+    ],
+    [
+      80,
+      "The next morning our friends travel to the coast, carrying sandwiches and a printed map of the local walking routes."
+    ],
+    [
+      81,
+      "We set off early because the road becomes crowded when visitors leave the city during the weekend holidays."
+    ],
+    [
+      82,
+      "Daniel asks everyone to watch out for bicycles before stepping across the narrow street beside the bus station."
+    ],
+    [
+      83,
+      "We find out that the first bus has been canceled after reading a notice beside the closed ticket window."
+    ],
+    [
+      84,
+      "Maya suggests we take a break while another member of the group searches for a different route online."
+    ],
+    [
+      85,
+      "We must make sure that the replacement bus stops near the coastal path rather than the distant industrial harbor."
+    ],
+    [
+      86,
+      "The driver promises to drop us off beside the museum after delivering the other passengers to the central station."
+    ],
+    [
+      87,
+      "One traveler asks us to look after her small bag while she purchases a bottle of water from the kiosk."
+    ],
+    [
+      88,
+      "We run out of clean cups before lunch, so everyone has to use their own drinking bottle instead."
+    ],
+    [
+      89,
+      "The fog gradually disappears and we can carry on walking along the path without worrying about the distant cliffs."
+    ],
+    [
+      90,
+      "Our guide tells us to slow down because several younger children are still climbing the steep steps behind our group."
+    ],
+    [
+      91,
+      "I picked a smooth stone up from the sand and examined the unusual pattern before returning it to the beach."
+    ],
+    [
+      92,
+      "We came across an old photograph of the village in a display inside the small museum near the harbor."
+    ],
+    [
+      93,
+      "The museum opens on a daily basis during summer, but closes on Mondays throughout the colder winter months."
+    ],
+    [
+      94,
+      "Visitors can sit down beside the window and read the information about boats while waiting for the guided tour."
+    ],
+    [
+      95,
+      "A visitor tries to watch it in English, but the documentary only has subtitles in two other languages."
+    ],
+    [
+      96,
+      "The harbor contains six fishing boats and a yellow crane, and several workers are painting a wooden fence beside them."
+    ],
+    [
+      97,
+      "A handwritten notice describes the measurements of the bridge and gives the date of its most recent structural inspection."
+    ],
+    [
+      98,
+      "Maya says at least the rain has stopped, even though our afternoon bus will arrive later than expected."
+    ],
+    [
+      99,
+      "We spend our spare time taking photographs and share the best pictures with the absent members of our group."
+    ],
+    [
+      100,
+      "Back at home I describe the trip to my sister while she prepares a simple meal for our visiting grandparents."
+    ],
+    [
+      101,
+      "She asks me to turn on the kitchen lamp because the window no longer provides enough light for cooking."
+    ],
+    [
+      102,
+      "We put the plates away after dinner and leave the clean cups on a towel beside the sink to dry."
+    ],
+    [
+      103,
+      "My grandfather likes to bring up stories about the village whenever someone mentions a journey to the coast nearby."
+    ],
+    [
+      104,
+      "Our grandmother asks everyone to calm down when several children begin describing their favorite moments at the same time."
+    ],
+    [
+      105,
+      "My sister will help out tomorrow if the community organizers need another person to check the registration forms upstairs."
+    ],
+    [
+      106,
+      "I do not want to give up learning English merely because a difficult conversation makes me feel embarrassed occasionally."
+    ],
+    [
+      107,
+      "My grandmother says that small improvements add up over time, especially when a learner practices regularly and remains patient."
+    ],
+    [
+      108,
+      "We can work out a convenient schedule together rather than repeatedly canceling lessons when our family responsibilities change unexpectedly."
+    ],
+    [
+      109,
+      "The children get along well despite having different interests and frequently disagreeing about which game they should play next."
+    ],
+    [
+      110,
+      "I still listen to stories before bed, sometimes using the same familiar recording that I enjoyed earlier in the week."
+    ],
+    [
+      111,
+      "We acquire language through repeated contact with meaningful speech, rather than through memorizing a list of disconnected grammar rules."
+    ],
+    [
+      112,
+      "There is a lot of useful information in those stories, including expressions that people use in ordinary daily conversations."
+    ],
+    [
+      113,
+      "My sister explains the instructions over and over again until the children can complete the activity without assistance."
+    ],
+    [
+      114,
+      "I now recognize patterns that once seemed confusing, and familiar recordings no longer require as much deliberate concentration as before."
+    ],
+    [
+      115,
+      "The exercise makes learning easier for our youngest students, especially when they can discuss the pictures with their older classmates."
+    ],
+    [
+      116,
+      "My sister asks me to forget any detailed travel plans for tomorrow because the weather forecast predicts heavy rain overnight."
+    ],
+    [
+      117,
+      "She says the repair should be easy enough if we have the correct tools and follow the printed instructions carefully."
+    ],
+    [
+      118,
+      "The box contains a small screwdriver, two metal brackets, and four identical screws wrapped separately in a transparent plastic packet."
+    ],
+    [
+      119,
+      "I say see you to our grandparents at the door and promise to visit again after the workshop next week."
+    ],
+    [
+      120,
+      "A month later our neighborhood starts a new project, and unfamiliar volunteers arrive with different expectations about the work ahead."
+    ],
+    [
+      121,
+      "We need to get the hang of the equipment before allowing visitors to operate it without close supervision."
+    ],
+    [
+      122,
+      "The coordinator is down to earth and explains every task clearly without trying to impress us with technical language."
+    ],
+    [
+      123,
+      "I feel under the weather this morning, so another volunteer offers to handle the announcements while I rest briefly."
+    ],
+    [
+      124,
+      "We should not cut corners when checking safety equipment, even if the inspection takes longer than our original schedule allowed."
+    ],
+    [
+      125,
+      "One volunteer accidentally let the cat out of the bag about the surprise guest during lunch."
+    ],
+    [
+      126,
+      "The gardener physically cut corners from the square fabric so that it would fit around the curved flower container outside."
+    ],
+    [
+      127,
+      "A builder placed a large model under the weather chart on the wall, where the two diagrams could be compared easily."
+    ],
+    [
+      128,
+      "Our team will go the extra mile to help visitors who cannot easily read the small print on registration forms."
+    ],
+    [
+      129,
+      "We can call it a day after the final equipment check, because nobody needs to remain in the building overnight."
+    ],
+    [
+      130,
+      "I need to take a rain check on dinner because my sister has asked me to collect her from the station."
+    ],
+    [
+      131,
+      "The coordinator promises that the registration problem will be a piece of cake once the missing forms finally arrive."
+    ],
+    [
+      132,
+      "Her explanation is spot on, and everyone understands why the visitors were directed to the wrong entrance earlier that afternoon."
+    ],
+    [
+      133,
+      "We are finally on the same page about the schedule after comparing the different messages that everyone received yesterday."
+    ],
+    [
+      134,
+      "The editor draws a red circle on the same page as the photograph because there is no room on the facing page."
+    ],
+    [
+      135,
+      "A new volunteer admits that she cannot want to watch another demonstration without trying the equipment herself during the session."
+    ],
+    [
+      136,
+      "Several boxes contain unused paper, spare pens, and a stack of blank labels that the printer delivered yesterday afternoon to reception."
+    ],
+    [
+      137,
+      "I do it because the neighborhood benefits from the project, although the work sometimes interrupts my ordinary weekend plans at home."
+    ],
+    [
+      138,
+      "One volunteer gets input from the coordinator before writing a short announcement about the change to the afternoon schedule today."
+    ],
+    [
+      139,
+      "Our visitors exchange photographs of the finished project while the volunteers close the windows and move the remaining chairs into storage."
+    ],
+    [
+      140,
+      "On Friday our group discusses an unexpected message about the project while waiting for the evening train to leave the station."
+    ],
+    [
+      141,
+      "Daniel says that helping the shy visitor find her family made my day, and he is still smiling about it."
+    ],
+    [
+      142,
+      "Maya replies that the first public demonstration was a big deal for someone who had never spoken before a large audience."
+    ],
+    [
+      143,
+      "The volunteers hit it off immediately, although they came from different towns and had never worked together before that afternoon."
+    ],
+    [
+      144,
+      "One person thinks Daniel is pulling her leg when he claims that a famous singer will attend the next event."
+    ],
+    [
+      145,
+      "Maya confirms the message for real, explaining that the singer personally wrote to the coordinator after visiting our neighborhood last summer."
+    ],
+    [
+      146,
+      "Everyone hopes the coordinator can come through with the final arrangements before the visitors begin making expensive travel plans online."
+    ],
+    [
+      147,
+      "The assistant tells us to hold your horses because the date is still uncertain and the singer has not confirmed it."
+    ],
+    [
+      148,
+      "The photographs from the completed project hit different now that I know how much work the volunteers contributed behind the scenes."
+    ],
+    [
+      149,
+      "Daniel promises to give us a heads up when the schedule changes, rather than announcing it after we arrive."
+    ],
+    [
+      150,
+      "A maintenance worker physically pulled her leg free from the gap after the visitor slipped between two wooden steps nearby."
+    ],
+    [
+      151,
+      "The guide says that actual horses should remain in their stalls, and asks the riders to hold your horses there carefully."
+    ],
+    [
+      152,
+      "The builder explains that a ball will come through the opening if someone drops it into the narrow pipe from above."
+    ],
+    [
+      153,
+      "I do it after checking the message, because replying to our coordinator is my ordinary responsibility during the project this month."
+    ],
+    [
+      154,
+      "The timetable gives departure times in black lettering and marks the final service with a small red triangle beside its destination name."
+    ],
+    [
+      155,
+      "My phone displays a photograph of the empty station platform, and the battery indicator shows that only fourteen percent remains this evening."
+    ],
+    [
+      156,
+      "The message is really simple and clearly explains where everyone should wait before entering the building through the side entrance tomorrow."
+    ],
+    [
+      157,
+      "We expect to get input from the venue manager before deciding which rooms will be available to the public during the event."
+    ],
+    [
+      158,
+      "The volunteers ask whether the instructions will be easy enough for visitors who have never used this type of equipment before."
+    ],
+    [
+      159,
+      "We close the discussion and quietly watch the final passengers board the train while a railway employee checks the doors beside each carriage."
+    ],
+    [
+      160,
+      "Before the next event our team holds a rehearsal, using unfamiliar examples to check whether the volunteers understand the instructions without assistance."
+    ],
+    [
+      161,
+      "The rehearsal went smoothly despite a delayed start, and the coordinator thanked everyone for remaining patient during the equipment checks."
+    ],
+    [
+      162,
+      "We learned the ropes by observing an experienced volunteer who explained why the usual procedures sometimes need small adjustments."
+    ],
+    [
+      163,
+      "A helpful colleague asks us to bear in mind that the visitors may be nervous about asking questions in public."
+    ],
+    [
+      164,
+      "The manager asks everyone to play it by ear if the singer arrives late and the published schedule becomes impossible."
+    ],
+    [
+      165,
+      "One volunteer feels out of the loop because she missed the meeting where the changed arrangements were originally explained."
+    ],
+    [
+      166,
+      "Maya promises to fill her in before the event begins, including the information that was missing from the earlier email."
+    ],
+    [
+      167,
+      "Daniel says that our tired coordinator deserves to take it easy during the weekend after managing so many unexpected problems recently."
+    ],
+    [
+      168,
+      "A visitor asks whether we can lend a hand with the heavy boxes that need to be moved upstairs before opening."
+    ],
+    [
+      169,
+      "We keep an eye on the entrance while another volunteer assists the visitors who are waiting beside the information desk."
+    ],
+    [
+      170,
+      "The coordinator says it is time to hit the road before the weather worsens and the evening traffic becomes much heavier."
+    ],
+    [
+      171,
+      "A technician tests whether a falling wooden block can physically hit the road surface without damaging the painted demonstration model nearby."
+    ],
+    [
+      172,
+      "The supervisor makes a literal circular diagram and places a photograph out of the loop that surrounds the remaining pictures."
+    ],
+    [
+      173,
+      "A volunteer says she prefers to watch it in English because the translated version sounds unfamiliar to her young children."
+    ],
+    [
+      174,
+      "The technician forgot any elaborate seating plans that depended on using the room currently occupied by the unfinished exhibition upstairs."
+    ],
+    [
+      175,
+      "The chart contains the names of twelve volunteers and the times when each person will arrive at the building during the morning tomorrow."
+    ],
+    [
+      176,
+      "We recognize the contribution of a volunteer who was on the ball and noticed the missing safety sign before opening time."
+    ],
+    [
+      177,
+      "Maya reminds us that experience makes a difference when unexpected problems appear and there is little time to consult written instructions."
+    ],
+    [
+      178,
+      "Nobody should jump to conclusions about a complaint before listening carefully to the visitor who actually experienced the difficulty firsthand."
+    ],
+    [
+      179,
+      "The coordinator thanks the volunteers, closes the notebook, and checks that every light in the meeting room has been switched off safely."
+    ]
+  ],
+  "writesLearningData": false
+}

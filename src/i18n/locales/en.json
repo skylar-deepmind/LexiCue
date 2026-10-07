@@ -1206,5 +1206,15 @@
     "sharedHint": "These tags are shared across learning languages.",
     "search": "Search tags",
     "namePlaceholder": "Enter tag name"
+  },
+  "expressionTags": {
+    "label": "Register and usage",
+    "informal": "Informal",
+    "slang": "Slang",
+    "UK": "British usage",
+    "US": "American usage",
+    "offensive": "Offensive language",
+    "language_learning": "Language learning term",
+    "inferred": "AI inferred"
   }
 }

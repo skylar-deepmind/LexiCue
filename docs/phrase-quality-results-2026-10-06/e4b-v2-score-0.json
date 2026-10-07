@@ -1,0 +1,337 @@
+{
+  "fixtureHash": "17a327e13cf6d051d0209ce62fdfad77e858e0d2bd24959f7b4b6365174fd644",
+  "model": "gemma4-e4b-litert-0b2a8980ce15",
+  "elapsedMs": 802717,
+  "overall": {
+    "predictions": 41,
+    "required": 40,
+    "hit": 33,
+    "uniqueExpressionRecall": 0.825,
+    "uniqueExpressionPrecision": 0.8293,
+    "occurrencePrecision": 0.8293,
+    "precision": 0.8293,
+    "recall": 0.825,
+    "boundaryAccuracy": 1,
+    "categoryAccuracy": 1,
+    "informalRecall": 0.9,
+    "registerPrecision": 0.8,
+    "tagVerificationCoverage": 0.8333,
+    "emittedTags": 6,
+    "unverifiedTags": 1,
+    "misses": [
+      {
+        "cue": 10,
+        "canonical": "be fed up with",
+        "positions": [
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 19,
+        "canonical": "save the day",
+        "positions": [
+          4,
+          5,
+          6
+        ]
+      },
+      {
+        "cue": 25,
+        "canonical": "turn a blind eye",
+        "positions": [
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "cue": 29,
+        "canonical": "a long shot",
+        "positions": [
+          4,
+          5,
+          6
+        ]
+      },
+      {
+        "cue": 35,
+        "canonical": "by the book",
+        "positions": [
+          4,
+          5,
+          6
+        ]
+      },
+      {
+        "cue": 36,
+        "canonical": "a mixed bag",
+        "positions": [
+          3,
+          4,
+          5
+        ]
+      },
+      {
+        "cue": 37,
+        "canonical": "be on edge",
+        "positions": [
+          1,
+          2,
+          3
+        ]
+      }
+    ],
+    "falsePositives": [
+      {
+        "cue": 3,
+        "canonical": "happen to",
+        "positions": [
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 23,
+        "canonical": "blessing in disguise",
+        "positions": [
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "cue": 29,
+        "canonical": "long shot",
+        "positions": [
+          5,
+          6
+        ]
+      },
+      {
+        "cue": 34,
+        "canonical": "put up",
+        "positions": [
+          2,
+          3
+        ]
+      },
+      {
+        "cue": 35,
+        "canonical": "work by the book",
+        "positions": [
+          3,
+          4,
+          5,
+          6
+        ]
+      },
+      {
+        "cue": 36,
+        "canonical": "mixed bag",
+        "positions": [
+          4,
+          5
+        ]
+      },
+      {
+        "cue": 46,
+        "canonical": "turn a blind eye",
+        "positions": [
+          4,
+          5,
+          6,
+          7
+        ]
+      }
+    ],
+    "boundaryErrors": [],
+    "categoryErrors": [],
+    "negativeHits": [
+      {
+        "cue": 46,
+        "canonical": "turn a blind eye"
+      }
+    ]
+  },
+  "development": {
+    "predictions": 0,
+    "required": 0,
+    "hit": 0,
+    "uniqueExpressionRecall": null,
+    "uniqueExpressionPrecision": null,
+    "occurrencePrecision": null,
+    "precision": null,
+    "recall": null,
+    "boundaryAccuracy": null,
+    "categoryAccuracy": null,
+    "informalRecall": null,
+    "registerPrecision": null,
+    "tagVerificationCoverage": null,
+    "emittedTags": 0,
+    "unverifiedTags": 0,
+    "misses": [],
+    "falsePositives": [],
+    "boundaryErrors": [],
+    "categoryErrors": [],
+    "negativeHits": []
+  },
+  "holdout": {
+    "predictions": 41,
+    "required": 40,
+    "hit": 33,
+    "uniqueExpressionRecall": 0.825,
+    "uniqueExpressionPrecision": 0.8293,
+    "occurrencePrecision": 0.8293,
+    "precision": 0.8293,
+    "recall": 0.825,
+    "boundaryAccuracy": 1,
+    "categoryAccuracy": 1,
+    "informalRecall": 0.9,
+    "registerPrecision": 0.8,
+    "tagVerificationCoverage": 0.8333,
+    "emittedTags": 6,
+    "unverifiedTags": 1,
+    "misses": [
+      {
+        "cue": 10,
+        "canonical": "be fed up with",
+        "positions": [
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 19,
+        "canonical": "save the day",
+        "positions": [
+          4,
+          5,
+          6
+        ]
+      },
+      {
+        "cue": 25,
+        "canonical": "turn a blind eye",
+        "positions": [
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "cue": 29,
+        "canonical": "a long shot",
+        "positions": [
+          4,
+          5,
+          6
+        ]
+      },
+      {
+        "cue": 35,
+        "canonical": "by the book",
+        "positions": [
+          4,
+          5,
+          6
+        ]
+      },
+      {
+        "cue": 36,
+        "canonical": "a mixed bag",
+        "positions": [
+          3,
+          4,
+          5
+        ]
+      },
+      {
+        "cue": 37,
+        "canonical": "be on edge",
+        "positions": [
+          1,
+          2,
+          3
+        ]
+      }
+    ],
+    "falsePositives": [
+      {
+        "cue": 3,
+        "canonical": "happen to",
+        "positions": [
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 23,
+        "canonical": "blessing in disguise",
+        "positions": [
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "cue": 29,
+        "canonical": "long shot",
+        "positions": [
+          5,
+          6
+        ]
+      },
+      {
+        "cue": 34,
+        "canonical": "put up",
+        "positions": [
+          2,
+          3
+        ]
+      },
+      {
+        "cue": 35,
+        "canonical": "work by the book",
+        "positions": [
+          3,
+          4,
+          5,
+          6
+        ]
+      },
+      {
+        "cue": 36,
+        "canonical": "mixed bag",
+        "positions": [
+          4,
+          5
+        ]
+      },
+      {
+        "cue": 46,
+        "canonical": "turn a blind eye",
+        "positions": [
+          4,
+          5,
+          6,
+          7
+        ]
+      }
+    ],
+    "boundaryErrors": [],
+    "categoryErrors": [],
+    "negativeHits": [
+      {
+        "cue": 46,
+        "canonical": "turn a blind eye"
+      }
+    ]
+  }
+}

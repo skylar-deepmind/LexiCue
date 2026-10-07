@@ -1,0 +1,5641 @@
+{
+  "version": 1,
+  "annotation_origin": "independently authored explicit annotations; not extraction-model output",
+  "srt_sha256": "7aba15eafd46aac709c9788733c0e1df1482563e030c1ad5ec5501ecc026e1a7",
+  "cues": 180,
+  "words": 3405,
+  "duration_seconds": 1463.75,
+  "rows": [
+    {
+      "cue": 1,
+      "segment_index": 0,
+      "scene": "language_workshop",
+      "split": "development",
+      "text": "I listen to English podcasts before breakfast while the rest of the house is still quiet.",
+      "annotations": [
+        {
+          "canonical": "listen to",
+          "surface": "listen to",
+          "char_start": 2,
+          "char_end": 11,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression",
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            1,
+            2
+          ],
+          "sense_en": "pay attention to sound or speech",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 2,
+      "segment_index": 1,
+      "scene": "language_workshop",
+      "split": "development",
+      "text": "My brother tries to want to watch every lesson, but his schedule rarely permits that.",
+      "annotations": [
+        {
+          "canonical": "want to watch",
+          "surface": "want to watch",
+          "char_start": 20,
+          "char_end": 33,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_reject",
+          "token_positions": [
+            4,
+            5,
+            6
+          ],
+          "sense_en": "",
+          "rationale": "Ordinary infinitive complement, not a lexical phrase."
+        }
+      ]
+    },
+    {
+      "cue": 3,
+      "segment_index": 2,
+      "scene": "language_workshop",
+      "split": "development",
+      "text": "We memorize vocabulary using short stories instead of copying isolated words into a notebook every evening.",
+      "annotations": [
+        {
+          "canonical": "memorize vocabulary",
+          "surface": "memorize vocabulary",
+          "char_start": 3,
+          "char_end": 22,
+          "category": "collocation",
+          "allowed_categories": [
+            "collocation"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            1,
+            2
+          ],
+          "sense_en": "learn and remember words",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 4,
+      "segment_index": 3,
+      "scene": "language_workshop",
+      "split": "development",
+      "text": "A clear example helps us acquire language naturally, although practice still requires attention and a little patience.",
+      "annotations": [
+        {
+          "canonical": "acquire language",
+          "surface": "acquire language",
+          "char_start": 25,
+          "char_end": 41,
+          "category": "collocation",
+          "allowed_categories": [
+            "collocation"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            5,
+            6
+          ],
+          "sense_en": "develop knowledge of a language",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 5,
+      "segment_index": 4,
+      "scene": "language_workshop",
+      "split": "development",
+      "text": "Our teacher says that comprehensible input should be understandable without translating every unfamiliar word in a sentence.",
+      "annotations": [
+        {
+          "canonical": "comprehensible input",
+          "surface": "comprehensible input",
+          "char_start": 22,
+          "char_end": 42,
+          "category": "collocation",
+          "allowed_categories": [
+            "collocation"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            4,
+            5
+          ],
+          "sense_en": "language material the learner can understand",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 6,
+      "segment_index": 5,
+      "scene": "language_workshop",
+      "split": "development",
+      "text": "You can recognize patterns more easily when familiar expressions appear in several different conversations during the week.",
+      "annotations": [
+        {
+          "canonical": "recognize patterns",
+          "surface": "recognize patterns",
+          "char_start": 8,
+          "char_end": 26,
+          "category": "collocation",
+          "allowed_categories": [
+            "collocation"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            2,
+            3
+          ],
+          "sense_en": "notice recurring structures",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 7,
+      "segment_index": 6,
+      "scene": "language_workshop",
+      "split": "development",
+      "text": "That method makes learning English less intimidating for students who previously struggled to understand ordinary conversations outside the classroom.",
+      "annotations": [
+        {
+          "canonical": "makes learning",
+          "surface": "makes learning",
+          "char_start": 12,
+          "char_end": 26,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_reject",
+          "token_positions": [
+            2,
+            3
+          ],
+          "sense_en": "",
+          "rationale": "Incomplete fragment of a causative construction."
+        }
+      ]
+    },
+    {
+      "cue": 8,
+      "segment_index": 7,
+      "scene": "language_workshop",
+      "split": "development",
+      "text": "Please forget any complex language learning plans that promise perfect results without regular listening or meaningful conversation.",
+      "annotations": [
+        {
+          "canonical": "forget any plans",
+          "surface": "forget any complex language learning plans",
+          "char_start": 7,
+          "char_end": 49,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_reject",
+          "token_positions": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
+          "sense_en": "",
+          "rationale": "Ordinary verb with a temporary object, not a phrasal verb."
+        },
+        {
+          "canonical": "language learning",
+          "surface": "language learning",
+          "char_start": 26,
+          "char_end": 43,
+          "category": "collocation",
+          "allowed_categories": [
+            "collocation"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "editorial contextual annotation",
+          "requirement": "allowed",
+          "token_positions": [
+            4,
+            5
+          ],
+          "sense_en": "the activity of developing a language",
+          "rationale": "Acceptable incidental expression; not a mandatory target."
+        }
+      ]
+    },
+    {
+      "cue": 9,
+      "segment_index": 8,
+      "scene": "language_workshop",
+      "split": "development",
+      "text": "The teacher asks us to have a go even when our pronunciation is still rather uncertain.",
+      "annotations": [
+        {
+          "canonical": "have a go",
+          "surface": "have a go",
+          "char_start": 23,
+          "char_end": 32,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression",
+            "collocation"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            5,
+            6,
+            7
+          ],
+          "sense_en": "try an activity",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 10,
+      "segment_index": 9,
+      "scene": "language_workshop",
+      "split": "development",
+      "text": "I picked up several useful expressions from the story without consulting a dictionary after every single sentence.",
+      "annotations": [
+        {
+          "canonical": "pick up",
+          "surface": "picked up",
+          "char_start": 2,
+          "char_end": 11,
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            1,
+            2
+          ],
+          "sense_en": "learn incidentally or lift an object, as indicated by the sentence",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 11,
+      "segment_index": 10,
+      "scene": "language_workshop",
+      "split": "development",
+      "text": "We listen to one recording over and over again until its rhythm begins to sound familiar.",
+      "annotations": [
+        {
+          "canonical": "listen to",
+          "surface": "listen to",
+          "char_start": 3,
+          "char_end": 12,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression",
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            1,
+            2
+          ],
+          "sense_en": "pay attention to sound or speech",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        },
+        {
+          "canonical": "over and over again",
+          "surface": "over and over again",
+          "char_start": 27,
+          "char_end": 46,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            5,
+            6,
+            7,
+            8
+          ],
+          "sense_en": "repeatedly",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 12,
+      "segment_index": 11,
+      "scene": "language_workshop",
+      "split": "development",
+      "text": "There is a lot of English in my neighborhood, especially when tourists arrive during the summer holidays.",
+      "annotations": [
+        {
+          "canonical": "a lot of",
+          "surface": "a lot of",
+          "char_start": 9,
+          "char_end": 17,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            2,
+            3,
+            4
+          ],
+          "sense_en": "a large quantity of",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 13,
+      "segment_index": 12,
+      "scene": "language_workshop",
+      "split": "development",
+      "text": "Our instructor recommends that we start with simple material rather than an unfamiliar technical lecture about mathematics.",
+      "annotations": [
+        {
+          "canonical": "start with",
+          "surface": "start with",
+          "char_start": 34,
+          "char_end": 44,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression",
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            5,
+            6
+          ],
+          "sense_en": "begin using or considering something",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 14,
+      "segment_index": 13,
+      "scene": "language_workshop",
+      "split": "development",
+      "text": "I hope to become fluent eventually, but today I only need to explain my train journey clearly.",
+      "annotations": [
+        {
+          "canonical": "become fluent",
+          "surface": "become fluent",
+          "char_start": 10,
+          "char_end": 23,
+          "category": "collocation",
+          "allowed_categories": [
+            "collocation"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            3,
+            4
+          ],
+          "sense_en": "develop the ability to communicate smoothly",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 15,
+      "segment_index": 14,
+      "scene": "language_workshop",
+      "split": "development",
+      "text": "We use English on a daily basis at the workshop, even during short conversations about lunch.",
+      "annotations": [
+        {
+          "canonical": "on a daily basis",
+          "surface": "on a daily basis",
+          "char_start": 15,
+          "char_end": 31,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            3,
+            4,
+            5,
+            6
+          ],
+          "sense_en": "every day",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 16,
+      "segment_index": 15,
+      "scene": "language_workshop",
+      "split": "development",
+      "text": "Everyone should sit down before the recording begins, because moving chairs make the dialogue difficult to hear.",
+      "annotations": [
+        {
+          "canonical": "sit down",
+          "surface": "sit down",
+          "char_start": 16,
+          "char_end": 24,
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            2,
+            3
+          ],
+          "sense_en": "take a seated position",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 17,
+      "segment_index": 16,
+      "scene": "language_workshop",
+      "split": "development",
+      "text": "We need at least ten minutes of conversation, and the quieter students should have enough time to respond.",
+      "annotations": [
+        {
+          "canonical": "at least",
+          "surface": "at least",
+          "char_start": 8,
+          "char_end": 16,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            2,
+            3
+          ],
+          "sense_en": "no less than; or recognize a positive point despite a problem",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 18,
+      "segment_index": 17,
+      "scene": "language_workshop",
+      "split": "development",
+      "text": "The students help each other with pronunciation and share their own examples as well.",
+      "annotations": [
+        {
+          "canonical": "each other",
+          "surface": "each other",
+          "char_start": 18,
+          "char_end": 28,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            3,
+            4
+          ],
+          "sense_en": "reciprocally",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        },
+        {
+          "canonical": "as well",
+          "surface": "as well",
+          "char_start": 77,
+          "char_end": 84,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            12,
+            13
+          ],
+          "sense_en": "also",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 19,
+      "segment_index": 18,
+      "scene": "language_workshop",
+      "split": "development",
+      "text": "I practice in my spare time after dinner, when nobody needs the kitchen table for anything else.",
+      "annotations": [
+        {
+          "canonical": "spare time",
+          "surface": "spare time",
+          "char_start": 17,
+          "char_end": 27,
+          "category": "collocation",
+          "allowed_categories": [
+            "collocation"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            4,
+            5
+          ],
+          "sense_en": "time available outside duties",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 20,
+      "segment_index": 19,
+      "scene": "language_workshop",
+      "split": "development",
+      "text": "Our teacher smiles and says see you tomorrow before closing the classroom door and carrying her books downstairs.",
+      "annotations": [
+        {
+          "canonical": "see you",
+          "surface": "see you",
+          "char_start": 28,
+          "char_end": 35,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            5,
+            6
+          ],
+          "sense_en": "a farewell before a future meeting",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 21,
+      "segment_index": 20,
+      "scene": "practice_and_boundaries",
+      "split": "development",
+      "text": "Yesterday I learned to acquire language through stories, and today I want to test that approach independently.",
+      "annotations": [
+        {
+          "canonical": "acquire language",
+          "surface": "acquire language",
+          "char_start": 23,
+          "char_end": 39,
+          "category": "collocation",
+          "allowed_categories": [
+            "collocation"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            4,
+            5
+          ],
+          "sense_en": "develop knowledge of a language",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 22,
+      "segment_index": 21,
+      "scene": "practice_and_boundaries",
+      "split": "development",
+      "text": "My cousin likes to watch it in English, although the film itself is originally from France.",
+      "annotations": [
+        {
+          "canonical": "watch it in english",
+          "surface": "watch it in English",
+          "char_start": 19,
+          "char_end": 38,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_reject",
+          "token_positions": [
+            4,
+            5,
+            6,
+            7
+          ],
+          "sense_en": "",
+          "rationale": "Free verb-object-language description."
+        }
+      ]
+    },
+    {
+      "cue": 23,
+      "segment_index": 22,
+      "scene": "practice_and_boundaries",
+      "split": "development",
+      "text": "I do it because I enjoy the exercise, rather than because anyone promised me an examination certificate.",
+      "annotations": [
+        {
+          "canonical": "do it",
+          "surface": "do it",
+          "char_start": 2,
+          "char_end": 7,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_reject",
+          "token_positions": [
+            1,
+            2
+          ],
+          "sense_en": "",
+          "rationale": "Ordinary performance of the referenced action."
+        }
+      ]
+    },
+    {
+      "cue": 24,
+      "segment_index": 23,
+      "scene": "practice_and_boundaries",
+      "split": "development",
+      "text": "The introduction seems really simple, but the speaker gradually includes longer sentences and less familiar vocabulary later.",
+      "annotations": [
+        {
+          "canonical": "really simple",
+          "surface": "really simple",
+          "char_start": 23,
+          "char_end": 36,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_reject",
+          "token_positions": [
+            3,
+            4
+          ],
+          "sense_en": "",
+          "rationale": "Ordinary degree adverb with an adjective."
+        }
+      ]
+    },
+    {
+      "cue": 25,
+      "segment_index": 24,
+      "scene": "practice_and_boundaries",
+      "split": "development",
+      "text": "This activity should be easy enough for the new students, provided the instructions remain clear and short.",
+      "annotations": [
+        {
+          "canonical": "be easy enough",
+          "surface": "be easy enough",
+          "char_start": 21,
+          "char_end": 35,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_reject",
+          "token_positions": [
+            3,
+            4,
+            5
+          ],
+          "sense_en": "",
+          "rationale": "Grammar pattern rather than a complete lexical expression."
+        }
+      ]
+    },
+    {
+      "cue": 26,
+      "segment_index": 25,
+      "scene": "practice_and_boundaries",
+      "split": "development",
+      "text": "Some students get input from radio programs, while others prefer quiet reading because they dislike background music.",
+      "annotations": [
+        {
+          "canonical": "get input",
+          "surface": "get input",
+          "char_start": 14,
+          "char_end": 23,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_reject",
+          "token_positions": [
+            2,
+            3
+          ],
+          "sense_en": "",
+          "rationale": "Low-priority compositional combination in this context."
+        },
+        {
+          "canonical": "background music",
+          "surface": "background music",
+          "char_start": 100,
+          "char_end": 116,
+          "category": "collocation",
+          "allowed_categories": [
+            "collocation"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "editorial contextual annotation",
+          "requirement": "allowed",
+          "token_positions": [
+            15,
+            16
+          ],
+          "sense_en": "music accompanying another activity",
+          "rationale": "Acceptable incidental expression; not a mandatory target."
+        }
+      ]
+    },
+    {
+      "cue": 27,
+      "segment_index": 26,
+      "scene": "practice_and_boundaries",
+      "split": "development",
+      "text": "I listen to the speaker carefully, even when the recording includes unfamiliar names and numbers near the beginning.",
+      "annotations": [
+        {
+          "canonical": "listen to",
+          "surface": "listen to",
+          "char_start": 2,
+          "char_end": 11,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression",
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            1,
+            2
+          ],
+          "sense_en": "pay attention to sound or speech",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 28,
+      "segment_index": 27,
+      "scene": "practice_and_boundaries",
+      "split": "development",
+      "text": "We need to listen and listen and listen to hundreds of hours of understandable English over several years.",
+      "annotations": [
+        {
+          "canonical": "listen to",
+          "surface": "listen to",
+          "char_start": 33,
+          "char_end": 42,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression",
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            7,
+            8
+          ],
+          "sense_en": "pay attention to sound or speech",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 29,
+      "segment_index": 28,
+      "scene": "practice_and_boundaries",
+      "split": "development",
+      "text": "I over and over again repeated the sentence, then repeated it over and over again.",
+      "annotations": [
+        {
+          "canonical": "over and over again",
+          "surface": "over and over again",
+          "char_start": 2,
+          "char_end": 21,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "sense_en": "repeatedly",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        },
+        {
+          "canonical": "over and over again",
+          "surface": "over and over again",
+          "char_start": 62,
+          "char_end": 81,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            11,
+            12,
+            13,
+            14
+          ],
+          "sense_en": "repeatedly",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 30,
+      "segment_index": 29,
+      "scene": "practice_and_boundaries",
+      "split": "development",
+      "text": "There are a lot of examples in this chapter and a lot of explanations in the appendix.",
+      "annotations": [
+        {
+          "canonical": "a lot of",
+          "surface": "a lot of",
+          "char_start": 10,
+          "char_end": 18,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            2,
+            3,
+            4
+          ],
+          "sense_en": "a large quantity of",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        },
+        {
+          "canonical": "a lot of",
+          "surface": "a lot of",
+          "char_start": 48,
+          "char_end": 56,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            10,
+            11,
+            12
+          ],
+          "sense_en": "a large quantity of",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 31,
+      "segment_index": 30,
+      "scene": "practice_and_boundaries",
+      "split": "development",
+      "text": "I became fluent gradually while living abroad, rather than suddenly after watching a single exciting video online.",
+      "annotations": [
+        {
+          "canonical": "become fluent",
+          "surface": "became fluent",
+          "char_start": 2,
+          "char_end": 15,
+          "category": "collocation",
+          "allowed_categories": [
+            "collocation"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            1,
+            2
+          ],
+          "sense_en": "develop the ability to communicate smoothly",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 32,
+      "segment_index": 31,
+      "scene": "practice_and_boundaries",
+      "split": "development",
+      "text": "She picked it up quickly when the local children demonstrated the game without translating any of the instructions.",
+      "annotations": [
+        {
+          "canonical": "pick up",
+          "surface": "picked it up",
+          "char_start": 4,
+          "char_end": 16,
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            1,
+            3
+          ],
+          "sense_en": "learn incidentally or lift an object, as indicated by the sentence",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 33,
+      "segment_index": 32,
+      "scene": "practice_and_boundaries",
+      "split": "development",
+      "text": "He picks the small notebook up from the desk and returns it to its owner after the lesson.",
+      "annotations": [
+        {
+          "canonical": "pick up",
+          "surface": "picks the small notebook up",
+          "char_start": 3,
+          "char_end": 30,
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            1,
+            5
+          ],
+          "sense_en": "learn incidentally or lift an object, as indicated by the sentence",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 34,
+      "segment_index": 33,
+      "scene": "practice_and_boundaries",
+      "split": "development",
+      "text": "The tutor says see you tomorrow at the workshop while waving goodbye to everyone from the entrance.",
+      "annotations": [
+        {
+          "canonical": "see you",
+          "surface": "see you",
+          "char_start": 15,
+          "char_end": 22,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            3,
+            4
+          ],
+          "sense_en": "a farewell before a future meeting",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 35,
+      "segment_index": 34,
+      "scene": "practice_and_boundaries",
+      "split": "development",
+      "text": "From this balcony I can see you standing beside the fountain, although your face is difficult to recognize.",
+      "annotations": [
+        {
+          "canonical": "see you",
+          "surface": "see you",
+          "char_start": 24,
+          "char_end": 31,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_reject",
+          "token_positions": [
+            5,
+            6
+          ],
+          "sense_en": "a farewell before a future meeting",
+          "rationale": "Literal ordinary use; exclude this proposed figurative/formulaic interpretation."
+        }
+      ]
+    },
+    {
+      "cue": 36,
+      "segment_index": 35,
+      "scene": "practice_and_boundaries",
+      "split": "development",
+      "text": "The same students recognized patterns in the new story after comparing it with material from the previous week.",
+      "annotations": [
+        {
+          "canonical": "recognize patterns",
+          "surface": "recognized patterns",
+          "char_start": 18,
+          "char_end": 37,
+          "category": "collocation",
+          "allowed_categories": [
+            "collocation"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            3,
+            4
+          ],
+          "sense_en": "notice recurring structures",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 37,
+      "segment_index": 36,
+      "scene": "practice_and_boundaries",
+      "split": "development",
+      "text": "We memorized vocabulary before the exam, but the teacher also required us to use every word in context.",
+      "annotations": [
+        {
+          "canonical": "memorize vocabulary",
+          "surface": "memorized vocabulary",
+          "char_start": 3,
+          "char_end": 23,
+          "category": "collocation",
+          "allowed_categories": [
+            "collocation"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            1,
+            2
+          ],
+          "sense_en": "learn and remember words",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 38,
+      "segment_index": 37,
+      "scene": "practice_and_boundaries",
+      "split": "development",
+      "text": "My sister works on a daily basis with visitors who need directions to nearby museums and restaurants.",
+      "annotations": [
+        {
+          "canonical": "on a daily basis",
+          "surface": "on a daily basis",
+          "char_start": 16,
+          "char_end": 32,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            3,
+            4,
+            5,
+            6
+          ],
+          "sense_en": "every day",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 39,
+      "segment_index": 38,
+      "scene": "practice_and_boundaries",
+      "split": "development",
+      "text": "The recording contains ordinary descriptions of a wooden shelf, three green chairs, and a window facing the garden.",
+      "annotations": []
+    },
+    {
+      "cue": 40,
+      "segment_index": 39,
+      "scene": "practice_and_boundaries",
+      "split": "development",
+      "text": "The worksheet lists seven numbers in ascending order and asks students to copy them into the empty boxes below.",
+      "annotations": []
+    },
+    {
+      "cue": 41,
+      "segment_index": 40,
+      "scene": "office_launch",
+      "split": "development",
+      "text": "Our small office is preparing a community event, and today the team finally meets to discuss the arrangements together.",
+      "annotations": []
+    },
+    {
+      "cue": 42,
+      "segment_index": 41,
+      "scene": "office_launch",
+      "split": "development",
+      "text": "We should break the ice with a friendly introduction before discussing the serious problems in the schedule.",
+      "annotations": [
+        {
+          "canonical": "break the ice",
+          "surface": "break the ice",
+          "char_start": 10,
+          "char_end": 23,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            2,
+            3,
+            4
+          ],
+          "sense_en": "make people feel more comfortable together",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 43,
+      "segment_index": 42,
+      "scene": "office_launch",
+      "split": "development",
+      "text": "The coordinator asks us to figure out how many volunteers will be available on the opening morning next week.",
+      "annotations": [
+        {
+          "canonical": "figure out",
+          "surface": "figure out",
+          "char_start": 27,
+          "char_end": 37,
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            5,
+            6
+          ],
+          "sense_en": "understand or solve something",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 44,
+      "segment_index": 43,
+      "scene": "office_launch",
+      "split": "development",
+      "text": "We need to make a decision about the venue before the printer can prepare the invitations for everyone.",
+      "annotations": [
+        {
+          "canonical": "make a decision",
+          "surface": "make a decision",
+          "char_start": 11,
+          "char_end": 26,
+          "category": "collocation",
+          "allowed_categories": [
+            "collocation"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            3,
+            4,
+            5
+          ],
+          "sense_en": "choose a course of action",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 45,
+      "segment_index": 44,
+      "scene": "office_launch",
+      "split": "development",
+      "text": "Maya will take care of the registration desk while Daniel checks the microphones in the main meeting room.",
+      "annotations": [
+        {
+          "canonical": "take care of",
+          "surface": "take care of",
+          "char_start": 10,
+          "char_end": 22,
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb",
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            2,
+            3,
+            4
+          ],
+          "sense_en": "handle a responsibility or care for something",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 46,
+      "segment_index": 45,
+      "scene": "office_launch",
+      "split": "development",
+      "text": "Please keep in mind that several visitors use wheelchairs and need enough space beside the entrance doors.",
+      "annotations": [
+        {
+          "canonical": "keep in mind",
+          "surface": "keep in mind",
+          "char_start": 7,
+          "char_end": 19,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            1,
+            2,
+            3
+          ],
+          "sense_en": "remember something relevant",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 47,
+      "segment_index": 46,
+      "scene": "office_launch",
+      "split": "development",
+      "text": "The new manager hopes we can work together without repeatedly sending the same documents to different people by mistake.",
+      "annotations": [
+        {
+          "canonical": "work together",
+          "surface": "work together",
+          "char_start": 29,
+          "char_end": 42,
+          "category": "collocation",
+          "allowed_categories": [
+            "collocation"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            6,
+            7
+          ],
+          "sense_en": "cooperate",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        },
+        {
+          "canonical": "by mistake",
+          "surface": "by mistake",
+          "char_start": 109,
+          "char_end": 119,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "editorial contextual annotation",
+          "requirement": "allowed",
+          "token_positions": [
+            17,
+            18
+          ],
+          "sense_en": "accidentally",
+          "rationale": "Acceptable incidental expression; not a mandatory target."
+        }
+      ]
+    },
+    {
+      "cue": 48,
+      "segment_index": 47,
+      "scene": "office_launch",
+      "split": "development",
+      "text": "I look forward to meeting the volunteers after hearing so many enthusiastic stories about their previous projects.",
+      "annotations": [
+        {
+          "canonical": "look forward to",
+          "surface": "look forward to",
+          "char_start": 2,
+          "char_end": 17,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression",
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            1,
+            2,
+            3
+          ],
+          "sense_en": "anticipate something with pleasure",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 49,
+      "segment_index": 48,
+      "scene": "office_launch",
+      "split": "development",
+      "text": "We have to deal with a delayed delivery before it affects the food supplies for the afternoon session.",
+      "annotations": [
+        {
+          "canonical": "deal with",
+          "surface": "deal with",
+          "char_start": 11,
+          "char_end": 20,
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            3,
+            4
+          ],
+          "sense_en": "handle a situation",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 50,
+      "segment_index": 49,
+      "scene": "office_launch",
+      "split": "development",
+      "text": "The receptionist will get in touch with the supplier as soon as the meeting ends this morning.",
+      "annotations": [
+        {
+          "canonical": "get in touch",
+          "surface": "get in touch",
+          "char_start": 22,
+          "char_end": 34,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression",
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            3,
+            4,
+            5
+          ],
+          "sense_en": "contact someone",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        },
+        {
+          "canonical": "get in touch with",
+          "surface": "get in touch with",
+          "char_start": 22,
+          "char_end": 39,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "editorial contextual annotation",
+          "requirement": "allowed",
+          "token_positions": [
+            3,
+            4,
+            5,
+            6
+          ],
+          "sense_en": "contact someone",
+          "rationale": "Acceptable incidental expression; not a mandatory target."
+        },
+        {
+          "canonical": "as soon as",
+          "surface": "as soon as",
+          "char_start": 53,
+          "char_end": 63,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "editorial annotation QA",
+          "requirement": "allowed",
+          "token_positions": [
+            9,
+            10,
+            11
+          ],
+          "sense_en": "immediately when",
+          "rationale": "Valid incidental lexical unit; no mandatory recall credit."
+        }
+      ]
+    },
+    {
+      "cue": 51,
+      "segment_index": 50,
+      "scene": "office_launch",
+      "split": "development",
+      "text": "Someone should pay attention to the emergency exits when arranging the chairs around the edges of the room.",
+      "annotations": [
+        {
+          "canonical": "pay attention",
+          "surface": "pay attention",
+          "char_start": 15,
+          "char_end": 28,
+          "category": "collocation",
+          "allowed_categories": [
+            "collocation"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            2,
+            3
+          ],
+          "sense_en": "concentrate on something",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        },
+        {
+          "canonical": "pay attention to",
+          "surface": "pay attention to",
+          "char_start": 15,
+          "char_end": 31,
+          "category": "collocation",
+          "allowed_categories": [
+            "collocation",
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "editorial contextual annotation",
+          "requirement": "allowed",
+          "token_positions": [
+            2,
+            3,
+            4
+          ],
+          "sense_en": "concentrate on something",
+          "rationale": "Acceptable incidental expression; not a mandatory target."
+        }
+      ]
+    },
+    {
+      "cue": 52,
+      "segment_index": 51,
+      "scene": "office_launch",
+      "split": "development",
+      "text": "A tired volunteer does not want to watch another demonstration before trying the equipment herself during the rehearsal.",
+      "annotations": [
+        {
+          "canonical": "want to watch",
+          "surface": "want to watch",
+          "char_start": 27,
+          "char_end": 40,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_reject",
+          "token_positions": [
+            5,
+            6,
+            7
+          ],
+          "sense_en": "",
+          "rationale": "Ordinary infinitive complement, not a lexical phrase."
+        }
+      ]
+    },
+    {
+      "cue": 53,
+      "segment_index": 52,
+      "scene": "office_launch",
+      "split": "development",
+      "text": "The sign has a blue border and white lettering, and its measurements are printed clearly beside the technical drawing.",
+      "annotations": []
+    },
+    {
+      "cue": 54,
+      "segment_index": 53,
+      "scene": "office_launch",
+      "split": "development",
+      "text": "Our visitors can have a go at the activity while an experienced volunteer explains the instructions beside them.",
+      "annotations": [
+        {
+          "canonical": "have a go",
+          "surface": "have a go",
+          "char_start": 17,
+          "char_end": 26,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression",
+            "collocation"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            3,
+            4,
+            5
+          ],
+          "sense_en": "try an activity",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 55,
+      "segment_index": 54,
+      "scene": "office_launch",
+      "split": "development",
+      "text": "I ran into an old colleague outside the office, and she offered to help with the event preparation.",
+      "annotations": [
+        {
+          "canonical": "run into",
+          "surface": "ran into",
+          "char_start": 2,
+          "char_end": 10,
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            1,
+            2
+          ],
+          "sense_en": "meet someone unexpectedly",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        },
+        {
+          "canonical": "help with",
+          "surface": "help with",
+          "char_start": 67,
+          "char_end": 76,
+          "category": "collocation",
+          "allowed_categories": [
+            "collocation",
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "editorial contextual annotation",
+          "requirement": "allowed",
+          "token_positions": [
+            13,
+            14
+          ],
+          "sense_en": "assist with a task",
+          "rationale": "Acceptable incidental expression; not a mandatory target."
+        }
+      ]
+    },
+    {
+      "cue": 56,
+      "segment_index": 55,
+      "scene": "office_launch",
+      "split": "development",
+      "text": "We will set up the display after lunch, when the main room is empty and the floor has dried.",
+      "annotations": [
+        {
+          "canonical": "set up",
+          "surface": "set up",
+          "char_start": 8,
+          "char_end": 14,
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            2,
+            3
+          ],
+          "sense_en": "arrange or assemble something",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 57,
+      "segment_index": 56,
+      "scene": "office_launch",
+      "split": "development",
+      "text": "Daniel turned the music down because the speaker beside the desk was making conversation unnecessarily difficult for everyone.",
+      "annotations": [
+        {
+          "canonical": "turn down",
+          "surface": "turned the music down",
+          "char_start": 7,
+          "char_end": 28,
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            1,
+            4
+          ],
+          "sense_en": "reduce volume",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 58,
+      "segment_index": 57,
+      "scene": "office_launch",
+      "split": "development",
+      "text": "Maya looked the address up before writing the directions in an email to the volunteers from another town.",
+      "annotations": [
+        {
+          "canonical": "look up",
+          "surface": "looked the address up",
+          "char_start": 5,
+          "char_end": 26,
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            1,
+            4
+          ],
+          "sense_en": "search for information",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 59,
+      "segment_index": 58,
+      "scene": "office_launch",
+      "split": "development",
+      "text": "The organizer says no worries when I apologize for arriving a few minutes later than we originally agreed.",
+      "annotations": [
+        {
+          "canonical": "no worries",
+          "surface": "no worries",
+          "char_start": 19,
+          "char_end": 29,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            3,
+            4
+          ],
+          "sense_en": "reassure someone that there is no problem",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 60,
+      "segment_index": 59,
+      "scene": "office_launch",
+      "split": "development",
+      "text": "We thank each other for the help and invite the afternoon volunteers to join the meeting as well.",
+      "annotations": [
+        {
+          "canonical": "each other",
+          "surface": "each other",
+          "char_start": 9,
+          "char_end": 19,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            2,
+            3
+          ],
+          "sense_en": "reciprocally",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        },
+        {
+          "canonical": "as well",
+          "surface": "as well",
+          "char_start": 89,
+          "char_end": 96,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            16,
+            17
+          ],
+          "sense_en": "also",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 61,
+      "segment_index": 60,
+      "scene": "friends_cafe",
+      "split": "development",
+      "text": "After the event we meet at a quiet cafe, where our friends are discussing the latest neighborhood news together.",
+      "annotations": []
+    },
+    {
+      "cue": 62,
+      "segment_index": 61,
+      "scene": "friends_cafe",
+      "split": "development",
+      "text": "Maya asks me to spill the tea about the surprise party that everyone apparently organized without telling her.",
+      "annotations": [
+        {
+          "canonical": "spill the tea",
+          "surface": "spill the tea",
+          "char_start": 16,
+          "char_end": 29,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [
+            "informal"
+          ],
+          "regions": [],
+          "cautions": [],
+          "source": "https://dictionary.cambridge.org/dictionary/english/spill-the-tea",
+          "requirement": "must_include",
+          "token_positions": [
+            4,
+            5,
+            6
+          ],
+          "sense_en": "tell gossip or private information",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 63,
+      "segment_index": 62,
+      "scene": "friends_cafe",
+      "split": "development",
+      "text": "I tell her the story is true, no cap, because I personally helped decorate the room before the guests arrived.",
+      "annotations": [
+        {
+          "canonical": "no cap",
+          "surface": "no cap",
+          "char_start": 30,
+          "char_end": 36,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression"
+          ],
+          "register_tags": [
+            "slang"
+          ],
+          "regions": [],
+          "cautions": [],
+          "source": "https://www.dictionary.com/culture/slang/no-cap",
+          "requirement": "must_include",
+          "token_positions": [
+            7,
+            8
+          ],
+          "sense_en": "honestly; without lying or exaggerating",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 64,
+      "segment_index": 63,
+      "scene": "friends_cafe",
+      "split": "development",
+      "text": "Daniel accidentally sends the photograph to the wrong group and says my bad when he realizes his mistake.",
+      "annotations": [
+        {
+          "canonical": "my bad",
+          "surface": "my bad",
+          "char_start": 69,
+          "char_end": 75,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression"
+          ],
+          "register_tags": [
+            "informal"
+          ],
+          "regions": [],
+          "cautions": [],
+          "source": "https://downloads.bbc.co.uk/learningenglish/eiam/unit-2/200724_ways_to_say_sorry_1.pdf",
+          "requirement": "must_include",
+          "token_positions": [
+            11,
+            12
+          ],
+          "sense_en": "acknowledge one's small mistake",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 65,
+      "segment_index": 64,
+      "scene": "friends_cafe",
+      "split": "development",
+      "text": "Maya replies no biggie because the photograph does not reveal anything that the guests should not see yet.",
+      "annotations": [
+        {
+          "canonical": "no biggie",
+          "surface": "no biggie",
+          "char_start": 13,
+          "char_end": 22,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression"
+          ],
+          "register_tags": [
+            "informal"
+          ],
+          "regions": [],
+          "cautions": [],
+          "source": "https://www.dictionary.com/browse/no%20biggie",
+          "requirement": "must_include",
+          "token_positions": [
+            2,
+            3
+          ],
+          "sense_en": "it is not a significant problem",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 66,
+      "segment_index": 65,
+      "scene": "friends_cafe",
+      "split": "development",
+      "text": "Nobody wants to throw shade at the organizer, although the unusual decorations provide plenty of opportunities for jokes.",
+      "annotations": [
+        {
+          "canonical": "throw shade",
+          "surface": "throw shade",
+          "char_start": 16,
+          "char_end": 27,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [
+            "slang"
+          ],
+          "regions": [],
+          "cautions": [],
+          "source": "https://www.dictionary.com/culture/slang/throwing-shade",
+          "requirement": "must_include",
+          "token_positions": [
+            3,
+            4
+          ],
+          "sense_en": "express contempt or criticism indirectly",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 67,
+      "segment_index": 66,
+      "scene": "friends_cafe",
+      "split": "development",
+      "text": "Our British friend warns that we should not take the piss out of someone who seems genuinely upset.",
+      "annotations": [
+        {
+          "canonical": "take the piss",
+          "surface": "take the piss",
+          "char_start": 44,
+          "char_end": 57,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [
+            "informal"
+          ],
+          "regions": [
+            "UK"
+          ],
+          "cautions": [
+            "offensive"
+          ],
+          "source": "https://dictionary.cambridge.org/dictionary/english/take-the-piss-out-of",
+          "requirement": "must_include",
+          "token_positions": [
+            8,
+            9,
+            10
+          ],
+          "sense_en": "mock someone or something",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 68,
+      "segment_index": 67,
+      "scene": "friends_cafe",
+      "split": "development",
+      "text": "The waiter spilled the tea across the tray, and the hot liquid soaked several paper napkins beside the cups.",
+      "annotations": [
+        {
+          "canonical": "spill the tea",
+          "surface": "spilled the tea",
+          "char_start": 11,
+          "char_end": 26,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [
+            "informal"
+          ],
+          "regions": [],
+          "cautions": [],
+          "source": "https://dictionary.cambridge.org/dictionary/english/spill-the-tea",
+          "requirement": "must_reject",
+          "token_positions": [
+            2,
+            3,
+            4
+          ],
+          "sense_en": "tell gossip or private information",
+          "rationale": "Literal ordinary use; exclude this proposed figurative/formulaic interpretation."
+        }
+      ]
+    },
+    {
+      "cue": 69,
+      "segment_index": 68,
+      "scene": "friends_cafe",
+      "split": "development",
+      "text": "The bottle has no cap on its neck, so the remaining water could easily spill inside the shopping bag.",
+      "annotations": [
+        {
+          "canonical": "no cap",
+          "surface": "no cap",
+          "char_start": 15,
+          "char_end": 21,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression"
+          ],
+          "register_tags": [
+            "slang"
+          ],
+          "regions": [],
+          "cautions": [],
+          "source": "https://www.dictionary.com/culture/slang/no-cap",
+          "requirement": "must_reject",
+          "token_positions": [
+            3,
+            4
+          ],
+          "sense_en": "honestly; without lying or exaggerating",
+          "rationale": "Literal ordinary use; exclude this proposed figurative/formulaic interpretation."
+        }
+      ]
+    },
+    {
+      "cue": 70,
+      "segment_index": 69,
+      "scene": "friends_cafe",
+      "split": "development",
+      "text": "A tall tree will throw shade across this terrace in summer, although there is almost no shade here today.",
+      "annotations": [
+        {
+          "canonical": "throw shade",
+          "surface": "throw shade",
+          "char_start": 17,
+          "char_end": 28,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [
+            "slang"
+          ],
+          "regions": [],
+          "cautions": [],
+          "source": "https://www.dictionary.com/culture/slang/throwing-shade",
+          "requirement": "must_reject",
+          "token_positions": [
+            4,
+            5
+          ],
+          "sense_en": "express contempt or criticism indirectly",
+          "rationale": "Literal ordinary use; exclude this proposed figurative/formulaic interpretation."
+        }
+      ]
+    },
+    {
+      "cue": 71,
+      "segment_index": 70,
+      "scene": "friends_cafe",
+      "split": "development",
+      "text": "I ask my friend what's up when she arrives looking unusually excited about the message on her phone.",
+      "annotations": [
+        {
+          "canonical": "what is up",
+          "surface": "what's up",
+          "char_start": 16,
+          "char_end": 25,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression",
+            "idiom"
+          ],
+          "register_tags": [
+            "informal"
+          ],
+          "regions": [],
+          "cautions": [],
+          "source": "https://dictionary.cambridge.org/us/dictionary/english/what-s-up?q=what%27s+up",
+          "requirement": "must_include",
+          "token_positions": [
+            4,
+            5
+          ],
+          "sense_en": "ask casually what is happening",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 72,
+      "segment_index": 71,
+      "scene": "friends_cafe",
+      "split": "development",
+      "text": "We usually hang out here after work because the cafe remains open later than most shops in the neighborhood.",
+      "annotations": [
+        {
+          "canonical": "hang out",
+          "surface": "hang out",
+          "char_start": 11,
+          "char_end": 19,
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [
+            "informal"
+          ],
+          "regions": [],
+          "cautions": [],
+          "source": "https://dictionary.cambridge.org/us/dictionary/english/hang-out",
+          "requirement": "must_include",
+          "token_positions": [
+            2,
+            3
+          ],
+          "sense_en": "spend time relaxing socially",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 73,
+      "segment_index": 72,
+      "scene": "friends_cafe",
+      "split": "development",
+      "text": "Daniel needs to chill out after a stressful afternoon, so he orders a drink and stops checking his messages.",
+      "annotations": [
+        {
+          "canonical": "chill out",
+          "surface": "chill out",
+          "char_start": 16,
+          "char_end": 25,
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [
+            "informal"
+          ],
+          "regions": [],
+          "cautions": [],
+          "source": "https://www.collinsdictionary.com/dictionary/english/chill-out",
+          "requirement": "must_include",
+          "token_positions": [
+            3,
+            4
+          ],
+          "sense_en": "relax",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 74,
+      "segment_index": 73,
+      "scene": "friends_cafe",
+      "split": "development",
+      "text": "We catch up after several months apart, sharing stories about our families and the projects that kept us busy.",
+      "annotations": [
+        {
+          "canonical": "catch up",
+          "surface": "catch up",
+          "char_start": 3,
+          "char_end": 11,
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            1,
+            2
+          ],
+          "sense_en": "exchange news after being apart",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 75,
+      "segment_index": 74,
+      "scene": "friends_cafe",
+      "split": "development",
+      "text": "The atmosphere helps us break the ice with the new member of our group who moved here recently.",
+      "annotations": [
+        {
+          "canonical": "break the ice",
+          "surface": "break the ice",
+          "char_start": 24,
+          "char_end": 37,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            4,
+            5,
+            6
+          ],
+          "sense_en": "make people feel more comfortable together",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 76,
+      "segment_index": 75,
+      "scene": "friends_cafe",
+      "split": "development",
+      "text": "I had a go at describing the surprise in English, and my friends understood almost everything I said.",
+      "annotations": [
+        {
+          "canonical": "have a go",
+          "surface": "had a go",
+          "char_start": 2,
+          "char_end": 10,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression",
+            "collocation"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            1,
+            2,
+            3
+          ],
+          "sense_en": "try an activity",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 77,
+      "segment_index": 76,
+      "scene": "friends_cafe",
+      "split": "development",
+      "text": "The menu lists coffee, tea, milk, and three varieties of cake, with their prices printed beside each item clearly.",
+      "annotations": []
+    },
+    {
+      "cue": 78,
+      "segment_index": 77,
+      "scene": "friends_cafe",
+      "split": "development",
+      "text": "The waiter carries a brown tray to the window table while another customer searches quietly for a missing glove.",
+      "annotations": []
+    },
+    {
+      "cue": 79,
+      "segment_index": 78,
+      "scene": "friends_cafe",
+      "split": "development",
+      "text": "Nobody does it for a reward, because helping our friends organize a small celebration is enjoyable by itself.",
+      "annotations": [
+        {
+          "canonical": "do it",
+          "surface": "does it",
+          "char_start": 7,
+          "char_end": 14,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_reject",
+          "token_positions": [
+            1,
+            2
+          ],
+          "sense_en": "",
+          "rationale": "Ordinary performance of the referenced action."
+        },
+        {
+          "canonical": "for a reward",
+          "surface": "for a reward",
+          "char_start": 15,
+          "char_end": 27,
+          "category": "collocation",
+          "allowed_categories": [
+            "collocation"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "editorial contextual annotation",
+          "requirement": "allowed",
+          "token_positions": [
+            3,
+            4,
+            5
+          ],
+          "sense_en": "in exchange for recognition or payment",
+          "rationale": "Acceptable incidental expression; not a mandatory target."
+        }
+      ]
+    },
+    {
+      "cue": 80,
+      "segment_index": 79,
+      "scene": "friends_cafe",
+      "split": "development",
+      "text": "We promise to keep in touch after Maya leaves for her new job in another city next month.",
+      "annotations": [
+        {
+          "canonical": "keep in touch",
+          "surface": "keep in touch",
+          "char_start": 14,
+          "char_end": 27,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression",
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            3,
+            4,
+            5
+          ],
+          "sense_en": "maintain contact",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 81,
+      "segment_index": 80,
+      "scene": "journey",
+      "split": "development",
+      "text": "The next morning our friends travel to the coast, carrying sandwiches and a printed map of the local walking routes.",
+      "annotations": []
+    },
+    {
+      "cue": 82,
+      "segment_index": 81,
+      "scene": "journey",
+      "split": "development",
+      "text": "We set off early because the road becomes crowded when visitors leave the city during the weekend holidays.",
+      "annotations": [
+        {
+          "canonical": "set off",
+          "surface": "set off",
+          "char_start": 3,
+          "char_end": 10,
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            1,
+            2
+          ],
+          "sense_en": "begin a journey",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 83,
+      "segment_index": 82,
+      "scene": "journey",
+      "split": "development",
+      "text": "Daniel asks everyone to watch out for bicycles before stepping across the narrow street beside the bus station.",
+      "annotations": [
+        {
+          "canonical": "watch out",
+          "surface": "watch out",
+          "char_start": 24,
+          "char_end": 33,
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            4,
+            5
+          ],
+          "sense_en": "be alert to danger",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 84,
+      "segment_index": 83,
+      "scene": "journey",
+      "split": "development",
+      "text": "We find out that the first bus has been canceled after reading a notice beside the closed ticket window.",
+      "annotations": [
+        {
+          "canonical": "find out",
+          "surface": "find out",
+          "char_start": 3,
+          "char_end": 11,
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            1,
+            2
+          ],
+          "sense_en": "discover information",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 85,
+      "segment_index": 84,
+      "scene": "journey",
+      "split": "development",
+      "text": "Maya suggests we take a break while another member of the group searches for a different route online.",
+      "annotations": [
+        {
+          "canonical": "take a break",
+          "surface": "take a break",
+          "char_start": 17,
+          "char_end": 29,
+          "category": "collocation",
+          "allowed_categories": [
+            "collocation"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            3,
+            4,
+            5
+          ],
+          "sense_en": "pause an activity to rest",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 86,
+      "segment_index": 85,
+      "scene": "journey",
+      "split": "development",
+      "text": "We must make sure that the replacement bus stops near the coastal path rather than the distant industrial harbor.",
+      "annotations": [
+        {
+          "canonical": "make sure",
+          "surface": "make sure",
+          "char_start": 8,
+          "char_end": 17,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            2,
+            3
+          ],
+          "sense_en": "check or ensure that something is true",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 87,
+      "segment_index": 86,
+      "scene": "journey",
+      "split": "development",
+      "text": "The driver promises to drop us off beside the museum after delivering the other passengers to the central station.",
+      "annotations": [
+        {
+          "canonical": "drop off",
+          "surface": "drop us off",
+          "char_start": 23,
+          "char_end": 34,
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            4,
+            6
+          ],
+          "sense_en": "deliver someone to a place",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 88,
+      "segment_index": 87,
+      "scene": "journey",
+      "split": "development",
+      "text": "One traveler asks us to look after her small bag while she purchases a bottle of water from the kiosk.",
+      "annotations": [
+        {
+          "canonical": "look after",
+          "surface": "look after",
+          "char_start": 24,
+          "char_end": 34,
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            5,
+            6
+          ],
+          "sense_en": "take responsibility for someone's belongings",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 89,
+      "segment_index": 88,
+      "scene": "journey",
+      "split": "development",
+      "text": "We run out of clean cups before lunch, so everyone has to use their own drinking bottle instead.",
+      "annotations": [
+        {
+          "canonical": "run out of",
+          "surface": "run out of",
+          "char_start": 3,
+          "char_end": 13,
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            1,
+            2,
+            3
+          ],
+          "sense_en": "have no more of something",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 90,
+      "segment_index": 89,
+      "scene": "journey",
+      "split": "development",
+      "text": "The fog gradually disappears and we can carry on walking along the path without worrying about the distant cliffs.",
+      "annotations": [
+        {
+          "canonical": "carry on",
+          "surface": "carry on",
+          "char_start": 40,
+          "char_end": 48,
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            7,
+            8
+          ],
+          "sense_en": "continue",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 91,
+      "segment_index": 90,
+      "scene": "journey",
+      "split": "development",
+      "text": "Our guide tells us to slow down because several younger children are still climbing the steep steps behind our group.",
+      "annotations": [
+        {
+          "canonical": "slow down",
+          "surface": "slow down",
+          "char_start": 22,
+          "char_end": 31,
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            5,
+            6
+          ],
+          "sense_en": "reduce speed",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 92,
+      "segment_index": 91,
+      "scene": "journey",
+      "split": "development",
+      "text": "I picked a smooth stone up from the sand and examined the unusual pattern before returning it to the beach.",
+      "annotations": [
+        {
+          "canonical": "pick up",
+          "surface": "picked a smooth stone up",
+          "char_start": 2,
+          "char_end": 26,
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            1,
+            5
+          ],
+          "sense_en": "learn incidentally or lift an object, as indicated by the sentence",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 93,
+      "segment_index": 92,
+      "scene": "journey",
+      "split": "development",
+      "text": "We came across an old photograph of the village in a display inside the small museum near the harbor.",
+      "annotations": [
+        {
+          "canonical": "come across",
+          "surface": "came across",
+          "char_start": 3,
+          "char_end": 14,
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            1,
+            2
+          ],
+          "sense_en": "find something unexpectedly",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 94,
+      "segment_index": 93,
+      "scene": "journey",
+      "split": "development",
+      "text": "The museum opens on a daily basis during summer, but closes on Mondays throughout the colder winter months.",
+      "annotations": [
+        {
+          "canonical": "on a daily basis",
+          "surface": "on a daily basis",
+          "char_start": 17,
+          "char_end": 33,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            3,
+            4,
+            5,
+            6
+          ],
+          "sense_en": "every day",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 95,
+      "segment_index": 94,
+      "scene": "journey",
+      "split": "development",
+      "text": "Visitors can sit down beside the window and read the information about boats while waiting for the guided tour.",
+      "annotations": [
+        {
+          "canonical": "sit down",
+          "surface": "sit down",
+          "char_start": 13,
+          "char_end": 21,
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            2,
+            3
+          ],
+          "sense_en": "take a seated position",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        },
+        {
+          "canonical": "wait for",
+          "surface": "waiting for",
+          "char_start": 83,
+          "char_end": 94,
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "editorial annotation QA",
+          "requirement": "allowed",
+          "token_positions": [
+            14,
+            15
+          ],
+          "sense_en": "remain until something happens",
+          "rationale": "Valid incidental lexical unit; no mandatory recall credit."
+        }
+      ]
+    },
+    {
+      "cue": 96,
+      "segment_index": 95,
+      "scene": "journey",
+      "split": "development",
+      "text": "A visitor tries to watch it in English, but the documentary only has subtitles in two other languages.",
+      "annotations": [
+        {
+          "canonical": "watch it in english",
+          "surface": "watch it in English",
+          "char_start": 19,
+          "char_end": 38,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_reject",
+          "token_positions": [
+            4,
+            5,
+            6,
+            7
+          ],
+          "sense_en": "",
+          "rationale": "Free verb-object-language description."
+        }
+      ]
+    },
+    {
+      "cue": 97,
+      "segment_index": 96,
+      "scene": "journey",
+      "split": "development",
+      "text": "The harbor contains six fishing boats and a yellow crane, and several workers are painting a wooden fence beside them.",
+      "annotations": []
+    },
+    {
+      "cue": 98,
+      "segment_index": 97,
+      "scene": "journey",
+      "split": "development",
+      "text": "A handwritten notice describes the measurements of the bridge and gives the date of its most recent structural inspection.",
+      "annotations": []
+    },
+    {
+      "cue": 99,
+      "segment_index": 98,
+      "scene": "journey",
+      "split": "development",
+      "text": "Maya says at least the rain has stopped, even though our afternoon bus will arrive later than expected.",
+      "annotations": [
+        {
+          "canonical": "at least",
+          "surface": "at least",
+          "char_start": 10,
+          "char_end": 18,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            2,
+            3
+          ],
+          "sense_en": "no less than; or recognize a positive point despite a problem",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 100,
+      "segment_index": 99,
+      "scene": "journey",
+      "split": "development",
+      "text": "We spend our spare time taking photographs and share the best pictures with the absent members of our group.",
+      "annotations": [
+        {
+          "canonical": "spare time",
+          "surface": "spare time",
+          "char_start": 13,
+          "char_end": 23,
+          "category": "collocation",
+          "allowed_categories": [
+            "collocation"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            3,
+            4
+          ],
+          "sense_en": "time available outside duties",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 101,
+      "segment_index": 100,
+      "scene": "home_evening",
+      "split": "development",
+      "text": "Back at home I describe the trip to my sister while she prepares a simple meal for our visiting grandparents.",
+      "annotations": []
+    },
+    {
+      "cue": 102,
+      "segment_index": 101,
+      "scene": "home_evening",
+      "split": "development",
+      "text": "She asks me to turn on the kitchen lamp because the window no longer provides enough light for cooking.",
+      "annotations": [
+        {
+          "canonical": "turn on",
+          "surface": "turn on",
+          "char_start": 15,
+          "char_end": 22,
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            4,
+            5
+          ],
+          "sense_en": "activate equipment",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 103,
+      "segment_index": 102,
+      "scene": "home_evening",
+      "split": "development",
+      "text": "We put the plates away after dinner and leave the clean cups on a towel beside the sink to dry.",
+      "annotations": [
+        {
+          "canonical": "put away",
+          "surface": "put the plates away",
+          "char_start": 3,
+          "char_end": 22,
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            1,
+            4
+          ],
+          "sense_en": "return items to storage",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 104,
+      "segment_index": 103,
+      "scene": "home_evening",
+      "split": "development",
+      "text": "My grandfather likes to bring up stories about the village whenever someone mentions a journey to the coast nearby.",
+      "annotations": [
+        {
+          "canonical": "bring up",
+          "surface": "bring up",
+          "char_start": 24,
+          "char_end": 32,
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            4,
+            5
+          ],
+          "sense_en": "introduce a topic into conversation",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 105,
+      "segment_index": 104,
+      "scene": "home_evening",
+      "split": "development",
+      "text": "Our grandmother asks everyone to calm down when several children begin describing their favorite moments at the same time.",
+      "annotations": [
+        {
+          "canonical": "calm down",
+          "surface": "calm down",
+          "char_start": 33,
+          "char_end": 42,
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            5,
+            6
+          ],
+          "sense_en": "become less agitated",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        },
+        {
+          "canonical": "at the same time",
+          "surface": "at the same time",
+          "char_start": 105,
+          "char_end": 121,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "editorial contextual annotation",
+          "requirement": "allowed",
+          "token_positions": [
+            15,
+            16,
+            17,
+            18
+          ],
+          "sense_en": "simultaneously",
+          "rationale": "Acceptable incidental expression; not a mandatory target."
+        }
+      ]
+    },
+    {
+      "cue": 106,
+      "segment_index": 105,
+      "scene": "home_evening",
+      "split": "development",
+      "text": "My sister will help out tomorrow if the community organizers need another person to check the registration forms upstairs.",
+      "annotations": [
+        {
+          "canonical": "help out",
+          "surface": "help out",
+          "char_start": 15,
+          "char_end": 23,
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            3,
+            4
+          ],
+          "sense_en": "assist someone",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 107,
+      "segment_index": 106,
+      "scene": "home_evening",
+      "split": "development",
+      "text": "I do not want to give up learning English merely because a difficult conversation makes me feel embarrassed occasionally.",
+      "annotations": [
+        {
+          "canonical": "give up",
+          "surface": "give up",
+          "char_start": 17,
+          "char_end": 24,
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            5,
+            6
+          ],
+          "sense_en": "stop trying",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        },
+        {
+          "canonical": "feel embarrassed",
+          "surface": "feel embarrassed",
+          "char_start": 91,
+          "char_end": 107,
+          "category": "collocation",
+          "allowed_categories": [
+            "collocation"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "editorial contextual annotation",
+          "requirement": "allowed",
+          "token_positions": [
+            16,
+            17
+          ],
+          "sense_en": "experience embarrassment",
+          "rationale": "Acceptable incidental expression; not a mandatory target."
+        }
+      ]
+    },
+    {
+      "cue": 108,
+      "segment_index": 107,
+      "scene": "home_evening",
+      "split": "development",
+      "text": "My grandmother says that small improvements add up over time, especially when a learner practices regularly and remains patient.",
+      "annotations": [
+        {
+          "canonical": "add up",
+          "surface": "add up",
+          "char_start": 44,
+          "char_end": 50,
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            6,
+            7
+          ],
+          "sense_en": "accumulate gradually",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        },
+        {
+          "canonical": "over time",
+          "surface": "over time",
+          "char_start": 51,
+          "char_end": 60,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "editorial contextual annotation",
+          "requirement": "allowed",
+          "token_positions": [
+            8,
+            9
+          ],
+          "sense_en": "as time passes",
+          "rationale": "Acceptable incidental expression; not a mandatory target."
+        }
+      ]
+    },
+    {
+      "cue": 109,
+      "segment_index": 108,
+      "scene": "home_evening",
+      "split": "development",
+      "text": "We can work out a convenient schedule together rather than repeatedly canceling lessons when our family responsibilities change unexpectedly.",
+      "annotations": [
+        {
+          "canonical": "work out",
+          "surface": "work out",
+          "char_start": 7,
+          "char_end": 15,
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            2,
+            3
+          ],
+          "sense_en": "determine a workable solution",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 110,
+      "segment_index": 109,
+      "scene": "home_evening",
+      "split": "development",
+      "text": "The children get along well despite having different interests and frequently disagreeing about which game they should play next.",
+      "annotations": [
+        {
+          "canonical": "get along",
+          "surface": "get along",
+          "char_start": 13,
+          "char_end": 22,
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            2,
+            3
+          ],
+          "sense_en": "have a harmonious relationship",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 111,
+      "segment_index": 110,
+      "scene": "home_evening",
+      "split": "development",
+      "text": "I still listen to stories before bed, sometimes using the same familiar recording that I enjoyed earlier in the week.",
+      "annotations": [
+        {
+          "canonical": "listen to",
+          "surface": "listen to",
+          "char_start": 8,
+          "char_end": 17,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression",
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            2,
+            3
+          ],
+          "sense_en": "pay attention to sound or speech",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 112,
+      "segment_index": 111,
+      "scene": "home_evening",
+      "split": "development",
+      "text": "We acquire language through repeated contact with meaningful speech, rather than through memorizing a list of disconnected grammar rules.",
+      "annotations": [
+        {
+          "canonical": "acquire language",
+          "surface": "acquire language",
+          "char_start": 3,
+          "char_end": 19,
+          "category": "collocation",
+          "allowed_categories": [
+            "collocation"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            1,
+            2
+          ],
+          "sense_en": "develop knowledge of a language",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 113,
+      "segment_index": 112,
+      "scene": "home_evening",
+      "split": "development",
+      "text": "There is a lot of useful information in those stories, including expressions that people use in ordinary daily conversations.",
+      "annotations": [
+        {
+          "canonical": "a lot of",
+          "surface": "a lot of",
+          "char_start": 9,
+          "char_end": 17,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            2,
+            3,
+            4
+          ],
+          "sense_en": "a large quantity of",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 114,
+      "segment_index": 113,
+      "scene": "home_evening",
+      "split": "development",
+      "text": "My sister explains the instructions over and over again until the children can complete the activity without assistance.",
+      "annotations": [
+        {
+          "canonical": "over and over again",
+          "surface": "over and over again",
+          "char_start": 36,
+          "char_end": 55,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            5,
+            6,
+            7,
+            8
+          ],
+          "sense_en": "repeatedly",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 115,
+      "segment_index": 114,
+      "scene": "home_evening",
+      "split": "development",
+      "text": "I now recognize patterns that once seemed confusing, and familiar recordings no longer require as much deliberate concentration as before.",
+      "annotations": [
+        {
+          "canonical": "recognize patterns",
+          "surface": "recognize patterns",
+          "char_start": 6,
+          "char_end": 24,
+          "category": "collocation",
+          "allowed_categories": [
+            "collocation"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            2,
+            3
+          ],
+          "sense_en": "notice recurring structures",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 116,
+      "segment_index": 115,
+      "scene": "home_evening",
+      "split": "development",
+      "text": "The exercise makes learning easier for our youngest students, especially when they can discuss the pictures with their older classmates.",
+      "annotations": [
+        {
+          "canonical": "makes learning",
+          "surface": "makes learning",
+          "char_start": 13,
+          "char_end": 27,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_reject",
+          "token_positions": [
+            2,
+            3
+          ],
+          "sense_en": "",
+          "rationale": "Incomplete fragment of a causative construction."
+        }
+      ]
+    },
+    {
+      "cue": 117,
+      "segment_index": 116,
+      "scene": "home_evening",
+      "split": "development",
+      "text": "My sister asks me to forget any detailed travel plans for tomorrow because the weather forecast predicts heavy rain overnight.",
+      "annotations": [
+        {
+          "canonical": "forget any plans",
+          "surface": "forget any detailed travel plans",
+          "char_start": 21,
+          "char_end": 53,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_reject",
+          "token_positions": [
+            5,
+            6,
+            7,
+            8,
+            9
+          ],
+          "sense_en": "",
+          "rationale": "Ordinary verb with a temporary object, not a phrasal verb."
+        },
+        {
+          "canonical": "heavy rain",
+          "surface": "heavy rain",
+          "char_start": 105,
+          "char_end": 115,
+          "category": "collocation",
+          "allowed_categories": [
+            "collocation"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "editorial contextual annotation",
+          "requirement": "allowed",
+          "token_positions": [
+            17,
+            18
+          ],
+          "sense_en": "rain falling in a large amount",
+          "rationale": "Acceptable incidental expression; not a mandatory target."
+        },
+        {
+          "canonical": "weather forecast",
+          "surface": "weather forecast",
+          "char_start": 79,
+          "char_end": 95,
+          "category": "collocation",
+          "allowed_categories": [
+            "collocation"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "editorial contextual annotation",
+          "requirement": "allowed",
+          "token_positions": [
+            14,
+            15
+          ],
+          "sense_en": "a prediction of weather",
+          "rationale": "Acceptable incidental expression; not a mandatory target."
+        }
+      ]
+    },
+    {
+      "cue": 118,
+      "segment_index": 117,
+      "scene": "home_evening",
+      "split": "development",
+      "text": "She says the repair should be easy enough if we have the correct tools and follow the printed instructions carefully.",
+      "annotations": [
+        {
+          "canonical": "be easy enough",
+          "surface": "be easy enough",
+          "char_start": 27,
+          "char_end": 41,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_reject",
+          "token_positions": [
+            5,
+            6,
+            7
+          ],
+          "sense_en": "",
+          "rationale": "Grammar pattern rather than a complete lexical expression."
+        }
+      ]
+    },
+    {
+      "cue": 119,
+      "segment_index": 118,
+      "scene": "home_evening",
+      "split": "development",
+      "text": "The box contains a small screwdriver, two metal brackets, and four identical screws wrapped separately in a transparent plastic packet.",
+      "annotations": []
+    },
+    {
+      "cue": 120,
+      "segment_index": 119,
+      "scene": "home_evening",
+      "split": "development",
+      "text": "I say see you to our grandparents at the door and promise to visit again after the workshop next week.",
+      "annotations": [
+        {
+          "canonical": "see you",
+          "surface": "see you",
+          "char_start": 6,
+          "char_end": 13,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            2,
+            3
+          ],
+          "sense_en": "a farewell before a future meeting",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 121,
+      "segment_index": 120,
+      "scene": "new_project",
+      "split": "holdout",
+      "text": "A month later our neighborhood starts a new project, and unfamiliar volunteers arrive with different expectations about the work ahead.",
+      "annotations": []
+    },
+    {
+      "cue": 122,
+      "segment_index": 121,
+      "scene": "new_project",
+      "split": "holdout",
+      "text": "We need to get the hang of the equipment before allowing visitors to operate it without close supervision.",
+      "annotations": [
+        {
+          "canonical": "get the hang of",
+          "surface": "get the hang of",
+          "char_start": 11,
+          "char_end": 26,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            3,
+            4,
+            5,
+            6
+          ],
+          "sense_en": "learn how to do something",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        },
+        {
+          "canonical": "close supervision",
+          "surface": "close supervision",
+          "char_start": 88,
+          "char_end": 105,
+          "category": "collocation",
+          "allowed_categories": [
+            "collocation"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "editorial contextual annotation",
+          "requirement": "allowed",
+          "token_positions": [
+            16,
+            17
+          ],
+          "sense_en": "careful monitoring",
+          "rationale": "Acceptable incidental expression; not a mandatory target."
+        }
+      ]
+    },
+    {
+      "cue": 123,
+      "segment_index": 122,
+      "scene": "new_project",
+      "split": "holdout",
+      "text": "The coordinator is down to earth and explains every task clearly without trying to impress us with technical language.",
+      "annotations": [
+        {
+          "canonical": "down to earth",
+          "surface": "down to earth",
+          "char_start": 19,
+          "char_end": 32,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            3,
+            4,
+            5
+          ],
+          "sense_en": "practical and unpretentious",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 124,
+      "segment_index": 123,
+      "scene": "new_project",
+      "split": "holdout",
+      "text": "I feel under the weather this morning, so another volunteer offers to handle the announcements while I rest briefly.",
+      "annotations": [
+        {
+          "canonical": "under the weather",
+          "surface": "under the weather",
+          "char_start": 7,
+          "char_end": 24,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            2,
+            3,
+            4
+          ],
+          "sense_en": "feeling unwell",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 125,
+      "segment_index": 124,
+      "scene": "new_project",
+      "split": "holdout",
+      "text": "We should not cut corners when checking safety equipment, even if the inspection takes longer than our original schedule allowed.",
+      "annotations": [
+        {
+          "canonical": "cut corners",
+          "surface": "cut corners",
+          "char_start": 14,
+          "char_end": 25,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            3,
+            4
+          ],
+          "sense_en": "avoid proper procedures to save effort",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        },
+        {
+          "canonical": "safety equipment",
+          "surface": "safety equipment",
+          "char_start": 40,
+          "char_end": 56,
+          "category": "collocation",
+          "allowed_categories": [
+            "collocation"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "editorial contextual annotation",
+          "requirement": "allowed",
+          "token_positions": [
+            7,
+            8
+          ],
+          "sense_en": "equipment used to protect people",
+          "rationale": "Acceptable incidental expression; not a mandatory target."
+        }
+      ]
+    },
+    {
+      "cue": 126,
+      "segment_index": 125,
+      "scene": "new_project",
+      "split": "holdout",
+      "text": "One volunteer accidentally let the cat out of the bag about the surprise guest during lunch.",
+      "annotations": [
+        {
+          "canonical": "let the cat out of the bag",
+          "surface": "let the cat out of the bag",
+          "char_start": 27,
+          "char_end": 53,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9
+          ],
+          "sense_en": "reveal a secret accidentally",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 127,
+      "segment_index": 126,
+      "scene": "new_project",
+      "split": "holdout",
+      "text": "The gardener physically cut corners from the square fabric so that it would fit around the curved flower container outside.",
+      "annotations": [
+        {
+          "canonical": "cut corners",
+          "surface": "cut corners",
+          "char_start": 24,
+          "char_end": 35,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_reject",
+          "token_positions": [
+            3,
+            4
+          ],
+          "sense_en": "avoid proper procedures to save effort",
+          "rationale": "Literal ordinary use; exclude this proposed figurative/formulaic interpretation."
+        }
+      ]
+    },
+    {
+      "cue": 128,
+      "segment_index": 127,
+      "scene": "new_project",
+      "split": "holdout",
+      "text": "A builder placed a large model under the weather chart on the wall, where the two diagrams could be compared easily.",
+      "annotations": [
+        {
+          "canonical": "under the weather",
+          "surface": "under the weather",
+          "char_start": 31,
+          "char_end": 48,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_reject",
+          "token_positions": [
+            6,
+            7,
+            8
+          ],
+          "sense_en": "feeling unwell",
+          "rationale": "Literal ordinary use; exclude this proposed figurative/formulaic interpretation."
+        }
+      ]
+    },
+    {
+      "cue": 129,
+      "segment_index": 128,
+      "scene": "new_project",
+      "split": "holdout",
+      "text": "Our team will go the extra mile to help visitors who cannot easily read the small print on registration forms.",
+      "annotations": [
+        {
+          "canonical": "go the extra mile",
+          "surface": "go the extra mile",
+          "char_start": 14,
+          "char_end": 31,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            3,
+            4,
+            5,
+            6
+          ],
+          "sense_en": "make more effort than normally expected",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 130,
+      "segment_index": 129,
+      "scene": "new_project",
+      "split": "holdout",
+      "text": "We can call it a day after the final equipment check, because nobody needs to remain in the building overnight.",
+      "annotations": [
+        {
+          "canonical": "call it a day",
+          "surface": "call it a day",
+          "char_start": 7,
+          "char_end": 20,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            2,
+            3,
+            4,
+            5
+          ],
+          "sense_en": "stop working for the day",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 131,
+      "segment_index": 130,
+      "scene": "new_project",
+      "split": "holdout",
+      "text": "I need to take a rain check on dinner because my sister has asked me to collect her from the station.",
+      "annotations": [
+        {
+          "canonical": "take a rain check",
+          "surface": "take a rain check",
+          "char_start": 10,
+          "char_end": 27,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [
+            "informal"
+          ],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            3,
+            4,
+            5,
+            6
+          ],
+          "sense_en": "decline an invitation while suggesting another occasion",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 132,
+      "segment_index": 131,
+      "scene": "new_project",
+      "split": "holdout",
+      "text": "The coordinator promises that the registration problem will be a piece of cake once the missing forms finally arrive.",
+      "annotations": [
+        {
+          "canonical": "a piece of cake",
+          "surface": "a piece of cake",
+          "char_start": 63,
+          "char_end": 78,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [
+            "informal"
+          ],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            9,
+            10,
+            11,
+            12
+          ],
+          "sense_en": "something easy",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 133,
+      "segment_index": 132,
+      "scene": "new_project",
+      "split": "holdout",
+      "text": "Her explanation is spot on, and everyone understands why the visitors were directed to the wrong entrance earlier that afternoon.",
+      "annotations": [
+        {
+          "canonical": "spot on",
+          "surface": "spot on",
+          "char_start": 19,
+          "char_end": 26,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression",
+            "idiom",
+            "collocation"
+          ],
+          "register_tags": [
+            "informal"
+          ],
+          "regions": [
+            "UK"
+          ],
+          "cautions": [],
+          "source": "https://dictionary.cambridge.org/us/dictionary/english/spot-on",
+          "requirement": "must_include",
+          "token_positions": [
+            3,
+            4
+          ],
+          "sense_en": "exactly correct",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 134,
+      "segment_index": 133,
+      "scene": "new_project",
+      "split": "holdout",
+      "text": "We are finally on the same page about the schedule after comparing the different messages that everyone received yesterday.",
+      "annotations": [
+        {
+          "canonical": "on the same page",
+          "surface": "on the same page",
+          "char_start": 15,
+          "char_end": 31,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            3,
+            4,
+            5,
+            6
+          ],
+          "sense_en": "share the same understanding",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 135,
+      "segment_index": 134,
+      "scene": "new_project",
+      "split": "holdout",
+      "text": "The editor draws a red circle on the same page as the photograph because there is no room on the facing page.",
+      "annotations": [
+        {
+          "canonical": "on the same page",
+          "surface": "on the same page",
+          "char_start": 30,
+          "char_end": 46,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_reject",
+          "token_positions": [
+            6,
+            7,
+            8,
+            9
+          ],
+          "sense_en": "share the same understanding",
+          "rationale": "Literal ordinary use; exclude this proposed figurative/formulaic interpretation."
+        }
+      ]
+    },
+    {
+      "cue": 136,
+      "segment_index": 135,
+      "scene": "new_project",
+      "split": "holdout",
+      "text": "A new volunteer admits that she cannot want to watch another demonstration without trying the equipment herself during the session.",
+      "annotations": [
+        {
+          "canonical": "want to watch",
+          "surface": "want to watch",
+          "char_start": 39,
+          "char_end": 52,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_reject",
+          "token_positions": [
+            7,
+            8,
+            9
+          ],
+          "sense_en": "",
+          "rationale": "Ordinary infinitive complement, not a lexical phrase."
+        }
+      ]
+    },
+    {
+      "cue": 137,
+      "segment_index": 136,
+      "scene": "new_project",
+      "split": "holdout",
+      "text": "Several boxes contain unused paper, spare pens, and a stack of blank labels that the printer delivered yesterday afternoon to reception.",
+      "annotations": []
+    },
+    {
+      "cue": 138,
+      "segment_index": 137,
+      "scene": "new_project",
+      "split": "holdout",
+      "text": "I do it because the neighborhood benefits from the project, although the work sometimes interrupts my ordinary weekend plans at home.",
+      "annotations": [
+        {
+          "canonical": "do it",
+          "surface": "do it",
+          "char_start": 2,
+          "char_end": 7,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_reject",
+          "token_positions": [
+            1,
+            2
+          ],
+          "sense_en": "",
+          "rationale": "Ordinary performance of the referenced action."
+        }
+      ]
+    },
+    {
+      "cue": 139,
+      "segment_index": 138,
+      "scene": "new_project",
+      "split": "holdout",
+      "text": "One volunteer gets input from the coordinator before writing a short announcement about the change to the afternoon schedule today.",
+      "annotations": [
+        {
+          "canonical": "get input",
+          "surface": "gets input",
+          "char_start": 14,
+          "char_end": 24,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_reject",
+          "token_positions": [
+            2,
+            3
+          ],
+          "sense_en": "",
+          "rationale": "Low-priority compositional combination in this context."
+        }
+      ]
+    },
+    {
+      "cue": 140,
+      "segment_index": 139,
+      "scene": "new_project",
+      "split": "holdout",
+      "text": "Our visitors exchange photographs of the finished project while the volunteers close the windows and move the remaining chairs into storage.",
+      "annotations": []
+    },
+    {
+      "cue": 141,
+      "segment_index": 140,
+      "scene": "unexpected_messages",
+      "split": "holdout",
+      "text": "On Friday our group discusses an unexpected message about the project while waiting for the evening train to leave the station.",
+      "annotations": [
+        {
+          "canonical": "wait for",
+          "surface": "waiting for",
+          "char_start": 76,
+          "char_end": 87,
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "editorial annotation QA",
+          "requirement": "allowed",
+          "token_positions": [
+            12,
+            13
+          ],
+          "sense_en": "remain until something happens",
+          "rationale": "Valid incidental lexical unit; no mandatory recall credit."
+        }
+      ]
+    },
+    {
+      "cue": 142,
+      "segment_index": 141,
+      "scene": "unexpected_messages",
+      "split": "holdout",
+      "text": "Daniel says that helping the shy visitor find her family made my day, and he is still smiling about it.",
+      "annotations": [
+        {
+          "canonical": "make someone's day",
+          "surface": "made my day",
+          "char_start": 57,
+          "char_end": 68,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            10,
+            12
+          ],
+          "sense_en": "make someone very happy",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 143,
+      "segment_index": 142,
+      "scene": "unexpected_messages",
+      "split": "holdout",
+      "text": "Maya replies that the first public demonstration was a big deal for someone who had never spoken before a large audience.",
+      "annotations": [
+        {
+          "canonical": "a big deal",
+          "surface": "a big deal",
+          "char_start": 53,
+          "char_end": 63,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression",
+            "collocation"
+          ],
+          "register_tags": [
+            "informal"
+          ],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            8,
+            9,
+            10
+          ],
+          "sense_en": "an important matter or achievement",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 144,
+      "segment_index": 143,
+      "scene": "unexpected_messages",
+      "split": "holdout",
+      "text": "The volunteers hit it off immediately, although they came from different towns and had never worked together before that afternoon.",
+      "annotations": [
+        {
+          "canonical": "hit it off",
+          "surface": "hit it off",
+          "char_start": 15,
+          "char_end": 25,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            2,
+            3,
+            4
+          ],
+          "sense_en": "quickly form a friendly relationship",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 145,
+      "segment_index": 144,
+      "scene": "unexpected_messages",
+      "split": "holdout",
+      "text": "One person thinks Daniel is pulling her leg when he claims that a famous singer will attend the next event.",
+      "annotations": [
+        {
+          "canonical": "pull someone's leg",
+          "surface": "pulling her leg",
+          "char_start": 28,
+          "char_end": 43,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [
+            "informal"
+          ],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            5,
+            7
+          ],
+          "sense_en": "tease someone with an untrue claim",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 146,
+      "segment_index": 145,
+      "scene": "unexpected_messages",
+      "split": "holdout",
+      "text": "Maya confirms the message for real, explaining that the singer personally wrote to the coordinator after visiting our neighborhood last summer.",
+      "annotations": [
+        {
+          "canonical": "for real",
+          "surface": "for real",
+          "char_start": 26,
+          "char_end": 34,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression"
+          ],
+          "register_tags": [
+            "informal"
+          ],
+          "regions": [],
+          "cautions": [],
+          "source": "https://dictionary.cambridge.org/dictionary/english/real",
+          "requirement": "must_include",
+          "token_positions": [
+            4,
+            5
+          ],
+          "sense_en": "seriously or genuinely",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 147,
+      "segment_index": 146,
+      "scene": "unexpected_messages",
+      "split": "holdout",
+      "text": "Everyone hopes the coordinator can come through with the final arrangements before the visitors begin making expensive travel plans online.",
+      "annotations": [
+        {
+          "canonical": "come through",
+          "surface": "come through",
+          "char_start": 35,
+          "char_end": 47,
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            5,
+            6
+          ],
+          "sense_en": "fulfil a promise or provide what is needed",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 148,
+      "segment_index": 147,
+      "scene": "unexpected_messages",
+      "split": "holdout",
+      "text": "The assistant tells us to hold your horses because the date is still uncertain and the singer has not confirmed it.",
+      "annotations": [
+        {
+          "canonical": "hold your horses",
+          "surface": "hold your horses",
+          "char_start": 26,
+          "char_end": 42,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [
+            "informal"
+          ],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            5,
+            6,
+            7
+          ],
+          "sense_en": "wait and avoid acting too quickly",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 149,
+      "segment_index": 148,
+      "scene": "unexpected_messages",
+      "split": "holdout",
+      "text": "The photographs from the completed project hit different now that I know how much work the volunteers contributed behind the scenes.",
+      "annotations": [
+        {
+          "canonical": "hit different",
+          "surface": "hit different",
+          "char_start": 43,
+          "char_end": 56,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [
+            "slang"
+          ],
+          "regions": [],
+          "cautions": [],
+          "source": "https://en.wiktionary.org/wiki/hit_different",
+          "requirement": "must_include",
+          "token_positions": [
+            6,
+            7
+          ],
+          "sense_en": "feel unusually meaningful or affect someone differently",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        },
+        {
+          "canonical": "behind the scenes",
+          "surface": "behind the scenes",
+          "char_start": 114,
+          "char_end": 131,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "editorial contextual annotation",
+          "requirement": "allowed",
+          "token_positions": [
+            18,
+            19,
+            20
+          ],
+          "sense_en": "away from public view",
+          "rationale": "Acceptable incidental expression; not a mandatory target."
+        }
+      ]
+    },
+    {
+      "cue": 150,
+      "segment_index": 149,
+      "scene": "unexpected_messages",
+      "split": "holdout",
+      "text": "Daniel promises to give us a heads up when the schedule changes, rather than announcing it after we arrive.",
+      "annotations": [
+        {
+          "canonical": "give someone a heads up",
+          "surface": "give us a heads up",
+          "char_start": 19,
+          "char_end": 37,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom",
+            "fixed_expression",
+            "collocation"
+          ],
+          "register_tags": [
+            "informal"
+          ],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            3,
+            5,
+            6,
+            7
+          ],
+          "sense_en": "warn or inform someone in advance",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        },
+        {
+          "canonical": "heads up",
+          "surface": "heads up",
+          "char_start": 29,
+          "char_end": 37,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression",
+            "idiom",
+            "collocation"
+          ],
+          "register_tags": [
+            "informal"
+          ],
+          "regions": [],
+          "cautions": [],
+          "source": "editorial annotation QA",
+          "requirement": "allowed",
+          "token_positions": [
+            6,
+            7
+          ],
+          "sense_en": "advance information or warning",
+          "rationale": "Valid incidental lexical unit; no mandatory recall credit."
+        }
+      ]
+    },
+    {
+      "cue": 151,
+      "segment_index": 150,
+      "scene": "unexpected_messages",
+      "split": "holdout",
+      "text": "A maintenance worker physically pulled her leg free from the gap after the visitor slipped between two wooden steps nearby.",
+      "annotations": [
+        {
+          "canonical": "pull someone's leg",
+          "surface": "pulled her leg",
+          "char_start": 32,
+          "char_end": 46,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [
+            "informal"
+          ],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_reject",
+          "token_positions": [
+            4,
+            5,
+            6
+          ],
+          "sense_en": "tease someone with an untrue claim",
+          "rationale": "Literal ordinary use; exclude this proposed figurative/formulaic interpretation."
+        }
+      ]
+    },
+    {
+      "cue": 152,
+      "segment_index": 151,
+      "scene": "unexpected_messages",
+      "split": "holdout",
+      "text": "The guide says that actual horses should remain in their stalls, and asks the riders to hold your horses there carefully.",
+      "annotations": [
+        {
+          "canonical": "hold your horses",
+          "surface": "hold your horses",
+          "char_start": 88,
+          "char_end": 104,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [
+            "informal"
+          ],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_reject",
+          "token_positions": [
+            16,
+            17,
+            18
+          ],
+          "sense_en": "wait and avoid acting too quickly",
+          "rationale": "Literal ordinary use; exclude this proposed figurative/formulaic interpretation."
+        }
+      ]
+    },
+    {
+      "cue": 153,
+      "segment_index": 152,
+      "scene": "unexpected_messages",
+      "split": "holdout",
+      "text": "The builder explains that a ball will come through the opening if someone drops it into the narrow pipe from above.",
+      "annotations": [
+        {
+          "canonical": "come through",
+          "surface": "come through",
+          "char_start": 38,
+          "char_end": 50,
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "allowed",
+          "token_positions": [
+            7,
+            8
+          ],
+          "sense_en": "pass through an opening",
+          "rationale": "Literal directional use is acceptable only without a figurative/slang interpretation."
+        }
+      ]
+    },
+    {
+      "cue": 154,
+      "segment_index": 153,
+      "scene": "unexpected_messages",
+      "split": "holdout",
+      "text": "I do it after checking the message, because replying to our coordinator is my ordinary responsibility during the project this month.",
+      "annotations": [
+        {
+          "canonical": "do it",
+          "surface": "do it",
+          "char_start": 2,
+          "char_end": 7,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_reject",
+          "token_positions": [
+            1,
+            2
+          ],
+          "sense_en": "",
+          "rationale": "Ordinary performance of the referenced action."
+        }
+      ]
+    },
+    {
+      "cue": 155,
+      "segment_index": 154,
+      "scene": "unexpected_messages",
+      "split": "holdout",
+      "text": "The timetable gives departure times in black lettering and marks the final service with a small red triangle beside its destination name.",
+      "annotations": []
+    },
+    {
+      "cue": 156,
+      "segment_index": 155,
+      "scene": "unexpected_messages",
+      "split": "holdout",
+      "text": "My phone displays a photograph of the empty station platform, and the battery indicator shows that only fourteen percent remains this evening.",
+      "annotations": []
+    },
+    {
+      "cue": 157,
+      "segment_index": 156,
+      "scene": "unexpected_messages",
+      "split": "holdout",
+      "text": "The message is really simple and clearly explains where everyone should wait before entering the building through the side entrance tomorrow.",
+      "annotations": [
+        {
+          "canonical": "really simple",
+          "surface": "really simple",
+          "char_start": 15,
+          "char_end": 28,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_reject",
+          "token_positions": [
+            3,
+            4
+          ],
+          "sense_en": "",
+          "rationale": "Ordinary degree adverb with an adjective."
+        }
+      ]
+    },
+    {
+      "cue": 158,
+      "segment_index": 157,
+      "scene": "unexpected_messages",
+      "split": "holdout",
+      "text": "We expect to get input from the venue manager before deciding which rooms will be available to the public during the event.",
+      "annotations": [
+        {
+          "canonical": "get input",
+          "surface": "get input",
+          "char_start": 13,
+          "char_end": 22,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_reject",
+          "token_positions": [
+            3,
+            4
+          ],
+          "sense_en": "",
+          "rationale": "Low-priority compositional combination in this context."
+        }
+      ]
+    },
+    {
+      "cue": 159,
+      "segment_index": 158,
+      "scene": "unexpected_messages",
+      "split": "holdout",
+      "text": "The volunteers ask whether the instructions will be easy enough for visitors who have never used this type of equipment before.",
+      "annotations": [
+        {
+          "canonical": "be easy enough",
+          "surface": "be easy enough",
+          "char_start": 49,
+          "char_end": 63,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_reject",
+          "token_positions": [
+            7,
+            8,
+            9
+          ],
+          "sense_en": "",
+          "rationale": "Grammar pattern rather than a complete lexical expression."
+        }
+      ]
+    },
+    {
+      "cue": 160,
+      "segment_index": 159,
+      "scene": "unexpected_messages",
+      "split": "holdout",
+      "text": "We close the discussion and quietly watch the final passengers board the train while a railway employee checks the doors beside each carriage.",
+      "annotations": []
+    },
+    {
+      "cue": 161,
+      "segment_index": 160,
+      "scene": "final_rehearsal",
+      "split": "holdout",
+      "text": "Before the next event our team holds a rehearsal, using unfamiliar examples to check whether the volunteers understand the instructions without assistance.",
+      "annotations": []
+    },
+    {
+      "cue": 162,
+      "segment_index": 161,
+      "scene": "final_rehearsal",
+      "split": "holdout",
+      "text": "The rehearsal went smoothly despite a delayed start, and the coordinator thanked everyone for remaining patient during the equipment checks.",
+      "annotations": [
+        {
+          "canonical": "go smoothly",
+          "surface": "went smoothly",
+          "char_start": 14,
+          "char_end": 27,
+          "category": "collocation",
+          "allowed_categories": [
+            "collocation"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            2,
+            3
+          ],
+          "sense_en": "proceed without significant problems",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 163,
+      "segment_index": 162,
+      "scene": "final_rehearsal",
+      "split": "holdout",
+      "text": "We learned the ropes by observing an experienced volunteer who explained why the usual procedures sometimes need small adjustments.",
+      "annotations": [
+        {
+          "canonical": "learn the ropes",
+          "surface": "learned the ropes",
+          "char_start": 3,
+          "char_end": 20,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            1,
+            2,
+            3
+          ],
+          "sense_en": "learn how an activity or organization works",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 164,
+      "segment_index": 163,
+      "scene": "final_rehearsal",
+      "split": "holdout",
+      "text": "A helpful colleague asks us to bear in mind that the visitors may be nervous about asking questions in public.",
+      "annotations": [
+        {
+          "canonical": "bear in mind",
+          "surface": "bear in mind",
+          "char_start": 31,
+          "char_end": 43,
+          "category": "fixed_expression",
+          "allowed_categories": [
+            "fixed_expression"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            6,
+            7,
+            8
+          ],
+          "sense_en": "remember a relevant consideration",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 165,
+      "segment_index": 164,
+      "scene": "final_rehearsal",
+      "split": "holdout",
+      "text": "The manager asks everyone to play it by ear if the singer arrives late and the published schedule becomes impossible.",
+      "annotations": [
+        {
+          "canonical": "play it by ear",
+          "surface": "play it by ear",
+          "char_start": 29,
+          "char_end": 43,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            5,
+            6,
+            7,
+            8
+          ],
+          "sense_en": "decide what to do as circumstances develop",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 166,
+      "segment_index": 165,
+      "scene": "final_rehearsal",
+      "split": "holdout",
+      "text": "One volunteer feels out of the loop because she missed the meeting where the changed arrangements were originally explained.",
+      "annotations": [
+        {
+          "canonical": "out of the loop",
+          "surface": "out of the loop",
+          "char_start": 20,
+          "char_end": 35,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            3,
+            4,
+            5,
+            6
+          ],
+          "sense_en": "uninformed about current plans or developments",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 167,
+      "segment_index": 166,
+      "scene": "final_rehearsal",
+      "split": "holdout",
+      "text": "Maya promises to fill her in before the event begins, including the information that was missing from the earlier email.",
+      "annotations": [
+        {
+          "canonical": "fill someone in",
+          "surface": "fill her in",
+          "char_start": 17,
+          "char_end": 28,
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            3,
+            5
+          ],
+          "sense_en": "give someone missing information",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 168,
+      "segment_index": 167,
+      "scene": "final_rehearsal",
+      "split": "holdout",
+      "text": "Daniel says that our tired coordinator deserves to take it easy during the weekend after managing so many unexpected problems recently.",
+      "annotations": [
+        {
+          "canonical": "take it easy",
+          "surface": "take it easy",
+          "char_start": 51,
+          "char_end": 63,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            8,
+            9,
+            10
+          ],
+          "sense_en": "relax or avoid overexertion",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 169,
+      "segment_index": 168,
+      "scene": "final_rehearsal",
+      "split": "holdout",
+      "text": "A visitor asks whether we can lend a hand with the heavy boxes that need to be moved upstairs before opening.",
+      "annotations": [
+        {
+          "canonical": "lend a hand",
+          "surface": "lend a hand",
+          "char_start": 30,
+          "char_end": 41,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            6,
+            7,
+            8
+          ],
+          "sense_en": "help",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 170,
+      "segment_index": 169,
+      "scene": "final_rehearsal",
+      "split": "holdout",
+      "text": "We keep an eye on the entrance while another volunteer assists the visitors who are waiting beside the information desk.",
+      "annotations": [
+        {
+          "canonical": "keep an eye on",
+          "surface": "keep an eye on",
+          "char_start": 3,
+          "char_end": 17,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "sense_en": "watch or monitor",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 171,
+      "segment_index": 170,
+      "scene": "final_rehearsal",
+      "split": "holdout",
+      "text": "The coordinator says it is time to hit the road before the weather worsens and the evening traffic becomes much heavier.",
+      "annotations": [
+        {
+          "canonical": "hit the road",
+          "surface": "hit the road",
+          "char_start": 35,
+          "char_end": 47,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            7,
+            8,
+            9
+          ],
+          "sense_en": "leave or begin a journey",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 172,
+      "segment_index": 171,
+      "scene": "final_rehearsal",
+      "split": "holdout",
+      "text": "A technician tests whether a falling wooden block can physically hit the road surface without damaging the painted demonstration model nearby.",
+      "annotations": [
+        {
+          "canonical": "hit the road",
+          "surface": "hit the road",
+          "char_start": 65,
+          "char_end": 77,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_reject",
+          "token_positions": [
+            10,
+            11,
+            12
+          ],
+          "sense_en": "leave or begin a journey",
+          "rationale": "Literal ordinary use; exclude this proposed figurative/formulaic interpretation."
+        }
+      ]
+    },
+    {
+      "cue": 173,
+      "segment_index": 172,
+      "scene": "final_rehearsal",
+      "split": "holdout",
+      "text": "The supervisor makes a literal circular diagram and places a photograph out of the loop that surrounds the remaining pictures.",
+      "annotations": [
+        {
+          "canonical": "out of the loop",
+          "surface": "out of the loop",
+          "char_start": 72,
+          "char_end": 87,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_reject",
+          "token_positions": [
+            11,
+            12,
+            13,
+            14
+          ],
+          "sense_en": "uninformed about current plans or developments",
+          "rationale": "Literal ordinary use; exclude this proposed figurative/formulaic interpretation."
+        }
+      ]
+    },
+    {
+      "cue": 174,
+      "segment_index": 173,
+      "scene": "final_rehearsal",
+      "split": "holdout",
+      "text": "A volunteer says she prefers to watch it in English because the translated version sounds unfamiliar to her young children.",
+      "annotations": [
+        {
+          "canonical": "watch it in english",
+          "surface": "watch it in English",
+          "char_start": 32,
+          "char_end": 51,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_reject",
+          "token_positions": [
+            6,
+            7,
+            8,
+            9
+          ],
+          "sense_en": "",
+          "rationale": "Free verb-object-language description."
+        }
+      ]
+    },
+    {
+      "cue": 175,
+      "segment_index": 174,
+      "scene": "final_rehearsal",
+      "split": "holdout",
+      "text": "The technician forgot any elaborate seating plans that depended on using the room currently occupied by the unfinished exhibition upstairs.",
+      "annotations": [
+        {
+          "canonical": "forget any plans",
+          "surface": "forgot any elaborate seating plans",
+          "char_start": 15,
+          "char_end": 49,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_reject",
+          "token_positions": [
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
+          "sense_en": "",
+          "rationale": "Ordinary verb with a temporary object, not a phrasal verb."
+        }
+      ]
+    },
+    {
+      "cue": 176,
+      "segment_index": 175,
+      "scene": "final_rehearsal",
+      "split": "holdout",
+      "text": "The chart contains the names of twelve volunteers and the times when each person will arrive at the building during the morning tomorrow.",
+      "annotations": []
+    },
+    {
+      "cue": 177,
+      "segment_index": 176,
+      "scene": "final_rehearsal",
+      "split": "holdout",
+      "text": "We recognize the contribution of a volunteer who was on the ball and noticed the missing safety sign before opening time.",
+      "annotations": [
+        {
+          "canonical": "on the ball",
+          "surface": "on the ball",
+          "char_start": 53,
+          "char_end": 64,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            9,
+            10,
+            11
+          ],
+          "sense_en": "alert and quick to notice problems",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 178,
+      "segment_index": 177,
+      "scene": "final_rehearsal",
+      "split": "holdout",
+      "text": "Maya reminds us that experience makes a difference when unexpected problems appear and there is little time to consult written instructions.",
+      "annotations": [
+        {
+          "canonical": "make a difference",
+          "surface": "makes a difference",
+          "char_start": 32,
+          "char_end": 50,
+          "category": "collocation",
+          "allowed_categories": [
+            "collocation"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            5,
+            6,
+            7
+          ],
+          "sense_en": "have a meaningful effect",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 179,
+      "segment_index": 178,
+      "scene": "final_rehearsal",
+      "split": "holdout",
+      "text": "Nobody should jump to conclusions about a complaint before listening carefully to the visitor who actually experienced the difficulty firsthand.",
+      "annotations": [
+        {
+          "canonical": "jump to conclusions",
+          "surface": "jump to conclusions",
+          "char_start": 14,
+          "char_end": 33,
+          "category": "idiom",
+          "allowed_categories": [
+            "idiom"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "",
+          "requirement": "must_include",
+          "token_positions": [
+            2,
+            3,
+            4
+          ],
+          "sense_en": "decide prematurely without sufficient evidence",
+          "rationale": "Reusable expression or useful established collocation in this context."
+        }
+      ]
+    },
+    {
+      "cue": 180,
+      "segment_index": 179,
+      "scene": "final_rehearsal",
+      "split": "holdout",
+      "text": "The coordinator thanks the volunteers, closes the notebook, and checks that every light in the meeting room has been switched off safely.",
+      "annotations": [
+        {
+          "canonical": "switch off",
+          "surface": "switched off",
+          "char_start": 117,
+          "char_end": 129,
+          "category": "phrasal_verb",
+          "allowed_categories": [
+            "phrasal_verb"
+          ],
+          "register_tags": [],
+          "regions": [],
+          "cautions": [],
+          "source": "editorial annotation QA",
+          "requirement": "allowed",
+          "token_positions": [
+            19,
+            20
+          ],
+          "sense_en": "deactivate equipment",
+          "rationale": "Valid incidental lexical unit; no mandatory recall credit."
+        }
+      ]
+    }
+  ]
+}

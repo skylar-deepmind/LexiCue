@@ -1189,5 +1189,15 @@
     "sharedHint": "所有学习语言共用这些标签。",
     "search": "搜索标签",
     "namePlaceholder": "输入标签名称"
+  },
+  "expressionTags": {
+    "label": "语域与使用提示",
+    "informal": "口语",
+    "slang": "俚语",
+    "UK": "英式用法",
+    "US": "美式用法",
+    "offensive": "粗俗／可能冒犯",
+    "language_learning": "语言学习术语",
+    "inferred": "AI 判断"
   }
 }

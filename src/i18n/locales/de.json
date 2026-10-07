@@ -1206,5 +1206,15 @@
     "sharedHint": "Diese Tags werden für alle Lernsprachen verwendet.",
     "search": "Tags suchen",
     "namePlaceholder": "Tag-Namen eingeben"
+  },
+  "expressionTags": {
+    "label": "Sprachregister und Verwendung",
+    "informal": "Umgangssprachlich",
+    "slang": "Slang",
+    "UK": "Britischer Gebrauch",
+    "US": "Amerikanischer Gebrauch",
+    "offensive": "Anstößige Sprache",
+    "language_learning": "Sprachlernbegriff",
+    "inferred": "KI-Einschätzung"
   }
 }

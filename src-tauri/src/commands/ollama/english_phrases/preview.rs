@@ -187,6 +187,7 @@ mod tests {
                 category: "phrasal_verb".into(),
             },
             surface: "picked up".into(),
+            metadata: Default::default(),
         };
         let update = |operation, items| PreviewUpdate {
             operation,
