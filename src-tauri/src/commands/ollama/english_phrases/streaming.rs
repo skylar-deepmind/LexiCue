@@ -277,6 +277,9 @@ impl Decoder {
     }
 }
 
+// Keep the retry notifier, cancellation token, session and streaming callbacks explicit here;
+// bundling them would obscure the request boundary used by the pipeline.
+#[allow(clippy::too_many_arguments)]
 pub(super) async fn chat(
     client: &Client,
     config: &AiConfig,
@@ -540,7 +543,10 @@ pub(super) mod tests {
         let (result, batch) = decoder.finish(&receive).unwrap();
         assert!(!batch);
         assert_eq!(result.content, "🎬 \"\\\n");
-        assert_eq!(*fragments.lock().unwrap(), [result.content.clone()]);
+        assert_eq!(
+            fragments.lock().unwrap().as_slice(),
+            std::slice::from_ref(&result.content)
+        );
         assert_eq!(
             (result.prompt_tokens, result.completion_tokens),
             (Some(10), Some(20))

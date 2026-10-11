@@ -40,8 +40,7 @@ pub fn init_db(db_path: &Path) -> Result<Connection, rusqlite::Error> {
     migrate_legacy_constraints(&conn)?;
     backfill_phrase_provider(&conn)?;
     migrate_file_folder(&conn)?;
-    crate::commands::tags::migrate_legacy(&conn)
-        .map_err(|e| rusqlite::Error::InvalidParameterName(e))?;
+    crate::commands::tags::migrate_legacy(&conn).map_err(rusqlite::Error::InvalidParameterName)?;
     migrate_occurrence_hidden(&conn)?;
     migrate_review_log_schedule(&conn)?;
     migrate_english_learning(&conn)?;

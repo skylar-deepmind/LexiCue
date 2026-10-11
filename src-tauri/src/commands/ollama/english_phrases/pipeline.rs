@@ -202,6 +202,16 @@ impl Pipeline<'_> {
     }
 }
 
+impl Pipeline<'_> {
+    pub async fn run_events(
+        &self,
+        segments: &[SegmentRow],
+        preview: impl Fn(&[SegmentRow], PreviewUpdate) + Send + Sync,
+    ) -> Result<Vec<Accepted>, String> {
+        quality::run(self, segments, &preview).await
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::tests::mock_deepseek;
@@ -414,7 +424,7 @@ mod tests {
             token_positions: vec![6, 8],
             category: "phrasal_verb".into(),
         };
-        let items = accepted(&[source.clone()], &[candidate]);
+        let items = accepted(std::slice::from_ref(&source), &[candidate]);
         let preview = preview_phrase(&items[0], &source);
         let utf16: Vec<_> = source.text.encode_utf16().collect();
         let selected: Vec<_> = preview
@@ -668,15 +678,5 @@ mod tests {
         assert_ne!(rolled.0, committed.0);
         assert!(events.iter().any(|e| e.0 == rolled.0 && e.1 == "append"));
         assert_eq!(server.join().unwrap().len(), 2);
-    }
-}
-
-impl Pipeline<'_> {
-    pub async fn run_events(
-        &self,
-        segments: &[SegmentRow],
-        preview: impl Fn(&[SegmentRow], PreviewUpdate) + Send + Sync,
-    ) -> Result<Vec<Accepted>, String> {
-        quality::run(self, segments, &preview).await
     }
 }

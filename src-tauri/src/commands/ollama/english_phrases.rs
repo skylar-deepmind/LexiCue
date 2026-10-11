@@ -211,6 +211,8 @@ pub(super) fn diagnostic_transport_retry(file_id: i64) {
     diagnostics::transport_retry(file_id);
 }
 
+// Diagnostic records intentionally keep their fields explicit at the write boundary.
+#[allow(clippy::too_many_arguments)]
 fn record_batch(
     file_id: i64,
     stage: &str,
@@ -378,6 +380,8 @@ fn locating_feedback(content: &str, segments: &[SegmentRow]) -> String {
 }
 
 #[cfg(test)]
+// These test-only wrappers mirror the production request arguments to keep fixture setup direct.
+#[allow(clippy::too_many_arguments)]
 async fn request_extraction(
     client: &Client,
     config: &AiConfig,
@@ -404,6 +408,7 @@ async fn request_extraction(
 }
 
 #[cfg(test)]
+#[allow(clippy::too_many_arguments)]
 async fn request_extraction_streaming(
     client: &Client,
     config: &AiConfig,

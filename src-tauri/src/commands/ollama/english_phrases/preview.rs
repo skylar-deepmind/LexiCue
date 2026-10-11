@@ -38,7 +38,7 @@ fn records() -> &'static Mutex<HashMap<(i64, String), Record>> {
     RECORDS.get_or_init(Default::default)
 }
 fn prune(entries: &mut HashMap<(i64, String), Record>, now: i64) {
-    entries.retain(|_, r| r.ended.is_none_or(|ended| now - ended < 15 * 60 * 1000));
+    entries.retain(|_, r| r.ended.map_or(true, |ended| now - ended < 15 * 60 * 1000));
     let mut ended: Vec<_> = entries
         .iter()
         .filter_map(|(key, r)| r.ended.map(|time| (key.clone(), time)))

@@ -190,7 +190,7 @@ fn resolved_form(surface: &str) -> (String, Option<String>, bool) {
         }
     }
     let mut ranked: Vec<(&WordformCandidate, u64)> = inflections.into_values().collect();
-    ranked.sort_by(|left, right| right.1.cmp(&left.1));
+    ranked.sort_by_key(|candidate| std::cmp::Reverse(candidate.1));
     let runner_up = ranked.get(1).map(|candidate| candidate.1).unwrap_or(0);
     let self_frequency = detailed
         .iter()
@@ -371,12 +371,7 @@ pub(crate) fn tokenize_english_text(text: &str) -> Vec<(String, i32)> {
             {
                 return None;
             }
-            let surface = if word.eq_ignore_ascii_case(trimmed) {
-                word
-            } else {
-                word
-            };
-            Some((surface, i as i32))
+            Some((word, i as i32))
         })
         .collect()
 }

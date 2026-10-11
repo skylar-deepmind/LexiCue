@@ -153,7 +153,7 @@ impl<'a> IncrementalCandidates<'a> {
                     self.escaped = true;
                 } else if byte == b'"' {
                     self.string_start = None;
-                    if self.stack == [b'{'] {
+                    if self.stack == *b"{" {
                         self.root_key = serde_json::from_str::<String>(&self.text[start..=index])
                             .unwrap_or_default();
                     }
@@ -171,13 +171,13 @@ impl<'a> IncrementalCandidates<'a> {
             match byte {
                 b'"' => self.string_start = Some(index),
                 b'[' => {
-                    if self.stack == [b'{'] && self.root_key == "phrases" && self.last == b':' {
+                    if self.stack == *b"{" && self.root_key == "phrases" && self.last == b':' {
                         self.phrases = true;
                     }
                     self.stack.push(byte);
                 }
                 b'{' => {
-                    if self.phrases && self.stack == [b'{', b'['] {
+                    if self.phrases && self.stack == *b"{[" {
                         self.item_start = Some(index);
                     }
                     self.stack.push(byte);
@@ -187,7 +187,7 @@ impl<'a> IncrementalCandidates<'a> {
                         self.disabled = true;
                         break;
                     }
-                    if byte == b'}' && self.phrases && self.stack == [b'{', b'['] {
+                    if byte == b'}' && self.phrases && self.stack == *b"{[" {
                         if let Some(start) = self.item_start.take() {
                             let wrapped =
                                 format!("{{\"phrases\":[{}]}}", &self.text[start..=index]);
@@ -204,7 +204,7 @@ impl<'a> IncrementalCandidates<'a> {
                             }
                         }
                     }
-                    if byte == b']' && self.stack == [b'{'] {
+                    if byte == b']' && self.stack == *b"{" {
                         self.phrases = false;
                     }
                 }

@@ -393,7 +393,7 @@ pub fn import_payload(conn: &rusqlite::Connection, payload: ImportPayload) -> Re
             params![payload.name, payload.file_type, payload.content, payload.content_hash, now, payload.language],
         ).map_err(|e| e.to_string())?;
         let file_id = conn.last_insert_rowid();
-        super::tags::replace_file_tags(&conn, file_id, &payload.tag_ids, &payload.new_tag_names)?;
+        super::tags::replace_file_tags(conn, file_id, &payload.tag_ids, &payload.new_tag_names)?;
 
         {
             let mut stmt = conn
@@ -421,7 +421,7 @@ pub fn import_payload(conn: &rusqlite::Connection, payload: ImportPayload) -> Re
 
         // Apply an enabled high-frequency baseline only after the words exist.
         // It deliberately touches only previously unprocessed words.
-        frequency_baseline::apply_enabled_baseline(&conn, &payload.language)?;
+        frequency_baseline::apply_enabled_baseline(conn, &payload.language)?;
 
         let mut word_id_map: HashMap<String, i64> = HashMap::new();
         {
@@ -495,8 +495,8 @@ pub fn import_payload(conn: &rusqlite::Connection, payload: ImportPayload) -> Re
 
         let detected_phrases = match payload.language.as_str() {
             "en" => Vec::new(),
-            "zh" => detect_chinese_phrases_in_segments(&conn, &seg_texts)?,
-            "ja" => detect_japanese_phrases_in_segments(&conn, &seg_texts)?,
+            "zh" => detect_chinese_phrases_in_segments(conn, &seg_texts)?,
+            "ja" => detect_japanese_phrases_in_segments(conn, &seg_texts)?,
             _ => Vec::new(),
         };
 

@@ -3785,7 +3785,15 @@ mod tests {
             (Some(metadata.into()), Some(metadata.into()))
         );
 
-        let restored_word_ai: (Option<String>, Option<String>, Option<i64>, i64, Option<String>, Option<i64>) = target.query_row(
+        type RestoredWordAi = (
+            Option<String>,
+            Option<String>,
+            Option<i64>,
+            i64,
+            Option<String>,
+            Option<i64>,
+        );
+        let restored_word_ai: RestoredWordAi = target.query_row(
             "SELECT meaning_zh,usage_zh,collins_sense_id,meaning_edited,analysis_model,analyzed_at FROM occurrences LIMIT 1", [],
             |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?,row.get(4)?,row.get(5)?)),
         ).unwrap();
@@ -3810,7 +3818,16 @@ mod tests {
         assert_eq!(restored_ai.2, 1);
         assert!(restored_ai.3.contains("另一用法"));
         assert_eq!((restored_ai.4, restored_ai.5), (1, 2));
-        let restored_english: (Option<String>, Option<String>, i64, Option<i64>, Option<String>, String, i64) = target.query_row(
+        type RestoredEnglish = (
+            Option<String>,
+            Option<String>,
+            i64,
+            Option<i64>,
+            Option<String>,
+            String,
+            i64,
+        );
+        let restored_english: RestoredEnglish = target.query_row(
             "SELECT po.meaning_en,po.usage_en,po.meaning_en_edited,po.collins_sense_id,pde.meaning_en,pde.other_senses_en_json,pde.other_senses_en_edited FROM phrase_occurrences po JOIN phrase_dictionary_entries pde ON pde.text='hello world' LIMIT 1",
             [], |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?,row.get(4)?,row.get(5)?,row.get(6)?)),
         ).unwrap();

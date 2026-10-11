@@ -387,11 +387,11 @@ fn resolve_collins_word(
 ) -> Result<(String, String, Vec<collins::Sense>), String> {
     let mut matched = normalized.to_string();
     let mut match_kind = "exact".to_string();
-    let mut senses = collins::lookup_word(&path, &matched)?;
+    let mut senses = collins::lookup_word(path, &matched)?;
     if senses.is_empty() {
         let lemma = english::lemma_of_surface(normalized);
         if lemma != normalized {
-            let candidate_senses = collins::lookup_word(&path, &lemma)?;
+            let candidate_senses = collins::lookup_word(path, &lemma)?;
             if !candidate_senses.is_empty() {
                 matched = lemma.clone();
                 match_kind = "inflection".to_string();
@@ -404,7 +404,7 @@ fn resolve_collins_word(
             spelling_candidates.sort();
             spelling_candidates.dedup();
             for candidate in spelling_candidates {
-                let candidate_senses = collins::lookup_word(&path, &candidate)?;
+                let candidate_senses = collins::lookup_word(path, &candidate)?;
                 if !candidate_senses.is_empty() {
                     matched = candidate;
                     match_kind = "spelling_variant".to_string();
