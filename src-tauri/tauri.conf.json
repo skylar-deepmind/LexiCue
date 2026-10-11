@@ -1,13 +1,13 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "LexiCue",
-  "version": "0.3.14",
+  "version": "0.4.5",
   "identifier": "com.lexicue.app",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
-    "beforeDevCommand": "npm run dev",
-    "beforeBuildCommand": "npm run build"
+    "beforeDevCommand": "npm run prepare:gemma && npm run dev",
+    "beforeBuildCommand": "npm run prepare:gemma && npm run build"
   },
   "app": {
     "windows": [
@@ -36,7 +36,8 @@
       "resources/PHRASEDICT-LICENSE.txt",
       "resources/JMDICT-LICENSE.txt",
       "resources/CC-CEDICT-LICENSE.txt",
-      "resources/GERMAN-LICENSE.txt"
+      "resources/GERMAN-LICENSE.txt",
+      "resources/gemma-runtime/"
     ],
     "icon": [
       "icons/32x32.png",
@@ -46,7 +47,8 @@
       "icons/icon.ico"
     ],
     "macOS": {
-      "signingIdentity": "-"
+      "signingIdentity": "-",
+      "entitlements": "Entitlements.plist"
     },
     "android": {
       "debugApplicationIdSuffix": ".debug"

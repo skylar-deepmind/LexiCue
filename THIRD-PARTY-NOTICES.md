@@ -62,3 +62,14 @@ LexiCue is built on the following major open-source projects:
   this file and the bundled license files serve as the required attribution.
 - If you redistribute LexiCue or parts of it, keep these notices and the
   license files intact.
+
+## Embedded inference
+
+LiteRT-LM v0.16.0 and its dependency notices are copied from the pinned official
+C API archive into `resources/gemma-runtime` on desktop and the Android assets.
+Intel macOS embeds llama.cpp b9568 (MIT), including its Metal shader source.
+The prepared runtime contains `NOTICE.md` and the full engine licenses.
+Gemma weights are downloaded separately and are subject to
+[Google's Gemma terms](https://ai.google.dev/gemma/terms). See
+[the pinned catalog](src-tauri/native/gemma/models.json) and
+[validation status](docs/embedded-gemma.md).

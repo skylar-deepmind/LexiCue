@@ -1,0 +1,45 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+const mocks = vi.hoisted(() => ({ invoke: vi.fn(), listen: vi.fn() }));
+vi.mock('@tauri-apps/api/core', () => ({ invoke: mocks.invoke }));
+vi.mock('@tauri-apps/api/event', () => ({ listen: mocks.listen }));
+const snapshot = (sequence: number, state: 'idle' | 'running' | 'ready' | 'failed' = 'running', runId = 1) => ({ runId, sequence, state, currentSource: null, sources: [] });
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
+describe('dictionary initialization recovery', () => {
+  it('subscribes first, ignores stale snapshots and stops polling at completion', async () => {
+    vi.resetModules(); vi.useFakeTimers();
+    vi.stubGlobal('document', { visibilityState: 'visible', addEventListener: vi.fn() });
+    vi.stubGlobal('window', { addEventListener: vi.fn() });
+    let notify!: (event: { payload: unknown }) => void;
+    mocks.listen.mockImplementation(async (_, callback) => { notify = callback; });
+    mocks.invoke.mockImplementation(async () => { notify({ payload: snapshot(10, 'ready') }); return snapshot(9); });
+    const { useDictionaryStore, applyDictionarySnapshot } = await import('../dictionaryStore');
+    await useDictionaryStore.getState().initialize();
+    expect(mocks.listen.mock.invocationCallOrder[0]).toBeLessThan(mocks.invoke.mock.invocationCallOrder[0]);
+    expect(useDictionaryStore.getState().ready).toBe(true);
+    applyDictionarySnapshot(snapshot(99, 'running', 0));
+    expect(useDictionaryStore.getState().snapshot?.sequence).toBe(10);
+    const count = mocks.invoke.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(6000);
+    expect(mocks.invoke).toHaveBeenCalledTimes(count);
+  });
+  it('reestablishes failed subscriptions and synchronizes on foreground', async () => {
+    vi.resetModules(); vi.useFakeTimers(); mocks.listen.mockReset(); mocks.invoke.mockReset();
+    let foreground!: () => void;
+    vi.stubGlobal('document', { visibilityState: 'visible', addEventListener: (_: string, callback: () => void) => { foreground = callback; } });
+    vi.stubGlobal('window', { addEventListener: vi.fn() });
+    mocks.listen.mockRejectedValueOnce(new Error('subscription unavailable')).mockResolvedValue(() => {});
+    mocks.invoke.mockResolvedValue(snapshot(2));
+    const { useDictionaryStore } = await import('../dictionaryStore');
+    await useDictionaryStore.getState().initialize();
+    expect(useDictionaryStore.getState().error).toContain('subscription');
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(mocks.listen).toHaveBeenCalledTimes(2);
+    expect(useDictionaryStore.getState().snapshot?.sequence).toBe(2);
+    mocks.invoke.mockResolvedValue(snapshot(3, 'failed'));
+    foreground(); await vi.advanceTimersByTimeAsync(0);
+    expect(useDictionaryStore.getState().snapshot?.state).toBe('failed');
+    const count = mocks.invoke.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(6000);
+    expect(mocks.invoke).toHaveBeenCalledTimes(count);
+  });
+});

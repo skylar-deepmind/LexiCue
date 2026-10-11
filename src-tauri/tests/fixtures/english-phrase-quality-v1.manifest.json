@@ -1,0 +1,14 @@
+{
+  "srt_sha256": "7aba15eafd46aac709c9788733c0e1df1482563e030c1ad5ec5501ecc026e1a7",
+  "gold_sha256": "ab0164338a99204064338e3b5640c43cbe4044a5a866e0d1d023171a830a7455",
+  "core_sha256": "713a8df8aab58aa91752a6bfc11dc81510f562774cb69fd540049a50b75658ea",
+  "cues": 180,
+  "development_cues": 120,
+  "holdout_cues": 60,
+  "holdout_novel_expressions": 33,
+  "holdout_outside_core_expressions": 33,
+  "required_occurrences": 128,
+  "negative_controls": 34,
+  "freeze_note": "Frozen before optimized development/holdout scoring. Runtime never reads gold.",
+  "annotation_qa_note": "Before optimized holdout scoring: added valid incidental as soon as/wait for/switch off/heads up, and permitted documented category variations. No runtime expression bank changes."
+}

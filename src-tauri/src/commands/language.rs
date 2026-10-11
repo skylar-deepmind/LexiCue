@@ -115,6 +115,44 @@ pub fn tokenize_japanese_with_offsets(text: &str) -> Vec<JapaneseTokenWithOffset
     result
 }
 
+/// Complete reading spans, including particles; learning token positions stay unchanged.
+pub(crate) fn reader_japanese_spans(text: &str) -> Vec<(String, String, usize, usize)> {
+    let segmenter = segmenter()
+        .lock()
+        .expect("japanese segmenter lock poisoned");
+    let mut tokens = segmenter
+        .segment(Cow::Borrowed(text))
+        .expect("japanese segmentation failed");
+    let mut spans = Vec::new();
+    let mut offsets = std::collections::HashMap::new();
+    let mut utf16 = 0;
+    for (byte, c) in text.char_indices() {
+        offsets.insert(byte, utf16);
+        utf16 += c.len_utf16();
+    }
+    offsets.insert(text.len(), utf16);
+    for token in &mut tokens {
+        let surface = token.surface.to_string();
+        let start = token.byte_start;
+        let end = token.byte_end;
+        if !surface
+            .chars()
+            .any(|c| c.is_alphabetic() || c.is_alphanumeric())
+        {
+            continue;
+        }
+        let details = token.details();
+        let lemma = details
+            .get(7)
+            .filter(|s| **s != "*")
+            .copied()
+            .unwrap_or(&surface)
+            .to_string();
+        spans.push((surface, lemma, offsets[&start], offsets[&end]));
+    }
+    spans
+}
+
 #[tauri::command]
 pub fn tokenize_japanese(text: String) -> Result<Vec<JapaneseToken>, String> {
     Ok(tokenize_japanese_text(&text))

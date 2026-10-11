@@ -7,21 +7,58 @@ on:
   workflow_dispatch:
     inputs:
       platform:
-        description: 'Platform(s) to build (all / macos / windows / android)'
+        description: 'Build all / macos / windows / android, or run checks only'
         type: choice
         options:
           - all
           - macos
           - windows
           - android
+          - checks
         default: all
       draft:
         description: 'Create the GitHub release as a draft (updates stay invisible until published)'
         type: boolean
         default: false
+      publish_release:
+        description: 'Publish installers to a versioned GitHub Release (including from a branch)'
+        type: boolean
+        default: false
 
 jobs:
+  release-checks:
+    name: Release regression checks
+    runs-on: macos-latest
+    timeout-minutes: 35
+    permissions:
+      contents: read
+    env:
+      LINDERA_DICTIONARIES_PATH: ${{ github.workspace }}/scripts/cache/lindera
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify official sync endpoint
+        shell: bash
+        run: test -n "$LEXICUE_SYNC_ENDPOINT" && [[ "$LEXICUE_SYNC_ENDPOINT" == https://* ]]
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Cache Japanese tokenizer dictionary
+        uses: actions/cache@v4
+        with:
+          path: scripts/cache/lindera
+          key: ${{ runner.os }}-lindera-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-lindera-
+      - run: npm ci
+      - name: Run frontend and native regression checks
+        run: npm run check:release:tests
+
   macos:
+    needs: release-checks
     name: macOS (Apple Silicon / Intel)
     if: ${{ inputs.platform == 'all' || inputs.platform == 'macos' }}
     runs-on: macos-latest
@@ -31,6 +68,7 @@ jobs:
     env:
       SCCACHE_GHA_ENABLED: "true"
       RUSTC_WRAPPER: "sccache"
+      TAURI_ENV_TARGET_TRIPLE: ${{ matrix.target }}
     strategy:
       fail-fast: false
       matrix:
@@ -55,7 +93,25 @@ jobs:
         with:
           workspaces: src-tauri
       - run: npm ci
+      - name: Build macOS branch installer
+        if: ${{ github.ref != 'refs/heads/main' && !inputs.publish_release }}
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          NODE_OPTIONS: --use-system-ca
+        run: npm run tauri build -- --target ${{ matrix.target }} --bundles app,dmg
+      - name: Verify packaged Gemma library signing
+        if: ${{ github.ref != 'refs/heads/main' && !inputs.publish_release }}
+        run: node scripts/check-gemma-macos-signing.mjs --app src-tauri/target/${{ matrix.target }}/release/bundle/macos/LexiCue.app
+      - name: Upload macOS branch installer
+        if: ${{ github.ref != 'refs/heads/main' && !inputs.publish_release }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: LexiCue-macOS-${{ matrix.target }}-${{ github.sha }}
+          path: src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
+          if-no-files-found: error
       - uses: tauri-apps/tauri-action@v1
+        if: ${{ github.ref == 'refs/heads/main' || inputs.publish_release }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -68,8 +124,12 @@ jobs:
           prerelease: false
           retryAttempts: 2
           args: --target ${{ matrix.target }} --bundles app,dmg
+      - name: Verify packaged release Gemma library signing
+        if: ${{ github.ref == 'refs/heads/main' || inputs.publish_release }}
+        run: node scripts/check-gemma-macos-signing.mjs --app src-tauri/target/${{ matrix.target }}/release/bundle/macos/LexiCue.app
 
   windows:
+    needs: release-checks
     name: Windows Installer
     if: ${{ inputs.platform == 'all' || inputs.platform == 'windows' }}
     runs-on: windows-latest
@@ -95,7 +155,26 @@ jobs:
         with:
           workspaces: src-tauri
       - run: npm ci
+      - name: Verify embedded Windows runtime ABI
+        run: |
+          npm run prepare:gemma
+          python scripts/gemma-native-smoke.py --runtime src-tauri/resources/gemma-runtime --abi-only
+      - name: Build Windows branch installer
+        if: ${{ github.ref != 'refs/heads/main' && !inputs.publish_release }}
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          NODE_OPTIONS: --use-system-ca
+        run: npm run tauri build -- --bundles nsis
+      - name: Upload Windows branch installer
+        if: ${{ github.ref != 'refs/heads/main' && !inputs.publish_release }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: LexiCue-Windows-${{ github.sha }}
+          path: src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: error
       - uses: tauri-apps/tauri-action@v1
+        if: ${{ github.ref == 'refs/heads/main' || inputs.publish_release }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -111,6 +190,7 @@ jobs:
           args: --bundles nsis
 
   android:
+    needs: release-checks
     name: Android APK
     if: ${{ inputs.platform == 'all' || inputs.platform == 'android' }}
     runs-on: ubuntu-latest
@@ -122,10 +202,17 @@ jobs:
       - name: Verify official sync endpoint
         shell: bash
         run: test -n "$LEXICUE_SYNC_ENDPOINT" && [[ "$LEXICUE_SYNC_ENDPOINT" == https://* ]]
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Read Android toolchain version
+        id: android-toolchain
+        run: node -e "const fs = require('fs'); const t = require('./scripts/android-toolchain.json'); fs.appendFileSync(process.env.GITHUB_OUTPUT, 'java_major=' + t.javaMajor + '\n');"
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: ${{ steps.android-toolchain.outputs.java_major }}
       - uses: android-actions/setup-android@v3
         with:
           # The action's legacy default also requests the removed `tools`
@@ -133,7 +220,11 @@ jobs:
           packages: platform-tools
       - name: Install Android SDK packages
         run: |
-          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" "ndk;26.3.11579264"
+          sdk_api="$(node -p "require('./scripts/android-toolchain.json').sdkApi")"
+          build_tools="$(node -p "require('./scripts/android-toolchain.json').buildTools")"
+          ndk_version="$(node -p "require('./scripts/android-toolchain.json').ndkVersion")"
+          sdkmanager "platform-tools" "platforms;android-$sdk_api" "build-tools;$build_tools" "ndk;$ndk_version"
+          echo "NDK_HOME=$ANDROID_HOME/ndk/$ndk_version" >> "$GITHUB_ENV"
           yes | sdkmanager --licenses > /dev/null
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -141,35 +232,11 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
       - run: npm ci
       - name: Generate Android project
-        run: npx tauri android init
-      - name: Initialize Android secure credential context
-        run: |
-          set -euo pipefail
-          source_dir="src-tauri/android-template"
-          java_dir="src-tauri/gen/android/app/src/main/java"
-          install -D -m 0644 "$source_dir/MainActivity.kt" "$java_dir/com/lexicue/app/MainActivity.kt"
-          install -D -m 0644 "$source_dir/Keyring.kt" "$java_dir/io/crates/keyring/Keyring.kt"
-      - name: Install and verify LexiCue Android icons
-        shell: bash
-        run: |
-          set -euo pipefail
-          icon_source="src-tauri/icons/android"
-          resource_dir="src-tauri/gen/android/app/src/main/res"
-          cp -R "$icon_source/." "$resource_dir/"
-          while IFS= read -r source; do
-            relative="${source#${icon_source}/}"
-            cmp "$source" "$resource_dir/$relative"
-          done < <(find "$icon_source" -type f -print)
-          test -f "$resource_dir/mipmap-anydpi-v26/ic_launcher.xml"
-          test -f "$resource_dir/mipmap-xxxhdpi/ic_launcher.png"
-          test -f "$resource_dir/mipmap-xxxhdpi/ic_launcher_foreground.png"
-          test -f "$resource_dir/mipmap-xxxhdpi/ic_launcher_round.png"
+        run: npx tauri android init --ci --skip-targets-install
+      - name: Prepare Android activity, credentials, icons, and embedded Gemma
+        run: node scripts/prepare-android.mjs
       - name: Configure Android release signing
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -273,7 +340,8 @@ jobs:
         env:
           NODE_OPTIONS: --use-system-ca
         run: npx tauri android build --apk --target aarch64
-      - name: Sign, verify, and publish Android APK
+      - name: Sign, verify, and optionally publish Android APK
+        id: android-apk
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -289,7 +357,7 @@ jobs:
           signed_apk="$RUNNER_TEMP/lexicue-signed.apk"
           checksum_file="$RUNNER_TEMP/LexiCue_${version}_universal.apk.sha256"
           download_dir="$(mktemp -d)"
-          trap 'rm -rf "$download_dir" "$signed_apk" "$checksum_file"' EXIT
+          trap 'rm -rf "$download_dir" "$signed_apk"' EXIT
 
           if [ ! -s "$keystore_path" ]; then
             echo "Android keystore is missing or empty: $keystore_path"
@@ -379,11 +447,29 @@ jobs:
             exit 1
           fi
 
+          for native_asset in lib/arm64-v8a/liblexicue_gemma.so lib/arm64-v8a/liblitert-lm.so lib/arm64-v8a/libc++_shared.so assets/gemma-runtime/NOTICE.md assets/gemma-runtime/LICENSE-LiteRT-LM; do
+            if ! "$unzip_bin" -Z1 "$signed_apk" | grep -qx "$native_asset"; then
+              echo "Missing embedded Gemma asset: $native_asset"
+              exit 1
+            fi
+          done
+          if "$unzip_bin" -Z1 "$signed_apk" | grep -Eq '\.(gguf|litertlm|dylib|dll)$'; then
+            echo "APK contains model weights or desktop native libraries"
+            exit 1
+          fi
+
           apk_name="LexiCue_${version}_universal.apk"
           staged_apk="$RUNNER_TEMP/$apk_name"
           cp "$signed_apk" "$staged_apk"
           checksum="$(sha256sum "$staged_apk" | awk '{print $1}')"
           printf '%s  %s\n' "$checksum" "$apk_name" | tee "$checksum_file"
+          echo "apk_path=$staged_apk" >> "$GITHUB_OUTPUT"
+          echo "checksum_path=$checksum_file" >> "$GITHUB_OUTPUT"
+
+          if [ "$GITHUB_REF" != "refs/heads/main" ] && [ "${{ inputs.publish_release }}" != "true" ]; then
+            echo "Verified branch APK is ready for artifact upload"
+            exit 0
+          fi
 
           create_args=(--target "$GITHUB_SHA" --title "LexiCue v${version}" --notes "Android release ${version}")
           if [ "${{ inputs.draft }}" = "true" ]; then
@@ -415,3 +501,12 @@ jobs:
             exit 1
           fi
           echo "Published APK verified successfully (${published_checksum})"
+      - name: Upload Android branch installer
+        if: ${{ github.ref != 'refs/heads/main' && !inputs.publish_release }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: LexiCue-Android-arm64-${{ github.sha }}
+          path: |
+            ${{ steps.android-apk.outputs.apk_path }}
+            ${{ steps.android-apk.outputs.checksum_path }}
+          if-no-files-found: error

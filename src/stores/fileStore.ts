@@ -2,18 +2,20 @@ import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
 import { ask, message, open, save } from '@tauri-apps/plugin-dialog';
 import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
-import type { FileRecord, BackupPayload, FolderInfo } from '../lib/types';
+import type { FileRecord, BackupPayload, TagInfo, TagSelection } from '../lib/types';
 import { computeHash } from '../lib/hash';
 import { parseFile, type ParsedResult } from '../lib/parser';
 import type { Language } from '../lib/languages';
 import type { OccurrenceInput } from '../lib/types';
 import type { AiConfig } from '../lib/ai';
-import type { TrackSelection } from './youtubeStore';
+import { downloadError, EMPTY_BROWSER_SESSION, isYouTubeCancelled, type BrowserSession, type YouTubeDownloadError } from '../lib/youtubeDownload';
+import { trackLanguage } from '../lib/youtubeSelection';
+import type { TrackSelection, SubtitleResult } from './youtubeStore';
+import type { YouTubeLanguagePair } from '../lib/youtubeSelection';
 import { useYoutubeStore } from './youtubeStore';
 import { useFeedbackStore } from './feedbackStore';
 import { usePreferencesStore } from './preferencesStore';
 import i18n from '../i18n';
-import { isCancelledError } from '../lib/errors';
 import { errorCode } from '../lib/syncErrors';
 import { QueryCache } from '../lib/queryCache';
 import { invalidateCaches, registerCacheInvalidator } from '../lib/cacheInvalidation';
@@ -30,6 +32,8 @@ export interface DeleteJobStatus {
 }
 
 interface PendingImport {
+  tags: TagSelection;
+  youtubeSelection?: YouTubeLanguagePair;
   name: string;
   fileType: 'txt' | 'srt';
   content: string;
@@ -53,25 +57,45 @@ function sanitizeFileName(title: string): string {
   return trimmed.length > 0 ? trimmed : i18n.t('fileStore.youtubeTitle');
 }
 
+export interface YouTubeImportInput {
+  url: string; title: string; primary: TrackSelection; secondary?: TrackSelection | null;
+  language: Language; aiTranslate: boolean; config: AiConfig; session?: BrowserSession;
+  fallback?: 'ai' | 'original';
+}
+export interface YouTubeRecovery {
+  primary: SubtitleResult; error: YouTubeDownloadError; pair: YouTubeLanguagePair;
+  url: string; primaryTrack: TrackSelection;
+}
+let youtubeImportGeneration = 0;
+
 interface FileStore {
   files: FileRecord[];
-  folders: FolderInfo[];
-  currentFolderId: number | null;
+  tags: TagInfo[];
+  selectedTagIds: number[];
+  untaggedOnly: boolean;
+  tagsError: boolean;
+  loadingTags: boolean;
   loading: boolean;
   pendingImport: PendingImport | null;
   importingYouTube: boolean;
   youtubePhase: YoutubePhase | null;
+  youtubeActiveJobId: number | null;
+  youtubeRecovery: YouTubeRecovery | null;
+  youtubeFailure: YouTubeDownloadError | null;
+  youtubeCooldownUntil: number;
+  resetYouTubeRecovery: () => void;
+  cancelYouTubeImport: () => Promise<void>;
   confirming: boolean;
   deletingFiles: Record<number, DeleteJobStatus>;
   loadFiles: (force?: boolean) => Promise<void>;
-  loadFolders: (force?: boolean) => Promise<void>;
+  loadTags: (force?: boolean) => Promise<void>;
   invalidateFiles: () => void;
-  setCurrentFolder: (folderId: number | null) => void;
-  createFolder: (name: string, parentId: number | null) => Promise<void>;
-  renameFolder: (folderId: number, name: string) => Promise<void>;
-  deleteFolder: (folderId: number) => Promise<void>;
-  moveFolder: (folderId: number, targetParentId: number | null) => Promise<void>;
-  moveFile: (fileId: number, folderId: number | null) => Promise<void>;
+  setTagFilter: (tagIds: number[], untagged?: boolean) => void;
+  createTag: (name: string) => Promise<void>;
+  renameTag: (tagId: number, name: string) => Promise<void>;
+  deleteTag: (tagId: number) => Promise<void>;
+  setFileTags: (fileId: number, selection: TagSelection) => Promise<void>;
+  setImportTags: (selection: TagSelection) => void;
   importFile: () => Promise<void>;
   setImportLanguage: (language: Language) => Promise<void>;
   importKnownWords: () => Promise<void>;
@@ -81,15 +105,7 @@ interface FileStore {
   deleteFile: (id: number) => Promise<void>;
   exportAll: () => Promise<void>;
   restoreAll: () => Promise<void>;
-  importFromYouTube: (input: {
-    url: string;
-    title: string;
-    primary: TrackSelection;
-    secondary?: TrackSelection | null;
-    language: Language;
-    aiTranslate: boolean;
-    config: AiConfig;
-  }) => Promise<void>;
+  importFromYouTube: (input: YouTubeImportInput) => Promise<boolean>;
 }
 
 interface JapaneseToken {
@@ -112,6 +128,7 @@ interface EnglishToken {
   lemma: string;
   part_of_speech: string | null;
   position: number;
+  word_kind: 'common' | 'proper_noun' | 'noise' | 'ambiguous';
 }
 
 interface ChineseToken {
@@ -180,6 +197,7 @@ async function enrichEnglishParsing(parsed: ParsedResult): Promise<ParsedResult>
         original_form: token.surface,
         position: token.position,
         part_of_speech: token.part_of_speech,
+        word_kind: token.word_kind,
       });
     }
   });
@@ -223,127 +241,128 @@ async function parseContent(content: string, fileType: 'txt' | 'srt', language: 
 }
 
 const fileCache = new QueryCache<FileRecord[]>(6);
-const folderCache = new QueryCache<FolderInfo[]>(4);
-registerCacheInvalidator('files', () => fileCache.invalidate());
+const tagCache = new QueryCache<TagInfo[]>(1);
+let fileRequest = 0;
+let tagRequest = 0;
+registerCacheInvalidator('files', () => {
+  fileRequest++; tagRequest++;
+  fileCache.invalidate(); tagCache.invalidate();
+});
 
-function fileQueryKey(folderId: number | null): string {
-  return JSON.stringify([usePreferencesStore.getState().language, folderId]);
+function fileQueryKey(tagIds: number[], untagged: boolean): string {
+  return JSON.stringify([usePreferencesStore.getState().language, [...tagIds].sort((a,b) => a-b), untagged]);
 }
 
-function folderQueryKey(): string {
-  return usePreferencesStore.getState().language;
+async function replacementTags(fileId: number | null): Promise<TagSelection> {
+  if (fileId === null) return { tagIds: [], newTagNames: [] };
+  const file = await invoke<FileRecord>('get_file_info', { fileId });
+  return { tagIds: (file.tags ?? []).map(tag => tag.id), newTagNames: [] };
 }
 
 export const useFileStore = create<FileStore>((set, get) => ({
   files: [],
   deletingFiles: {},
-  folders: [],
-  currentFolderId: null,
+  tags: [],
+  selectedTagIds: [],
+  untaggedOnly: false,
+  tagsError: false,
+  loadingTags: false,
   loading: true,
   pendingImport: null,
+  youtubeActiveJobId: null,
+  youtubeRecovery: null,
+  youtubeFailure: null,
+  youtubeCooldownUntil: 0,
+  resetYouTubeRecovery: () => set({ youtubeRecovery: null, youtubeFailure: null, youtubeCooldownUntil: 0 }),
+  cancelYouTubeImport: async () => {
+    youtubeImportGeneration++;
+    const id = get().youtubeActiveJobId;
+    if (id != null) {
+      const youtube = useYoutubeStore.getState();
+      if (get().youtubePhase === 'translating') await youtube.cancelTranslate(id);
+      else await youtube.cancelJob(id);
+    }
+  },
   importingYouTube: false,
   youtubePhase: null,
   confirming: false,
 
   loadFiles: async (force = false) => {
     const language = usePreferencesStore.getState().language;
-    const folderId = get().currentFolderId;
-    const key = fileQueryKey(folderId);
+    const { selectedTagIds, untaggedOnly } = get();
+    const key = fileQueryKey(selectedTagIds, untaggedOnly);
     const cached = fileCache.peek(key);
     if (cached) set({ files: cached, loading: false });
     if (!force && fileCache.isFresh(key)) return;
-    if (!cached) set({ loading: true });
+    const request = ++fileRequest;
+    if (!cached) set({ loading: true, files: [] });
+    const current = () => request === fileRequest && fileQueryKey(get().selectedTagIds, get().untaggedOnly) === key;
     try {
       const files = await fileCache.fetch(key, () => invoke<FileRecord[]>('list_files', {
-          language: language === 'all' ? null : language,
-          folderId,
-        }), force);
-      if (fileQueryKey(get().currentFolderId) === key) set({ files });
-    } catch (e) {
-      console.error('Failed to load files:', e);
+        language: language === 'all' ? null : language, tagIds: selectedTagIds, untagged: untaggedOnly,
+      }), force);
+      if (current()) set({ files });
+    } catch (error) {
+      if (current()) useFeedbackStore.getState().show(i18n.t('tags.loadFilesFailed'), 'error');
+      console.error('Failed to load files:', error);
     } finally {
-      if (fileQueryKey(get().currentFolderId) === key) set({ loading: false });
+      if (current()) set({ loading: false });
     }
   },
 
-  loadFolders: async (force = false) => {
-    const language = usePreferencesStore.getState().language;
-    const key = folderQueryKey();
-    const cached = folderCache.peek(key);
-    if (cached) set({ folders: cached });
-    if (!force && folderCache.isFresh(key)) return;
+  loadTags: async (force = false) => {
+    const cached = tagCache.peek('all');
+    if (cached) set({ tags: cached });
+    if (!force && tagCache.isFresh('all')) return;
+    const request = ++tagRequest;
+    set({ loadingTags: true, tagsError: false });
     try {
-      const folders = await folderCache.fetch(key, () => invoke<FolderInfo[]>('list_folders', {
-          language: language === 'all' ? null : language,
-        }), force);
-      if (folderQueryKey() === key) set({ folders });
-    } catch (e) {
-      console.error('Failed to load folders:', e);
+      const tags = await tagCache.fetch('all', () => invoke<TagInfo[]>('list_tags'), force);
+      if (request !== tagRequest) return;
+      const selectedTagIds = get().selectedTagIds.filter(id => tags.some(tag => tag.id === id));
+      const changed = selectedTagIds.length !== get().selectedTagIds.length;
+      set({ tags, selectedTagIds });
+      if (changed) void get().loadFiles();
+    } catch (error) {
+      if (request === tagRequest) set({ tagsError: true });
+      console.error('Failed to load tags:', error);
+    } finally {
+      if (request === tagRequest) set({ loadingTags: false });
     }
   },
 
-  invalidateFiles: () => fileCache.invalidate(),
-
-  setCurrentFolder: (folderId) => {
-    set({ currentFolderId: folderId });
+  invalidateFiles: () => { fileRequest++; fileCache.invalidate(); },
+  setTagFilter: (tagIds, untagged = false) => {
+    set({ selectedTagIds: untagged ? [] : [...new Set(tagIds)].sort((a,b) => a-b), untaggedOnly: untagged });
     void get().loadFiles();
   },
-
-  createFolder: async (name, parentId) => {
-    try {
-      await invoke('create_folder', { name, parentId });
-      folderCache.invalidate();
-      await get().loadFolders(true);
-    } catch (e) {
-      console.error('Failed to create folder:', e);
-      useFeedbackStore.getState().show(i18n.t('fileStore.folderOpFailed'), 'error');
-    }
+  createTag: async name => {
+    await invoke('create_tag', { name });
+    tagCache.invalidate();
+    invalidateCaches('storage');
+    await get().loadTags(true);
   },
-
-  renameFolder: async (folderId, name) => {
-    try {
-      await invoke('rename_folder', { folderId, name });
-      folderCache.invalidate();
-      await get().loadFolders(true);
-    } catch (e) {
-      console.error('Failed to rename folder:', e);
-      useFeedbackStore.getState().show(i18n.t('fileStore.folderOpFailed'), 'error');
-    }
+  renameTag: async (tagId, name) => {
+    await invoke('rename_tag', { tagId, name });
+    invalidateCaches('files', 'storage');
+    await get().loadTags(true);
+    await get().loadFiles(true);
   },
-
-  deleteFolder: async (folderId) => {
-    try {
-      await invoke('delete_folder', { folderId });
-      fileCache.invalidate();
-      folderCache.invalidate();
-      await Promise.all([get().loadFiles(true), get().loadFolders(true)]);
-    } catch (e) {
-      console.error('Failed to delete folder:', e);
-      useFeedbackStore.getState().show(i18n.t('fileStore.folderOpFailed'), 'error');
-    }
+  deleteTag: async tagId => {
+    await invoke('delete_tag', { tagId });
+    invalidateCaches('files', 'storage');
+    await get().loadTags(true);
+    await get().loadFiles(true);
   },
-
-  moveFolder: async (folderId, targetParentId) => {
-    try {
-      await invoke('move_folder', { folderId, targetParentId });
-      folderCache.invalidate();
-      await get().loadFolders(true);
-    } catch (e) {
-      console.error('Failed to move folder:', e);
-      useFeedbackStore.getState().show(i18n.t('fileStore.folderOpFailed'), 'error');
-    }
+  setFileTags: async (fileId, selection) => {
+    await invoke('set_file_tags', { fileId, tagIds: selection.tagIds, newTagNames: selection.newTagNames });
+    invalidateCaches('files', 'storage');
+    await get().loadTags(true);
+    await get().loadFiles(true);
   },
-
-  moveFile: async (fileId, folderId) => {
-    try {
-      await invoke('move_file', { fileId, folderId });
-      fileCache.invalidate();
-      folderCache.invalidate();
-      await Promise.all([get().loadFiles(true), get().loadFolders(true)]);
-    } catch (e) {
-      console.error('Failed to move file:', e);
-      useFeedbackStore.getState().show(i18n.t('fileStore.fileMoveFailed'), 'error');
-    }
+  setImportTags: tags => {
+    const pendingImport = get().pendingImport;
+    if (pendingImport && !get().confirming) set({ pendingImport: { ...pendingImport, tags } });
   },
 
   importFile: async () => {
@@ -374,6 +393,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
 
        set({
          pendingImport: {
+          tags: await replacementTags(duplicate?.file_id ?? null),
           name,
           fileType,
           content,
@@ -479,7 +499,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
     if (get().confirming) return;
     set({ confirming: true });
     try {
-      await invoke('import_file', {
+      await invoke<number>('import_file', {
         payload: {
           name: pending.name,
           file_type: pending.fileType,
@@ -489,24 +509,27 @@ export const useFileStore = create<FileStore>((set, get) => ({
           segments: pending.parsed.segments,
           lemmas: pending.parsed.lemmas,
           occurrences: pending.parsed.occurrences,
-          replaceFileId: pending.replaceFileId,
-          folderId: get().currentFolderId,
+          replace_file_id: pending.replaceFileId,
+          tag_ids: pending.tags.tagIds,
+          new_tag_names: pending.tags.newTagNames,
         },
       });
-      invalidateCaches('words', 'phrases', 'review', 'insights', 'storage');
+      if (pending.youtubeSelection) usePreferencesStore.getState().recordYouTubeImport(pending.youtubeSelection);
+      invalidateCaches('files', 'words', 'phrases', 'review', 'insights', 'storage');
       set({ pendingImport: null });
+      await get().loadTags(true);
       if (usePreferencesStore.getState().language === pending.language) {
         fileCache.invalidate();
         await get().loadFiles(true);
       } else {
         usePreferencesStore.getState().setLanguage(pending.language);
       }
+      const { selectedTagIds, untaggedOnly, tags } = get();
+      const hidden = untaggedOnly ? pending.tags.tagIds.length + pending.tags.newTagNames.length > 0 : selectedTagIds.some(id => !pending.tags.tagIds.includes(id) && !pending.tags.newTagNames.some(name => name.trim().toLowerCase() === tags.find(tag => tag.id === id)?.name.toLowerCase()));
       useFeedbackStore.getState().show(
-         i18n.t('fileStore.importedSummary', {
-          segments: pending.parsed.segments.length,
-          lemmas: pending.parsed.lemmas.length,
-        }),
-        'success',
+        i18n.t('fileStore.importedSummary', { segments: pending.parsed.segments.length, lemmas: pending.parsed.lemmas.length }),
+        'success', hidden ? 10000 : 3000,
+        hidden ? { label: i18n.t('tags.viewAll'), onClick: () => get().setTagFilter([]) } : undefined,
       );
     } catch (e) {
       console.error('Import failed:', e);
@@ -516,77 +539,76 @@ export const useFileStore = create<FileStore>((set, get) => ({
     }
   },
 
-  importFromYouTube: async ({ url, title, primary, secondary, language, aiTranslate, config }) => {
-    set({ importingYouTube: true, youtubePhase: 'downloading' });
+  importFromYouTube: async ({ url, title, primary, secondary, language, aiTranslate, config, session, fallback }) => {
+    if (get().importingYouTube) return false;
+    const generation = ++youtubeImportGeneration;
+    const ensureCurrent = () => { if (generation !== youtubeImportGeneration) throw { code: 'cancelled' }; };
+    const recovery = get().youtubeRecovery;
+    const matchesRecovery = recovery?.url === url && recovery.primaryTrack.lang === primary.lang && recovery.primaryTrack.is_auto === primary.is_auto;
+    const pair: YouTubeLanguagePair = matchesRecovery ? recovery.pair : { primary: trackLanguage(primary), secondary: secondary ? trackLanguage(secondary) : null };
+    let original: SubtitleResult | null = matchesRecovery ? recovery.primary : null;
+    set({ importingYouTube: true, youtubePhase: 'downloading', youtubeFailure: null });
     try {
       const youtube = useYoutubeStore.getState();
-      const jobId = nextJobId();
-      const sub = secondary
-        ? await youtube.mergeSubs(jobId, url, primary, secondary)
-        : await youtube.downloadSub(jobId, url, primary.lang, primary.is_auto);
-
-      set({ youtubePhase: 'parsing' });
+      let sub: SubtitleResult;
+      if (fallback && original) {
+        sub = original;
+      } else {
+        const jobId = nextJobId();
+        set({ youtubeActiveJobId: jobId });
+        const prepared = await youtube.prepareSubtitles(jobId, url, primary, secondary ?? null, session ?? usePreferencesStore.getState().youtube.browserSession ?? EMPTY_BROWSER_SESSION);
+        ensureCurrent();
+        if (prepared.status === 'partial') {
+          set({ youtubeRecovery: { primary: prepared.primary, error: prepared.error, pair, url, primaryTrack: primary },
+            youtubeFailure: prepared.error, youtubeCooldownUntil: Date.now() + prepared.error.cooldown_seconds * 1000 });
+          return false;
+        }
+        sub = prepared.subtitle;
+        // Single-track AI imports also retain their source if translation fails.
+        if (!secondary) original = sub;
+      }
+      ensureCurrent();
+      set({ youtubePhase: 'parsing', youtubeActiveJobId: null });
       let parsed = await parseContent(sub.content, 'srt', language);
-
-      if (aiTranslate) {
+      ensureCurrent();
+      if (fallback === 'ai' || !fallback && aiTranslate) {
         set({ youtubePhase: 'translating' });
         const translateJobId = nextJobId();
-        const translations = await youtube.translateSegments(
-          translateJobId,
-          language,
-          parsed.segments.map((segment) => ({ index: segment.index, text: segment.en_text })),
-          config,
-        );
-        const map = new Map(translations.map((t) => [t.index, t.translation]));
-        parsed = {
-          ...parsed,
-          segments: parsed.segments.map((segment) => ({
-            ...segment,
-            zh_text: map.get(segment.index) ?? segment.zh_text,
-          })),
-        };
+        set({ youtubeActiveJobId: translateJobId });
+        const translations = await youtube.translateSegments(translateJobId, language,
+          parsed.segments.map(segment => ({ index: segment.index, text: segment.en_text })), config);
+        ensureCurrent();
+        const map = new Map(translations.map(item => [item.index, item.translation]));
+        parsed = { ...parsed, segments: parsed.segments.map(segment => ({ ...segment, zh_text: map.get(segment.index) ?? segment.zh_text })) };
       }
-
-      set({ youtubePhase: 'importing' });
+      ensureCurrent();
+      set({ youtubePhase: 'importing', youtubeActiveJobId: null });
       const hash = await computeHash(sub.content);
+      ensureCurrent();
       const duplicate: { file_id: number; name: string } | null = await invoke('check_duplicate', { hash });
+      ensureCurrent();
       let replaceFileId: number | null = null;
       let replaceFileName: string | null = null;
       if (duplicate) {
         const confirmed = await ask(i18n.t('fileStore.duplicateAsk', { name: duplicate.name }), {
-          title: i18n.t('fileStore.duplicateTitle'),
-          kind: 'warning',
-          okLabel: i18n.t('fileStore.overwrite'),
-          cancelLabel: i18n.t('common.cancel'),
+          title: i18n.t('fileStore.duplicateTitle'), kind: 'warning', okLabel: i18n.t('fileStore.overwrite'), cancelLabel: i18n.t('common.cancel'),
         });
-        if (!confirmed) return;
-        replaceFileId = duplicate.file_id;
-        replaceFileName = duplicate.name;
+        ensureCurrent();
+        if (!confirmed) return false;
+        replaceFileId = duplicate.file_id; replaceFileName = duplicate.name;
       }
-
-      set({
-        pendingImport: {
-          name: `${sanitizeFileName(title)}.srt`,
-          fileType: 'srt',
-          content: sub.content,
-          hash,
-          parsed,
-          replaceFileId,
-          replaceFileName,
-          language,
-        },
-      });
-    } catch (e) {
-      console.error('YouTube import failed:', e);
-      const messageText = String(e);
-      if (isCancelledError(messageText)) {
-        useFeedbackStore.getState().show(i18n.t('fileStore.importCancelled'), 'info', 2000);
-      } else {
-        useFeedbackStore.getState().show(messageText, 'error', 6000);
-      }
-      throw e;
+      set({ pendingImport: { tags: await replacementTags(replaceFileId), youtubeSelection: pair, name: `${sanitizeFileName(title)}.srt`, fileType: 'srt', content: sub.content, hash, parsed, replaceFileId, replaceFileName, language },
+        youtubeRecovery: null, youtubeFailure: null, youtubeCooldownUntil: 0 });
+      return true;
+    } catch (error) {
+      if (generation !== youtubeImportGeneration || isYouTubeCancelled(error)) throw { ...downloadError(error), code: 'cancelled' };
+      const failure = downloadError(error);
+      if (get().youtubePhase === 'translating') { failure.code = 'translation_failed'; failure.stage = 'translate'; failure.role = 'secondary'; failure.language = 'zh-Hans'; }
+      set({ youtubeFailure: failure, youtubeCooldownUntil: Date.now() + failure.cooldown_seconds * 1000,
+        ...(original ? { youtubeRecovery: { primary: original, error: failure, pair, url, primaryTrack: primary } } : {}) });
+      throw failure;
     } finally {
-      set({ importingYouTube: false, youtubePhase: null });
+      set({ importingYouTube: false, youtubePhase: null, youtubeActiveJobId: null });
     }
   },
 
@@ -621,8 +643,8 @@ export const useFileStore = create<FileStore>((set, get) => ({
         delete deletingFiles[id];
         return { deletingFiles };
       });
-      invalidateCaches('words', 'phrases', 'review', 'insights', 'storage');
-      fileCache.invalidate();
+      invalidateCaches('files', 'words', 'phrases', 'review', 'insights', 'storage');
+      await get().loadTags(true);
       await get().loadFiles(true);
       useFeedbackStore.getState().show(i18n.t('fileStore.fileDeleted'), 'success');
     } catch (e) {
@@ -661,7 +683,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
       const json = await readTextFile(selected as string);
       const backup: BackupPayload = JSON.parse(json);
 
-       if (backup.schema_version !== 1 && backup.schema_version !== 2 && backup.schema_version !== 3 && backup.schema_version !== 4) {
+      if (!Number.isInteger(backup.schema_version) || backup.schema_version < 1 || backup.schema_version > 8) {
         await message(i18n.t('fileStore.backupVersionError', { version: backup.schema_version }), { title: i18n.t('fileStore.backupVersionTitle'), kind: 'error' });
         return;
       }
@@ -677,8 +699,9 @@ export const useFileStore = create<FileStore>((set, get) => ({
       await invoke('restore_all', { backup });
       invalidateCaches('words', 'phrases', 'review', 'insights', 'storage');
       fileCache.invalidate();
-      folderCache.invalidate();
-      await Promise.all([get().loadFiles(true), get().loadFolders(true)]);
+      tagCache.invalidate();
+      set({ selectedTagIds: [], untaggedOnly: false });
+      await Promise.all([get().loadFiles(true), get().loadTags(true)]);
       useFeedbackStore.getState().show(i18n.t('fileStore.restored'), 'success');
     } catch (e) {
       console.error('Restore failed:', e);

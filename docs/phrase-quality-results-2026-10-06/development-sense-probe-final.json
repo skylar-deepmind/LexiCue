@@ -1,0 +1,46 @@
+{
+  "model": "gemma4-e2b-litert-181938105e0e",
+  "scope": "Development-only sense selection probe; not full extraction accuracy",
+  "cases": [
+    {
+      "response": "{\"meaning\":\n\"farewell\"}",
+      "source": "Our teacher smiles and says see you tomorrow before closing the classroom door and carrying her books downstairs."
+    },
+    {
+      "response": "{\"meaning\":\n\"comfort\"}",
+      "source": "We should break the ice with a friendly introduction before discussing the serious problems in the schedule."
+    },
+    {
+      "response": "{\"meaning\":\n\"gossip\"}",
+      "source": "Maya asks me to spill the tea about the surprise party that everyone apparently organized without telling her."
+    },
+    {
+      "response": "{\"meaning\":\n\"honestly\"}",
+      "source": "I tell her the story is true, no cap, because I personally helped decorate the room before the guests arrived."
+    },
+    {
+      "response": "{\"meaning\":\n\"criticism\"}",
+      "source": "Nobody wants to throw shade at the organizer, although the unusual decorations provide plenty of opportunities for jokes."
+    },
+    {
+      "response": "{\"meaning\":\n\"mocking\"}",
+      "source": "Our British friend warns that we should not take the piss out of someone who seems genuinely upset."
+    },
+    {
+      "response": "{\"meaning\":\n\"drink\"}",
+      "source": "The waiter spilled the tea across the tray, and the hot liquid soaked several paper napkins beside the cups."
+    },
+    {
+      "response": "{\"meaning\":\n\"lid\"}",
+      "source": "The bottle has no cap on its neck, so the remaining water could easily spill inside the shopping bag."
+    },
+    {
+      "response": "{\"meaning\":\n\"shadow\"}",
+      "source": "A tall tree will throw shade across this terrace in summer, although there is almost no shade here today."
+    },
+    {
+      "response": "{\"meaning\":\n\"comfort\"}",
+      "source": "The atmosphere helps us break the ice with the new member of our group who moved here recently."
+    }
+  ]
+}

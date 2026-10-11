@@ -1,4 +1,6 @@
+pub mod annotations;
 pub mod chinese;
+pub mod collins;
 pub mod dictionary;
 pub mod english;
 pub mod export;
@@ -12,6 +14,13 @@ pub mod phrases;
 pub mod reviews;
 pub mod stats;
 pub mod sync;
+pub mod tags;
 pub mod updater;
 pub mod words;
 pub mod youtube;
+
+pub mod gemma;
+
+pub mod dictionary_init;
+
+pub mod reader;

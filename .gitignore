@@ -24,6 +24,7 @@ deploy/backups/
 # Local development artifacts
 assets
 scripts/cache
+__pycache__/
 
 # Editor directories and files
 .vscode/*
@@ -36,3 +37,10 @@ scripts/cache
 *.sln
 *.sw?
 todo.md
+
+# Large local promotional renders; lightweight README assets live in docs/media.
+output/marketing/
+
+# Prepared native engines; pinned sources/checksums are versioned instead.
+src-tauri/resources/gemma-runtime/*
+!src-tauri/resources/gemma-runtime/.gitkeep

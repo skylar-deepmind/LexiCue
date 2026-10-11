@@ -3,7 +3,7 @@ mod db;
 
 use db::{init_db, DbState, DictionaryStatus};
 use std::sync::{Arc, Mutex};
-use tauri::{Emitter, Manager};
+use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -17,17 +17,19 @@ pub fn run() {
             app.handle()
                 .plugin(tauri_plugin_updater::Builder::new().build())?;
 
-            if cfg!(debug_assertions) {
-                app.handle().plugin(
-                    tauri_plugin_log::Builder::default()
-                        .level(log::LevelFilter::Info)
-                        .build(),
-                )?;
-            }
+            app.handle().plugin(
+                tauri_plugin_log::Builder::default()
+                    .level(log::LevelFilter::Info)
+                    .max_file_size(2_000_000)
+                    .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepSome(3))
+                    .build(),
+            )?;
 
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Regular);
 
+            commands::gemma::runtime::initialize(app.handle())?;
+            commands::youtube::init_subtitle_cache(app.handle());
             let app_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&app_dir)?;
             // Sync remains optional: a damaged or unavailable platform store
@@ -46,39 +48,7 @@ pub fn run() {
             let status = DictionaryStatus::default();
             app.manage(status.clone());
 
-            let app_handle = app.handle().clone();
-            let dict_dir = app_dir.clone();
-            let thread_status = status.clone();
-            std::thread::spawn(move || {
-                let result = (|| -> Result<(), String> {
-                    let conn = init_db(&dict_dir.join("lexicue.db")).map_err(|e| e.to_string())?;
-                    commands::dictionary::initialize_builtin_dictionary(&conn)?;
-                    commands::dictionary::initialize_builtin_japanese_dictionary(&conn)?;
-                    commands::dictionary::initialize_builtin_german_dictionary(&conn)?;
-                    commands::dictionary::initialize_builtin_chinese_dictionary(&conn)?;
-                    commands::dictionary::initialize_builtin_chinese_phrase_dictionary(&conn)?;
-                    commands::dictionary::initialize_builtin_phrase_dictionary(&conn)?;
-                    commands::dictionary::initialize_builtin_japanese_phrase_dictionary(&conn)?;
-                    Ok(())
-                })();
-                match result {
-                    Ok(()) => {
-                        thread_status.set_ready();
-                        let _ = app_handle.emit("dictionary-ready", true);
-                    }
-                    Err(e) => {
-                        log::error!("dictionary init failed: {e}");
-                        let _ = app_handle.emit("dictionary-ready", false);
-                    }
-                }
-                // One-time, idempotent migration that normalizes English word
-                // lemmas to their base form so lookups resolve offline.
-                if let Ok(conn) = init_db(&dict_dir.join("lexicue.db")) {
-                    if let Err(e) = commands::english::run_migrate_english_lemmas(&conn) {
-                        log::error!("english lemma migration failed: {e}");
-                    }
-                }
-            });
+            commands::dictionary_init::start(app.handle().clone(), status);
 
             Ok(())
         })
@@ -99,6 +69,10 @@ pub fn run() {
             commands::sync::sync_devices,
             commands::sync::sync_revoke_device,
             commands::sync::sync_delete_account,
+            commands::annotations::annotation_identities,
+            commands::annotations::annotate_item,
+            commands::annotations::undo_annotation,
+            commands::annotations::annotation_operation,
             commands::words::list_words,
             commands::words::word_detail,
             commands::words::update_word_status,
@@ -107,6 +81,7 @@ pub fn run() {
             commands::words::set_occurrence_hidden,
             commands::words::list_file_word_tokens,
             commands::words::get_file_segment_tokens,
+            commands::reader::get_file_reader_tokens,
             commands::frequency_baseline::get_frequency_baseline,
             commands::frequency_baseline::configure_frequency_baseline,
             commands::frequency_baseline::revoke_frequency_baseline,
@@ -118,6 +93,11 @@ pub fn run() {
             commands::phrases::update_phrase_definition,
             commands::phrases::batch_update_phrase_status,
             commands::phrases::set_phrase_occurrence_hidden,
+            commands::words::update_word_occurrence_meaning,
+            commands::words::delete_word_occurrence_meaning,
+            commands::words::resolve_word_lemma,
+            commands::phrases::update_phrase_occurrence_meaning,
+            commands::phrases::update_phrase_occurrence_meaning_en,
             commands::phrases::create_manual_phrase,
             commands::phrases::get_file_phrases,
             commands::files::list_files,
@@ -126,12 +106,11 @@ pub fn run() {
             commands::files::delete_file_start,
             commands::files::delete_file_status,
             commands::files::get_file_segments,
-            commands::files::list_folders,
-            commands::files::create_folder,
-            commands::files::rename_folder,
-            commands::files::delete_folder,
-            commands::files::move_folder,
-            commands::files::move_file,
+            commands::tags::list_tags,
+            commands::tags::create_tag,
+            commands::tags::rename_tag,
+            commands::tags::delete_tag,
+            commands::tags::set_file_tags,
             commands::reviews::get_due_cards,
             commands::reviews::submit_rating,
             commands::reviews::create_review_card,
@@ -139,7 +118,10 @@ pub fn run() {
             commands::reviews::submit_phrase_rating,
             commands::reviews::create_phrase_review_card,
             commands::dictionary::lookup_dictionary,
+            commands::dictionary::lookup_local_dictionary,
             commands::dictionary::lookup_phrase_dictionary,
+            commands::dictionary::update_phrase_other_senses,
+            commands::dictionary::update_phrase_other_senses_en,
             commands::dictionary::get_cached_dictionary,
             commands::dictionary::list_dictionary_sources,
             commands::dictionary::delete_dictionary_source,
@@ -148,13 +130,28 @@ pub fn run() {
             commands::dictionary::import_dictionary_pack,
             commands::stats::get_learning_stats,
             commands::stats::get_storage_usage,
+            commands::gemma::models::get_local_gemma_environment,
+            commands::gemma::models::download_gemma_model,
+            commands::gemma::models::delete_gemma_model,
+            commands::gemma::models::get_local_gemma_activity,
+            commands::gemma::models::cancel_gemma_model_download,
+            commands::gemma::models::import_gemma_model,
+            commands::gemma::runtime::gemma_runtime_status,
+            commands::gemma::runtime::set_gemma_background,
             commands::ollama::ai_status,
             commands::ollama::ai_models,
             commands::ollama::analyze_file_phrases,
+            commands::ollama::word_context::analyze_word_occurrence,
+            commands::ollama::word_context::cancel_word_occurrence_analysis,
             commands::ollama::cancel_phrase_analysis,
+            commands::ollama::get_analysis_diagnostic,
+            commands::ollama::get_analysis_preview_snapshot,
+            commands::ollama::get_analysis_raw_diagnostic,
             commands::ollama::translate_segments,
             commands::ollama::cancel_translate_segments,
             commands::youtube::youtube_list_subs,
+            commands::youtube::downloads::youtube_prepare_subtitles,
+            commands::youtube::downloads::youtube_clear_subtitle_cache,
             commands::youtube::youtube_download_sub,
             commands::youtube::youtube_merge_subs,
             commands::youtube::youtube_cancel_job,
@@ -166,10 +163,13 @@ pub fn run() {
             commands::english::tokenize_english,
             commands::english::tokenize_english_batch,
             commands::english::lemmatize_english,
+            commands::english::english_word_candidates,
             commands::english::migrate_english_lemmas_cmd,
             commands::chinese::tokenize_chinese,
             commands::chinese::tokenize_chinese_batch,
             commands::dictionary::dictionary_status,
+            commands::dictionary_init::dictionary_init_status,
+            commands::dictionary_init::retry_dictionary_init,
             commands::updater::check_github_release,
         ])
         .run(tauri::generate_context!())

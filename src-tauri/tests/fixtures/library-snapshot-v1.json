@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "file": {
+    "name": "restored",
+    "type": "txt",
+    "content": "text",
+    "content_hash": "hash",
+    "imported_at": 1,
+    "language": "en"
+  },
+  "segments": [
+    {
+      "index_num": 0,
+      "en_text": "keep removed phrase",
+      "zh_text": "restored translation",
+      "occurrences": [
+        {
+          "word_sync_id": "words-keep",
+          "original_form": "keep",
+          "position": 0,
+          "hidden": 0
+        },
+        {
+          "word_sync_id": "words-removed",
+          "original_form": "removed",
+          "position": 1,
+          "hidden": 0
+        }
+      ],
+      "phrase_occurrences": [
+        {
+          "phrase_sync_id": "phrases-keep",
+          "position": 0,
+          "hidden": 0
+        },
+        {
+          "phrase_sync_id": "phrases-removed",
+          "position": 1,
+          "hidden": 0
+        }
+      ]
+    }
+  ],
+  "phrase_dictionary_entries": []
+}

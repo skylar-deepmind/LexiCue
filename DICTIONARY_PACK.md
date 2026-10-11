@@ -1,5 +1,33 @@
 # Offline Dictionary Pack
 
+## Private Collins COBUILD V3 index
+
+The English lookup can use a private Collins COBUILD V3 index. The source MOBI
+and the generated index must remain on the owner's device; neither is bundled
+with the application or committed to this repository. To build it with Calibre
+installed, run:
+
+```sh
+python3 scripts/build_collins_index.py \
+  --mobi "/path/to/Collins Cobuild V3.mobi" \
+  --output "$HOME/Library/Application Support/com.lexicue.app/collins-cobuild-v3.sqlite"
+```
+
+The generated SQLite database contains separate `word_senses` and
+`phrase_senses` tables, plus source metadata. It includes independent phrase
+headwords and editorially marked phrases nested under other headwords. Plain
+example text is never treated as a phrase entry. On macOS, LexiCue reads this
+file from its application data directory. With a Collins word entry present,
+English word lookup stays offline; a missing entry or explicit refresh may use
+dictionaryapi.dev, always labeled separately. English phrase analysis uses
+Collins as evidence and records a sense match only when the sentence fits it.
+
+The older ECDICT and PhraseDict resources remain in the application for
+compatibility, but are not used as English dictionary results in this stage.
+Confirm redistribution rights before shipping any Collins-derived text.
+
+## General dictionary packs
+
 LexiCue can import a JSON dictionary pack from the Files page. The pack is merged into the local SQLite cache and is available without a network connection.
 
 LexiCue also includes a compact ECDICT-derived core dictionary. It is loaded into

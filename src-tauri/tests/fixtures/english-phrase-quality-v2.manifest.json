@@ -1,0 +1,13 @@
+{
+  "srt_sha256": "17a327e13cf6d051d0209ce62fdfad77e858e0d2bd24959f7b4b6365174fd644",
+  "gold_sha256": "a12289e18e2f5e2b20dbe44e314506bfa4794273f06b54c224b6d461064fadd1",
+  "core_sha256": "713a8df8aab58aa91752a6bfc11dc81510f562774cb69fd540049a50b75658ea",
+  "cues": 60,
+  "development_cues": 0,
+  "holdout_cues": 60,
+  "holdout_novel_expressions": 40,
+  "holdout_outside_core_expressions": 40,
+  "required_occurrences": 40,
+  "negative_controls": 11,
+  "freeze_note": "Fresh 40 expressions excluded from original v1 annotations and editorial core. Authored and frozen before any v2 model scoring."
+}

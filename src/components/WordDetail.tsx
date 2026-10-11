@@ -1,13 +1,15 @@
-import { X } from 'lucide-react';
-import { Volume2, RefreshCw, Download, EyeOff, Eye } from 'lucide-react';
+import Overlay from './Overlay';
+import AppSelect from './AppSelect';
+import { X, Volume2, RefreshCw, Download, EyeOff, Eye } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { speakText } from '../lib/tts';
+import { playPronunciation } from '../lib/tts';
 import type { DictionaryEntry, OccurrenceDetail, WordDetail, WordStatus } from '../lib/types';
 import StatusBadge from './StatusBadge';
 import OccurrenceText from './OccurrenceText';
 import Pagination from './Pagination';
 import DisplaySettingsMenu from './DisplaySettingsMenu';
 import { usePreferencesStore } from '../stores/preferencesStore';
+import { dictionaryLanguageState, useDictionaryStore } from '../stores/dictionaryStore';
 import { CONTENT_FONT_CLASS } from '../lib/contentTypography';
 import { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
@@ -20,32 +22,49 @@ interface WordDetailProps {
   onStatusChange: (wordId: number, status: WordStatus) => Promise<void>;
   onDefinitionSave: (wordId: number, definition: string) => Promise<void>;
   onOccurrenceOpen?: (occurrence: OccurrenceDetail) => void;
+  onWordResolved?: () => void;
 }
 
-export default function WordDetailPanel({ detail, onClose, onStatusChange, onDefinitionSave, onOccurrenceOpen }: WordDetailProps) {
+export default function WordDetailPanel({ detail, onClose, onStatusChange, onDefinitionSave, onOccurrenceOpen, onWordResolved }: WordDetailProps) {
   const { t } = useTranslation();
   const learningTextFontSize = usePreferencesStore((state) => state.learningTextFontSize);
   const definitionFontSize = usePreferencesStore((state) => state.definitionFontSize);
   const auxiliaryFontSize = usePreferencesStore((state) => state.auxiliaryFontSize);
+  const dictionaryReady = useDictionaryStore((state) => dictionaryLanguageState(state, detail.word.language));
   const [definition, setDefinition] = useState(detail.word.definition ?? '');
   const [dictionary, setDictionary] = useState<DictionaryEntry | null>(null);
+  const [onlineDictionary, setOnlineDictionary] = useState<DictionaryEntry | null>(null);
   const [dictionaryLoading, setDictionaryLoading] = useState(false);
   const [dictionaryError, setDictionaryError] = useState(false);
+  const [dictionaryReason, setDictionaryReason] = useState('');
+  const [localDictionaryState, setLocalDictionaryState] = useState<'idle' | 'loading' | 'hit' | 'missing' | 'unavailable'>('idle');
+  const [onlineDictionaryError, setOnlineDictionaryError] = useState(false);
   const [audioLoading, setAudioLoading] = useState(false);
   const [statusSaving, setStatusSaving] = useState<WordStatus | null>(null);
   const [definitionSaved, setDefinitionSaved] = useState(false);
+  const [definitionError, setDefinitionError] = useState(false);
+  const [definitionSaving, setDefinitionSaving] = useState(false);
+  const closingDetail = useRef(false);
+  const savingDefinition = useRef<Promise<boolean> | null>(null);
+  const savedDefinition = useRef(detail.word.definition ?? '');
   const [occurrences, setOccurrences] = useState<OccurrenceDetail[]>(detail.occurrences);
   const [showHidden, setShowHidden] = useState(false);
   const [hideSaving, setHideSaving] = useState(false);
   const [page, setPage] = useState(1);
   const savedTimerRef = useRef<number | null>(null);
+  const panelTitleRef = useRef<HTMLHeadingElement>(null);
+  const [lemmaCandidates, setLemmaCandidates] = useState<string[]>([]);
+  const [selectedLemma, setSelectedLemma] = useState(detail.word.lemma);
 
   useEffect(() => () => {
     if (savedTimerRef.current) window.clearTimeout(savedTimerRef.current);
   }, []);
 
+
   useEffect(() => {
     setDefinition(detail.word.definition ?? '');
+    savedDefinition.current = detail.word.definition ?? '';
+    setDefinitionError(false);
   }, [detail.word.definition, detail.word.id]);
 
   useEffect(() => {
@@ -55,12 +74,11 @@ export default function WordDetailPanel({ detail, onClose, onStatusChange, onDef
   }, [detail.word.id, detail.occurrences]);
 
   useEffect(() => {
-    const handler = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [onClose]);
+    setSelectedLemma(detail.word.lemma);
+    if (detail.word.word_kind !== 'ambiguous') { setLemmaCandidates([]); return; }
+    void invoke<string[]>('english_word_candidates', { word: detail.word.lemma }).then(setLemmaCandidates).catch(() => setLemmaCandidates([detail.word.lemma]));
+  }, [detail.word.id, detail.word.lemma, detail.word.word_kind]);
+
 
   const handleStatusChange = async (status: WordStatus) => {
     if (statusSaving) return;
@@ -72,16 +90,34 @@ export default function WordDetailPanel({ detail, onClose, onStatusChange, onDef
     }
   };
 
-  const handleDefinitionSave = async () => {
-    if (definition === (detail.word.definition ?? '')) return;
-    try {
-      await onDefinitionSave(detail.word.id, definition);
-      setDefinitionSaved(true);
-      if (savedTimerRef.current) window.clearTimeout(savedTimerRef.current);
-      savedTimerRef.current = window.setTimeout(() => setDefinitionSaved(false), 2000);
-    } catch {
-      setDefinitionSaved(false);
+  const handleDefinitionSave = async (): Promise<boolean> => {
+    if (savingDefinition.current) {
+      if (!await savingDefinition.current) return false;
     }
+    if (definition === savedDefinition.current) return true;
+    const value = definition;
+    setDefinitionSaving(true);
+    const save = (async () => {
+      try {
+        await onDefinitionSave(detail.word.id, value);
+        savedDefinition.current = value;
+        setDefinitionSaved(true); setDefinitionError(false);
+        if (savedTimerRef.current) window.clearTimeout(savedTimerRef.current);
+        savedTimerRef.current = window.setTimeout(() => setDefinitionSaved(false), 2000);
+        return true;
+      } catch { setDefinitionSaved(false); setDefinitionError(true); return false; }
+    })();
+    savingDefinition.current = save;
+    try { return await save; } finally { if (savingDefinition.current === save) { savingDefinition.current = null; setDefinitionSaving(false); } }
+  };
+  const requestClose = async () => {
+    if (closingDetail.current) return false;
+    closingDetail.current = true;
+    try {
+      if (statusSaving || hideSaving) return false;
+      if (!await handleDefinitionSave()) return false;
+      onClose(); return true;
+    } finally { closingDetail.current = false; }
   };
 
   const handleSetHidden = async (occurrenceId: number, hidden: boolean) => {
@@ -97,43 +133,46 @@ export default function WordDetailPanel({ detail, onClose, onStatusChange, onDef
     }
   };
 
+  const dictionaryRequest = useRef(0);
   const loadDictionary = async (refresh = false) => {
+    const request = ++dictionaryRequest.current;
     setDictionaryLoading(true);
     setDictionaryError(false);
+    setDictionaryReason('');
+    setOnlineDictionaryError(false);
     try {
       const entry = await invoke<DictionaryEntry>('lookup_dictionary', {
         lemma: detail.word.lemma,
-         language: detail.word.language,
+        language: detail.word.language,
         refresh,
+        mode: refresh ? 'online' : 'local',
       });
-      setDictionary(entry);
+      if (request !== dictionaryRequest.current) return;
+      if (detail.word.language === 'en') {
+        if (entry.provider.startsWith('dictionaryapi.dev')) setOnlineDictionary(entry);
+        else setDictionary(entry);
+      } else {
+        setDictionary(entry);
+      }
     } catch (error) {
+      if (request !== dictionaryRequest.current) return;
       console.error('Failed to load dictionary entry:', error);
-      setDictionaryError(true);
+      setDictionaryError(true); setDictionaryReason(String(error));
+      if (detail.word.language === 'en' && dictionary) setOnlineDictionaryError(true);
     } finally {
-      setDictionaryLoading(false);
+      if (request === dictionaryRequest.current) setDictionaryLoading(false);
     }
   };
 
   const playAudio = async () => {
-    if (!dictionary) return;
     setAudioLoading(true);
     try {
-      if (dictionary.local_audio_path) {
-        const bytes = await invoke<number[]>('read_dictionary_audio', { lemma: detail.word.lemma, language: detail.word.language });
-        const url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: 'audio/mpeg' }));
-        const audio = new Audio(url);
-        audio.addEventListener('ended', () => URL.revokeObjectURL(url), { once: true });
-        await audio.play();
-      } else if (dictionary.audio_url) {
-        await new Audio(dictionary.audio_url).play();
-      } else {
-        const text =
-          detail.word.language === 'ja' && detail.word.reading
-            ? detail.word.reading
-            : detail.word.lemma;
-        speakText(text, detail.word.language);
-      }
+      const text = detail.word.language === 'ja' && detail.word.reading ? detail.word.reading : detail.word.lemma;
+      const audioEntry = onlineDictionary?.local_audio_path ? onlineDictionary : dictionary?.local_audio_path ? dictionary : onlineDictionary ?? dictionary;
+      await playPronunciation(text, detail.word.language, audioEntry, (cached) => {
+        if (cached.provider.startsWith('dictionaryapi.dev')) setOnlineDictionary(cached);
+        else setDictionary(cached);
+      });
     } catch (error) {
       console.error('Failed to play pronunciation:', error);
       setDictionaryError(true);
@@ -146,7 +185,8 @@ export default function WordDetailPanel({ detail, onClose, onStatusChange, onDef
     setAudioLoading(true);
     try {
       const entry = await invoke<DictionaryEntry>('cache_dictionary_audio', { lemma: detail.word.lemma, language: detail.word.language });
-      setDictionary(entry);
+      if (detail.word.language === 'en' && entry.provider.startsWith('dictionaryapi.dev')) setOnlineDictionary(entry);
+      else setDictionary(entry);
     } catch (error) {
       console.error('Failed to cache pronunciation:', error);
       setDictionaryError(true);
@@ -156,17 +196,33 @@ export default function WordDetailPanel({ detail, onClose, onStatusChange, onDef
   };
 
   useEffect(() => {
+    let active = true;
+    dictionaryRequest.current++;
     setDictionary(null);
+    setOnlineDictionary(null);
     setDictionaryLoading(true);
     setDictionaryError(false);
-    invoke<DictionaryEntry>('lookup_dictionary', { lemma: detail.word.lemma, language: detail.word.language, refresh: false })
-      .then(setDictionary)
-      .catch((error) => {
+    setDictionaryReason('');
+    setOnlineDictionaryError(false);
+    setLocalDictionaryState(detail.word.language === 'en' ? 'loading' : 'idle');
+    void (async () => {
+      try {
+        const entry = await invoke<DictionaryEntry>('lookup_dictionary', { lemma: detail.word.lemma, language: detail.word.language, refresh: false, mode: 'local' });
+        if (!active) return;
+        if (detail.word.language === 'en' && entry.provider.startsWith('dictionaryapi.dev')) setOnlineDictionary(entry);
+        else setDictionary(entry);
+        if (active && detail.word.language === 'en') setLocalDictionaryState(entry.provider === 'Collins COBUILD V3' ? 'hit' : 'unavailable');
+      } catch (error) {
         console.error('Failed to load dictionary entry:', error);
-        setDictionaryError(true);
-      })
-      .finally(() => setDictionaryLoading(false));
-  }, [detail.word.id, detail.word.lemma, detail.word.language]);
+        if (active) { setDictionaryError(true); setDictionaryReason(String(error)); setLocalDictionaryState('unavailable'); }
+      } finally {
+        if (active) setDictionaryLoading(false);
+      }
+    })();
+    // This counter owns asynchronous requests, rather than a DOM node.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => { active = false; dictionaryRequest.current++; };
+  }, [detail.word.id, detail.word.lemma, detail.word.language, dictionaryReady]);
 
   const statuses: WordStatus[] = ['unprocessed', 'learning', 'known', 'ignored'];
   const visibleOccurrences = occurrences.filter((occ) => !occ.hidden);
@@ -179,22 +235,34 @@ export default function WordDetailPanel({ detail, onClose, onStatusChange, onDef
   );
 
   return (
-    <div className="fixed inset-y-0 right-0 w-full sm:w-96 bg-white border-l border-gray-200 shadow-xl z-40 flex flex-col">
+    <Overlay variant="detail" label={detail.word.lemma} onClose={requestClose} className="detail-panel">
       <div className="flex items-center justify-between p-4 border-b border-gray-100">
-        <h2 className={`font-semibold text-gray-900 ${CONTENT_FONT_CLASS.learning[learningTextFontSize]}`}>{detail.word.lemma}</h2>
+        <h2 ref={panelTitleRef} tabIndex={-1} id="word-detail-title" className={`font-semibold text-gray-900 outline-none ${CONTENT_FONT_CLASS.learning[learningTextFontSize]}`}>{detail.word.lemma}</h2>
         <div className="flex items-center gap-1">
           <DisplaySettingsMenu />
-          <button onClick={onClose} aria-label={t('common.close')} className="text-gray-400 hover:text-gray-600 p-1"><X size={20} /></button>
+          <button onClick={() => void requestClose()} aria-label={t('common.close')} className="text-gray-400 hover:text-gray-600 p-1"><X size={20} /></button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="detail-panel__body p-4 space-y-4">
+        {definitionError && <p role="alert" className="annotation-error">{t('shell.saveFailed')}</p>}
         <div className="flex items-center gap-2">
           <StatusBadge status={detail.word.status} />
           <span className={`${CONTENT_FONT_CLASS.auxiliary[auxiliaryFontSize]} text-gray-500`}>{t('wordDetail.frequency', { count: detail.word.frequency })}</span>
         </div>
         {detail.word.baseline_pending && (
           <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-800">此词由高频词基线预先跳过，尚待确认。它会自然出现在每日单词复习中；也可在这里直接改为“学习中”。</p>
+        )}
+        {detail.word.word_kind === 'ambiguous' && (
+          <div className="word-context-box">
+            <p className="mb-2 text-xs font-medium">{t('wordDetail.confirmBaseForm')}</p>
+            <div className="flex gap-2">
+              <AppSelect value={selectedLemma} onChange={setSelectedLemma} aria-label={t('wordDetail.confirmBaseForm')}
+                options={lemmaCandidates.map(candidate => ({ value: candidate, label: candidate }))} />
+              <button className="word-context-action shrink-0" onClick={async () => { await invoke('resolve_word_lemma', { wordId: detail.word.id, lemma: selectedLemma }); onWordResolved?.(); }}>{t('wordDetail.confirmBaseFormAction')}</button>
+            </div>
+            <p className="mt-1 text-[11px] opacity-70">{t('wordDetail.keepCurrentFormHint')}</p>
+          </div>
         )}
         {(detail.word.reading || detail.word.part_of_speech) && (
           <div className={`rounded-lg bg-gray-50 px-3 py-2 text-gray-600 ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}>
@@ -207,27 +275,27 @@ export default function WordDetailPanel({ detail, onClose, onStatusChange, onDef
           <div className="flex items-center justify-between gap-2">
             <div>
               <h3 className={`font-medium text-gray-500 ${CONTENT_FONT_CLASS.auxiliary[auxiliaryFontSize]}`}>{t('wordDetail.dictionaryTitle')}</h3>
-              {dictionary?.phonetic && <p className={`mt-1 text-blue-700 ${CONTENT_FONT_CLASS.auxiliary[auxiliaryFontSize]}`}>{dictionary.phonetic}</p>}
+              {(dictionary?.phonetic ?? onlineDictionary?.phonetic) && <p className={`mt-1 text-blue-700 ${CONTENT_FONT_CLASS.auxiliary[auxiliaryFontSize]}`}>{dictionary?.phonetic ?? onlineDictionary?.phonetic}</p>}
             </div>
             <div className="flex items-center gap-1">
-              {dictionary && (
+              {(dictionary || onlineDictionary || detail.word.language === 'en') && (
                 <button
                   onClick={() => void playAudio()}
                   disabled={audioLoading}
                   aria-label={t('wordDetail.playAria')}
-                  title={dictionary.audio_url ? t('wordDetail.playTitle') : t('wordDetail.systemVoiceTitle')}
-                  className="rounded-md p-1.5 text-blue-600 hover:bg-blue-100 disabled:opacity-40"
+                  title={onlineDictionary?.local_audio_path || dictionary?.local_audio_path ? t('wordDetail.playTitle') : t('wordDetail.systemVoiceTitle')}
+                  className="word-audio-action rounded-md p-1.5 text-blue-600 hover:bg-blue-100"
                 >
                   <Volume2 size={16} />
                 </button>
               )}
-              {dictionary?.audio_url && !dictionary.local_audio_path && (
+              {(onlineDictionary ?? dictionary)?.audio_url && !(onlineDictionary ?? dictionary)?.local_audio_path && (
                 <button
                   onClick={() => void cacheAudio()}
                   disabled={audioLoading}
                   aria-label={t('wordDetail.cacheAria')}
                   title={t('wordDetail.cacheTitle')}
-                  className="rounded-md p-1.5 text-blue-600 hover:bg-blue-100 disabled:opacity-40"
+                  className="word-audio-action rounded-md p-1.5 text-blue-600 hover:bg-blue-100"
                 >
                   <Download size={16} />
                 </button>
@@ -235,20 +303,27 @@ export default function WordDetailPanel({ detail, onClose, onStatusChange, onDef
               <button
                 onClick={() => void loadDictionary(true)}
                 disabled={dictionaryLoading}
-                aria-label={t('wordDetail.refreshAria')}
-                className="rounded-md p-1.5 text-gray-500 hover:bg-blue-100 disabled:opacity-40"
+                aria-label={t('lookup.online')}
+                className="word-audio-action flex items-center gap-1 rounded-md p-1.5 text-gray-500 hover:bg-blue-100"
               >
-                <RefreshCw size={15} className={dictionaryLoading ? 'animate-spin' : ''} />
+                <RefreshCw size={15} className={dictionaryLoading ? 'animate-spin' : ''} /><span>{t('lookup.online')}</span>
               </button>
             </div>
           </div>
-          {dictionaryLoading && <p className="mt-2 text-xs text-gray-400">{t('wordDetail.loading')}</p>}
-          {!dictionaryLoading && dictionaryError && (
-            <p className="mt-2 text-xs text-gray-500">{t('wordDetail.loadError')}</p>
+          {dictionaryLoading && <p className="mt-2 text-xs text-gray-400">{dictionary ? t('wordDetail.onlineLoading') : t('wordDetail.loading')}</p>}
+          {!dictionaryLoading && dictionaryError && !dictionary && (
+            <p className="mt-2 text-xs text-gray-500">{t(dictionaryReason.includes('PREPARING') ? 'lookup.preparing' : dictionaryReason.includes('NOT_FOUND') ? 'lookup.notFound' : 'lookup.failed')}</p>
           )}
-          {!dictionaryLoading && dictionary && (
+          {localDictionaryState === 'missing' && (dictionaryLoading || onlineDictionary) && <p className="mt-2 text-xs text-gray-500">{t('wordDetail.localNoEntry')}</p>}
+          {onlineDictionaryError && dictionary && <p className="mt-2 text-xs text-gray-500">{t('wordDetail.onlineFailedLocalKept')}</p>}
+          {!dictionaryLoading && !dictionaryError && localDictionaryState === 'missing' && !dictionary && !onlineDictionary && <p className="mt-2 text-xs text-gray-500">{t('wordDetail.localNoEntry')}</p>}
+          {dictionary && (
             <div className="mt-2 space-y-2">
-              {dictionary.definitions.slice(0, 5).map((item, index) => (
+              {detail.word.language === 'en' && <p className="text-xs font-medium text-blue-700">{t('wordDetail.offlineMeaning')}</p>}
+              {dictionary.match_kind === 'spelling_variant' && dictionary.matched_headword !== detail.word.lemma && (
+                <p className="dictionary-match-note">{t('wordDetail.spellingVariantMatch', { headword: dictionary.matched_headword })}</p>
+              )}
+              {(dictionary.provider === 'Collins COBUILD V3' ? dictionary.definitions : dictionary.definitions.slice(0, 5)).map((item, index) => (
                 <div key={`${item.definition}-${index}`} className={`text-gray-700 ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}>
                   {item.part_of_speech && <span className={`mr-1 text-blue-600 ${CONTENT_FONT_CLASS.auxiliary[auxiliaryFontSize]}`}>{item.part_of_speech}</span>}
                   {item.definition}
@@ -257,6 +332,19 @@ export default function WordDetailPanel({ detail, onClose, onStatusChange, onDef
                 </div>
               ))}
               <p className="text-[11px] text-gray-400">{t('wordDetail.source', { provider: dictionary.provider })}</p>
+            </div>
+          )}
+          {onlineDictionary && detail.word.language === 'en' && (
+            <div className="mt-3 space-y-2 border-t border-blue-100 pt-3">
+              <p className="text-xs font-medium text-blue-700">{t('wordDetail.onlineMeanings')}</p>
+              {onlineDictionary.definitions.slice(0, 5).map((item, index) => (
+                <div key={`${item.definition}-${index}`} className={`text-gray-700 ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}>
+                  {item.part_of_speech && <span className={`mr-1 text-blue-600 ${CONTENT_FONT_CLASS.auxiliary[auxiliaryFontSize]}`}>{item.part_of_speech}</span>}
+                  {item.definition}
+                  {item.example && <p className={`mt-0.5 italic text-gray-500 ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}>“{item.example}”</p>}
+                </div>
+              ))}
+              <p className="text-[11px] text-gray-400">{t('wordDetail.source', { provider: onlineDictionary.provider })}</p>
             </div>
           )}
         </section>
@@ -281,12 +369,12 @@ export default function WordDetailPanel({ detail, onClose, onStatusChange, onDef
 
         <div>
           <div className="mb-1 flex items-center justify-between">
-            <label className="block text-xs font-medium text-gray-500">{t('wordDetail.definitionLabel')}</label>
+            <label className="block text-xs font-medium text-gray-500">{detail.word.language === 'en' ? '英文释义笔记' : t('wordDetail.definitionLabel')}</label>
             <div className="flex items-center gap-2">
               {definitionSaved && <span className="text-xs text-green-600">{t('common.saved')}</span>}
               <button
                 onClick={() => void handleDefinitionSave()}
-                disabled={definition === (detail.word.definition ?? '')}
+                disabled={definitionSaving || definition === (detail.word.definition ?? '')}
                 className="rounded-lg bg-blue-600 px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-40"
               >
                 {t('common.save')}
@@ -294,10 +382,11 @@ export default function WordDetailPanel({ detail, onClose, onStatusChange, onDef
             </div>
           </div>
           <textarea
+            disabled={definitionSaving}
             value={definition}
             onChange={(e) => setDefinition(e.target.value)}
             onBlur={() => void handleDefinitionSave()}
-            placeholder={t('wordDetail.definitionPlaceholder')}
+            placeholder={detail.word.language === 'en' ? '记录自己的英文理解…' : t('wordDetail.definitionPlaceholder')}
             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
             rows={2}
           />
@@ -309,8 +398,8 @@ export default function WordDetailPanel({ detail, onClose, onStatusChange, onDef
             {pagedOccurrences.map((occ) => (
               <div
                 key={occ.id}
-                onClick={() => onOccurrenceOpen?.(occ)}
-                className={`bg-gray-50 rounded-lg p-3 ${onOccurrenceOpen ? 'cursor-pointer hover:bg-blue-50' : ''} ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}
+                onClick={() => { if (onOccurrenceOpen) void requestClose().then(ok => { if (ok) onOccurrenceOpen(occ); }); }}
+                className={`word-occurrence bg-gray-50 rounded-lg p-3 ${onOccurrenceOpen ? 'cursor-pointer hover:bg-blue-50' : ''} ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <p className="text-gray-700 leading-relaxed">
@@ -322,16 +411,16 @@ export default function WordDetailPanel({ detail, onClose, onStatusChange, onDef
                       disabled={hideSaving}
                       aria-label={t('wordDetail.hideOccurrenceAria')}
                       title={t('wordDetail.hideOccurrence')}
-                      className="shrink-0 rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:opacity-40"
+                      className="word-occurrence__visibility shrink-0 rounded-md p-1.5"
                     >
                       <EyeOff size={14} />
                     </button>
                   )}
                 </div>
                 {occ.zh_text && (
-                  <p className={`mt-1 text-gray-400 ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}>{occ.zh_text}</p>
+                  <p className={`word-occurrence__secondary mt-1 ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}>{occ.zh_text}</p>
                 )}
-                <p className={`mt-1 text-gray-400 ${CONTENT_FONT_CLASS.auxiliary[auxiliaryFontSize]}`}>
+                <p className={`word-occurrence__secondary mt-1 ${CONTENT_FONT_CLASS.auxiliary[auxiliaryFontSize]}`}>
                   {occ.file_name}
                   {occ.start_time && <span className="ml-2">[{occ.start_time}]</span>}
                 </p>
@@ -360,7 +449,7 @@ export default function WordDetailPanel({ detail, onClose, onStatusChange, onDef
               {showHidden && (
                 <div className="mt-2 space-y-2">
                   {hiddenOccurrences.map((occ) => (
-                    <div key={occ.id} onClick={() => onOccurrenceOpen?.(occ)} className={`bg-gray-50 rounded-lg p-3 opacity-70 ${onOccurrenceOpen ? 'cursor-pointer hover:bg-blue-50' : ''} ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}>
+                    <div key={occ.id} onClick={() => { if (onOccurrenceOpen) void requestClose().then(ok => { if (ok) onOccurrenceOpen(occ); }); }} className={`word-occurrence bg-gray-50 rounded-lg p-3 ${onOccurrenceOpen ? 'cursor-pointer hover:bg-blue-50' : ''} ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}>
                       <div className="flex items-start justify-between gap-2">
                         <p className="text-gray-700 leading-relaxed line-through decoration-gray-300">
                           <OccurrenceText text={occ.en_text} surface={occ.original_form} language={detail.word.language} />
@@ -370,15 +459,15 @@ export default function WordDetailPanel({ detail, onClose, onStatusChange, onDef
                           disabled={hideSaving}
                           aria-label={t('wordDetail.restoreOccurrenceAria')}
                           title={t('wordDetail.restoreOccurrence')}
-                          className="shrink-0 rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:opacity-40"
+                          className="word-occurrence__visibility shrink-0 rounded-md p-1.5"
                         >
                           <Eye size={14} />
                         </button>
                       </div>
                       {occ.zh_text && (
-                        <p className={`mt-1 text-gray-400 ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}>{occ.zh_text}</p>
+                        <p className={`word-occurrence__secondary mt-1 ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}>{occ.zh_text}</p>
                       )}
-                      <p className={`mt-1 text-gray-400 ${CONTENT_FONT_CLASS.auxiliary[auxiliaryFontSize]}`}>
+                      <p className={`word-occurrence__secondary mt-1 ${CONTENT_FONT_CLASS.auxiliary[auxiliaryFontSize]}`}>
                         {occ.file_name}
                         {occ.start_time && <span className="ml-2">[{occ.start_time}]</span>}
                       </p>
@@ -390,6 +479,6 @@ export default function WordDetailPanel({ detail, onClose, onStatusChange, onDef
           )}
         </div>
       </div>
-    </div>
+    </Overlay>
   );
 }

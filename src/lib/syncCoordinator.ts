@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import { invalidateCaches } from './cacheInvalidation';
 
 type Status = { configured: boolean; auto_sync_enabled: boolean; pending_uploads: number };
 const now = () => Date.now();
@@ -29,6 +30,8 @@ class SyncCoordinator {
     try {
       await invoke('sync_set_diagnostic', { phase: 'syncing', lastError: null, nextRetryAt: null });
       await invoke('sync_run');
+      invalidateCaches('files', 'words', 'phrases', 'review', 'insights', 'storage');
+      window.dispatchEvent(new Event('lexicue-sync-applied'));
       await invoke('sync_set_diagnostic', { phase: 'idle', lastError: null, nextRetryAt: null });
       this.retrySeconds = 10;
       this.hadPending = false;

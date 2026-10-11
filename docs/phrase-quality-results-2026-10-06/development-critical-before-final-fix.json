@@ -1,0 +1,483 @@
+{
+  "diagnostic": {
+    "batch": 19,
+    "cacheErrors": 0,
+    "code": "COMPLETED",
+    "completionTokens": null,
+    "durationMs": 0,
+    "errorKind": null,
+    "explanation": {
+      "cacheHits": 0,
+      "completionTokens": 0,
+      "contentRetries": 0,
+      "inputChars": 0,
+      "promptTokens": 0,
+      "requests": 0,
+      "splits": 0,
+      "transportRetries": 0
+    },
+    "extraction": {
+      "cacheHits": 0,
+      "completionTokens": 594,
+      "contentRetries": 0,
+      "inputChars": 35135,
+      "promptTokens": 7476,
+      "requests": 41,
+      "splits": 0,
+      "transportRetries": 0
+    },
+    "fileId": -40100,
+    "finishReason": null,
+    "firstPreviewMs": null,
+    "httpStatus": null,
+    "missingFields": [],
+    "model": "gemma4-e2b-litert-181938105e0e",
+    "occurredAt": 1791283858777,
+    "promptTokens": null,
+    "provider": "gemma",
+    "rawAvailable": false,
+    "requestId": null,
+    "runId": "99da5b1a391144b989c30a4a61953c5c",
+    "skippedCount": 0,
+    "stage": "completed",
+    "status": "completed",
+    "streamFallbacks": 0,
+    "streamRequests": 41,
+    "totalSkipped": 0,
+    "usageIncomplete": false,
+    "validCount": 1
+  },
+  "elapsedMs": 194619,
+  "items": [
+    {
+      "canonical": "see you",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 19,
+      "token_positions": [
+        5,
+        6
+      ]
+    },
+    {
+      "canonical": "see you tomorrow",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": "a common farewell phrase for future encounters",
+        "domains": [],
+        "evidence_kind": "model",
+        "regions": [],
+        "register_tags": [],
+        "source": "gemma4-e2b-litert-181938105e0e"
+      },
+      "segment_index": 19,
+      "token_positions": [
+        5,
+        6,
+        7
+      ]
+    },
+    {
+      "canonical": "listen to",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 26,
+      "token_positions": [
+        1,
+        2
+      ]
+    },
+    {
+      "canonical": "see you",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 33,
+      "token_positions": [
+        3,
+        4
+      ]
+    },
+    {
+      "canonical": "see you tomorrow",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": "to say goodbye and plan to meet again",
+        "domains": [],
+        "evidence_kind": "model",
+        "regions": [],
+        "register_tags": [],
+        "source": "gemma4-e2b-litert-181938105e0e"
+      },
+      "segment_index": 33,
+      "token_positions": [
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "canonical": "spill the tea",
+      "category": "idiom",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "dictionary",
+        "regions": [],
+        "register_tags": [
+          "informal"
+        ],
+        "source": "https://dictionary.cambridge.org/dictionary/english/spill-the-tea"
+      },
+      "segment_index": 61,
+      "token_positions": [
+        4,
+        5,
+        6
+      ]
+    },
+    {
+      "canonical": "no cap",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "dictionary",
+        "regions": [],
+        "register_tags": [
+          "slang"
+        ],
+        "source": "https://www.dictionary.com/culture/slang/no-cap"
+      },
+      "segment_index": 62,
+      "token_positions": [
+        7,
+        8
+      ]
+    },
+    {
+      "canonical": "throw shade",
+      "category": "idiom",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "dictionary",
+        "regions": [],
+        "register_tags": [
+          "slang"
+        ],
+        "source": "https://www.dictionary.com/culture/slang/throwing-shade"
+      },
+      "segment_index": 65,
+      "token_positions": [
+        3,
+        4
+      ]
+    },
+    {
+      "canonical": "take the piss",
+      "category": "idiom",
+      "metadata": {
+        "cautions": [
+          "offensive"
+        ],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "dictionary",
+        "regions": [
+          "UK"
+        ],
+        "register_tags": [
+          "informal"
+        ],
+        "source": "https://dictionary.cambridge.org/dictionary/english/take-the-piss-out-of"
+      },
+      "segment_index": 66,
+      "token_positions": [
+        8,
+        9,
+        10
+      ]
+    },
+    {
+      "canonical": "spill the tea",
+      "category": "idiom",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "dictionary",
+        "regions": [],
+        "register_tags": [
+          "informal"
+        ],
+        "source": "https://dictionary.cambridge.org/dictionary/english/spill-the-tea"
+      },
+      "segment_index": 67,
+      "token_positions": [
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "canonical": "no cap",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "dictionary",
+        "regions": [],
+        "register_tags": [
+          "slang"
+        ],
+        "source": "https://www.dictionary.com/culture/slang/no-cap"
+      },
+      "segment_index": 68,
+      "token_positions": [
+        3,
+        4
+      ]
+    },
+    {
+      "canonical": "sit down",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 94,
+      "token_positions": [
+        2,
+        3
+      ]
+    },
+    {
+      "canonical": "wait for",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 94,
+      "token_positions": [
+        14,
+        15
+      ]
+    },
+    {
+      "canonical": "give up",
+      "category": "phrasal_verb",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 106,
+      "token_positions": [
+        5,
+        6
+      ]
+    },
+    {
+      "canonical": "plan for",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": "to devise a course of action.",
+        "domains": [],
+        "evidence_kind": "model",
+        "regions": [],
+        "register_tags": [],
+        "source": "gemma4-e2b-litert-181938105e0e"
+      },
+      "segment_index": 116,
+      "token_positions": [
+        9,
+        10
+      ]
+    },
+    {
+      "canonical": "heavy rain",
+      "category": "collocation",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 116,
+      "token_positions": [
+        17,
+        18
+      ]
+    },
+    {
+      "canonical": "see you",
+      "category": "fixed_expression",
+      "metadata": {
+        "cautions": [],
+        "context_meaning_en": null,
+        "domains": [],
+        "evidence_kind": "editorial",
+        "regions": [],
+        "register_tags": [],
+        "source": "LexiCue editorial core expressions v1"
+      },
+      "segment_index": 119,
+      "token_positions": [
+        2,
+        3
+      ]
+    }
+  ],
+  "iteration": 0,
+  "model": "gemma4-e2b-litert-181938105e0e",
+  "segmentIndices": [
+    1,
+    19,
+    22,
+    26,
+    33,
+    34,
+    38,
+    51,
+    61,
+    62,
+    65,
+    66,
+    67,
+    68,
+    69,
+    94,
+    106,
+    116,
+    119
+  ],
+  "segments": 19,
+  "sourceRows": [
+    [
+      1,
+      "My brother tries to want to watch every lesson, but his schedule rarely permits that."
+    ],
+    [
+      19,
+      "Our teacher smiles and says see you tomorrow before closing the classroom door and carrying her books downstairs."
+    ],
+    [
+      22,
+      "I do it because I enjoy the exercise, rather than because anyone promised me an examination certificate."
+    ],
+    [
+      26,
+      "I listen to the speaker carefully, even when the recording includes unfamiliar names and numbers near the beginning."
+    ],
+    [
+      33,
+      "The tutor says see you tomorrow at the workshop while waving goodbye to everyone from the entrance."
+    ],
+    [
+      34,
+      "From this balcony I can see you standing beside the fountain, although your face is difficult to recognize."
+    ],
+    [
+      38,
+      "The recording contains ordinary descriptions of a wooden shelf, three green chairs, and a window facing the garden."
+    ],
+    [
+      51,
+      "A tired volunteer does not want to watch another demonstration before trying the equipment herself during the rehearsal."
+    ],
+    [
+      61,
+      "Maya asks me to spill the tea about the surprise party that everyone apparently organized without telling her."
+    ],
+    [
+      62,
+      "I tell her the story is true, no cap, because I personally helped decorate the room before the guests arrived."
+    ],
+    [
+      65,
+      "Nobody wants to throw shade at the organizer, although the unusual decorations provide plenty of opportunities for jokes."
+    ],
+    [
+      66,
+      "Our British friend warns that we should not take the piss out of someone who seems genuinely upset."
+    ],
+    [
+      67,
+      "The waiter spilled the tea across the tray, and the hot liquid soaked several paper napkins beside the cups."
+    ],
+    [
+      68,
+      "The bottle has no cap on its neck, so the remaining water could easily spill inside the shopping bag."
+    ],
+    [
+      69,
+      "A tall tree will throw shade across this terrace in summer, although there is almost no shade here today."
+    ],
+    [
+      94,
+      "Visitors can sit down beside the window and read the information about boats while waiting for the guided tour."
+    ],
+    [
+      106,
+      "I do not want to give up learning English merely because a difficult conversation makes me feel embarrassed occasionally."
+    ],
+    [
+      116,
+      "My sister asks me to forget any detailed travel plans for tomorrow because the weather forecast predicts heavy rain overnight."
+    ],
+    [
+      119,
+      "I say see you to our grandparents at the door and promise to visit again after the workshop next week."
+    ]
+  ],
+  "writesLearningData": false
+}

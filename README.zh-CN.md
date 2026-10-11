@@ -1,71 +1,98 @@
-# LexiCue
+<p align="center"><img src="docs/lexicue-icon.png" width="88" alt="LexiCue"></p>
+<h1 align="center">LexiCue</h1>
+<p align="center"><strong>读你喜欢的内容，记住真正会用的词。</strong></p>
+<p align="center"><a href="README.md">English</a> · <a href="README.zh-CN.md">简体中文</a> · <a href="README.ja.md">日本語</a> · <a href="README.de.md">Deutsch</a></p>
 
-**把你正在读的内容，变成真正记得住的词汇。**
+<p align="center">
+  <a href="https://github.com/skylar-deepmind/LexiCue/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/skylar-deepmind/LexiCue?style=flat-square&color=2563eb"></a>
+  <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-2563eb?style=flat-square"></a>
+  <a href="https://github.com/skylar-deepmind/LexiCue/actions/workflows/ci.yml"><img alt="CI status" src="https://github.com/skylar-deepmind/LexiCue/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/skylar-deepmind/LexiCue/releases/latest"><img alt="macOS, Windows, Android" src="https://img.shields.io/badge/platforms-macOS%20%7C%20Windows%20%7C%20Android-526177?style=flat-square"></a>
+  <a href="https://skylar-deepmind.github.io/LexiCue/zh/#feature-languages"><img alt="English, Japanese, German, Chinese" src="https://img.shields.io/badge/languages-EN%20%7C%20JA%20%7C%20DE%20%7C%20ZH-526177?style=flat-square"></a>
+</p>
 
-LexiCue 是一款免费、开源、本地优先的阅读学习工具。导入一篇文章、一本书或影视字幕——读到不懂的单词随手点一下就有释义，再用智能复习把它们真正记下来。
+<p align="center"><a href="https://github.com/skylar-deepmind/LexiCue/releases/latest"><strong>免费下载</strong></a> · <a href="https://skylar-deepmind.github.io/LexiCue/zh/">看看怎么用</a> · <a href="DISTRIBUTION.md">安装指南</a></p>
 
-> [English Version](README.md) · 日本語版（[README.ja.md](README.ja.md)）
+[![学你真正喜欢的内容](docs/media/demo/hero.gif)](https://skylar-deepmind.github.io/LexiCue/zh/#feature-import)
 
-## LexiCue 适合你吗？
+## 用自己的内容学语言
 
-- 你在学**英语、日语、德语或中文**
-- 你更喜欢从**真实内容**里学——文章、书、字幕——而不是背词表
-- 你看剧、看电影时想顺便学会出现过的单词
-- 你在意**隐私**，不想注册账号、不想上传数据
-- 你想要一个**免费、开源**、**离线可用**的工具
+导入你喜欢的 SRT 字幕。读到生词随手查，在原句里理解、积累，再通过复习真正记住。
 
-以上只要有一条符合，LexiCue 就是为你做的。犹豫不决的话，试试就知道——无需安装、无需账号，不会有什么损失。
+## 简单的学习闭环
 
-## 怎么用
+1. **导入** — 带来你喜欢的内容。
+2. **阅读与理解** — 在原句里查词、理解。
+3. **积累** — 整理自己的单词与短语。
+4. **复习** — 按间隔重复安排复习。
 
-1. **导入** — 放入 `.txt` / `.srt` / `.vtt` 文件，或直接抓取 YouTube 字幕
-2. **阅读** — 逐句阅读，点一下单词就能看到释义和读音，并可按需要调整文字大小
-3. **积累** — 生词和常用搭配自动收进你的词库；文件页会显示其中词汇和词组的学习进度
-4. **复习** — LexiCue 在合适的时候轻轻提醒你，每天几分钟
+## 看看实际学习流程
 
-## 功能一览
+### 阅读与点词查词
 
-- **学你真正喜欢的内容** — 自己的文章、书、字幕，而不是预设词表
-- **点词即查** — 释义、读音、例句一步到位，不打断阅读
-- **智能复习** — 间隔重复，赶在你忘记之前提醒
-- **从高频词起步** — 可选择将英语或中文最高频的 1,000–10,000 个词先标为已掌握，再每天抽查少量词汇
-- **进度可追溯到原文** — 打开任一已导入文件，继续阅读并查看其中单词和词组的学习进度
-- **内置离线词典** — 英、日、德、中四种语言，断网也能查
-- **数据留在你的电脑上** — 所有记录保存在本机，无需账号、默认不联网
-- **AI 可选** — 需要段落解释或翻译时再打开，默认关闭
+[![阅读与点词查词](docs/media/demo/lookup.gif)](https://skylar-deepmind.github.io/LexiCue/zh/#feature-lookup)
 
-## 隐私
+点击原句中的单词，随手查看释义。内置离线词典，让阅读顺畅继续。
 
-所有学习数据都保存在你设备上的本地数据库里。除非你主动操作（比如开启 AI、下载 YouTube 字幕），否则不会有任何内容上传。
+### 语境与短语
+
+[![语境与短语](docs/media/demo/phrases.gif)](https://skylar-deepmind.github.io/LexiCue/zh/#feature-phrases)
+
+可选 AI 识别英语表达，解释它在原句中的用法。Gemma 模型单独下载后可在本地运行。
+
+### 带着原句复习
+
+[![带着原句复习](docs/media/demo/review.gif)](https://skylar-deepmind.github.io/LexiCue/zh/#feature-review)
+
+带着原句复习单词和词组。你的作答决定后续的间隔重复安排。
+
+> 演示复用真实产品组件，使用原创样本数据。AI 结果为固定示例；同步为原理示意。
+
+## 特色功能
+
+- **[学你真正喜欢的内容](https://skylar-deepmind.github.io/LexiCue/zh/#feature-import)** — 导入 SRT 字幕，预览内容并确认学习语言。也可以通过 YouTube 入口获取字幕。
+- **[不打断阅读，点词即查](https://skylar-deepmind.github.io/LexiCue/zh/#feature-lookup)** — 点击原句中的单词，随手查看释义。内置离线词典，让阅读顺畅继续。
+- **[在原句里理解地道表达](https://skylar-deepmind.github.io/LexiCue/zh/#feature-phrases)** — 可选 AI 识别英语表达，解释它在原句中的用法。Gemma 模型单独下载后可在本地运行。
+- **[词汇积累，有迹可循](https://skylar-deepmind.github.io/LexiCue/zh/#feature-collect)** — 筛选、标签与学习状态，让单词和词组井然有序。批量或逐项标注，随时回到原文。
+- **[在合适的时候，再遇见它](https://skylar-deepmind.github.io/LexiCue/zh/#feature-review)** — 带着原句复习单词和词组。你的作答决定后续的间隔重复安排。
+- **[每一点进步，都看得见](https://skylar-deepmind.github.io/LexiCue/zh/#feature-progress)** — 查看词汇状态、七日复习和每份材料的学习指数，知道自己走到了哪里。
+- **[从你已经会的词开始](https://skylar-deepmind.github.io/LexiCue/zh/#feature-baseline)** — 可选将英语或中文最高频的 1,000–10,000 个词标为已掌握，再通过复习抽查。
+- **[四种语言，自己的阅读方式](https://skylar-deepmind.github.io/LexiCue/zh/#feature-languages)** — 英、日、德、中四种语言。假名、拼音与词形处理辅助阅读，也可切换明亮或午夜主题。
+- **[学习数据，留在自己手里](https://skylar-deepmind.github.io/LexiCue/zh/#feature-privacy)** — 学习记录保存在本地，可以导出与恢复备份。本地学习无需注册账号。
+- **[让学习接续到另一台设备](https://skylar-deepmind.github.io/LexiCue/zh/#feature-sync)** — 可选端到端加密云同步，连接电脑与手机。这里用动画示意同步过程。
 
 ## 下载与安装
 
-从 [Releases 页面](https://github.com/skylar-deepmind/LexiCue/releases/latest) 下载 **macOS / Windows / Android** 安装包。
+支持 macOS、Windows 与 Android。安装应用，带来一份想读的材料，就可以开始。
 
-> 安装包目前为**未签名**构建，首次安装系统可能给出安全提示，属于正常现象。各平台处理方法见 [DISTRIBUTION.md](DISTRIBUTION.md)。
+[**免费下载 — macOS / Windows / Android**](https://github.com/skylar-deepmind/LexiCue/releases/latest)
 
-## 支持这个项目
+安装包目前未签名，首次启动请参考安装指南。本地 Gemma 模型需要单独下载。 [安装指南](DISTRIBUTION.md).
 
-LexiCue 免费且开源。如果它对你有所帮助，欢迎在**爱发电**上支持作者：
+Gemma: [E2B / E4B](docs/embedded-gemma.md).
 
-👉 [https://www.ifdian.net/a/skylar-lexicue](https://www.ifdian.net/a/skylar-lexicue)
+## 隐私与可选联网
 
-在 GitHub 上点个 Star 也是莫大的鼓励：[github.com/skylar-deepmind/LexiCue](https://github.com/skylar-deepmind/LexiCue)
+阅读、词典与复习在本地运行。获取 YouTube 字幕或下载 AI 模型需要联网。可选云端 AI 将所选文本发送到你配置的 API；可选云同步上传加密后的学习记录。
+
+## 支持项目
+
+[支持作者 — 爱发电 / Aifadian](https://www.ifdian.net/a/skylar-lexicue) · [GitHub Star](https://github.com/skylar-deepmind/LexiCue)
 
 ## 开发
 
-面向贡献者。需要 Node.js 20+ 与 Rust 1.77.2+。
+Node.js 22.12+ · Rust · CMake 3.22+ · C++17. [Gemma](docs/embedded-gemma.md).
 
-```bash
-npm install        # 安装前端依赖
-npm run tauri dev  # 以桌面应用方式运行
-npm run build      # 类型检查 + 前端构建
-npm test           # 前端测试
-cd src-tauri && cargo test   # Rust 测试
+```sh
+npm install
+npm run tauri dev
+npm run build
+npm test
+cd src-tauri && cargo test
 ```
 
-打包安装包：`npm run tauri build`（产物在 `src-tauri/target/release/bundle/`）。
+[Marketing / README / Website / Video](marketing/README.md)
 
 ## 许可证
 
-MIT License，见 [LICENSE](LICENSE)。内置词典数据的第三方授权声明见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。自定义词典包格式见 [DICTIONARY_PACK.md](DICTIONARY_PACK.md)。
+[MIT](LICENSE) · [Third-party notices](THIRD-PARTY-NOTICES.md) · [Dictionary packs](DICTIONARY_PACK.md)

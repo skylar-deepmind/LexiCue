@@ -1,0 +1,20 @@
+{
+  "id": "gemma4-e4b-litert-0b2a8980ce15",
+  "label": "E4B",
+  "runtime": "litert",
+  "format": "litertlm",
+  "quantization": "LiteRT mixed",
+  "repository": "litert-community/gemma-4-E4B-it-litert-lm",
+  "revision": "2eee7ac325f20eb8c9ac1d0e972f7c84663062da",
+  "filename": "gemma-4-E4B-it.litertlm",
+  "bytes": 3659530240,
+  "sha256": "0b2a8980ce155fd97673d8e820b4d29d9c7d99b8fa6806f425d969b145bd52e0",
+  "minAvailableBytes": 4400000000,
+  "cacheReserveBytes": 4800000000,
+  "minCpuAvailableBytes": 9500000000,
+  "targets": [
+    "aarch64-apple-darwin",
+    "x86_64-pc-windows-msvc",
+    "aarch64-linux-android"
+  ]
+}

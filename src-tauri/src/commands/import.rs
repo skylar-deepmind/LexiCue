@@ -22,7 +22,9 @@ pub struct ImportPayload {
     pub phrase_occurrences: Option<Vec<PhraseOccurrenceInput>>,
     pub replace_file_id: Option<i64>,
     #[serde(default)]
-    pub folder_id: Option<i64>,
+    pub tag_ids: Vec<i64>,
+    #[serde(default)]
+    pub new_tag_names: Vec<String>,
     #[serde(default = "default_language")]
     pub language: String,
 }
@@ -50,6 +52,12 @@ pub struct OccurrenceInput {
     pub reading: Option<String>,
     #[serde(default)]
     pub part_of_speech: Option<String>,
+    #[serde(default = "default_word_kind")]
+    pub word_kind: String,
+}
+
+fn default_word_kind() -> String {
+    "common".to_string()
 }
 
 #[derive(Deserialize)]
@@ -72,51 +80,76 @@ fn now_ms() -> i64 {
         .as_millis() as i64
 }
 
-fn tokenize_en_text(text: &str) -> Vec<(String, i32)> {
-    let cleaned = text
-        .replace(
-            |c: char| {
-                c == '.'
-                    || c == ','
-                    || c == '!'
-                    || c == '?'
-                    || c == ';'
-                    || c == ':'
-                    || c == '('
-                    || c == ')'
-                    || c == '['
-                    || c == ']'
-                    || c == '{'
-                    || c == '}'
-                    || c == '"'
-                    || c == '\''
-                    || c == '`'
-                    || c == '«'
-                    || c == '»'
-                    || c == '–'
-                    || c == '—'
-                    || c == '…'
-                    || c == '@'
-                    || c == '#'
-                    || c == '$'
-                    || c == '%'
-                    || c == '^'
-                    || c == '&'
-                    || c == '*'
-                    || c == '+'
-                    || c == '='
-                    || c == '<'
-                    || c == '>'
-                    || c == '/'
-                    || c == '\\'
-                    || c == '|'
-                    || c == '~'
-            },
-            " ",
-        )
+fn is_en_phrase_delimiter(c: char) -> bool {
+    c == '.'
+        || c == ','
+        || c == '!'
+        || c == '?'
+        || c == ';'
+        || c == ':'
+        || c == '('
+        || c == ')'
+        || c == '['
+        || c == ']'
+        || c == '{'
+        || c == '}'
+        || c == '"'
+        || c == '\''
+        || c == '`'
+        || c == '«'
+        || c == '»'
+        || c == '–'
+        || c == '—'
+        || c == '…'
+        || c == '@'
+        || c == '#'
+        || c == '$'
+        || c == '%'
+        || c == '^'
+        || c == '&'
+        || c == '*'
+        || c == '+'
+        || c == '='
+        || c == '<'
+        || c == '>'
+        || c == '/'
+        || c == '\\'
+        || c == '|'
+        || c == '~'
+}
+fn clean_en_phrase_text(text: &str) -> String {
+    text.replace(is_en_phrase_delimiter, " ")
         .replace("--", " ")
-        .to_lowercase();
+        .to_lowercase()
+}
 
+pub(crate) fn en_phrase_positions(text: &str) -> std::collections::HashMap<usize, i32> {
+    let mut chars = text.chars().peekable();
+    let mut offset = 0;
+    let mut position = -1;
+    let mut in_word = false;
+    let mut positions = std::collections::HashMap::new();
+    while let Some(c) = chars.next() {
+        if c == '-' && chars.peek() == Some(&'-') {
+            chars.next();
+            offset += 2;
+            in_word = false;
+            continue;
+        }
+        if c.is_whitespace() || is_en_phrase_delimiter(c) {
+            in_word = false;
+        } else if !in_word {
+            position += 1;
+            positions.insert(offset, position);
+            in_word = true;
+        }
+        offset += c.len_utf16();
+    }
+    positions
+}
+
+fn tokenize_en_text(text: &str) -> Vec<(String, i32)> {
+    let cleaned = clean_en_phrase_text(text);
     let words: Vec<&str> = cleaned.split_whitespace().collect();
     words
         .iter()
@@ -340,6 +373,10 @@ pub fn detect_japanese_phrases_in_segments(
 pub fn import_file(state: State<DbState>, payload: ImportPayload) -> Result<i64, String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
 
+    import_payload(&conn, payload)
+}
+
+pub fn import_payload(conn: &rusqlite::Connection, payload: ImportPayload) -> Result<i64, String> {
     conn.execute("BEGIN IMMEDIATE", [])
         .map_err(|e| e.to_string())?;
 
@@ -352,24 +389,39 @@ pub fn import_file(state: State<DbState>, payload: ImportPayload) -> Result<i64,
         }
 
         conn.execute(
-            "INSERT INTO files (name, type, content, content_hash, imported_at, language, folder_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-            params![payload.name, payload.file_type, payload.content, payload.content_hash, now, payload.language, payload.folder_id],
+            "INSERT INTO files (name, type, content, content_hash, imported_at, language) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![payload.name, payload.file_type, payload.content, payload.content_hash, now, payload.language],
         ).map_err(|e| e.to_string())?;
         let file_id = conn.last_insert_rowid();
+        super::tags::replace_file_tags(conn, file_id, &payload.tag_ids, &payload.new_tag_names)?;
 
         {
             let mut stmt = conn
-                .prepare("INSERT OR IGNORE INTO words (language, lemma) VALUES (?1, ?2)")
+                .prepare(
+                    "INSERT OR IGNORE INTO words (language, lemma, word_kind) VALUES (?1, ?2, ?3)",
+                )
                 .map_err(|e| e.to_string())?;
             for lemma in &payload.lemmas {
-                stmt.execute(params![payload.language, lemma])
+                let kind = payload
+                    .occurrences
+                    .iter()
+                    .filter(|item| &item.lemma == lemma)
+                    .map(|item| item.word_kind.as_str())
+                    .min_by_key(|kind| match *kind {
+                        "common" => 0,
+                        "ambiguous" => 1,
+                        "proper_noun" => 2,
+                        _ => 3,
+                    })
+                    .unwrap_or("common");
+                stmt.execute(params![payload.language, lemma, kind])
                     .map_err(|e| e.to_string())?;
             }
         }
 
         // Apply an enabled high-frequency baseline only after the words exist.
         // It deliberately touches only previously unprocessed words.
-        frequency_baseline::apply_enabled_baseline(&conn, &payload.language)?;
+        frequency_baseline::apply_enabled_baseline(conn, &payload.language)?;
 
         let mut word_id_map: HashMap<String, i64> = HashMap::new();
         {
@@ -426,16 +478,25 @@ pub fn import_file(state: State<DbState>, payload: ImportPayload) -> Result<i64,
                 stmt.execute(params![word_id, seg_id, occ.original_form, occ.position])
                     .map_err(|e| e.to_string())?;
                 conn.execute(
-                    "UPDATE words SET reading = COALESCE(?1, reading), part_of_speech = COALESCE(?2, part_of_speech) WHERE id = ?3",
-                    params![occ.reading, occ.part_of_speech, word_id],
+                    "INSERT OR IGNORE INTO word_aliases(word_id,alias,alias_kind) VALUES(?1,lower(?2),'surface')",
+                    params![word_id, occ.original_form],
+                ).map_err(|e| e.to_string())?;
+                conn.execute(
+                    "UPDATE words SET reading = COALESCE(?1, reading), part_of_speech = COALESCE(?2, part_of_speech),
+                       word_kind = CASE WHEN kind_edited=1 THEN word_kind
+                         WHEN ?3='common' THEN 'common'
+                         WHEN word_kind='common' THEN word_kind
+                         WHEN ?3='ambiguous' THEN 'ambiguous' ELSE word_kind END
+                     WHERE id = ?4",
+                    params![occ.reading, occ.part_of_speech, occ.word_kind, word_id],
                 ).map_err(|e| e.to_string())?;
             }
         }
 
         let detected_phrases = match payload.language.as_str() {
-            "en" => detect_phrases_in_segments(&conn, &seg_texts)?,
-            "zh" => detect_chinese_phrases_in_segments(&conn, &seg_texts)?,
-            "ja" => detect_japanese_phrases_in_segments(&conn, &seg_texts)?,
+            "en" => Vec::new(),
+            "zh" => detect_chinese_phrases_in_segments(conn, &seg_texts)?,
+            "ja" => detect_japanese_phrases_in_segments(conn, &seg_texts)?,
             _ => Vec::new(),
         };
 

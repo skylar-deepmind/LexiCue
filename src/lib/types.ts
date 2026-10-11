@@ -11,8 +11,9 @@ export interface FileRecord {
   segment_count: number;
   phrase_analyzed: boolean;
   phrase_analysis_at: number | null;
+  phrase_skipped_items: number;
   language: Language;
-  folder_id: number | null;
+  tags: TagInfo[];
   word_progress: LearningProgress;
   phrase_progress: LearningProgress;
 }
@@ -25,12 +26,15 @@ export interface LearningProgress {
   ignored: number;
 }
 
-export interface FolderInfo {
+export interface TagInfo {
   id: number;
   name: string;
-  parent_id: number | null;
   created_at: number;
-  file_count: number;
+}
+
+export interface TagSelection {
+  tagIds: number[];
+  newTagNames: string[];
 }
 
 export interface Segment {
@@ -52,6 +56,8 @@ export interface WordInfo {
   reading: string | null;
   part_of_speech: string | null;
   baseline_pending?: boolean;
+  word_kind: 'common' | 'proper_noun' | 'noise' | 'ambiguous';
+  search_aliases: string[];
 }
 
 export interface OccurrenceDetail {
@@ -67,6 +73,18 @@ export interface OccurrenceDetail {
   end_time: string | null;
   file_name: string;
   hidden: boolean;
+  expression_metadata?: ExpressionMetadata | null;
+  surface_text?: string | null;
+  token_positions?: number[] | null;
+  meaning_zh?: string | null;
+  usage_zh?: string | null;
+  meaning_edited?: boolean;
+  meaning_en?: string | null;
+  usage_en?: string | null;
+  meaning_en_edited?: boolean;
+  collins_sense_id?: number | null;
+  analysis_model?: string | null;
+  analyzed_at?: number | null;
 }
 
 export interface WordDetail {
@@ -84,6 +102,9 @@ export interface DictionaryDefinition {
 export interface DictionaryEntry {
   language: Language;
   lemma: string;
+  requested_form: string;
+  matched_headword: string;
+  match_kind: 'exact' | 'inflection' | 'spelling_variant' | 'online_fallback';
   provider: string;
   phonetic: string | null;
   audio_url: string | null;
@@ -128,6 +149,9 @@ export interface CardOccurrence {
   end_time: string | null;
   file_name: string;
   original_form: string | null;
+  meaning_zh?: string | null;
+  meaning_en?: string | null;
+  token_positions?: number[] | null;
 }
 
 export interface DuplicateCheck {
@@ -145,7 +169,8 @@ export interface ImportPayload {
   occurrences: OccurrenceInput[];
   phrase_occurrences?: PhraseOccurrenceInput[];
   replace_file_id?: number;
-  folder_id?: number | null;
+  tag_ids: number[];
+  new_tag_names: string[];
   language: Language;
 }
 
@@ -170,6 +195,7 @@ export interface OccurrenceInput {
   position: number;
   reading?: string | null;
   part_of_speech?: string | null;
+  word_kind?: 'common' | 'proper_noun' | 'noise' | 'ambiguous';
 }
 
 export interface PhraseInfo {
@@ -180,6 +206,7 @@ export interface PhraseInfo {
   source: 'detected' | 'manual';
   frequency: number;
   language: Language;
+  unverified: boolean;
 }
 
 export interface PhraseDetail {
@@ -187,13 +214,39 @@ export interface PhraseDetail {
   occurrences: OccurrenceDetail[];
 }
 
+export interface ExpressionMetadata {
+  context_meaning_en?: string | null;
+  register_tags: string[];
+  regions: string[];
+  cautions: string[];
+  domains: string[];
+  evidence_kind: string;
+  source: string;
+}
+
 export interface PhraseDictionaryEntry {
+  expression_metadata?: ExpressionMetadata | null;
   text: string;
   translation: string;
   pinyin: string | null;
   usage_zh: string | null;
   category: string | null;
   provider: string;
+  other_senses: { meaning_zh: string; example_en: string }[];
+  other_senses_edited: boolean;
+  meaning_en: string | null;
+  usage_en: string | null;
+  other_senses_en: { meaning_en: string; example_en: string }[];
+  other_senses_en_edited: boolean;
+  collins_senses: {
+    id: number;
+    phrase: string;
+    headword: string;
+    grammar: string;
+    definition: string;
+    example: string | null;
+  }[];
+  collins_available: boolean;
 }
 
 export interface DuePhraseCard {
@@ -235,6 +288,11 @@ export interface BackupPayload {
   app_version: string;
   data: {
     files: Record<string, unknown>[];
+    tags?: Record<string, unknown>[];
+    file_tags?: Record<string, unknown>[];
+    legacy_tag_folders?: Record<string, unknown>[];
+    file_tag_state?: Record<string, unknown>[];
+    folders?: Record<string, unknown>[];
     segments: Record<string, unknown>[];
     words: Record<string, unknown>[];
     occurrences: Record<string, unknown>[];

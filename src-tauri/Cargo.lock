@@ -2500,7 +2500,7 @@ dependencies = [
 
 [[package]]
 name = "lexicue"
-version = "0.3.14"
+version = "0.4.5"
 dependencies = [
  "android-native-keyring-store",
  "argon2",
@@ -2510,6 +2510,8 @@ dependencies = [
  "jieba-rs",
  "keyring",
  "keyring-core",
+ "libc",
+ "libloading",
  "lindera",
  "log",
  "rand 0.8.7",

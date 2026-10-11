@@ -1,8 +1,12 @@
-import type { ReactElement } from 'react';
+import type { ReactElement, KeyboardEvent } from 'react';
 import type { Segment } from '../lib/types';
-import type { SegmentPhrase, SegmentToken } from '../stores/readerStore';
+import type { ReaderToken, SegmentPhrase, SegmentToken } from '../stores/readerStore';
 import type { ContentFontSize, ReadingLineHeight } from '../stores/preferencesStore';
 import { CONTENT_FONT_CLASS } from '../lib/contentTypography';
+
+const activateTerm = (event: KeyboardEvent<HTMLSpanElement>, action: () => void) => {
+  if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); action(); }
+};
 
 const LINE_CLASS: Record<ReadingLineHeight, string> = { compact: 'leading-snug', normal: 'leading-relaxed', loose: 'leading-loose' };
 
@@ -17,8 +21,10 @@ interface SegmentCardProps {
   wordStatusMap: Map<string, WordInfo>;
   phrases?: SegmentPhrase[];
   segmentTokens?: SegmentToken[];
+  readerTokens?: ReaderToken[];
+  onLookup?: (token: ReaderToken) => void;
   onWordClick: (lemma: string, wordId: number | null) => void;
-  onWordContextMenu: (lemma: string, wordId: number | null, x: number, y: number) => void;
+  onWordContextMenu: (lemma: string, wordId: number | null, x: number, y: number, token?: ReaderToken) => void;
   onPhraseClick?: (phraseId: number, text: string) => void;
   showTranslation?: boolean;
   highlightQuery?: string;
@@ -56,15 +62,13 @@ function tokenizeSurfaceText(text: string, segTokens: SegmentToken[]): RenderedT
   const sorted = [...segTokens].sort((a, b) => a.position - b.position);
   const result: RenderedToken[] = [];
   let cursor = 0;
-  let wordIndex = 0;
   for (const st of sorted) {
     const idx = text.indexOf(st.surface, cursor);
     if (idx > cursor) {
       result.push({ token: text.slice(cursor, idx), wordIndex: -1, lemma: null });
     }
     if (idx >= 0) {
-      result.push({ token: st.surface, wordIndex, lemma: st.lemma });
-      wordIndex++;
+      result.push({ token: st.surface, wordIndex: st.position, lemma: st.lemma });
       cursor = idx + st.surface.length;
     }
   }
@@ -79,6 +83,8 @@ export default function SegmentCard({
   wordStatusMap,
   phrases = [],
   segmentTokens,
+  readerTokens = [],
+  onLookup,
   onWordClick,
   onWordContextMenu,
   onPhraseClick,
@@ -91,24 +97,86 @@ export default function SegmentCard({
   lineHeight = 'normal',
 }: SegmentCardProps) {
   const useSegmentTokens = segmentTokens !== undefined && segmentTokens.length > 0;
-  const renderedTokens: RenderedToken[] =
+  const legacyTokens: RenderedToken[] =
     useSegmentTokens
       ? tokenizeSurfaceText(segment.en_text, segmentTokens)
       : tokenizeEnText(segment.en_text);
 
+  // Saved positions retain historical phrase anchors. Full spans fill every gap,
+  // including words that never had a learning occurrence and full contractions.
+  const savedPositions = new Map<number, number>();
+  let legacyCursor = 0;
+  for (const token of legacyTokens) {
+    if (useSegmentTokens && token.wordIndex >= 0) savedPositions.set(legacyCursor, token.wordIndex);
+    legacyCursor += token.token.length;
+  }
+  const renderedTokens: RenderedToken[] = readerTokens.length ? [] : legacyTokens;
+  if (readerTokens.length) {
+    let cursor = 0;
+    for (const token of readerTokens) {
+      if (token.start < cursor || token.end > segment.en_text.length) continue;
+      if (token.start > cursor) renderedTokens.push({ token: segment.en_text.slice(cursor, token.start), wordIndex: -1, lemma: null });
+      renderedTokens.push({ token: segment.en_text.slice(token.start, token.end), wordIndex: savedPositions.get(token.start) ?? token.legacy_position ?? -1, lemma: token.lemma });
+      cursor = token.end;
+    }
+    if (cursor < segment.en_text.length) renderedTokens.push({ token: segment.en_text.slice(cursor), wordIndex: -1, lemma: null });
+  }
+
+  const sourceStarts: number[] = [];
+  let sourceCursor = 0;
+  for (const token of renderedTokens) { sourceStarts.push(sourceCursor); sourceCursor += token.token.length; }
+  const plainLookup = (text: string, start: number) => {
+    const parts: ReactElement[] = []; let cursor = start;
+    for (const token of readerTokens.filter(t => t.start >= start && t.end <= start + text.length)) {
+      if (cursor < token.start) parts.push(<span key={`gap-${cursor}`}>{segment.en_text.slice(cursor, token.start)}</span>);
+      const action = () => token.word_id != null ? onWordClick(token.lemma, token.word_id) : onLookup?.(token);
+      parts.push(<span key={`lookup-${token.start}`} className="reader-lookup-term" role="button" tabIndex={0} onKeyDown={event => activateTerm(event, action)} onClick={action} onContextMenu={event => { event.preventDefault(); onWordContextMenu(token.lemma, token.word_id, event.clientX, event.clientY, token); }}>{segment.en_text.slice(token.start, token.end)}</span>);
+      cursor = token.end;
+    }
+    if (cursor < start + text.length) parts.push(<span key={`tail-${cursor}`}>{segment.en_text.slice(cursor, start + text.length)}</span>);
+    return parts;
+  };
   const normalizedQuery = highlightQuery.trim().toLowerCase();
 
   const phraseByStartPos = new Map<number, SegmentPhrase>();
+  const phraseByTokenPos = new Map<number, SegmentPhrase>();
   for (const ph of phrases) {
-    phraseByStartPos.set(ph.position, ph);
+    if (ph.token_positions?.length) {
+      for (const position of ph.token_positions) {
+        if (!phraseByTokenPos.has(position)) phraseByTokenPos.set(position, ph);
+      }
+    } else phraseByStartPos.set(ph.position, ph);
   }
 
+  const readerByStart = new Map(readerTokens.map(token => [token.start, token]));
   const phraseElements: ReactElement[] = [];
   let i = 0;
   while (i < renderedTokens.length) {
     const rt = renderedTokens[i];
-    if (rt.wordIndex >= 0) {
-      const phrase = phraseByStartPos.get(rt.wordIndex);
+    const sourceToken = readerByStart.get(sourceStarts[i]);
+    if (rt.wordIndex >= 0 || sourceToken?.builtin_position != null) {
+      const selectedPhrase = phraseByTokenPos.get(sourceToken?.legacy_position ?? rt.wordIndex);
+      if (selectedPhrase && onPhraseClick) {
+        phraseElements.push(
+          <span key={i} role="button" tabIndex={0}
+            onKeyDown={event => activateTerm(event, () => onPhraseClick(selectedPhrase.phrase_id, selectedPhrase.text))}
+            onClick={() => onPhraseClick(selectedPhrase.phrase_id, selectedPhrase.text)}
+            className={`cursor-pointer rounded-sm underline decoration-dotted ${selectedPhrase.status === 'ignored' ? 'text-gray-400 line-through' : 'text-purple-700 font-medium bg-purple-50/60'}`}>
+            {rt.token}
+          </span>
+        );
+        i++;
+        continue;
+      }
+      const startsHere = (phrase: SegmentPhrase) => {
+        if (phrase.token_positions?.length) return false;
+        const preferred = phrase.source === 'manual' ? rt.wordIndex : sourceToken?.builtin_position ?? rt.wordIndex;
+        if (phrase.position !== preferred && phrase.position !== rt.wordIndex) return false;
+        const first = phrase.text.toLowerCase().split(/\s+/)[0];
+        return first === rt.token.toLowerCase() || first === rt.lemma?.toLowerCase();
+      };
+      const phrase = phrases.find(ph => startsHere(ph) && ph.position === (ph.source === 'manual' ? rt.wordIndex : sourceToken?.builtin_position ?? rt.wordIndex))
+        ?? [...phraseByStartPos.values()].find(startsHere);
       if (phrase && onPhraseClick) {
         const phraseLen = phrase.word_count;
         const endIdx = findPhraseEnd(renderedTokens, i, rt.wordIndex, phraseLen);
@@ -117,6 +185,8 @@ export default function SegmentCard({
           phraseElements.push(
             <span
               key={i}
+              role="button" tabIndex={0}
+              onKeyDown={event => activateTerm(event, () => onPhraseClick(phrase.phrase_id, phrase.text))}
               onClick={() => onPhraseClick(phrase.phrase_id, phrase.text)}
               className={`cursor-pointer rounded-sm underline decoration-dotted ${
                 phrase.status === 'learning'
@@ -139,14 +209,25 @@ export default function SegmentCard({
 
     if (rt.wordIndex >= 0 && rt.lemma !== null) {
       const lemma = rt.lemma;
+      const lookupToken = readerTokens.find(t => t.start >= sourceStarts[i] && t.end <= sourceStarts[i] + rt.token.length);
       const info = wordStatusMap.get(lemma);
+      const wordId = lookupToken?.word_id ?? info?.id ?? null;
+      const action = () => wordId != null ? onWordClick(lookupToken?.lemma ?? lemma, wordId) : lookupToken ? onLookup?.(lookupToken) : onWordClick(lemma, null);
       phraseElements.push(
         <span
           key={i}
-          onClick={() => onWordClick(lemma, info?.id ?? null)}
+          role="button" tabIndex={0}
+          onKeyDown={event => {
+            activateTerm(event, action);
+            if (event.key === 'ContextMenu' || event.shiftKey && event.key === 'F10') {
+              event.preventDefault(); const rect = event.currentTarget.getBoundingClientRect();
+              onWordContextMenu(lemma, wordId, rect.left, rect.bottom, lookupToken);
+            }
+          }}
+          onClick={action}
           onContextMenu={(e) => {
             e.preventDefault();
-            onWordContextMenu(lemma, info?.id ?? null, e.clientX, e.clientY);
+            onWordContextMenu(lemma, wordId, e.clientX, e.clientY, lookupToken);
           }}
           className={`cursor-pointer rounded-sm hover:bg-blue-50 hover:underline decoration-dotted ${
             info?.status === 'learning'
@@ -164,7 +245,7 @@ export default function SegmentCard({
         </span>
       );
     } else {
-      phraseElements.push(<span key={i}>{rt.token}</span>);
+      phraseElements.push(<span key={i}>{plainLookup(rt.token, sourceStarts[i])}</span>);
     }
     i++;
   }

@@ -1,3 +1,8 @@
+import Overlay from '../components/Overlay';
+import { blocksPageShortcut } from '../lib/backNavigation';
+import VocabularyToolbar from '../components/VocabularyToolbar';
+import AnnotationWorkspace from '../components/AnnotationWorkspace';
+import { annotationItems, type AnnotationMode } from '../lib/annotation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWordStore } from '../stores/wordStore';
@@ -10,8 +15,7 @@ import type { ContextMenuItem } from '../components/ContextMenu';
 import EmptyState from '../components/EmptyState';
 import Pagination from '../components/Pagination';
 import Skeleton from '../components/Skeleton';
-import DisplaySettingsMenu from '../components/DisplaySettingsMenu';
-import FrequencyBaselinePicker from '../components/FrequencyBaselinePicker';
+import FrequencyBaselineIntro from '../components/FrequencyBaselineIntro';
 import { usePreferencesStore } from '../stores/preferencesStore';
 import { CONTENT_FONT_CLASS } from '../lib/contentTypography';
 import { useNavigate } from 'react-router-dom';
@@ -19,20 +23,6 @@ import { occurrenceRoute } from '../lib/fileProgress';
 import { useShallow } from 'zustand/react/shallow';
 
 const PAGE_SIZE = 50;
-
-const FILTER_TABS: { key: WordStatus | 'all'; labelKey: string }[] = [
-  { key: 'unprocessed', labelKey: 'status.unprocessed' },
-  { key: 'learning', labelKey: 'status.learning' },
-  { key: 'known', labelKey: 'status.known' },
-  { key: 'ignored', labelKey: 'status.ignored' },
-  { key: 'all', labelKey: 'common.all' },
-];
-
-const SORT_OPTIONS: { key: 'frequency' | 'alpha' | 'recent'; labelKey: string }[] = [
-  { key: 'frequency', labelKey: 'sort.frequency' },
-  { key: 'alpha', labelKey: 'sort.alpha' },
-  { key: 'recent', labelKey: 'sort.recent' },
-];
 
 const STATUS_CYCLE: WordStatus[] = ['unprocessed', 'learning', 'known', 'ignored'];
 
@@ -45,6 +35,7 @@ export default function WordsPage() {
     closeDetail: state.closeDetail,
     setFilter: state.setFilter,
     setSortBy: state.setSortBy,
+    setIncludeProperNouns: state.setIncludeProperNouns,
     updateStatus: state.updateStatus,
     updateDefinition: state.updateDefinition,
     batchUpdateStatus: state.batchUpdateStatus,
@@ -57,12 +48,19 @@ export default function WordsPage() {
   const learningTextFontSize = usePreferencesStore((state) => state.learningTextFontSize);
   const auxiliaryFontSize = usePreferencesStore((state) => state.auxiliaryFontSize);
   const selectedLanguage = usePreferencesStore((state) => state.language);
+  const mode = usePreferencesStore(state => state.annotationModes.word);
+  const changeMode = (value: AnnotationMode) => {
+    store.clearSelection(); store.closeDetail(); setContextMenu(null);
+    usePreferencesStore.getState().setAnnotationMode('word', value);
+  };
   const {
     words,
     filter,
     sortBy,
+    includeProperNouns,
     selected,
     loading,
+    loadedKey,
     batchUpdating,
     lastBatchAction,
     detail,
@@ -73,7 +71,9 @@ export default function WordsPage() {
     words: state.words,
     filter: state.filter,
     sortBy: state.sortBy,
+    includeProperNouns: state.includeProperNouns,
     selected: state.selected,
+    loadedKey: state.loadedKey,
     loading: state.loading,
     batchUpdating: state.batchUpdating,
     lastBatchAction: state.lastBatchAction,
@@ -117,7 +117,8 @@ export default function WordsPage() {
 
   const normalizedQuery = query.trim().toLowerCase();
   const visibleWords = useMemo(() => words.filter((word) =>
-    word.lemma.toLowerCase().includes(normalizedQuery),
+    word.lemma.toLowerCase().includes(normalizedQuery)
+      || word.search_aliases.some((alias) => alias.toLowerCase().includes(normalizedQuery)),
   ), [words, normalizedQuery]);
   const totalPages = Math.max(1, Math.ceil(visibleWords.length / PAGE_SIZE));
   const pageWords = useMemo(
@@ -163,6 +164,8 @@ export default function WordsPage() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (blocksPageShortcut(e)) return;
+      if (mode !== 'batch') return;
       const target = e.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
 
@@ -189,61 +192,24 @@ export default function WordsPage() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [selected, store, pageWords]);
+  }, [selected, store, pageWords, mode]);
+
+  const toolbar = <VocabularyToolbar kind="word" query={query} onQuery={value => { setQuery(value); store.clearSelection(); }} filter={filter} onFilter={store.setFilter} sort={sortBy} onSort={store.setSortBy} mode={mode} onMode={changeMode} disabled={batchUpdating} extra={selectedLanguage === 'en' ? { value: includeProperNouns, onChange: store.setIncludeProperNouns, label: t('words.showProperNouns') } : undefined} />;
+
+  if (mode === 'single') return <AnnotationWorkspace
+    key={selectedLanguage}
+    toolbar={toolbar}
+    scope={{ kind: 'word', language: selectedLanguage, filter, sortBy, query, includeProperNouns }}
+    items={annotationItems(visibleWords)}
+    loading={loading || loadedKey !== JSON.stringify([selectedLanguage, filter, sortBy, includeProperNouns])}
+    onModeChange={changeMode}
+  />;
 
   return (
     <div className="h-full flex flex-col relative">
-      <div className="px-6 py-4 border-b border-gray-100">
-        <div className="flex items-center justify-between mb-3">
-          <h1 className="text-xl font-semibold text-gray-900">{t('words.title')}</h1>
-          <DisplaySettingsMenu />
-        </div>
-          <div className="flex items-center justify-between flex-wrap gap-2">
-          <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-            {FILTER_TABS.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => store.setFilter(tab.key)}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                  filter === tab.key
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                {t(tab.labelKey)}
-              </button>
-            ))}
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="text-xs text-gray-400">{t('common.sort')}</span>
-            {SORT_OPTIONS.map((opt) => (
-              <button
-                key={opt.key}
-                onClick={() => store.setSortBy(opt.key)}
-                className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
-                  sortBy === opt.key
-                    ? 'bg-blue-50 text-blue-600'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                {t(opt.labelKey)}
-              </button>
-            ))}
-          </div>
-        </div>
-        <input
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            store.clearSelection();
-          }}
-          placeholder={t('words.searchPlaceholder')}
-          aria-label={t('words.searchAria')}
-          className="mt-3 w-full max-w-sm px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      </div>
+      {toolbar}
 
-      <FrequencyBaselinePicker selectedLanguage={selectedLanguage} />
+      <FrequencyBaselineIntro />
 
       {(selected.size > 0 || lastBatchAction) && (
         <div className="px-6 py-2 bg-blue-50 border-b border-blue-100 flex flex-wrap items-center gap-2">
@@ -336,7 +302,7 @@ export default function WordsPage() {
                     status: word.status as WordStatus,
                   });
                 }}
-                className="flex items-start gap-3 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors group"
+                className="vocabulary-row flex items-start gap-3 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors group"
               >
                 <input
                   type="checkbox"
@@ -344,8 +310,8 @@ export default function WordsPage() {
                   onChange={() => store.toggleSelected(word.id)}
                   className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 shrink-0 mt-0.5"
                 />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
+                <div className="vocabulary-row__main flex-1 min-w-0">
+                  <div className="vocabulary-row__heading flex items-center gap-2">
                     <button
                       onClick={() => store.loadDetail(word.id)}
                       className={`font-medium text-gray-900 hover:text-blue-600 transition-colors truncate ${CONTENT_FONT_CLASS.learning[learningTextFontSize]}`}
@@ -354,7 +320,7 @@ export default function WordsPage() {
                     </button>
                     <span className={`${CONTENT_FONT_CLASS.auxiliary[auxiliaryFontSize]} text-gray-400 shrink-0`}>×{word.frequency}</span>
                   </div>
-                  <div className="mt-1">
+                  <div className="vocabulary-row__status mt-1">
                     <StatusBadge
                       status={word.status}
                       onClick={(e) => setContextMenu({
@@ -366,6 +332,8 @@ export default function WordsPage() {
                       })}
                     />
                     {word.baseline_pending && <span className="ml-2 text-xs text-emerald-700">高频基线</span>}
+                    {word.word_kind === 'ambiguous' && <span className="word-kind-badge ml-2">{t('words.ambiguousForm')}</span>}
+                    {word.word_kind === 'proper_noun' && <span className="word-kind-badge ml-2">{t('words.properNoun')}</span>}
                   </div>
                 </div>
               </div>
@@ -390,24 +358,26 @@ export default function WordsPage() {
 
       {(detail || detailLoading || detailError) && (
         <>
-          <div className="fixed inset-0 bg-black/20 z-30" onClick={store.closeDetail} />
           {detail ? (
             <WordDetailPanel
               detail={detail}
               onClose={store.closeDetail}
               onStatusChange={store.updateStatus}
               onDefinitionSave={store.updateDefinition}
+              onWordResolved={() => { store.closeDetail(); void store.loadWords(true); }}
               onOccurrenceOpen={(occurrence) => {
                 store.closeDetail();
                 navigate(occurrenceRoute(occurrence, 'word', detail.word.id));
               }}
             />
           ) : detailLoading ? (
-            <div className="fixed inset-y-0 right-0 w-full sm:w-96 bg-white border-l border-gray-200 shadow-xl z-40 flex items-center justify-center text-gray-400">
+            <Overlay variant="detail" label={t('shell.vocabulary')} onClose={store.closeDetail} className="detail-panel detail-placeholder">
+              <button className="ui-button detail-placeholder__close" onClick={store.closeDetail}>{t('common.close')}</button>
               {t('common.loading')}
-            </div>
+            </Overlay>
           ) : detailError ? (
-            <div className="fixed inset-y-0 right-0 w-full sm:w-96 bg-white border-l border-gray-200 shadow-xl z-40 flex flex-col items-center justify-center gap-3 p-6 text-center">
+            <Overlay variant="detail" label={t('shell.vocabulary')} onClose={store.closeDetail} className="detail-panel detail-placeholder">
+              <button className="ui-button detail-placeholder__close" onClick={store.closeDetail}>{t('common.close')}</button>
               <p className="text-sm text-gray-500">{t('errors.detailLoadFailed')}</p>
               <button
                 onClick={() => {
@@ -418,7 +388,7 @@ export default function WordsPage() {
               >
                 {t('common.retry')}
               </button>
-            </div>
+            </Overlay>
           ) : null}
         </>
       )}

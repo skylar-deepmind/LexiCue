@@ -1,162 +1,189 @@
-import { Brain, Trash2, FolderInput } from 'lucide-react';
+import { Trash2, Tags, Copy, Download, FileText, Captions, Brain, Check, TriangleAlert } from 'lucide-react';
+import { useState } from 'react';
+import LearningProgressRing from './LearningProgressRing';
+import PhraseAnalysisActions from './PhraseAnalysisActions';
+import { invoke } from '@tauri-apps/api/core';
+import { ask, save } from '@tauri-apps/plugin-dialog';
+import { writeTextFile } from '@tauri-apps/plugin-fs';
 import { useTranslation } from 'react-i18next';
 import type { FileRecord } from '../lib/types';
-import type { OllamaRetry } from '../stores/ollamaStore';
-import { learningIndex, learningStage } from '../lib/fileProgress';
+import type { AnalysisDiagnostic, OllamaRetry } from '../stores/ollamaStore';
+import { learningIndex } from '../lib/fileProgress';
 import type { DeleteJobStatus } from '../stores/fileStore';
 
 interface FileCardProps {
   file: FileRecord;
-  folderPath?: string;
   onDelete: (id: number) => void;
-  onAnalyze: (id: number) => void;
+  onAnalyze: (id: number, forceRefresh?: boolean) => void;
   onCancel: (id: number) => void;
-  onMove: (file: FileRecord) => void;
+  onViewAnalysis?: (id: number) => void;
+  onEditTags: (file: FileRecord) => void;
   aiEnabled: boolean;
   analysisProgress?: {
     status: 'processing' | 'completed' | 'error';
     processedSegments: number;
     totalSegments: number;
     percent: number;
+    phase?: 'extraction' | 'explanation' | 'saving' | 'completed' | 'error';
+    error?: string;
   };
   analysisCompleted: boolean;
+  interrupted?: boolean;
+  diagnostic?: AnalysisDiagnostic;
   retrying?: OllamaRetry;
   deleteProgress?: DeleteJobStatus;
   onClick: () => void;
 }
 
-export default function FileCard({ file, folderPath, onDelete, onAnalyze, onCancel, onMove, aiEnabled, analysisProgress, analysisCompleted, retrying, deleteProgress, onClick }: FileCardProps) {
+export default function FileCard({ file, onDelete, onAnalyze, onCancel, onViewAnalysis, onEditTags, aiEnabled, analysisProgress, analysisCompleted, interrupted = false, diagnostic, retrying, deleteProgress, onClick }: FileCardProps) {
   const { t, i18n } = useTranslation();
-  const icon = file.type === 'srt' ? '🎬' : '📄';
+  const [diagnosticNotice, setDiagnosticNotice] = useState('');
+  const [diagnosticBusy, setDiagnosticBusy] = useState(false);
+  const Icon = file.type === 'srt' ? Captions : FileText;
   const date = new Date(file.imported_at).toLocaleDateString(i18n.resolvedLanguage ?? 'zh');
   const index = learningIndex(file.word_progress, file.phrase_progress, analysisCompleted);
-  const stage = learningStage(index);
+  const skippedItems = diagnostic?.code === 'COMPLETED' ? diagnostic.totalSkipped : file.phrase_skipped_items;
+
+  const copyDiagnostic = async () => {
+    if (!diagnostic) return;
+    try {
+      await navigator.clipboard.writeText(JSON.stringify({ app: 'LexiCue', ...diagnostic }, null, 2));
+      setDiagnosticNotice(t('fileCard.diagnosticCopied'));
+    } catch {
+      setDiagnosticNotice(t('fileCard.diagnosticActionFailed'));
+    }
+  };
+
+  const exportDetailedDiagnostic = async () => {
+    if (!diagnostic || diagnosticBusy) return;
+    setDiagnosticBusy(true);
+    try {
+      const approved = await ask(t('fileCard.rawDiagnosticWarning'), { title: t('fileCard.exportDiagnostic') });
+      if (!approved) return;
+      const report = await invoke<string | null>('get_analysis_raw_diagnostic', { fileId: file.id });
+      if (!report) { setDiagnosticNotice(t('fileCard.rawDiagnosticUnavailable')); return; }
+      const path = await save({ defaultPath: `lexicue-ai-diagnostic-${diagnostic.runId.slice(0, 8)}.json`, filters: [{ name: 'JSON', extensions: ['json'] }] });
+      if (!path) return;
+      await writeTextFile(path, report);
+      setDiagnosticNotice(t('fileCard.diagnosticExported'));
+    } catch {
+      setDiagnosticNotice(t('fileCard.diagnosticActionFailed'));
+    } finally {
+      setDiagnosticBusy(false);
+    }
+  };
+
+  const processing = analysisProgress?.status === 'processing';
+  const analysisDone = analysisCompleted || analysisProgress?.status === 'completed';
+  // Existing jobs remain reachable if AI is switched off while they are running.
+  const showAnalysis = aiEnabled || processing || Boolean(onViewAnalysis);
+  const analysisLabel = processing
+    ? t(analysisProgress.phase === 'extraction' ? 'fileCard.extracting'
+      : analysisProgress.phase === 'explanation' ? 'fileCard.explaining'
+      : analysisProgress.phase === 'saving' ? 'fileCard.saving' : 'fileCard.analyzing')
+    : t(analysisProgress?.status === 'error' ? 'fileCard.analysisFailed'
+      : analysisDone ? 'fileCard.analysisComplete' : 'fileCard.analysisLabel');
 
   return (
-    <div
-      onClick={onClick}
-      className="bg-white rounded-lg border border-gray-200 p-4 hover:border-blue-300 hover:shadow-sm transition-all cursor-pointer"
-    >
-      <div className="flex min-w-0 items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-1 items-start gap-3">
-          <span className="shrink-0 text-2xl">{icon}</span>
-          <div className="min-w-0 flex-1">
-            <h3 className="break-words font-medium text-gray-900 text-sm" title={file.name}>{file.name}</h3>
-            <p className="text-xs text-gray-500 mt-0.5">
-              {file.type.toUpperCase()} · {t('fileCard.segments', { count: file.segment_count })} · {date}
-            </p>
-            {folderPath && (
-              <p className="mt-1 flex items-center gap-1 text-xs text-gray-400" title={folderPath}>
-                <FolderInput size={11} className="shrink-0" />
-                <span className="truncate">{folderPath}</span>
-              </p>
-            )}
-          </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-1">
-          {aiEnabled && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onAnalyze(file.id);
-              }}
-              disabled={analysisCompleted || Boolean(analysisProgress)}
-              className="p-1 text-gray-400 transition-colors hover:text-purple-600 disabled:cursor-wait disabled:opacity-50"
-              aria-label={t('fileCard.analyzeAria', { name: file.name })}
-              title={analysisCompleted ? t('fileCard.analyzedTitle') : t('fileCard.analyzeTitle')}
-            >
-              <Brain size={16} />
-            </button>
-          )}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onMove(file);
-            }}
-            className="p-1 text-gray-400 transition-colors hover:text-blue-600"
-            aria-label={t('fileCard.moveAria', { name: file.name })}
-            title={t('fileCard.moveTitle')}
-          >
-            <FolderInput size={16} />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(file.id);
-            }}
-            disabled={Boolean(deleteProgress)}
-            className="text-gray-400 hover:text-red-500 transition-colors p-2 disabled:cursor-wait disabled:opacity-50"
-            aria-label={t('fileCard.deleteAria', { name: file.name })}
-            title={t('fileCard.deleteTitle')}
-          >
-            <Trash2 size={16} />
-          </button>
-        </div>
-      </div>
-      {deleteProgress && (
-        <div className="mt-3 border-t border-gray-100 pt-3" onClick={(event) => event.stopPropagation()}>
-          <div className="mb-1 flex items-center justify-between gap-2 text-xs text-amber-700">
-            <span>{t('fileStore.deleting')}</span>
-            <span>{t('fileStore.deleteProgress', { completed: deleteProgress.completed_items, total: deleteProgress.total_items })}</span>
-          </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-amber-100" role="progressbar" aria-valuemin={0} aria-valuemax={deleteProgress.total_items || 1} aria-valuenow={Math.min(deleteProgress.completed_items, deleteProgress.total_items || 1)}>
-            <div className="h-full rounded-full bg-amber-500 transition-[width] duration-300" style={{ width: `${deleteProgress.total_items > 0 ? Math.min(100, (deleteProgress.completed_items / deleteProgress.total_items) * 100) : 5}%` }} />
-          </div>
-        </div>
-      )}
-      <div
-        className="mt-3 flex items-center justify-between gap-3 border-t border-gray-100 pt-3"
-        aria-label={index === null ? t('fileCard.noLearningContent') : t('fileCard.learningProgressAria', { stage: t(`fileCard.stage.${stage}`) })}
-      >
-        <span className="text-xs text-gray-400">{t('fileCard.learningProgress')}</span>
-        {index === null ? (
-          <span className="text-xs text-gray-400">{t('fileCard.noLearningContent')}</span>
-        ) : (
-          <span className={`learning-stage learning-stage-${stage} flex items-center gap-1.5 text-xs font-medium`}>
-            <span className="learning-stage-dot" aria-hidden="true" />
-            <span>{t(`fileCard.stage.${stage}`)}</span>
-          </span>
-        )}
-      </div>
-      {!analysisCompleted && <p className="mt-1 text-right text-[11px] text-gray-400">{t('fileCard.wordsOnlyPending')}</p>}
-      {aiEnabled && analysisCompleted && !analysisProgress && (
-        <p className="mt-3 text-xs text-green-700">{t('fileCard.aiDone')}</p>
-      )}
-      {aiEnabled && analysisProgress?.status === 'error' && (
-        <p className="mt-3 text-xs text-red-600">{t('fileCard.analysisFailed')}</p>
-      )}
-      {aiEnabled && analysisProgress?.status === 'completed' && (
-        <p className="mt-3 text-xs text-green-700">{t('fileCard.aiDone')}</p>
-      )}
-      {aiEnabled && analysisProgress?.status === 'processing' && (
-        <div className="mt-3" onClick={(event) => event.stopPropagation()}>
-          <div className="mb-1 flex items-center justify-between gap-2 text-xs text-purple-700">
-            <span>{t('fileCard.analyzing')}</span>
-            <span className="flex items-center gap-2">
-              {analysisProgress.totalSegments > 0
-                ? t('fileCard.segmentsProgress', { processed: analysisProgress.processedSegments, total: analysisProgress.totalSegments })
-                : t('fileCard.preparing')}
-              <button
-                onClick={() => onCancel(file.id)}
-                disabled={retrying !== undefined}
-                className="rounded border border-purple-200 px-1.5 py-0.5 text-purple-700 transition-colors hover:bg-purple-50 disabled:opacity-50"
-                aria-label={t('fileCard.cancelAria')}
-                title={t('fileCard.cancelAria')}
-              >
-                {t('fileCard.cancel')}
-              </button>
+    <article onClick={onClick} className="file-card">
+      <h3 className="file-card__title">
+        <button type="button" className="file-card__open" aria-label={file.name}
+          onClick={event => { event.stopPropagation(); onClick(); }}>
+          <Icon size={24} className="file-card__icon" aria-hidden="true" />
+          <span className="file-card__info">
+            <span className="file-card__name">{file.name}</span>
+            <span className="file-card__metadata">
+              <span>{file.type.toUpperCase()}</span><span>{t('fileCard.segments', { count: file.segment_count })}</span><span>{date}</span>
             </span>
+          </span>
+          <span className="ui-tooltip" role="tooltip">{file.name}</span>
+        </button>
+      </h3>
+
+      {file.tags.length > 0 && <div className="file-card__tags" aria-label={t('tags.fileTags')}>
+        {file.tags.map(tag => <span key={tag.id} className="file-tag">{tag.name}</span>)}
+      </div>}
+
+      <div className="file-card__footer" onClick={event => event.stopPropagation()}>
+        <div className="file-card__progress">
+          <LearningProgressRing value={index} />
+          <div className="file-card__progress-copy">
+            <span>{t('fileCard.learningProgress')}</span>
+            <small>{t(analysisCompleted ? 'fileCard.wordsAndPhrases' : 'fileCard.wordsOnly')}</small>
           </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-purple-100" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={analysisProgress.percent}>
-            <div className="h-full rounded-full bg-purple-500 transition-[width] duration-300" style={{ width: `${analysisProgress.percent}%` }} />
-          </div>
-          {retrying && (
-            <p className="mt-1 text-xs text-amber-600">
-              {t('fileCard.retrying', { reason: retrying.reason, attempt: retrying.attempt, maxAttempts: retrying.maxAttempts })}
-            </p>
-          )}
         </div>
-      )}
-    </div>
+        <div className="file-card__actions">
+          <button type="button" onClick={() => onEditTags(file)} className="ui-button ui-button--icon"
+            aria-label={t('tags.editNamed', { name: file.name })} title={t('tags.edit')}>
+            <Tags size={20} aria-hidden="true" />
+          </button>
+          <button type="button" onClick={() => onDelete(file.id)} disabled={Boolean(deleteProgress)}
+            className="ui-button ui-button--icon ui-button--danger"
+            aria-label={t('fileCard.deleteAria', { name: file.name })} title={t('fileCard.deleteTitle')}>
+            <Trash2 size={20} aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+
+      {deleteProgress && <div className="file-card__task file-card__task--warning" onClick={event => event.stopPropagation()}>
+        <div className="file-card__task-info">
+          <span>{t('fileStore.deleting')}</span>
+          <span>{t('fileStore.deleteProgress', { completed: deleteProgress.completed_items, total: deleteProgress.total_items })}</span>
+        </div>
+        <div className="file-card__task-track" role="progressbar" aria-label={t('fileStore.deleting')}
+          aria-valuemin={0} aria-valuemax={deleteProgress.total_items || 1} aria-valuenow={Math.min(deleteProgress.completed_items, deleteProgress.total_items || 1)}>
+          <div style={{ width: `${deleteProgress.total_items > 0 ? Math.min(100, (deleteProgress.completed_items / deleteProgress.total_items) * 100) : 5}%` }} />
+        </div>
+      </div>}
+
+      {showAnalysis && <div className="file-card__analysis" onClick={event => event.stopPropagation()}>
+        <div className="file-card__analysis-header">
+          <span className={`file-card__analysis-label${analysisProgress?.status === 'error' ? ' is-error' : ''}`}>
+            {analysisProgress?.status === 'error' ? <TriangleAlert size={16} aria-hidden="true" />
+              : analysisDone && !processing ? <Check size={16} aria-hidden="true" /> : <Brain size={16} aria-hidden="true" />}
+            {analysisLabel}
+          </span>
+          <div className="file-card__analysis-actions">
+            {processing ? <button type="button" onClick={() => onCancel(file.id)} className="ui-button"
+              aria-label={t('fileCard.cancelAria')} title={t('fileCard.cancelAria')}>{t('fileCard.cancel')}</button>
+              : aiEnabled && <PhraseAnalysisActions name={file.name} completed={analysisDone}
+                interrupted={interrupted || analysisProgress?.status === 'error'} disabled={Boolean(deleteProgress)}
+                allowForce={file.language === 'en'} onAnalyze={forceRefresh => onAnalyze(file.id, forceRefresh)} />}
+            {onViewAnalysis && <button type="button" className="ui-button file-card__preview"
+              onClick={() => onViewAnalysis(file.id)}>{t('analysisPreview.open')}</button>}
+          </div>
+        </div>
+
+        {processing && <div className="file-card__task file-card__task--analysis">
+          <div className="file-card__task-info">
+            <span>{analysisProgress.totalSegments > 0
+              ? t(file.language === 'en' ? 'fileCard.segmentsProgress' : analysisProgress.phase ? 'fileCard.stepsProgress' : 'fileCard.segmentsProgress', { processed: analysisProgress.processedSegments, total: analysisProgress.totalSegments })
+              : t('fileCard.preparing')}</span>
+            <span>{Math.round(analysisProgress.percent)}%</span>
+          </div>
+          <div className="file-card__task-track" role="progressbar" aria-label={analysisLabel}
+            aria-valuemin={0} aria-valuemax={100} aria-valuenow={analysisProgress.percent}>
+            <div style={{ width: `${Math.max(0, Math.min(100, analysisProgress.percent))}%` }} />
+          </div>
+          {retrying && <p className="file-card__warning">{t('fileCard.retrying', { reason: retrying.reason, attempt: retrying.attempt, maxAttempts: retrying.maxAttempts })}</p>}
+        </div>}
+
+        {analysisProgress?.status === 'error' && <div className="file-card__error">
+          <p role="alert">{diagnostic
+            ? `${t(`fileCard.diagnosticCodes.${diagnostic.code}`, { defaultValue: diagnostic.code })} (${diagnostic.code}${diagnostic.httpStatus ? ` / HTTP ${diagnostic.httpStatus}` : ''}) · ${t('fileCard.diagnosticId', { id: diagnostic.runId.slice(0, 8) })}`
+            : analysisProgress.error || t('fileCard.analysisFailed')}</p>
+          {diagnostic && <div className="file-card__diagnostic-actions">
+            <button type="button" onClick={() => void copyDiagnostic()} className="ui-button ui-button--danger ai-diagnostic-action">
+              <Copy size={16} aria-hidden="true" />{t('fileCard.copyDiagnostic')}
+            </button>
+            {diagnostic.rawAvailable && <button type="button" disabled={diagnosticBusy} onClick={() => void exportDetailedDiagnostic()} className="ui-button ui-button--danger ai-diagnostic-action">
+              <Download size={16} aria-hidden="true" />{t('fileCard.exportDiagnostic')}
+            </button>}
+          </div>}
+          {diagnosticNotice && <p role="status">{diagnosticNotice}</p>}
+        </div>}
+        {analysisDone && skippedItems > 0 && <p className="file-card__warning">{t('fileCard.skippedAiItems', { count: skippedItems })}</p>}
+      </div>}
+    </article>
   );
 }

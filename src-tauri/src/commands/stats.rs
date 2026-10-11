@@ -233,7 +233,7 @@ fn get_learning_stats_for_language(
                         COUNT(DISTINCT CASE WHEN p.status = 'ignored' THEN po.phrase_id END) AS ignored
                  FROM segments s
                  JOIN selected_files f ON f.id = s.file_id
-                 JOIN phrase_occurrences po ON po.segment_id = s.id
+                 JOIN study_phrase_occurrences po ON po.segment_id = s.id
                  JOIN phrases p ON p.id = po.phrase_id
                  GROUP BY s.file_id
              )

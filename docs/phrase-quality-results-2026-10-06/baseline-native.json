@@ -1,0 +1,1146 @@
+{
+  "elapsedMs": 1060347,
+  "items": [
+    {
+      "canonical": "listen to",
+      "category": "phrasal_verb",
+      "segment_index": 0,
+      "token_positions": [
+        1,
+        2
+      ]
+    },
+    {
+      "canonical": "memorize vocabulary",
+      "category": "collocation",
+      "segment_index": 2,
+      "token_positions": [
+        1,
+        2
+      ]
+    },
+    {
+      "canonical": "recognize patterns",
+      "category": "collocation",
+      "segment_index": 5,
+      "token_positions": [
+        2,
+        3
+      ]
+    },
+    {
+      "canonical": "forget any plans",
+      "category": "phrasal_verb",
+      "segment_index": 7,
+      "token_positions": [
+        1,
+        2,
+        6
+      ]
+    },
+    {
+      "canonical": "have a go",
+      "category": "phrasal_verb",
+      "segment_index": 8,
+      "token_positions": [
+        5,
+        6,
+        7
+      ]
+    },
+    {
+      "canonical": "listen to",
+      "category": "phrasal_verb",
+      "segment_index": 10,
+      "token_positions": [
+        1,
+        2
+      ]
+    },
+    {
+      "canonical": "sit down",
+      "category": "phrasal_verb",
+      "segment_index": 15,
+      "token_positions": [
+        2,
+        3
+      ]
+    },
+    {
+      "canonical": "help each other",
+      "category": "phrasal_verb",
+      "segment_index": 17,
+      "token_positions": [
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "canonical": "see you",
+      "category": "fixed_expression",
+      "segment_index": 19,
+      "token_positions": [
+        5,
+        6
+      ]
+    },
+    {
+      "canonical": "test that approach",
+      "category": "fixed_expression",
+      "segment_index": 20,
+      "token_positions": [
+        13,
+        14,
+        15
+      ]
+    },
+    {
+      "canonical": "do it",
+      "category": "phrasal_verb",
+      "segment_index": 22,
+      "token_positions": [
+        1,
+        2
+      ]
+    },
+    {
+      "canonical": "listen to",
+      "category": "phrasal_verb",
+      "segment_index": 26,
+      "token_positions": [
+        1,
+        2
+      ]
+    },
+    {
+      "canonical": "over and over again",
+      "category": "idiom",
+      "segment_index": 28,
+      "token_positions": [
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "canonical": "pick up",
+      "category": "phrasal_verb",
+      "segment_index": 31,
+      "token_positions": [
+        1,
+        3
+      ]
+    },
+    {
+      "canonical": "pick up",
+      "category": "phrasal_verb",
+      "segment_index": 32,
+      "token_positions": [
+        1,
+        5
+      ]
+    },
+    {
+      "canonical": "see you",
+      "category": "phrasal_verb",
+      "segment_index": 33,
+      "token_positions": [
+        3,
+        4
+      ]
+    },
+    {
+      "canonical": "memorize vocabulary",
+      "category": "collocation",
+      "segment_index": 36,
+      "token_positions": [
+        1,
+        2
+      ]
+    },
+    {
+      "canonical": "use every word",
+      "category": "collocation",
+      "segment_index": 36,
+      "token_positions": [
+        13,
+        14,
+        15
+      ]
+    },
+    {
+      "canonical": "copy into",
+      "category": "phrasal_verb",
+      "segment_index": 39,
+      "token_positions": [
+        12,
+        14
+      ]
+    },
+    {
+      "canonical": "meet to discuss",
+      "category": "phrasal_verb",
+      "segment_index": 40,
+      "token_positions": [
+        13,
+        14,
+        15
+      ]
+    },
+    {
+      "canonical": "break the ice",
+      "category": "idiom",
+      "segment_index": 41,
+      "token_positions": [
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "canonical": "make a decision",
+      "category": "fixed_expression",
+      "segment_index": 43,
+      "token_positions": [
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "canonical": "take care of",
+      "category": "phrasal_verb",
+      "segment_index": 44,
+      "token_positions": [
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "canonical": "work together",
+      "category": "collocation",
+      "segment_index": 46,
+      "token_positions": [
+        6,
+        7
+      ]
+    },
+    {
+      "canonical": "look forward to",
+      "category": "idiom",
+      "segment_index": 47,
+      "token_positions": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "canonical": "deal with",
+      "category": "phrasal_verb",
+      "segment_index": 48,
+      "token_positions": [
+        3,
+        4
+      ]
+    },
+    {
+      "canonical": "get in touch",
+      "category": "phrasal_verb",
+      "segment_index": 49,
+      "token_positions": [
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "canonical": "pay attention",
+      "category": "collocation",
+      "segment_index": 50,
+      "token_positions": [
+        2,
+        3
+      ]
+    },
+    {
+      "canonical": "watch another demonstration",
+      "category": "collocation",
+      "segment_index": 51,
+      "token_positions": [
+        7,
+        8,
+        9
+      ]
+    },
+    {
+      "canonical": "have a go",
+      "category": "phrasal_verb",
+      "segment_index": 53,
+      "token_positions": [
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "canonical": "run into",
+      "category": "phrasal_verb",
+      "segment_index": 54,
+      "token_positions": [
+        1,
+        2
+      ]
+    },
+    {
+      "canonical": "set up",
+      "category": "phrasal_verb",
+      "segment_index": 55,
+      "token_positions": [
+        2,
+        3
+      ]
+    },
+    {
+      "canonical": "turn down",
+      "category": "phrasal_verb",
+      "segment_index": 56,
+      "token_positions": [
+        1,
+        4
+      ]
+    },
+    {
+      "canonical": "look up",
+      "category": "phrasal_verb",
+      "segment_index": 57,
+      "token_positions": [
+        1,
+        4
+      ]
+    },
+    {
+      "canonical": "say no worries",
+      "category": "fixed_expression",
+      "segment_index": 58,
+      "token_positions": [
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "canonical": "thank each other",
+      "category": "fixed_expression",
+      "segment_index": 59,
+      "token_positions": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "canonical": "meet at",
+      "category": "phrasal_verb",
+      "segment_index": 60,
+      "token_positions": [
+        4,
+        5
+      ]
+    },
+    {
+      "canonical": "spill the tea",
+      "category": "idiom",
+      "segment_index": 61,
+      "token_positions": [
+        4,
+        5,
+        6
+      ]
+    },
+    {
+      "canonical": "say my bad",
+      "category": "idiom",
+      "segment_index": 63,
+      "token_positions": [
+        10,
+        11,
+        12
+      ]
+    },
+    {
+      "canonical": "no biggie",
+      "category": "idiom",
+      "segment_index": 64,
+      "token_positions": [
+        2,
+        3
+      ]
+    },
+    {
+      "canonical": "throw shade",
+      "category": "idiom",
+      "segment_index": 65,
+      "token_positions": [
+        3,
+        4
+      ]
+    },
+    {
+      "canonical": "take the piss out of",
+      "category": "idiom",
+      "segment_index": 66,
+      "token_positions": [
+        8,
+        9,
+        10,
+        11,
+        12
+      ]
+    },
+    {
+      "canonical": "spilled the tea",
+      "category": "phrasal_verb",
+      "segment_index": 67,
+      "token_positions": [
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "canonical": "spill inside",
+      "category": "phrasal_verb",
+      "segment_index": 68,
+      "token_positions": [
+        14,
+        15
+      ]
+    },
+    {
+      "canonical": "throw shade",
+      "category": "phrasal_verb",
+      "segment_index": 69,
+      "token_positions": [
+        4,
+        5
+      ]
+    },
+    {
+      "canonical": "ask up",
+      "category": "phrasal_verb",
+      "segment_index": 70,
+      "token_positions": [
+        1,
+        5
+      ]
+    },
+    {
+      "canonical": "hang out",
+      "category": "phrasal_verb",
+      "segment_index": 71,
+      "token_positions": [
+        2,
+        3
+      ]
+    },
+    {
+      "canonical": "catch up",
+      "category": "phrasal_verb",
+      "segment_index": 73,
+      "token_positions": [
+        1,
+        2
+      ]
+    },
+    {
+      "canonical": "break the ice",
+      "category": "idiom",
+      "segment_index": 74,
+      "token_positions": [
+        4,
+        5,
+        6
+      ]
+    },
+    {
+      "canonical": "have a go",
+      "category": "phrasal_verb",
+      "segment_index": 75,
+      "token_positions": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "canonical": "printed beside",
+      "category": "collocation",
+      "segment_index": 76,
+      "token_positions": [
+        14,
+        15
+      ]
+    },
+    {
+      "canonical": "keep in touch",
+      "category": "idiom",
+      "segment_index": 79,
+      "token_positions": [
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "canonical": "set off",
+      "category": "phrasal_verb",
+      "segment_index": 81,
+      "token_positions": [
+        1,
+        2
+      ]
+    },
+    {
+      "canonical": "find out",
+      "category": "phrasal_verb",
+      "segment_index": 83,
+      "token_positions": [
+        1,
+        2
+      ]
+    },
+    {
+      "canonical": "take a break",
+      "category": "phrasal_verb",
+      "segment_index": 84,
+      "token_positions": [
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "canonical": "make sure",
+      "category": "fixed_expression",
+      "segment_index": 85,
+      "token_positions": [
+        2,
+        3
+      ]
+    },
+    {
+      "canonical": "drop off",
+      "category": "phrasal_verb",
+      "segment_index": 86,
+      "token_positions": [
+        4,
+        6
+      ]
+    },
+    {
+      "canonical": "look after",
+      "category": "phrasal_verb",
+      "segment_index": 87,
+      "token_positions": [
+        5,
+        6
+      ]
+    },
+    {
+      "canonical": "run out of",
+      "category": "phrasal_verb",
+      "segment_index": 88,
+      "token_positions": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "canonical": "pick up",
+      "category": "phrasal_verb",
+      "segment_index": 91,
+      "token_positions": [
+        1,
+        5
+      ]
+    },
+    {
+      "canonical": "come across",
+      "category": "phrasal_verb",
+      "segment_index": 92,
+      "token_positions": [
+        1,
+        2
+      ]
+    },
+    {
+      "canonical": "sit down",
+      "category": "phrasal_verb",
+      "segment_index": 94,
+      "token_positions": [
+        2,
+        3
+      ]
+    },
+    {
+      "canonical": "watch it",
+      "category": "phrasal_verb",
+      "segment_index": 95,
+      "token_positions": [
+        4,
+        5
+      ]
+    },
+    {
+      "canonical": "has stopped",
+      "category": "phrasal_verb",
+      "segment_index": 98,
+      "token_positions": [
+        6,
+        7
+      ]
+    },
+    {
+      "canonical": "back at home",
+      "category": "fixed_expression",
+      "segment_index": 100,
+      "token_positions": [
+        0,
+        1,
+        2
+      ]
+    },
+    {
+      "canonical": "turn on",
+      "category": "phrasal_verb",
+      "segment_index": 101,
+      "token_positions": [
+        4,
+        5
+      ]
+    },
+    {
+      "canonical": "put away",
+      "category": "phrasal_verb",
+      "segment_index": 102,
+      "token_positions": [
+        1,
+        4
+      ]
+    },
+    {
+      "canonical": "help out",
+      "category": "phrasal_verb",
+      "segment_index": 105,
+      "token_positions": [
+        3,
+        4
+      ]
+    },
+    {
+      "canonical": "give up",
+      "category": "phrasal_verb",
+      "segment_index": 106,
+      "token_positions": [
+        5,
+        6
+      ]
+    },
+    {
+      "canonical": "add up",
+      "category": "phrasal_verb",
+      "segment_index": 107,
+      "token_positions": [
+        6,
+        7
+      ]
+    },
+    {
+      "canonical": "work out",
+      "category": "phrasal_verb",
+      "segment_index": 108,
+      "token_positions": [
+        2,
+        3
+      ]
+    },
+    {
+      "canonical": "listen to stories",
+      "category": "collocation",
+      "segment_index": 110,
+      "token_positions": [
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "canonical": "over and over",
+      "category": "collocation",
+      "segment_index": 113,
+      "token_positions": [
+        5,
+        6,
+        7
+      ]
+    },
+    {
+      "canonical": "forget plans",
+      "category": "phrasal_verb",
+      "segment_index": 116,
+      "token_positions": [
+        5,
+        9
+      ]
+    },
+    {
+      "canonical": "say see",
+      "category": "phrasal_verb",
+      "segment_index": 119,
+      "token_positions": [
+        1,
+        2
+      ]
+    },
+    {
+      "canonical": "get the hang of",
+      "category": "phrasal_verb",
+      "segment_index": 121,
+      "token_positions": [
+        3,
+        4,
+        5,
+        6
+      ]
+    },
+    {
+      "canonical": "down to earth",
+      "category": "idiom",
+      "segment_index": 122,
+      "token_positions": [
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "canonical": "feel under the weather",
+      "category": "idiom",
+      "segment_index": 123,
+      "token_positions": [
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "canonical": "cut corners",
+      "category": "phrasal_verb",
+      "segment_index": 124,
+      "token_positions": [
+        3,
+        4
+      ]
+    },
+    {
+      "canonical": "cut corners",
+      "category": "phrasal_verb",
+      "segment_index": 126,
+      "token_positions": [
+        3,
+        4
+      ]
+    },
+    {
+      "canonical": "place under",
+      "category": "phrasal_verb",
+      "segment_index": 127,
+      "token_positions": [
+        2,
+        6
+      ]
+    },
+    {
+      "canonical": "go the extra mile",
+      "category": "idiom",
+      "segment_index": 128,
+      "token_positions": [
+        3,
+        4,
+        5,
+        6
+      ]
+    },
+    {
+      "canonical": "call it a day",
+      "category": "idiom",
+      "segment_index": 129,
+      "token_positions": [
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "canonical": "take a rain check",
+      "category": "idiom",
+      "segment_index": 130,
+      "token_positions": [
+        3,
+        4,
+        5,
+        6
+      ]
+    },
+    {
+      "canonical": "piece of cake",
+      "category": "idiom",
+      "segment_index": 131,
+      "token_positions": [
+        10,
+        11,
+        12
+      ]
+    },
+    {
+      "canonical": "spot on",
+      "category": "idiom",
+      "segment_index": 132,
+      "token_positions": [
+        3,
+        4
+      ]
+    },
+    {
+      "canonical": "on the same page",
+      "category": "idiom",
+      "segment_index": 133,
+      "token_positions": [
+        3,
+        4,
+        5,
+        6
+      ]
+    },
+    {
+      "canonical": "benefit from",
+      "category": "collocation",
+      "segment_index": 137,
+      "token_positions": [
+        6,
+        7
+      ]
+    },
+    {
+      "canonical": "get input",
+      "category": "phrasal_verb",
+      "segment_index": 138,
+      "token_positions": [
+        2,
+        3
+      ]
+    },
+    {
+      "canonical": "close the windows",
+      "category": "phrasal_verb",
+      "segment_index": 139,
+      "token_positions": [
+        11,
+        12,
+        13
+      ]
+    },
+    {
+      "canonical": "leave the station",
+      "category": "phrasal_verb",
+      "segment_index": 140,
+      "token_positions": [
+        18,
+        19,
+        20
+      ]
+    },
+    {
+      "canonical": "big deal",
+      "category": "idiom",
+      "segment_index": 142,
+      "token_positions": [
+        9,
+        10
+      ]
+    },
+    {
+      "canonical": "hit off",
+      "category": "phrasal_verb",
+      "segment_index": 143,
+      "token_positions": [
+        2,
+        4
+      ]
+    },
+    {
+      "canonical": "pull her leg",
+      "category": "idiom",
+      "segment_index": 144,
+      "token_positions": [
+        5,
+        6,
+        7
+      ]
+    },
+    {
+      "canonical": "come through",
+      "category": "phrasal_verb",
+      "segment_index": 146,
+      "token_positions": [
+        5,
+        6
+      ]
+    },
+    {
+      "canonical": "hold your horses",
+      "category": "idiom",
+      "segment_index": 147,
+      "token_positions": [
+        5,
+        6,
+        7
+      ]
+    },
+    {
+      "canonical": "hit different",
+      "category": "idiom",
+      "segment_index": 148,
+      "token_positions": [
+        6,
+        7
+      ]
+    },
+    {
+      "canonical": "pull free",
+      "category": "phrasal_verb",
+      "segment_index": 150,
+      "token_positions": [
+        4,
+        7
+      ]
+    },
+    {
+      "canonical": "hold your horses",
+      "category": "idiom",
+      "segment_index": 151,
+      "token_positions": [
+        16,
+        17,
+        18
+      ]
+    },
+    {
+      "canonical": "come through",
+      "category": "phrasal_verb",
+      "segment_index": 152,
+      "token_positions": [
+        7,
+        8
+      ]
+    },
+    {
+      "canonical": "do it",
+      "category": "phrasal_verb",
+      "segment_index": 153,
+      "token_positions": [
+        1,
+        2
+      ]
+    },
+    {
+      "canonical": "wait before",
+      "category": "fixed_expression",
+      "segment_index": 156,
+      "token_positions": [
+        11,
+        12
+      ]
+    },
+    {
+      "canonical": "get input",
+      "category": "phrasal_verb",
+      "segment_index": 157,
+      "token_positions": [
+        3,
+        4
+      ]
+    },
+    {
+      "canonical": "be easy enough",
+      "category": "fixed_expression",
+      "segment_index": 158,
+      "token_positions": [
+        7,
+        8,
+        9
+      ]
+    },
+    {
+      "canonical": "close the discussion",
+      "category": "fixed_expression",
+      "segment_index": 159,
+      "token_positions": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "canonical": "learn the ropes",
+      "category": "phrasal_verb",
+      "segment_index": 162,
+      "token_positions": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "canonical": "bear in mind",
+      "category": "fixed_expression",
+      "segment_index": 163,
+      "token_positions": [
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "canonical": "play it by ear",
+      "category": "idiom",
+      "segment_index": 164,
+      "token_positions": [
+        5,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "canonical": "feel out of the loop",
+      "category": "idiom",
+      "segment_index": 165,
+      "token_positions": [
+        2,
+        3,
+        4,
+        5,
+        6
+      ]
+    },
+    {
+      "canonical": "fill in",
+      "category": "phrasal_verb",
+      "segment_index": 166,
+      "token_positions": [
+        3,
+        5
+      ]
+    },
+    {
+      "canonical": "take it easy",
+      "category": "phrasal_verb",
+      "segment_index": 167,
+      "token_positions": [
+        8,
+        9,
+        10
+      ]
+    },
+    {
+      "canonical": "lend a hand",
+      "category": "phrasal_verb",
+      "segment_index": 168,
+      "token_positions": [
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "canonical": "keep an eye on",
+      "category": "phrasal_verb",
+      "segment_index": 169,
+      "token_positions": [
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "canonical": "hit the road",
+      "category": "phrasal_verb",
+      "segment_index": 170,
+      "token_positions": [
+        7,
+        8,
+        9
+      ]
+    },
+    {
+      "canonical": "on the ball",
+      "category": "idiom",
+      "segment_index": 176,
+      "token_positions": [
+        9,
+        10,
+        11
+      ]
+    },
+    {
+      "canonical": "make a difference",
+      "category": "fixed_expression",
+      "segment_index": 177,
+      "token_positions": [
+        5,
+        6,
+        7
+      ]
+    },
+    {
+      "canonical": "jump to conclusions",
+      "category": "idiom",
+      "segment_index": 178,
+      "token_positions": [
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "canonical": "switch off",
+      "category": "phrasal_verb",
+      "segment_index": 179,
+      "token_positions": [
+        19,
+        20
+      ]
+    }
+  ],
+  "phrases": 118,
+  "runtime": {
+    "backend": "gpu",
+    "error": null,
+    "loadMs": 2037,
+    "model": "gemma4-e2b-litert-181938105e0e",
+    "state": "ready"
+  },
+  "segments": 180,
+  "writesLearningData": false,
+  "model": "gemma4-e2b-litert-181938105e0e",
+  "phase": "original_pipeline_baseline"
+}

@@ -24,19 +24,11 @@ pub struct FileInfo {
     pub segment_count: i64,
     pub phrase_analyzed: bool,
     pub phrase_analysis_at: Option<i64>,
+    pub phrase_skipped_items: i64,
     pub language: String,
-    pub folder_id: Option<i64>,
+    pub tags: Vec<super::tags::TagInfo>,
     pub word_progress: LearningProgress,
     pub phrase_progress: LearningProgress,
-}
-
-#[derive(Serialize)]
-pub struct FolderInfo {
-    pub id: i64,
-    pub name: String,
-    pub parent_id: Option<i64>,
-    pub created_at: i64,
-    pub file_count: i64,
 }
 
 #[derive(Serialize)]
@@ -53,23 +45,38 @@ pub struct SegmentInfo {
 pub fn list_files(
     state: State<DbState>,
     language: Option<String>,
-    folder_id: Option<i64>,
+    tag_ids: Option<Vec<i64>>,
+    untagged: Option<bool>,
 ) -> Result<Vec<FileInfo>, String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
-    query_files(&conn, language.as_deref(), folder_id).map_err(|e| e.to_string())
+    query_files(
+        &conn,
+        language.as_deref(),
+        &tag_ids.unwrap_or_default(),
+        untagged.unwrap_or(false),
+    )
+    .map_err(|e| e.to_string())
 }
 
-fn query_files(
+pub(crate) fn query_files(
     conn: &rusqlite::Connection,
     language: Option<&str>,
-    folder_id: Option<i64>,
+    tag_ids: &[i64],
+    untagged: bool,
 ) -> Result<Vec<FileInfo>, rusqlite::Error> {
+    let unique_ids = tag_ids
+        .iter()
+        .copied()
+        .collect::<std::collections::BTreeSet<_>>();
+    let json_ids = serde_json::to_string(&unique_ids).unwrap();
     let mut stmt = conn
         .prepare(
             "WITH selected_files AS (
                  SELECT * FROM files
                  WHERE (?1 IS NULL OR language = ?1)
-                   AND ((?2 IS NULL AND folder_id IS NULL) OR folder_id = ?2)
+                   AND (?3 = 0 OR NOT EXISTS(SELECT 1 FROM file_tags ft WHERE ft.file_id=files.id))
+                   AND NOT EXISTS(SELECT 1 FROM json_each(?2) selected
+                       WHERE NOT EXISTS(SELECT 1 FROM file_tags ft WHERE ft.file_id=files.id AND ft.tag_id=selected.value))
              ),
              segment_stats AS (
                  SELECT s.file_id, COUNT(*) AS total
@@ -98,14 +105,15 @@ fn query_files(
                         COUNT(DISTINCT CASE WHEN p.status='ignored' THEN po.phrase_id END) AS ignored
                  FROM segments s
                  JOIN selected_files f ON f.id = s.file_id
-                 JOIN phrase_occurrences po ON po.segment_id = s.id
+                 JOIN study_phrase_occurrences po ON po.segment_id = s.id
                  JOIN phrases p ON p.id = po.phrase_id
                  GROUP BY s.file_id
              )
              SELECT f.id, f.name, f.type, f.imported_at, COALESCE(ss.total, 0), f.language,
                     a.file_id IS NOT NULL, a.completed_at, f.folder_id,
                     COALESCE(ws.total, 0), COALESCE(ws.unprocessed, 0), COALESCE(ws.learning, 0), COALESCE(ws.known, 0), COALESCE(ws.ignored, 0),
-                    COALESCE(ps.total, 0), COALESCE(ps.unprocessed, 0), COALESCE(ps.learning, 0), COALESCE(ps.known, 0), COALESCE(ps.ignored, 0)
+                    COALESCE(ps.total, 0), COALESCE(ps.unprocessed, 0), COALESCE(ps.learning, 0), COALESCE(ps.known, 0), COALESCE(ps.ignored, 0),
+                    COALESCE(a.skipped_items, 0)
              FROM selected_files f
              LEFT JOIN segment_stats ss ON ss.file_id = f.id
              LEFT JOIN word_stats ws ON ws.file_id = f.id
@@ -114,7 +122,7 @@ fn query_files(
              ORDER BY f.imported_at DESC",
         )?;
 
-    let rows = stmt.query_map(params![language, folder_id], |row| {
+    let rows = stmt.query_map(params![language, json_ids, untagged], |row| {
         Ok(FileInfo {
             id: row.get(0)?,
             name: row.get(1)?,
@@ -124,7 +132,8 @@ fn query_files(
             phrase_analyzed: row.get::<_, i32>(6)? != 0,
             language: row.get(5)?,
             phrase_analysis_at: row.get(7)?,
-            folder_id: row.get(8)?,
+            phrase_skipped_items: row.get(19)?,
+            tags: super::tags::file_tags(conn, row.get(0)?)?,
             word_progress: LearningProgress {
                 total: row.get(9)?,
                 unprocessed: row.get(10)?,
@@ -166,187 +175,22 @@ fn query_file_info(conn: &rusqlite::Connection, file_id: i64) -> Result<FileInfo
                 (SELECT COUNT(DISTINCT o.word_id) FROM segments s JOIN occurrences o ON o.segment_id=s.id JOIN words w ON w.id=o.word_id WHERE s.file_id=f.id AND w.status='learning'),
                 (SELECT COUNT(DISTINCT o.word_id) FROM segments s JOIN occurrences o ON o.segment_id=s.id JOIN words w ON w.id=o.word_id WHERE s.file_id=f.id AND w.status='known'),
                 (SELECT COUNT(DISTINCT o.word_id) FROM segments s JOIN occurrences o ON o.segment_id=s.id JOIN words w ON w.id=o.word_id WHERE s.file_id=f.id AND w.status='ignored'),
-                (SELECT COUNT(DISTINCT po.phrase_id) FROM segments s JOIN phrase_occurrences po ON po.segment_id=s.id WHERE s.file_id=f.id),
-                (SELECT COUNT(DISTINCT po.phrase_id) FROM segments s JOIN phrase_occurrences po ON po.segment_id=s.id JOIN phrases p ON p.id=po.phrase_id WHERE s.file_id=f.id AND p.status='unprocessed'),
-                (SELECT COUNT(DISTINCT po.phrase_id) FROM segments s JOIN phrase_occurrences po ON po.segment_id=s.id JOIN phrases p ON p.id=po.phrase_id WHERE s.file_id=f.id AND p.status='learning'),
-                (SELECT COUNT(DISTINCT po.phrase_id) FROM segments s JOIN phrase_occurrences po ON po.segment_id=s.id JOIN phrases p ON p.id=po.phrase_id WHERE s.file_id=f.id AND p.status='known'),
-                (SELECT COUNT(DISTINCT po.phrase_id) FROM segments s JOIN phrase_occurrences po ON po.segment_id=s.id JOIN phrases p ON p.id=po.phrase_id WHERE s.file_id=f.id AND p.status='ignored')
+                (SELECT COUNT(DISTINCT po.phrase_id) FROM segments s JOIN study_phrase_occurrences po ON po.segment_id=s.id WHERE s.file_id=f.id),
+                (SELECT COUNT(DISTINCT po.phrase_id) FROM segments s JOIN study_phrase_occurrences po ON po.segment_id=s.id JOIN phrases p ON p.id=po.phrase_id WHERE s.file_id=f.id AND p.status='unprocessed'),
+                (SELECT COUNT(DISTINCT po.phrase_id) FROM segments s JOIN study_phrase_occurrences po ON po.segment_id=s.id JOIN phrases p ON p.id=po.phrase_id WHERE s.file_id=f.id AND p.status='learning'),
+                (SELECT COUNT(DISTINCT po.phrase_id) FROM segments s JOIN study_phrase_occurrences po ON po.segment_id=s.id JOIN phrases p ON p.id=po.phrase_id WHERE s.file_id=f.id AND p.status='known'),
+                (SELECT COUNT(DISTINCT po.phrase_id) FROM segments s JOIN study_phrase_occurrences po ON po.segment_id=s.id JOIN phrases p ON p.id=po.phrase_id WHERE s.file_id=f.id AND p.status='ignored'),
+                COALESCE((SELECT skipped_items FROM file_phrase_analysis a WHERE a.file_id=f.id),0)
          FROM files f WHERE f.id=?1",
         params![file_id],
         |row| Ok(FileInfo {
             id: row.get(0)?, name: row.get(1)?, file_type: row.get(2)?, imported_at: row.get(3)?,
             segment_count: row.get(4)?, language: row.get(5)?, phrase_analyzed: row.get::<_, i32>(6)? != 0,
-            phrase_analysis_at: row.get(7)?, folder_id: row.get(8)?,
+            phrase_analysis_at: row.get(7)?, phrase_skipped_items: row.get(19)?, tags: super::tags::file_tags(conn, row.get(0)?)?,
             word_progress: LearningProgress { total: row.get(9)?, unprocessed: row.get(10)?, learning: row.get(11)?, known: row.get(12)?, ignored: row.get(13)? },
             phrase_progress: LearningProgress { total: row.get(14)?, unprocessed: row.get(15)?, learning: row.get(16)?, known: row.get(17)?, ignored: row.get(18)? },
         }),
     )
-}
-
-#[tauri::command]
-pub fn list_folders(
-    state: State<DbState>,
-    language: Option<String>,
-) -> Result<Vec<FolderInfo>, String> {
-    let conn = state.conn.lock().map_err(|e| e.to_string())?;
-
-    let mut stmt = conn
-        .prepare(
-            "SELECT fo.id, fo.name, fo.parent_id, fo.created_at, COUNT(f.id) AS file_count
-             FROM folders fo
-             LEFT JOIN files f ON f.folder_id = fo.id AND (?1 IS NULL OR f.language = ?1)
-             GROUP BY fo.id
-             ORDER BY fo.created_at, fo.id",
-        )
-        .map_err(|e| e.to_string())?;
-
-    let rows = stmt
-        .query_map(params![language.as_deref()], |row| {
-            Ok(FolderInfo {
-                id: row.get(0)?,
-                name: row.get(1)?,
-                parent_id: row.get(2)?,
-                created_at: row.get(3)?,
-                file_count: row.get(4)?,
-            })
-        })
-        .map_err(|e| e.to_string())?;
-
-    let mut result = Vec::new();
-    for row in rows {
-        result.push(row.map_err(|e| e.to_string())?);
-    }
-    Ok(result)
-}
-
-#[tauri::command]
-pub fn create_folder(
-    state: State<DbState>,
-    name: String,
-    parent_id: Option<i64>,
-) -> Result<(), String> {
-    let conn = state.conn.lock().map_err(|e| e.to_string())?;
-
-    let trimmed = name.trim().to_string();
-    if trimmed.is_empty() {
-        return Err("folder name cannot be empty".to_string());
-    }
-    conn.execute(
-        "INSERT INTO folders (name, parent_id, created_at) VALUES (?1, ?2, ?3)",
-        params![trimmed, parent_id, now_ms()],
-    )
-    .map_err(|e| e.to_string())?;
-
-    Ok(())
-}
-
-#[tauri::command]
-pub fn rename_folder(state: State<DbState>, folder_id: i64, name: String) -> Result<(), String> {
-    let conn = state.conn.lock().map_err(|e| e.to_string())?;
-
-    let trimmed = name.trim().to_string();
-    if trimmed.is_empty() {
-        return Err("folder name cannot be empty".to_string());
-    }
-    conn.execute(
-        "UPDATE folders SET name = ?1 WHERE id = ?2",
-        params![trimmed, folder_id],
-    )
-    .map_err(|e| e.to_string())?;
-
-    Ok(())
-}
-
-fn folder_subtree_ids(conn: &rusqlite::Connection, folder_id: i64) -> Result<Vec<i64>, String> {
-    let mut stmt = conn
-        .prepare(
-            "WITH RECURSIVE subtree(id) AS (
-                 SELECT ?1
-                 UNION ALL
-                 SELECT fo.id FROM folders fo JOIN subtree s ON fo.parent_id = s.id
-             )
-             SELECT id FROM subtree",
-        )
-        .map_err(|e| e.to_string())?;
-
-    let rows = stmt
-        .query_map(params![folder_id], |row| row.get::<_, i64>(0))
-        .map_err(|e| e.to_string())?;
-
-    let mut ids = Vec::new();
-    for row in rows {
-        ids.push(row.map_err(|e| e.to_string())?);
-    }
-    Ok(ids)
-}
-
-#[tauri::command]
-pub fn delete_folder(state: State<DbState>, folder_id: i64) -> Result<(), String> {
-    let conn = state.conn.lock().map_err(|e| e.to_string())?;
-
-    let ids = folder_subtree_ids(&conn, folder_id)?;
-
-    let mut file_stmt = conn
-        .prepare("UPDATE files SET folder_id = NULL WHERE folder_id = ?1")
-        .map_err(|e| e.to_string())?;
-    for id in &ids {
-        file_stmt.execute(params![id]).map_err(|e| e.to_string())?;
-    }
-
-    let mut folder_stmt = conn
-        .prepare("DELETE FROM folders WHERE id = ?1")
-        .map_err(|e| e.to_string())?;
-    for id in &ids {
-        folder_stmt
-            .execute(params![id])
-            .map_err(|e| e.to_string())?;
-    }
-
-    Ok(())
-}
-
-#[tauri::command]
-pub fn move_folder(
-    state: State<DbState>,
-    folder_id: i64,
-    target_parent_id: Option<i64>,
-) -> Result<(), String> {
-    let conn = state.conn.lock().map_err(|e| e.to_string())?;
-
-    if let Some(target) = target_parent_id {
-        if folder_id == target {
-            return Err("cannot move a folder into itself".to_string());
-        }
-        let descendants = folder_subtree_ids(&conn, folder_id)?;
-        if descendants.contains(&target) {
-            return Err("cannot move a folder into its own descendant".to_string());
-        }
-    }
-
-    conn.execute(
-        "UPDATE folders SET parent_id = ?1 WHERE id = ?2",
-        params![target_parent_id, folder_id],
-    )
-    .map_err(|e| e.to_string())?;
-
-    Ok(())
-}
-
-#[tauri::command]
-pub fn move_file(
-    state: State<DbState>,
-    file_id: i64,
-    folder_id: Option<i64>,
-) -> Result<(), String> {
-    let conn = state.conn.lock().map_err(|e| e.to_string())?;
-
-    conn.execute(
-        "UPDATE files SET folder_id = ?1 WHERE id = ?2",
-        params![folder_id, file_id],
-    )
-    .map_err(|e| e.to_string())?;
-
-    Ok(())
 }
 
 fn now_ms() -> i64 {
@@ -626,16 +470,18 @@ mod tests {
              CREATE TABLE occurrences (id INTEGER PRIMARY KEY, word_id INTEGER, segment_id INTEGER, hidden INTEGER DEFAULT 0);
              CREATE TABLE phrases (id INTEGER PRIMARY KEY, status TEXT);
              CREATE TABLE phrase_occurrences (id INTEGER PRIMARY KEY, phrase_id INTEGER, segment_id INTEGER, hidden INTEGER DEFAULT 0);
-             CREATE TABLE file_phrase_analysis (file_id INTEGER PRIMARY KEY, completed_at INTEGER);
+             CREATE VIEW study_phrase_occurrences AS SELECT * FROM phrase_occurrences WHERE hidden=0;
+             CREATE TABLE file_phrase_analysis (file_id INTEGER PRIMARY KEY, completed_at INTEGER, skipped_items INTEGER DEFAULT 0);
              INSERT INTO files VALUES (1, 'one.txt', 'txt', 1, 'en', NULL), (2, 'two.txt', 'txt', 2, 'en', 9), (3, 'empty.txt', 'txt', 3, 'de', NULL);
              INSERT INTO segments VALUES (10, 1, 0), (11, 1, 1), (20, 2, 0);
              INSERT INTO words VALUES (1, 'unprocessed'), (2, 'learning'), (3, 'known'), (4, 'ignored'), (5, 'known');
              INSERT INTO occurrences VALUES (1, 1, 10, 0), (2, 1, 11, 0), (3, 2, 10, 1), (4, 3, 10, 0), (5, 4, 11, 0), (6, 5, 20, 0);
              INSERT INTO phrases VALUES (1, 'known'), (2, 'ignored');
              INSERT INTO phrase_occurrences VALUES (1, 1, 10, 1), (2, 1, 11, 0), (3, 2, 20, 0);
-             INSERT INTO file_phrase_analysis VALUES (1, 99);",
+             INSERT INTO file_phrase_analysis(file_id,completed_at) VALUES (1, 99);",
         ).unwrap();
 
+        super::super::tags::create_tables(&conn).unwrap();
         let first = query_file_info(&conn, 1).unwrap();
         assert_eq!(first.segment_count, 2);
         assert_eq!(first.word_progress.total, 4);
@@ -658,18 +504,13 @@ mod tests {
         assert_eq!(second.phrase_progress.ignored, 1);
         assert!(!second.phrase_analyzed);
 
-        let root_english = query_files(&conn, Some("en"), None).unwrap();
-        assert_eq!(root_english.len(), 1);
-        assert_eq!(root_english[0].id, 1);
-        assert_eq!(root_english[0].word_progress.total, 4);
-        assert_eq!(root_english[0].phrase_progress.known, 1);
+        let root_english = query_files(&conn, Some("en"), &[], false).unwrap();
+        assert_eq!(root_english.len(), 2);
+        assert_eq!(root_english[1].id, 1);
+        assert_eq!(root_english[1].word_progress.total, 4);
+        assert_eq!(root_english[1].phrase_progress.known, 1);
 
-        let folder_english = query_files(&conn, Some("en"), Some(9)).unwrap();
-        assert_eq!(folder_english.len(), 1);
-        assert_eq!(folder_english[0].id, 2);
-        assert_eq!(folder_english[0].word_progress.known, 1);
-
-        let empty = query_files(&conn, Some("de"), None).unwrap();
+        let empty = query_files(&conn, Some("de"), &[], false).unwrap();
         assert_eq!(empty.len(), 1);
         assert_eq!(empty[0].segment_count, 0);
         assert_eq!(empty[0].word_progress.total, 0);

@@ -1,0 +1,2173 @@
+{
+  "fixtureHash": "7aba15eafd46aac709c9788733c0e1df1482563e030c1ad5ec5501ecc026e1a7",
+  "elapsedMs": 1060347,
+  "overall": {
+    "predictions": 118,
+    "required": 128,
+    "hit": 72,
+    "uniqueExpressionRecall": 0.6495,
+    "uniqueExpressionPrecision": 0.6275,
+    "occurrencePrecision": 0.6271,
+    "precision": 0.6356,
+    "recall": 0.5625,
+    "boundaryAccuracy": 0.9867,
+    "categoryAccuracy": 0.76,
+    "informalRecall": 0.4444,
+    "registerPrecision": null,
+    "misses": [
+      {
+        "cue": 4,
+        "canonical": "acquire language",
+        "positions": [
+          5,
+          6
+        ]
+      },
+      {
+        "cue": 5,
+        "canonical": "comprehensible input",
+        "positions": [
+          4,
+          5
+        ]
+      },
+      {
+        "cue": 10,
+        "canonical": "pick up",
+        "positions": [
+          1,
+          2
+        ]
+      },
+      {
+        "cue": 11,
+        "canonical": "over and over again",
+        "positions": [
+          5,
+          6,
+          7,
+          8
+        ]
+      },
+      {
+        "cue": 12,
+        "canonical": "a lot of",
+        "positions": [
+          2,
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 13,
+        "canonical": "start with",
+        "positions": [
+          5,
+          6
+        ]
+      },
+      {
+        "cue": 14,
+        "canonical": "become fluent",
+        "positions": [
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 15,
+        "canonical": "on a daily basis",
+        "positions": [
+          3,
+          4,
+          5,
+          6
+        ]
+      },
+      {
+        "cue": 17,
+        "canonical": "at least",
+        "positions": [
+          2,
+          3
+        ]
+      },
+      {
+        "cue": 18,
+        "canonical": "each other",
+        "positions": [
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 18,
+        "canonical": "as well",
+        "positions": [
+          12,
+          13
+        ]
+      },
+      {
+        "cue": 19,
+        "canonical": "spare time",
+        "positions": [
+          4,
+          5
+        ]
+      },
+      {
+        "cue": 21,
+        "canonical": "acquire language",
+        "positions": [
+          4,
+          5
+        ]
+      },
+      {
+        "cue": 28,
+        "canonical": "listen to",
+        "positions": [
+          7,
+          8
+        ]
+      },
+      {
+        "cue": 29,
+        "canonical": "over and over again",
+        "positions": [
+          11,
+          12,
+          13,
+          14
+        ]
+      },
+      {
+        "cue": 30,
+        "canonical": "a lot of",
+        "positions": [
+          2,
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 30,
+        "canonical": "a lot of",
+        "positions": [
+          10,
+          11,
+          12
+        ]
+      },
+      {
+        "cue": 31,
+        "canonical": "become fluent",
+        "positions": [
+          1,
+          2
+        ]
+      },
+      {
+        "cue": 36,
+        "canonical": "recognize patterns",
+        "positions": [
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 38,
+        "canonical": "on a daily basis",
+        "positions": [
+          3,
+          4,
+          5,
+          6
+        ]
+      },
+      {
+        "cue": 43,
+        "canonical": "figure out",
+        "positions": [
+          5,
+          6
+        ]
+      },
+      {
+        "cue": 46,
+        "canonical": "keep in mind",
+        "positions": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "cue": 59,
+        "canonical": "no worries",
+        "positions": [
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 60,
+        "canonical": "each other",
+        "positions": [
+          2,
+          3
+        ]
+      },
+      {
+        "cue": 60,
+        "canonical": "as well",
+        "positions": [
+          16,
+          17
+        ]
+      },
+      {
+        "cue": 63,
+        "canonical": "no cap",
+        "positions": [
+          7,
+          8
+        ]
+      },
+      {
+        "cue": 64,
+        "canonical": "my bad",
+        "positions": [
+          11,
+          12
+        ]
+      },
+      {
+        "cue": 67,
+        "canonical": "take the piss",
+        "positions": [
+          8,
+          9,
+          10
+        ]
+      },
+      {
+        "cue": 71,
+        "canonical": "what is up",
+        "positions": [
+          4,
+          5
+        ]
+      },
+      {
+        "cue": 73,
+        "canonical": "chill out",
+        "positions": [
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 83,
+        "canonical": "watch out",
+        "positions": [
+          4,
+          5
+        ]
+      },
+      {
+        "cue": 90,
+        "canonical": "carry on",
+        "positions": [
+          7,
+          8
+        ]
+      },
+      {
+        "cue": 91,
+        "canonical": "slow down",
+        "positions": [
+          5,
+          6
+        ]
+      },
+      {
+        "cue": 94,
+        "canonical": "on a daily basis",
+        "positions": [
+          3,
+          4,
+          5,
+          6
+        ]
+      },
+      {
+        "cue": 99,
+        "canonical": "at least",
+        "positions": [
+          2,
+          3
+        ]
+      },
+      {
+        "cue": 100,
+        "canonical": "spare time",
+        "positions": [
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 104,
+        "canonical": "bring up",
+        "positions": [
+          4,
+          5
+        ]
+      },
+      {
+        "cue": 105,
+        "canonical": "calm down",
+        "positions": [
+          5,
+          6
+        ]
+      },
+      {
+        "cue": 110,
+        "canonical": "get along",
+        "positions": [
+          2,
+          3
+        ]
+      },
+      {
+        "cue": 111,
+        "canonical": "listen to",
+        "positions": [
+          2,
+          3
+        ]
+      },
+      {
+        "cue": 112,
+        "canonical": "acquire language",
+        "positions": [
+          1,
+          2
+        ]
+      },
+      {
+        "cue": 113,
+        "canonical": "a lot of",
+        "positions": [
+          2,
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 114,
+        "canonical": "over and over again",
+        "positions": [
+          5,
+          6,
+          7,
+          8
+        ]
+      },
+      {
+        "cue": 115,
+        "canonical": "recognize patterns",
+        "positions": [
+          2,
+          3
+        ]
+      },
+      {
+        "cue": 120,
+        "canonical": "see you",
+        "positions": [
+          2,
+          3
+        ]
+      },
+      {
+        "cue": 124,
+        "canonical": "under the weather",
+        "positions": [
+          2,
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 126,
+        "canonical": "let the cat out of the bag",
+        "positions": [
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9
+        ]
+      },
+      {
+        "cue": 132,
+        "canonical": "a piece of cake",
+        "positions": [
+          9,
+          10,
+          11,
+          12
+        ]
+      },
+      {
+        "cue": 142,
+        "canonical": "make someone's day",
+        "positions": [
+          10,
+          12
+        ]
+      },
+      {
+        "cue": 143,
+        "canonical": "a big deal",
+        "positions": [
+          8,
+          9,
+          10
+        ]
+      },
+      {
+        "cue": 144,
+        "canonical": "hit it off",
+        "positions": [
+          2,
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 145,
+        "canonical": "pull someone's leg",
+        "positions": [
+          5,
+          7
+        ]
+      },
+      {
+        "cue": 146,
+        "canonical": "for real",
+        "positions": [
+          4,
+          5
+        ]
+      },
+      {
+        "cue": 150,
+        "canonical": "give someone a heads up",
+        "positions": [
+          3,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "cue": 162,
+        "canonical": "go smoothly",
+        "positions": [
+          2,
+          3
+        ]
+      },
+      {
+        "cue": 166,
+        "canonical": "out of the loop",
+        "positions": [
+          3,
+          4,
+          5,
+          6
+        ]
+      }
+    ],
+    "falsePositives": [
+      {
+        "cue": 8,
+        "canonical": "forget any plans",
+        "positions": [
+          1,
+          2,
+          6
+        ]
+      },
+      {
+        "cue": 18,
+        "canonical": "help each other",
+        "positions": [
+          2,
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 21,
+        "canonical": "test that approach",
+        "positions": [
+          13,
+          14,
+          15
+        ]
+      },
+      {
+        "cue": 23,
+        "canonical": "do it",
+        "positions": [
+          1,
+          2
+        ]
+      },
+      {
+        "cue": 37,
+        "canonical": "use every word",
+        "positions": [
+          13,
+          14,
+          15
+        ]
+      },
+      {
+        "cue": 40,
+        "canonical": "copy into",
+        "positions": [
+          12,
+          14
+        ]
+      },
+      {
+        "cue": 41,
+        "canonical": "meet to discuss",
+        "positions": [
+          13,
+          14,
+          15
+        ]
+      },
+      {
+        "cue": 52,
+        "canonical": "watch another demonstration",
+        "positions": [
+          7,
+          8,
+          9
+        ]
+      },
+      {
+        "cue": 59,
+        "canonical": "say no worries",
+        "positions": [
+          2,
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 60,
+        "canonical": "thank each other",
+        "positions": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "cue": 61,
+        "canonical": "meet at",
+        "positions": [
+          4,
+          5
+        ]
+      },
+      {
+        "cue": 64,
+        "canonical": "say my bad",
+        "positions": [
+          10,
+          11,
+          12
+        ]
+      },
+      {
+        "cue": 67,
+        "canonical": "take the piss out of",
+        "positions": [
+          8,
+          9,
+          10,
+          11,
+          12
+        ]
+      },
+      {
+        "cue": 68,
+        "canonical": "spilled the tea",
+        "positions": [
+          2,
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 69,
+        "canonical": "spill inside",
+        "positions": [
+          14,
+          15
+        ]
+      },
+      {
+        "cue": 70,
+        "canonical": "throw shade",
+        "positions": [
+          4,
+          5
+        ]
+      },
+      {
+        "cue": 71,
+        "canonical": "ask up",
+        "positions": [
+          1,
+          5
+        ]
+      },
+      {
+        "cue": 77,
+        "canonical": "printed beside",
+        "positions": [
+          14,
+          15
+        ]
+      },
+      {
+        "cue": 96,
+        "canonical": "watch it",
+        "positions": [
+          4,
+          5
+        ]
+      },
+      {
+        "cue": 99,
+        "canonical": "has stopped",
+        "positions": [
+          6,
+          7
+        ]
+      },
+      {
+        "cue": 101,
+        "canonical": "back at home",
+        "positions": [
+          0,
+          1,
+          2
+        ]
+      },
+      {
+        "cue": 111,
+        "canonical": "listen to stories",
+        "positions": [
+          2,
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 114,
+        "canonical": "over and over",
+        "positions": [
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "cue": 117,
+        "canonical": "forget plans",
+        "positions": [
+          5,
+          9
+        ]
+      },
+      {
+        "cue": 120,
+        "canonical": "say see",
+        "positions": [
+          1,
+          2
+        ]
+      },
+      {
+        "cue": 124,
+        "canonical": "feel under the weather",
+        "positions": [
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 127,
+        "canonical": "cut corners",
+        "positions": [
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 128,
+        "canonical": "place under",
+        "positions": [
+          2,
+          6
+        ]
+      },
+      {
+        "cue": 132,
+        "canonical": "piece of cake",
+        "positions": [
+          10,
+          11,
+          12
+        ]
+      },
+      {
+        "cue": 138,
+        "canonical": "benefit from",
+        "positions": [
+          6,
+          7
+        ]
+      },
+      {
+        "cue": 139,
+        "canonical": "get input",
+        "positions": [
+          2,
+          3
+        ]
+      },
+      {
+        "cue": 140,
+        "canonical": "close the windows",
+        "positions": [
+          11,
+          12,
+          13
+        ]
+      },
+      {
+        "cue": 141,
+        "canonical": "leave the station",
+        "positions": [
+          18,
+          19,
+          20
+        ]
+      },
+      {
+        "cue": 143,
+        "canonical": "big deal",
+        "positions": [
+          9,
+          10
+        ]
+      },
+      {
+        "cue": 144,
+        "canonical": "hit off",
+        "positions": [
+          2,
+          4
+        ]
+      },
+      {
+        "cue": 151,
+        "canonical": "pull free",
+        "positions": [
+          4,
+          7
+        ]
+      },
+      {
+        "cue": 152,
+        "canonical": "hold your horses",
+        "positions": [
+          16,
+          17,
+          18
+        ]
+      },
+      {
+        "cue": 154,
+        "canonical": "do it",
+        "positions": [
+          1,
+          2
+        ]
+      },
+      {
+        "cue": 157,
+        "canonical": "wait before",
+        "positions": [
+          11,
+          12
+        ]
+      },
+      {
+        "cue": 158,
+        "canonical": "get input",
+        "positions": [
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 159,
+        "canonical": "be easy enough",
+        "positions": [
+          7,
+          8,
+          9
+        ]
+      },
+      {
+        "cue": 160,
+        "canonical": "close the discussion",
+        "positions": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "cue": 166,
+        "canonical": "feel out of the loop",
+        "positions": [
+          2,
+          3,
+          4,
+          5,
+          6
+        ]
+      }
+    ],
+    "boundaryErrors": [
+      {
+        "cue": 145,
+        "canonical": "pull her leg",
+        "actual": [
+          5,
+          6,
+          7
+        ],
+        "expected": [
+          5,
+          7
+        ]
+      }
+    ],
+    "categoryErrors": [
+      {
+        "cue": 9,
+        "canonical": "have a go",
+        "actual": "phrasal_verb",
+        "allowed": [
+          "fixed_expression",
+          "collocation"
+        ]
+      },
+      {
+        "cue": 29,
+        "canonical": "over and over again",
+        "actual": "idiom",
+        "allowed": [
+          "fixed_expression"
+        ]
+      },
+      {
+        "cue": 34,
+        "canonical": "see you",
+        "actual": "phrasal_verb",
+        "allowed": [
+          "fixed_expression"
+        ]
+      },
+      {
+        "cue": 44,
+        "canonical": "make a decision",
+        "actual": "fixed_expression",
+        "allowed": [
+          "collocation"
+        ]
+      },
+      {
+        "cue": 48,
+        "canonical": "look forward to",
+        "actual": "idiom",
+        "allowed": [
+          "fixed_expression",
+          "phrasal_verb"
+        ]
+      },
+      {
+        "cue": 54,
+        "canonical": "have a go",
+        "actual": "phrasal_verb",
+        "allowed": [
+          "fixed_expression",
+          "collocation"
+        ]
+      },
+      {
+        "cue": 65,
+        "canonical": "no biggie",
+        "actual": "idiom",
+        "allowed": [
+          "fixed_expression"
+        ]
+      },
+      {
+        "cue": 76,
+        "canonical": "have a go",
+        "actual": "phrasal_verb",
+        "allowed": [
+          "fixed_expression",
+          "collocation"
+        ]
+      },
+      {
+        "cue": 80,
+        "canonical": "keep in touch",
+        "actual": "idiom",
+        "allowed": [
+          "fixed_expression",
+          "phrasal_verb"
+        ]
+      },
+      {
+        "cue": 85,
+        "canonical": "take a break",
+        "actual": "phrasal_verb",
+        "allowed": [
+          "collocation"
+        ]
+      },
+      {
+        "cue": 122,
+        "canonical": "get the hang of",
+        "actual": "phrasal_verb",
+        "allowed": [
+          "idiom"
+        ]
+      },
+      {
+        "cue": 125,
+        "canonical": "cut corners",
+        "actual": "phrasal_verb",
+        "allowed": [
+          "idiom"
+        ]
+      },
+      {
+        "cue": 163,
+        "canonical": "learn the ropes",
+        "actual": "phrasal_verb",
+        "allowed": [
+          "idiom"
+        ]
+      },
+      {
+        "cue": 168,
+        "canonical": "take it easy",
+        "actual": "phrasal_verb",
+        "allowed": [
+          "idiom"
+        ]
+      },
+      {
+        "cue": 169,
+        "canonical": "lend a hand",
+        "actual": "phrasal_verb",
+        "allowed": [
+          "idiom"
+        ]
+      },
+      {
+        "cue": 170,
+        "canonical": "keep an eye on",
+        "actual": "phrasal_verb",
+        "allowed": [
+          "idiom"
+        ]
+      },
+      {
+        "cue": 171,
+        "canonical": "hit the road",
+        "actual": "phrasal_verb",
+        "allowed": [
+          "idiom"
+        ]
+      },
+      {
+        "cue": 178,
+        "canonical": "make a difference",
+        "actual": "fixed_expression",
+        "allowed": [
+          "collocation"
+        ]
+      }
+    ],
+    "negativeHits": [
+      {
+        "cue": 8,
+        "canonical": "forget any plans"
+      },
+      {
+        "cue": 23,
+        "canonical": "do it"
+      },
+      {
+        "cue": 70,
+        "canonical": "throw shade"
+      },
+      {
+        "cue": 127,
+        "canonical": "cut corners"
+      },
+      {
+        "cue": 139,
+        "canonical": "get input"
+      },
+      {
+        "cue": 152,
+        "canonical": "hold your horses"
+      },
+      {
+        "cue": 154,
+        "canonical": "do it"
+      },
+      {
+        "cue": 158,
+        "canonical": "get input"
+      },
+      {
+        "cue": 159,
+        "canonical": "be easy enough"
+      }
+    ]
+  },
+  "development": {
+    "predictions": 75,
+    "required": 95,
+    "hit": 50,
+    "uniqueExpressionRecall": 0.625,
+    "uniqueExpressionPrecision": 0.625,
+    "occurrencePrecision": 0.6667,
+    "precision": 0.6667,
+    "recall": 0.5263,
+    "boundaryAccuracy": 1,
+    "categoryAccuracy": 0.8,
+    "informalRecall": 0.4444,
+    "registerPrecision": null,
+    "misses": [
+      {
+        "cue": 4,
+        "canonical": "acquire language",
+        "positions": [
+          5,
+          6
+        ]
+      },
+      {
+        "cue": 5,
+        "canonical": "comprehensible input",
+        "positions": [
+          4,
+          5
+        ]
+      },
+      {
+        "cue": 10,
+        "canonical": "pick up",
+        "positions": [
+          1,
+          2
+        ]
+      },
+      {
+        "cue": 11,
+        "canonical": "over and over again",
+        "positions": [
+          5,
+          6,
+          7,
+          8
+        ]
+      },
+      {
+        "cue": 12,
+        "canonical": "a lot of",
+        "positions": [
+          2,
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 13,
+        "canonical": "start with",
+        "positions": [
+          5,
+          6
+        ]
+      },
+      {
+        "cue": 14,
+        "canonical": "become fluent",
+        "positions": [
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 15,
+        "canonical": "on a daily basis",
+        "positions": [
+          3,
+          4,
+          5,
+          6
+        ]
+      },
+      {
+        "cue": 17,
+        "canonical": "at least",
+        "positions": [
+          2,
+          3
+        ]
+      },
+      {
+        "cue": 18,
+        "canonical": "each other",
+        "positions": [
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 18,
+        "canonical": "as well",
+        "positions": [
+          12,
+          13
+        ]
+      },
+      {
+        "cue": 19,
+        "canonical": "spare time",
+        "positions": [
+          4,
+          5
+        ]
+      },
+      {
+        "cue": 21,
+        "canonical": "acquire language",
+        "positions": [
+          4,
+          5
+        ]
+      },
+      {
+        "cue": 28,
+        "canonical": "listen to",
+        "positions": [
+          7,
+          8
+        ]
+      },
+      {
+        "cue": 29,
+        "canonical": "over and over again",
+        "positions": [
+          11,
+          12,
+          13,
+          14
+        ]
+      },
+      {
+        "cue": 30,
+        "canonical": "a lot of",
+        "positions": [
+          2,
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 30,
+        "canonical": "a lot of",
+        "positions": [
+          10,
+          11,
+          12
+        ]
+      },
+      {
+        "cue": 31,
+        "canonical": "become fluent",
+        "positions": [
+          1,
+          2
+        ]
+      },
+      {
+        "cue": 36,
+        "canonical": "recognize patterns",
+        "positions": [
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 38,
+        "canonical": "on a daily basis",
+        "positions": [
+          3,
+          4,
+          5,
+          6
+        ]
+      },
+      {
+        "cue": 43,
+        "canonical": "figure out",
+        "positions": [
+          5,
+          6
+        ]
+      },
+      {
+        "cue": 46,
+        "canonical": "keep in mind",
+        "positions": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "cue": 59,
+        "canonical": "no worries",
+        "positions": [
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 60,
+        "canonical": "each other",
+        "positions": [
+          2,
+          3
+        ]
+      },
+      {
+        "cue": 60,
+        "canonical": "as well",
+        "positions": [
+          16,
+          17
+        ]
+      },
+      {
+        "cue": 63,
+        "canonical": "no cap",
+        "positions": [
+          7,
+          8
+        ]
+      },
+      {
+        "cue": 64,
+        "canonical": "my bad",
+        "positions": [
+          11,
+          12
+        ]
+      },
+      {
+        "cue": 67,
+        "canonical": "take the piss",
+        "positions": [
+          8,
+          9,
+          10
+        ]
+      },
+      {
+        "cue": 71,
+        "canonical": "what is up",
+        "positions": [
+          4,
+          5
+        ]
+      },
+      {
+        "cue": 73,
+        "canonical": "chill out",
+        "positions": [
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 83,
+        "canonical": "watch out",
+        "positions": [
+          4,
+          5
+        ]
+      },
+      {
+        "cue": 90,
+        "canonical": "carry on",
+        "positions": [
+          7,
+          8
+        ]
+      },
+      {
+        "cue": 91,
+        "canonical": "slow down",
+        "positions": [
+          5,
+          6
+        ]
+      },
+      {
+        "cue": 94,
+        "canonical": "on a daily basis",
+        "positions": [
+          3,
+          4,
+          5,
+          6
+        ]
+      },
+      {
+        "cue": 99,
+        "canonical": "at least",
+        "positions": [
+          2,
+          3
+        ]
+      },
+      {
+        "cue": 100,
+        "canonical": "spare time",
+        "positions": [
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 104,
+        "canonical": "bring up",
+        "positions": [
+          4,
+          5
+        ]
+      },
+      {
+        "cue": 105,
+        "canonical": "calm down",
+        "positions": [
+          5,
+          6
+        ]
+      },
+      {
+        "cue": 110,
+        "canonical": "get along",
+        "positions": [
+          2,
+          3
+        ]
+      },
+      {
+        "cue": 111,
+        "canonical": "listen to",
+        "positions": [
+          2,
+          3
+        ]
+      },
+      {
+        "cue": 112,
+        "canonical": "acquire language",
+        "positions": [
+          1,
+          2
+        ]
+      },
+      {
+        "cue": 113,
+        "canonical": "a lot of",
+        "positions": [
+          2,
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 114,
+        "canonical": "over and over again",
+        "positions": [
+          5,
+          6,
+          7,
+          8
+        ]
+      },
+      {
+        "cue": 115,
+        "canonical": "recognize patterns",
+        "positions": [
+          2,
+          3
+        ]
+      },
+      {
+        "cue": 120,
+        "canonical": "see you",
+        "positions": [
+          2,
+          3
+        ]
+      }
+    ],
+    "falsePositives": [
+      {
+        "cue": 8,
+        "canonical": "forget any plans",
+        "positions": [
+          1,
+          2,
+          6
+        ]
+      },
+      {
+        "cue": 18,
+        "canonical": "help each other",
+        "positions": [
+          2,
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 21,
+        "canonical": "test that approach",
+        "positions": [
+          13,
+          14,
+          15
+        ]
+      },
+      {
+        "cue": 23,
+        "canonical": "do it",
+        "positions": [
+          1,
+          2
+        ]
+      },
+      {
+        "cue": 37,
+        "canonical": "use every word",
+        "positions": [
+          13,
+          14,
+          15
+        ]
+      },
+      {
+        "cue": 40,
+        "canonical": "copy into",
+        "positions": [
+          12,
+          14
+        ]
+      },
+      {
+        "cue": 41,
+        "canonical": "meet to discuss",
+        "positions": [
+          13,
+          14,
+          15
+        ]
+      },
+      {
+        "cue": 52,
+        "canonical": "watch another demonstration",
+        "positions": [
+          7,
+          8,
+          9
+        ]
+      },
+      {
+        "cue": 59,
+        "canonical": "say no worries",
+        "positions": [
+          2,
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 60,
+        "canonical": "thank each other",
+        "positions": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "cue": 61,
+        "canonical": "meet at",
+        "positions": [
+          4,
+          5
+        ]
+      },
+      {
+        "cue": 64,
+        "canonical": "say my bad",
+        "positions": [
+          10,
+          11,
+          12
+        ]
+      },
+      {
+        "cue": 67,
+        "canonical": "take the piss out of",
+        "positions": [
+          8,
+          9,
+          10,
+          11,
+          12
+        ]
+      },
+      {
+        "cue": 68,
+        "canonical": "spilled the tea",
+        "positions": [
+          2,
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 69,
+        "canonical": "spill inside",
+        "positions": [
+          14,
+          15
+        ]
+      },
+      {
+        "cue": 70,
+        "canonical": "throw shade",
+        "positions": [
+          4,
+          5
+        ]
+      },
+      {
+        "cue": 71,
+        "canonical": "ask up",
+        "positions": [
+          1,
+          5
+        ]
+      },
+      {
+        "cue": 77,
+        "canonical": "printed beside",
+        "positions": [
+          14,
+          15
+        ]
+      },
+      {
+        "cue": 96,
+        "canonical": "watch it",
+        "positions": [
+          4,
+          5
+        ]
+      },
+      {
+        "cue": 99,
+        "canonical": "has stopped",
+        "positions": [
+          6,
+          7
+        ]
+      },
+      {
+        "cue": 101,
+        "canonical": "back at home",
+        "positions": [
+          0,
+          1,
+          2
+        ]
+      },
+      {
+        "cue": 111,
+        "canonical": "listen to stories",
+        "positions": [
+          2,
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 114,
+        "canonical": "over and over",
+        "positions": [
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "cue": 117,
+        "canonical": "forget plans",
+        "positions": [
+          5,
+          9
+        ]
+      },
+      {
+        "cue": 120,
+        "canonical": "say see",
+        "positions": [
+          1,
+          2
+        ]
+      }
+    ],
+    "boundaryErrors": [],
+    "categoryErrors": [
+      {
+        "cue": 9,
+        "canonical": "have a go",
+        "actual": "phrasal_verb",
+        "allowed": [
+          "fixed_expression",
+          "collocation"
+        ]
+      },
+      {
+        "cue": 29,
+        "canonical": "over and over again",
+        "actual": "idiom",
+        "allowed": [
+          "fixed_expression"
+        ]
+      },
+      {
+        "cue": 34,
+        "canonical": "see you",
+        "actual": "phrasal_verb",
+        "allowed": [
+          "fixed_expression"
+        ]
+      },
+      {
+        "cue": 44,
+        "canonical": "make a decision",
+        "actual": "fixed_expression",
+        "allowed": [
+          "collocation"
+        ]
+      },
+      {
+        "cue": 48,
+        "canonical": "look forward to",
+        "actual": "idiom",
+        "allowed": [
+          "fixed_expression",
+          "phrasal_verb"
+        ]
+      },
+      {
+        "cue": 54,
+        "canonical": "have a go",
+        "actual": "phrasal_verb",
+        "allowed": [
+          "fixed_expression",
+          "collocation"
+        ]
+      },
+      {
+        "cue": 65,
+        "canonical": "no biggie",
+        "actual": "idiom",
+        "allowed": [
+          "fixed_expression"
+        ]
+      },
+      {
+        "cue": 76,
+        "canonical": "have a go",
+        "actual": "phrasal_verb",
+        "allowed": [
+          "fixed_expression",
+          "collocation"
+        ]
+      },
+      {
+        "cue": 80,
+        "canonical": "keep in touch",
+        "actual": "idiom",
+        "allowed": [
+          "fixed_expression",
+          "phrasal_verb"
+        ]
+      },
+      {
+        "cue": 85,
+        "canonical": "take a break",
+        "actual": "phrasal_verb",
+        "allowed": [
+          "collocation"
+        ]
+      }
+    ],
+    "negativeHits": [
+      {
+        "cue": 8,
+        "canonical": "forget any plans"
+      },
+      {
+        "cue": 23,
+        "canonical": "do it"
+      },
+      {
+        "cue": 70,
+        "canonical": "throw shade"
+      }
+    ]
+  },
+  "holdout": {
+    "predictions": 43,
+    "required": 33,
+    "hit": 22,
+    "uniqueExpressionRecall": 0.697,
+    "uniqueExpressionPrecision": 0.6154,
+    "occurrencePrecision": 0.5581,
+    "precision": 0.5814,
+    "recall": 0.6667,
+    "boundaryAccuracy": 0.96,
+    "categoryAccuracy": 0.68,
+    "informalRecall": 0.4444,
+    "registerPrecision": null,
+    "misses": [
+      {
+        "cue": 124,
+        "canonical": "under the weather",
+        "positions": [
+          2,
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 126,
+        "canonical": "let the cat out of the bag",
+        "positions": [
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9
+        ]
+      },
+      {
+        "cue": 132,
+        "canonical": "a piece of cake",
+        "positions": [
+          9,
+          10,
+          11,
+          12
+        ]
+      },
+      {
+        "cue": 142,
+        "canonical": "make someone's day",
+        "positions": [
+          10,
+          12
+        ]
+      },
+      {
+        "cue": 143,
+        "canonical": "a big deal",
+        "positions": [
+          8,
+          9,
+          10
+        ]
+      },
+      {
+        "cue": 144,
+        "canonical": "hit it off",
+        "positions": [
+          2,
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 145,
+        "canonical": "pull someone's leg",
+        "positions": [
+          5,
+          7
+        ]
+      },
+      {
+        "cue": 146,
+        "canonical": "for real",
+        "positions": [
+          4,
+          5
+        ]
+      },
+      {
+        "cue": 150,
+        "canonical": "give someone a heads up",
+        "positions": [
+          3,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "cue": 162,
+        "canonical": "go smoothly",
+        "positions": [
+          2,
+          3
+        ]
+      },
+      {
+        "cue": 166,
+        "canonical": "out of the loop",
+        "positions": [
+          3,
+          4,
+          5,
+          6
+        ]
+      }
+    ],
+    "falsePositives": [
+      {
+        "cue": 124,
+        "canonical": "feel under the weather",
+        "positions": [
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 127,
+        "canonical": "cut corners",
+        "positions": [
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 128,
+        "canonical": "place under",
+        "positions": [
+          2,
+          6
+        ]
+      },
+      {
+        "cue": 132,
+        "canonical": "piece of cake",
+        "positions": [
+          10,
+          11,
+          12
+        ]
+      },
+      {
+        "cue": 138,
+        "canonical": "benefit from",
+        "positions": [
+          6,
+          7
+        ]
+      },
+      {
+        "cue": 139,
+        "canonical": "get input",
+        "positions": [
+          2,
+          3
+        ]
+      },
+      {
+        "cue": 140,
+        "canonical": "close the windows",
+        "positions": [
+          11,
+          12,
+          13
+        ]
+      },
+      {
+        "cue": 141,
+        "canonical": "leave the station",
+        "positions": [
+          18,
+          19,
+          20
+        ]
+      },
+      {
+        "cue": 143,
+        "canonical": "big deal",
+        "positions": [
+          9,
+          10
+        ]
+      },
+      {
+        "cue": 144,
+        "canonical": "hit off",
+        "positions": [
+          2,
+          4
+        ]
+      },
+      {
+        "cue": 151,
+        "canonical": "pull free",
+        "positions": [
+          4,
+          7
+        ]
+      },
+      {
+        "cue": 152,
+        "canonical": "hold your horses",
+        "positions": [
+          16,
+          17,
+          18
+        ]
+      },
+      {
+        "cue": 154,
+        "canonical": "do it",
+        "positions": [
+          1,
+          2
+        ]
+      },
+      {
+        "cue": 157,
+        "canonical": "wait before",
+        "positions": [
+          11,
+          12
+        ]
+      },
+      {
+        "cue": 158,
+        "canonical": "get input",
+        "positions": [
+          3,
+          4
+        ]
+      },
+      {
+        "cue": 159,
+        "canonical": "be easy enough",
+        "positions": [
+          7,
+          8,
+          9
+        ]
+      },
+      {
+        "cue": 160,
+        "canonical": "close the discussion",
+        "positions": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "cue": 166,
+        "canonical": "feel out of the loop",
+        "positions": [
+          2,
+          3,
+          4,
+          5,
+          6
+        ]
+      }
+    ],
+    "boundaryErrors": [
+      {
+        "cue": 145,
+        "canonical": "pull her leg",
+        "actual": [
+          5,
+          6,
+          7
+        ],
+        "expected": [
+          5,
+          7
+        ]
+      }
+    ],
+    "categoryErrors": [
+      {
+        "cue": 122,
+        "canonical": "get the hang of",
+        "actual": "phrasal_verb",
+        "allowed": [
+          "idiom"
+        ]
+      },
+      {
+        "cue": 125,
+        "canonical": "cut corners",
+        "actual": "phrasal_verb",
+        "allowed": [
+          "idiom"
+        ]
+      },
+      {
+        "cue": 163,
+        "canonical": "learn the ropes",
+        "actual": "phrasal_verb",
+        "allowed": [
+          "idiom"
+        ]
+      },
+      {
+        "cue": 168,
+        "canonical": "take it easy",
+        "actual": "phrasal_verb",
+        "allowed": [
+          "idiom"
+        ]
+      },
+      {
+        "cue": 169,
+        "canonical": "lend a hand",
+        "actual": "phrasal_verb",
+        "allowed": [
+          "idiom"
+        ]
+      },
+      {
+        "cue": 170,
+        "canonical": "keep an eye on",
+        "actual": "phrasal_verb",
+        "allowed": [
+          "idiom"
+        ]
+      },
+      {
+        "cue": 171,
+        "canonical": "hit the road",
+        "actual": "phrasal_verb",
+        "allowed": [
+          "idiom"
+        ]
+      },
+      {
+        "cue": 178,
+        "canonical": "make a difference",
+        "actual": "fixed_expression",
+        "allowed": [
+          "collocation"
+        ]
+      }
+    ],
+    "negativeHits": [
+      {
+        "cue": 127,
+        "canonical": "cut corners"
+      },
+      {
+        "cue": 139,
+        "canonical": "get input"
+      },
+      {
+        "cue": 152,
+        "canonical": "hold your horses"
+      },
+      {
+        "cue": 154,
+        "canonical": "do it"
+      },
+      {
+        "cue": 158,
+        "canonical": "get input"
+      },
+      {
+        "cue": 159,
+        "canonical": "be easy enough"
+      }
+    ]
+  }
+}

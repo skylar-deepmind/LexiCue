@@ -1,0 +1,78 @@
+[
+  {
+    "id": "gemma4-e2b-litert-181938105e0e",
+    "label": "E2B",
+    "runtime": "litert",
+    "format": "litertlm",
+    "quantization": "LiteRT mixed",
+    "repository": "litert-community/gemma-4-E2B-it-litert-lm",
+    "revision": "b3ca0d2f076785a8f4b2219ddbd2bdb99954eae1",
+    "filename": "gemma-4-E2B-it.litertlm",
+    "bytes": 2588147712,
+    "sha256": "181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c",
+    "minAvailableBytes": 2600000000,
+    "targets": [
+      "aarch64-apple-darwin",
+      "x86_64-pc-windows-msvc",
+      "aarch64-linux-android"
+    ],
+    "minCpuAvailableBytes": 6300000000,
+    "cacheReserveBytes": 1800000000
+  },
+  {
+    "id": "gemma4-e4b-litert-0b2a8980ce15",
+    "label": "E4B",
+    "runtime": "litert",
+    "format": "litertlm",
+    "quantization": "LiteRT mixed",
+    "repository": "litert-community/gemma-4-E4B-it-litert-lm",
+    "revision": "2eee7ac325f20eb8c9ac1d0e972f7c84663062da",
+    "filename": "gemma-4-E4B-it.litertlm",
+    "bytes": 3659530240,
+    "sha256": "0b2a8980ce155fd97673d8e820b4d29d9c7d99b8fa6806f425d969b145bd52e0",
+    "minAvailableBytes": 4400000000,
+    "targets": [
+      "aarch64-apple-darwin",
+      "x86_64-pc-windows-msvc",
+      "aarch64-linux-android"
+    ],
+    "minCpuAvailableBytes": 9500000000,
+    "cacheReserveBytes": 4800000000
+  },
+  {
+    "id": "gemma4-e2b-gguf-8e30dff3ac4c",
+    "label": "E2B",
+    "runtime": "llama",
+    "format": "gguf",
+    "quantization": "Q4_0",
+    "repository": "ggml-org/gemma-4-E2B-it-GGUF",
+    "revision": "b4243c156154b6dca9324415f8c7ccc098b4aed1",
+    "filename": "gemma-4-E2B-it-Q4_0.gguf",
+    "bytes": 2841481184,
+    "sha256": "8e30dff3ac4c8434c49a7036fa15564bdbb6044e42bf04550bf1a096ad7e6a52",
+    "minAvailableBytes": 3400000000,
+    "targets": [
+      "x86_64-apple-darwin"
+    ],
+    "minCpuAvailableBytes": 3400000000,
+    "cacheReserveBytes": 0
+  },
+  {
+    "id": "gemma4-e4b-gguf-a555b900214b",
+    "label": "E4B",
+    "runtime": "llama",
+    "format": "gguf",
+    "quantization": "Q4_0",
+    "repository": "ggml-org/gemma-4-E4B-it-GGUF",
+    "revision": "b8093469224f83f5c38f691eb906c380e9e63114",
+    "filename": "gemma-4-E4B-it-Q4_0.gguf",
+    "bytes": 4590807392,
+    "sha256": "a555b900214b477d8880e7832e0b8925e139b0159640036b09fe472b6f2097f2",
+    "minAvailableBytes": 5100000000,
+    "targets": [
+      "x86_64-apple-darwin"
+    ],
+    "minCpuAvailableBytes": 5100000000,
+    "cacheReserveBytes": 0
+  }
+]

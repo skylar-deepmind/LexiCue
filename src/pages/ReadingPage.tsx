@@ -1,9 +1,13 @@
+import AdaptiveMenu from '../components/AdaptiveMenu';
+import Overlay from '../components/Overlay';
+import { backNavigation, blocksPageShortcut } from '../lib/backNavigation';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { invoke } from '@tauri-apps/api/core';
 import { useTranslation } from 'react-i18next';
 import { Search, X, MoreHorizontal } from 'lucide-react';
-import { useReaderStore } from '../stores/readerStore';
+import LookupPanel from '../components/LookupPanel';
+import { useReaderStore, type ReaderToken } from '../stores/readerStore';
 import { usePreferencesStore } from '../stores/preferencesStore';
 import { useFeedbackStore } from '../stores/feedbackStore';
 import type { WordStatus } from '../lib/types';
@@ -11,7 +15,7 @@ import type { WordDetail } from '../lib/types';
 import type { ContextMenuItem } from '../components/ContextMenu';
 import ContextMenu from '../components/ContextMenu';
 import SegmentCard from '../components/SegmentCard';
-import DisplaySettingsMenu from '../components/DisplaySettingsMenu';
+import { DisplaySettingsControls } from '../components/DisplaySettingsMenu';
 import EmptyState from '../components/EmptyState';
 import WordDetailPanel from '../components/WordDetail';
 import PhraseDetailPanel from '../components/PhraseDetail';
@@ -27,11 +31,12 @@ export default function ReadingPage({ fileId }: { fileId: number }) {
   const navigate = useNavigate();
   const {
     currentFileId,
-    currentLanguage,
     segments,
     wordStatusMap,
     phraseMap,
     segmentTokens,
+    readerTokens,
+    error: readerError,
     activeSegmentIndex,
     loading,
     setFile,
@@ -42,6 +47,9 @@ export default function ReadingPage({ fileId }: { fileId: number }) {
   const auxiliaryFontSize = usePreferencesStore((state) => state.auxiliaryFontSize);
   const readingLineHeight = usePreferencesStore((state) => state.readingLineHeight);
   const setReadingLineHeight = usePreferencesStore((state) => state.setReadingLineHeight);
+  const detailGeneration = useRef(0);
+  const phraseGeneration = useRef(0);
+  const [lookup, setLookup] = useState<{ token: ReaderToken; sentence: string } | null>(null);
   const [detail, setDetail] = useState<WordDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [phraseDetail, setPhraseDetail] = useState<PhraseDetailType | null>(null);
@@ -50,33 +58,29 @@ export default function ReadingPage({ fileId }: { fileId: number }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [focusQuery, setFocusQuery] = useState('');
   const [activeMatchIndex, setActiveMatchIndex] = useState(0);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [showHint, setShowHint] = useState(true);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchTriggerRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!searchOpen) return;
+    searchInputRef.current?.focus({ preventScroll: true });
+    return backNavigation.setPage(() => { setSearchOpen(false); searchTriggerRef.current?.focus({ preventScroll: true }); return true; }, 20);
+  }, [searchOpen]);
   const toolsRef = useRef<HTMLDivElement>(null);
   const segmentRefs = useRef<Record<number, HTMLDivElement | null>>({});
+  // Counter refs deliberately invalidate requests on cleanup; they do not hold DOM nodes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { setDetail(null); setPhraseDetail(null); setLookup(null); setContextMenu(null); setDetailLoading(false); setPhraseDetailLoading(false); return () => { detailGeneration.current++; phraseGeneration.current++; }; }, [fileId]);
 
-  useEffect(() => {
-    if (!toolsOpen) return;
-    const handler = (event: MouseEvent) => {
-      if (toolsRef.current && !toolsRef.current.contains(event.target as Node)) {
-        setToolsOpen(false);
-      }
-    };
-    const keyHandler = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setToolsOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    document.addEventListener('keydown', keyHandler);
-    return () => {
-      document.removeEventListener('mousedown', handler);
-      document.removeEventListener('keydown', keyHandler);
-    };
-  }, [toolsOpen]);
+
   const [contextMenu, setContextMenu] = useState<{
     x: number; y: number;
     lemma: string;
     wordId: number | null;
     status: WordStatus;
+    token?: ReaderToken;
   } | null>(null);
 
   useEffect(() => {
@@ -90,7 +94,9 @@ export default function ReadingPage({ fileId }: { fileId: number }) {
     const focusId = Number(rawFocusId);
     if (!Number.isInteger(focusId)) return;
     let timer: number | undefined;
+    let active = true;
     const showFocus = (text: string) => {
+      if (!active) return;
       setFocusQuery(text);
       timer = window.setTimeout(() => setFocusQuery(''), 3000);
     };
@@ -103,7 +109,7 @@ export default function ReadingPage({ fileId }: { fileId: number }) {
     } else if (focusType === 'phrase') {
       void invoke<PhraseDetailType>('phrase_detail', { phraseId: focusId }).then((value) => showFocus(value.phrase.text));
     }
-    return () => { if (timer) window.clearTimeout(timer); };
+    return () => { active = false; if (timer) window.clearTimeout(timer); };
   }, [currentFileId, searchParams]);
 
   useEffect(() => {
@@ -131,6 +137,7 @@ export default function ReadingPage({ fileId }: { fileId: number }) {
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
+      if (blocksPageShortcut(event)) return;
       const target = event.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
       if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
@@ -153,39 +160,38 @@ export default function ReadingPage({ fileId }: { fileId: number }) {
     });
   };
 
-  const handleWordClick = async (lemma: string, wordId: number | null) => {
+  const handleWordClick = async (_lemma: string, wordId: number | null) => {
+    const request = ++detailGeneration.current;
+    phraseGeneration.current++; setPhraseDetailLoading(false); setPhraseDetail(null); setLookup(null); setDetail(null);
     try {
       setDetailLoading(true);
-      let id = wordId;
-      if (id === null) {
-        const allWords: { id: number; lemma: string }[] = await invoke('list_words', {
-          statusFilter: null,
-          sortBy: 'alpha',
-          language: currentLanguage,
-        });
-        id = allWords.find((word) => word.lemma === lemma)?.id ?? null;
-      }
+      const id = wordId;
       if (id !== null) {
-        setDetail(await invoke<WordDetail>('word_detail', { wordId: id }));
+        const next = await invoke<WordDetail>('word_detail', { wordId: id });
+        if (request === detailGeneration.current) setDetail(next);
       }
     } catch (e) {
+      if (request !== detailGeneration.current) return;
       console.error('Failed to load word detail:', e);
       useFeedbackStore.getState().show(t('reading.cannotLoadWord'), 'error');
     } finally {
-      setDetailLoading(false);
+      if (request === detailGeneration.current) setDetailLoading(false);
     }
   };
 
   const handlePhraseClick = async (phraseId: number) => {
+    const request = ++phraseGeneration.current;
+    detailGeneration.current++; setDetail(null); setDetailLoading(false); setLookup(null); setPhraseDetail(null);
     try {
       setPhraseDetailLoading(true);
       const detail: PhraseDetailType = await invoke('phrase_detail', { phraseId });
-      setPhraseDetail(detail);
+      if (request === phraseGeneration.current) setPhraseDetail(detail);
     } catch (e) {
+      if (request !== phraseGeneration.current) return;
       console.error('Failed to load phrase detail:', e);
       useFeedbackStore.getState().show(t('reading.cannotLoadPhrase'), 'error');
     } finally {
-      setPhraseDetailLoading(false);
+      if (request === phraseGeneration.current) setPhraseDetailLoading(false);
     }
   };
 
@@ -207,11 +213,11 @@ export default function ReadingPage({ fileId }: { fileId: number }) {
     }
   };
 
-  const handleWordContextMenu = async (lemma: string, wordId: number | null, x: number, y: number) => {
+  const handleWordContextMenu = async (lemma: string, wordId: number | null, x: number, y: number, token?: ReaderToken) => {
     const status = wordId !== null
       ? ((wordStatusMap.get(lemma)?.status ?? 'unprocessed') as WordStatus)
       : 'unprocessed' as WordStatus;
-    setContextMenu({ x, y, lemma, wordId, status });
+    setContextMenu({ x, y, lemma, wordId, status, token });
   };
 
   const handleContextAction = async (status: WordStatus) => {
@@ -220,25 +226,17 @@ export default function ReadingPage({ fileId }: { fileId: number }) {
 
     if (wordId !== null) {
       await updateStatus(Number(wordId), lemma, status);
-    } else {
-      try {
-        const allWords: { id: number; lemma: string; status: string }[] = await invoke('list_words', {
-          statusFilter: null,
-          sortBy: 'alpha',
-        });
-        const found = allWords.find((w) => w.lemma === lemma);
-        if (found) {
-          await updateStatus(found.id, lemma, status);
-        }
-      } catch (e) {
-        console.error('Failed to update word:', e);
-      }
     }
     setContextMenu(null);
   };
 
   const contextItems = (): ContextMenuItem[] => {
     if (!contextMenu) return [];
+    if (contextMenu.wordId === null) return [{ label: t('lookup.open'), onClick: () => {
+      const token = contextMenu.token ?? [...readerTokens.values()].flat().find(t => t.lemma === contextMenu.lemma);
+      if (token) setLookup({ token, sentence: segments.find(s => s.index_num === token.segment_index)?.en_text ?? '' });
+      setContextMenu(null);
+    } }];
     return STATUS_CYCLE.map(s => ({
       label: t(`status.${s}`),
       status: s,
@@ -272,11 +270,12 @@ export default function ReadingPage({ fileId }: { fileId: number }) {
 
   return (
     <div className="h-full flex flex-col">
-      <div className="flex flex-wrap items-center gap-3 px-4 sm:px-6 py-4 border-b border-gray-100">
+      <div className="reader-tools-bar flex flex-wrap items-center gap-3 px-4 sm:px-6 py-4 border-b border-gray-100">
         <div className="flex items-center gap-2 ml-auto">
+          <button ref={searchTriggerRef} className="ui-button reader-compact-search-trigger" aria-expanded={searchOpen} aria-label={t('reading.searchAria')} onClick={() => setSearchOpen(v => !v)}><Search size={18} /></button>
           <button
             onClick={() => setShowTranslation((visible) => !visible)}
-            className="rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-600 hover:bg-gray-50"
+            className="reader-desktop-control rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-600 hover:bg-gray-50"
           >
             {showTranslation ? t('reading.hideTranslation') : t('reading.showTranslation')}
           </button>
@@ -292,10 +291,9 @@ export default function ReadingPage({ fileId }: { fileId: number }) {
               <span className="hidden sm:inline">{t('reading.tools')}</span>
             </button>
             {toolsOpen && (
-              <div
-                role="menu"
-                className="absolute right-0 top-full mt-1 z-50 min-w-[200px] rounded-xl border border-gray-200 bg-white py-1 shadow-lg"
-              >
+              <AdaptiveMenu anchorRef={toolsRef} label={t('reading.tools')} onClose={() => setToolsOpen(false)}>
+                <DisplaySettingsControls />
+                <button className="ui-button" onClick={() => setShowTranslation(v => !v)}>{t(showTranslation ? 'reading.hideTranslation' : 'reading.showTranslation')}</button>
                 <div className="px-4 py-2.5">
                   <div className="flex items-center justify-between gap-3 text-xs">
                     <span className="text-gray-500">{t('reading.lineHeight')}</span>
@@ -326,10 +324,10 @@ export default function ReadingPage({ fileId }: { fileId: number }) {
                   <span className="flex-1">{t('reading.showHint')}</span>
                   {showHint && <span className="text-blue-500 text-xs">✓</span>}
                 </button>
-              </div>
+              </AdaptiveMenu>
             )}
           </div>
-          <DisplaySettingsMenu />
+
         </div>
       </div>
 
@@ -340,10 +338,11 @@ export default function ReadingPage({ fileId }: { fileId: number }) {
       )}
 
       {currentFileId !== null && segments.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 px-4 sm:px-6 py-2 border-b border-gray-100 bg-gray-50/70">
+        <div className={`reader-search-bar ${searchOpen ? 'is-open' : ''} flex flex-wrap items-center gap-2 px-4 sm:px-6 py-2 border-b border-gray-100 bg-gray-50/70`}>
           <div className="relative flex-1 min-w-[160px] sm:max-w-xs">
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
             <input
+              ref={searchInputRef}
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
@@ -373,7 +372,7 @@ export default function ReadingPage({ fileId }: { fileId: number }) {
               <button onClick={() => moveSearchMatch(1)} disabled={!matchingSegmentIndexes.length} aria-label={t('reading.nextMatchAria')} className="rounded px-1 hover:bg-gray-200 disabled:opacity-40">↓</button>
             </div>
           )}
-          <div className="ml-auto flex items-center gap-2">
+          <div className="reader-progress ml-auto flex items-center gap-2">
             <button onClick={() => moveSegment(-1)} disabled={activeSegmentIndex === 0} className="px-2 py-1 rounded border border-gray-200 text-xs disabled:opacity-40">{t('reading.prevSegment')}</button>
             <button onClick={() => moveSegment(1)} disabled={activeSegmentIndex >= segments.length - 1} className="px-2 py-1 rounded border border-gray-200 text-xs disabled:opacity-40">{t('reading.nextSegment')}</button>
             <span className="text-xs text-gray-500">{t('reading.segmentPosition', { current: activeSegmentIndex + 1, total: segments.length })}</span>
@@ -384,9 +383,11 @@ export default function ReadingPage({ fileId }: { fileId: number }) {
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="reader-content flex-1 overflow-y-auto p-6">
         {loading ? (
           <div className="flex items-center justify-center py-16 text-gray-400">{t('common.loading')}</div>
+        ) : readerError ? (
+          <div className="reader-load-error" role="alert"><p>{t('reading.cannotLoadFile')}</p><button className="ui-button" onClick={() => { void setFile(fileId); }}>{t('common.retry')}</button></div>
         ) : !currentFileId ? (
           <EmptyState icon="📖" title={t('reading.emptyTitle')} description={t('reading.emptyDescription')} />
         ) : segments.length === 0 ? (
@@ -400,6 +401,8 @@ export default function ReadingPage({ fileId }: { fileId: number }) {
                   wordStatusMap={wordStatusMap}
                   phrases={phraseMap.get(seg.index_num) ?? []}
                   segmentTokens={segmentTokens.get(seg.index_num)}
+                  readerTokens={readerTokens.get(seg.index_num)}
+                  onLookup={token => { detailGeneration.current++; phraseGeneration.current++; setDetail(null); setDetailLoading(false); setPhraseDetail(null); setPhraseDetailLoading(false); setLookup({ token, sentence: seg.en_text }); }}
                   onWordClick={handleWordClick}
                   onWordContextMenu={handleWordContextMenu}
                   onPhraseClick={(phraseId) => handlePhraseClick(phraseId)}
@@ -417,6 +420,7 @@ export default function ReadingPage({ fileId }: { fileId: number }) {
         )}
       </div>
 
+      {lookup && <LookupPanel key={`${fileId}:${lookup.token.segment_index}:${lookup.token.start}`} token={lookup.token} sentence={lookup.sentence} onClose={() => setLookup(null)} />}
       {contextMenu && (
         <ContextMenu
           x={contextMenu.x}
@@ -428,11 +432,11 @@ export default function ReadingPage({ fileId }: { fileId: number }) {
 
       {(detail || detailLoading) && (
         <>
-          <div className="fixed inset-0 bg-black/20 z-30" onClick={() => setDetail(null)} />
           {detailLoading ? (
-            <div className="fixed inset-y-0 right-0 w-full sm:w-96 bg-white border-l border-gray-200 shadow-xl z-40 flex items-center justify-center text-gray-400">
+            <Overlay variant="detail" label={t('common.loading')} onClose={() => { detailGeneration.current++; setDetail(null); setDetailLoading(false); }} className="detail-panel detail-placeholder">
+              <button className="ui-button detail-placeholder__close" onClick={() => { detailGeneration.current++; setDetail(null); setDetailLoading(false); }}>{t('common.close')}</button>
               {t('common.loading')}
-            </div>
+            </Overlay>
           ) : detail ? (
             <WordDetailPanel
               detail={detail}
@@ -456,11 +460,11 @@ export default function ReadingPage({ fileId }: { fileId: number }) {
 
       {(phraseDetail || phraseDetailLoading) && (
         <>
-          <div className="fixed inset-0 bg-black/20 z-30" onClick={() => setPhraseDetail(null)} />
           {phraseDetailLoading ? (
-            <div className="fixed inset-y-0 right-0 w-full sm:w-96 bg-white border-l border-gray-200 shadow-xl z-40 flex items-center justify-center text-gray-400">
+            <Overlay variant="detail" label={t('common.loading')} onClose={() => { phraseGeneration.current++; setPhraseDetailLoading(false); setPhraseDetail(null); }} className="detail-panel detail-placeholder">
+              <button className="ui-button detail-placeholder__close" onClick={() => { phraseGeneration.current++; setPhraseDetailLoading(false); setPhraseDetail(null); }}>{t('common.close')}</button>
               {t('common.loading')}
-            </div>
+            </Overlay>
           ) : phraseDetail ? (
             <PhraseDetailPanel
               detail={phraseDetail}
