@@ -6,9 +6,13 @@ import assert from 'node:assert/strict';
 import {readFile,stat,access} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {spawnSync} from 'node:child_process';
+import {prepareVideoFixture} from './video-fixture.mjs';
 import {copy,locales,features,horizontalTimeline,verticalTimeline} from '../src/catalogue.mjs';
 const root=resolve(import.meta.dirname,'../..');let checks=0;
 const check=(condition,label)=>{assert.ok(condition,label);checks++;};
+// The video adapter and semantic theme tokens are generated, ignored build inputs.
+// Prepare them here so a clean checkout can run the same TypeScript check as a developer machine.
+await prepareVideoFixture();
 function keys(value,prefix=''){return Object.entries(value).flatMap(([k,v])=>v&&typeof v==='object'&&!Array.isArray(v)?keys(v,prefix+k+'.'):[prefix+k]);}
 for(const locale of locales){
  check(JSON.stringify(Object.keys(manualCopy[locale]).sort())===JSON.stringify(Object.keys(manualCopy.en).sort()),`manual translations ${locale}`);check(Object.values(manualCopy[locale].descriptions).every(v=>v.trim()),`manual descriptions ${locale}`);
