@@ -91,7 +91,10 @@ impl Pipeline<'_> {
             .await
             {
                 Ok(outcome) => outcome,
-                Err(error) if matches!(error.code, "OUTPUT_TRUNCATED" | "CONTEXT_LIMIT") && source.len() > 1 => {
+                Err(error)
+                    if matches!(error.code, "OUTPUT_TRUNCATED" | "CONTEXT_LIMIT")
+                        && source.len() > 1 =>
+                {
                     diagnostics::split(file_id, "extraction");
                     self.checkpoints.write(
                         "extraction_split",
@@ -595,7 +598,10 @@ mod tests {
                 .unwrap()
                 .push((update.batch_id, update.operation, update.origin))
         };
-        assert!(pipeline.run_legacy_events(&source, &callback).await.is_err());
+        assert!(pipeline
+            .run_legacy_events(&source, &callback)
+            .await
+            .is_err());
         let first = events.lock().unwrap().clone();
         assert!(
             first
@@ -612,7 +618,11 @@ mod tests {
         assert!(first.contains(&(102, "rollback", "ai")));
         events.lock().unwrap().clear();
         assert_eq!(
-            pipeline.run_legacy_events(&source, &callback).await.unwrap().len(),
+            pipeline
+                .run_legacy_events(&source, &callback)
+                .await
+                .unwrap()
+                .len(),
             2
         );
         assert!(events.lock().unwrap().contains(&(101, "commit", "cache")));
@@ -662,7 +672,11 @@ mod tests {
 }
 
 impl Pipeline<'_> {
-    pub async fn run_events(&self, segments: &[SegmentRow], preview: impl Fn(&[SegmentRow], PreviewUpdate) + Send + Sync) -> Result<Vec<Accepted>, String> {
+    pub async fn run_events(
+        &self,
+        segments: &[SegmentRow],
+        preview: impl Fn(&[SegmentRow], PreviewUpdate) + Send + Sync,
+    ) -> Result<Vec<Accepted>, String> {
         quality::run(self, segments, &preview).await
     }
 }

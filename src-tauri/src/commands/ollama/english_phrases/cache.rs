@@ -218,13 +218,25 @@ mod tests {
     fn upgrade_removes_only_obsolete_explanation_checkpoints() {
         let (dir, conn) = database();
         {
-            let cache = Checkpoints { conn: &conn, file_id: 1, force: false };
+            let cache = Checkpoints {
+                conn: &conn,
+                file_id: 1,
+                force: false,
+            };
             cache.write("extraction", "keep", &serde_json::json!({"phrases":[]}));
-            cache.write("explanation", "obsolete", &serde_json::json!({"interpretations":[]}));
+            cache.write(
+                "explanation",
+                "obsolete",
+                &serde_json::json!({"interpretations":[]}),
+            );
         }
         drop(conn);
         let reopened = Mutex::new(crate::db::init_db(&dir.path().join("cache.sqlite")).unwrap());
-        let cache = Checkpoints { conn: &reopened, file_id: 1, force: false };
+        let cache = Checkpoints {
+            conn: &reopened,
+            file_id: 1,
+            force: false,
+        };
         assert!(cache.read("extraction", "keep").is_some());
         assert!(cache.read("explanation", "obsolete").is_none());
     }

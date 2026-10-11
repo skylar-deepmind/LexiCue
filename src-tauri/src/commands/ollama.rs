@@ -167,7 +167,9 @@ pub struct AiConfig {
 }
 
 impl AiConfig {
-    pub(crate) fn is_gemma(&self) -> bool { self.provider == "gemma" }
+    pub(crate) fn is_gemma(&self) -> bool {
+        self.provider == "gemma"
+    }
     pub(crate) fn is_openai(&self) -> bool {
         self.provider.trim().eq_ignore_ascii_case("openai")
     }
@@ -247,8 +249,11 @@ fn chat_endpoint(config: &AiConfig) -> String {
 }
 
 fn request_id(headers: &reqwest::header::HeaderMap) -> Option<String> {
-    headers.get("x-request-id").or_else(|| headers.get("x-ds-trace-id"))
-        .and_then(|value| value.to_str().ok()).map(str::to_string)
+    headers
+        .get("x-request-id")
+        .or_else(|| headers.get("x-ds-trace-id"))
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_string)
 }
 
 fn models_endpoint(config: &AiConfig) -> String {
@@ -283,37 +288,98 @@ fn ai_client(timeout: std::time::Duration, base_url: &str) -> Result<Client, Str
         .map_err(|error| error.to_string())
 }
 
-async fn native_batch_ranges(config: &AiConfig, segments: &[(i32, String)], token: &CancellationToken, prompt: impl Fn(&str) -> String) -> Result<Vec<(usize, usize)>, String> {
+async fn native_batch_ranges(
+    config: &AiConfig,
+    segments: &[(i32, String)],
+    token: &CancellationToken,
+    prompt: impl Fn(&str) -> String,
+) -> Result<Vec<(usize, usize)>, String> {
     let ranges = batch_ranges(segments);
-    if !config.is_gemma() { return Ok(ranges); }
+    if !config.is_gemma() {
+        return Ok(ranges);
+    }
     let mut pending: Vec<_> = ranges.into_iter().rev().collect();
     let mut result = Vec::new();
     while let Some((start, end)) = pending.pop() {
-        let input = segments[start..end].iter().map(|(index, text)| format!("[{}] {}", index, text)).collect::<Vec<_>>().join("\n");
-        let tokens = crate::commands::gemma::runtime::count(&config.model, prompt(&input), token).await?;
-        if tokens <= crate::commands::gemma::runtime::INPUT_LIMIT { result.push((start, end)); }
-        else if end-start > 1 { let mid = start+(end-start)/2; pending.push((mid,end)); pending.push((start,mid)); }
-        else { return Err(format!("ERR_CONTEXT_LIMIT: segment {} exceeds local context", segments[start].0)); }
+        let input = segments[start..end]
+            .iter()
+            .map(|(index, text)| format!("[{}] {}", index, text))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let tokens =
+            crate::commands::gemma::runtime::count(&config.model, prompt(&input), token).await?;
+        if tokens <= crate::commands::gemma::runtime::INPUT_LIMIT {
+            result.push((start, end));
+        } else if end - start > 1 {
+            let mid = start + (end - start) / 2;
+            pending.push((mid, end));
+            pending.push((start, mid));
+        } else {
+            return Err(format!(
+                "ERR_CONTEXT_LIMIT: segment {} exceeds local context",
+                segments[start].0
+            ));
+        }
     }
     Ok(result)
 }
 
 #[allow(clippy::too_many_arguments)] // Mirrors the shared business adapter with batch-specific builders.
-async fn native_batch_chat(config: &AiConfig, client: &Client, batch: &[(i32, String)], token: &CancellationToken, notifier: Option<&RetryNotifier>, prompt: impl Fn(&str) -> String, schema: impl Fn(&[(i32, String)]) -> serde_json::Value, collection: &str) -> Result<String, String> {
+async fn native_batch_chat(
+    config: &AiConfig,
+    client: &Client,
+    batch: &[(i32, String)],
+    token: &CancellationToken,
+    notifier: Option<&RetryNotifier>,
+    prompt: impl Fn(&str) -> String,
+    schema: impl Fn(&[(i32, String)]) -> serde_json::Value,
+    collection: &str,
+) -> Result<String, String> {
     let mut pending = vec![(0, batch.len())];
     let mut items = Vec::new();
     while let Some((start, end)) = pending.pop() {
-        if token.cancelled() { return Err(CANCELLED_MESSAGE.into()); }
+        if token.cancelled() {
+            return Err(CANCELLED_MESSAGE.into());
+        }
         let source = &batch[start..end];
-        let input = source.iter().map(|(index,text)| format!("[{index}] {text}")).collect::<Vec<_>>().join("\n");
-        match chat_detailed(client, config, token, notifier, prompt(&input), schema(source)).await {
+        let input = source
+            .iter()
+            .map(|(index, text)| format!("[{index}] {text}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        match chat_detailed(
+            client,
+            config,
+            token,
+            notifier,
+            prompt(&input),
+            schema(source),
+        )
+        .await
+        {
             Ok(value) => {
-                let value: serde_json::Value = serde_json::from_str(&value.content).map_err(|_| "ERR_MODEL_JSON")?;
-                items.extend(value.get(collection).and_then(serde_json::Value::as_array).ok_or("ERR_MODEL_SCHEMA")?.iter().cloned());
-            },
-            Err(error) if end-start > 1 && matches!(error.kind,"CONTEXT_LIMIT"|"OUTPUT_TRUNCATED"|"INVALID_JSON") => {
-                let mid = start+(end-start)/2; pending.push((mid,end)); pending.push((start,mid));
-            },
+                let value: serde_json::Value =
+                    serde_json::from_str(&value.content).map_err(|_| "ERR_MODEL_JSON")?;
+                items.extend(
+                    value
+                        .get(collection)
+                        .and_then(serde_json::Value::as_array)
+                        .ok_or("ERR_MODEL_SCHEMA")?
+                        .iter()
+                        .cloned(),
+                );
+            }
+            Err(error)
+                if end - start > 1
+                    && matches!(
+                        error.kind,
+                        "CONTEXT_LIMIT" | "OUTPUT_TRUNCATED" | "INVALID_JSON"
+                    ) =>
+            {
+                let mid = start + (end - start) / 2;
+                pending.push((mid, end));
+                pending.push((start, mid));
+            }
             Err(error) => return Err(format!("{}: segment {}", error.message, source[0].0)),
         }
     }
@@ -593,16 +659,22 @@ fn phrase_schema(language: &str) -> serde_json::Value {
     schema
 }
 
-fn local_phrase_schema(language: &str, source: &[(i32,String)]) -> serde_json::Value {
+fn local_phrase_schema(language: &str, source: &[(i32, String)]) -> serde_json::Value {
     let mut schema = phrase_schema(language);
     let props = &mut schema["properties"]["phrases"]["items"]["properties"];
-    props["segment_index"]["enum"] = serde_json::json!(source.iter().map(|(index,_)| *index).collect::<Vec<_>>());
+    props["segment_index"]["enum"] =
+        serde_json::json!(source.iter().map(|(index, _)| *index).collect::<Vec<_>>());
     props["text"]["minLength"] = serde_json::json!(1);
-    for field in ["meaning_zh","usage_zh"] { props[field]["pattern"] = serde_json::json!("[一-鿿]"); }
-    if language=="zh" {
+    for field in ["meaning_zh", "usage_zh"] {
+        props[field]["pattern"] = serde_json::json!("[一-鿿]");
+    }
+    if language == "zh" {
         // Extraction and romanization are separate tasks on small local models.
         // Keep this schema focused; enrichment cannot change source positions.
-        if let Some(props)=props.as_object_mut() { props.remove("pinyin"); props.remove("translation_en"); }
+        if let Some(props) = props.as_object_mut() {
+            props.remove("pinyin");
+            props.remove("translation_en");
+        }
     }
     schema
 }
@@ -637,38 +709,94 @@ fn build_local_phrase_prompt(language: &str, input: &str) -> String {
 }
 
 fn phrase_prompt(config: &AiConfig, language: &str, input: &str) -> String {
-    if config.is_gemma() { build_local_phrase_prompt(language, input) } else { build_phrase_prompt(language, input) }
+    if config.is_gemma() {
+        build_local_phrase_prompt(language, input)
+    } else {
+        build_phrase_prompt(language, input)
+    }
 }
 
-fn grounded_phrase_text(text: &str, index: i32, known: &[super::import::PhraseOccurrenceInput]) -> Option<String> {
-    let text=text.trim();
-    let matches:HashSet<_>=known.iter().filter(|p|p.segment_index==index && text.contains(&p.text)).map(|p|p.text.as_str()).collect();
-    if matches.contains(text) || matches.is_empty() { return Some(text.into()); }
+fn grounded_phrase_text(
+    text: &str,
+    index: i32,
+    known: &[super::import::PhraseOccurrenceInput],
+) -> Option<String> {
+    let text = text.trim();
+    let matches: HashSet<_> = known
+        .iter()
+        .filter(|p| p.segment_index == index && text.contains(&p.text))
+        .map(|p| p.text.as_str())
+        .collect();
+    if matches.contains(text) || matches.is_empty() {
+        return Some(text.into());
+    }
     // A unique dictionary expression supplies a reliable boundary when a
     // small model copies its surrounding clause. Multiple matches are ambiguous;
     // retain their separate builtin detections rather than assigning one meaning.
-    if matches.len()==1 { matches.into_iter().next().map(String::from) } else { None }
+    if matches.len() == 1 {
+        matches.into_iter().next().map(String::from)
+    } else {
+        None
+    }
 }
 
-async fn local_chinese_details(client: &Client, config: &AiConfig, token: &CancellationToken, notifier: Option<&RetryNotifier>, text: &str) -> Result<(String,String), String> {
-    let prompt = format!("为这个中文词组填写数字声调拼音 pinyin 和简短英文释义 translation_en：{}。不要扩展成句子。",serde_json::json!(text));
+async fn local_chinese_details(
+    client: &Client,
+    config: &AiConfig,
+    token: &CancellationToken,
+    notifier: Option<&RetryNotifier>,
+    text: &str,
+) -> Result<(String, String), String> {
+    let prompt = format!(
+        "为这个中文词组填写数字声调拼音 pinyin 和简短英文释义 translation_en：{}。不要扩展成句子。",
+        serde_json::json!(text)
+    );
     let schema = serde_json::json!({"type":"object","properties":{"pinyin":{"type":"string","pattern":"[A-Za-z]"},"translation_en":{"type":"string","pattern":"[A-Za-z]"}},"required":["pinyin","translation_en"],"additionalProperties":false});
-    let response = chat(client,config,token,notifier,prompt,schema).await?;
-    let value:serde_json::Value = parse_ai_json(&response)?;
-    let field = |name: &str| value[name].as_str().map(|text|text.trim().trim_start_matches([':', '：']).trim()).filter(|text| !text.is_empty() && text.chars().any(|c|c.is_ascii_alphabetic())).map(String::from).ok_or_else(||"ERR_MODEL_SCHEMA: Chinese details".to_string());
-    Ok((field("pinyin")?,field("translation_en")?))
+    let response = chat(client, config, token, notifier, prompt, schema).await?;
+    let value: serde_json::Value = parse_ai_json(&response)?;
+    let field = |name: &str| {
+        value[name]
+            .as_str()
+            .map(|text| text.trim().trim_start_matches([':', '：']).trim())
+            .filter(|text| !text.is_empty() && text.chars().any(|c| c.is_ascii_alphabetic()))
+            .map(String::from)
+            .ok_or_else(|| "ERR_MODEL_SCHEMA: Chinese details".to_string())
+    };
+    Ok((field("pinyin")?, field("translation_en")?))
 }
 
-fn retain_phrase_occurrence(conn: &Connection, phrase_id: i64, segment_id: i64, position: i32) -> Result<i64, String> {
+fn retain_phrase_occurrence(
+    conn: &Connection,
+    phrase_id: i64,
+    segment_id: i64,
+    position: i32,
+) -> Result<i64, String> {
     if let Some(id) = conn.query_row("SELECT id FROM phrase_occurrences WHERE phrase_id=?1 AND segment_id=?2 AND position=?3 ORDER BY id LIMIT 1", params![phrase_id,segment_id,position], |r| r.get(0)).optional().map_err(|e|e.to_string())? { return Ok(id); }
-    conn.execute("INSERT INTO phrase_occurrences(phrase_id,segment_id,position) VALUES(?1,?2,?3)", params![phrase_id,segment_id,position]).map_err(|e|e.to_string())?;
+    conn.execute(
+        "INSERT INTO phrase_occurrences(phrase_id,segment_id,position) VALUES(?1,?2,?3)",
+        params![phrase_id, segment_id, position],
+    )
+    .map_err(|e| e.to_string())?;
     Ok(conn.last_insert_rowid())
 }
 
-fn prune_phrase_occurrences(conn: &Connection, file_id: i64, retained: &HashSet<i64>) -> Result<(), String> {
+fn prune_phrase_occurrences(
+    conn: &Connection,
+    file_id: i64,
+    retained: &HashSet<i64>,
+) -> Result<(), String> {
     let mut stmt = conn.prepare("SELECT po.id FROM phrase_occurrences po JOIN segments s ON s.id=po.segment_id JOIN phrases p ON p.id=po.phrase_id WHERE s.file_id=?1 AND po.hidden=0 AND po.meaning_edited=0 AND po.meaning_en_edited=0 AND p.source='detected' AND p.status='unprocessed' AND p.definition IS NULL").map_err(|e|e.to_string())?;
-    let old = stmt.query_map([file_id], |r| r.get::<_,i64>(0)).map_err(|e|e.to_string())?.collect::<Result<Vec<_>,_>>().map_err(|e|e.to_string())?;
-    for id in old { if !retained.contains(&id) { conn.execute("DELETE FROM phrase_occurrences WHERE id=?1", [id]).map_err(|e|e.to_string())?; } }
+    let old = stmt
+        .query_map([file_id], |r| r.get::<_, i64>(0))
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+    for id in old {
+        if !retained.contains(&id) {
+            conn.execute("DELETE FROM phrase_occurrences WHERE id=?1", [id])
+                .map_err(|e| e.to_string())?;
+        }
+    }
     Ok(())
 }
 
@@ -745,7 +873,15 @@ async fn chat_detailed(
     format: serde_json::Value,
 ) -> Result<ChatResult, ChatFailure> {
     if config.is_gemma() {
-        let first = super::gemma::runtime::chat(&config.model, prompt.clone(), format.clone(), token, |_| {}, || {}).await;
+        let first = super::gemma::runtime::chat(
+            &config.model,
+            prompt.clone(),
+            format.clone(),
+            token,
+            |_| {},
+            || {},
+        )
+        .await;
         match first {
             Err(error) if error.kind == "INVALID_JSON" && !token.cancelled() => {
                 super::gemma::runtime::chat(&config.model, format!("{prompt}\n上一回复的 JSON 未闭合。请完整闭合每个字符串、对象和数组，并严格使用指定字段。"), format, token, |_| {}, || {}).await
@@ -756,8 +892,15 @@ async fn chat_detailed(
         chat_openai(client, config, token, notifier, prompt, format).await
     } else {
         #[cfg(test)]
-        if config.provider == "ollama" { return chat_ollama(client, config, token, notifier, prompt, format).await; }
-        Err(ChatFailure { message: "ERR_AI_PROVIDER".into(), kind: "INVALID_PROVIDER", http_status: None, request_id: None })
+        if config.provider == "ollama" {
+            return chat_ollama(client, config, token, notifier, prompt, format).await;
+        }
+        Err(ChatFailure {
+            message: "ERR_AI_PROVIDER".into(),
+            kind: "INVALID_PROVIDER",
+            http_status: None,
+            request_id: None,
+        })
     }
 }
 
@@ -786,8 +929,16 @@ async fn chat_ollama(
         .map_err(|error| {
             let cancelled = error == CANCELLED_MESSAGE;
             ChatFailure {
-                message: if cancelled { error } else { format!("无法连接 Ollama（{}）：{}", url, error) },
-                kind: if cancelled { "CANCELLED" } else { "NETWORK_ERROR" },
+                message: if cancelled {
+                    error
+                } else {
+                    format!("无法连接 Ollama（{}）：{}", url, error)
+                },
+                kind: if cancelled {
+                    "CANCELLED"
+                } else {
+                    "NETWORK_ERROR"
+                },
                 http_status: None,
                 request_id: None,
             }
@@ -802,8 +953,15 @@ async fn chat_ollama(
                 "Ollama 服务暂时不可用（HTTP {}），请稍后重试。服务端返回：{}",
                 status, body
             )
-        } else { format!("Ollama 返回错误 {}：{}", status, body) };
-        return Err(ChatFailure { message, kind: "HTTP_ERROR", http_status: Some(status.as_u16()), request_id });
+        } else {
+            format!("Ollama 返回错误 {}：{}", status, body)
+        };
+        return Err(ChatFailure {
+            message,
+            kind: "HTTP_ERROR",
+            http_status: Some(status.as_u16()),
+            request_id,
+        });
     }
 
     let request_id = request_id(response.headers());
@@ -817,7 +975,12 @@ async fn chat_ollama(
             prompt_tokens: result.prompt_eval_count,
             completion_tokens: result.eval_count,
         })
-        .map_err(|error| ChatFailure { message: format!("无法读取 Ollama 响应：{}", error), kind: "RESPONSE_DECODE_FAILED", http_status: None, request_id: None })
+        .map_err(|error| ChatFailure {
+            message: format!("无法读取 Ollama 响应：{}", error),
+            kind: "RESPONSE_DECODE_FAILED",
+            http_status: None,
+            request_id: None,
+        })
 }
 
 async fn chat_openai(
@@ -856,8 +1019,16 @@ async fn chat_openai(
     .map_err(|error| {
         let cancelled = error == CANCELLED_MESSAGE;
         ChatFailure {
-            message: if cancelled { error } else { format!("无法连接 AI 服务（{}）：{}", url, error) },
-            kind: if cancelled { "CANCELLED" } else { "NETWORK_ERROR" },
+            message: if cancelled {
+                error
+            } else {
+                format!("无法连接 AI 服务（{}）：{}", url, error)
+            },
+            kind: if cancelled {
+                "CANCELLED"
+            } else {
+                "NETWORK_ERROR"
+            },
             http_status: None,
             request_id: None,
         }
@@ -872,18 +1043,28 @@ async fn chat_openai(
                 "AI 服务暂时不可用（HTTP {}），请稍后重试。服务端返回：{}",
                 status, body
             )
-        } else { format!("AI 服务返回错误 {}：{}", status, body) };
-        return Err(ChatFailure { message, kind: "HTTP_ERROR", http_status: Some(status.as_u16()), request_id });
+        } else {
+            format!("AI 服务返回错误 {}：{}", status, body)
+        };
+        return Err(ChatFailure {
+            message,
+            kind: "HTTP_ERROR",
+            http_status: Some(status.as_u16()),
+            request_id,
+        });
     }
 
     let header_request_id = request_id(response.headers());
-    let result: OpenAiChatResponse = response
-        .json()
-        .await
-        .map_err(|error| ChatFailure { message: format!("无法读取 AI 响应：{}", error), kind: "RESPONSE_DECODE_FAILED", http_status: None, request_id: header_request_id.clone() })?;
+    let result: OpenAiChatResponse = response.json().await.map_err(|error| ChatFailure {
+        message: format!("无法读取 AI 响应：{}", error),
+        kind: "RESPONSE_DECODE_FAILED",
+        http_status: None,
+        request_id: header_request_id.clone(),
+    })?;
     let request_id = header_request_id.or(result.id);
     let usage = result.usage;
-    result.choices
+    result
+        .choices
         .into_iter()
         .next()
         .map(|choice| ChatResult {
@@ -893,7 +1074,12 @@ async fn chat_openai(
             prompt_tokens: usage.as_ref().and_then(|value| value.prompt_tokens),
             completion_tokens: usage.as_ref().and_then(|value| value.completion_tokens),
         })
-        .ok_or_else(|| ChatFailure { message: "AI 服务未返回任何内容".into(), kind: "EMPTY_CHOICES", http_status: None, request_id: None })
+        .ok_or_else(|| ChatFailure {
+            message: "AI 服务未返回任何内容".into(),
+            kind: "EMPTY_CHOICES",
+            http_status: None,
+            request_id: None,
+        })
 }
 
 fn build_models_request(client: &Client, config: &AiConfig, url: &str) -> reqwest::RequestBuilder {
@@ -956,8 +1142,12 @@ async fn probe_chat(client: &Client, config: &AiConfig) -> Result<(), String> {
 
 #[tauri::command]
 pub async fn ai_status(config: AiConfig) -> Result<(), String> {
-    if config.is_gemma() { return super::gemma::runtime::available(); }
-    if !config.is_openai() { return Err("ERR_AI_PROVIDER".into()); }
+    if config.is_gemma() {
+        return super::gemma::runtime::available();
+    }
+    if !config.is_openai() {
+        return Err("ERR_AI_PROVIDER".into());
+    }
     let client = ai_client(std::time::Duration::from_secs(15), &config.base_url)?;
     let url = models_endpoint(&config);
     let connected = async {
@@ -974,7 +1164,10 @@ pub async fn ai_status(config: AiConfig) -> Result<(), String> {
     match connected {
         Ok(()) => Ok(()),
         Err(models_error) => {
-            if !config.is_openai() || models::is_loopback_service(&config.base_url) || config.model.trim().is_empty() {
+            if !config.is_openai()
+                || models::is_loopback_service(&config.base_url)
+                || config.model.trim().is_empty()
+            {
                 return Err(models_error);
             }
             probe_chat(&client, &config).await.map_err(|chat_error| {
@@ -986,8 +1179,12 @@ pub async fn ai_status(config: AiConfig) -> Result<(), String> {
 
 #[tauri::command]
 pub async fn ai_models(config: AiConfig) -> Result<Vec<OllamaModel>, String> {
-    if config.is_gemma() { return super::gemma::models::installed_models(); }
-    if !config.is_openai() { return Err("ERR_AI_PROVIDER".into()); }
+    if config.is_gemma() {
+        return super::gemma::models::installed_models();
+    }
+    if !config.is_openai() {
+        return Err("ERR_AI_PROVIDER".into());
+    }
     let client = ai_client(std::time::Duration::from_secs(15), &config.base_url)?;
     let url = models_endpoint(&config);
     let response = send_retry(&CancellationToken::default(), None, || {
@@ -998,8 +1195,20 @@ pub async fn ai_models(config: AiConfig) -> Result<Vec<OllamaModel>, String> {
     .error_for_status()
     .map_err(|error| format!("AI 服务不可用：{}", error))?;
 
-    let parsed: OpenAiModelListResponse = response.json().await.map_err(|error| format!("无法读取 AI 模型列表：{}", error))?;
-    Ok(parsed.data.into_iter().map(|model| OllamaModel { name: model.id, size: None, digest: None, modified_at: None }).collect())
+    let parsed: OpenAiModelListResponse = response
+        .json()
+        .await
+        .map_err(|error| format!("无法读取 AI 模型列表：{}", error))?;
+    Ok(parsed
+        .data
+        .into_iter()
+        .map(|model| OllamaModel {
+            name: model.id,
+            size: None,
+            digest: None,
+            modified_at: None,
+        })
+        .collect())
 }
 
 #[derive(Deserialize)]
@@ -1065,7 +1274,6 @@ pub async fn translate_segments(
         return Ok(Vec::new());
     }
 
-
     let token = CancellationToken::default();
     cancel_registry()
         .lock()
@@ -1079,7 +1287,10 @@ pub async fn translate_segments(
 
     let pairs: Vec<(i32, String)> = segments.iter().map(|s| (s.index, s.text.clone())).collect();
     let total_segments = pairs.len();
-    let ranges = native_batch_ranges(&config, &pairs, &token, |input| build_translation_prompt(&language, input)).await?;
+    let ranges = native_batch_ranges(&config, &pairs, &token, |input| {
+        build_translation_prompt(&language, input)
+    })
+    .await?;
     let total_batches = ranges.len();
     let _ = app.emit(
         "translate-progress",
@@ -1110,17 +1321,27 @@ pub async fn translate_segments(
             .join("\n");
         let prompt = build_translation_prompt(&language, &input);
         let content = if config.is_gemma() {
-            native_batch_chat(&config, &client, batch, &token, Some(&notifier), |input| build_translation_prompt(&language, input), local_translation_schema, "translations").await?
+            native_batch_chat(
+                &config,
+                &client,
+                batch,
+                &token,
+                Some(&notifier),
+                |input| build_translation_prompt(&language, input),
+                local_translation_schema,
+                "translations",
+            )
+            .await?
         } else {
             chat(
-            &client,
-            &config,
-            &token,
-            Some(&notifier),
-            prompt,
-            schema.clone(),
-        )
-        .await?
+                &client,
+                &config,
+                &token,
+                Some(&notifier),
+                prompt,
+                schema.clone(),
+            )
+            .await?
         };
         let parsed: serde_json::Value =
             parse_ai_json(&content).map_err(|error| format!("AI 返回的翻译 JSON 无效：{error}"))?;
@@ -1256,7 +1477,15 @@ pub async fn analyze_file_phrases(
     }
 
     if language == "en" {
-        return english_phrases::analyze(app, state, file_id, config, force_refresh.unwrap_or(false), run_id).await;
+        return english_phrases::analyze(
+            app,
+            state,
+            file_id,
+            config,
+            force_refresh.unwrap_or(false),
+            run_id,
+        )
+        .await;
     }
 
     {
@@ -1292,7 +1521,10 @@ pub async fn analyze_file_phrases(
 
     let client = ai_client(std::time::Duration::from_secs(600), &config.base_url)?;
     let total_segments = segments.len();
-    let ranges = native_batch_ranges(&config, &segments, &token, |input| phrase_prompt(&config, &language, input)).await?;
+    let ranges = native_batch_ranges(&config, &segments, &token, |input| {
+        phrase_prompt(&config, &language, input)
+    })
+    .await?;
     let total_batches = ranges.len();
     let _ = app.emit(
         "ollama-analysis-progress",
@@ -1320,17 +1552,27 @@ pub async fn analyze_file_phrases(
             .join("\n");
         let prompt = phrase_prompt(&config, &language, &input);
         let content = if config.is_gemma() {
-            native_batch_chat(&config, &client, batch, &token, Some(&notifier), |input| phrase_prompt(&config, &language, input), |source| local_phrase_schema(&language,source), "phrases").await?
+            native_batch_chat(
+                &config,
+                &client,
+                batch,
+                &token,
+                Some(&notifier),
+                |input| phrase_prompt(&config, &language, input),
+                |source| local_phrase_schema(&language, source),
+                "phrases",
+            )
+            .await?
         } else {
             chat(
-            &client,
-            &config,
-            &token,
-            Some(&notifier),
-            prompt,
-            schema.clone(),
-        )
-        .await?
+                &client,
+                &config,
+                &token,
+                Some(&notifier),
+                prompt,
+                schema.clone(),
+            )
+            .await?
         };
         let result = parse_phrase_response(&content)
             .map_err(|error| format!("AI 返回的词组 JSON 无效：{}", error))?;
@@ -1352,11 +1594,11 @@ pub async fn analyze_file_phrases(
     }
 
     let builtin = {
-        let conn=state.conn.lock().map_err(|e|e.to_string())?;
+        let conn = state.conn.lock().map_err(|e| e.to_string())?;
         match language.as_str() {
-            "en" => detect_phrases_in_segments(&conn,&segments)?,
-            "zh" => detect_chinese_phrases_in_segments(&conn,&segments)?,
-            "ja" => detect_japanese_phrases_in_segments(&conn,&segments)?,
+            "en" => detect_phrases_in_segments(&conn, &segments)?,
+            "zh" => detect_chinese_phrases_in_segments(&conn, &segments)?,
+            "ja" => detect_japanese_phrases_in_segments(&conn, &segments)?,
             _ => Vec::new(),
         }
     };
@@ -1368,10 +1610,17 @@ pub async fn analyze_file_phrases(
     let mut unique: HashMap<String, (AnalyzedPhrase, Vec<(i32, i32)>)> = HashMap::new();
     for mut phrase in analyzed {
         if config.is_gemma() {
-            let Some(source)=segment_map.get(&phrase.segment_index) else { continue; };
-            if find_phrase_position(source,&phrase.text,&language).is_none() { continue; }
-            let Some(text)=grounded_phrase_text(&phrase.text,phrase.segment_index,&builtin) else { continue; };
-            phrase.text=text;
+            let Some(source) = segment_map.get(&phrase.segment_index) else {
+                continue;
+            };
+            if find_phrase_position(source, &phrase.text, &language).is_none() {
+                continue;
+            }
+            let Some(text) = grounded_phrase_text(&phrase.text, phrase.segment_index, &builtin)
+            else {
+                continue;
+            };
+            phrase.text = text;
         }
         let text = phrase.text.trim().to_lowercase();
         if !phrase_passes_filter(&text, &language) {
@@ -1388,13 +1637,17 @@ pub async fn analyze_file_phrases(
     }
 
     if is_zh && config.is_gemma() {
-        for (text,(phrase,_)) in &mut unique {
-            let (pinyin,translation) = local_chinese_details(&client,&config,&token,Some(&notifier),text).await?;
-            phrase.pinyin=Some(pinyin); phrase.translation_en=Some(translation);
+        for (text, (phrase, _)) in &mut unique {
+            let (pinyin, translation) =
+                local_chinese_details(&client, &config, &token, Some(&notifier), text).await?;
+            phrase.pinyin = Some(pinyin);
+            phrase.translation_en = Some(translation);
         }
     }
 
-    if token.cancelled() { return Err(CANCELLED_MESSAGE.into()); }
+    if token.cancelled() {
+        return Err(CANCELLED_MESSAGE.into());
+    }
     let conn = state.conn.lock().map_err(|error| error.to_string())?;
     conn.execute("BEGIN IMMEDIATE", [])
         .map_err(|error| error.to_string())?;
@@ -1486,7 +1739,12 @@ pub async fn analyze_file_phrases(
                 )
                 .map_err(|error| error.to_string())?;
             let phrase_id = phrase_ids.get(&phrase.text).ok_or("内置词组写入失败")?;
-            retained.insert(retain_phrase_occurrence(&conn, *phrase_id, real_segment_id, phrase.position)?);
+            retained.insert(retain_phrase_occurrence(
+                &conn,
+                *phrase_id,
+                real_segment_id,
+                phrase.position,
+            )?);
         }
         for (text, (_phrase, positions)) in &unique {
             let phrase_id = phrase_ids.get(text).ok_or("AI 词组写入失败")?;
@@ -1498,11 +1756,18 @@ pub async fn analyze_file_phrases(
                         |row| row.get(0),
                     )
                     .map_err(|error| error.to_string())?;
-                retained.insert(retain_phrase_occurrence(&conn, *phrase_id, real_segment_id, *position)?);
+                retained.insert(retain_phrase_occurrence(
+                    &conn,
+                    *phrase_id,
+                    real_segment_id,
+                    *position,
+                )?);
             }
         }
         prune_phrase_occurrences(&conn, file_id, &retained)?;
-        if token.cancelled() { return Err(CANCELLED_MESSAGE.into()); }
+        if token.cancelled() {
+            return Err(CANCELLED_MESSAGE.into());
+        }
         conn.execute(
             "INSERT INTO file_phrase_analysis (file_id, model, completed_at)
              VALUES (?1, ?2, ?3)
@@ -1559,10 +1824,30 @@ mod tests {
 
     #[test]
     fn dictionary_boundaries_are_used_only_with_unambiguous_same_segment_evidence() {
-        let known=vec![super::super::import::PhraseOccurrenceInput {text:"肩を並べる".into(),segment_index:4,position:2},super::super::import::PhraseOccurrenceInput {text:"話が通じない".into(),segment_index:4,position:6}];
-        assert_eq!(grounded_phrase_text("彼と肩を並べる",4,&known).as_deref(),Some("肩を並べる"));
-        assert_eq!(grounded_phrase_text("彼と肩を並べる",5,&known).as_deref(),Some("彼と肩を並べる"));
-        assert_eq!(grounded_phrase_text("肩を並べるが話が通じない",4,&known),None);
+        let known = vec![
+            super::super::import::PhraseOccurrenceInput {
+                text: "肩を並べる".into(),
+                segment_index: 4,
+                position: 2,
+            },
+            super::super::import::PhraseOccurrenceInput {
+                text: "話が通じない".into(),
+                segment_index: 4,
+                position: 6,
+            },
+        ];
+        assert_eq!(
+            grounded_phrase_text("彼と肩を並べる", 4, &known).as_deref(),
+            Some("肩を並べる")
+        );
+        assert_eq!(
+            grounded_phrase_text("彼と肩を並べる", 5, &known).as_deref(),
+            Some("彼と肩を並べる")
+        );
+        assert_eq!(
+            grounded_phrase_text("肩を並べるが話が通じない", 4, &known),
+            None
+        );
     }
 
     #[test]
@@ -1570,18 +1855,54 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let conn = crate::db::init_db(&dir.path().join("retention.db")).unwrap();
         conn.execute("INSERT INTO files(name,type,content,content_hash,imported_at,language) VALUES('de.txt','txt','text','hash',1,'de')", []).unwrap();
-        conn.execute("INSERT INTO segments(file_id,index_num,en_text) VALUES(1,0,'die Daumen drücken')", []).unwrap();
+        conn.execute(
+            "INSERT INTO segments(file_id,index_num,en_text) VALUES(1,0,'die Daumen drücken')",
+            [],
+        )
+        .unwrap();
         conn.execute("INSERT INTO phrases(language,text,source,status) VALUES('de','die daumen drücken','detected','learning'),('de','user phrase','manual','unprocessed'),('de','edited phrase','detected','unprocessed'),('de','stale phrase','detected','unprocessed')", []).unwrap();
         conn.execute("INSERT INTO phrase_occurrences(id,phrase_id,segment_id,position,meaning_zh,meaning_edited,hidden) VALUES(11,1,1,0,'我的银行义',1,0),(12,2,1,1,NULL,0,0),(13,3,1,2,'我的释义',1,1),(14,4,1,3,NULL,0,0)", []).unwrap();
-        conn.execute("INSERT INTO phrase_reviews(phrase_id,due_at,reps) VALUES(1,42,5)", []).unwrap();
-        let id = retain_phrase_occurrence(&conn,1,1,0).unwrap();
-        assert_eq!(id,11);
-        assert_eq!(retain_phrase_occurrence(&conn,1,1,0).unwrap(),id);
-        prune_phrase_occurrences(&conn,1,&HashSet::from([id])).unwrap();
-        assert_eq!(conn.query_row("SELECT COUNT(*) FROM phrase_occurrences",[],|r|r.get::<_,i64>(0)).unwrap(),3);
-        assert_eq!(conn.query_row("SELECT meaning_zh FROM phrase_occurrences WHERE id=11",[],|r|r.get::<_,String>(0)).unwrap(),"我的银行义");
-        assert_eq!(conn.query_row("SELECT reps FROM phrase_reviews WHERE phrase_id=1",[],|r|r.get::<_,i64>(0)).unwrap(),5);
-        assert!(conn.query_row("SELECT id FROM phrase_occurrences WHERE id=14",[],|r|r.get::<_,i64>(0)).optional().unwrap().is_none());
+        conn.execute(
+            "INSERT INTO phrase_reviews(phrase_id,due_at,reps) VALUES(1,42,5)",
+            [],
+        )
+        .unwrap();
+        let id = retain_phrase_occurrence(&conn, 1, 1, 0).unwrap();
+        assert_eq!(id, 11);
+        assert_eq!(retain_phrase_occurrence(&conn, 1, 1, 0).unwrap(), id);
+        prune_phrase_occurrences(&conn, 1, &HashSet::from([id])).unwrap();
+        assert_eq!(
+            conn.query_row("SELECT COUNT(*) FROM phrase_occurrences", [], |r| r
+                .get::<_, i64>(0))
+                .unwrap(),
+            3
+        );
+        assert_eq!(
+            conn.query_row(
+                "SELECT meaning_zh FROM phrase_occurrences WHERE id=11",
+                [],
+                |r| r.get::<_, String>(0)
+            )
+            .unwrap(),
+            "我的银行义"
+        );
+        assert_eq!(
+            conn.query_row(
+                "SELECT reps FROM phrase_reviews WHERE phrase_id=1",
+                [],
+                |r| r.get::<_, i64>(0)
+            )
+            .unwrap(),
+            5
+        );
+        assert!(conn
+            .query_row("SELECT id FROM phrase_occurrences WHERE id=14", [], |r| r
+                .get::<_, i64>(
+                0
+            ))
+            .optional()
+            .unwrap()
+            .is_none());
     }
 
     #[test]

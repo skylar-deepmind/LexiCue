@@ -45,8 +45,18 @@ fn load_wordforms() -> &'static EnglishWordforms {
             let surface = fields.next().unwrap_or_default().trim();
             let lemma = fields.next().unwrap_or_default().trim();
             let pos = fields.next().unwrap_or_default().trim();
-            let relation = fields.next().unwrap_or(if surface == lemma { "headword" } else { "inflection" }).trim();
-            let frequency = fields.next().and_then(|value| value.parse().ok()).unwrap_or(0);
+            let relation = fields
+                .next()
+                .unwrap_or(if surface == lemma {
+                    "headword"
+                } else {
+                    "inflection"
+                })
+                .trim();
+            let frequency = fields
+                .next()
+                .and_then(|value| value.parse().ok())
+                .unwrap_or(0);
             if surface.is_empty() || lemma.is_empty() {
                 continue;
             }
@@ -58,7 +68,9 @@ fn load_wordforms() -> &'static EnglishWordforms {
                 frequency,
             };
             let candidates = map.entry(surface.to_string()).or_default();
-            if !candidates.contains(&candidate) { candidates.push(candidate); }
+            if !candidates.contains(&candidate) {
+                candidates.push(candidate);
+            }
         }
         EnglishWordforms { map, lemmas }
     })
@@ -84,7 +96,12 @@ fn conservative_wordform_candidates(surface: &str) -> Vec<WordformCandidate> {
     if lower.ends_with("es") && !lower.ends_with("ies") && lower.len() > 2 {
         add(lower[..lower.len() - 2].to_string(), "noun");
     }
-    if lower.ends_with('s') && !lower.ends_with("ss") && !lower.ends_with("es") && !lower.ends_with("ies") && lower.len() > 1 {
+    if lower.ends_with('s')
+        && !lower.ends_with("ss")
+        && !lower.ends_with("es")
+        && !lower.ends_with("ies")
+        && lower.len() > 1
+    {
         add(lower[..lower.len() - 1].to_string(), "noun");
     }
     candidates
@@ -96,7 +113,9 @@ pub fn lemma_candidates(surface: &str) -> Vec<(String, Option<String>)> {
         .into_iter()
         .map(|item| (item.lemma, item.pos))
         .collect();
-    if candidates.is_empty() { candidates.push((lower, None)); }
+    if candidates.is_empty() {
+        candidates.push((lower, None));
+    }
     candidates
 }
 
@@ -133,14 +152,22 @@ fn resolved_form(surface: &str) -> (String, Option<String>, bool) {
         // A frequent independent headword may have an obscure plural analysis
         // in the source dictionary: species -> specie, series -> serie, or
         // physics -> physic. Do not let that rare analysis override the word.
-        let alternate_frequency = detailed.iter()
+        let alternate_frequency = detailed
+            .iter()
             .filter(|candidate| candidate.lemma == non_self[0].0)
-            .map(|candidate| candidate.frequency).max().unwrap_or(0);
-        if let Some(headword) = detailed.iter()
+            .map(|candidate| candidate.frequency)
+            .max()
+            .unwrap_or(0);
+        if let Some(headword) = detailed
+            .iter()
             .filter(|candidate| candidate.lemma == lower && candidate.relation == "headword")
             .max_by_key(|candidate| candidate.frequency)
-            .filter(|candidate| candidate.frequency > 0 && (alternate_frequency == 0
-                || candidate.frequency >= alternate_frequency.saturating_mul(8))) {
+            .filter(|candidate| {
+                candidate.frequency > 0
+                    && (alternate_frequency == 0
+                        || candidate.frequency >= alternate_frequency.saturating_mul(8))
+            })
+        {
             return (lower, headword.pos.clone(), false);
         }
         return (non_self[0].0.clone(), non_self[0].1.clone(), false);
@@ -151,9 +178,10 @@ fn resolved_form(surface: &str) -> (String, Option<String>, bool) {
     // inspection, but auto-resolve only when one inflection lemma has a clear
     // corpus-frequency advantage over every other inflection candidate.
     let mut inflections: HashMap<&str, (&WordformCandidate, u64)> = HashMap::new();
-    for candidate in detailed.iter().filter(|candidate| {
-        candidate.lemma != lower && candidate.relation != "headword"
-    }) {
+    for candidate in detailed
+        .iter()
+        .filter(|candidate| candidate.lemma != lower && candidate.relation != "headword")
+    {
         let entry = inflections
             .entry(candidate.lemma.as_str())
             .or_insert((candidate, candidate.frequency));
@@ -182,13 +210,11 @@ fn resolved_form(surface: &str) -> (String, Option<String>, bool) {
                 || candidate.1 >= self_frequency.saturating_mul(8))
     });
     if dominant_inflection {
-        return (
-            ranked[0].0.lemma.clone(),
-            ranked[0].0.pos.clone(),
-            false,
-        );
+        return (ranked[0].0.lemma.clone(), ranked[0].0.pos.clone(), false);
     }
-    if distinct.len() != 1 { return (lower, None, true); }
+    if distinct.len() != 1 {
+        return (lower, None, true);
+    }
     let (lemma, pos) = candidates[0].clone();
     (lemma, pos, false)
 }
@@ -212,12 +238,24 @@ pub fn spelling_variants(word: &str) -> Vec<String> {
         "enrolment" => variants.push("enrollment".to_string()),
         _ => {}
     }
-    if lower.ends_with("ize") { variants.push(format!("{}ise", &lower[..lower.len() - 3])); }
-    if lower.ends_with("ise") { variants.push(format!("{}ize", &lower[..lower.len() - 3])); }
-    if lower.ends_with("ization") { variants.push(format!("{}isation", &lower[..lower.len() - 7])); }
-    if lower.ends_with("isation") { variants.push(format!("{}ization", &lower[..lower.len() - 7])); }
-    if lower.ends_with("or") { variants.push(format!("{}our", &lower[..lower.len() - 2])); }
-    if lower.ends_with("our") { variants.push(format!("{}or", &lower[..lower.len() - 3])); }
+    if lower.ends_with("ize") {
+        variants.push(format!("{}ise", &lower[..lower.len() - 3]));
+    }
+    if lower.ends_with("ise") {
+        variants.push(format!("{}ize", &lower[..lower.len() - 3]));
+    }
+    if lower.ends_with("ization") {
+        variants.push(format!("{}isation", &lower[..lower.len() - 7]));
+    }
+    if lower.ends_with("isation") {
+        variants.push(format!("{}ization", &lower[..lower.len() - 7]));
+    }
+    if lower.ends_with("or") {
+        variants.push(format!("{}our", &lower[..lower.len() - 2]));
+    }
+    if lower.ends_with("our") {
+        variants.push(format!("{}or", &lower[..lower.len() - 3]));
+    }
     variants.sort();
     variants.dedup();
     variants
@@ -267,27 +305,51 @@ fn is_stripped(c: char) -> bool {
 
 fn is_web_noise(raw: &str) -> bool {
     let lower = raw.to_ascii_lowercase();
-    lower.starts_with("http://") || lower.starts_with("https://") || lower.starts_with("www.")
+    lower.starts_with("http://")
+        || lower.starts_with("https://")
+        || lower.starts_with("www.")
         || (lower.contains('@') && lower.contains('.'))
-        || [".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".mp3", ".mp4", ".srt", ".txt", ".html"]
-            .iter().any(|suffix| lower.trim_matches(|c: char| c.is_ascii_punctuation()).ends_with(suffix))
+        || [
+            ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".mp3", ".mp4", ".srt", ".txt",
+            ".html",
+        ]
+        .iter()
+        .any(|suffix| {
+            lower
+                .trim_matches(|c: char| c.is_ascii_punctuation())
+                .ends_with(suffix)
+        })
 }
 
 fn contraction_base(raw: &str) -> String {
     let normalized = raw.replace(['’', '‘'], "'");
     let lower = normalized.to_ascii_lowercase();
     let base = match lower.as_str() {
-        "won't" => "will".into(), "can't" => "can".into(), "shan't" => "shall".into(),
-        "don't" => "do".into(), "doesn't" => "does".into(), "didn't" => "did".into(),
-        "isn't" => "is".into(), "aren't" => "are".into(), "wasn't" => "was".into(), "weren't" => "were".into(),
-        "hasn't" => "has".into(), "haven't" => "have".into(), "hadn't" => "had".into(),
-        _ => ["'re", "'ve", "'ll", "'m", "'d", "'s", "n't"].iter()
+        "won't" => "will".into(),
+        "can't" => "can".into(),
+        "shan't" => "shall".into(),
+        "don't" => "do".into(),
+        "doesn't" => "does".into(),
+        "didn't" => "did".into(),
+        "isn't" => "is".into(),
+        "aren't" => "are".into(),
+        "wasn't" => "was".into(),
+        "weren't" => "were".into(),
+        "hasn't" => "has".into(),
+        "haven't" => "have".into(),
+        "hadn't" => "had".into(),
+        _ => ["'re", "'ve", "'ll", "'m", "'d", "'s", "n't"]
+            .iter()
             .find_map(|suffix| lower.strip_suffix(suffix).map(str::to_string))
-            .filter(|base| !base.is_empty()).unwrap_or(normalized),
+            .filter(|base| !base.is_empty())
+            .unwrap_or(normalized),
     };
     if raw.chars().next().is_some_and(char::is_uppercase) {
         let mut chars = base.chars();
-        chars.next().map(|first| first.to_uppercase().chain(chars).collect()).unwrap_or(base)
+        chars
+            .next()
+            .map(|first| first.to_uppercase().chain(chars).collect())
+            .unwrap_or(base)
     } else {
         base
     }
@@ -297,7 +359,9 @@ pub(crate) fn tokenize_english_text(text: &str) -> Vec<(String, i32)> {
     text.split_whitespace()
         .enumerate()
         .filter_map(|(i, raw)| {
-            if is_web_noise(raw) || raw.contains('-') { return None; }
+            if is_web_noise(raw) || raw.contains('-') {
+                return None;
+            }
             let trimmed = raw.trim_matches(|c: char| is_stripped(c) || c.is_ascii_digit());
             let word = contraction_base(trimmed);
             let lower = word.to_ascii_lowercase();
@@ -307,7 +371,11 @@ pub(crate) fn tokenize_english_text(text: &str) -> Vec<(String, i32)> {
             {
                 return None;
             }
-            let surface = if word.eq_ignore_ascii_case(trimmed) { word } else { word };
+            let surface = if word.eq_ignore_ascii_case(trimmed) {
+                word
+            } else {
+                word
+            };
             Some((surface, i as i32))
         })
         .collect()
@@ -322,7 +390,10 @@ pub(crate) struct EnglishSpan {
 }
 
 pub(crate) fn tokenize_english_spans(text: &str) -> Vec<EnglishSpan> {
-    let positions: std::collections::HashSet<_> = tokenize_english_text(text).into_iter().map(|(_, p)| p).collect();
+    let positions: std::collections::HashSet<_> = tokenize_english_text(text)
+        .into_iter()
+        .map(|(_, p)| p)
+        .collect();
     let mut cursor = 0;
     let mut utf16_cursor = 0;
     let mut spans = Vec::new();
@@ -331,9 +402,14 @@ pub(crate) fn tokenize_english_spans(text: &str) -> Vec<EnglishSpan> {
         let utf16_start = utf16_cursor + text[cursor..start].encode_utf16().count();
         cursor = start + raw.len();
         utf16_cursor = utf16_start + raw.encode_utf16().count();
-        if !positions.contains(&(position as i32)) { continue; }
+        if !positions.contains(&(position as i32)) {
+            continue;
+        }
         let trimmed = raw.trim_matches(|c: char| is_stripped(c) || c.is_ascii_digit());
-        let leading = raw.len() - raw.trim_start_matches(|c: char| is_stripped(c) || c.is_ascii_digit()).len();
+        let leading = raw.len()
+            - raw
+                .trim_start_matches(|c: char| is_stripped(c) || c.is_ascii_digit())
+                .len();
         let word_start = utf16_start + raw[..leading].encode_utf16().count();
         spans.push(EnglishSpan {
             position: position as i32,
@@ -351,13 +427,21 @@ fn lemmatize_tokens(tokens: Vec<(String, i32)>, wordforms: &EnglishWordforms) ->
             let lower = surface.to_lowercase();
             let (lemma, part_of_speech, ambiguous) = resolved_form(&lower);
             let known = wordforms.map.contains_key(&lower) || wordforms.lemmas.contains(&lower);
-            let proper = surface.chars().next().is_some_and(char::is_uppercase) && position > 0 && !known;
+            let proper =
+                surface.chars().next().is_some_and(char::is_uppercase) && position > 0 && !known;
             EnglishToken {
                 surface,
                 lemma,
                 part_of_speech,
                 position,
-                word_kind: if ambiguous { "ambiguous" } else if proper { "proper_noun" } else { "common" }.to_string(),
+                word_kind: if ambiguous {
+                    "ambiguous"
+                } else if proper {
+                    "proper_noun"
+                } else {
+                    "common"
+                }
+                .to_string(),
             }
         })
         .collect()
@@ -386,11 +470,20 @@ pub fn lemmatize_english(words: Vec<String>) -> Result<Vec<String>, String> {
 #[tauri::command]
 pub fn english_word_candidates(word: String) -> Vec<String> {
     let lower = word.trim().to_lowercase();
-    let mut values: Vec<String> = lemma_candidates(&lower).into_iter().map(|value| value.0).collect();
-    if lower == "better" { values.extend(["good".into(), "well".into()]); }
-    if lower == "barking" { values.push("bark".into()); }
+    let mut values: Vec<String> = lemma_candidates(&lower)
+        .into_iter()
+        .map(|value| value.0)
+        .collect();
+    if lower == "better" {
+        values.extend(["good".into(), "well".into()]);
+    }
+    if lower == "barking" {
+        values.push("bark".into());
+    }
     values.push(lower);
-    values.sort(); values.dedup(); values
+    values.sort();
+    values.dedup();
+    values
 }
 
 /// Rewrite English word rows so their lemma is the canonical base form, merging
@@ -411,16 +504,25 @@ pub fn migrate_english_lemmas(conn: &rusqlite::Connection) -> Result<i64, String
     for (id, lemma) in rows {
         conn.execute("INSERT OR IGNORE INTO word_aliases(word_id,alias,alias_kind) VALUES(?1,lower(?2),'legacy')", rusqlite::params![id, lemma]).map_err(|e| e.to_string())?;
         let (resolved, _, ambiguous) = resolved_form(&lemma);
-        let known = load_wordforms().map.contains_key(&lemma.to_lowercase()) || load_wordforms().lemmas.contains(&lemma.to_lowercase());
+        let known = load_wordforms().map.contains_key(&lemma.to_lowercase())
+            || load_wordforms().lemmas.contains(&lemma.to_lowercase());
         let title_only: bool = conn.query_row(
             "SELECT COUNT(*)>0 AND MIN(CASE WHEN original_form GLOB '[A-Z]*' AND position>0 THEN 1 ELSE 0 END)=1 FROM occurrences WHERE word_id=?1",
             [id], |row| row.get(0),
         ).unwrap_or(false);
         if !known && title_only {
-            conn.execute("UPDATE words SET word_kind='proper_noun' WHERE id=?1 AND kind_edited=0", [id]).map_err(|e| e.to_string())?;
+            conn.execute(
+                "UPDATE words SET word_kind='proper_noun' WHERE id=?1 AND kind_edited=0",
+                [id],
+            )
+            .map_err(|e| e.to_string())?;
         }
         if ambiguous {
-            conn.execute("UPDATE words SET word_kind='ambiguous' WHERE id=?1 AND kind_edited=0", [id]).map_err(|e| e.to_string())?;
+            conn.execute(
+                "UPDATE words SET word_kind='ambiguous' WHERE id=?1 AND kind_edited=0",
+                [id],
+            )
+            .map_err(|e| e.to_string())?;
         }
         if resolved == lemma {
             continue;
@@ -436,15 +538,28 @@ pub fn migrate_english_lemmas(conn: &rusqlite::Connection) -> Result<i64, String
 
         match target {
             Some(target_id) if target_id != id => {
-                let status_rank = |status: &str| match status { "learning" => 4, "known" => 3, "unprocessed" => 2, _ => 1 };
+                let status_rank = |status: &str| match status {
+                    "learning" => 4,
+                    "known" => 3,
+                    "unprocessed" => 2,
+                    _ => 1,
+                };
                 let (target_status, source_status, target_note, source_note): (String,String,Option<String>,Option<String>) = conn.query_row(
                     "SELECT t.status,s.status,t.definition,s.definition FROM words t JOIN words s ON s.id=?2 WHERE t.id=?1",
                     rusqlite::params![target_id,id], |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?)),
                 ).map_err(|e| e.to_string())?;
-                let status = if status_rank(&source_status) > status_rank(&target_status) { source_status } else { target_status };
+                let status = if status_rank(&source_status) > status_rank(&target_status) {
+                    source_status
+                } else {
+                    target_status
+                };
                 let definition = match (target_note, source_note) {
-                    (Some(a), Some(b)) if a.trim() != b.trim() => Some(format!("[{}] {}\n[{}] {}", resolved, a, lemma, b)),
-                    (Some(a), _) => Some(a), (_, Some(b)) => Some(b), _ => None,
+                    (Some(a), Some(b)) if a.trim() != b.trim() => {
+                        Some(format!("[{}] {}\n[{}] {}", resolved, a, lemma, b))
+                    }
+                    (Some(a), _) => Some(a),
+                    (_, Some(b)) => Some(b),
+                    _ => None,
                 };
                 conn.execute(
                     "UPDATE words SET
@@ -479,10 +594,16 @@ pub fn migrate_english_lemmas(conn: &rusqlite::Connection) -> Result<i64, String
                         rusqlite::params![target_id,id], |row| row.get(0),
                     ).map_err(|e| e.to_string())?;
                     if source_better {
-                        conn.execute("DELETE FROM reviews WHERE word_id=?1", [target_id]).map_err(|e| e.to_string())?;
-                        conn.execute("UPDATE reviews SET word_id=?1 WHERE word_id=?2", rusqlite::params![target_id,id]).map_err(|e| e.to_string())?;
+                        conn.execute("DELETE FROM reviews WHERE word_id=?1", [target_id])
+                            .map_err(|e| e.to_string())?;
+                        conn.execute(
+                            "UPDATE reviews SET word_id=?1 WHERE word_id=?2",
+                            rusqlite::params![target_id, id],
+                        )
+                        .map_err(|e| e.to_string())?;
                     } else {
-                        conn.execute("DELETE FROM reviews WHERE word_id=?1", [id]).map_err(|e| e.to_string())?;
+                        conn.execute("DELETE FROM reviews WHERE word_id=?1", [id])
+                            .map_err(|e| e.to_string())?;
                     }
                 } else if src_review && !target_review {
                     conn.execute(
@@ -616,10 +737,19 @@ mod tests {
 
     #[test]
     fn contractions_and_web_resources_do_not_create_fragments() {
-        let tokens = tokenize_english("I'm sure you're ready; I've checked https://example.com/photo.png and image.jpg".into()).unwrap();
+        let tokens = tokenize_english(
+            "I'm sure you're ready; I've checked https://example.com/photo.png and image.jpg"
+                .into(),
+        )
+        .unwrap();
         let surfaces: Vec<&str> = tokens.iter().map(|token| token.surface.as_str()).collect();
-        assert_eq!(surfaces, vec!["I", "sure", "you", "ready", "I", "checked", "and"]);
-        assert!(!surfaces.iter().any(|value| matches!(*value, "m" | "re" | "ve" | "com" | "png" | "jpg")));
+        assert_eq!(
+            surfaces,
+            vec!["I", "sure", "you", "ready", "I", "checked", "and"]
+        );
+        assert!(!surfaces
+            .iter()
+            .any(|value| matches!(*value, "m" | "re" | "ve" | "com" | "png" | "jpg")));
     }
 
     #[test]
@@ -642,7 +772,10 @@ mod tests {
         for (surface, lemma) in [("cats", "cat"), ("months", "month"), ("years", "year")] {
             assert_eq!(lemma_of_surface(surface), lemma);
         }
-        assert!(surface_matches_lemma("species", "specie"), "explicit dictionary alternatives remain available");
+        assert!(
+            surface_matches_lemma("species", "specie"),
+            "explicit dictionary alternatives remain available"
+        );
     }
 
     #[test]
@@ -712,8 +845,16 @@ mod tests {
         for (id, lemma) in [(1, "species"), (2, "series"), (3, "physics")] {
             conn.execute("INSERT INTO words(id,lemma,definition,status) VALUES(?1,?2,'learner note','learning')", rusqlite::params![id, lemma]).unwrap();
             conn.execute("INSERT INTO occurrences(word_id,segment_id,original_form,position) VALUES(?1,0,?2,0)", rusqlite::params![id, lemma]).unwrap();
-            conn.execute("INSERT INTO reviews(word_id,due_at,reps,last_review_at) VALUES(?1,200,4,100)", [id]).unwrap();
-            conn.execute("INSERT INTO review_logs(word_id,rating,reviewed_at) VALUES(?1,3,100)", [id]).unwrap();
+            conn.execute(
+                "INSERT INTO reviews(word_id,due_at,reps,last_review_at) VALUES(?1,200,4,100)",
+                [id],
+            )
+            .unwrap();
+            conn.execute(
+                "INSERT INTO review_logs(word_id,rating,reviewed_at) VALUES(?1,3,100)",
+                [id],
+            )
+            .unwrap();
         }
         assert_eq!(migrate_english_lemmas(&conn).unwrap(), 0);
         assert_eq!(migrate_english_lemmas(&conn).unwrap(), 0);
@@ -721,7 +862,16 @@ mod tests {
             let row: (String, String, String, i64, i64) = conn.query_row(
                 "SELECT w.lemma,w.definition,w.status,r.reps,l.word_id FROM words w JOIN reviews r ON r.word_id=w.id JOIN review_logs l ON l.word_id=w.id WHERE w.id=?1",
                 [id], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?))).unwrap();
-            assert_eq!(row, (lemma.into(),"learner note".into(),"learning".into(),4,id));
+            assert_eq!(
+                row,
+                (
+                    lemma.into(),
+                    "learner note".into(),
+                    "learning".into(),
+                    4,
+                    id
+                )
+            );
         }
     }
 
@@ -750,7 +900,11 @@ mod tests {
             params![book_id],
         )
         .unwrap();
-        conn.execute("INSERT INTO reviews (word_id,due_at,reps,last_review_at) VALUES(?1,200,4,300)", params![books_id]).unwrap();
+        conn.execute(
+            "INSERT INTO reviews (word_id,due_at,reps,last_review_at) VALUES(?1,200,4,300)",
+            params![books_id],
+        )
+        .unwrap();
 
         conn.execute(
             "INSERT INTO words (language, lemma) VALUES ('en', 'went')",
@@ -792,15 +946,21 @@ mod tests {
             .unwrap();
         assert_eq!(book_occ, 2, "occurrences from 'books' merge into 'book'");
 
-        let review: (i64,i64) = conn
+        let review: (i64, i64) = conn
             .query_row(
                 "SELECT COUNT(*),MAX(reps) FROM reviews WHERE word_id = ?1",
                 params![book_id],
-                |row| Ok((row.get(0)?,row.get(1)?)),
+                |row| Ok((row.get(0)?, row.get(1)?)),
             )
             .unwrap();
-        assert_eq!(review, (1,4), "review with more repetitions is preserved");
-        let (status,note):(String,String) = conn.query_row("SELECT status,definition FROM words WHERE id=?1", [book_id], |row| Ok((row.get(0)?,row.get(1)?))).unwrap();
+        assert_eq!(review, (1, 4), "review with more repetitions is preserved");
+        let (status, note): (String, String) = conn
+            .query_row(
+                "SELECT status,definition FROM words WHERE id=?1",
+                [book_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
         assert_eq!(status, "learning");
         assert!(note.contains("source note") && note.contains("target note"));
 
@@ -820,11 +980,18 @@ mod tests {
 /// Expression type is separate from contextual register and usage restrictions.
 #[derive(Clone, Default, Debug, serde::Serialize, serde::Deserialize)]
 pub struct ExpressionMetadata {
-    #[serde(default)] pub register_tags: Vec<String>,
-    #[serde(default)] pub regions: Vec<String>,
-    #[serde(default)] pub cautions: Vec<String>,
-    #[serde(default)] pub domains: Vec<String>,
-    #[serde(default)] pub evidence_kind: String,
-    #[serde(default)] pub source: String,
-    #[serde(default)] pub context_meaning_en: Option<String>,
+    #[serde(default)]
+    pub register_tags: Vec<String>,
+    #[serde(default)]
+    pub regions: Vec<String>,
+    #[serde(default)]
+    pub cautions: Vec<String>,
+    #[serde(default)]
+    pub domains: Vec<String>,
+    #[serde(default)]
+    pub evidence_kind: String,
+    #[serde(default)]
+    pub source: String,
+    #[serde(default)]
+    pub context_meaning_en: Option<String>,
 }

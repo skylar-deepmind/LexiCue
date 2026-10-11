@@ -113,7 +113,9 @@ fn bridge_path(dir: &Path) -> PathBuf {
 }
 fn library_load_error(error: impl std::fmt::Display) -> String {
     let message = error.to_string();
-    if message.contains("different Team IDs") || message.contains("library load disallowed by system policy") {
+    if message.contains("different Team IDs")
+        || message.contains("library load disallowed by system policy")
+    {
         "ERR_RUNTIME_SIGNATURE".into()
     } else {
         format!("ERR_RUNTIME_LIBRARY: {message}")
@@ -159,15 +161,11 @@ fn load(
     std::fs::create_dir_all(&cache).map_err(|e| e.to_string())?;
     unsafe {
         let dependency = if cfg!(target_os = "windows") {
-            Some(
-                Library::new(dir.join("litert-lm.dll"))
-                    .map_err(library_load_error)?,
-            )
+            Some(Library::new(dir.join("litert-lm.dll")).map_err(library_load_error)?)
         } else {
             None
         };
-        let library =
-            Library::new(bridge_path(dir)).map_err(library_load_error)?;
+        let library = Library::new(bridge_path(dir)).map_err(library_load_error)?;
         let abi = library
             .get::<unsafe extern "C" fn() -> i32>(b"lx_abi\0")
             .map_err(|e| e.to_string())?;

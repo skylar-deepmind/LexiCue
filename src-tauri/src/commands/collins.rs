@@ -19,7 +19,11 @@ pub struct Sense {
 }
 
 pub fn index_path(app: &AppHandle) -> Result<PathBuf, String> {
-    Ok(app.path().app_data_dir().map_err(|e| e.to_string())?.join(FILENAME))
+    Ok(app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?
+        .join(FILENAME))
 }
 
 fn open(path: &Path) -> Result<Option<Connection>, String> {
@@ -28,7 +32,12 @@ fn open(path: &Path) -> Result<Option<Connection>, String> {
     }
     let conn = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)
         .map_err(|e| format!("Collins index: {e}"))?;
-    let source: String = conn.query_row("SELECT value FROM metadata WHERE key='provider'", [], |row| row.get(0))
+    let source: String = conn
+        .query_row(
+            "SELECT value FROM metadata WHERE key='provider'",
+            [],
+            |row| row.get(0),
+        )
         .map_err(|e| format!("Invalid Collins index: {e}"))?;
     if source != PROVIDER {
         return Err("Unrecognized Collins index".into());
@@ -37,33 +46,59 @@ fn open(path: &Path) -> Result<Option<Connection>, String> {
 }
 
 pub fn lookup_word(path: &Path, lemma: &str) -> Result<Vec<Sense>, String> {
-    let Some(conn) = open(path)? else { return Ok(Vec::new()) };
+    let Some(conn) = open(path)? else {
+        return Ok(Vec::new());
+    };
     let mut stmt = conn.prepare(
         "SELECT id,headword,grammar,definition,example FROM word_senses WHERE lookup_key=?1 ORDER BY id"
     ).map_err(|e| e.to_string())?;
-    let rows = stmt.query_map([normalize(lemma)], |row| Ok(Sense {
-        id: row.get(0)?, phrase: String::new(), headword: row.get(1)?,
-        grammar: row.get(2)?, definition: row.get(3)?, example: row.get(4)?,
-    })).map_err(|e| e.to_string())?
-        .collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([normalize(lemma)], |row| {
+            Ok(Sense {
+                id: row.get(0)?,
+                phrase: String::new(),
+                headword: row.get(1)?,
+                grammar: row.get(2)?,
+                definition: row.get(3)?,
+                example: row.get(4)?,
+            })
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
     Ok(rows)
 }
 
 pub fn lookup_phrase(path: &Path, phrase: &str) -> Result<Vec<Sense>, String> {
-    let Some(conn) = open(path)? else { return Ok(Vec::new()) };
+    let Some(conn) = open(path)? else {
+        return Ok(Vec::new());
+    };
     let mut stmt = conn.prepare(
         "SELECT id,phrase,headword,grammar,definition,example FROM phrase_senses WHERE lookup_key=?1 ORDER BY id"
     ).map_err(|e| e.to_string())?;
-    let rows = stmt.query_map([normalize(phrase)], |row| Ok(Sense {
-        id: row.get(0)?, phrase: row.get(1)?, headword: row.get(2)?,
-        grammar: row.get(3)?, definition: row.get(4)?, example: row.get(5)?,
-    })).map_err(|e| e.to_string())?
-        .collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([normalize(phrase)], |row| {
+            Ok(Sense {
+                id: row.get(0)?,
+                phrase: row.get(1)?,
+                headword: row.get(2)?,
+                grammar: row.get(3)?,
+                definition: row.get(4)?,
+                example: row.get(5)?,
+            })
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
     Ok(rows)
 }
 
 fn normalize(value: &str) -> String {
-    value.split_whitespace().collect::<Vec<_>>().join(" ").to_lowercase()
+    value
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lowercase()
 }
 
 #[cfg(test)]
@@ -72,8 +107,14 @@ mod tests {
 
     #[test]
     fn missing_private_index_has_no_entries() {
-        assert!(lookup_word(Path::new("/no/such/collins.sqlite"), "friend").unwrap().is_empty());
-        assert!(lookup_phrase(Path::new("/no/such/collins.sqlite"), "make friends").unwrap().is_empty());
+        assert!(lookup_word(Path::new("/no/such/collins.sqlite"), "friend")
+            .unwrap()
+            .is_empty());
+        assert!(
+            lookup_phrase(Path::new("/no/such/collins.sqlite"), "make friends")
+                .unwrap()
+                .is_empty()
+        );
     }
 
     #[test]

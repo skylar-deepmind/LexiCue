@@ -40,7 +40,8 @@ pub fn init_db(db_path: &Path) -> Result<Connection, rusqlite::Error> {
     migrate_legacy_constraints(&conn)?;
     backfill_phrase_provider(&conn)?;
     migrate_file_folder(&conn)?;
-    crate::commands::tags::migrate_legacy(&conn).map_err(|e| rusqlite::Error::InvalidParameterName(e))?;
+    crate::commands::tags::migrate_legacy(&conn)
+        .map_err(|e| rusqlite::Error::InvalidParameterName(e))?;
     migrate_occurrence_hidden(&conn)?;
     migrate_review_log_schedule(&conn)?;
     migrate_english_learning(&conn)?;
@@ -189,7 +190,9 @@ fn create_sync_tracking(conn: &Connection) -> Result<(), rusqlite::Error> {
     ] {
         let identity = if table == "file_tags" {
             "'ft-' || (SELECT sync_id FROM sync_entity_state WHERE table_name='files' AND local_id=NEW.file_id) || '-' || (SELECT sync_id FROM sync_entity_state WHERE table_name='tags' AND local_id=NEW.tag_id)"
-        } else { "lower(hex(randomblob(16)))" };
+        } else {
+            "lower(hex(randomblob(16)))"
+        };
         let trigger = format!(
             "DROP TRIGGER IF EXISTS sync_{table}_insert;
             DROP TRIGGER IF EXISTS sync_{table}_update;
@@ -222,7 +225,10 @@ fn create_sync_tracking(conn: &Connection) -> Result<(), rusqlite::Error> {
         ))?;
     }
 
-    conn.execute("DELETE FROM sync_changes WHERE table_name='folders' AND uploaded_at IS NULL", [])?;
+    conn.execute(
+        "DELETE FROM sync_changes WHERE table_name='folders' AND uploaded_at IS NULL",
+        [],
+    )?;
     // Remove the pre-snapshot triggers during upgrade. Their old state rows
     // are harmless and are retained so older encrypted records can still be
     // read, but new local work must never recreate row-level upload queues.
@@ -1098,23 +1104,55 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let conn = init_db(&dir.path().join("study.db")).unwrap();
         conn.execute("INSERT INTO files(name,type,content,content_hash,imported_at) VALUES('one.txt','txt','text','h',1)", []).unwrap();
-        conn.execute("INSERT INTO segments(file_id,index_num,en_text) VALUES(1,0,'I picked it up')", []).unwrap();
-        conn.execute("INSERT INTO phrases(text) VALUES('pick up')", []).unwrap();
+        conn.execute(
+            "INSERT INTO segments(file_id,index_num,en_text) VALUES(1,0,'I picked it up')",
+            [],
+        )
+        .unwrap();
+        conn.execute("INSERT INTO phrases(text) VALUES('pick up')", [])
+            .unwrap();
         conn.execute("INSERT INTO phrase_occurrences(phrase_id,segment_id,position,collins_sense_id) VALUES(1,1,1,NULL)", []).unwrap();
         conn.execute("INSERT INTO file_phrase_analysis(file_id,model,completed_at,pipeline_version,collins_evidence_available) VALUES(1,'test',1,3,1)", []).unwrap();
-        let visible = || -> i64 { conn.query_row("SELECT COUNT(*) FROM study_phrase_occurrences", [], |row| row.get(0)).unwrap() };
+        let visible = || -> i64 {
+            conn.query_row("SELECT COUNT(*) FROM study_phrase_occurrences", [], |row| {
+                row.get(0)
+            })
+            .unwrap()
+        };
         assert_eq!(visible(), 0);
-        let raw: i64 = conn.query_row("SELECT COUNT(*) FROM phrase_occurrences", [], |row| row.get(0)).unwrap();
+        let raw: i64 = conn
+            .query_row("SELECT COUNT(*) FROM phrase_occurrences", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
         assert_eq!(raw, 1);
-        conn.execute("UPDATE phrase_occurrences SET meaning_edited=1 WHERE id=1", []).unwrap();
+        conn.execute(
+            "UPDATE phrase_occurrences SET meaning_edited=1 WHERE id=1",
+            [],
+        )
+        .unwrap();
         assert_eq!(visible(), 1);
-        conn.execute("UPDATE phrase_occurrences SET meaning_edited=0,collins_sense_id=42 WHERE id=1", []).unwrap();
+        conn.execute(
+            "UPDATE phrase_occurrences SET meaning_edited=0,collins_sense_id=42 WHERE id=1",
+            [],
+        )
+        .unwrap();
         assert_eq!(visible(), 1);
-        conn.execute("UPDATE phrase_occurrences SET collins_sense_id=NULL WHERE id=1", []).unwrap();
-        conn.execute("UPDATE phrases SET status='learning' WHERE id=1", []).unwrap();
+        conn.execute(
+            "UPDATE phrase_occurrences SET collins_sense_id=NULL WHERE id=1",
+            [],
+        )
+        .unwrap();
+        conn.execute("UPDATE phrases SET status='learning' WHERE id=1", [])
+            .unwrap();
         assert_eq!(visible(), 1);
-        conn.execute("UPDATE phrases SET status='unprocessed' WHERE id=1", []).unwrap();
-        conn.execute("UPDATE file_phrase_analysis SET pipeline_version=1 WHERE file_id=1", []).unwrap();
+        conn.execute("UPDATE phrases SET status='unprocessed' WHERE id=1", [])
+            .unwrap();
+        conn.execute(
+            "UPDATE file_phrase_analysis SET pipeline_version=1 WHERE file_id=1",
+            [],
+        )
+        .unwrap();
         assert_eq!(visible(), 1);
     }
 
@@ -1133,7 +1171,13 @@ mod tests {
             [], |row| row.get(0),
         ).unwrap();
         assert_eq!(provider, "dictionaryapi.dev");
-        let count: i64 = conn.query_row("SELECT COUNT(*) FROM online_dictionary_entries WHERE lemma='pick'", [], |row| row.get(0)).unwrap();
+        let count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM online_dictionary_entries WHERE lemma='pick'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
         assert_eq!(count, 1);
     }
 

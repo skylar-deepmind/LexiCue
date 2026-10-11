@@ -233,7 +233,8 @@ pub fn restore_backup(conn: &rusqlite::Connection, backup: &BackupPayload) -> Re
 
     let result = (|| -> Result<(), String> {
         conn.execute_batch("DELETE FROM legacy_tag_folders; DELETE FROM file_tags; DELETE FROM file_tag_state; DELETE FROM tags;").map_err(|e| e.to_string())?;
-        conn.execute("DELETE FROM annotation_actions", []).map_err(|e| e.to_string())?;
+        conn.execute("DELETE FROM annotation_actions", [])
+            .map_err(|e| e.to_string())?;
         conn.execute("DELETE FROM phrase_review_logs", [])
             .map_err(|e| e.to_string())?;
         conn.execute("DELETE FROM file_phrase_analysis", [])
@@ -273,8 +274,15 @@ pub fn restore_backup(conn: &rusqlite::Connection, backup: &BackupPayload) -> Re
         insert_from_json(conn, "file_tags", &backup.data.file_tags)?;
         insert_from_json(conn, "legacy_tag_folders", &backup.data.legacy_tag_folders)?;
         insert_from_json(conn, "file_tag_state", &backup.data.file_tag_state)?;
-        if backup.schema_version < 8 { super::tags::migrate_legacy(conn)?; }
-        else { conn.execute("INSERT OR IGNORE INTO file_tag_state(file_id) SELECT id FROM files", []).map_err(|e| e.to_string())?; }
+        if backup.schema_version < 8 {
+            super::tags::migrate_legacy(conn)?;
+        } else {
+            conn.execute(
+                "INSERT OR IGNORE INTO file_tag_state(file_id) SELECT id FROM files",
+                [],
+            )
+            .map_err(|e| e.to_string())?;
+        }
         insert_from_json(conn, "words", &backup.data.words)?;
         insert_from_json(conn, "word_aliases", &backup.data.word_aliases)?;
         insert_from_json(conn, "segments", &backup.data.segments)?;
@@ -348,20 +356,46 @@ mod english_learning_tests {
         let source = crate::db::init_db(source_file.path()).unwrap();
         source.execute("INSERT INTO files(name,type,content,content_hash,imported_at,language) VALUES('test.txt','txt','I picked it up.','hash',1,'en')", []).unwrap();
         let file_id = source.last_insert_rowid();
-        source.execute("INSERT INTO segments(file_id,index_num,en_text) VALUES(?1,0,'I picked it up.')", [file_id]).unwrap();
+        source
+            .execute(
+                "INSERT INTO segments(file_id,index_num,en_text) VALUES(?1,0,'I picked it up.')",
+                [file_id],
+            )
+            .unwrap();
         let segment_id = source.last_insert_rowid();
-        source.execute("INSERT INTO words(language,lemma,word_kind) VALUES('en','enroll','common')", []).unwrap();
+        source
+            .execute(
+                "INSERT INTO words(language,lemma,word_kind) VALUES('en','enroll','common')",
+                [],
+            )
+            .unwrap();
         let word_id = source.last_insert_rowid();
         source.execute("INSERT INTO occurrences(word_id,segment_id,original_form,position,meaning_zh,usage_zh,meaning_edited,analysis_model,analyzed_at) VALUES(?1,?2,'enrolled',0,'报名','过去式',1,'user',2)", rusqlite::params![word_id,segment_id]).unwrap();
         source.execute("INSERT INTO word_aliases(word_id,alias,alias_kind) VALUES(?1,'enrolled','surface')", [word_id]).unwrap();
-        source.execute("INSERT INTO phrases(language,text,status) VALUES('en','pick up','learning')", []).unwrap();
+        source
+            .execute(
+                "INSERT INTO phrases(language,text,status) VALUES('en','pick up','learning')",
+                [],
+            )
+            .unwrap();
         let phrase_id = source.last_insert_rowid();
         source.execute("INSERT INTO phrase_occurrences(phrase_id,segment_id,position,surface_text,token_positions_json,meaning_zh,usage_zh,meaning_edited) VALUES(?1,?2,1,'picked up','[1,3]','拾起','可分离短语动词',1)", rusqlite::params![phrase_id,segment_id]).unwrap();
         source.execute("INSERT INTO phrase_dictionary_entries(language,text,translation,provider,updated_at,other_senses_json,other_senses_edited) VALUES('en','pick up','拾起','test-model',1,'[{\"meaning_zh\":\"学会\",\"example_en\":\"She picked it up quickly.\"}]',1)", []).unwrap();
         source.execute("INSERT INTO file_phrase_analysis(file_id,model,completed_at,pipeline_version) VALUES(?1,'test-model',1,2)", [file_id]).unwrap();
-        let metadata=r#"{"register_tags":["informal"],"regions":[],"cautions":[],"evidence_kind":"model"}"#;
-        source.execute("UPDATE phrase_occurrences SET expression_meta_json=?1 WHERE phrase_id=?2",rusqlite::params![metadata,phrase_id]).unwrap();
-        source.execute("UPDATE phrase_dictionary_entries SET expression_meta_json=?1 WHERE text='pick up'",[metadata]).unwrap();
+        let metadata =
+            r#"{"register_tags":["informal"],"regions":[],"cautions":[],"evidence_kind":"model"}"#;
+        source
+            .execute(
+                "UPDATE phrase_occurrences SET expression_meta_json=?1 WHERE phrase_id=?2",
+                rusqlite::params![metadata, phrase_id],
+            )
+            .unwrap();
+        source
+            .execute(
+                "UPDATE phrase_dictionary_entries SET expression_meta_json=?1 WHERE text='pick up'",
+                [metadata],
+            )
+            .unwrap();
         let backup = backup_payload(&source).unwrap();
         assert_eq!(backup.schema_version, 8);
 
@@ -375,14 +409,20 @@ mod english_learning_tests {
         assert_eq!(restored.0, "拾起");
         assert_eq!(restored.1, "[1,3]");
         assert!(restored.2.contains("学会"));
-        assert_eq!((restored.3,restored.4), (1,2));
+        assert_eq!((restored.3, restored.4), (1, 2));
         let metadata_restored:(Option<String>,Option<String>)=target.query_row("SELECT po.expression_meta_json,pde.expression_meta_json FROM phrase_occurrences po JOIN phrase_dictionary_entries pde ON pde.text='pick up' LIMIT 1",[],|r|Ok((r.get(0)?,r.get(1)?))).unwrap();
-        assert_eq!(metadata_restored,(Some(metadata.into()),Some(metadata.into())));
+        assert_eq!(
+            metadata_restored,
+            (Some(metadata.into()), Some(metadata.into()))
+        );
 
         let restored_word: (String,String,String,i64) = target.query_row(
             "SELECT w.lemma,a.alias,o.meaning_zh,o.meaning_edited FROM words w JOIN word_aliases a ON a.word_id=w.id JOIN occurrences o ON o.word_id=w.id WHERE w.lemma='enroll'",
             [], |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?)),
         ).unwrap();
-        assert_eq!(restored_word, ("enroll".into(),"enrolled".into(),"报名".into(),1));
+        assert_eq!(
+            restored_word,
+            ("enroll".into(), "enrolled".into(), "报名".into(), 1)
+        );
     }
 }

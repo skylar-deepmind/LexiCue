@@ -889,7 +889,7 @@ pub fn lookup_phrase_dictionary(
             other_senses_en_edited: false,
             collins_senses,
             collins_available,
-                expression_metadata: None,
+            expression_metadata: None,
         });
     }
     if language == "zh" || language == "ja" {

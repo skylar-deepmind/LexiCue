@@ -348,7 +348,9 @@ struct LibraryAnalysis {
     skipped_items: i64,
 }
 
-fn default_phrase_pipeline_version() -> i64 { 1 }
+fn default_phrase_pipeline_version() -> i64 {
+    1
+}
 
 #[derive(Serialize, Deserialize)]
 struct LibraryPhraseDictionaryEntry {
@@ -376,7 +378,9 @@ struct LibraryPhraseDictionaryEntry {
     expression_meta_json: Option<String>,
 }
 
-fn default_other_senses_json() -> String { "[]".to_string() }
+fn default_other_senses_json() -> String {
+    "[]".to_string()
+}
 struct OutboxRow {
     event_id: String,
     entity_type: String,
@@ -1294,7 +1298,11 @@ fn apply_library_item_event(
         .ok_or("invalid_encrypted_record")?;
     let file_id = apply_record(conn, "files", sync_id, file_record)?;
     if file_record.get("tag_model").and_then(|v| v.as_i64()) == Some(1) {
-        conn.execute("INSERT OR IGNORE INTO file_tag_state(file_id) VALUES(?1)", [file_id]).map_err(|e| e.to_string())?;
+        conn.execute(
+            "INSERT OR IGNORE INTO file_tag_state(file_id) VALUES(?1)",
+            [file_id],
+        )
+        .map_err(|e| e.to_string())?;
     }
     conn.execute("DELETE FROM segments WHERE file_id=?1", [file_id])
         .map_err(|error| error.to_string())?;
@@ -1306,7 +1314,8 @@ fn apply_library_item_event(
         .map_err(|error| error.to_string())?;
         let segment_id = conn.last_insert_rowid();
         for occurrence in segment.occurrences {
-            let Some(word_id) = library_reference_id(conn, "words", &occurrence.word_sync_id)? else {
+            let Some(word_id) = library_reference_id(conn, "words", &occurrence.word_sync_id)?
+            else {
                 continue;
             };
             conn.execute(
@@ -1320,7 +1329,9 @@ fn apply_library_item_event(
             ).map_err(|error| error.to_string())?;
         }
         for occurrence in segment.phrase_occurrences {
-            let Some(phrase_id) = library_reference_id(conn, "phrases", &occurrence.phrase_sync_id)? else {
+            let Some(phrase_id) =
+                library_reference_id(conn, "phrases", &occurrence.phrase_sync_id)?
+            else {
                 continue;
             };
             conn.execute(
@@ -1383,11 +1394,17 @@ fn apply_entity_event(
         });
     }
     if event.table_name == "file_tags" && event.operation != "delete" {
-        let record = event.record.as_ref().and_then(|v| v.as_object()).ok_or("invalid_encrypted_record")?;
-        for (field,table) in [("file_id_sync_id","files"),("tag_id_sync_id","tags")] {
+        let record = event
+            .record
+            .as_ref()
+            .and_then(|v| v.as_object())
+            .ok_or("invalid_encrypted_record")?;
+        for (field, table) in [("file_id_sync_id", "files"), ("tag_id_sync_id", "tags")] {
             let reference = string(record, field)?;
             let deleted: bool = conn.query_row("SELECT EXISTS(SELECT 1 FROM sync_entity_state WHERE table_name=?1 AND deleted_at IS NOT NULL AND sync_id IN (?2,COALESCE((SELECT canonical_sync_id FROM sync_identity_aliases WHERE table_name=?1 AND alias_sync_id=?2),?2)))", rusqlite::params![table,reference], |r| r.get(0)).map_err(|e| e.to_string())?;
-            if deleted { return Ok(false); }
+            if deleted {
+                return Ok(false);
+            }
         }
     }
     let canonical = conn.query_row("SELECT canonical_sync_id FROM sync_identity_aliases WHERE table_name=?1 AND alias_sync_id=?2", rusqlite::params![event.table_name,event.sync_id], |r|r.get::<_,String>(0)).optional().map_err(|e|e.to_string())?.unwrap_or_else(||event.sync_id.clone());
@@ -1416,11 +1433,16 @@ fn apply_entity_event(
             return Ok(false);
         }
         if let Some(local_id) = local_id_for(conn, &event.table_name, &canonical)? {
-            let associations: Vec<(i64,String)> = if event.table_name == "tags" {
+            let associations: Vec<(i64, String)> = if event.table_name == "tags" {
                 let mut stmt = conn.prepare("SELECT ft.id,s.sync_id FROM file_tags ft JOIN sync_entity_state s ON s.table_name='file_tags' AND s.local_id=ft.id WHERE ft.tag_id=?1").map_err(|e|e.to_string())?;
-                let rows = stmt.query_map([local_id],|r|Ok((r.get(0)?,r.get(1)?))).map_err(|e|e.to_string())?;
-                rows.collect::<rusqlite::Result<_>>().map_err(|e|e.to_string())?
-            } else { Vec::new() };
+                let rows = stmt
+                    .query_map([local_id], |r| Ok((r.get(0)?, r.get(1)?)))
+                    .map_err(|e| e.to_string())?;
+                rows.collect::<rusqlite::Result<_>>()
+                    .map_err(|e| e.to_string())?
+            } else {
+                Vec::new()
+            };
             set_runtime(conn, true)?;
             let key = if matches!(event.table_name.as_str(), "reviews" | "phrase_reviews") {
                 if event.table_name == "reviews" {
@@ -1440,11 +1462,13 @@ fn apply_entity_event(
             mark_state(conn, &event.table_name, local_id, &canonical, clock, true)?;
             // Natural-name convergence can leave a second canonical envelope
             // on the server. Tombstone it as well, once, when its row exists.
-            if matches!(event.table_name.as_str(),"tags" | "file_tags") && canonical != event.sync_id {
+            if matches!(event.table_name.as_str(), "tags" | "file_tags")
+                && canonical != event.sync_id
+            {
                 conn.execute("INSERT INTO sync_changes(table_name,sync_id,operation,changed_at) VALUES(?1,?2,'delete',?3)",rusqlite::params![event.table_name,canonical,now_ms()]).map_err(|e|e.to_string())?;
             }
-            for (association_id,identity) in associations {
-                mark_state(conn,"file_tags",association_id,&identity,clock,true)?;
+            for (association_id, identity) in associations {
+                mark_state(conn, "file_tags", association_id, &identity, clock, true)?;
                 conn.execute("INSERT INTO sync_changes(table_name,sync_id,operation,changed_at) VALUES('file_tags',?1,'delete',?2)",rusqlite::params![identity,now_ms()]).map_err(|e|e.to_string())?;
             }
         }
@@ -1452,7 +1476,7 @@ fn apply_entity_event(
         // older offline tag/association upload cannot recreate it later.
         if matches!(event.table_name.as_str(), "tags" | "file_tags") {
             let local_id: i64 = conn.query_row("SELECT COALESCE((SELECT local_id FROM sync_entity_state WHERE table_name=?1 AND sync_id=?2),(SELECT MIN(MIN(local_id),0)-1 FROM sync_entity_state WHERE table_name=?1),-1)",rusqlite::params![event.table_name,canonical],|row|row.get(0)).map_err(|e|e.to_string())?;
-            mark_state(conn,&event.table_name,local_id,&canonical,clock,true)?;
+            mark_state(conn, &event.table_name, local_id, &canonical, clock, true)?;
         }
         return Ok(true);
     }
@@ -1545,22 +1569,33 @@ fn apply_record(
         let name = string(r, "name")?;
         let key = super::tags::name_key(&name)?;
         let current = local_id_for(conn, table, sync_id)?;
-        let matching: Option<i64> = conn.query_row("SELECT id FROM tags WHERE name_key=?1", [&key], |row| row.get(0)).optional().map_err(|e| e.to_string())?;
+        let matching: Option<i64> = conn
+            .query_row("SELECT id FROM tags WHERE name_key=?1", [&key], |row| {
+                row.get(0)
+            })
+            .optional()
+            .map_err(|e| e.to_string())?;
         if let Some(id) = matching {
             if let Some(old) = current.filter(|old| *old != id) {
-                set_runtime(conn,false)?;
-                let moved = (|| -> Result<(),String> {
+                set_runtime(conn, false)?;
+                let moved = (|| -> Result<(), String> {
                     conn.execute("INSERT OR IGNORE INTO file_tags(file_id,tag_id) SELECT file_id,?1 FROM file_tags WHERE tag_id=?2", rusqlite::params![id,old]).map_err(|e| e.to_string())?;
-                    conn.execute("DELETE FROM file_tags WHERE tag_id=?1",[old]).map_err(|e| e.to_string())?;
+                    conn.execute("DELETE FROM file_tags WHERE tag_id=?1", [old])
+                        .map_err(|e| e.to_string())?;
                     Ok(())
                 })();
-                set_runtime(conn,true)?;
+                set_runtime(conn, true)?;
                 moved?;
-                conn.execute("UPDATE legacy_tag_folders SET tag_id=?1 WHERE tag_id=?2", rusqlite::params![id,old]).map_err(|e| e.to_string())?;
-                conn.execute("DELETE FROM tags WHERE id=?1", [old]).map_err(|e| e.to_string())?;
+                conn.execute(
+                    "UPDATE legacy_tag_folders SET tag_id=?1 WHERE tag_id=?2",
+                    rusqlite::params![id, old],
+                )
+                .map_err(|e| e.to_string())?;
+                conn.execute("DELETE FROM tags WHERE id=?1", [old])
+                    .map_err(|e| e.to_string())?;
                 // All identities already referring to the old canonical tag
                 // now resolve to the surviving tag, including older aliases.
-                let target_sync = sync_id_for(conn,table,id)?;
+                let target_sync = sync_id_for(conn, table, id)?;
                 conn.execute("UPDATE sync_identity_aliases SET canonical_sync_id=?1 WHERE table_name='tags' AND canonical_sync_id=?2",rusqlite::params![target_sync,sync_id]).map_err(|e|e.to_string())?;
             }
             let canonical = sync_id_for(conn, table, id)?;
@@ -1573,14 +1608,31 @@ fn apply_record(
             super::tags::rename(conn, id, &name)?;
             return Ok(id);
         }
-        conn.execute("INSERT INTO tags(name,name_key,created_at) VALUES(?1,?2,?3)", rusqlite::params![name.trim(),key,integer(r,"created_at")?]).map_err(|e| e.to_string())?;
+        conn.execute(
+            "INSERT INTO tags(name,name_key,created_at) VALUES(?1,?2,?3)",
+            rusqlite::params![name.trim(), key, integer(r, "created_at")?],
+        )
+        .map_err(|e| e.to_string())?;
         return Ok(conn.last_insert_rowid());
     }
     if table == "file_tags" {
-        let file = local_id_for(conn, "files", &string(r,"file_id_sync_id")?)?.ok_or("sync tag association is waiting for its file")?;
-        let tag = local_id_for(conn, "tags", &string(r,"tag_id_sync_id")?)?.ok_or("sync tag association is waiting for its tag")?;
-        conn.execute("INSERT OR IGNORE INTO file_tag_state(file_id) VALUES(?1)", [file]).map_err(|e| e.to_string())?;
-        let matching: Option<i64> = conn.query_row("SELECT id FROM file_tags WHERE file_id=?1 AND tag_id=?2", rusqlite::params![file,tag], |row| row.get(0)).optional().map_err(|e| e.to_string())?;
+        let file = local_id_for(conn, "files", &string(r, "file_id_sync_id")?)?
+            .ok_or("sync tag association is waiting for its file")?;
+        let tag = local_id_for(conn, "tags", &string(r, "tag_id_sync_id")?)?
+            .ok_or("sync tag association is waiting for its tag")?;
+        conn.execute(
+            "INSERT OR IGNORE INTO file_tag_state(file_id) VALUES(?1)",
+            [file],
+        )
+        .map_err(|e| e.to_string())?;
+        let matching: Option<i64> = conn
+            .query_row(
+                "SELECT id FROM file_tags WHERE file_id=?1 AND tag_id=?2",
+                rusqlite::params![file, tag],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(|e| e.to_string())?;
         if let Some(id) = matching {
             let canonical = sync_id_for(conn, table, id)?;
             if canonical != sync_id {
@@ -1588,7 +1640,11 @@ fn apply_record(
             }
             return Ok(id);
         }
-        conn.execute("INSERT INTO file_tags(file_id,tag_id) VALUES(?1,?2)", rusqlite::params![file,tag]).map_err(|e| e.to_string())?;
+        conn.execute(
+            "INSERT INTO file_tags(file_id,tag_id) VALUES(?1,?2)",
+            rusqlite::params![file, tag],
+        )
+        .map_err(|e| e.to_string())?;
         return Ok(conn.last_insert_rowid());
     }
     if let Some(id) = local_id_for(conn, table, sync_id)? {
@@ -1616,7 +1672,15 @@ fn apply_record(
             "folders" => {
                 conn.execute(
                     "UPDATE folders SET name=?1,created_at=?2,parent_id=?3 WHERE id=?4",
-                    rusqlite::params![string(r, "name")?, integer(r, "created_at")?, optional_string(r,"parent_id_sync_id").map(|value| local_id_for(conn,"folders",&value)).transpose()?.flatten(), id],
+                    rusqlite::params![
+                        string(r, "name")?,
+                        integer(r, "created_at")?,
+                        optional_string(r, "parent_id_sync_id")
+                            .map(|value| local_id_for(conn, "folders", &value))
+                            .transpose()?
+                            .flatten(),
+                        id
+                    ],
                 )
                 .map_err(|e| e.to_string())?;
             }
@@ -2903,13 +2967,29 @@ fn stable_identity_updates(
             });
         }
     }
-    let file_ids: std::collections::HashMap<i64,String> = updates.iter().filter(|update| update.table == "files").map(|update| (update.local_id,update.sync_id.clone())).collect();
+    let file_ids: std::collections::HashMap<i64, String> = updates
+        .iter()
+        .filter(|update| update.table == "files")
+        .map(|update| (update.local_id, update.sync_id.clone()))
+        .collect();
     let mut statement = conn.prepare("SELECT ft.id,ft.file_id,state.sync_id FROM file_tags ft JOIN sync_entity_state state ON state.table_name='tags' AND state.local_id=ft.tag_id").map_err(|_| "local_sync_storage_error")?;
-    let rows = statement.query_map([], |row| Ok((row.get::<_,i64>(0)?,row.get::<_,i64>(1)?,row.get::<_,String>(2)?))).map_err(|_| "local_sync_storage_error")?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, i64>(0)?,
+                row.get::<_, i64>(1)?,
+                row.get::<_, String>(2)?,
+            ))
+        })
+        .map_err(|_| "local_sync_storage_error")?;
     for row in rows {
-        let (local_id,file_id,tag_sync_id) = row.map_err(|_| "local_sync_storage_error")?;
+        let (local_id, file_id, tag_sync_id) = row.map_err(|_| "local_sync_storage_error")?;
         let file_sync_id = file_ids.get(&file_id).ok_or("local_sync_storage_error")?;
-        updates.push(StableIdentityUpdate { table:"file_tags", local_id, sync_id:format!("ft-{file_sync_id}-{tag_sync_id}") });
+        updates.push(StableIdentityUpdate {
+            table: "file_tags",
+            local_id,
+            sync_id: format!("ft-{file_sync_id}-{tag_sync_id}"),
+        });
     }
     Ok(updates)
 }
@@ -3599,8 +3679,13 @@ mod tests {
                 [],
             )
             .unwrap();
-        let metadata=r#"{"register_tags":["informal"],"regions":["UK"],"cautions":["offensive"],"evidence_kind":"dictionary"}"#;
-        source.execute("UPDATE phrase_occurrences SET expression_meta_json=?1 WHERE phrase_id=?2",rusqlite::params![metadata,phrase_id]).unwrap();
+        let metadata = r#"{"register_tags":["informal"],"regions":["UK"],"cautions":["offensive"],"evidence_kind":"dictionary"}"#;
+        source
+            .execute(
+                "UPDATE phrase_occurrences SET expression_meta_json=?1 WHERE phrase_id=?2",
+                rusqlite::params![metadata, phrase_id],
+            )
+            .unwrap();
         source.execute("UPDATE phrase_dictionary_entries SET expression_meta_json=?1 WHERE text='hello world'",[metadata]).unwrap();
         let source_word_sync = sync_id_for(&source, "words", word_id).unwrap();
         let source_phrase_sync = sync_id_for(&source, "phrases", phrase_id).unwrap();
@@ -3608,13 +3693,39 @@ mod tests {
         let snapshot = library_item_record(&source, file_id).unwrap();
         assert_eq!(snapshot.segments.len(), 1);
         assert_eq!(snapshot.segments[0].occurrences.len(), 1);
-        assert_eq!(snapshot.segments[0].occurrences[0].meaning_zh.as_deref(), Some("本句你好"));
-        assert_eq!(snapshot.segments[0].occurrences[0].collins_sense_id, Some(7));
+        assert_eq!(
+            snapshot.segments[0].occurrences[0].meaning_zh.as_deref(),
+            Some("本句你好")
+        );
+        assert_eq!(
+            snapshot.segments[0].occurrences[0].collins_sense_id,
+            Some(7)
+        );
         assert_eq!(snapshot.segments[0].phrase_occurrences[0].hidden, 1);
-        assert_eq!(snapshot.segments[0].phrase_occurrences[0].meaning_zh.as_deref(), Some("本句问候"));
-        assert_eq!(snapshot.segments[0].phrase_occurrences[0].meaning_en.as_deref(), Some("A greeting"));
-        assert_eq!(snapshot.segments[0].phrase_occurrences[0].expression_meta_json.as_deref(),Some(metadata));
-        assert_eq!(snapshot.phrase_dictionary_entries[0].expression_meta_json.as_deref(),Some(metadata));
+        assert_eq!(
+            snapshot.segments[0].phrase_occurrences[0]
+                .meaning_zh
+                .as_deref(),
+            Some("本句问候")
+        );
+        assert_eq!(
+            snapshot.segments[0].phrase_occurrences[0]
+                .meaning_en
+                .as_deref(),
+            Some("A greeting")
+        );
+        assert_eq!(
+            snapshot.segments[0].phrase_occurrences[0]
+                .expression_meta_json
+                .as_deref(),
+            Some(metadata)
+        );
+        assert_eq!(
+            snapshot.phrase_dictionary_entries[0]
+                .expression_meta_json
+                .as_deref(),
+            Some(metadata)
+        );
 
         let event = EntityEvent {
             version: 3,
@@ -3669,13 +3780,26 @@ mod tests {
             .unwrap();
         assert_eq!(restored, ("你好，世界".into(), "你好世界".into(), 1, 1));
         let restored_metadata:(Option<String>,Option<String>)=target.query_row("SELECT po.expression_meta_json,pde.expression_meta_json FROM phrase_occurrences po JOIN phrase_dictionary_entries pde ON pde.text='hello world' LIMIT 1",[],|r|Ok((r.get(0)?,r.get(1)?))).unwrap();
-        assert_eq!(restored_metadata,(Some(metadata.into()),Some(metadata.into())));
+        assert_eq!(
+            restored_metadata,
+            (Some(metadata.into()), Some(metadata.into()))
+        );
 
         let restored_word_ai: (Option<String>, Option<String>, Option<i64>, i64, Option<String>, Option<i64>) = target.query_row(
             "SELECT meaning_zh,usage_zh,collins_sense_id,meaning_edited,analysis_model,analyzed_at FROM occurrences LIMIT 1", [],
             |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?,row.get(4)?,row.get(5)?)),
         ).unwrap();
-        assert_eq!(restored_word_ai, (Some("本句你好".into()),Some("用作问候".into()),Some(7),1,Some("test-model".into()),Some(3)));
+        assert_eq!(
+            restored_word_ai,
+            (
+                Some("本句你好".into()),
+                Some("用作问候".into()),
+                Some(7),
+                1,
+                Some("test-model".into()),
+                Some(3)
+            )
+        );
         let restored_ai: (Option<String>, Option<String>, i64, String, i64, i64) = target.query_row(
             "SELECT po.meaning_zh,po.token_positions_json,po.meaning_edited,pde.other_senses_json,pde.other_senses_edited,fpa.pipeline_version FROM phrase_occurrences po JOIN phrase_dictionary_entries pde ON pde.text='hello world' JOIN file_phrase_analysis fpa ON fpa.file_id=(SELECT file_id FROM segments WHERE id=po.segment_id) LIMIT 1",
             [],
@@ -4074,7 +4198,11 @@ mod tests {
             conn.execute("INSERT INTO words(language,lemma) VALUES('en',?1)", [lemma])
                 .unwrap();
             let word_id = conn.last_insert_rowid();
-            conn.execute("UPDATE sync_entity_state SET sync_id=?1 WHERE table_name='words' AND local_id=?2",rusqlite::params![format!("words-{lemma}"),word_id]).unwrap();
+            conn.execute(
+                "UPDATE sync_entity_state SET sync_id=?1 WHERE table_name='words' AND local_id=?2",
+                rusqlite::params![format!("words-{lemma}"), word_id],
+            )
+            .unwrap();
             conn.execute(
                 "INSERT INTO occurrences(word_id,segment_id,original_form,position) VALUES(?1,?2,?3,0)",
                 rusqlite::params![word_id, segment_id, lemma],
@@ -4099,7 +4227,8 @@ mod tests {
         // would hide backwards-compatibility regressions.
         let mut snapshot: LibraryItemRecord = serde_json::from_str(include_str!(
             "../../tests/fixtures/library-snapshot-v1.json"
-        )).unwrap();
+        ))
+        .unwrap();
         assert_eq!(snapshot.segments[0].occurrences[0].meaning_edited, 0);
         assert_eq!(snapshot.segments[0].phrase_occurrences[0].meaning_en, None);
         let removed_word = &mut snapshot.segments[0].occurrences[1];
@@ -4232,11 +4361,23 @@ mod tests {
 
     #[test]
     fn native_storage_failures_are_never_exposed_as_unknown_errors() {
-        for code in ["invalid_encrypted_record", "session_expired", "network_unavailable", "record_authentication_failed", "blob_not_found"] {
+        for code in [
+            "invalid_encrypted_record",
+            "session_expired",
+            "network_unavailable",
+            "record_authentication_failed",
+            "blob_not_found",
+        ] {
             assert_eq!(stable_sync_error(code.into()), code);
-            assert_eq!(stable_sync_error(format!("sync_apply::library_item::{code}")), code);
+            assert_eq!(
+                stable_sync_error(format!("sync_apply::library_item::{code}")),
+                code
+            );
         }
-        assert_eq!(stable_sync_error("private_error_text".into()), "local_sync_storage_error");
+        assert_eq!(
+            stable_sync_error("private_error_text".into()),
+            "local_sync_storage_error"
+        );
         assert_eq!(
             stable_sync_error("database is locked".into()),
             "local_sync_storage_error"
@@ -4278,139 +4419,305 @@ mod tag_sync_tests {
     fn db() -> (tempfile::TempDir, rusqlite::Connection) {
         let dir = tempfile::tempdir().unwrap();
         let conn = crate::db::init_db(&dir.path().join("tags.db")).unwrap();
-        (dir,conn)
+        (dir, conn)
     }
     fn file(conn: &rusqlite::Connection, hash: &str) -> i64 {
         conn.execute("INSERT INTO files(name,type,content,content_hash,imported_at,language) VALUES('test','txt','text',?1,1,'en')",[hash]).unwrap();
         conn.last_insert_rowid()
     }
     fn event(conn: &rusqlite::Connection, table: &str, id: i64, operation: &str) -> EntityEvent {
-        EntityEvent { version: 1, table_name:table.into(), sync_id:sync_id_for(conn,table,id).unwrap(), operation:operation.into(), record:if operation=="delete" {None} else {row_record(conn,table,id).unwrap()} }
+        EntityEvent {
+            version: 1,
+            table_name: table.into(),
+            sync_id: sync_id_for(conn, table, id).unwrap(),
+            operation: operation.into(),
+            record: if operation == "delete" {
+                None
+            } else {
+                row_record(conn, table, id).unwrap()
+            },
+        }
     }
     fn library(conn: &rusqlite::Connection, id: i64) -> EntityEvent {
-        EntityEvent { version: 1, table_name:"library_item".into(),sync_id:sync_id_for(conn,"files",id).unwrap(),operation:"upsert".into(),record:Some(serde_json::to_value(library_item_record(conn,id).unwrap()).unwrap()) }
+        EntityEvent {
+            version: 1,
+            table_name: "library_item".into(),
+            sync_id: sync_id_for(conn, "files", id).unwrap(),
+            operation: "upsert".into(),
+            record: Some(serde_json::to_value(library_item_record(conn, id).unwrap()).unwrap()),
+        }
     }
     fn apply(conn: &rusqlite::Connection, event: &EntityEvent, time: u32) {
-        assert!(apply_entity_event(conn,event,&format!("{time:020}:00000000:test")).unwrap());
+        assert!(apply_entity_event(conn, event, &format!("{time:020}:00000000:test")).unwrap());
     }
-    fn mark_uploaded(conn: &rusqlite::Connection) { conn.execute("UPDATE sync_changes SET uploaded_at=1",[]).unwrap(); }
+    fn mark_uploaded(conn: &rusqlite::Connection) {
+        conn.execute("UPDATE sync_changes SET uploaded_at=1", [])
+            .unwrap();
+    }
 
     #[test]
     fn tags_and_associations_sync_portably_and_remove_readd_keeps_identity() {
-        let (_dir,source) = db(); let (_dir2,target) = db();
-        let source_file = file(&source,"shared");
-        file(&target,"other"); tags::ensure_tag(&target,"Other").unwrap();
-        let tag = tags::ensure_tag(&source," Podcast ").unwrap();
-        tags::replace_file_tags(&source,source_file,&[tag],&[]).unwrap();
-        let association: i64 = source.query_row("SELECT id FROM file_tags",[],|r|r.get(0)).unwrap();
-        let association_event = event(&source,"file_tags",association,"upsert");
-        let fields = association_event.record.as_ref().unwrap().as_object().unwrap();
-        assert!(fields.contains_key("file_id_sync_id")); assert!(!fields.contains_key("file_id")); assert!(!fields.contains_key("tag_id"));
-        apply(&target,&event(&source,"tags",tag,"upsert"),1);
-        apply(&target,&library(&source,source_file),2);
-        apply(&target,&association_event,3);
-        let target_file = local_id_for(&target,"files",&sync_id_for(&source,"files",source_file).unwrap()).unwrap().unwrap();
-        assert_ne!(target_file,source_file); assert_eq!(tags::file_tags(&target,target_file).unwrap()[0].name,"Podcast");
-        tags::replace_file_tags(&source,source_file,&[],&[]).unwrap();
-        apply(&target,&event(&source,"file_tags",association,"delete"),4);
-        assert!(tags::file_tags(&target,target_file).unwrap().is_empty());
-        tags::replace_file_tags(&source,source_file,&[tag],&[]).unwrap();
-        let new_association: i64 = source.query_row("SELECT id FROM file_tags",[],|r|r.get(0)).unwrap();
-        assert_eq!(sync_id_for(&source,"file_tags",new_association).unwrap(),association_event.sync_id);
-        apply(&target,&event(&source,"file_tags",new_association,"upsert"),5);
-        assert_eq!(tags::file_tags(&target,target_file).unwrap().len(),1);
-        tags::rename(&source,tag,"Audio").unwrap(); apply(&target,&event(&source,"tags",tag,"upsert"),6);
-        assert_eq!(tags::file_tags(&target,target_file).unwrap()[0].name,"Audio");
-        mark_uploaded(&source); mark_uploaded(&target);
-        let deletion = event(&source,"tags",tag,"delete");
-        source.execute("DELETE FROM tags WHERE id=?1",[tag]).unwrap(); apply(&target,&deletion,7);
-        assert!(tags::file_tags(&target,target_file).unwrap().is_empty());
-        assert!(!apply_entity_event(&target,&association_event,"00000000000000000008:00000000:test").unwrap());
-        assert_eq!(target.query_row("SELECT COUNT(*) FROM files",[],|r|r.get::<_,i64>(0)).unwrap(),2);
+        let (_dir, source) = db();
+        let (_dir2, target) = db();
+        let source_file = file(&source, "shared");
+        file(&target, "other");
+        tags::ensure_tag(&target, "Other").unwrap();
+        let tag = tags::ensure_tag(&source, " Podcast ").unwrap();
+        tags::replace_file_tags(&source, source_file, &[tag], &[]).unwrap();
+        let association: i64 = source
+            .query_row("SELECT id FROM file_tags", [], |r| r.get(0))
+            .unwrap();
+        let association_event = event(&source, "file_tags", association, "upsert");
+        let fields = association_event
+            .record
+            .as_ref()
+            .unwrap()
+            .as_object()
+            .unwrap();
+        assert!(fields.contains_key("file_id_sync_id"));
+        assert!(!fields.contains_key("file_id"));
+        assert!(!fields.contains_key("tag_id"));
+        apply(&target, &event(&source, "tags", tag, "upsert"), 1);
+        apply(&target, &library(&source, source_file), 2);
+        apply(&target, &association_event, 3);
+        let target_file = local_id_for(
+            &target,
+            "files",
+            &sync_id_for(&source, "files", source_file).unwrap(),
+        )
+        .unwrap()
+        .unwrap();
+        assert_ne!(target_file, source_file);
+        assert_eq!(
+            tags::file_tags(&target, target_file).unwrap()[0].name,
+            "Podcast"
+        );
+        tags::replace_file_tags(&source, source_file, &[], &[]).unwrap();
+        apply(
+            &target,
+            &event(&source, "file_tags", association, "delete"),
+            4,
+        );
+        assert!(tags::file_tags(&target, target_file).unwrap().is_empty());
+        tags::replace_file_tags(&source, source_file, &[tag], &[]).unwrap();
+        let new_association: i64 = source
+            .query_row("SELECT id FROM file_tags", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(
+            sync_id_for(&source, "file_tags", new_association).unwrap(),
+            association_event.sync_id
+        );
+        apply(
+            &target,
+            &event(&source, "file_tags", new_association, "upsert"),
+            5,
+        );
+        assert_eq!(tags::file_tags(&target, target_file).unwrap().len(), 1);
+        tags::rename(&source, tag, "Audio").unwrap();
+        apply(&target, &event(&source, "tags", tag, "upsert"), 6);
+        assert_eq!(
+            tags::file_tags(&target, target_file).unwrap()[0].name,
+            "Audio"
+        );
+        mark_uploaded(&source);
+        mark_uploaded(&target);
+        let deletion = event(&source, "tags", tag, "delete");
+        source
+            .execute("DELETE FROM tags WHERE id=?1", [tag])
+            .unwrap();
+        apply(&target, &deletion, 7);
+        assert!(tags::file_tags(&target, target_file).unwrap().is_empty());
+        assert!(!apply_entity_event(
+            &target,
+            &association_event,
+            "00000000000000000008:00000000:test"
+        )
+        .unwrap());
+        assert_eq!(
+            target
+                .query_row("SELECT COUNT(*) FROM files", [], |r| r.get::<_, i64>(0))
+                .unwrap(),
+            2
+        );
     }
 
     #[test]
     fn offline_same_name_tags_and_same_association_converge() {
-        let (_dir,source) = db(); let (_dir2,target) = db();
-        let file_id = file(&source,"shared"); apply(&target,&library(&source,file_id),1);
-        let local_file = local_id_for(&target,"files",&sync_id_for(&source,"files",file_id).unwrap()).unwrap().unwrap();
-        let remote_tag = tags::ensure_tag(&source,"podcast").unwrap(); let local_tag = tags::ensure_tag(&target,"PODCAST").unwrap();
-        tags::replace_file_tags(&source,file_id,&[remote_tag],&[]).unwrap(); tags::replace_file_tags(&target,local_file,&[local_tag],&[]).unwrap();
-        apply(&target,&event(&source,"tags",remote_tag,"upsert"),2);
-        let relation = source.query_row("SELECT id FROM file_tags",[],|r|r.get(0)).unwrap();
-        apply(&target,&event(&source,"file_tags",relation,"upsert"),3);
-        assert_eq!(target.query_row("SELECT COUNT(*) FROM tags",[],|r|r.get::<_,i64>(0)).unwrap(),1);
-        assert_eq!(target.query_row("SELECT COUNT(*) FROM file_tags",[],|r|r.get::<_,i64>(0)).unwrap(),1);
-        assert_eq!(local_id_for(&target,"tags",&sync_id_for(&source,"tags",remote_tag).unwrap()).unwrap(),Some(local_tag));
+        let (_dir, source) = db();
+        let (_dir2, target) = db();
+        let file_id = file(&source, "shared");
+        apply(&target, &library(&source, file_id), 1);
+        let local_file = local_id_for(
+            &target,
+            "files",
+            &sync_id_for(&source, "files", file_id).unwrap(),
+        )
+        .unwrap()
+        .unwrap();
+        let remote_tag = tags::ensure_tag(&source, "podcast").unwrap();
+        let local_tag = tags::ensure_tag(&target, "PODCAST").unwrap();
+        tags::replace_file_tags(&source, file_id, &[remote_tag], &[]).unwrap();
+        tags::replace_file_tags(&target, local_file, &[local_tag], &[]).unwrap();
+        apply(&target, &event(&source, "tags", remote_tag, "upsert"), 2);
+        let relation = source
+            .query_row("SELECT id FROM file_tags", [], |r| r.get(0))
+            .unwrap();
+        apply(&target, &event(&source, "file_tags", relation, "upsert"), 3);
+        assert_eq!(
+            target
+                .query_row("SELECT COUNT(*) FROM tags", [], |r| r.get::<_, i64>(0))
+                .unwrap(),
+            1
+        );
+        assert_eq!(
+            target
+                .query_row("SELECT COUNT(*) FROM file_tags", [], |r| r.get::<_, i64>(0))
+                .unwrap(),
+            1
+        );
+        assert_eq!(
+            local_id_for(
+                &target,
+                "tags",
+                &sync_id_for(&source, "tags", remote_tag).unwrap()
+            )
+            .unwrap(),
+            Some(local_tag)
+        );
         mark_uploaded(&target);
-        apply(&target,&event(&source,"tags",remote_tag,"delete"),4);
-        assert!(tags::file_tags(&target,local_file).unwrap().is_empty());
-        let canonical = sync_id_for(&target,"tags",local_tag).unwrap();
+        apply(&target, &event(&source, "tags", remote_tag, "delete"), 4);
+        assert!(tags::file_tags(&target, local_file).unwrap().is_empty());
+        let canonical = sync_id_for(&target, "tags", local_tag).unwrap();
         assert_eq!(target.query_row("SELECT COUNT(*) FROM sync_changes WHERE table_name='tags' AND sync_id=?1 AND operation='delete' AND uploaded_at IS NULL",[canonical],|r|r.get::<_,i64>(0)).unwrap(),1);
     }
 
     #[test]
     fn unknown_tag_tombstones_are_remembered_and_newer_recreation_is_allowed() {
-        let (_dir,conn) = db();
-        for id in ["gone-one","gone-two"] {
-            let event = EntityEvent { version:1,table_name:"tags".into(),sync_id:id.into(),operation:"delete".into(),record:None };
-            apply(&conn,&event,5);
+        let (_dir, conn) = db();
+        for id in ["gone-one", "gone-two"] {
+            let event = EntityEvent {
+                version: 1,
+                table_name: "tags".into(),
+                sync_id: id.into(),
+                operation: "delete".into(),
+                record: None,
+            };
+            apply(&conn, &event, 5);
         }
         assert_eq!(conn.query_row("SELECT COUNT(*) FROM sync_entity_state WHERE table_name='tags' AND deleted_at IS NOT NULL",[],|r|r.get::<_,i64>(0)).unwrap(),2);
-        let event = EntityEvent { version:1,table_name:"tags".into(),sync_id:"gone-one".into(),operation:"upsert".into(),record:Some(serde_json::json!({"name":"Restored","created_at":1})) };
-        assert!(!apply_entity_event(&conn,&event,"00000000000000000004:00000000:test").unwrap());
-        apply(&conn,&event,6);
-        assert_eq!(conn.query_row("SELECT COUNT(*) FROM tags",[],|r|r.get::<_,i64>(0)).unwrap(),1);
+        let event = EntityEvent {
+            version: 1,
+            table_name: "tags".into(),
+            sync_id: "gone-one".into(),
+            operation: "upsert".into(),
+            record: Some(serde_json::json!({"name":"Restored","created_at":1})),
+        };
+        assert!(!apply_entity_event(&conn, &event, "00000000000000000004:00000000:test").unwrap());
+        apply(&conn, &event, 6);
+        assert_eq!(
+            conn.query_row("SELECT COUNT(*) FROM tags", [], |r| r.get::<_, i64>(0))
+                .unwrap(),
+            1
+        );
     }
 
     #[test]
     fn enrollment_preserves_portable_association_identity_on_readd() {
-        let (_dir,conn) = db();
-        let file_id = file(&conn,"shared"); let tag = tags::ensure_tag(&conn,"Study").unwrap();
-        tags::replace_file_tags(&conn,file_id,&[tag],&[]).unwrap();
-        stabilize_sync_ids(&conn,&[3;32]).unwrap();
-        let id: i64 = conn.query_row("SELECT id FROM file_tags",[],|r|r.get(0)).unwrap();
-        let identity = sync_id_for(&conn,"file_tags",id).unwrap();
-        assert!(identity.len()<=128);
-        tags::replace_file_tags(&conn,file_id,&[],&[]).unwrap();
-        tags::replace_file_tags(&conn,file_id,&[tag],&[]).unwrap();
-        let next: i64 = conn.query_row("SELECT id FROM file_tags",[],|r|r.get(0)).unwrap();
-        assert_eq!(sync_id_for(&conn,"file_tags",next).unwrap(),identity);
+        let (_dir, conn) = db();
+        let file_id = file(&conn, "shared");
+        let tag = tags::ensure_tag(&conn, "Study").unwrap();
+        tags::replace_file_tags(&conn, file_id, &[tag], &[]).unwrap();
+        stabilize_sync_ids(&conn, &[3; 32]).unwrap();
+        let id: i64 = conn
+            .query_row("SELECT id FROM file_tags", [], |r| r.get(0))
+            .unwrap();
+        let identity = sync_id_for(&conn, "file_tags", id).unwrap();
+        assert!(identity.len() <= 128);
+        tags::replace_file_tags(&conn, file_id, &[], &[]).unwrap();
+        tags::replace_file_tags(&conn, file_id, &[tag], &[]).unwrap();
+        let next: i64 = conn
+            .query_row("SELECT id FROM file_tags", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(sync_id_for(&conn, "file_tags", next).unwrap(), identity);
     }
 
     #[test]
     fn concurrent_rename_collision_preserves_and_tracks_all_associations() {
-        let (_dir,source) = db(); let (_dir2,target) = db();
-        let source_file = file(&source,"remote"); apply(&target,&library(&source,source_file),1);
-        let original = tags::ensure_tag(&source,"Original").unwrap(); apply(&target,&event(&source,"tags",original,"upsert"),2);
-        let original_local = local_id_for(&target,"tags",&sync_id_for(&source,"tags",original).unwrap()).unwrap().unwrap();
-        let first = file(&target,"one"); let second = file(&target,"two");
-        tags::replace_file_tags(&target,first,&[original_local],&[]).unwrap();
-        let existing = tags::ensure_tag(&target,"Same").unwrap(); tags::replace_file_tags(&target,second,&[existing],&[]).unwrap();
-        tags::rename(&source,original,"Same").unwrap(); apply(&target,&event(&source,"tags",original,"upsert"),3);
-        assert_eq!(tags::file_tags(&target,first).unwrap()[0].id,existing);
-        assert_eq!(tags::file_tags(&target,second).unwrap()[0].id,existing);
+        let (_dir, source) = db();
+        let (_dir2, target) = db();
+        let source_file = file(&source, "remote");
+        apply(&target, &library(&source, source_file), 1);
+        let original = tags::ensure_tag(&source, "Original").unwrap();
+        apply(&target, &event(&source, "tags", original, "upsert"), 2);
+        let original_local = local_id_for(
+            &target,
+            "tags",
+            &sync_id_for(&source, "tags", original).unwrap(),
+        )
+        .unwrap()
+        .unwrap();
+        let first = file(&target, "one");
+        let second = file(&target, "two");
+        tags::replace_file_tags(&target, first, &[original_local], &[]).unwrap();
+        let existing = tags::ensure_tag(&target, "Same").unwrap();
+        tags::replace_file_tags(&target, second, &[existing], &[]).unwrap();
+        tags::rename(&source, original, "Same").unwrap();
+        apply(&target, &event(&source, "tags", original, "upsert"), 3);
+        assert_eq!(tags::file_tags(&target, first).unwrap()[0].id, existing);
+        assert_eq!(tags::file_tags(&target, second).unwrap()[0].id, existing);
         assert_eq!(target.query_row("SELECT COUNT(*) FROM file_tags ft JOIN sync_entity_state s ON s.table_name='file_tags' AND s.local_id=ft.id AND s.deleted_at IS NULL",[],|r|r.get::<_,i64>(0)).unwrap(),2);
-        assert_eq!(local_id_for(&target,"tags",&sync_id_for(&source,"tags",original).unwrap()).unwrap(),Some(existing));
+        assert_eq!(
+            local_id_for(
+                &target,
+                "tags",
+                &sync_id_for(&source, "tags", original).unwrap()
+            )
+            .unwrap(),
+            Some(existing)
+        );
     }
 
     #[test]
     fn legacy_cloud_paths_convert_but_do_not_overwrite_later_tag_edits() {
-        let (_dir,source) = db(); let (_dir2,target) = db();
+        let (_dir, source) = db();
+        let (_dir2, target) = db();
         source.execute_batch("INSERT INTO folders(id,name,parent_id,created_at) VALUES(1,'Language',NULL,1),(2,'Podcast',1,2);").unwrap();
         // Legacy folder identities are retained for reading old encrypted records.
-        for id in [1,2] { mark_state(&source,"folders",id,&format!("folder-{id}"),"1",false).unwrap(); }
-        let source_file = file(&source,"legacy"); source.execute("UPDATE files SET folder_id=2 WHERE id=?1",[source_file]).unwrap();
-        apply(&target,&event(&source,"folders",1,"upsert"),1); apply(&target,&event(&source,"folders",2,"upsert"),2);
-        let mut snapshot = library(&source,source_file);
-        let legacy_file = snapshot.record.as_mut().unwrap().get_mut("file").unwrap().as_object_mut().unwrap();
-        legacy_file.remove("tag_model"); legacy_file.insert("folder_id_sync_id".into(),serde_json::json!("folder-2"));
-        apply(&target,&snapshot,3); tags::migrate_legacy(&target).unwrap();
-        let local_file = local_id_for(&target,"files",&snapshot.sync_id).unwrap().unwrap();
-        assert_eq!(tags::file_tags(&target,local_file).unwrap()[0].name,"Language / Podcast");
-        tags::replace_file_tags(&target,local_file,&[],&[]).unwrap();
-        mark_uploaded(&target); apply(&target,&snapshot,4); tags::migrate_legacy(&target).unwrap();
-        assert!(tags::file_tags(&target,local_file).unwrap().is_empty());
-        assert_eq!(entity_order("tags"),0); assert!(entity_order("file_tags")>entity_order("library_item"));
+        for id in [1, 2] {
+            mark_state(&source, "folders", id, &format!("folder-{id}"), "1", false).unwrap();
+        }
+        let source_file = file(&source, "legacy");
+        source
+            .execute("UPDATE files SET folder_id=2 WHERE id=?1", [source_file])
+            .unwrap();
+        apply(&target, &event(&source, "folders", 1, "upsert"), 1);
+        apply(&target, &event(&source, "folders", 2, "upsert"), 2);
+        let mut snapshot = library(&source, source_file);
+        let legacy_file = snapshot
+            .record
+            .as_mut()
+            .unwrap()
+            .get_mut("file")
+            .unwrap()
+            .as_object_mut()
+            .unwrap();
+        legacy_file.remove("tag_model");
+        legacy_file.insert("folder_id_sync_id".into(), serde_json::json!("folder-2"));
+        apply(&target, &snapshot, 3);
+        tags::migrate_legacy(&target).unwrap();
+        let local_file = local_id_for(&target, "files", &snapshot.sync_id)
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            tags::file_tags(&target, local_file).unwrap()[0].name,
+            "Language / Podcast"
+        );
+        tags::replace_file_tags(&target, local_file, &[], &[]).unwrap();
+        mark_uploaded(&target);
+        apply(&target, &snapshot, 4);
+        tags::migrate_legacy(&target).unwrap();
+        assert!(tags::file_tags(&target, local_file).unwrap().is_empty());
+        assert_eq!(entity_order("tags"), 0);
+        assert!(entity_order("file_tags") > entity_order("library_item"));
     }
 }

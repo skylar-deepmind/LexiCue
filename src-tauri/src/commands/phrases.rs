@@ -63,7 +63,11 @@ fn query_phrases(
     };
 
     let mut rows: Vec<PhraseInfo> = Vec::new();
-    let occurrence_table = if include_unverified { "phrase_occurrences" } else { "study_phrase_occurrences" };
+    let occurrence_table = if include_unverified {
+        "phrase_occurrences"
+    } else {
+        "study_phrase_occurrences"
+    };
 
     match status_filter {
         Some(s) => {
@@ -213,7 +217,9 @@ pub fn phrase_detail(state: State<DbState>, phrase_id: i64) -> Result<PhraseDeta
                     file_name: row.get(9)?,
                     hidden: row.get(10)?,
                     surface_text: row.get(11)?,
-                    token_positions: row.get::<_, Option<String>>(12)?.and_then(|value| serde_json::from_str(&value).ok()),
+                    token_positions: row
+                        .get::<_, Option<String>>(12)?
+                        .and_then(|value| serde_json::from_str(&value).ok()),
                     meaning_zh: row.get(13)?,
                     usage_zh: row.get(14)?,
                     meaning_edited: row.get::<_, i64>(15)? != 0,
@@ -221,7 +227,9 @@ pub fn phrase_detail(state: State<DbState>, phrase_id: i64) -> Result<PhraseDeta
                     usage_en: row.get(17)?,
                     meaning_en_edited: row.get::<_, i64>(18)? != 0,
                     collins_sense_id: row.get(19)?,
-                    expression_metadata: row.get::<_, Option<String>>(20)?.and_then(|raw|serde_json::from_str(&raw).ok()),
+                    expression_metadata: row
+                        .get::<_, Option<String>>(20)?
+                        .and_then(|raw| serde_json::from_str(&raw).ok()),
                 })
             })
             .map_err(|e| e.to_string())?;
@@ -247,27 +255,40 @@ pub fn update_phrase_occurrence_meaning(
     usage_zh: String,
 ) -> Result<(), String> {
     let meaning = meaning_zh.trim();
-    if meaning.is_empty() { return Err("本句义不能为空".to_string()); }
+    if meaning.is_empty() {
+        return Err("本句义不能为空".to_string());
+    }
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
-    let changed = conn.execute(
-        "UPDATE phrase_occurrences SET meaning_zh=?1,usage_zh=?2,meaning_edited=1 WHERE id=?3",
-        params![meaning, usage_zh.trim(), occurrence_id],
-    ).map_err(|e| e.to_string())?;
-    if changed == 0 { return Err("词组出现位置不存在".to_string()); }
+    let changed = conn
+        .execute(
+            "UPDATE phrase_occurrences SET meaning_zh=?1,usage_zh=?2,meaning_edited=1 WHERE id=?3",
+            params![meaning, usage_zh.trim(), occurrence_id],
+        )
+        .map_err(|e| e.to_string())?;
+    if changed == 0 {
+        return Err("词组出现位置不存在".to_string());
+    }
     Ok(())
 }
 
 #[tauri::command]
 pub fn update_phrase_occurrence_meaning_en(
-    state: State<DbState>, occurrence_id: i64, meaning_en: String, usage_en: String,
+    state: State<DbState>,
+    occurrence_id: i64,
+    meaning_en: String,
+    usage_en: String,
 ) -> Result<(), String> {
-    if meaning_en.trim().is_empty() { return Err("Context meaning cannot be empty".into()); }
+    if meaning_en.trim().is_empty() {
+        return Err("Context meaning cannot be empty".into());
+    }
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
     let changed = conn.execute(
         "UPDATE phrase_occurrences SET meaning_en=?1,usage_en=?2,meaning_en_edited=1,collins_sense_id=NULL WHERE id=?3",
         params![meaning_en.trim(), usage_en.trim(), occurrence_id],
     ).map_err(|e| e.to_string())?;
-    if changed == 0 { return Err("Phrase occurrence not found".into()); }
+    if changed == 0 {
+        return Err("Phrase occurrence not found".into());
+    }
     Ok(())
 }
 
@@ -298,7 +319,6 @@ pub fn update_phrase_status(
     let tx = conn.unchecked_transaction().map_err(|e| e.to_string())?;
     super::annotations::save_status(&tx, "phrase", phrase_id, &status)?;
     tx.commit().map_err(|e| e.to_string())
-
 }
 
 #[tauri::command]
@@ -457,7 +477,8 @@ pub fn get_file_phrases(state: State<DbState>, file_id: i64) -> Result<Vec<Segme
             position,
             segment_index,
             word_count,
-            token_positions: token_positions_json.and_then(|value| serde_json::from_str(&value).ok()),
+            token_positions: token_positions_json
+                .and_then(|value| serde_json::from_str(&value).ok()),
         });
     }
 
@@ -473,15 +494,32 @@ mod study_list_tests {
         let dir = tempfile::tempdir().unwrap();
         let conn = crate::db::init_db(&dir.path().join("phrases.db")).unwrap();
         conn.execute("INSERT INTO files(name,type,content,content_hash,imported_at) VALUES('one.txt','txt','I picked it up.','h',1)", []).unwrap();
-        conn.execute("INSERT INTO segments(file_id,index_num,en_text) VALUES(1,0,'I picked it up.')", []).unwrap();
-        conn.execute("INSERT INTO phrases(text) VALUES('pick up')", []).unwrap();
-        conn.execute("INSERT INTO phrase_occurrences(phrase_id,segment_id,position) VALUES(1,1,1)", []).unwrap();
+        conn.execute(
+            "INSERT INTO segments(file_id,index_num,en_text) VALUES(1,0,'I picked it up.')",
+            [],
+        )
+        .unwrap();
+        conn.execute("INSERT INTO phrases(text) VALUES('pick up')", [])
+            .unwrap();
+        conn.execute(
+            "INSERT INTO phrase_occurrences(phrase_id,segment_id,position) VALUES(1,1,1)",
+            [],
+        )
+        .unwrap();
         conn.execute("INSERT INTO file_phrase_analysis(file_id,model,completed_at,pipeline_version,collins_evidence_available) VALUES(1,'test',1,3,1)", []).unwrap();
-        assert!(query_phrases(&conn, Some("unprocessed"), None, Some("en"), false).unwrap().is_empty());
+        assert!(
+            query_phrases(&conn, Some("unprocessed"), None, Some("en"), false)
+                .unwrap()
+                .is_empty()
+        );
         let candidates = query_phrases(&conn, Some("unprocessed"), None, Some("en"), true).unwrap();
         assert_eq!(candidates.len(), 1);
         assert!(candidates[0].unverified);
-        conn.execute("UPDATE phrase_occurrences SET collins_sense_id=4 WHERE id=1", []).unwrap();
+        conn.execute(
+            "UPDATE phrase_occurrences SET collins_sense_id=4 WHERE id=1",
+            [],
+        )
+        .unwrap();
         let verified = query_phrases(&conn, Some("unprocessed"), None, Some("en"), false).unwrap();
         assert_eq!(verified.len(), 1);
         assert!(!verified[0].unverified);

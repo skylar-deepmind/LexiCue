@@ -56,7 +56,9 @@ pub struct OccurrenceInput {
     pub word_kind: String,
 }
 
-fn default_word_kind() -> String { "common".to_string() }
+fn default_word_kind() -> String {
+    "common".to_string()
+}
 
 #[derive(Deserialize)]
 pub struct PhraseOccurrenceInput {
@@ -395,12 +397,22 @@ pub fn import_payload(conn: &rusqlite::Connection, payload: ImportPayload) -> Re
 
         {
             let mut stmt = conn
-                .prepare("INSERT OR IGNORE INTO words (language, lemma, word_kind) VALUES (?1, ?2, ?3)")
+                .prepare(
+                    "INSERT OR IGNORE INTO words (language, lemma, word_kind) VALUES (?1, ?2, ?3)",
+                )
                 .map_err(|e| e.to_string())?;
             for lemma in &payload.lemmas {
-                let kind = payload.occurrences.iter().filter(|item| &item.lemma == lemma)
+                let kind = payload
+                    .occurrences
+                    .iter()
+                    .filter(|item| &item.lemma == lemma)
                     .map(|item| item.word_kind.as_str())
-                    .min_by_key(|kind| match *kind { "common" => 0, "ambiguous" => 1, "proper_noun" => 2, _ => 3 })
+                    .min_by_key(|kind| match *kind {
+                        "common" => 0,
+                        "ambiguous" => 1,
+                        "proper_noun" => 2,
+                        _ => 3,
+                    })
                     .unwrap_or("common");
                 stmt.execute(params![payload.language, lemma, kind])
                     .map_err(|e| e.to_string())?;

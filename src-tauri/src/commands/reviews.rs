@@ -453,7 +453,9 @@ pub fn get_due_phrase_cards(
                             file_name: row.get(5)?,
                             original_form: row.get(6)?,
                             meaning_zh: row.get(7)?,
-                            token_positions: row.get::<_, Option<String>>(8)?.and_then(|value| serde_json::from_str(&value).ok()),
+                            token_positions: row
+                                .get::<_, Option<String>>(8)?
+                                .and_then(|value| serde_json::from_str(&value).ok()),
                             meaning_en: row.get(9)?,
                         })
                     })

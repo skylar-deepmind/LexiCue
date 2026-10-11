@@ -49,7 +49,13 @@ pub fn list_files(
     untagged: Option<bool>,
 ) -> Result<Vec<FileInfo>, String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
-    query_files(&conn, language.as_deref(), &tag_ids.unwrap_or_default(), untagged.unwrap_or(false)).map_err(|e| e.to_string())
+    query_files(
+        &conn,
+        language.as_deref(),
+        &tag_ids.unwrap_or_default(),
+        untagged.unwrap_or(false),
+    )
+    .map_err(|e| e.to_string())
 }
 
 pub(crate) fn query_files(
@@ -58,7 +64,10 @@ pub(crate) fn query_files(
     tag_ids: &[i64],
     untagged: bool,
 ) -> Result<Vec<FileInfo>, rusqlite::Error> {
-    let unique_ids = tag_ids.iter().copied().collect::<std::collections::BTreeSet<_>>();
+    let unique_ids = tag_ids
+        .iter()
+        .copied()
+        .collect::<std::collections::BTreeSet<_>>();
     let json_ids = serde_json::to_string(&unique_ids).unwrap();
     let mut stmt = conn
         .prepare(
