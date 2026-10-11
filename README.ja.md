@@ -1,73 +1,98 @@
-# LexiCue
+<p align="center"><img src="docs/lexicue-icon.png" width="88" alt="LexiCue"></p>
+<h1 align="center">LexiCue</h1>
+<p align="center"><strong>好きなものを読んで、使える言葉を覚える。</strong></p>
+<p align="center"><a href="README.md">English</a> · <a href="README.zh-CN.md">简体中文</a> · <a href="README.ja.md">日本語</a> · <a href="README.de.md">Deutsch</a></p>
 
-**好きなものを読んで、単語を覚える。**
+<p align="center">
+  <a href="https://github.com/skylar-deepmind/LexiCue/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/skylar-deepmind/LexiCue?style=flat-square&color=2563eb"></a>
+  <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-2563eb?style=flat-square"></a>
+  <a href="https://github.com/skylar-deepmind/LexiCue/actions/workflows/ci.yml"><img alt="CI status" src="https://github.com/skylar-deepmind/LexiCue/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/skylar-deepmind/LexiCue/releases/latest"><img alt="macOS, Windows, Android" src="https://img.shields.io/badge/platforms-macOS%20%7C%20Windows%20%7C%20Android-526177?style=flat-square"></a>
+  <a href="https://skylar-deepmind.github.io/LexiCue/ja/#feature-languages"><img alt="English, Japanese, German, Chinese" src="https://img.shields.io/badge/languages-EN%20%7C%20JA%20%7C%20DE%20%7C%20ZH-526177?style=flat-square"></a>
+</p>
 
-LexiCue は、無料・オープンソース・オフライン優先のリーディング学習ツールです。記事や本、映画・ドラマの字幕を読みながら、わからない単語をタップして意味を確認し、スマートな復習で単語をしっかり覚えられます。
+<p align="center"><a href="https://github.com/skylar-deepmind/LexiCue/releases/latest"><strong>無料でダウンロード</strong></a> · <a href="https://skylar-deepmind.github.io/LexiCue/ja/">使い方を見る</a> · <a href="DISTRIBUTION.md">インストールガイド</a></p>
 
-> [English Version](README.md) · [中文版](README.zh-CN.md)
+[![好きな素材から学ぶ](docs/media/demo/hero.gif)](https://skylar-deepmind.github.io/LexiCue/ja/#feature-import)
 
-## LexiCue はこんな人におすすめ
+## 自分の素材で言語を学ぶ
 
-- **英語・日本語・ドイツ語・中国語**を勉強している
-- 単語帳ではなく、記事や本、字幕などの**実際のコンテンツ**から学びたい
-- ドラマや映画を観ながら、出てきた単語を覚えたい
-- **プライバシー**を重視していて、アカウント登録やデータのアップロードを避けたい
-- **無料・オープンソース**で、**オフライン**でも使えるツールがほしい
+好きなSRT字幕を取り込みましょう。元の文で単語を調べて蓄積し、復習で記憶に残します。
 
-一つでも当てはまるなら、LexiCue はあなたのためのツールです。迷ったら試してみてください。インストールもアカウントも不要で、気軽に始められます。
+## シンプルな学習の流れ
 
-## 使い方
+1. **取り込む** — 好きな素材を取り込む。
+2. **読んで理解** — 文脈で単語を調べる。
+3. **蓄積** — 単語とフレーズを整理。
+4. **復習** — 間隔反復で復習する。
 
-1. **インポート** — `.txt` / `.srt` / `.vtt` ファイルを取り込むか、YouTube の字幕を取得
-2. **読む** — 一文ずつ読み、わからない単語をタップして意味や読みを確認。文字サイズも調整可能
-3. **蓄積** — 新しい単語とフレーズが自動的にリストに追加され、ファイルごとの学習進捗も確認可能
-4. **復習** — 忘れるギリギリのタイミングで、毎日数分だけお知らせ
+## 学習の流れを見る
+
+### 読書と単語検索
+
+[![読書と単語検索](docs/media/demo/lookup.gif)](https://skylar-deepmind.github.io/LexiCue/ja/#feature-lookup)
+
+文中の単語をタップして意味を確認。内蔵のオフライン辞書で読書を続けられます。
+
+### 文脈とフレーズ
+
+[![文脈とフレーズ](docs/media/demo/phrases.gif)](https://skylar-deepmind.github.io/LexiCue/ja/#feature-phrases)
+
+任意のAIで英語の表現と文中の用法を分析。Gemmaはモデルを別途取得してローカルで動作します。
+
+### 元の文で復習
+
+[![元の文で復習](docs/media/demo/review.gif)](https://skylar-deepmind.github.io/LexiCue/ja/#feature-review)
+
+元の文と一緒に単語やフレーズを復習。回答に応じて次の復習が決まります。
+
+> 実際のコンポーネントとオリジナルのサンプルを使用。AI結果は固定例で、同期は仕組みの説明です。
 
 ## 主な機能
 
-- **好きな内容から学ぶ** — 決められた単語帳ではなく、自分の記事・本・字幕で学習
-- **タップで調べる** — 意味・発音・例文を読書の流れを止めずに確認
-- **スマートな復習** — 間隔反復で、忘れる前に適切なタイミングでリマインド
-- **頻出語から始める** — 英語・中国語の頻出上位 1,000〜10,000 語を既知語として設定し、毎日少しずつ確認可能
-- **元のコンテンツに戻れる進捗** — 取り込んだファイルを開き、読書を続けながら単語・フレーズの学習進捗を確認
-- **内蔵のオフライン辞書** — 英語・日本語・ドイツ語・中国語、オフラインでも検索可能
-- **データは自分の手元に** — 学習記録は端末内に保存され、アカウント不要・デフォルトで送信なし
-- **AI はオプション** — 段落の説明や翻訳をしたいときにだけ有効化（デフォルト OFF）
-
-## プライバシー
-
-学習データは端末内のデータベースに保存されます。Gemma のローカル推論ではテキストを送信しません。クラウド AI を選んだ場合、対象テキストは設定した API に送信されます。モデルと YouTube 字幕のダウンロードには通信が必要です。
-
-ローカル AI は初期状態で無効です。設定から Gemma 4 E2B/E4B をダウンロードまたはインポートできます。Ollama は不要で、重みはインストーラーに含めません。検証状況は [内蔵 Gemma](docs/embedded-gemma.md) を参照してください。
+- **[好きな素材から学ぶ](https://skylar-deepmind.github.io/LexiCue/ja/#feature-import)** — SRT字幕を取り込み、内容と学習言語を確認できます。YouTubeから字幕を取得する入口もあります。
+- **[読む流れを止めずに調べる](https://skylar-deepmind.github.io/LexiCue/ja/#feature-lookup)** — 文中の単語をタップして意味を確認。内蔵のオフライン辞書で読書を続けられます。
+- **[表現を文脈で理解する](https://skylar-deepmind.github.io/LexiCue/ja/#feature-phrases)** — 任意のAIで英語の表現と文中の用法を分析。Gemmaはモデルを別途取得してローカルで動作します。
+- **[元の文章につながる語彙](https://skylar-deepmind.github.io/LexiCue/ja/#feature-collect)** — 絞り込み、タグ、学習状態で整理。一括または一つずつ注釈し、元の文に戻れます。
+- **[ちょうどよい時に、もう一度](https://skylar-deepmind.github.io/LexiCue/ja/#feature-review)** — 元の文と一緒に単語やフレーズを復習。回答に応じて次の復習が決まります。
+- **[学びの進み具合が見える](https://skylar-deepmind.github.io/LexiCue/ja/#feature-progress)** — 語彙の状態、7日間の復習、ファイルの学習指数を確認できます。
+- **[知っている単語から始める](https://skylar-deepmind.github.io/LexiCue/ja/#feature-baseline)** — 英語・中国語の頻出上位1,000〜10,000語を既知語に設定し、復習で少しずつ確認。
+- **[4言語、自分らしい読み方](https://skylar-deepmind.github.io/LexiCue/ja/#feature-languages)** — 英語、日本語、ドイツ語、中国語。かな、ピンイン、語形処理に対応し、明るいテーマとmidnightを選べます。
+- **[学習データは自分の手元に](https://skylar-deepmind.github.io/LexiCue/ja/#feature-privacy)** — 記録は端末内に保存。バックアップの書き出しと復元ができ、ローカル学習にアカウントは不要です。
+- **[別のデバイスでも続きを](https://skylar-deepmind.github.io/LexiCue/ja/#feature-sync)** — 任意のエンドツーエンド暗号化同期でPCとスマートフォンを接続。アニメーションは仕組みの説明です。
 
 ## ダウンロードとインストール
 
-最新の **macOS / Windows / Android** インストーラーは [Releases ページ](https://github.com/skylar-deepmind/LexiCue/releases/latest) から入手できます。
+macOS、Windows、Android対応。アプリをインストールして、好きな素材から始めましょう。
 
-> 現在のインストーラーは**未署名**のため、初回インストール時にシステムからセキュリティ警告が表示される場合がありますが、正常な動作です。詳しくは [DISTRIBUTION.md](DISTRIBUTION.md) をご覧ください。
+[**無料でダウンロード — macOS / Windows / Android**](https://github.com/skylar-deepmind/LexiCue/releases/latest)
 
-## プロジェクトを支援する
+インストーラーは未署名です。初回起動はインストールガイドを参照。Gemmaモデルは別途取得します。 [インストールガイド](DISTRIBUTION.md).
 
-LexiCue は無料のオープンソースプロジェクトです。役に立ったと思ったら、作者を**愛発電（Aifadian）**で応援していただけますと嬉しいです：
+Gemma: [E2B / E4B](docs/embedded-gemma.md).
 
-👉 [https://www.ifdian.net/a/skylar-lexicue](https://www.ifdian.net/a/skylar-lexicue)
+## プライバシーと任意の接続
 
-GitHub での Star も大きな励みになります：[github.com/skylar-deepmind/LexiCue](https://github.com/skylar-deepmind/LexiCue)
+読書・辞書・復習はローカルで動作。YouTube字幕やAIモデルの取得には通信が必要です。任意のクラウドAIは選択した文章を設定済みAPIへ送り、同期では暗号化した記録をアップロードします。
+
+## プロジェクトを支援
+
+[作者を支援 — 爱发电 / Aifadian](https://www.ifdian.net/a/skylar-lexicue) · [GitHub Star](https://github.com/skylar-deepmind/LexiCue)
 
 ## 開発
 
-コントリビューター向け。Node.js 20+、安定版 Rust、CMake 3.22+、C++17 ツールチェーンが必要です。初回の起動時に固定バージョンの推論エンジンを取得します。モデルの重みは取得しません。
+Node.js 22.12+ · Rust · CMake 3.22+ · C++17. [Gemma](docs/embedded-gemma.md).
 
-```bash
-npm install        # フロントエンドの依存関係をインストール
-npm run tauri dev  # デスクトップアプリとして起動
-npm run build      # 型チェック + フロントエンドのビルド
-npm test           # フロントエンドのテスト
-cd src-tauri && cargo test   # Rust のテスト
+```sh
+npm install
+npm run tauri dev
+npm run build
+npm test
+cd src-tauri && cargo test
 ```
 
-インストーラーのビルド：`npm run tauri build`（出力先は `src-tauri/target/release/bundle/`）。
+[Marketing / README / Website / Video](marketing/README.md)
 
 ## ライセンス
 
-MIT License。詳細は [LICENSE](LICENSE) を参照。内蔵辞書データのサードパーティ表示は [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)、カスタム辞書パックの形式は [DICTIONARY_PACK.md](DICTIONARY_PACK.md) を参照してください。
+[MIT](LICENSE) · [Third-party notices](THIRD-PARTY-NOTICES.md) · [Dictionary packs](DICTIONARY_PACK.md)

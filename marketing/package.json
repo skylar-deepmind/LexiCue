@@ -1,0 +1,47 @@
+{
+  "name": "lexicue-marketing",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 4180",
+    "build": "node scripts/build.mjs",
+    "check": "node scripts/check.mjs",
+    "test:ui": "node scripts/experience-qa.mjs",
+    "render": "node scripts/render.mjs",
+    "assets": "node scripts/assets.mjs",
+    "test": "node --test scripts/demo-model.test.mjs scripts/home-locale.test.mjs",
+    "assets:import": "node scripts/import-assets.mjs",
+    "assets:guide": "node scripts/guide-assets.mjs",
+    "assets:readme-gifs": "node scripts/readme-gifs.mjs",
+    "test:states": "node scripts/interaction-states.mjs",
+    "test:home": "node scripts/home-revision-qa.mjs",
+    "test:contrast": "node scripts/home-contrast-qa.mjs",
+    "test:drawers": "node scripts/drawer-qa.mjs",
+    "test:locales": "node scripts/home-locale-qa.mjs",
+    "test:manual": "node scripts/manual-qa.mjs",
+    "preview:video": "node scripts/video-preview.mjs",
+    "test:video-preview": "node scripts/video-preview-qa.mjs",
+    "render:video-final": "node scripts/video-final.mjs",
+    "check:video-final": "node scripts/video-final-verify.mjs",
+    "deliver:video-final": "node scripts/video-final-delivery.mjs"
+  },
+  "dependencies": {
+    "@remotion/bundler": "4.0.534",
+    "@remotion/player": "4.0.534",
+    "@remotion/renderer": "4.0.534",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "remotion": "4.0.534"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "4.3.3",
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "6.0.4",
+    "playwright": "1.62.1",
+    "sharp": "^0.35.5",
+    "typescript": "~6.0.2",
+    "vite": "8.2.0"
+  }
+}

@@ -1,73 +1,98 @@
-# LexiCue
+<p align="center"><img src="docs/lexicue-icon.png" width="88" alt="LexiCue"></p>
+<h1 align="center">LexiCue</h1>
+<p align="center"><strong>Read what you love. Remember the words.</strong></p>
+<p align="center"><a href="README.md">English</a> · <a href="README.zh-CN.md">简体中文</a> · <a href="README.ja.md">日本語</a> · <a href="README.de.md">Deutsch</a></p>
 
-**Read what you love. Remember the words.**
+<p align="center">
+  <a href="https://github.com/skylar-deepmind/LexiCue/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/skylar-deepmind/LexiCue?style=flat-square&color=2563eb"></a>
+  <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-2563eb?style=flat-square"></a>
+  <a href="https://github.com/skylar-deepmind/LexiCue/actions/workflows/ci.yml"><img alt="CI status" src="https://github.com/skylar-deepmind/LexiCue/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/skylar-deepmind/LexiCue/releases/latest"><img alt="macOS, Windows, Android" src="https://img.shields.io/badge/platforms-macOS%20%7C%20Windows%20%7C%20Android-526177?style=flat-square"></a>
+  <a href="https://skylar-deepmind.github.io/LexiCue/#feature-languages"><img alt="English, Japanese, German, Chinese" src="https://img.shields.io/badge/languages-EN%20%7C%20JA%20%7C%20DE%20%7C%20ZH-526177?style=flat-square"></a>
+</p>
 
-LexiCue is a free, open-source, local-first reading tool that builds vocabulary while you read. Import an article, a book, or movie subtitles — tap any word to see its meaning on the spot, and let smart review make it stick.
+<p align="center"><a href="https://github.com/skylar-deepmind/LexiCue/releases/latest"><strong>Download free</strong></a> · <a href="https://skylar-deepmind.github.io/LexiCue/">See it in action</a> · <a href="DISTRIBUTION.md">Installation guide</a></p>
 
-> [中文版](README.zh-CN.md) · [日本語版](README.ja.md)
+[![Bring your own content](docs/media/demo/hero.gif)](https://skylar-deepmind.github.io/LexiCue/#feature-import)
 
-## Is LexiCue for you?
+## Learn from your own content
 
-- You are learning **English, Japanese, German, or Chinese**
-- You prefer learning from **real content** — articles, books, subtitles — over word lists
-- You watch shows or movies and want to learn the words that come up
-- You care about **privacy** and don't want to register an account or upload your data
-- You want a **free, open-source** tool that works **offline**
+Import SRT subtitles you enjoy. Look up words in their original sentences, collect vocabulary and remember it through review.
 
-If any of these sound like you, LexiCue is built for you. If not, you'll know in a minute — there's nothing to install, no account, and nothing to lose by trying.
+## A simple learning loop
 
-## How to use it
+1. **Import** — Bring content you enjoy.
+2. **Read & understand** — Look up words in context.
+3. **Collect** — Organize words and phrases.
+4. **Review** — Let spaced repetition guide you.
 
-1. **Import** — drop in a `.txt`, `.srt`, or `.vtt` file, or pull YouTube subtitles
-2. **Read** — read line by line, tap any word for its meaning and reading, and adjust text sizes to suit you
-3. **Collect** — new words and phrases are gathered into your word list automatically; file views show their learning progress
-4. **Review** — LexiCue reminds you at just the right time, a few minutes a day
+## Watch the workflow
 
-## Features at a glance
+### Reading & lookup
 
-- **Learn from what you love** — your own articles, books, and subtitles, not a preset word list
-- **Tap-to-look-up** — meaning, pronunciation, and example sentence without losing your place
-- **Smart review** — spaced repetition that nudges you right before you forget
-- **Start with familiar high-frequency words** — optionally mark the top 1,000–10,000 English or Chinese words as known, then verify a few each day
-- **Progress you can trace back to the source** — open an imported file to keep reading and see its word and phrase progress
-- **Built-in offline dictionaries** — English, Japanese, German, and Chinese, no internet needed
-- **Your data stays yours** — everything is saved locally, no account or upload required
-- **AI is optional** — paragraph explanations and translations if you want them, off by default
+[![Reading & lookup](docs/media/demo/lookup.gif)](https://skylar-deepmind.github.io/LexiCue/#feature-lookup)
 
-## Privacy
+Tap a word without leaving the sentence. Built-in offline dictionaries keep reading flowing.
 
-All your study data is stored in a local database on your device. Gemma inference runs on your device after a separate model download. Cloud AI sends the selected text only when you choose a cloud API; YouTube subtitle downloads also require a network connection.
+### Context & phrases
+
+[![Context & phrases](docs/media/demo/phrases.gif)](https://skylar-deepmind.github.io/LexiCue/#feature-phrases)
+
+Optional AI identifies English expressions and explains their use in the original sentence. Gemma runs locally after a separate download.
+
+### Review with original sentences
+
+[![Review with original sentences](docs/media/demo/review.gif)](https://skylar-deepmind.github.io/LexiCue/#feature-review)
+
+Review words and phrases with their original sentences. Your answers shape the spaced-repetition schedule.
+
+> Demo scenes reuse product components with original sample data. AI results are fixed examples; sync is a process illustration.
+
+## Features
+
+- **[Bring your own content](https://skylar-deepmind.github.io/LexiCue/#feature-import)** — Import SRT subtitles, preview their content and choose the learning language. YouTube subtitles can also be fetched from their source.
+- **[A word away from understanding](https://skylar-deepmind.github.io/LexiCue/#feature-lookup)** — Tap a word without leaving the sentence. Built-in offline dictionaries keep reading flowing.
+- **[Understand phrases in context](https://skylar-deepmind.github.io/LexiCue/#feature-phrases)** — Optional AI identifies English expressions and explains their use in the original sentence. Gemma runs locally after a separate download.
+- **[Build a vocabulary you can trace](https://skylar-deepmind.github.io/LexiCue/#feature-collect)** — Filter, tag and mark words or phrases. Batch or one-at-a-time annotation keeps the original context within reach.
+- **[Meet words again, at the right time](https://skylar-deepmind.github.io/LexiCue/#feature-review)** — Review words and phrases with their original sentences. Your answers shape the spaced-repetition schedule.
+- **[See how far you have come](https://skylar-deepmind.github.io/LexiCue/#feature-progress)** — Track vocabulary states, seven-day reviews and each imported file’s learning index.
+- **[Start from what you already know](https://skylar-deepmind.github.io/LexiCue/#feature-baseline)** — Optionally mark the top 1,000–10,000 English or Chinese words as known, then check a few in review.
+- **[Four languages. Your way to read.](https://skylar-deepmind.github.io/LexiCue/#feature-languages)** — English, Japanese, German and Chinese. Kana, pinyin and word-form handling support reading; choose a light or midnight theme.
+- **[Your learning stays with you](https://skylar-deepmind.github.io/LexiCue/#feature-privacy)** — Study records live locally. Export and restore backups. No account is needed for local learning.
+- **[Continue across your devices](https://skylar-deepmind.github.io/LexiCue/#feature-sync)** — Optional end-to-end encrypted cloud sync connects desktop and phone. This animation illustrates the process.
 
 ## Download & install
 
-Grab the latest installer for **macOS / Windows / Android** from the [Releases page](https://github.com/skylar-deepmind/LexiCue/releases/latest).
+Available for macOS, Windows and Android. Install the app, bring something you want to read, and begin.
 
-> Installers are currently **unsigned** — your system may show a security warning on first install. That's expected. See [DISTRIBUTION.md](DISTRIBUTION.md) for the platform-by-platform guide.
+[**Download free — macOS / Windows / Android**](https://github.com/skylar-deepmind/LexiCue/releases/latest)
 
-Local AI is optional and off by default. Enable Gemma in Settings, download E2B or E4B, and select it. Ollama is no longer required. Weights are not included in installers. Platform verification status is recorded in [embedded Gemma](docs/embedded-gemma.md).
+Installers are unsigned. See the installation guide for first-launch instructions. Local Gemma models are downloaded separately. [Installation guide](DISTRIBUTION.md).
+
+Gemma: [E2B / E4B](docs/embedded-gemma.md).
+
+## Privacy & optional connections
+
+Reading, dictionaries and reviews work locally. Downloading YouTube subtitles or AI models requires a connection. Optional cloud AI sends selected text to your configured API; optional cloud sync uploads encrypted learning records.
 
 ## Support the project
 
-LexiCue is free and open source. If it helps you, the author would appreciate your support on **爱发电 (Aifadian)**, a platform for supporting creators:
-
-👉 [https://www.ifdian.net/a/skylar-lexicue](https://www.ifdian.net/a/skylar-lexicue)
-
-A star on GitHub also goes a long way: [github.com/skylar-deepmind/LexiCue](https://github.com/skylar-deepmind/LexiCue)
+[Support the author — 爱发电 / Aifadian](https://www.ifdian.net/a/skylar-lexicue) · [GitHub Star](https://github.com/skylar-deepmind/LexiCue)
 
 ## Development
 
-For contributors. Requires Node.js 20+, Rust, and CMake 3.22+. Desktop builds prepare the pinned native inference libraries automatically. See [embedded Gemma setup and validation](docs/embedded-gemma.md).
+Node.js 22.12+ · Rust · CMake 3.22+ · C++17. [Gemma](docs/embedded-gemma.md).
 
-```bash
-npm install        # install frontend dependencies
-npm run tauri dev  # run as a desktop app
-npm run build      # typecheck + frontend build
-npm test           # frontend tests
-cd src-tauri && cargo test   # Rust tests
+```sh
+npm install
+npm run tauri dev
+npm run build
+npm test
+cd src-tauri && cargo test
 ```
 
-Build installers with `npm run tauri build` (output in `src-tauri/target/release/bundle/`).
+[Marketing / README / Website / Video](marketing/README.md)
 
 ## License
 
-MIT License — see [LICENSE](LICENSE). Third-party dictionary data credits: [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). Import custom dictionary packs per [DICTIONARY_PACK.md](DICTIONARY_PACK.md).
+[MIT](LICENSE) · [Third-party notices](THIRD-PARTY-NOTICES.md) · [Dictionary packs](DICTIONARY_PACK.md)

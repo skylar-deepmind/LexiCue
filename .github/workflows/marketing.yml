@@ -1,0 +1,31 @@
+name: Marketing
+on:
+  push:
+    branches: [main]
+    paths: ['marketing/**', 'docs/**', 'README*.md', 'package*.json', 'src/components/**', 'src/index.css', 'src/i18n/**', '.github/workflows/marketing.yml']
+  pull_request:
+    paths: ['marketing/**', 'docs/**', 'README*.md', 'package*.json', 'src/components/**', 'src/index.css', 'src/i18n/**', '.github/workflows/marketing.yml']
+permissions:
+  contents: read
+jobs:
+  content-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            marketing/package-lock.json
+      - run: npm ci
+      - run: npm ci
+        working-directory: marketing
+      - run: npm run build
+        working-directory: marketing
+      - run: npm run check
+        working-directory: marketing
+      - run: npm test
+        working-directory: marketing

@@ -1,0 +1,106 @@
+{
+  "en": {
+    "files": {
+      "width": 1100,
+      "height": 560
+    },
+    "reading": {
+      "width": 940,
+      "height": 650
+    },
+    "vocabulary": {
+      "width": 940,
+      "height": 650
+    },
+    "review": {
+      "width": 940,
+      "height": 650
+    },
+    "insights": {
+      "width": 940,
+      "height": 650
+    },
+    "settings": {
+      "width": 1100,
+      "height": 810
+    }
+  },
+  "zh": {
+    "files": {
+      "width": 1100,
+      "height": 560
+    },
+    "reading": {
+      "width": 940,
+      "height": 650
+    },
+    "vocabulary": {
+      "width": 940,
+      "height": 650
+    },
+    "review": {
+      "width": 940,
+      "height": 650
+    },
+    "insights": {
+      "width": 940,
+      "height": 650
+    },
+    "settings": {
+      "width": 1100,
+      "height": 810
+    }
+  },
+  "ja": {
+    "files": {
+      "width": 1100,
+      "height": 560
+    },
+    "reading": {
+      "width": 940,
+      "height": 650
+    },
+    "vocabulary": {
+      "width": 940,
+      "height": 650
+    },
+    "review": {
+      "width": 940,
+      "height": 650
+    },
+    "insights": {
+      "width": 940,
+      "height": 650
+    },
+    "settings": {
+      "width": 1100,
+      "height": 810
+    }
+  },
+  "de": {
+    "files": {
+      "width": 1100,
+      "height": 560
+    },
+    "reading": {
+      "width": 940,
+      "height": 650
+    },
+    "vocabulary": {
+      "width": 940,
+      "height": 650
+    },
+    "review": {
+      "width": 940,
+      "height": 650
+    },
+    "insights": {
+      "width": 940,
+      "height": 650
+    },
+    "settings": {
+      "width": 1100,
+      "height": 810
+    }
+  }
+}

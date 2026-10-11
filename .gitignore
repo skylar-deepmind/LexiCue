@@ -38,6 +38,9 @@ __pycache__/
 *.sw?
 todo.md
 
+# Large local promotional renders; lightweight README assets live in docs/media.
+output/marketing/
+
 # Prepared native engines; pinned sources/checksums are versioned instead.
 src-tauri/resources/gemma-runtime/*
 !src-tauri/resources/gemma-runtime/.gitkeep

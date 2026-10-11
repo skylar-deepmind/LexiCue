@@ -1,0 +1,17 @@
+import {useState,useEffect,useRef} from 'react';
+import {Laptop,Smartphone,ShieldCheck,Play,Pause,RotateCcw,ArrowRight} from 'lucide-react';
+import {homeCopy} from './home-copy.mjs';
+import {experienceCopy} from './experience-copy.mjs';
+export function SyncIllustration({locale,active=true}:{locale:string;active?:boolean}){
+ const h=homeCopy[locale],c=experienceCopy[locale];const reduced=useRef(matchMedia('(prefers-reduced-motion:reduce)').matches);
+ const [time,setTime]=useState(reduced.current?6:0),[paused,setPaused]=useState(reduced.current),[visible,setVisible]=useState(false);const root=useRef<HTMLDivElement>(null),elapsed=useRef(reduced.current?6000:0);
+ useEffect(()=>{const el=root.current;if(!el)return;const check=()=>{const r=el.getBoundingClientRect();const clip=el.closest('.sample-content')?.getBoundingClientRect();setVisible(Boolean(el.closest('details')?.open)&&el.getClientRects().length>0&&r.bottom>Math.max(0,clip?.top||0)&&r.top<Math.min(innerHeight,clip?.bottom||innerHeight)&&!document.hidden);};const observer=new IntersectionObserver(check);observer.observe(el);const details=el.closest('details');details?.addEventListener('toggle',check);document.addEventListener('visibilitychange',check);check();return()=>{observer.disconnect();details?.removeEventListener('toggle',check);document.removeEventListener('visibilitychange',check);};},[]);
+ useEffect(()=>{const media=matchMedia('(prefers-reduced-motion:reduce)');const change=()=>{reduced.current=media.matches;if(media.matches){setPaused(true);elapsed.current=6000;setTime(6);}};media.addEventListener('change',change);return()=>media.removeEventListener('change',change);},[]);
+ useEffect(()=>{if(paused||!visible||!active)return;let frame=0,previous:number|null=null;const tick=(now:number)=>{if(previous!==null)elapsed.current=(elapsed.current+Math.min(now-previous,100))%8000;previous=now;setTime(elapsed.current/1000);frame=requestAnimationFrame(tick);};frame=requestAnimationFrame(tick);return()=>cancelAnimationFrame(frame);},[paused,visible,active]);
+ const stage=time<1?'ready':time<2.5?'changed':time<5?'transfer':time<6?'receiving':'matched';
+ const device=(phone=false)=><section className="sync-device">{phone?<Smartphone size={32}/>:<Laptop size={32}/>}<h4>{phone?h.phone:h.computer}</h4><div className="sync-word"><strong>meaningful</strong><span className="sync-status" data-known={phone?time>=5:time>=1}>{(phone?time>=5:time>=1)?c.known:c.learning}</span></div></section>;
+ return <div className="sync-illustration" ref={root} data-stage={stage} data-paused={paused} data-running={!paused&&visible&&active} role="group" aria-label={h.syncTitle}>
+ <p className="sample-muted">{h.optional}</p><div className="sync-diagram">{device()}<div className="sync-transfer"><ShieldCheck size={26}/><span>{h.encrypted}</span><div className="sync-route" aria-hidden="true"><ArrowRight size={18}/>{time>=2.5&&time<6&&<i style={{transform:`translateX(calc(var(--sync-distance, 64px) * ${Math.min(1,(time-2.5)/3.5)}))`}}/>}</div></div>{device(true)}</div>
+ <p className="sync-benefit">{h.syncResult}</p><p className="sample-muted">{h.syncNote}</p><div className="sync-controls"><button className="ui-button" aria-label={paused?h.play:h.pause} onClick={()=>setPaused(!paused)}>{paused?<Play size={16}/>:<Pause size={16}/>} {paused?h.play:h.pause}</button><button className="ui-button" onClick={()=>{elapsed.current=0;setTime(0);setPaused(false);}}><RotateCcw size={16}/>{h.replay}</button></div>
+ </div>;
+}
