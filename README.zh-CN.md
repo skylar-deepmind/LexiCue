@@ -77,7 +77,7 @@ Gemma: [E2B / E4B](docs/embedded-gemma.md).
 
 ## 支持项目
 
-[支持作者 — Patreon](https://www.patreon.com/skylarfu) · [爱发电 / Aifadian](https://www.ifdian.net/a/skylar-lexicue) · [GitHub Star](https://github.com/skylar-deepmind/LexiCue)
+[支持作者 — Patreon](https://www.patreon.com/16942122/join) · [爱发电 / Aifadian](https://www.ifdian.net/a/skylar-lexicue) · [GitHub Star](https://github.com/skylar-deepmind/LexiCue)
 
 ## 开发
 
