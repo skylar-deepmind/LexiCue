@@ -78,7 +78,7 @@ Reading, dictionaries and reviews work locally. Downloading YouTube subtitles or
 
 ## Support the project
 
-[Support the author — Patreon](https://www.patreon.com/skylarfu) · [爱发电 / Aifadian](https://www.ifdian.net/a/skylar-lexicue) · [GitHub Star](https://github.com/skylar-deepmind/LexiCue)
+[Support the author — Patreon](https://www.patreon.com/16942122/join) · [爱发电 / Aifadian](https://www.ifdian.net/a/skylar-lexicue) · [GitHub Star](https://github.com/skylar-deepmind/LexiCue)
 
 ## Development
 
