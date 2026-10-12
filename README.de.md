@@ -77,7 +77,7 @@ Lesen, Wörterbücher und Wiederholungen laufen lokal. YouTube-Untertitel und KI
 
 ## Projekt unterstützen
 
-[Autor unterstützen — Patreon](https://www.patreon.com/skylarfu) · [爱发电 / Aifadian](https://www.ifdian.net/a/skylar-lexicue) · [GitHub Star](https://github.com/skylar-deepmind/LexiCue)
+[Autor unterstützen — Patreon](https://www.patreon.com/16942122/join) · [爱发电 / Aifadian](https://www.ifdian.net/a/skylar-lexicue) · [GitHub Star](https://github.com/skylar-deepmind/LexiCue)
 
 ## Entwicklung
 
