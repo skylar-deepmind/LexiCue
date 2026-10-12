@@ -75,9 +75,10 @@ Gemma: [E2B / E4B](docs/embedded-gemma.md).
 
 Reading, dictionaries and reviews work locally. Downloading YouTube subtitles or AI models requires a connection. Optional cloud AI sends selected text to your configured API; optional cloud sync uploads encrypted learning records.
 
+
 ## Support the project
 
-[Support the author — 爱发电 / Aifadian](https://www.ifdian.net/a/skylar-lexicue) · [GitHub Star](https://github.com/skylar-deepmind/LexiCue)
+[Support the author — Patreon](https://www.patreon.com/skylarfu) · [爱发电 / Aifadian](https://www.ifdian.net/a/skylar-lexicue) · [GitHub Star](https://github.com/skylar-deepmind/LexiCue)
 
 ## Development
 
