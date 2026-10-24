@@ -82,7 +82,7 @@ export default function Layout() {
       <Sidebar />
       <main className="@container app-main">
         <DictionaryInitNotice />
-        {!reading && !vocabulary && <div className="mobile-language-bar"><span>{t('shell.learningLanguage')}</span><LearningLanguageSelect /></div>}
+        {!reading && !vocabulary && pathname !== '/saved' && <div className="mobile-language-bar"><span>{t('shell.learningLanguage')}</span><LearningLanguageSelect /></div>}
         {vocabulary && <VocabularyTabs />}
         <div className="app-page">
           <Outlet />

@@ -466,7 +466,7 @@ mod tests {
         migrate_legacy(&source).unwrap();
         replace_file_tags(&source, id, &[], &[]).unwrap();
         let mut backup = export::backup_payload(&source).unwrap();
-        assert_eq!(backup.schema_version, 8);
+        assert_eq!(backup.schema_version, 9);
         let (_dir2, target) = db();
         export::restore_backup(&target, &backup).unwrap();
         migrate_legacy(&target).unwrap();

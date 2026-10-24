@@ -288,6 +288,10 @@ export default function SettingsPage() {
           </nav>
 
           <div className="min-w-0 space-y-6">
+        <section className="saved-settings-entry">
+          <div><h2>{t('savedRecords.title')}</h2><p>{t('savedRecords.settingsHint')}</p></div>
+          <button className="ui-button" onClick={() => navigate('/saved')}>{t('savedRecords.open')}</button>
+        </section>
         <section id="ui-language" className="scroll-mt-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>

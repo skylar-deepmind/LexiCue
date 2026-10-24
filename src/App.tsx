@@ -7,6 +7,7 @@ import FileDetailPage from './pages/FileDetailPage';
 import ReviewPage from './pages/ReviewPage';
 import InsightsPage from './pages/InsightsPage';
 import SettingsPage from './pages/SettingsPage';
+import SavedPage from './pages/SavedPage';
 import { ThemeProvider } from './components/ThemeProvider';
 import { legacyReadingRoute } from './lib/fileProgress';
 
@@ -30,6 +31,7 @@ export default function App() {
             <Route path="/review" element={<ReviewPage />} />
             <Route path="/insights" element={<InsightsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/saved" element={<SavedPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

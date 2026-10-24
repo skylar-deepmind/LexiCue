@@ -1,0 +1,24 @@
+1
+00:00:01,000 --> 00:00:04,000
+The plane will take off soon.
+飞机很快就要起飞了。
+
+2
+00:00:05,000 --> 00:00:08,000
+We take off at noon.
+
+3
+00:00:09,000 --> 00:00:12,000
+They took off yesterday.
+
+4
+00:00:13,000 --> 00:00:16,000
+The takeoff was smooth.
+
+5
+00:00:17,000 --> 00:00:20,000
+Please take off your coat.
+
+6
+00:00:21,000 --> 00:00:24,000
+Curiosity helps us make sense of new ideas.

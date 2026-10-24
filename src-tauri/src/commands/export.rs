@@ -13,6 +13,16 @@ pub struct BackupPayload {
 
 #[derive(Serialize, Deserialize)]
 pub struct BackupData {
+    #[serde(default)]
+    pub annotation_actions: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub saved_records: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub saved_actions: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub saved_conflicts: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub product_migrations: Vec<serde_json::Value>,
     pub files: Vec<serde_json::Value>,
     #[serde(default)]
     pub folders: Vec<serde_json::Value>,
@@ -109,25 +119,34 @@ fn insert_from_json(
         return Ok(());
     }
 
-    let first = &rows[0];
-    let obj = first.as_object().ok_or("invalid row format")?;
-    let columns: Vec<&str> = obj.keys().map(|k| k.as_str()).collect();
-    let placeholders: Vec<String> = columns
-        .iter()
-        .enumerate()
-        .map(|(i, _)| format!("?{}", i + 1))
-        .collect();
-    let sql = format!(
-        "INSERT INTO {} ({}) VALUES ({})",
-        table,
-        columns.join(", "),
-        placeholders.join(", ")
-    );
-
-    let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
-
+    let available = conn
+        .prepare(&format!("PRAGMA table_info({table})"))
+        .map_err(|e| e.to_string())?
+        .query_map([], |r| r.get::<_, String>(1))
+        .map_err(|e| e.to_string())?
+        .collect::<Result<std::collections::HashSet<_>, _>>()
+        .map_err(|e| e.to_string())?;
     for row in rows {
         let obj = row.as_object().ok_or("invalid row format")?;
+        // Older backups may omit new columns on individual rows. Use their
+        // defaults without dropping fields that appear on later rows.
+        let columns: Vec<&str> = obj.keys().map(String::as_str).collect();
+        if columns.is_empty() || columns.iter().any(|column| !available.contains(*column)) {
+            return Err(format!("invalid backup columns for {table}"));
+        }
+        let names = columns
+            .iter()
+            .map(|column| format!("\"{}\"", column.replace('"', "\"\"")))
+            .collect::<Vec<_>>();
+        let placeholders = (1..=columns.len())
+            .map(|i| format!("?{i}"))
+            .collect::<Vec<_>>();
+        let sql = format!(
+            "INSERT INTO {table} ({}) VALUES ({})",
+            names.join(","),
+            placeholders.join(",")
+        );
+        let mut stmt = conn.prepare_cached(&sql).map_err(|e| e.to_string())?;
         let values: Vec<Box<dyn rusqlite::types::ToSql>> = columns
             .iter()
             .map(|col| json_to_sql_value(obj.get(*col).unwrap_or(&serde_json::Value::Null)))
@@ -138,6 +157,38 @@ fn insert_from_json(
     }
 
     Ok(())
+}
+
+/// File rows have already queued complete library snapshots. Avoid scanning the
+/// growing sync queue for every restored subtitle/token; the finished snapshot
+/// is read only after this whole restore transaction commits.
+fn insert_material_rows(
+    conn: &rusqlite::Connection,
+    table: &str,
+    rows: &[serde_json::Value],
+) -> Result<(), String> {
+    use rusqlite::OptionalExtension;
+    let previous: Option<String> = conn
+        .query_row(
+            "SELECT value FROM sync_runtime WHERE key='applying'",
+            [],
+            |r| r.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+    conn.execute("INSERT INTO sync_runtime(key,value) VALUES('applying','1') ON CONFLICT(key) DO UPDATE SET value='1'",[]).map_err(|e|e.to_string())?;
+    let result = insert_from_json(conn, table, rows);
+    if let Some(value) = previous {
+        conn.execute(
+            "UPDATE sync_runtime SET value=?1 WHERE key='applying'",
+            [value],
+        )
+        .map_err(|e| e.to_string())?;
+    } else {
+        conn.execute("DELETE FROM sync_runtime WHERE key='applying'", [])
+            .map_err(|e| e.to_string())?;
+    }
+    result
 }
 
 fn now_ms() -> i64 {
@@ -175,10 +226,18 @@ pub fn backup_payload(conn: &rusqlite::Connection) -> Result<BackupPayload, Stri
     let file_phrase_analysis = query_all(conn, "file_phrase_analysis")?;
 
     Ok(BackupPayload {
-        schema_version: 8,
+        schema_version: 9,
         exported_at: now_ms(),
         app_version: env!("CARGO_PKG_VERSION").to_string(),
         data: BackupData {
+            annotation_actions: query_all(conn, "annotation_actions")?,
+            saved_records: query_all(conn, "saved_records")?,
+            saved_actions: query_all(conn, "saved_actions")?,
+            saved_conflicts: query_all(conn,"sync_conflicts")?.into_iter().filter_map(|mut row| {
+                if row.get("table_name").and_then(|v|v.as_str())!=Some("saved_records") {return None;}
+                row.as_object_mut()?.remove("id");Some(row)
+            }).collect(),
+            product_migrations: query_all(conn, "product_migrations")?,
             files,
             folders,
             tags: query_all(conn, "tags")?,
@@ -221,6 +280,7 @@ pub fn restore_backup(conn: &rusqlite::Connection, backup: &BackupPayload) -> Re
         && backup.schema_version != 6
         && backup.schema_version != 7
         && backup.schema_version != 8
+        && backup.schema_version != 9
     {
         return Err(format!(
             "Unsupported backup schema version: {}",
@@ -232,6 +292,14 @@ pub fn restore_backup(conn: &rusqlite::Connection, backup: &BackupPayload) -> Re
         .map_err(|e| e.to_string())?;
 
     let result = (|| -> Result<(), String> {
+        // Keep stable saved identities and tombstones in the portable payload.
+        // Remove old local receipts/state before replacing data, in this transaction.
+        conn.execute_batch("DELETE FROM saved_actions; DELETE FROM saved_records; DELETE FROM product_migrations;
+            DELETE FROM sync_changes WHERE table_name='saved_records';
+            DELETE FROM sync_entity_state WHERE table_name='saved_records';
+            DELETE FROM sync_identity_aliases WHERE table_name='saved_records';
+            DELETE FROM sync_remote_state WHERE table_name='saved_records';
+            DELETE FROM sync_conflicts WHERE table_name='saved_records';").map_err(|e|e.to_string())?;
         conn.execute_batch("DELETE FROM legacy_tag_folders; DELETE FROM file_tags; DELETE FROM file_tag_state; DELETE FROM tags;").map_err(|e| e.to_string())?;
         conn.execute("DELETE FROM annotation_actions", [])
             .map_err(|e| e.to_string())?;
@@ -285,14 +353,14 @@ pub fn restore_backup(conn: &rusqlite::Connection, backup: &BackupPayload) -> Re
         }
         insert_from_json(conn, "words", &backup.data.words)?;
         insert_from_json(conn, "word_aliases", &backup.data.word_aliases)?;
-        insert_from_json(conn, "segments", &backup.data.segments)?;
-        insert_from_json(conn, "occurrences", &backup.data.occurrences)?;
+        insert_material_rows(conn, "segments", &backup.data.segments)?;
+        insert_material_rows(conn, "occurrences", &backup.data.occurrences)?;
         insert_from_json(conn, "reviews", &backup.data.reviews)?;
         insert_from_json(conn, "review_logs", &backup.data.review_logs)?;
         insert_from_json(conn, "dictionary_entries", &backup.data.dictionary_entries)?;
         insert_from_json(conn, "dictionary_sources", &backup.data.dictionary_sources)?;
         insert_from_json(conn, "phrases", &backup.data.phrases)?;
-        insert_from_json(conn, "phrase_occurrences", &backup.data.phrase_occurrences)?;
+        insert_material_rows(conn, "phrase_occurrences", &backup.data.phrase_occurrences)?;
         insert_from_json(conn, "phrase_reviews", &backup.data.phrase_reviews)?;
         insert_from_json(conn, "phrase_review_logs", &backup.data.phrase_review_logs)?;
         insert_from_json(
@@ -300,11 +368,25 @@ pub fn restore_backup(conn: &rusqlite::Connection, backup: &BackupPayload) -> Re
             "phrase_dictionary_entries",
             &backup.data.phrase_dictionary_entries,
         )?;
-        insert_from_json(
+        insert_material_rows(
             conn,
             "file_phrase_analysis",
             &backup.data.file_phrase_analysis,
         )?;
+
+        // Validate canonical snapshots instead of trusting redundant JSON/index
+        // columns in an exported SQL row. Missing v9 fields behave like an old backup.
+        for row in &backup.data.saved_records {
+            let raw=row.get("snapshot_json").and_then(|v|v.as_str()).ok_or("invalid_saved_backup")?;
+            let record: super::saved::SavedRecord=serde_json::from_str(raw).map_err(|e|e.to_string())?;
+            super::saved::write_record(conn,&record)?;
+        }
+        insert_from_json(conn,"saved_actions",&backup.data.saved_actions)?;
+        if backup.data.saved_conflicts.iter().any(|r|r.get("table_name").and_then(|v|v.as_str())!=Some("saved_records")) {return Err("invalid_saved_backup".into());}
+        insert_from_json(conn,"sync_conflicts",&backup.data.saved_conflicts)?;
+        insert_from_json(conn,"annotation_actions",&backup.data.annotation_actions)?;
+        insert_from_json(conn,"product_migrations",&backup.data.product_migrations)?;
+        super::saved::migrate_legacy(conn)?;
 
         let violations: Vec<String> = {
             let mut stmt = conn
@@ -397,7 +479,7 @@ mod english_learning_tests {
             )
             .unwrap();
         let backup = backup_payload(&source).unwrap();
-        assert_eq!(backup.schema_version, 8);
+        assert_eq!(backup.schema_version, 9);
 
         let target_file = tempfile::NamedTempFile::new().unwrap();
         let target = crate::db::init_db(target_file.path()).unwrap();

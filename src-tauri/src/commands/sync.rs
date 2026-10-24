@@ -943,6 +943,10 @@ fn row_record(
     table: &str,
     local_id: i64,
 ) -> Result<Option<serde_json::Value>, String> {
+    if table == "saved_records" {
+        let raw:Option<String>=conn.query_row("SELECT snapshot_json FROM saved_records WHERE id=?1",[local_id],|r|r.get(0)).optional().map_err(|e|e.to_string())?;
+        return raw.map(|json|serde_json::from_str(&json).map_err(|e|e.to_string())).transpose();
+    }
     let key = if matches!(table, "reviews" | "phrase_reviews") {
         if table == "reviews" {
             "word_id"
@@ -1366,11 +1370,452 @@ fn apply_library_item_event(
     Ok(true)
 }
 
+fn queue_saved_state(
+    conn: &rusqlite::Connection,
+    record: &super::saved::SavedRecord,
+) -> Result<(), String> {
+    // A CAS conflict must generate a fresh envelope/clock, not reuse a frozen
+    // pre-conflict edit with the server's newly acknowledged etag.
+    conn.execute("DELETE FROM sync_changes WHERE table_name='saved_records' AND sync_id=?1 AND uploaded_at IS NULL",[&record.record_id]).map_err(|e|e.to_string())?;
+    conn.execute("INSERT INTO sync_changes(table_name,sync_id,operation,changed_at) VALUES('saved_records',?1,?2,?3)",rusqlite::params![record.record_id,if record.deleted_at.is_some(){"delete"}else{"upsert"},now_ms()]).map_err(|e|e.to_string())?;
+    Ok(())
+}
+
+fn saved_conflict(
+    conn: &rusqlite::Connection,
+    local: &super::saved::SavedRecord,
+    remote: &super::saved::SavedRecord,
+) -> Result<(), String> {
+    if local.explanation == remote.explanation {
+        return Ok(());
+    }
+    let left = serde_json::to_string(local).map_err(|e| e.to_string())?;
+    let right = serde_json::to_string(remote).map_err(|e| e.to_string())?;
+    conn.execute("INSERT INTO sync_conflicts(table_name,sync_id,local_value,remote_value,created_at) SELECT 'saved_records',?1,?2,?3,?4 WHERE NOT EXISTS(SELECT 1 FROM sync_conflicts WHERE table_name='saved_records' AND sync_id=?1 AND local_value=?2 AND remote_value=?3 AND resolved_at IS NULL)",rusqlite::params![local.record_id,left,right,now_ms()]).map_err(|e|e.to_string())?;
+    Ok(())
+}
+
+/// Saved snapshots have no file FK and never call the legacy review machinery.
+/// Epochs distinguish an explicit undo from a delayed update to a deleted item.
+fn apply_saved_event(
+    conn: &rusqlite::Connection,
+    event: &EntityEvent,
+    clock: &str,
+) -> Result<bool, String> {
+    let mut remote: super::saved::SavedRecord =
+        serde_json::from_value(event.record.clone().ok_or("invalid_saved_record")?)
+            .map_err(|_| "invalid_saved_record")?;
+    if remote.record_id != event.sync_id
+        || (event.operation == "delete") != remote.deleted_at.is_some()
+        || !matches!(event.operation.as_str(), "upsert" | "delete")
+    {
+        return Err("invalid_saved_record".into());
+    }
+    // Observe authenticated remote HLCs so a chosen local version can advance
+    // past that clock even when the devices' wall clocks differ.
+    if clock
+        .get(..20)
+        .and_then(|v| v.parse::<i64>().ok())
+        .is_none()
+        || clock
+            .get(21..29)
+            .and_then(|v| v.parse::<u32>().ok())
+            .is_none()
+    {
+        return Err("invalid_saved_clock".into());
+    }
+    conn.execute("INSERT INTO sync_runtime(key,value) VALUES('hlc',?1) ON CONFLICT(key) DO UPDATE SET value=MAX(value,excluded.value)",[clock]).map_err(|e|e.to_string())?;
+    let local = super::saved::get(conn, &event.sync_id)?;
+    let local_clock: Option<String> = conn
+        .query_row(
+            "SELECT clock FROM sync_entity_state WHERE table_name='saved_records' AND sync_id=?1",
+            [&event.sync_id],
+            |r| r.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+    let pending:bool=conn.query_row("SELECT EXISTS(SELECT 1 FROM sync_changes WHERE table_name='saved_records' AND sync_id=?1 AND uploaded_at IS NULL)",[&event.sync_id],|r|r.get(0)).map_err(|e|e.to_string())?;
+    if let Some(ref local) = local {
+        if remote.generation < local.generation
+            || remote.generation == local.generation
+                && local.deleted_at.is_some()
+                && remote.deleted_at.is_none()
+        {
+            saved_conflict(conn, local, &remote)?;
+            queue_saved_state(conn, local)?;
+            return Ok(false);
+        }
+        let same_epoch = remote.generation == local.generation;
+        if same_epoch && remote.deleted_at.is_none() {
+            if local_clock
+                .as_deref()
+                .is_some_and(|value| !value.is_empty() && value >= clock)
+            {
+                if local.revision != remote.revision {
+                    saved_conflict(conn, local, &remote)?;
+                    queue_saved_state(conn, local)?;
+                }
+                return Ok(false);
+            }
+            if local.explanation != remote.explanation
+                && (local.explanation_source == "personal"
+                    || remote.explanation_source == "personal")
+            {
+                saved_conflict(conn, local, &remote)?;
+                // Unsynced personal edits, and personal text vs automatic text,
+                // remain visible. Both versions are available to the user.
+                if local.explanation_source == "personal"
+                    && (pending || remote.explanation_source != "personal")
+                {
+                    queue_saved_state(conn, local)?;
+                    return Ok(false);
+                }
+            }
+        } else if local.explanation != remote.explanation {
+            saved_conflict(conn, local, &remote)?;
+            if remote.deleted_at.is_some() && pending && local.explanation_source == "personal" {
+                remote.explanation = local.explanation.clone();
+                remote.explanation_source = local.explanation_source.clone();
+            }
+        }
+    }
+    // A frozen local envelope must not re-send a pre-delete edit on the next CAS.
+    conn.execute("DELETE FROM sync_changes WHERE table_name='saved_records' AND sync_id=?1 AND uploaded_at IS NULL",[&event.sync_id]).map_err(|e|e.to_string())?;
+    let id = super::saved::write_record(conn, &remote)?;
+    mark_state(
+        conn,
+        "saved_records",
+        id,
+        &remote.record_id,
+        clock,
+        remote.deleted_at.is_some(),
+    )?;
+    if pending {
+        queue_saved_state(conn, &remote)?;
+    }
+    Ok(true)
+}
+
+#[cfg(test)]
+mod saved_sync_tests {
+    use super::*;
+    use crate::commands::saved::{self, Mutation, SaveInput, SavedRecord};
+    fn db() -> (tempfile::TempDir, rusqlite::Connection) {
+        let dir = tempfile::tempdir().unwrap();
+        let c = crate::db::init_db(&dir.path().join("sync.db")).unwrap();
+        (dir, c)
+    }
+    fn record(c: &rusqlite::Connection) -> SavedRecord {
+        c.execute_batch("INSERT INTO files(id,name,type,content,content_hash,imported_at) VALUES(1,'flight.srt','srt','We take off at noon.','h',1); INSERT INTO segments(id,file_id,index_num,en_text) VALUES(1,1,0,'We take off at noon.');").unwrap();
+        saved::mutate(
+            c,
+            "save",
+            &Mutation::Save {
+                input: SaveInput {
+                    segment_id: 1,
+                    expression: "take off".into(),
+                    start_offset: 3,
+                    end_offset: 11,
+                    explanation: Some("起飞".into()),
+                    explanation_source: "dictionary".into(),
+                },
+            },
+        )
+        .unwrap()
+        .record
+    }
+    fn event(record: &SavedRecord) -> EntityEvent {
+        EntityEvent {
+            version: 3,
+            table_name: "saved_records".into(),
+            sync_id: record.record_id.clone(),
+            operation: if record.deleted_at.is_some() {
+                "delete"
+            } else {
+                "upsert"
+            }
+            .into(),
+            record: Some(serde_json::to_value(record).unwrap()),
+        }
+    }
+    fn apply(c: &rusqlite::Connection, r: &SavedRecord, time: u64) -> bool {
+        let tx = c.unchecked_transaction().unwrap();
+        let result =
+            apply_entity_event(&tx, &event(r), &format!("{time:020}:00000000:test")).unwrap();
+        tx.commit().unwrap();
+        result
+    }
+    #[test]
+    fn snapshot_arrives_before_material_and_deletion_survives_delayed_offline_edit() {
+        let (_d, source) = db();
+        let first = record(&source);
+        let (_d2, target) = db();
+        assert!(apply(&target, &first, 1));
+        assert_eq!(
+            saved::get(&target, &first.record_id)
+                .unwrap()
+                .unwrap()
+                .sentence,
+            first.sentence
+        );
+        assert!(saved::resolve_source(&target, &first.record_id)
+            .unwrap()
+            .is_none());
+        let removed = saved::mutate(
+            &source,
+            "remove",
+            &Mutation::Remove {
+                record_id: first.record_id.clone(),
+                expected_revision: first.revision.clone(),
+            },
+        )
+        .unwrap()
+        .record;
+        assert!(apply(&target, &removed, 2));
+        let mut late = first.clone();
+        late.explanation = Some("离线改动".into());
+        late.explanation_source = "personal".into();
+        late.revision = "late".into();
+        assert!(!apply(&target, &late, 999));
+        assert!(saved::get(&target, &first.record_id)
+            .unwrap()
+            .unwrap()
+            .deleted_at
+            .is_some());
+        let restored = saved::undo(&source, "remove").unwrap();
+        assert_eq!(restored.generation, 1);
+        assert!(apply(&target, &restored, 3));
+        assert!(saved::get(&target, &first.record_id)
+            .unwrap()
+            .unwrap()
+            .deleted_at
+            .is_none());
+        assert!(!apply(&target, &removed, 1000));
+        assert!(saved::get(&target, &first.record_id)
+            .unwrap()
+            .unwrap()
+            .deleted_at
+            .is_none());
+        assert_eq!(
+            target
+                .query_row("SELECT COUNT(*) FROM reviews", [], |r| r.get::<_, i64>(0))
+                .unwrap(),
+            0
+        );
+    }
+    #[test]
+    fn concurrent_personal_versions_are_preserved_and_automatic_answer_cannot_replace_local_edit() {
+        let (_d, source) = db();
+        let first = record(&source);
+        let (_d2, target) = db();
+        apply(&target, &first, 1);
+        let local = saved::mutate(
+            &target,
+            "personal",
+            &Mutation::Edit {
+                record_id: first.record_id.clone(),
+                expected_revision: first.revision.clone(),
+                explanation: "我的修改".into(),
+            },
+        )
+        .unwrap()
+        .record;
+        let mut remote = first.clone();
+        remote.explanation = Some("另一台的修改".into());
+        remote.explanation_source = "personal".into();
+        remote.revision = "remote".into();
+        assert!(!apply(&target, &remote, 99));
+        assert_eq!(
+            saved::get(&target, &first.record_id)
+                .unwrap()
+                .unwrap()
+                .explanation,
+            local.explanation
+        );
+        let (left,right):(String,String)=target.query_row("SELECT local_value,remote_value FROM sync_conflicts WHERE table_name='saved_records'",[],|r|Ok((r.get(0)?,r.get(1)?))).unwrap();
+        assert!(left.contains("我的修改"));
+        assert!(right.contains("另一台的修改"));
+        target
+            .execute("UPDATE sync_changes SET uploaded_at=1", [])
+            .unwrap();
+        remote.explanation_source = "ai".into();
+        remote.explanation = Some("新的自动结果".into());
+        assert!(!apply(&target, &remote, 100));
+        assert_eq!(
+            saved::get(&target, &first.record_id)
+                .unwrap()
+                .unwrap()
+                .explanation,
+            local.explanation
+        );
+    }
+    #[test]
+    fn concurrent_remove_keeps_personal_snapshot_and_tombstones_win_in_both_orders() {
+        let (_d, source) = db();
+        let first = record(&source);
+        let (_d2, target) = db();
+        apply(&target, &first, 1);
+        let local = saved::mutate(
+            &target,
+            "edit",
+            &Mutation::Edit {
+                record_id: first.record_id.clone(),
+                expected_revision: first.revision.clone(),
+                explanation: "保留我的编辑".into(),
+            },
+        )
+        .unwrap()
+        .record;
+        let removed = saved::mutate(
+            &source,
+            "remove",
+            &Mutation::Remove {
+                record_id: first.record_id.clone(),
+                expected_revision: first.revision.clone(),
+            },
+        )
+        .unwrap()
+        .record;
+        assert!(apply(&target, &removed, 2));
+        let snapshot = saved::get(&target, &first.record_id).unwrap().unwrap();
+        assert!(snapshot.deleted_at.is_some());
+        assert_eq!(snapshot.explanation, local.explanation);
+        assert!(!apply(&target, &local, 900));
+        assert_eq!(saved::list(&target, "", 200, 0).unwrap().len(), 0);
+        let (_d3, fresh) = db();
+        assert!(apply(&fresh, &removed, 2));
+        assert!(!apply(&fresh, &first, 999));
+        assert_eq!(saved::list(&fresh, "", 200, 0).unwrap().len(), 0);
+    }
+    #[test]
+    fn encrypted_outbox_carries_deletion_epoch_and_backup_restore_can_requeue_tombstone() {
+        let (_d, c) = db();
+        let first = record(&c);
+        let removed = saved::mutate(
+            &c,
+            "remove",
+            &Mutation::Remove {
+                record_id: first.record_id.clone(),
+                expected_revision: first.revision.clone(),
+            },
+        )
+        .unwrap()
+        .record;
+        let local = LocalConfig {
+            endpoint: "http://127.0.0.1:1".into(),
+            email: "test@example.invalid".into(),
+            device_id: "test-device".into(),
+            access_token: String::new(),
+            data_key: String::new(),
+            last_synced_at: None,
+            last_remote_cursor: 0,
+            auto_sync_enabled: false,
+        };
+        let key = [7; 32];
+        prepare_outbox(&c, &local, &key, "test-account").unwrap();
+        let rows = pending_outbox(&c).unwrap();
+        let row = rows
+            .iter()
+            .find(|r| r.entity_type == "saved_records")
+            .unwrap();
+        assert!(row.deleted);
+        let remote = RemoteRecord {
+            entity_type: row.entity_type.clone(),
+            entity_id: row.entity_id.clone(),
+            etag: "etag".into(),
+            seq: 1,
+            schema_version: 1,
+            deleted: row.deleted,
+            nonce: URL_SAFE_NO_PAD.encode(&row.ciphertext[..24]),
+            ciphertext: URL_SAFE_NO_PAD.encode(&row.ciphertext[24..]),
+        };
+        let decoded =
+            decode_event(&decrypt_record(&key, "test-account", &remote, &row.ciphertext).unwrap())
+                .unwrap();
+        let snapshot: SavedRecord = serde_json::from_value(decoded.record.unwrap()).unwrap();
+        assert_eq!(snapshot.generation, removed.generation);
+        assert!(snapshot.deleted_at.is_some());
+        assert_eq!(snapshot.record_id, first.record_id);
+        c.execute(
+            "DELETE FROM sync_changes WHERE table_name='saved_records'",
+            [],
+        )
+        .unwrap();
+        queue_all_local_records(&c).unwrap();
+        assert_eq!(
+            c.query_row(
+                "SELECT operation FROM sync_changes WHERE table_name='saved_records'",
+                [],
+                |r| r.get::<_, String>(0)
+            )
+            .unwrap(),
+            "delete"
+        );
+    }
+
+    #[test]
+    fn personal_conflict_rebuilds_frozen_envelope_with_clock_after_remote() {
+        let (_d, source) = db();
+        let first = record(&source);
+        let (_d2, target) = db();
+        apply(&target, &first, 1);
+        let personal = saved::mutate(
+            &target,
+            "edit",
+            &Mutation::Edit {
+                record_id: first.record_id.clone(),
+                expected_revision: first.revision.clone(),
+                explanation: "keep mine".into(),
+            },
+        )
+        .unwrap()
+        .record;
+        let local = LocalConfig {
+            endpoint: "http://127.0.0.1:1".into(),
+            email: "test@example.invalid".into(),
+            device_id: "test-device".into(),
+            access_token: String::new(),
+            data_key: String::new(),
+            last_synced_at: None,
+            last_remote_cursor: 0,
+            auto_sync_enabled: false,
+        };
+        prepare_outbox(&target, &local, &[7; 32], "test-account").unwrap();
+        assert_eq!(pending_outbox(&target).unwrap().len(), 1);
+        let mut remote = first.clone();
+        remote.explanation = Some("other device".into());
+        remote.explanation_source = "personal".into();
+        remote.revision = "remote-edit".into();
+        let future = (now_ms() + 86_400_000) as u64;
+        assert!(!apply(&target, &remote, future));
+        assert!(pending_outbox(&target).unwrap().is_empty());
+        prepare_outbox(&target, &local, &[7; 32], "test-account").unwrap();
+        let clock: String = target
+            .query_row(
+                "SELECT clock FROM sync_outbox WHERE kind='saved_records' AND uploaded_at IS NULL",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert!(clock.as_str() > format!("{future:020}:00000000:test").as_str());
+        assert_eq!(
+            saved::get(&target, &personal.record_id)
+                .unwrap()
+                .unwrap()
+                .explanation,
+            personal.explanation
+        );
+    }
+}
+
 fn apply_entity_event(
     conn: &rusqlite::Connection,
     event: &EntityEvent,
     clock: &str,
 ) -> Result<bool, String> {
+    if event.table_name == "saved_records" {
+        return with_remote_apply_guard(conn, || apply_saved_event(conn,event,clock));
+    }
     // Library snapshots are the canonical representation of files, subtitle
     // segments and their word/phrase occurrences. Older development builds
     // uploaded those tables independently; applying them after a snapshot can
@@ -1954,7 +2399,11 @@ fn prepare_outbox(
         if exists.is_some() {
             continue;
         }
-        let mut record = if operation == "upsert" {
+        let mut record = if table == "saved_records" {
+            // Deletion envelopes carry the epoch and snapshot too. A fresh
+            // device must remember a tombstone before any late offline edit.
+            super::saved::get(conn,&sync_id)?.map(serde_json::to_value).transpose().map_err(|e|e.to_string())?
+        } else if operation == "upsert" {
             if table == "library_item" {
                 let id = local_id_for(conn, "files", &sync_id)?
                     .ok_or("sync record disappeared before it could be sent")?;
@@ -1990,7 +2439,10 @@ fn prepare_outbox(
             &encode_event(&event)?,
         )?;
         if table != "library_item" {
-            if let Some(local_id) = local_id_for(conn, &table, &sync_id)? {
+            let local_id=if table=="saved_records" {
+                conn.query_row("SELECT id FROM saved_records WHERE record_id=?1",[&sync_id],|r|r.get(0)).optional().map_err(|e|e.to_string())?
+            } else {local_id_for(conn, &table, &sync_id)?};
+            if let Some(local_id) = local_id {
                 mark_state(
                     conn,
                     &table,
@@ -2847,7 +3299,7 @@ pub fn sync_set_diagnostic(
 
 fn queue_all_local_records(conn: &rusqlite::Connection) -> Result<(), String> {
     conn.execute(
-        "INSERT INTO sync_changes(table_name,sync_id,operation,changed_at) SELECT s.table_name,s.sync_id,CASE WHEN s.deleted_at IS NULL THEN 'upsert' ELSE 'delete' END,?1 FROM sync_entity_state s WHERE s.table_name IN ('tags','file_tags','files','words','phrases','review_logs','phrase_review_logs') AND NOT EXISTS(SELECT 1 FROM sync_changes c WHERE c.table_name=s.table_name AND c.sync_id=s.sync_id AND c.uploaded_at IS NULL)",
+        "INSERT INTO sync_changes(table_name,sync_id,operation,changed_at) SELECT s.table_name,s.sync_id,CASE WHEN s.deleted_at IS NULL THEN 'upsert' ELSE 'delete' END,?1 FROM sync_entity_state s WHERE s.table_name IN ('tags','file_tags','files','words','phrases','review_logs','phrase_review_logs','saved_records') AND NOT EXISTS(SELECT 1 FROM sync_changes c WHERE c.table_name=s.table_name AND c.sync_id=s.sync_id AND c.uploaded_at IS NULL)",
         [now_ms()],
     )
     .map_err(|e| e.to_string())?;

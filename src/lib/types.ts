@@ -287,6 +287,11 @@ export interface BackupPayload {
   exported_at: number;
   app_version: string;
   data: {
+    saved_records?: Record<string, unknown>[];
+    saved_actions?: Record<string, unknown>[];
+    saved_conflicts?: Record<string, unknown>[];
+    product_migrations?: Record<string, unknown>[];
+    annotation_actions?: Record<string, unknown>[];
     files: Record<string, unknown>[];
     tags?: Record<string, unknown>[];
     file_tags?: Record<string, unknown>[];
