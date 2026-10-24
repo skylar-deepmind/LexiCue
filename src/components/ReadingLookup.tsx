@@ -8,7 +8,9 @@ import { normalizeRecall } from '../lib/recallMatcher';
 import ContextPanel from './ContextPanel';
 import type { Material, ReadingExplanation } from '../lib/materials';
 import type { Segment } from '../lib/types';
-import { mutateSaved, undoSaved, savedErrorKey, type SavedRecord, type SavedMutation } from '../lib/savedRecords';
+import { savedErrorKey, type SavedRecord, type SavedMutation } from '../lib/savedRecords';
+import { selectionInScope, mutateInScope, undoInScope, type ReadingScope } from '../lib/readingScope';
+import { useOnboardingStore } from '../stores/onboardingStore';
 import { usePreferencesStore } from '../stores/preferencesStore';
 import { useSpeechStore } from '../stores/speechStore';
 import { dictionaryLanguageState, useDictionaryStore } from '../stores/dictionaryStore';
@@ -22,13 +24,18 @@ export interface LookupDraft {
     value: string;
     personal: boolean;
 }
-export default function ReadingLookup({ query, material, onClose, drafts }: {
+export default function ReadingLookup({ query, material, scope, onClose, onSkip, drafts }: {
     query: ReadingQuery;
     material: Material;
+    scope: ReadingScope;
     onClose: () => void;
+    onSkip: () => void;
     drafts: Map<string, LookupDraft>;
 }) {
     const { t } = useTranslation();
+    const example = scope.kind === 'example';
+    const guideActive = useOnboardingStore(state => state.active);
+    const guideStep = useOnboardingStore(state => state.step);
     const key = `${query.segment.id}:${query.start}:${query.end}`;
     const existingDraft = drafts.get(key);
     const [result, setResult] = useState<ReadingExplanation | null>(null);
@@ -54,8 +61,8 @@ export default function ReadingLookup({ query, material, onClose, drafts }: {
     const expressions=useRecallStore(state=>state.expressions);
     const normalized=normalizeRecall(query.expression);
     const [recallRequested]=useState(()=>reminders&&expressions.includes(normalized));
-    const showRecall=recallRequested&&reminders&&expressions.includes(normalized);
-    const selection = useMemo(() => ({ segment_id: query.segment.id, expression: query.expression, start_offset: query.start, end_offset: query.end, explanation: null, explanation_source: 'unknown' }), [query.segment.id, query.expression, query.start, query.end]);
+    const showRecall=!example&&recallRequested&&reminders&&expressions.includes(normalized);
+    const selection = useMemo(() => ({ segment_id: query.segment.id, expression: query.expression, start_offset: query.start, end_offset: query.end, explanation: null, explanation_source: 'unknown' as const }), [query.segment.id, query.expression, query.start, query.end]);
     const dictionaryReady = useDictionaryStore(state => state.ready);
     const dictionaryFailed=useDictionaryStore(state=>!!state.error||state.snapshot?.state==='failed');
     const definitionFont=usePreferencesStore(state=>state.definitionFontSize);
@@ -65,19 +72,20 @@ export default function ReadingLookup({ query, material, onClose, drafts }: {
         let active = true;
         setLoading(true);
         setLookupError('');
-        void invoke<ReadingExplanation>('lookup_reading_expression', { expression: query.expression }).then(value => { if (active)
-            setResult(value); }).catch(error => { if (active)
+        void invoke<ReadingExplanation>('lookup_reading_expression', { expression: query.expression }).then(value => { if (active) {
+            setResult(value); if(example) useOnboardingStore.getState().lookedUp(); } }).catch(error => { if (active)
             setLookupError(String(error).includes('NOT_FOUND') ? 'notFound' : 'failed'); }).finally(() => { if (active)
             setLoading(false); });
         return () => { active = false; };
-    }, [query.expression, retry, sourceState]);
-    useEffect(() => { let active = true; void invoke<SavedRecord | null>('saved_for_selection', { input: selection }).then(record => { if (active && !acted.current) {
+    }, [query.expression, retry, sourceState, example]);
+    useEffect(() => { let active = true; void selectionInScope(scope, selection).then(record => { if (active && !acted.current) {
         setSaved(record);
+        if(example && record) useOnboardingStore.getState().recordChanged(record);
         if (record?.explanation_source === 'personal' && !personal.current) {
             personal.current = true;
             setDraft(record.explanation ?? '');
         }
-    } }).catch(() => { }); return () => { active = false; }; }, [key, selection]);
+    } }).catch(() => { }); return () => { active = false; }; }, [key, selection, scope, example]);
     const meaning = personal.current ? draft : result?.meaning ?? '';
     const source = personal.current ? 'personal' : result?.source ?? 'unknown';
     const save = async (edit = false) => {
@@ -91,8 +99,9 @@ export default function ReadingLookup({ query, material, onClose, drafts }: {
         if (action.current?.signature !== signature)
             action.current = { signature, id: crypto.randomUUID() };
         try {
-            const next = await mutateSaved(mutation, action.current!.id);
+            const next = await mutateInScope(scope, mutation, action.current!.id);
             if (live.current) {
+                if(example) useOnboardingStore.getState().recordChanged(next.record);
                 setSaved(next.record);
                 setReceipt(next.changed ? next.operation_id : null);
                 setEditing(false);
@@ -110,8 +119,9 @@ export default function ReadingLookup({ query, material, onClose, drafts }: {
     };
     const undo = async () => { if (!receipt || busy)
         return; setBusy(true); setWriteError(''); try {
-        const previous = await undoSaved(receipt);
+        const previous = await undoInScope(scope, receipt);
         if (live.current) {
+            if(example) useOnboardingStore.getState().recordChanged(previous);
             setSaved(previous.deleted_at === null ? previous : null);
             setReceipt(null);
             if (previous.deleted_at === null) {
@@ -132,7 +142,7 @@ export default function ReadingLookup({ query, material, onClose, drafts }: {
     } };
     const listen = (text: string, audioKey: string) => speech.key === audioKey ? speech.stop() : speech.speak(text, audioKey);
     return <ContextPanel label={query.expression} onClose={onClose}>
-    <header className="lookup-heading"><small>{t('reader.understand')}</small><div><h2 lang="en">{query.expression}</h2><button className="ui-button ui-button--icon" onClick={() => listen(query.expression, 'term')} aria-label={t(speech.key === 'term' ? 'reader.stop' : 'reader.listenExpression')}>{speech.key === 'term' ? <Square size={18}/> : <Volume2 size={20}/>}</button></div></header>
+    <header className="lookup-heading">{example && guideActive && <div className="example-card-hint"><small role="status">{t(guideStep === 3 ? 'onboarding.step3' : 'onboarding.step2')}</small><button className="ui-button" onClick={onSkip}>{t('onboarding.skip')}</button></div>}<small>{t('reader.understand')}</small><div><h2 lang="en">{query.expression}</h2><button className="ui-button ui-button--icon" onClick={() => listen(query.expression, 'term')} aria-label={t(speech.key === 'term' ? 'reader.stop' : 'reader.listenExpression')}>{speech.key === 'term' ? <Square size={18}/> : <Volume2 size={20}/>}</button></div></header>
     <div className="lookup-body" data-definition-font={definitionFont} data-aux-font={auxiliaryFont}>
       {showRecall&&<><RecallSection expression={query.expression}/><h3 className="lookup-current-heading">{t('recall.currentQuery')}</h3></>}
       {loading && !personal.current && <p role="status">{t('common.loading')}</p>}

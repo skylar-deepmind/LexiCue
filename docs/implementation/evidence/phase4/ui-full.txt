@@ -1,0 +1,8 @@
+
+> lexicue@0.4.5 test:ui
+> node scripts/ui-smoke.mjs && node scripts/ui-saved-smoke.mjs && node scripts/ui-recall-smoke.mjs && node scripts/ui-onboarding-smoke.mjs
+
+Reading UI → SQLite: 167 checks passed; visible meaning p95 64.90ms; cached command p95 4.04ms. Evidence: /tmp/lexicue-v31-phase4/reading
+PASS: 132 saved-context UI checks; screenshots: /tmp/lexicue-ui-saved
+PASS: 302 recall checks; 10k saved records, 40 cold loads, p95 144.40ms; lookup p95 81.40ms. Evidence: /tmp/lexicue-v31-phase4/recall
+Onboarding UI: 237 checks passed; /tmp/lexicue-v31-phase4/onboarding

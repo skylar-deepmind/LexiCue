@@ -1,0 +1,27 @@
+
+> lexicue@0.4.5 build
+> tsc -b && vite build
+
+vite v8.2.0 building client environment for production...
+
+transforming...✓ 1914 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                         0.44 kB │ gzip:   0.29 kB
+dist/assets/recallWorker-D9H-mYrm.js    1.56 kB
+dist/assets/srtWorker-igZtTBZC.js       8.86 kB
+dist/assets/app-logo-CcF68pVj.png      78.02 kB
+dist/assets/index-DrkTG0tq.css        154.75 kB │ gzip:  26.83 kB
+dist/assets/index-DJrzdHlF.js         700.34 kB │ gzip: 218.25 kB
+
+[PLUGIN_TIMINGS] Your build spent significant time in plugins. Here is a breakdown:
+  - vite:worker-import-meta-url (66%)
+  - @tailwindcss/vite:generate:build (33%)
+See https://rolldown.rs/reference/InputOptions.checks#plugintimings for more details.
+
+[plugin builtin:vite-reporter]
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 3.96s

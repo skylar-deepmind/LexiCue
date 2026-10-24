@@ -1386,7 +1386,11 @@
       "reviews": "Wort-Wiederholungspläne",
       "phrase_reviews": "Wendungs-Wiederholungspläne",
       "review_logs": "Wortantworten",
-      "phrase_review_logs": "Wendungsantworten"
+      "phrase_review_logs": "Wendungsantworten",
+      "frequency_baseline_profiles": "Alte Häufigkeitseinstellungen",
+      "frequency_baseline_marks": "Alte Häufigkeitsmarkierungen",
+      "frequency_baseline_daily_checks": "Alte Häufigkeitsprüfungen",
+      "file_phrase_analysis": "Alte Analyseeinstellungen"
     },
     "fields": {}
   },
@@ -1404,5 +1408,17 @@
     "marked": "„{{expression}}“ ist gespeichert. Zum Rückblick öffnen.",
     "loadFailed": "Frühere Sätze konnten nicht geladen werden. Erneut versuchen oder die aktuelle Abfrage fortsetzen.",
     "indexFailed": "Hinweise konnten nicht aktualisiert werden. Lesen und Abfragen funktionieren weiterhin."
+  },
+  "onboarding": {
+    "sample": "Englisches Beispiel",
+    "privacy": "Speicherungen hier sind vorübergehend. Beim Verlassen werden sie gelöscht und nicht zu Materialien oder Gespeichert hinzugefügt.",
+    "step1": "Tippe auf ein englisches Wort oder markiere eine zusammenhängende Wortgruppe, um die Bedeutung zu sehen.",
+    "step2": "Mit Speichern bleiben Ausdruck und ursprünglicher Satz zusammen erhalten.",
+    "step3": "Klappe die Erklärung zu und lies weiter. Du kannst das Speichern auch zuerst rückgängig machen.",
+    "skip": "Einführung überspringen",
+    "replayTitle": "Praktische Einführung",
+    "replay": "Erneut ausprobieren",
+    "loadFailed": "Das Beispiel konnte nicht geöffnet werden. Erneut versuchen oder überspringen.",
+    "rememberFailed": "Der Einführungsstatus konnte nicht gespeichert werden. Die App bleibt nutzbar; die Einführung könnte nach einem Neustart erneut erscheinen."
   }
 }

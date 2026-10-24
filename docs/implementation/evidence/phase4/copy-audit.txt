@@ -1,0 +1,8 @@
+
+running 1 test
+migration audit: words=123, phrases=44, saved=998, missing=27, merged=5, duration_ms=2396
+restore duration_ms=5726
+verified saved=998; legacy table counts preserved=[27, 17621, 7246, 89015, 2027, 3579, 216, 80, 27, 6]
+test commands::saved::tests::audit_temporary_legacy_copy ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 257 filtered out; finished in 23.11s

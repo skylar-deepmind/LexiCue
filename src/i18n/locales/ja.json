@@ -1369,7 +1369,11 @@
       "reviews": "単語の復習計画",
       "phrase_reviews": "フレーズの復習計画",
       "review_logs": "単語の解答",
-      "phrase_review_logs": "フレーズの解答"
+      "phrase_review_logs": "フレーズの解答",
+      "frequency_baseline_profiles": "旧頻度設定",
+      "frequency_baseline_marks": "旧頻度マーク",
+      "frequency_baseline_daily_checks": "旧頻度チェック",
+      "file_phrase_analysis": "旧解析設定"
     },
     "fields": {}
   },
@@ -1387,5 +1391,17 @@
     "marked": "「{{expression}}」は保存済みです。開いて振り返る。",
     "loadFailed": "以前の原文を読み込めません。再試行するか、今回の検索を続けられます。",
     "indexFailed": "ヒントを更新できません。閲覧と検索は続けられます。"
+  },
+  "onboarding": {
+    "sample": "英語のサンプル",
+    "privacy": "ここでの保存は体験用です。離れると消去され、教材や保存済みに追加されません。",
+    "step1": "英単語をタップするか、連続したフレーズを選んで意味を確認します。",
+    "step2": "「保存」で、表現と元の例文を一緒に残せます。",
+    "step3": "解説を閉じて読み進めます。先に保存を取り消すこともできます。",
+    "skip": "ガイドをスキップ",
+    "replayTitle": "操作ガイド",
+    "replay": "もう一度体験",
+    "loadFailed": "サンプルを開けませんでした。再試行するかスキップできます。",
+    "rememberFailed": "ガイドの状態を記憶できませんでした。アプリは使えますが、再起動後に再表示される場合があります。"
   }
 }

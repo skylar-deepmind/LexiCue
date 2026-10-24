@@ -1,15 +1,53 @@
 //! Opt-in browser → production command cores → temporary SQLite evidence.
 //! This module is compiled only for tests and never starts with the application.
-use super::{dictionary, export, history, materials, recall, saved, tags};
+use super::{dictionary, example::ExampleState, export, history, materials, recall, saved, tags};
 use serde_json::{json, Value};
 use std::io::{Read, Write};
 use std::net::TcpListener;
 
-fn route(c: &rusqlite::Connection, command: &str, a: &Value) -> Result<Value, String> {
+fn route(
+    c: &rusqlite::Connection,
+    examples: &ExampleState,
+    command: &str,
+    a: &Value,
+) -> Result<Value, String> {
     let text = |key: &str| a[key].as_str().unwrap_or("");
     let id = |key: &str| a[key].as_i64().unwrap_or(0);
     let encode = |v| Ok(v);
     match command {
+        "begin_example_session" => {
+            serde_json::to_value(examples.begin("test-main", text("sessionId"))?)
+                .map_err(|e| e.to_string())
+        }
+        "end_example_session" => {
+            examples.end("test-main", text("sessionId"))?;
+            Ok(Value::Null)
+        }
+        "example_saved_for_selection" => {
+            serde_json::to_value(examples.with("test-main", text("sessionId"), |c| {
+                saved::selection(
+                    c,
+                    &serde_json::from_value(a["input"].clone()).map_err(|e| e.to_string())?,
+                )
+            })?)
+            .map_err(|e| e.to_string())
+        }
+        "mutate_example_saved_record" => {
+            serde_json::to_value(examples.with("test-main", text("sessionId"), |c| {
+                saved::mutate(
+                    c,
+                    text("operationId"),
+                    &serde_json::from_value(a["mutation"].clone()).map_err(|e| e.to_string())?,
+                )
+            })?)
+            .map_err(|e| e.to_string())
+        }
+        "undo_example_saved_mutation" => {
+            serde_json::to_value(examples.with("test-main", text("sessionId"), |c| {
+                saved::undo(c, text("operationId"))
+            })?)
+            .map_err(|e| e.to_string())
+        }
         "saved_recall_index" => serde_json::to_value(recall::index(c)?).map_err(|e| e.to_string()),
         "saved_recall_contexts" => serde_json::to_value(recall::contexts(
             c,
@@ -282,6 +320,7 @@ fn serve_reading_bridge() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("reading.db");
     let mut conn = crate::db::init_db(&path).unwrap();
+    let examples = ExampleState::default();
     dictionary::initialize_builtin_dictionary(&conn).unwrap();
     dictionary::initialize_builtin_phrase_dictionary(&conn).unwrap();
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
@@ -337,7 +376,7 @@ fn serve_reading_bridge() {
         } else if options {
             Ok(Value::Null)
         } else {
-            route(&conn, command, args)
+            route(&conn, &examples, command, args)
         };
         let body = match result {
             Ok(value) => json!({"value":value}),

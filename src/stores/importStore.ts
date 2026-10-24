@@ -2,12 +2,13 @@ import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { readTextFile } from '@tauri-apps/plugin-fs';
-import { materialError, parseSrtInWorker, importFileName, type MaterialImportResult } from '../lib/materials';
+import { materialError, parseSrtInWorker, type MaterialImportResult } from '../lib/materials';
 import type { SegmentInput } from '../lib/types';
 import { useMaterialStore } from './materialStore';
 import { useYoutubeStore, type TrackSelection } from './youtubeStore';
 import { usePreferencesStore } from './preferencesStore';
 import { EMPTY_BROWSER_SESSION } from '../lib/youtubeDownload';
+import { materialPickerOptions, pickedMaterialSource } from '../lib/importPicker';
 export type ImportStage = 'queued' | 'downloading' | 'reading' | 'parsing' | 'writing' | 'created' | 'duplicate' | 'failed' | 'cancelled';
 export interface ImportSource {
     name: string;
@@ -112,10 +113,10 @@ export const useImportStore = create<{
         if (get().running)
             return;
         try {
-            const paths = await open({ multiple: true, filters: [{ name: 'English SRT', extensions: ['srt'] }] });
+            const paths = await open(materialPickerOptions());
             if (!paths)
                 return;
-            await get().start((Array.isArray(paths) ? paths : [paths]).map(path => ({ name: importFileName(path), read: () => readTextFile(path) })));
+            await get().start((Array.isArray(paths) ? paths : [paths]).map(path => pickedMaterialSource(path,readTextFile)));
         }
         catch {
             set({ pickerError: true });

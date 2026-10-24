@@ -5,4 +5,4 @@ export const navigationItems = [
     { to: '/settings', icon: Settings, key: 'sidebar.settings' },
 ];
 export function normalizeNavigationPath(path: string) { return path.replace(/\/+$/, '') || '/'; }
-export function navigationActive(path: string, to: string, _legacyVocabulary?: boolean) { path = normalizeNavigationPath(path); return path === to || path.startsWith(`${to}/`); }
+export function navigationActive(path: string, to: string, _legacyVocabulary?: boolean) { path = normalizeNavigationPath(path); return path === to || path.startsWith(`${to}/`) || path === '/example' && to === '/files'; }

@@ -14,6 +14,12 @@ fn spec(kind: &str) -> Result<(&'static str, &'static str, &'static str), String
         "phrase_reviews" => Ok(("phrase_reviews", "phrase_id", "phrase_id")),
         "review_logs" => Ok(("review_logs", "id", "word_id")),
         "phrase_review_logs" => Ok(("phrase_review_logs", "id", "phrase_id")),
+        "frequency_baseline_profiles" => Ok(("frequency_baseline_profiles", "rowid", "language")),
+        "frequency_baseline_marks" => Ok(("frequency_baseline_marks", "rowid", "language")),
+        "frequency_baseline_daily_checks" => {
+            Ok(("frequency_baseline_daily_checks", "rowid", "language"))
+        }
+        "file_phrase_analysis" => Ok(("file_phrase_analysis", "rowid", "model")),
         _ => Err("history_unknown_kind".into()),
     }
 }
@@ -59,6 +65,8 @@ pub fn list(
     // Only whitelisted identifiers enter SQL. Search is literal, including % and _.
     let columns = if table == "files" {
         "id,name,type,language,imported_at"
+    } else if key == "rowid" {
+        "rowid AS legacy_rowid,*"
     } else {
         "*"
     };

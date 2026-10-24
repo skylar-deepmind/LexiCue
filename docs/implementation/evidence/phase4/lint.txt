@@ -1,0 +1,16 @@
+
+> lexicue@0.4.5 lint
+> oxlint
+
+src/components/YouTubeDownloadSettings.tsx:20:32: warning eslint(no-control-regex): Unexpected control character help: Avoid matching control characters in regular expressions. If intentional, consider using a Unicode escape instead.
+src/components/YouTubeDownloadSettings.tsx:48:151: warning eslint(no-control-regex): Unexpected control character help: Avoid matching control characters in regular expressions. If intentional, consider using a Unicode escape instead.
+src/lib/youtubeDownload.ts:11:58: warning eslint(no-control-regex): Unexpected control character help: Avoid matching control characters in regular expressions. If intentional, consider using a Unicode escape instead.
+marketing/src/video-revision-entry.tsx:5:10: warning react(only-export-components): Fast refresh only works when a file has exports. Move your component(s) to a separate file.
+marketing/scripts/video-final-verify.mjs:9:119: warning eslint(no-unused-vars): Variable 'source' is declared but never used. Unused variables should start with a '_'. help: Consider removing this declaration.
+marketing/src/i18n.tsx:10:14: warning react(only-export-components): Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components.
+marketing/src/RevisedVideo.tsx:75:77: warning eslint(no-unused-vars): Parameter 'i' is declared but never used. Unused parameters should start with a '_'. help: Consider removing this parameter.
+marketing/src/RevisedVideo.tsx:19:104: warning react-hooks(exhaustive-deps): React Hook useLayoutEffect has a missing dependency: 't' help: Either include it or remove the dependency array.
+marketing/src/video-preview.tsx:12:10: warning react(only-export-components): Fast refresh only works when a file has exports. Move your component(s) to a separate file.
+marketing/src/ManualCapture.tsx:17:91: warning react-hooks(exhaustive-deps): React Hook useLayoutEffect has a missing dependency: 'tags' help: Either include it or remove the dependency array.
+marketing/scripts/manual-qa.mjs:6:23: warning eslint(no-unused-vars): Identifier 'manualLabels' is imported but never used. help: Consider removing this import.
+design-previews/listening-v1/build.mjs:2:8: warning eslint(no-unused-vars): Identifier 'path' is imported but never used. help: Consider removing this import.

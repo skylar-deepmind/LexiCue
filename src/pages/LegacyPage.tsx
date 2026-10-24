@@ -6,7 +6,7 @@ import { useFileStore } from '../stores/fileStore';
 import { useImportStore } from '../stores/importStore';
 import ContextPanel from '../components/ContextPanel';
 type Row = Record<string, unknown>;
-const kinds = ['files', 'words', 'phrases', 'reviews', 'phrase_reviews', 'review_logs', 'phrase_review_logs'];
+const kinds = ['files', 'words', 'phrases', 'reviews', 'phrase_reviews', 'review_logs', 'phrase_review_logs', 'frequency_baseline_profiles', 'frequency_baseline_marks', 'frequency_baseline_daily_checks', 'file_phrase_analysis'];
 export default function LegacyPage() {
     const { t } = useTranslation();
     const [params] = useSearchParams();
@@ -54,8 +54,8 @@ export default function LegacyPage() {
     <label className="legacy-kind">{t('history.kind')}<select value={kind} onChange={event => { setKind(event.target.value); setOffset(0); setSelected(null); }}>{kinds.map(value => <option key={value} value={value}>{t(`history.kinds.${value}`)}</option>)}</select></label>
     <input type="search" className="legacy-search" value={query} onChange={event => { setQuery(event.target.value); setOffset(0); }} aria-label={t('history.search')} placeholder={t('history.search')}/>
     {loading ? <p role="status">{t('common.loading')}</p> : failed ? <div role="alert"><p>{t('materials.errors.failed')}</p><button className="ui-button" onClick={() => setRetry(retry + 1)}>{t('common.retry')}</button></div> : <ul className="legacy-list">{page.rows.map(row => {
-                const id = Number(row.id ?? row.word_id ?? row.phrase_id);
-                return <li key={id}><button onClick={() => setSelected(id)}><strong>{String(row.name ?? row.lemma ?? row.text ?? `#${id}`)}</strong><small>{[row.language, row.status, row.type].filter(Boolean).join(' · ')}</small></button></li>;
+                const id = Number(row.legacy_rowid ?? row.id ?? row.word_id ?? row.phrase_id);
+                return <li key={id}><button onClick={() => setSelected(id)}><strong>{String(row.name ?? row.lemma ?? row.text ?? row.model ?? row.language ?? `#${id}`)}</strong><small>{[row.language, row.status, row.type].filter(Boolean).join(' · ')}</small></button></li>;
             })}</ul>}
     <div className="legacy-paging"><button className="ui-button" disabled={!offset} onClick={() => setOffset(Math.max(0, offset - 80))}>{t('history.previous')}</button><button className="ui-button" disabled={!page.more} onClick={() => setOffset(offset + 80)}>{t('history.next')}</button></div>
   </section>{selected !== null && <ContextPanel label={t('materials.history')} onClose={() => setSelected(null)}><div className="lookup-body">{detail ? <>{detail.record && fields(detail.record as Row)}{detail.error && <p role="alert">{String(detail.error)}</p>}{['contexts', 'explanations'].map(key => Array.isArray(detail[key]) && <section key={key}><h3>{t(`history.${key}`)}</h3>{(detail[key] as Row[]).map((row, index) => <div className="legacy-context" key={index}>{fields(row)}</div>)}</section>)}</> : <p role="status">{t('common.loading')}</p>}</div></ContextPanel>}</div>;

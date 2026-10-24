@@ -206,3 +206,24 @@
 .recall-display-setting p { font-size:.8125rem; color:var(--text-muted); line-height:1.7; }
 .lookup-body[data-definition-font='lg'] .recall-meaning { font-size:1.3rem; }
 .lookup-body[data-aux-font='lg'] :is(.recall-context small,.recall-note) { font-size:1rem; }
+
+/* Sample hints stay inside the reading surface; actions use the real reader. */
+.example-intro { margin-bottom:12px; color:var(--text-muted); }
+.example-intro > div { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:44px; }
+.example-intro h1 { font-size:1rem; font-weight:550; color:var(--text-strong); }
+.example-intro p { font-size:.8125rem; line-height:1.7; }
+.example-intro .example-instruction { color:var(--text-body); margin-top:12px; min-height:3.4em; }
+.example-card-hint { display:flex; align-items:center; gap:10px; margin-bottom:12px; color:var(--text-muted); font-size:.8125rem; line-height:1.6; }
+.example-card-hint > .ui-button { flex:none; }
+.example-load { color:var(--text-body); }
+.example-load h1,.example-load p { margin-bottom:16px; }
+.example-load .ui-button { margin-right:10px; }
+@media(max-height:560px) {
+ .lexicue-b .context-panel { top:0; bottom:0; height:100dvh; max-height:100dvh; }
+ .lexicue-b .context-mobile-return { min-height:44px; }
+ .lookup-heading { padding:8px 16px; }
+ .lookup-heading h2 { font-size:1.4rem; }
+ .example-card-hint { margin-bottom:4px; }
+ .lookup-body { padding:12px 16px; }
+ .lookup-footer { padding:8px 16px; }
+}

@@ -11,7 +11,7 @@ const CATEGORIES = [
   ['auxiliary', 'auxiliaryFontSize', 'setAuxiliaryFontSize'],
 ] as const;
 
-export default function DisplaySettingsMenu({ className = '' }: { className?: string }) {
+export default function DisplaySettingsMenu({ className = '', showRecall = true }: { className?: string; showRecall?: boolean }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -32,14 +32,14 @@ export default function DisplaySettingsMenu({ className = '' }: { className?: st
       </button>
       {open && (
         <AdaptiveMenu anchorRef={rootRef} label={t('display.title')} onClose={() => setOpen(false)}>
-          <DisplaySettingsControls />
+          <DisplaySettingsControls showRecall={showRecall}/>
         </AdaptiveMenu>
       )}
     </div>
   );
 }
 
-export function DisplaySettingsControls() {
+export function DisplaySettingsControls({showRecall = true}:{showRecall?: boolean}) {
   const { t } = useTranslation();
   const preferences = usePreferencesStore();
   const recall=useRecallStore();
@@ -64,6 +64,6 @@ export function DisplaySettingsControls() {
                 </div>
               </div>
             );
-          })}<section className="recall-display-setting"><label><input type="checkbox" checked={preferences.reencounterHints} onChange={event=>preferences.setReencounterHints(event.target.checked)}/><span>{t('recall.hints')}</span></label>
-          <p>{t('recall.toggleHint')}</p>{recall.error&&<div role="alert"><p>{t('recall.indexFailed')}</p><button className="ui-button" onClick={()=>void recall.refresh()} disabled={recall.loading}>{t('common.retry')}</button></div>}</section></div>;
+          })}{showRecall&&<section className="recall-display-setting"><label><input type="checkbox" checked={preferences.reencounterHints} onChange={event=>preferences.setReencounterHints(event.target.checked)}/><span>{t('recall.hints')}</span></label>
+          <p>{t('recall.toggleHint')}</p>{recall.error&&<div role="alert"><p>{t('recall.indexFailed')}</p><button className="ui-button" onClick={()=>void recall.refresh()} disabled={recall.loading}>{t('common.retry')}</button></div>}</section>}</div>;
 }

@@ -4,8 +4,8 @@ import { usePreferencesStore } from '../stores/preferencesStore';
 import type { Segment } from '../lib/types';
 import type { RecallMatch } from '../lib/recallMatcher';
 const empty = new Map<number, RecallMatch[]>();
-export default function useRecallMatches(segments: Segment[], first: number, last: number) {
-  const enabled = usePreferencesStore(state => state.reencounterHints);
+export default function useRecallMatches(segments: Segment[], first: number, last: number, inLibrary = true) {
+  const enabled = usePreferencesStore(state => state.reencounterHints) && inLibrary;
   const { expressions, revision, loaded, loading, error, refresh } = useRecallStore();
   const [state, setState] = useState<{ version: number; first: number; last: number; matches: Map<number, RecallMatch[]>; error: boolean }>({ version: -1, first: 0, last: 0, matches: empty, error: false });
   const channel = useRef<{ worker: Worker; version: number } | null>(null);

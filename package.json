@@ -10,7 +10,7 @@
     "test": "vitest run",
     "preview": "vite preview",
     "tauri": "tauri",
-    "test:ui": "node scripts/ui-smoke.mjs && node scripts/ui-saved-smoke.mjs && node scripts/ui-recall-smoke.mjs",
+    "test:ui": "node scripts/ui-smoke.mjs && node scripts/ui-saved-smoke.mjs && node scripts/ui-recall-smoke.mjs && node scripts/ui-onboarding-smoke.mjs",
     "check:release": "node scripts/check-release.mjs",
     "check:release:tests": "node scripts/check-release-tests.mjs",
     "prepare:gemma": "node scripts/prepare-gemma.mjs"

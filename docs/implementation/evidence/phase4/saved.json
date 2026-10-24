@@ -1,0 +1,18 @@
+{
+  "checks": 132,
+  "errors": [],
+  "themes": [
+    "ocean",
+    "midnight"
+  ],
+  "widths": [
+    360,
+    390,
+    430,
+    768,
+    1024,
+    1280,
+    1440
+  ],
+  "data": "isolated in-memory UI fixture"
+}

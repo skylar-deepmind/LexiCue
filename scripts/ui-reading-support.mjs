@@ -12,7 +12,7 @@ if(!bridge){
  server.stdout.on('data',chunk=>{log+=chunk;});server.stderr.on('data',chunk=>{log+=chunk;});
  const deadline=Date.now()+180000;
  while(!bridge&&Date.now()<deadline){try{bridge=`http://127.0.0.1:${JSON.parse(await readFile(info,'utf8')).port}`;}catch{if(server.exitCode!==null)throw Error(log);await new Promise(done=>setTimeout(done,100));}}
- if(!bridge)throw Error(`Bridge startup timed out: ${log}`);
+ if(!bridge){server.kill('SIGTERM');throw Error(`Bridge startup timed out: ${log}`);}
 }
 const call=async(command,args={})=>{const r=await(await fetch(bridge,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({command,args})})).json();if(r.error)throw Error(r.error);return r.value;};
 const {chromium}=await import(process.env.LEXICUE_PLAYWRIGHT_MODULE||'playwright');
@@ -25,7 +25,7 @@ async function fixture(page,theme){
   localStorage.setItem('lexicue-theme',theme);const previous=JSON.parse(localStorage.getItem('lexicue-preferences')||'{"state":{},"version":0}');localStorage.setItem('lexicue-preferences',JSON.stringify({...previous,state:{...previous.state,uiLanguage:'zh'}}));
   window.__uiCalls=[];window.__uiFiles={};window.__uiFailure=null;window.__uiDelayLookup=false;window.__uiDelayContexts=false;
   window.__uiStoreModule=name=>{const path=`/src/stores/${name}.ts`;const resource=performance.getEntriesByType('resource').findLast(entry=>new URL(entry.name).pathname===path);return import(resource?.name||path);};
-  const core=new Set(['saved_recall_index','saved_recall_contexts','import_reading_material','list_materials','open_reading_material','lookup_reading_expression','saved_for_selection','mutate_saved_record','undo_saved_mutation','list_saved_records','saved_record_source','saved_migration_report','saved_record_conflicts','export_all','restore_all','list_tags','create_tag','rename_tag','delete_tag','set_file_tags','list_legacy_records','legacy_record_detail']);
+  const core=new Set(['begin_example_session','end_example_session','example_saved_for_selection','mutate_example_saved_record','undo_example_saved_mutation','saved_recall_index','saved_recall_contexts','import_reading_material','list_materials','open_reading_material','lookup_reading_expression','saved_for_selection','mutate_saved_record','undo_saved_mutation','list_saved_records','saved_record_source','saved_migration_report','saved_record_conflicts','export_all','restore_all','list_tags','create_tag','rename_tag','delete_tag','set_file_tags','list_legacy_records','legacy_record_detail']);
   window.__TAURI_EVENT_PLUGIN_INTERNALS__={unregisterListener(){}};
   window.__TAURI_INTERNALS__={transformCallback:()=>1,unregisterCallback(){},convertFileSrc:path=>path,invoke:async(command,args={})=>{
    window.__uiCalls.push({command,args:structuredClone(args)});
@@ -34,6 +34,8 @@ async function fixture(page,theme){
    if(core.has(command)){
     const result=await(await fetch(bridge,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({command,args})})).json();if(result.error)throw Error(result.error);
     if(fail){window.__uiFailure.remaining--;throw Error('fixture lost receipt after real commit');}
+    if(command==='mutate_example_saved_record'&&window.__uiDelayExampleSave)await new Promise(done=>setTimeout(done,450));
+    if(command==='begin_example_session'&&window.__uiDelayExampleBegin)await new Promise(done=>setTimeout(done,450));
     if(command==='lookup_reading_expression'&&window.__uiDelayLookup&&args.expression==='take')await new Promise(done=>setTimeout(done,400));
     if(command==='saved_recall_contexts'&&window.__uiDelayContexts&&args.expression==='take off')await new Promise(done=>setTimeout(done,400));
     return result.value;

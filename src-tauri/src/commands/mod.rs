@@ -33,3 +33,5 @@ pub mod history;
 mod reading_bridge_test;
 
 pub mod recall;
+
+pub mod example;

@@ -13,6 +13,13 @@ pub struct BackupPayload {
 
 #[derive(Serialize, Deserialize)]
 pub struct BackupData {
+    // Retired settings remain portable and inspectable; never re-enable learning tasks.
+    #[serde(default)]
+    pub frequency_baseline_profiles: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub frequency_baseline_marks: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub frequency_baseline_daily_checks: Vec<serde_json::Value>,
     #[serde(default)]
     pub material_import_actions: Vec<serde_json::Value>,
     #[serde(default)]
@@ -232,6 +239,9 @@ pub fn backup_payload(conn: &rusqlite::Connection) -> Result<BackupPayload, Stri
         exported_at: now_ms(),
         app_version: env!("CARGO_PKG_VERSION").to_string(),
         data: BackupData {
+            frequency_baseline_profiles: query_all(conn, "frequency_baseline_profiles")?,
+            frequency_baseline_marks: query_all(conn, "frequency_baseline_marks")?,
+            frequency_baseline_daily_checks: query_all(conn, "frequency_baseline_daily_checks")?,
             material_import_actions: query_all(conn, "material_import_actions")?,
             annotation_actions: query_all(conn, "annotation_actions")?,
             saved_records: query_all(conn, "saved_records")?,
@@ -343,6 +353,7 @@ pub fn restore_backup(conn: &rusqlite::Connection, backup: &BackupPayload) -> Re
             .map_err(|e| e.to_string())?;
         conn.execute("DELETE FROM segments", [])
             .map_err(|e| e.to_string())?;
+        conn.execute_batch("DELETE FROM frequency_baseline_marks; DELETE FROM frequency_baseline_profiles; DELETE FROM frequency_baseline_daily_checks;").map_err(|e| e.to_string())?;
         conn.execute("DELETE FROM words", [])
             .map_err(|e| e.to_string())?;
         conn.execute("DELETE FROM files", [])
@@ -372,6 +383,21 @@ pub fn restore_backup(conn: &rusqlite::Connection, backup: &BackupPayload) -> Re
         }
         insert_from_json(conn, "words", &backup.data.words)?;
         insert_from_json(conn, "word_aliases", &backup.data.word_aliases)?;
+        insert_from_json(
+            conn,
+            "frequency_baseline_profiles",
+            &backup.data.frequency_baseline_profiles,
+        )?;
+        insert_from_json(
+            conn,
+            "frequency_baseline_marks",
+            &backup.data.frequency_baseline_marks,
+        )?;
+        insert_from_json(
+            conn,
+            "frequency_baseline_daily_checks",
+            &backup.data.frequency_baseline_daily_checks,
+        )?;
         insert_material_rows(conn, "segments", &backup.data.segments)?;
         insert_material_rows(conn, "occurrences", &backup.data.occurrences)?;
         insert_from_json(conn, "reviews", &backup.data.reviews)?;
@@ -461,6 +487,77 @@ pub fn restore_backup(conn: &rusqlite::Connection, backup: &BackupPayload) -> Re
 #[cfg(test)]
 mod english_learning_tests {
     use super::*;
+
+    #[test]
+    fn retired_frequency_settings_round_trip_and_old_backups_default_empty() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = crate::db::init_db(&dir.path().join("source.db")).unwrap();
+        source
+            .execute("INSERT INTO words(language,lemma) VALUES('ja','昔')", [])
+            .unwrap();
+        source
+            .execute(
+                "INSERT INTO frequency_baseline_profiles VALUES('ja',2,1,123)",
+                [],
+            )
+            .unwrap();
+        source.execute("INSERT INTO frequency_baseline_marks VALUES(1,'ja',2,'old-pack','v1','corrected',124,'2026-10-01')",[]).unwrap();
+        source
+            .execute(
+                "INSERT INTO frequency_baseline_daily_checks VALUES('ja','2026-10-01',3)",
+                [],
+            )
+            .unwrap();
+        let backup = backup_payload(&source).unwrap();
+        let target = crate::db::init_db(&dir.path().join("target.db")).unwrap();
+        restore_backup(&target, &backup).unwrap();
+        let restored = backup_payload(&target).unwrap();
+        assert_eq!(
+            restored.data.frequency_baseline_profiles,
+            backup.data.frequency_baseline_profiles
+        );
+        assert_eq!(
+            restored.data.frequency_baseline_marks,
+            backup.data.frequency_baseline_marks
+        );
+        assert_eq!(
+            restored.data.frequency_baseline_daily_checks,
+            backup.data.frequency_baseline_daily_checks
+        );
+        for kind in [
+            "frequency_baseline_profiles",
+            "frequency_baseline_marks",
+            "frequency_baseline_daily_checks",
+        ] {
+            let page = super::super::history::list(&target, kind, "ja", 0).unwrap();
+            assert_eq!(page.rows.len(), 1);
+            let id = page.rows[0]["legacy_rowid"].as_i64().unwrap();
+            assert_eq!(
+                super::super::history::detail(&target, kind, id).unwrap()["record"]["language"],
+                "ja"
+            );
+        }
+        let mut old = serde_json::to_value(backup).unwrap();
+        for key in [
+            "frequency_baseline_profiles",
+            "frequency_baseline_marks",
+            "frequency_baseline_daily_checks",
+        ] {
+            old["data"].as_object_mut().unwrap().remove(key);
+        }
+        restore_backup(&target, &serde_json::from_value(old).unwrap()).unwrap();
+        assert!(backup_payload(&target)
+            .unwrap()
+            .data
+            .frequency_baseline_profiles
+            .is_empty());
+        assert_eq!(
+            target
+                .query_row("SELECT COUNT(*) FROM words", [], |r| r.get::<_, i64>(0))
+                .unwrap(),
+            1
+        );
+    }
 
     #[test]
     fn backup_round_trip_keeps_context_meaning_and_other_senses() {

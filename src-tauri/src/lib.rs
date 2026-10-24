@@ -52,7 +52,13 @@ pub fn run() {
 
             Ok(())
         })
+        .manage(commands::example::ExampleState::default())
         .invoke_handler(tauri::generate_handler![
+            commands::example::begin_example_session,
+            commands::example::end_example_session,
+            commands::example::example_saved_for_selection,
+            commands::example::mutate_example_saved_record,
+            commands::example::undo_example_saved_mutation,
             commands::import::import_file,
             commands::import::check_duplicate,
             commands::export::export_all,

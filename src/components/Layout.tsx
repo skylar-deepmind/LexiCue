@@ -16,6 +16,7 @@ import { useUpdateStore } from '../stores/updateStore';
 import { useFeedbackStore } from '../stores/feedbackStore';
 import { syncCoordinator } from '../lib/syncCoordinator';
 import { prepareSpeechVoices } from '../lib/tts';
+import { useOnboardingStore } from '../stores/onboardingStore';
 export default function Layout() {
     const { t } = useTranslation();
     const { pathname: rawPathname } = useLocation();
@@ -74,6 +75,8 @@ export default function Layout() {
     const initializeYoutube = useYoutubeStore((state) => state.initialize);
     const checkUpdate = useUpdateStore((state) => state.check);
     const showFeedback = useFeedbackStore((state) => state.show);
+    const persistError = useOnboardingStore(state => state.persistError);
+    useEffect(() => { if (persistError) showFeedback(t('onboarding.rememberFailed'), 'error'); }, [persistError, showFeedback, t]);
     const startupChecked = useRef(false);
     useEffect(() => {
         prepareSpeechVoices();

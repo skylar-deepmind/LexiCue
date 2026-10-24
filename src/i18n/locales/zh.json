@@ -1369,7 +1369,11 @@
       "reviews": "单词复习计划",
       "phrase_reviews": "短语复习计划",
       "review_logs": "单词作答",
-      "phrase_review_logs": "短语作答"
+      "phrase_review_logs": "短语作答",
+      "frequency_baseline_profiles": "旧词频配置",
+      "frequency_baseline_marks": "旧词频标记",
+      "frequency_baseline_daily_checks": "旧词频抽查",
+      "file_phrase_analysis": "旧分析配置"
     },
     "fields": {}
   },
@@ -1387,5 +1391,17 @@
     "marked": "已保存「{{expression}}」，点开回顾",
     "loadFailed": "暂时无法加载旧原句，可重试或继续查询本句。",
     "indexFailed": "再遇提示暂未更新，仍可阅读和查询。"
+  },
+  "onboarding": {
+    "sample": "英语示例",
+    "privacy": "这里的保存仅供体验，离开后清除，不计入你的材料或已保存。",
+    "step1": "点一个英语单词，或选中连续短语，看看解释。",
+    "step2": "需要留住时，点“保存”，词句和原句会一起保留。",
+    "step3": "收起解释，继续阅读。也可以先撤销保存。",
+    "skip": "跳过引导",
+    "replayTitle": "实操引导",
+    "replay": "重新体验",
+    "loadFailed": "示例暂时无法打开，可以重试或跳过。",
+    "rememberFailed": "未能记住引导状态。仍可正常使用，重启后可能再次出现。"
   }
 }

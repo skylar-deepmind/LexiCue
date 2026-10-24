@@ -1386,7 +1386,11 @@
       "reviews": "Word review plans",
       "phrase_reviews": "Phrase review plans",
       "review_logs": "Word answers",
-      "phrase_review_logs": "Phrase answers"
+      "phrase_review_logs": "Phrase answers",
+      "frequency_baseline_profiles": "Legacy frequency settings",
+      "frequency_baseline_marks": "Legacy frequency marks",
+      "frequency_baseline_daily_checks": "Legacy frequency checks",
+      "file_phrase_analysis": "Legacy analysis settings"
     },
     "fields": {}
   },
@@ -1404,5 +1408,17 @@
     "marked": "Saved “{{expression}}”. Open to recall.",
     "loadFailed": "Could not load earlier sentences. Retry or continue with the current lookup.",
     "indexFailed": "Hints could not update. Reading and lookups still work."
+  },
+  "onboarding": {
+    "sample": "English example",
+    "privacy": "Saves here are temporary. They are cleared when you leave and never enter your materials or Saved.",
+    "step1": "Tap an English word or select a continuous phrase to see its meaning.",
+    "step2": "Tap Save to keep an expression together with its original sentence.",
+    "step3": "Collapse the explanation and keep reading. You can also undo the save first.",
+    "skip": "Skip guide",
+    "replayTitle": "Hands-on guide",
+    "replay": "Try again",
+    "loadFailed": "The example could not open. Retry or skip the guide.",
+    "rememberFailed": "Could not remember your guide status. You can keep using the app; it may appear again after restarting."
   }
 }

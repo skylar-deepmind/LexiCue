@@ -1,0 +1,148 @@
+{
+  "date": "2026-10-24",
+  "branch": "codex/lexicue-v31-pure-b",
+  "frontend": {
+    "build": "pass",
+    "lint": "pass; existing warnings retained",
+    "unit": {
+      "files": 37,
+      "tests": 280
+    }
+  },
+  "rust": {
+    "unit": 246,
+    "integration": 4,
+    "ignored": 13,
+    "temporary_legacy_copy": "pass"
+  },
+  "ui": {
+    "reading": 167,
+    "saved": 132,
+    "recall": 302,
+    "onboarding": 237,
+    "total": 838
+  },
+  "themes": [
+    "ocean",
+    "midnight"
+  ],
+  "widths": [
+    360,
+    390,
+    430,
+    768,
+    1024,
+    1280,
+    1440
+  ],
+  "protected_worktree": {
+    "protected_paths": 1574,
+    "modified_or_missing": []
+  },
+  "recall_performance": {
+    "checks": 302,
+    "seedEvidence": [
+      {
+        "expressions": 9988,
+        "filler": "deterministic ECDICT sample: single words and two-word phrases",
+        "records": 10000,
+        "source_file_id": 21
+      },
+      {
+        "expressions": 9988,
+        "filler": "deterministic ECDICT sample: single words and two-word phrases",
+        "records": 10000,
+        "source_file_id": 23
+      }
+    ],
+    "corpus": {
+      "positive": 20,
+      "negative": 20,
+      "polysemy": 10
+    },
+    "themes": [
+      "ocean",
+      "midnight"
+    ],
+    "widths": [
+      360,
+      390,
+      430,
+      768,
+      1024,
+      1280,
+      1440
+    ],
+    "coldMarksMs": {
+      "samples": 40,
+      "p95": 144.39999999850988,
+      "max": 216.5
+    },
+    "cachedLookupMs": {
+      "samples": 100,
+      "p95": 81.40000000223517,
+      "max": 97.69999999925494
+    },
+    "longTasks": [],
+    "errors": []
+  },
+  "native": {
+    "macOS": {
+      "os": "15.6.1 24G90",
+      "arch": "arm64",
+      "profile": "com.lexicue.qa.v31.phase4",
+      "verified": [
+        "sample lookup/save/close",
+        "default and midnight themes",
+        "settings replay",
+        "restart omits guide",
+        "native file picker SRT import",
+        "real lookup/save/close",
+        "new material recall old sentence",
+        "read/stop UI state"
+      ],
+      "voice": "audible output needs manual confirmation"
+    },
+    "Android": {
+      "os": "16 API 36.1",
+      "device": "Medium_Phone_API_36.1 arm64-v8a emulator",
+      "package": "com.lexicue.app.qa.phase4",
+      "build_install": "pass",
+      "verified": [
+        "sample lookup/save/undo",
+        "default and midnight themes",
+        "system back gesture",
+        "settings replay",
+        "skip",
+        "restart omits skipped guide",
+        "actual saved original sentence and source file verified read-only",
+        "real saved record survives process restart",
+        "final native build replay/skip keeps one real Saved record"
+      ],
+      "real_material_flow": "pass: native storage provider → SRT import → lookup → save → collapse and continue",
+      "voice": "native no-English-voice fallback observed, reading and saving remain available",
+      "provider_limit": "Only system external storage provider tested; adb-injected fixtures absent from Downloads shortcut"
+    },
+    "Windows": {
+      "vm": "Windows 11 ARM, build 26200",
+      "build": "blocked: rustup exists but no installed/default Rust toolchain",
+      "native_flow": "pending",
+      "vm_final_state": "suspended (original state)"
+    }
+  },
+  "chrome": "156.0.8078.47",
+  "completed_date": "2026-10-25",
+  "hardware": {
+    "processor": "Apple M4",
+    "memory_gib": 32
+  },
+  "preview": {
+    "reopened": true,
+    "all_eleven_learning_tables_unchanged": true,
+    "materials": 27,
+    "saved_records": 998,
+    "profile": "com.lexicue.preview.v31",
+    "app": "/tmp/LexiCue31Preview.app",
+    "url": "http://127.0.0.1:5173/example"
+  }
+}
