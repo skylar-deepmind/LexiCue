@@ -1,64 +1,35 @@
-import { backNavigation, requestBackNavigation } from '../lib/backNavigation';
 import { useEffect, useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { Link, useParams } from 'react-router-dom';
 import { invoke } from '@tauri-apps/api/core';
-import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import EmptyState from '../components/EmptyState';
+import type { ReadingMaterial } from '../lib/materials';
+import { useMaterialStore } from '../stores/materialStore';
 import ReadingPage from './ReadingPage';
-import type { FileRecord } from '../lib/types';
-
 export default function FileDetailPage() {
-  const { t } = useTranslation();
-  const { fileId: rawFileId } = useParams();
-  const fileId = Number(rawFileId);
-  const navigate = useNavigate();
-  const [file, setFile] = useState<FileRecord | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  const [revision, setRevision] = useState(0);
-
-  useEffect(() => {
-    let active = true;
-    setFile(null);
-    if (!Number.isInteger(fileId)) {
-      setError(true);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    invoke<FileRecord>('get_file_info', { fileId })
-      .then((nextFile) => {
-        if (!active) return;
-        setFile(nextFile);
+    const { fileId: raw } = useParams();
+    const id = Number(raw);
+    const { t } = useTranslation();
+    const [data, setData] = useState<ReadingMaterial | null>(null);
+    const [error, setError] = useState(false);
+    const [revision, setRevision] = useState(0);
+    useEffect(() => {
+        let active = true;
+        setData(null);
         setError(false);
-      })
-      .catch((reason) => {
-        if (!active) return;
-        console.error('Failed to load file:', reason);
-        setError(true);
-      })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
-  }, [fileId, revision]);
-
-  useEffect(() => backNavigation.setPage(() => {
-    navigate('/files'); return true;
-  }, 10), [file, navigate]);
-
-  return (
-    <div className="flex h-full flex-col">
-      <header className="flex items-center gap-2 border-b border-gray-100 bg-white px-4 py-3 sm:px-6">
-        <button onClick={requestBackNavigation} className="rounded-lg p-2 text-gray-500 hover:bg-gray-100" aria-label={t('fileDetail.back')}>
-          <ArrowLeft size={18} />
-        </button>
-        <h1 className="min-w-0 flex-1 truncate text-base font-medium text-gray-900" title={file?.name}>{file?.name ?? t(loading ? 'common.loading' : 'fileDetail.notFound')}</h1>
-      </header>
-      <div className="min-h-0 flex-1">
-        {loading ? <div className="flex h-full items-center justify-center text-gray-500">{t('common.loading')}</div>
-          : error || !file ? <div className="reader-load-error"><EmptyState icon="📭" title={t('fileDetail.notFound')} description={t('fileDetail.notFoundHint')} /><button className="ui-button" onClick={() => setRevision(v => v + 1)}>{t('common.retry')}</button></div>
-          : <ReadingPage fileId={fileId} />}
-      </div>
-    </div>
-  );
+        if (!Number.isInteger(id) || id < 1) {
+            setError(true);
+            return;
+        }
+        void invoke<ReadingMaterial>('open_reading_material', { fileId: id }).then(next => { if (active) {
+            setData(next);
+            useMaterialStore.setState({ current: next.material });
+        } }).catch(() => { if (active)
+            setError(true); });
+        return () => { active = false; };
+    }, [id, revision]);
+    if (error)
+        return <div className="reader-load-error"><p>{t('reader.unavailable')}</p><div><button className="ui-button" onClick={() => setRevision(revision + 1)}>{t('common.retry')}</button><Link className="ui-button" to={`/legacy?fileId=${id}`}>{t('materials.history')}</Link></div></div>;
+    if (!data)
+        return <p className="material-status" role="status">{t('common.loading')}</p>;
+    return <ReadingPage key={data.material.content_hash} data={data}/>;
 }

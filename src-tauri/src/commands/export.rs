@@ -14,6 +14,8 @@ pub struct BackupPayload {
 #[derive(Serialize, Deserialize)]
 pub struct BackupData {
     #[serde(default)]
+    pub material_import_actions: Vec<serde_json::Value>,
+    #[serde(default)]
     pub annotation_actions: Vec<serde_json::Value>,
     #[serde(default)]
     pub saved_records: Vec<serde_json::Value>,
@@ -230,13 +232,20 @@ pub fn backup_payload(conn: &rusqlite::Connection) -> Result<BackupPayload, Stri
         exported_at: now_ms(),
         app_version: env!("CARGO_PKG_VERSION").to_string(),
         data: BackupData {
+            material_import_actions: query_all(conn, "material_import_actions")?,
             annotation_actions: query_all(conn, "annotation_actions")?,
             saved_records: query_all(conn, "saved_records")?,
             saved_actions: query_all(conn, "saved_actions")?,
-            saved_conflicts: query_all(conn,"sync_conflicts")?.into_iter().filter_map(|mut row| {
-                if row.get("table_name").and_then(|v|v.as_str())!=Some("saved_records") {return None;}
-                row.as_object_mut()?.remove("id");Some(row)
-            }).collect(),
+            saved_conflicts: query_all(conn, "sync_conflicts")?
+                .into_iter()
+                .filter_map(|mut row| {
+                    if row.get("table_name").and_then(|v| v.as_str()) != Some("saved_records") {
+                        return None;
+                    }
+                    row.as_object_mut()?.remove("id");
+                    Some(row)
+                })
+                .collect(),
             product_migrations: query_all(conn, "product_migrations")?,
             files,
             folders,
@@ -292,14 +301,19 @@ pub fn restore_backup(conn: &rusqlite::Connection, backup: &BackupPayload) -> Re
         .map_err(|e| e.to_string())?;
 
     let result = (|| -> Result<(), String> {
+        conn.execute("DELETE FROM material_import_actions", [])
+            .map_err(|e| e.to_string())?;
         // Keep stable saved identities and tombstones in the portable payload.
         // Remove old local receipts/state before replacing data, in this transaction.
-        conn.execute_batch("DELETE FROM saved_actions; DELETE FROM saved_records; DELETE FROM product_migrations;
+        conn.execute_batch(
+            "DELETE FROM saved_actions; DELETE FROM saved_records; DELETE FROM product_migrations;
             DELETE FROM sync_changes WHERE table_name='saved_records';
             DELETE FROM sync_entity_state WHERE table_name='saved_records';
             DELETE FROM sync_identity_aliases WHERE table_name='saved_records';
             DELETE FROM sync_remote_state WHERE table_name='saved_records';
-            DELETE FROM sync_conflicts WHERE table_name='saved_records';").map_err(|e|e.to_string())?;
+            DELETE FROM sync_conflicts WHERE table_name='saved_records';",
+        )
+        .map_err(|e| e.to_string())?;
         conn.execute_batch("DELETE FROM legacy_tag_folders; DELETE FROM file_tags; DELETE FROM file_tag_state; DELETE FROM tags;").map_err(|e| e.to_string())?;
         conn.execute("DELETE FROM annotation_actions", [])
             .map_err(|e| e.to_string())?;
@@ -337,6 +351,11 @@ pub fn restore_backup(conn: &rusqlite::Connection, backup: &BackupPayload) -> Re
             .map_err(|e| e.to_string())?;
 
         insert_from_json(conn, "files", &backup.data.files)?;
+        insert_from_json(
+            conn,
+            "material_import_actions",
+            &backup.data.material_import_actions,
+        )?;
         insert_from_json(conn, "folders", &backup.data.folders)?;
         insert_from_json(conn, "tags", &backup.data.tags)?;
         insert_from_json(conn, "file_tags", &backup.data.file_tags)?;
@@ -377,15 +396,26 @@ pub fn restore_backup(conn: &rusqlite::Connection, backup: &BackupPayload) -> Re
         // Validate canonical snapshots instead of trusting redundant JSON/index
         // columns in an exported SQL row. Missing v9 fields behave like an old backup.
         for row in &backup.data.saved_records {
-            let raw=row.get("snapshot_json").and_then(|v|v.as_str()).ok_or("invalid_saved_backup")?;
-            let record: super::saved::SavedRecord=serde_json::from_str(raw).map_err(|e|e.to_string())?;
-            super::saved::write_record(conn,&record)?;
+            let raw = row
+                .get("snapshot_json")
+                .and_then(|v| v.as_str())
+                .ok_or("invalid_saved_backup")?;
+            let record: super::saved::SavedRecord =
+                serde_json::from_str(raw).map_err(|e| e.to_string())?;
+            super::saved::write_record(conn, &record)?;
         }
-        insert_from_json(conn,"saved_actions",&backup.data.saved_actions)?;
-        if backup.data.saved_conflicts.iter().any(|r|r.get("table_name").and_then(|v|v.as_str())!=Some("saved_records")) {return Err("invalid_saved_backup".into());}
-        insert_from_json(conn,"sync_conflicts",&backup.data.saved_conflicts)?;
-        insert_from_json(conn,"annotation_actions",&backup.data.annotation_actions)?;
-        insert_from_json(conn,"product_migrations",&backup.data.product_migrations)?;
+        insert_from_json(conn, "saved_actions", &backup.data.saved_actions)?;
+        if backup
+            .data
+            .saved_conflicts
+            .iter()
+            .any(|r| r.get("table_name").and_then(|v| v.as_str()) != Some("saved_records"))
+        {
+            return Err("invalid_saved_backup".into());
+        }
+        insert_from_json(conn, "sync_conflicts", &backup.data.saved_conflicts)?;
+        insert_from_json(conn, "annotation_actions", &backup.data.annotation_actions)?;
+        insert_from_json(conn, "product_migrations", &backup.data.product_migrations)?;
         super::saved::migrate_legacy(conn)?;
 
         let violations: Vec<String> = {

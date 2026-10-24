@@ -6,7 +6,7 @@ import Overlay from './Overlay';
 import TagPicker from './TagPicker';
 import { tagErrorMessage } from '../lib/tags';
 
-export default function TagEditDialog({ file, onClose }: { file: FileRecord; onClose: () => void }) {
+export default function TagEditDialog({ file, onClose }: { file: Pick<FileRecord, 'id'|'name'|'tags'>; onClose: () => void }) {
   const { t } = useTranslation();
   const tags = useFileStore(state => state.tags);
   const loading = useFileStore(state => state.loadingTags);

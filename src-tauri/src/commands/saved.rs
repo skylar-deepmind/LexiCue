@@ -710,6 +710,19 @@ pub fn mutate_saved_record(
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
     mutate(&conn, &operation_id, &mutation)
 }
+
+pub fn selection(conn: &Connection, input: &SaveInput) -> Result<Option<SavedRecord>, String> {
+    let candidate = from_input(conn, input)?;
+    Ok(get(conn, &candidate.record_id)?.filter(|record| record.deleted_at.is_none()))
+}
+#[tauri::command]
+pub fn saved_for_selection(
+    state: State<DbState>,
+    input: SaveInput,
+) -> Result<Option<SavedRecord>, String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    selection(&conn, &input)
+}
 #[tauri::command]
 pub fn undo_saved_mutation(
     state: State<DbState>,

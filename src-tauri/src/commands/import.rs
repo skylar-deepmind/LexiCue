@@ -33,7 +33,7 @@ fn default_language() -> String {
     "en".to_string()
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct SegmentInput {
     pub index: i32,
     pub en_text: String,

@@ -287,6 +287,7 @@ export interface BackupPayload {
   exported_at: number;
   app_version: string;
   data: {
+    material_import_actions?:Record<string,unknown>[];
     saved_records?: Record<string, unknown>[];
     saved_actions?: Record<string, unknown>[];
     saved_conflicts?: Record<string, unknown>[];

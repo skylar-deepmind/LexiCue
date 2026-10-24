@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./reading.css";
 
 /* Independent saved contexts: use the same semantic states in every theme. */
 .saved-page { position: relative; height: 100%; display: flex; flex-direction: column; overflow: hidden; background: var(--surface); color: var(--text-body); }
@@ -78,7 +79,6 @@
   .context-layer--closing .context-panel { animation-name: context-card-close; }
   .context-mobile-return { display: none; }
   .context-blank-return { top: 88px; bottom: 24px; left: 200px; height: auto; }
-  .saved-page[data-panel-open='true'] .saved-workspace { transform: translateX(-176px); transition-duration: 420ms; }
 }
 @media (max-width: 640px) {
   .saved-scroll { padding: 24px 16px 96px; }

@@ -1,0 +1,25 @@
+{
+  "checks": 167,
+  "themes": [
+    "ocean",
+    "midnight"
+  ],
+  "widths": [
+    360,
+    390,
+    430,
+    768,
+    1024,
+    1280,
+    1440
+  ],
+  "cachedLookupMs": {
+    "samples": 60,
+    "p95": 2.0852080000040587
+  },
+  "activationToVisibleMs": {
+    "samples": 100,
+    "p95": 64.60000000149012
+  },
+  "errors": []
+}

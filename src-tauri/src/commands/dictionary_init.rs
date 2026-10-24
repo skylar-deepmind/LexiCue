@@ -29,34 +29,9 @@ type Initializer = fn(&Connection) -> Result<(), String>;
 const SOURCES: &[(&str, &str, Initializer)] = &[
     ("ECDICT", "en", dictionary::initialize_builtin_dictionary),
     (
-        "JMdict",
-        "ja",
-        dictionary::initialize_builtin_japanese_dictionary,
-    ),
-    (
-        "GermanDict",
-        "de",
-        dictionary::initialize_builtin_german_dictionary,
-    ),
-    (
-        "CC-CEDICT",
-        "zh",
-        dictionary::initialize_builtin_chinese_dictionary,
-    ),
-    (
-        "CC-CEDICT Phrases",
-        "zh",
-        dictionary::initialize_builtin_chinese_phrase_dictionary,
-    ),
-    (
         "PhraseDict",
         "en",
         dictionary::initialize_builtin_phrase_dictionary,
-    ),
-    (
-        "JMdict Idioms",
-        "ja",
-        dictionary::initialize_builtin_japanese_phrase_dictionary,
     ),
 ];
 #[derive(Clone)]
@@ -261,9 +236,6 @@ pub fn start(app: AppHandle, status: DictionaryStatus) {
                 .into();
             });
             let _ = app.emit("dictionary-ready", status.is_ready());
-            if let Err(error) = super::english::run_migrate_english_lemmas(&conn) {
-                log::error!("english lemma migration: {error}");
-            }
         });
     if let Err(error) = result {
         status.update(&app, |s| {
@@ -357,7 +329,17 @@ mod tests {
             snapshot.sources[1].error = Some("database busy".into());
         }
         assert!(status.language_ready("en"));
-        assert!(status.language_failed("ja"));
+        assert_eq!(status.snapshot().sources[1].name, "PhraseDict");
+        assert_eq!(status.snapshot().sources[1].state, "failed");
+        assert_eq!(
+            status.snapshot().sources[1].error.as_deref(),
+            Some("database busy")
+        );
+        assert!(status
+            .snapshot()
+            .sources
+            .iter()
+            .all(|source| source.language == "en"));
         assert!(status.begin());
         assert_eq!(status.snapshot().run_id, 2);
         assert_eq!(status.snapshot().sources[0].state, "ready");

@@ -1,0 +1,165 @@
+/** Browser → real Rust command cores → disposable SQLite. Native file picker,
+ * speech and platform startup are fixtures; parsing, writes, dictionary lookups,
+ * saved records, backups and source resolution run production code. */
+import assert from 'node:assert/strict';
+import { mkdir, readFile, writeFile, mkdtemp } from 'node:fs/promises';
+import { spawn } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+const root=fileURLToPath(new URL('../',import.meta.url));
+const output=process.env.LEXICUE_READING_UI_OUTPUT||'/tmp/lexicue-ui-reading';
+await mkdir(output,{recursive:true});
+let bridge=process.env.LEXICUE_READING_BRIDGE_URL,server,log='';
+if(!bridge){
+ const temp=await mkdtemp(`/tmp/lexicue-reading-ui-`);const info=`${temp}/bridge.json`;
+ server=spawn('cargo',['test','serve_reading_bridge','--','--ignored','--nocapture'],{cwd:`${root}/src-tauri`,env:{...process.env,LEXICUE_READING_BRIDGE_INFO:info}});
+ server.stdout.on('data',chunk=>{log+=chunk;});server.stderr.on('data',chunk=>{log+=chunk;});
+ const deadline=Date.now()+180000;
+ while(!bridge&&Date.now()<deadline){try{bridge=`http://127.0.0.1:${JSON.parse(await readFile(info,'utf8')).port}`;}catch{if(server.exitCode!==null)throw Error(log);await new Promise(done=>setTimeout(done,100));}}
+ if(!bridge)throw Error(`Bridge startup timed out: ${log}`);
+}
+const call=async(command,args={})=>{const r=await(await fetch(bridge,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({command,args})})).json();if(r.error)throw Error(r.error);return r.value;};
+const {chromium}=await import(process.env.LEXICUE_PLAYWRIGHT_MODULE||'playwright');
+const browser=await chromium.launch({channel:process.env.LEXICUE_UI_BROWSER_CHANNEL||'chrome',headless:true});
+const url=process.env.LEXICUE_UI_URL||'http://127.0.0.1:5173';
+let currentPage;let checks=0;const errors=[],timings=[],visibleTimings=[];
+const ok=(value,label)=>{assert.ok(value,label);checks++;};
+const eq=(value,expected,label)=>{assert.deepEqual(value,expected,label);checks++;};
+const srt=text=>`1\n00:00:01,000 --> 00:00:03,000\n${text}\n`;
+const flight=await readFile(`${root}/docs/implementation/fixtures/v31-reading.srt`,'utf8');
+async function fixture(page,theme){
+ page.on('pageerror',error=>errors.push(error.message));
+ await page.addInitScript(({bridge,theme})=>{
+  localStorage.setItem('lexicue-theme',theme);localStorage.setItem('lexicue-preferences',JSON.stringify({state:{uiLanguage:'zh'},version:0}));
+  window.__uiCalls=[];window.__uiFiles={};window.__uiFailure=null;window.__uiDelayLookup=false;
+  window.__uiStoreModule=name=>{const path=`/src/stores/${name}.ts`;const resource=performance.getEntriesByType('resource').findLast(entry=>new URL(entry.name).pathname===path);return import(resource?.name||path);};
+  const core=new Set(['import_reading_material','list_materials','open_reading_material','lookup_reading_expression','saved_for_selection','mutate_saved_record','undo_saved_mutation','list_saved_records','saved_record_source','saved_migration_report','saved_record_conflicts','export_all','restore_all','list_tags','create_tag','rename_tag','delete_tag','set_file_tags','list_legacy_records','legacy_record_detail']);
+  window.__TAURI_EVENT_PLUGIN_INTERNALS__={unregisterListener(){}};
+  window.__TAURI_INTERNALS__={transformCallback:()=>1,unregisterCallback(){},convertFileSrc:path=>path,invoke:async(command,args={})=>{
+   window.__uiCalls.push({command,args:structuredClone(args)});
+   const fail=window.__uiFailure?.command===command&&window.__uiFailure.remaining>0;
+   if(fail&&!window.__uiFailure.afterCommit){window.__uiFailure.remaining--;throw Error('fixture failure before write');}
+   if(core.has(command)){
+    const result=await(await fetch(bridge,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({command,args})})).json();if(result.error)throw Error(result.error);
+    if(fail){window.__uiFailure.remaining--;throw Error('fixture lost receipt after real commit');}
+    if(command==='lookup_reading_expression'&&window.__uiDelayLookup&&args.expression==='take')await new Promise(done=>setTimeout(done,400));
+    return result.value;
+   }
+   if(command==='dictionary_init_status')return {runId:1,sequence:1,state:'ready',currentSource:null,sources:[{name:'ECDICT',language:'en',state:'ready',processedRows:1,error:null},{name:'PhraseDict',language:'en',state:'ready',processedRows:1,error:null}]};
+   if(command==='plugin:event|listen')return 1;
+   if(command==='plugin:app|version')return '0.4.5';
+   if(command==='plugin:dialog|open')return Object.keys(window.__uiFiles);
+   if(command==='plugin:dialog|ask')return true;
+   if(command==='plugin:dialog|save')return '/fixture/export.json';
+   if(command==='plugin:fs|read_text_file')return Array.from(new TextEncoder().encode(window.__uiFiles[args.path]));
+   if(command==='plugin:fs|write_text_file')return null;
+   if(command==='youtube_ytdlp_status')return {available:false,path:'',version:null};
+   if(command==='plugin:updater|check')return null;
+   if(command==='list_files')return [];
+   if(command.startsWith('plugin:')||command.startsWith('sync_'))return null;
+   throw Error(`Unimplemented native fixture command: ${command}`);
+  }};
+ },{bridge,theme});
+}
+const close=async page=>{await page.keyboard.press('Escape');await page.locator('.context-panel').waitFor({state:'detached'});};
+const settle=page=>page.locator('.context-panel').evaluate(node=>Promise.all(node.getAnimations().map(a=>a.finished)));
+const waitLibrary=page=>page.waitForFunction(()=>!document.querySelector('.material-status')&&document.querySelector('.materials-paper'));
+const drop=async(page,files)=>page.evaluate(files=>{const transfer=new DataTransfer();for(const [name,text]of files)transfer.items.add(new File([text],name,{type:'application/x-subrip'}));window.dispatchEvent(new DragEvent('drop',{dataTransfer:transfer,bubbles:true,cancelable:true}));},files);
+async function contrast(locator){return locator.evaluate(node=>{
+ const rgb=v=>v.match(/[\d.]+/g).map(Number);const lum=values=>values.slice(0,3).map(n=>{const v=n/255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;}).reduce((a,n,i)=>a+n*[.2126,.7152,.0722][i],0);
+ let target=node,bg;do{bg=rgb(getComputedStyle(target).backgroundColor);target=target.parentElement;}while(target&&(bg[3]??1)===0);const a=lum(rgb(getComputedStyle(node).color)),b=lum(bg);return(Math.max(a,b)+.05)/(Math.min(a,b)+.05);
+ });}
+async function noOverflow(page,label){ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),label);const card=page.locator('.context-panel');if(await card.count())ok(await card.evaluate(node=>{const r=node.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth+1&&r.top>=0&&r.bottom<=innerHeight+1;}),label+' card');}
+try{
+ for(const theme of ['ocean','midnight']){
+  await call('test_reset');
+  const context=await browser.newContext({viewport:{width:1440,height:900}});const page=await context.newPage();currentPage=page;await fixture(page,theme);await page.goto(`${url}/files`);await waitLibrary(page);
+  eq(await page.locator('.b-dock a').allTextContents(),['材料','已保存','设置'],'pure B dock');
+  eq(await page.locator('.learning-language-select,.coach-banner,.analysis-model-picker').count(),0,'retired learning controls');
+  await page.getByRole('button',{name:'按标签筛选'}).click();
+  await page.getByRole('button',{name:'管理标签',exact:true}).click();eq(await page.locator('#root').evaluate(node=>node.inert),true,'tag manager isolates background');
+  await page.getByRole('button',{name:'新建标签',exact:true}).click();eq(await page.getByRole('dialog').count(),2,'nested tag prompt');
+  eq(await page.evaluate(()=>window.__lexicueBack()),true,'system back closes top layer');await page.waitForFunction(()=>document.querySelectorAll('[role=dialog]').length===1);
+  await page.getByRole('button',{name:'新建标签',exact:true}).click();const prompt=page.getByRole('dialog',{name:'新建标签',exact:true});
+  await prompt.getByRole('textbox').fill('Keep this tag name');await page.evaluate(()=>window.__uiFailure={command:'create_tag',afterCommit:false,remaining:1});
+  await prompt.getByRole('button',{name:'新建标签',exact:true}).click();await prompt.getByRole('alert').waitFor();eq(await prompt.getByRole('textbox').inputValue(),'Keep this tag name','failed tag create retains draft');
+  await page.setViewportSize({width:390,height:320});ok(await prompt.getByRole('button',{name:'新建标签',exact:true}).evaluate(node=>node.getBoundingClientRect().bottom<=innerHeight),'short screen primary action reachable');await page.setViewportSize({width:1440,height:900});
+  await prompt.getByRole('button',{name:'新建标签',exact:true}).click();await prompt.waitFor({state:'detached'});await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'detached'});eq(await page.locator('#root').evaluate(node=>node.inert),false,'inert released');ok(await page.getByRole('button',{name:'管理标签',exact:true}).evaluate(node=>node===document.activeElement),'tag manager restores focus');
+  await page.getByRole('button',{name:'导入',exact:true}).click();await page.locator('.material-drop').waitFor();
+  eq(await page.locator('.context-panel select').count(),0,'no mandatory language form');
+  await page.evaluate(content=>window.__uiFiles={'/fixture/flight.srt':content},flight);
+  await page.getByRole('button',{name:'选择文件',exact:true}).click();await page.waitForURL(/\/files\/\d+/);await page.locator('.reading-word').first().waitFor();
+  const fileId=Number(new URL(page.url()).pathname.split('/').at(-1));eq((await call('test_counts')).files,1,'single-file real write');
+  ok((await page.locator('.b-path').innerText()).includes('材料'),'actual return path');
+  const layout=()=>page.locator('.reading-original').first().evaluate(node=>{const r=node.getBoundingClientRect(),s=getComputedStyle(node);return {width:r.width,font:s.fontSize,line:s.lineHeight,height:r.height};});
+  const before=await layout();const take=page.locator('.reading-word').filter({hasText:/^take$/}).first();await take.focus();await take.click();await page.locator('.lookup-meaning').waitFor();await settle(page);
+  eq(await layout(),before,'opening card preserves font, line height, width and wrapping');
+  for(const state of ['default','hover','selected','focus']){if(state==='hover')await take.hover();if(state==='focus'){await page.keyboard.press('Tab');await take.focus();}ok(await contrast(take)>=4.5,`${theme} word ${state} contrast`);if(state==='focus')eq(await take.evaluate(node=>getComputedStyle(node).outlineStyle),'solid','word keyboard focus');}
+
+  eq(await page.locator('.context-panel button[aria-label*=关闭]').count(),0,'no close X');
+  await page.getByRole('button',{name:'补充个人解释'}).click();await page.locator('#reader-meaning').fill('我的上下文解释');
+  await page.evaluate(()=>window.__uiFailure={command:'mutate_saved_record',afterCommit:true,remaining:1});
+  await page.locator('.lookup-footer').getByRole('button',{name:'保存',exact:true}).click();await page.locator('.lookup-body [role=alert]').waitFor();
+  eq(await page.locator('#reader-meaning').inputValue(),'我的上下文解释','failed receipt retains draft');
+  await page.locator('.lookup-footer').getByRole('button',{name:'保存',exact:true}).click();await page.locator('.lookup-saved').waitFor();
+  eq((await call('list_saved_records',{query:'',limit:100,offset:0})).length,1,'lost receipt retry creates one record');
+  const saves=await page.evaluate(()=>window.__uiCalls.filter(v=>v.command==='mutate_saved_record'));eq(saves[0].args.operationId,saves[1].args.operationId,'retry reuses transaction identity');
+  eq((await call('list_saved_records',{query:'',limit:100,offset:0}))[0].explanation,'我的上下文解释','real personal snapshot');
+  await page.locator('.lookup-saved').getByRole('button',{name:'撤销'}).click();await page.locator('.lookup-footer').getByRole('button',{name:'保存',exact:true}).waitFor();eq((await call('list_saved_records',{query:'',limit:100,offset:0})).length,0,'real undo');
+  await page.locator('.lookup-footer').getByRole('button',{name:'保存',exact:true}).click();await page.locator('.lookup-saved').waitFor();
+  await page.getByRole('button',{name:'补充个人解释'}).click();await page.locator('#reader-meaning').fill('暂时的修改');await page.getByRole('button',{name:'保存修改',exact:true}).click();await page.locator('.lookup-saved').waitFor();await page.getByRole('button',{name:'撤销',exact:true}).click();
+  await page.getByRole('button',{name:'补充个人解释'}).click();eq(await page.locator('#reader-meaning').inputValue(),'我的上下文解释','undo edit restores editor too');
+  await page.screenshot({path:`${output}/${theme}-1440-reading.png`});
+  await close(page);ok(await take.evaluate(node=>node===document.activeElement),'Esc restores original trigger focus');
+  // Keyboard continuous phrase selection shares the same lookup card.
+  await take.focus();await page.keyboard.down('Shift');await page.keyboard.press('ArrowRight');await page.keyboard.up('Shift');await page.locator('.lookup-heading h2').filter({hasText:'take off'}).waitFor();await page.locator('.lookup-meaning').waitFor();ok((await page.locator('.lookup-meaning').innerText()).length>0,'offline phrase dictionary');
+  await close(page);
+  const will=page.locator('.reading-word').filter({hasText:/^will$/}).first();await will.focus();await page.keyboard.down('Shift');await page.keyboard.press('ArrowRight');await page.keyboard.up('Shift');await page.locator('.lookup-heading h2').filter({hasText:/^will take$/}).waitFor();await page.getByText('未查到这个表达的解释，可以先保存原句，或补充个人解释。',{exact:true}).waitFor();await page.locator('.lookup-footer').getByRole('button',{name:'保存',exact:true}).click();await page.locator('.lookup-saved').waitFor();const unknown=(await call('list_saved_records',{query:'will take',limit:100,offset:0}))[0];eq(unknown.explanation,null,'missing phrase explanation stays empty');eq(unknown.explanation_source,'unknown','does not fabricate separate-word meaning');await page.getByRole('button',{name:'撤销',exact:true}).click();await page.locator('.lookup-footer').getByRole('button',{name:'保存',exact:true}).waitFor();await close(page);
+  // Late dictionary result must not replace the current word or a personal draft.
+  await page.evaluate(()=>window.__uiDelayLookup=true);await take.click();if(!await page.locator('#reader-meaning').count())await page.getByRole('button',{name:'补充个人解释'}).click();await page.locator('#reader-meaning').fill('保留草稿');await page.locator('.reading-word').filter({hasText:/^noon$/}).first().click();await page.waitForTimeout(450);eq(await page.locator('.lookup-heading h2').innerText(),'noon','late query response ownership');await close(page);await take.click();await page.locator('#reader-meaning').waitFor();eq(await page.locator('#reader-meaning').inputValue(),'保留草稿','draft survives query change');await close(page);
+  for(const width of [360,390,430,768,1024,1280,1440]){
+   await page.setViewportSize({width,height:900});await take.click();await settle(page);await noOverflow(page,`${theme} ${width}`);
+   ok(await contrast(page.locator('.lookup-footer button,.lookup-saved strong').first())>=4.5,`${theme} save state contrast`);
+   await page.screenshot({path:`${output}/${theme}-${width}-card.png`});
+   if(width>=1024){await page.locator('.context-blank-return').click();await page.locator('.context-panel').waitFor({state:'detached'});}else{await page.getByRole('button',{name:'收起，继续',exact:true}).click();await page.locator('.context-panel').waitFor({state:'detached'});}
+  }
+  await page.setViewportSize({width:1440,height:900});
+  await page.getByRole('button',{name:'调整学习内容显示',exact:true}).click();await page.locator('.display-settings-controls > div').nth(1).getByRole('button',{name:'大',exact:true}).click();await page.keyboard.press('Escape');await take.click();await page.locator('.lookup-meaning').waitFor();eq(await page.locator('.lookup-meaning').evaluate(node=>getComputedStyle(node).fontSize),'25.6px','definition font preference applies to unified card');await close(page);await page.getByRole('button',{name:'调整学习内容显示',exact:true}).click();await page.locator('.display-settings-controls > div').nth(1).getByRole('button',{name:'标准',exact:true}).click();await page.keyboard.press('Escape');
+  await page.locator('.b-path a').click();await waitLibrary(page);eq(await page.locator('.material-card').count(),1,'return to real materials');
+  await drop(page,[['duplicate.srt',flight],['empty.srt',''],['second.srt',srt('A second material is ready.')]]);await page.waitForFunction(()=>document.querySelector('.import-summary')?.textContent==='已导入 1 份材料');
+  const statuses=await page.locator('.import-items small').allTextContents();eq(statuses,['内容已存在，未覆盖','未完成，可重试','已导入'],'partial success and duplicate explicit');
+  eq((await call('test_counts')).files,2,'partial failure preserves earlier successes');
+  const writesBefore=await page.evaluate(()=>window.__uiCalls.filter(v=>v.command==='import_reading_material').length);await page.getByRole('button',{name:'重试未完成项'}).click();await page.waitForFunction(()=>document.querySelector('.import-summary')?.textContent==='已导入 1 份材料');eq(await page.evaluate(()=>window.__uiCalls.filter(v=>v.command==='import_reading_material').length),writesBefore,'retry excludes successes and duplicate');await close(page);
+  await waitLibrary(page);eq(await page.locator('.material-card').count(),2,'bulk stays in materials');await page.screenshot({path:`${output}/${theme}-1440-materials.png`});await page.setViewportSize({width:390,height:844});await page.evaluate(()=>new Promise(done=>requestAnimationFrame(()=>requestAnimationFrame(done))));eq(await page.locator('.b-mobile-nav .b-dock-control').allTextContents(),['材料','已保存','导入','设置'],'all mobile tasks remain reachable');await noOverflow(page,`${theme} mobile materials`);await page.screenshot({path:`${output}/${theme}-390-materials.png`});await page.setViewportSize({width:1440,height:900});
+  await page.getByRole('button',{name:'列表',exact:true}).click();eq(await page.locator('.material-collection--list').count(),1,'list mode');await page.getByRole('button',{name:'画廊',exact:true}).click();eq(await page.locator('.material-collection--gallery').count(),1,'gallery mode');
+  // Existing tags still write through the shared backend, with failure preserving form input.
+  const tag=await call('create_tag',{name:'Travel'});await call('set_file_tags',{fileId,tagIds:[tag],newTagNames:[]});
+  await page.reload();await waitLibrary(page);if(await page.getByRole('button',{name:'按标签筛选'}).getAttribute('aria-pressed')!=='true')await page.getByRole('button',{name:'按标签筛选'}).click();await page.getByRole('button',{name:'Travel',exact:true}).click();await page.waitForFunction(()=>document.querySelectorAll('.material-card').length===1);eq(await page.locator('.material-card').count(),1,'tag filter real SQL');
+  await page.getByRole('button',{name:'flight.srt',exact:true}).click();await page.locator('.reading-word').first().waitFor();await page.locator('.b-path a').click();await waitLibrary(page);eq(await page.locator('.tag-chip[aria-pressed=true]').count(),1,'filter retained on return');
+  await page.getByRole('button',{name:'flight.srt',exact:true}).click();await page.locator('.reading-word').first().waitFor();
+  await page.evaluate(()=>document.addEventListener('click',event=>{if(event.target.closest('.reading-word'))window.__lookupActivatedAt=performance.now();},true));
+  for(let i=0;i<50;i++){const term=i%2?'plane':'noon';await page.locator('.reading-word').filter({hasText:new RegExp(`^${term}$`)}).first().click();await page.locator('.lookup-heading h2').filter({hasText:new RegExp(`^${term}$`)}).waitFor();await page.locator('.lookup-meaning').waitFor();visibleTimings.push(await page.evaluate(()=>new Promise(done=>requestAnimationFrame(()=>requestAnimationFrame(()=>done(performance.now()-window.__lookupActivatedAt))))));}
+  await close(page);await page.locator('.b-path a').click();await waitLibrary(page);
+  // Restart the DB connection and round-trip a complete backup, including import receipts.
+  const backup=await call('export_all');ok(backup.data.material_import_actions.length>=3,'import receipts included in backup');await call('test_reopen');await call('restore_all',{backup});eq((await call('test_counts')).files,2,'restart and restore keep materials');
+  await call('test_delete_source',{fileId});const records=await call('list_saved_records',{query:'',limit:100,offset:0});eq(records.length,1,'source deletion keeps real saved snapshot');ok(records[0].sentence&&records[0].source.file_name==='flight.srt','snapshot keeps source');eq(await call('saved_record_source',{recordId:records[0].record_id}),null,'missing source explicit');
+  await page.locator('.b-dock a[href="/saved"]').click();await page.locator('.saved-record-open').first().click();await page.getByRole('button',{name:'返回原文',exact:true}).click();await page.getByText('原材料已不存在或已变更，仍可阅读此副本。',{exact:true}).waitFor();checks++;await close(page);
+  const counts=await call('test_counts');for(const table of ['words','phrases','reviews','phrase_reviews','review_logs','phrase_review_logs'])eq(counts[table],0,`new loop never writes ${table}`);
+  // Cached command response timing uses a real initialized English dictionary.
+  for(let i=0;i<30;i++){const start=performance.now();await call('lookup_reading_expression',{expression:'curiosity'});timings.push(performance.now()-start);}
+  await page.emulateMedia({reducedMotion:'reduce'});await page.locator('.saved-record-open').first().click();ok(await page.locator('.context-panel').evaluate(node=>getComputedStyle(node).animationName==='none'),'reduced motion');await close(page);
+  await page.goto(`${url}/files`);await waitLibrary(page);
+  const longSrt=Array.from({length:220},(_,i)=>{const clock=n=>`00:${String(Math.floor(n/60)).padStart(2,'0')}:${String(n%60).padStart(2,'0')},000`;return `${i+1}\n${clock(i*2+1)} --> ${clock(i*2+2)}\nWe read sentence number ${i+1}.`;}).join('\n\n');
+  await drop(page,[['long-reading.srt',longSrt]]);await page.waitForURL(/\/files\/\d+/);await page.locator('.reading-word').first().waitFor();
+  ok(await page.locator('[data-sentence]').count()<=80,'long material initially renders a bounded chunk');const longId=Number(new URL(page.url()).pathname.split('/').at(-1));const material=(await call('list_materials',{tagIds:[],untagged:false})).find(item=>item.id===longId);const positionKey=`lexicue-reader-state:${material.content_hash}`;
+  await page.locator('.reader-scroll').evaluate(node=>{node.scrollTop=1700;});await page.waitForFunction(key=>JSON.parse(localStorage.getItem(key)||'{}').segment>0,positionKey);const position=await page.evaluate(key=>JSON.parse(localStorage.getItem(key)),positionKey);
+  await page.reload();await page.locator(`[data-sentence="${position.segment}"]`).waitFor();const restored=await page.locator(`[data-sentence="${position.segment}"]`).evaluate(node=>document.querySelector('.reader-scroll').getBoundingClientRect().top-node.getBoundingClientRect().top);ok(Math.abs(restored-position.offset)<2,'reading position restores sentence and pixel offset after reload');
+  await page.locator('.b-path a').click();await waitLibrary(page);ok((await page.locator('.material-continue').innerText()).includes('long-reading.srt'),'continue points to last actual material');const countBeforeCancel=(await call('test_counts')).files;
+  await page.evaluate(async()=>{const {useImportStore}=await window.__uiStoreModule('importStore');void useImportStore.getState().start([{name:'slow.srt',read:()=>new Promise(done=>{window.__releaseRead=done;})},{name:'queued.srt',read:async()=>''}]);});
+  await page.getByRole('button',{name:'取消余下导入'}).waitFor();await close(page);await page.getByRole('button',{name:'导入处理中，打开进度',exact:true}).click();eq(await page.locator('.import-items li').count(),2,'closing and reopening retains active queue');await page.getByRole('button',{name:'取消余下导入'}).click();await page.evaluate(text=>window.__releaseRead(text),srt('This import was cancelled before writing.'));await page.waitForFunction(()=>Array.from(document.querySelectorAll('.import-items small')).every(node=>node.textContent==='未导入'));eq((await call('test_counts')).files,countBeforeCancel,'cancel before commit writes no files');await close(page);
+  await context.close();
+ }
+ eq(errors,[],'no browser exceptions');timings.sort((a,b)=>a-b);const p95=timings[Math.ceil(timings.length*.95)-1];ok(p95<=500,`cached lookup p95 ${p95}ms`);
+ visibleTimings.sort((a,b)=>a-b);const visibleP95=visibleTimings[Math.ceil(visibleTimings.length*.95)-1];ok(visibleTimings.length>=100&&visibleP95<=500,`activation to visible Chinese meaning p95 ${visibleP95}ms`);
+ await writeFile(`${output}/evidence.json`,JSON.stringify({checks,themes:['ocean','midnight'],widths:[360,390,430,768,1024,1280,1440],cachedLookupMs:{samples:timings.length,p95},activationToVisibleMs:{samples:visibleTimings.length,p95:visibleP95},errors},null,2));
+ console.log(`Reading UI → SQLite: ${checks} checks passed; visible meaning p95 ${visibleP95.toFixed(2)}ms; cached command p95 ${p95.toFixed(2)}ms. Evidence: ${output}`);
+}catch(error){if(currentPage){await currentPage.screenshot({path:`${output}/failure.png`}).catch(()=>{});await writeFile(`${output}/failure.json`,JSON.stringify(await currentPage.evaluate(()=>({text:document.body.innerText,calls:window.__uiCalls})),null,2)).catch(()=>{});}throw error;}finally{await browser.close();if(server){await call('test_stop').catch(()=>{});await writeFile(`${output}/bridge.log`,log);}}

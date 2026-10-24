@@ -23,5 +23,11 @@ pub mod gemma;
 
 pub mod dictionary_init;
 
+pub mod materials;
 pub mod reader;
 pub mod saved;
+
+pub mod history;
+
+#[cfg(test)]
+mod reading_bridge_test;

@@ -2,8 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Bookmark, MoreHorizontal, Search, Trash2 } from 'lucide-react';
+import { Bookmark, MoreHorizontal, Search, Trash2 } from 'lucide-react';
 import ContextPanel from '../components/ContextPanel';
+import { useImportStore } from '../stores/importStore';
 import { legacyContent, mutateSaved, savedErrorKey, undoSaved, type SavedConflict, type SavedMigrationReport, type SavedRecord } from '../lib/savedRecords';
 
 const PAGE_SIZE = 200;
@@ -70,7 +71,8 @@ function SavedDetail({ record, onClose, onChange, onClosing, drafts }: {
 
 export default function SavedPage() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
+  const importOpen=useImportStore(state=>state.open);
+  useEffect(()=>{if(importOpen)setSelected(null);},[importOpen]);
   const [query, setQuery] = useState('');
   const [records, setRecords] = useState<SavedRecord[]>([]);
   const [selected, setSelected] = useState<SavedRecord | null>(null);
@@ -138,8 +140,7 @@ export default function SavedPage() {
     finally { setUndoBusy(false); }
   };
   return <div className="saved-page" data-panel-open={!!selected && panelOpen}>
-    <header className="saved-page-path"><button className="ui-button" onClick={() => navigate('/settings')}><ArrowLeft size={16} aria-hidden="true" />{t('sidebar.settings')}</button><span aria-hidden="true">›</span><span>{t('savedRecords.title')}</span></header>
-    <div className="saved-scroll"><div className="saved-workspace">
+    <div className="saved-scroll"><div className="saved-workspace workspace-paper">
       <div className="saved-heading"><h1>{t('savedRecords.title')}</h1><span role="status">{t('savedRecords.shown', { count: records.length })}</span></div>
       <label className="saved-search"><Search size={18} aria-hidden="true" /><span className="sr-only">{t('savedRecords.search')}</span><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder={t('savedRecords.search')} /></label>
       {error && <div className="saved-error" role="alert"><p>{error}</p><button className="ui-button" onClick={() => void load()}>{t('common.retry')}</button></div>}
