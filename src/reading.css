@@ -184,3 +184,25 @@
 .reading-paper[data-definition-font='lg'] .reading-translation { font-size:1.125rem; }
 .reading-paper[data-aux-font='sm'] .sentence-side small { font-size:.6875rem; }
 .reading-paper[data-aux-font='lg'] .sentence-side small { font-size:.9375rem; }
+.reading-word--recalled { text-decoration-line:underline; text-decoration-style:dotted; text-decoration-color:var(--text-muted); text-decoration-thickness:1px; text-underline-offset:6px; }
+.reading-word--recalled:hover,.reading-word--recalled[aria-pressed='true'] { text-decoration-color:currentColor; }
+.recall-section { border-bottom:1px solid var(--border); margin-bottom:20px; padding-bottom:20px; }
+.recall-section h3,.lookup-current-heading { color:var(--text-strong); font-size:.875rem; font-weight:600; line-height:1.7; }
+.lookup-current-heading { margin-bottom:12px; }
+.recall-note { color:var(--text-muted); font-size:.8125rem; line-height:1.75; margin-top:4px; }
+.recall-context { margin-top:14px; }
+.recall-meaning { color:var(--text-strong); font-size:1.125rem; line-height:1.7; white-space:pre-wrap; }
+.recall-context small { display:block; color:var(--text-muted); font-size:.8125rem; line-height:1.7; margin-top:8px; }
+.recall-sentence { font-family:Georgia,'Times New Roman',serif; color:var(--text-body); font-size:1.125rem; line-height:1.8; margin-top:10px; }
+.recall-translation { color:var(--text-muted); font-size:.875rem; line-height:1.8; margin-top:8px; }
+.recall-others { margin-top:12px; }
+.recall-others summary { cursor:pointer; color:var(--text-body); font-size:.875rem; padding-block:12px; min-height:44px; }
+.recall-others .recall-context { padding-top:12px; border-top:1px solid var(--border-soft); }
+.recall-others button { margin-top:12px; }
+.recall-error { color:var(--sync-error-text); font-size:.875rem; line-height:1.8; }
+.recall-display-setting { margin:8px; border-top:1px solid var(--border); padding-top:12px; color:var(--text-body); }
+.recall-display-setting label { display:flex; align-items:center; gap:10px; min-height:44px; font-size:.875rem; cursor:pointer; }
+.recall-display-setting input { accent-color:var(--accent-600); height:18px; width:18px; }
+.recall-display-setting p { font-size:.8125rem; color:var(--text-muted); line-height:1.7; }
+.lookup-body[data-definition-font='lg'] .recall-meaning { font-size:1.3rem; }
+.lookup-body[data-aux-font='lg'] :is(.recall-context small,.recall-note) { font-size:1rem; }

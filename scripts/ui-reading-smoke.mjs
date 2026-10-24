@@ -1,65 +1,15 @@
-/** Browser → real Rust command cores → disposable SQLite. Native file picker,
- * speech and platform startup are fixtures; parsing, writes, dictionary lookups,
- * saved records, backups and source resolution run production code. */
+/** Reading regression runs actual Rust command cores and disposable SQLite. */
 import assert from 'node:assert/strict';
-import { mkdir, readFile, writeFile, mkdtemp } from 'node:fs/promises';
-import { spawn } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
-const root=fileURLToPath(new URL('../',import.meta.url));
+import {readFile,writeFile} from 'node:fs/promises';
+import {createReadingHarness,root} from './ui-reading-support.mjs';
 const output=process.env.LEXICUE_READING_UI_OUTPUT||'/tmp/lexicue-ui-reading';
-await mkdir(output,{recursive:true});
-let bridge=process.env.LEXICUE_READING_BRIDGE_URL,server,log='';
-if(!bridge){
- const temp=await mkdtemp(`/tmp/lexicue-reading-ui-`);const info=`${temp}/bridge.json`;
- server=spawn('cargo',['test','serve_reading_bridge','--','--ignored','--nocapture'],{cwd:`${root}/src-tauri`,env:{...process.env,LEXICUE_READING_BRIDGE_INFO:info}});
- server.stdout.on('data',chunk=>{log+=chunk;});server.stderr.on('data',chunk=>{log+=chunk;});
- const deadline=Date.now()+180000;
- while(!bridge&&Date.now()<deadline){try{bridge=`http://127.0.0.1:${JSON.parse(await readFile(info,'utf8')).port}`;}catch{if(server.exitCode!==null)throw Error(log);await new Promise(done=>setTimeout(done,100));}}
- if(!bridge)throw Error(`Bridge startup timed out: ${log}`);
-}
-const call=async(command,args={})=>{const r=await(await fetch(bridge,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({command,args})})).json();if(r.error)throw Error(r.error);return r.value;};
-const {chromium}=await import(process.env.LEXICUE_PLAYWRIGHT_MODULE||'playwright');
-const browser=await chromium.launch({channel:process.env.LEXICUE_UI_BROWSER_CHANNEL||'chrome',headless:true});
-const url=process.env.LEXICUE_UI_URL||'http://127.0.0.1:5173';
-let currentPage;let checks=0;const errors=[],timings=[],visibleTimings=[];
+const harness=await createReadingHarness(output);
+const {browser,url,call,fixture,errors}=harness;
+let currentPage;let checks=0;const timings=[],visibleTimings=[];
 const ok=(value,label)=>{assert.ok(value,label);checks++;};
 const eq=(value,expected,label)=>{assert.deepEqual(value,expected,label);checks++;};
 const srt=text=>`1\n00:00:01,000 --> 00:00:03,000\n${text}\n`;
 const flight=await readFile(`${root}/docs/implementation/fixtures/v31-reading.srt`,'utf8');
-async function fixture(page,theme){
- page.on('pageerror',error=>errors.push(error.message));
- await page.addInitScript(({bridge,theme})=>{
-  localStorage.setItem('lexicue-theme',theme);localStorage.setItem('lexicue-preferences',JSON.stringify({state:{uiLanguage:'zh'},version:0}));
-  window.__uiCalls=[];window.__uiFiles={};window.__uiFailure=null;window.__uiDelayLookup=false;
-  window.__uiStoreModule=name=>{const path=`/src/stores/${name}.ts`;const resource=performance.getEntriesByType('resource').findLast(entry=>new URL(entry.name).pathname===path);return import(resource?.name||path);};
-  const core=new Set(['import_reading_material','list_materials','open_reading_material','lookup_reading_expression','saved_for_selection','mutate_saved_record','undo_saved_mutation','list_saved_records','saved_record_source','saved_migration_report','saved_record_conflicts','export_all','restore_all','list_tags','create_tag','rename_tag','delete_tag','set_file_tags','list_legacy_records','legacy_record_detail']);
-  window.__TAURI_EVENT_PLUGIN_INTERNALS__={unregisterListener(){}};
-  window.__TAURI_INTERNALS__={transformCallback:()=>1,unregisterCallback(){},convertFileSrc:path=>path,invoke:async(command,args={})=>{
-   window.__uiCalls.push({command,args:structuredClone(args)});
-   const fail=window.__uiFailure?.command===command&&window.__uiFailure.remaining>0;
-   if(fail&&!window.__uiFailure.afterCommit){window.__uiFailure.remaining--;throw Error('fixture failure before write');}
-   if(core.has(command)){
-    const result=await(await fetch(bridge,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({command,args})})).json();if(result.error)throw Error(result.error);
-    if(fail){window.__uiFailure.remaining--;throw Error('fixture lost receipt after real commit');}
-    if(command==='lookup_reading_expression'&&window.__uiDelayLookup&&args.expression==='take')await new Promise(done=>setTimeout(done,400));
-    return result.value;
-   }
-   if(command==='dictionary_init_status')return {runId:1,sequence:1,state:'ready',currentSource:null,sources:[{name:'ECDICT',language:'en',state:'ready',processedRows:1,error:null},{name:'PhraseDict',language:'en',state:'ready',processedRows:1,error:null}]};
-   if(command==='plugin:event|listen')return 1;
-   if(command==='plugin:app|version')return '0.4.5';
-   if(command==='plugin:dialog|open')return Object.keys(window.__uiFiles);
-   if(command==='plugin:dialog|ask')return true;
-   if(command==='plugin:dialog|save')return '/fixture/export.json';
-   if(command==='plugin:fs|read_text_file')return Array.from(new TextEncoder().encode(window.__uiFiles[args.path]));
-   if(command==='plugin:fs|write_text_file')return null;
-   if(command==='youtube_ytdlp_status')return {available:false,path:'',version:null};
-   if(command==='plugin:updater|check')return null;
-   if(command==='list_files')return [];
-   if(command.startsWith('plugin:')||command.startsWith('sync_'))return null;
-   throw Error(`Unimplemented native fixture command: ${command}`);
-  }};
- },{bridge,theme});
-}
 const close=async page=>{await page.keyboard.press('Escape');await page.locator('.context-panel').waitFor({state:'detached'});};
 const settle=page=>page.locator('.context-panel').evaluate(node=>Promise.all(node.getAnimations().map(a=>a.finished)));
 const waitLibrary=page=>page.waitForFunction(()=>!document.querySelector('.material-status')&&document.querySelector('.materials-paper'));
@@ -162,4 +112,4 @@ try{
  visibleTimings.sort((a,b)=>a-b);const visibleP95=visibleTimings[Math.ceil(visibleTimings.length*.95)-1];ok(visibleTimings.length>=100&&visibleP95<=500,`activation to visible Chinese meaning p95 ${visibleP95}ms`);
  await writeFile(`${output}/evidence.json`,JSON.stringify({checks,themes:['ocean','midnight'],widths:[360,390,430,768,1024,1280,1440],cachedLookupMs:{samples:timings.length,p95},activationToVisibleMs:{samples:visibleTimings.length,p95:visibleP95},errors},null,2));
  console.log(`Reading UI → SQLite: ${checks} checks passed; visible meaning p95 ${visibleP95.toFixed(2)}ms; cached command p95 ${p95.toFixed(2)}ms. Evidence: ${output}`);
-}catch(error){if(currentPage){await currentPage.screenshot({path:`${output}/failure.png`}).catch(()=>{});await writeFile(`${output}/failure.json`,JSON.stringify(await currentPage.evaluate(()=>({text:document.body.innerText,calls:window.__uiCalls})),null,2)).catch(()=>{});}throw error;}finally{await browser.close();if(server){await call('test_stop').catch(()=>{});await writeFile(`${output}/bridge.log`,log);}}
+}catch(error){if(currentPage){await currentPage.screenshot({path:`${output}/failure.png`}).catch(()=>{});await writeFile(`${output}/failure.json`,JSON.stringify(await currentPage.evaluate(()=>({text:document.body.innerText,calls:window.__uiCalls})),null,2)).catch(()=>{});}throw error;}finally{await harness.dispose();}

@@ -1393,5 +1393,16 @@
   "systemSettings": {
     "dictionaryReady": "Englische Wörterbücher sind bereit. Keine KI-Einrichtung erforderlich.",
     "dictionaryPending": "Englische Wörterbücher werden vorbereitet oder benötigen einen neuen Versuch. Lesen und Speichern sind weiterhin möglich."
+  },
+  "recall": {
+    "previous": "Früher gespeichert",
+    "notCurrent": "Diese Erklärung gehört zu einem früheren Satz, nicht zum aktuellen Kontext.",
+    "otherSentences": "Andere Sätze ({{count}})",
+    "currentQuery": "Aktuelle Abfrage",
+    "hints": "Hinweise beim Wiedersehen",
+    "toggleHint": "Gespeicherte englische Ausdrücke dezent markieren. Beim Ausschalten bleiben die Einträge erhalten.",
+    "marked": "„{{expression}}“ ist gespeichert. Zum Rückblick öffnen.",
+    "loadFailed": "Frühere Sätze konnten nicht geladen werden. Erneut versuchen oder die aktuelle Abfrage fortsetzen.",
+    "indexFailed": "Hinweise konnten nicht aktualisiert werden. Lesen und Abfragen funktionieren weiterhin."
   }
 }

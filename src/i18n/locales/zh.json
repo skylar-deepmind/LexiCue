@@ -1376,5 +1376,16 @@
   "systemSettings": {
     "dictionaryReady": "英语词典已就绪，无需 AI 配置。",
     "dictionaryPending": "英语词典正在准备或需要重试；仍可阅读和保存原句。"
+  },
+  "recall": {
+    "previous": "上次保存",
+    "notCurrent": "这是旧原句的解释，不代表本句含义。",
+    "otherSentences": "其他原句（{{count}}）",
+    "currentQuery": "本句查询",
+    "hints": "再遇提示",
+    "toggleHint": "轻标记已保存的英语表达；关闭不会删除记录。",
+    "marked": "已保存「{{expression}}」，点开回顾",
+    "loadFailed": "暂时无法加载旧原句，可重试或继续查询本句。",
+    "indexFailed": "再遇提示暂未更新，仍可阅读和查询。"
   }
 }

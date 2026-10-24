@@ -1,6 +1,6 @@
 //! Opt-in browser → production command cores → temporary SQLite evidence.
 //! This module is compiled only for tests and never starts with the application.
-use super::{dictionary, export, history, materials, saved, tags};
+use super::{dictionary, export, history, materials, recall, saved, tags};
 use serde_json::{json, Value};
 use std::io::{Read, Write};
 use std::net::TcpListener;
@@ -10,6 +10,15 @@ fn route(c: &rusqlite::Connection, command: &str, a: &Value) -> Result<Value, St
     let id = |key: &str| a[key].as_i64().unwrap_or(0);
     let encode = |v| Ok(v);
     match command {
+        "saved_recall_index" => serde_json::to_value(recall::index(c)?).map_err(|e| e.to_string()),
+        "saved_recall_contexts" => serde_json::to_value(recall::contexts(
+            c,
+            text("expression"),
+            id("offset"),
+            a["limit"].as_i64().unwrap_or(10),
+        )?)
+        .map_err(|e| e.to_string()),
+        "test_seed_recall" => seed_recall(c, a),
         "import_reading_material" => serde_json::to_value(materials::import_material(
             c,
             &serde_json::from_value(a["input"].clone()).map_err(|e| e.to_string())?,
@@ -134,6 +143,138 @@ fn route(c: &rusqlite::Connection, command: &str, a: &Value) -> Result<Value, St
         }
         _ => Err(format!("Unsupported bridge command: {command}")),
     }
+}
+// Synthetic benchmark data stays in this test-only disposable database. The
+// important old contexts use the actual material/save commands. Filler snapshots
+// use the production canonical record writer, including identity validation.
+fn seed_recall(c: &rusqlite::Connection, a: &Value) -> Result<Value, String> {
+    use sha2::{Digest, Sha256};
+    let rows = a["records"].as_array().ok_or("missing records")?;
+    let content = rows
+        .iter()
+        .enumerate()
+        .map(|(i, r)| {
+            format!(
+                "{}\n00:00:01,000 --> 00:00:03,000\n{}\n",
+                i + 1,
+                r["sentence"].as_str().unwrap()
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    let imported = materials::import_material(
+        c,
+        &materials::MaterialInput {
+            operation_id: "seed-source".into(),
+            name: "earlier-flight.srt".into(),
+            content,
+            segments: rows
+                .iter()
+                .enumerate()
+                .map(|(i, r)| super::import::SegmentInput {
+                    index: i as i32,
+                    en_text: r["sentence"].as_str().unwrap().into(),
+                    zh_text: None,
+                    start_time: Some("00:00:01.000".into()),
+                    end_time: Some("00:00:03.000".into()),
+                })
+                .collect(),
+        },
+    )?;
+    let opened = materials::open(c, imported.file_id)?;
+    for (i, row) in rows.iter().enumerate() {
+        let expression = row["expression"].as_str().unwrap();
+        let sentence = &opened.segments[i].en_text;
+        let start = sentence
+            .to_lowercase()
+            .find(&expression.to_lowercase())
+            .ok_or("missing expression")?;
+        let input = saved::SaveInput {
+            segment_id: opened.segments[i].id,
+            expression: expression.into(),
+            start_offset: sentence[..start].encode_utf16().count(),
+            end_offset: sentence[..start].encode_utf16().count()
+                + expression.encode_utf16().count(),
+            explanation: row["explanation"].as_str().map(str::to_string),
+            explanation_source: "personal".into(),
+        };
+        let mut record = saved::mutate(
+            c,
+            &format!("seed-save-{i}"),
+            &saved::Mutation::Save { input },
+        )?
+        .record;
+        record.saved_at = row["saved_at"].as_i64();
+        saved::write_record(c, &record)?;
+    }
+    let fixed: std::collections::HashSet<String> = rows
+        .iter()
+        .map(|r| saved::normalize(r["expression"].as_str().unwrap()))
+        .collect();
+    let vocabulary = {
+        let mut statement=c.prepare("SELECT lemma FROM builtin_dictionary_entries WHERE length(lemma) BETWEEN 3 AND 18 AND lemma NOT GLOB '*[^a-z]*' ORDER BY (rowid * 1103515245 + 12345) % 2147483647 LIMIT 20000").map_err(|e|e.to_string())?;
+        let found = statement
+            .query_map([], |r| r.get::<_, String>(0))
+            .map_err(|e| e.to_string())?
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(|e| e.to_string())?;
+        found
+            .into_iter()
+            .filter(|word| !fixed.contains(word) && !word.contains("curiosity"))
+            .collect::<Vec<_>>()
+    };
+    let tx = c.unchecked_transaction().map_err(|e| e.to_string())?;
+    let target = a["count"].as_u64().unwrap_or(10000).min(10000) as usize;
+    for i in rows.len()..target {
+        let word = vocabulary
+            .get(i - rows.len())
+            .ok_or("benchmark dictionary incomplete")?;
+        let expression = if i % 2 == 0 {
+            word.clone()
+        } else {
+            format!("remember {word}")
+        };
+        let source_key = format!("synthetic-recall-{i}");
+        let record_id = format!(
+            "saved-{:x}",
+            Sha256::digest(
+                serde_json::to_vec(&(saved::normalize(&expression), &source_key)).unwrap()
+            )
+        );
+        saved::write_record(
+            &tx,
+            &saved::SavedRecord {
+                record_id,
+                normalized_expression: saved::normalize(&expression),
+                source_key,
+                expression: expression.clone(),
+                sentence: Some(format!("An earlier sentence includes {expression}.")),
+                sentence_translation: None,
+                source: Some(saved::SavedSource {
+                    content_hash: "synthetic-recall-material".into(),
+                    file_name: "benchmark.srt".into(),
+                    segment_index: i as i64,
+                    start_offset: Some(29),
+                    end_offset: Some((29 + expression.len()) as i64),
+                    start_time: None,
+                    end_time: None,
+                }),
+                explanation: Some("临时性能样本".into()),
+                explanation_source: "personal".into(),
+                origin: "reader".into(),
+                legacy: None,
+                saved_at: Some(1700000000000 + i as i64),
+                updated_at: 1700000000000 + i as i64,
+                revision: format!("fixture-{i}"),
+                generation: 0,
+                deleted_at: None,
+            },
+        )?;
+    }
+    tx.commit().map_err(|e| e.to_string())?;
+    Ok(
+        json!({"records":target,"expressions":recall::index(c)?.len(),"source_file_id":imported.file_id,"filler":"deterministic ECDICT sample: single words and two-word phrases"}),
+    )
 }
 #[test]
 #[ignore = "Opt-in temporary SQLite HTTP bridge for browser validation"]

@@ -1376,5 +1376,16 @@
   "systemSettings": {
     "dictionaryReady": "英語辞書の準備ができました。AI の設定は不要です。",
     "dictionaryPending": "英語辞書を準備中です。原文の閲覧と保存は可能です。"
+  },
+  "recall": {
+    "previous": "以前の保存",
+    "notCurrent": "以前の原文の説明です。今回の文の意味を表すものではありません。",
+    "otherSentences": "他の原文（{{count}}）",
+    "currentQuery": "今回の検索",
+    "hints": "再登場のヒント",
+    "toggleHint": "保存した英語表現に控えめな印を付けます。オフにしても記録は保持されます。",
+    "marked": "「{{expression}}」は保存済みです。開いて振り返る。",
+    "loadFailed": "以前の原文を読み込めません。再試行するか、今回の検索を続けられます。",
+    "indexFailed": "ヒントを更新できません。閲覧と検索は続けられます。"
   }
 }

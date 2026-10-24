@@ -697,6 +697,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
       if (!confirmed) return;
 
       await invoke('restore_all', { backup });
+      window.dispatchEvent(new Event('lexicue-saved-changed'));
       invalidateCaches('words', 'phrases', 'review', 'insights', 'storage');
       fileCache.invalidate();
       tagCache.invalidate();

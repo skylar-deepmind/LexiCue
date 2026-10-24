@@ -1393,5 +1393,16 @@
   "systemSettings": {
     "dictionaryReady": "English dictionaries are ready. No AI setup is needed.",
     "dictionaryPending": "English dictionaries are preparing or need a retry. You can still read and save sentences."
+  },
+  "recall": {
+    "previous": "Previously saved",
+    "notCurrent": "This explanation belongs to an earlier sentence, not the current context.",
+    "otherSentences": "Other sentences ({{count}})",
+    "currentQuery": "Current lookup",
+    "hints": "Re-encounter hints",
+    "toggleHint": "Subtly mark saved English expressions. Turning this off keeps your records.",
+    "marked": "Saved “{{expression}}”. Open to recall.",
+    "loadFailed": "Could not load earlier sentences. Retry or continue with the current lookup.",
+    "indexFailed": "Hints could not update. Reading and lookups still work."
   }
 }

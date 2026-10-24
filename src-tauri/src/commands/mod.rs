@@ -31,3 +31,5 @@ pub mod history;
 
 #[cfg(test)]
 mod reading_bridge_test;
+
+pub mod recall;

@@ -9,6 +9,7 @@ import { usePreferencesStore } from '../stores/preferencesStore';
 import { useImportStore } from '../stores/importStore';
 import { useSpeechStore } from '../stores/speechStore';
 import ReadingLookup, { type ReadingQuery, type LookupDraft } from '../components/ReadingLookup';
+import useRecallMatches from '../components/useRecallMatches';
 import DisplaySettingsMenu from '../components/DisplaySettingsMenu';
 interface Position {
     segment: number;
@@ -37,6 +38,7 @@ export default function ReadingPage({ data }: {
     const initialIndex = Math.max(0, segments.findIndex(segment => segment.index_num === initial.segment));
     const [first, setFirst] = useState(Math.max(0, initialIndex - 20));
     const [last, setLast] = useState(Math.min(segments.length, Math.max(0, initialIndex - 20) + 80));
+    const recall=useRecallMatches(segments,first,last);
     const [query, setQuery] = useState<ReadingQuery | null>(null);
     const drafts = useRef(new Map<string, LookupDraft>());
     const importOpen = useImportStore(s => s.open);
@@ -140,10 +142,11 @@ export default function ReadingPage({ data }: {
         let offset = 0;
         spans.forEach((token, index) => {
             pieces.push(segment.en_text.slice(offset, token.start));
+            const marked=recall.matches.get(segment.index_num)?.find(match=>token.start>=match.start&&token.end<=match.end);
             const selected = query?.segment.id === segment.id && token.start >= query.start && token.end <= query.end || keyboardRange?.segment === segment.id && index >= keyboardRange.start && index <= keyboardRange.end;
             const punctuation = segment.en_text.slice(token.end, spans[index + 1]?.start ?? segment.en_text.length).match(/^[,.;:!?…’”"')\]]+/)?.[0] ?? '';
-            pieces.push(<span key={`${token.start}-${token.end}`} className="reading-token"><button className="reading-word" aria-pressed={!!selected} onClick={event => { if (event.detail === 0 || !window.getSelection()?.toString().trim())
-                choose(segment, token.start, token.end); }} onKeyDown={event => { if (!event.shiftKey || !['ArrowRight', 'ArrowLeft'].includes(event.key))
+            pieces.push(<span key={`${token.start}-${token.end}`} className="reading-token"><button className={`reading-word${marked?' reading-word--recalled':''}`} data-recall={marked?.expression} title={marked?t('recall.marked',{expression:marked.expression}):undefined} aria-description={marked?t('recall.marked',{expression:marked.expression}):undefined} aria-pressed={!!selected} onClick={event => { if (event.detail === 0 || !window.getSelection()?.toString().trim())
+                choose(segment, marked?.start??token.start, marked?.end??token.end); }} onKeyDown={event => { if (!event.shiftKey || !['ArrowRight', 'ArrowLeft'].includes(event.key))
                 return; event.preventDefault(); const range = keyRange.current?.segment === segment.id ? keyRange.current : { segment: segment.id, anchor: index, edge: index }; range.edge = Math.max(0, Math.min(spans.length - 1, range.edge + (event.key === 'ArrowRight' ? 1 : -1))); keyRange.current = range; setKeyboardRange({ segment: segment.id, start: Math.min(range.anchor, range.edge), end: Math.max(range.anchor, range.edge) }); }} onKeyUp={event => { if (event.key !== 'Shift' || !keyRange.current)
                 return; const range = keyRange.current; keyRange.current = null; choose(segment, spans[Math.min(range.anchor, range.edge)].start, spans[Math.max(range.anchor, range.edge)].end); }}>{segment.en_text.slice(token.start, token.end)}</button>{punctuation}</span>);
             offset = token.end + punctuation.length;
@@ -153,7 +156,7 @@ export default function ReadingPage({ data }: {
     };
     const previous = () => { const node = scroll.current; if (!node)
         return; const height = node.scrollHeight; setFirst(value => Math.max(0, value - 60)); requestAnimationFrame(() => { node.scrollTop += node.scrollHeight - height; }); };
-    return <div className="reading-page"><div className="reader-scroll" ref={scroll}><div className="workspace-paper reading-paper" data-font={size} data-lines={lineHeight} data-aux-font={auxiliaryFont} data-definition-font={definitionFont}>
+    return <div className="reading-page"><div className="reader-scroll" ref={scroll}><div className="workspace-paper reading-paper" data-recall-state={recall.status} data-font={size} data-lines={lineHeight} data-aux-font={auxiliaryFont} data-definition-font={definitionFont}>
     <div className="reader-tools"><label><input type="checkbox" checked={translation} onChange={event => setTranslation(event.target.checked)}/>{t('reader.translation')}</label><DisplaySettingsMenu /></div>
     {first > 0 && <button className="ui-button" onClick={previous}>{t('reader.previousSentences')}</button>}
     {segments.slice(first, last).map(segment => <section className="reading-sentence" key={segment.id} data-sentence={segment.index_num}>

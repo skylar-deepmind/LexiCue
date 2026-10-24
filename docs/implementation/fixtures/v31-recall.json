@@ -1,0 +1,228 @@
+{
+  "positive": [
+    {
+      "expression": "take off",
+      "text": "We take off at noon."
+    },
+    {
+      "expression": "take off",
+      "text": "We TAKE OFF at noon."
+    },
+    {
+      "expression": "take off",
+      "text": "We take   off at noon."
+    },
+    {
+      "expression": "take off",
+      "text": "We take\toff at noon."
+    },
+    {
+      "expression": "take off",
+      "text": "We take\noff at noon."
+    },
+    {
+      "expression": "take off",
+      "text": "We take off at noon."
+    },
+    {
+      "expression": "take off",
+      "text": "“Take off”, she said."
+    },
+    {
+      "expression": "take off",
+      "text": "'take off' is written here."
+    },
+    {
+      "expression": "curiosity",
+      "text": "Curiosity helps."
+    },
+    {
+      "expression": "curiosity",
+      "text": "🛫 Curiosity helps."
+    },
+    {
+      "expression": "art",
+      "text": "The art was beautiful."
+    },
+    {
+      "expression": "art",
+      "text": "(ART)!"
+    },
+    {
+      "expression": "ice cream",
+      "text": "We like ice cream."
+    },
+    {
+      "expression": "make sense",
+      "text": "Does this make sense?"
+    },
+    {
+      "expression": "check in",
+      "text": "Please check in."
+    },
+    {
+      "expression": "well-being",
+      "text": "Your well-being matters."
+    },
+    {
+      "expression": "can't",
+      "text": "I can't go."
+    },
+    {
+      "expression": "résumé",
+      "text": "Her RÉSUMÉ arrived."
+    },
+    {
+      "expression": "state of the art",
+      "text": "It is state of the art."
+    },
+    {
+      "expression": "i",
+      "text": "I agree."
+    }
+  ],
+  "negative": [
+    {
+      "expression": "take off",
+      "text": "They took off yesterday."
+    },
+    {
+      "expression": "take off",
+      "text": "They are taking off now."
+    },
+    {
+      "expression": "take off",
+      "text": "The plane takes off soon."
+    },
+    {
+      "expression": "take off",
+      "text": "The takeoff was smooth."
+    },
+    {
+      "expression": "take off",
+      "text": "We take-off at noon."
+    },
+    {
+      "expression": "take off",
+      "text": "We take, off at noon."
+    },
+    {
+      "expression": "take off",
+      "text": "We take ... off at noon."
+    },
+    {
+      "expression": "take off",
+      "text": "We take it off."
+    },
+    {
+      "expression": "take off",
+      "text": "We re-take off."
+    },
+    {
+      "expression": "take off",
+      "text": "We take off-road vehicles."
+    },
+    {
+      "expression": "take off",
+      "text": "We take off1 today."
+    },
+    {
+      "expression": "take off",
+      "text": "We take off_now."
+    },
+    {
+      "expression": "art",
+      "text": "A cart arrived."
+    },
+    {
+      "expression": "art",
+      "text": "The artist arrived."
+    },
+    {
+      "expression": "art",
+      "text": "artifacts"
+    },
+    {
+      "expression": "run",
+      "text": "running"
+    },
+    {
+      "expression": "run",
+      "text": "run2"
+    },
+    {
+      "expression": "curiosity",
+      "text": "curiosity's spark"
+    },
+    {
+      "expression": "can't",
+      "text": "I can’t go."
+    },
+    {
+      "expression": "résumé",
+      "text": "Her resume arrived."
+    }
+  ],
+  "polysemy": [
+    {
+      "expression": "take off",
+      "text": "Please take off your coat.",
+      "oldSentence": "The plane will take off soon.",
+      "oldExplanation": "起飞"
+    },
+    {
+      "expression": "bank",
+      "text": "Sit on the river bank.",
+      "oldSentence": "I went to the bank to deposit cash.",
+      "oldExplanation": "银行"
+    },
+    {
+      "expression": "bat",
+      "text": "A bat flew past.",
+      "oldSentence": "He swung the bat.",
+      "oldExplanation": "球棒"
+    },
+    {
+      "expression": "light",
+      "text": "This bag is light.",
+      "oldSentence": "Turn on the light.",
+      "oldExplanation": "灯"
+    },
+    {
+      "expression": "match",
+      "text": "Strike a match.",
+      "oldSentence": "We watched the match.",
+      "oldExplanation": "比赛"
+    },
+    {
+      "expression": "spring",
+      "text": "The spring broke.",
+      "oldSentence": "Flowers bloom in spring.",
+      "oldExplanation": "春天"
+    },
+    {
+      "expression": "date",
+      "text": "What is the date?",
+      "oldSentence": "They went on a date.",
+      "oldExplanation": "约会"
+    },
+    {
+      "expression": "right",
+      "text": "Turn right.",
+      "oldSentence": "Your answer is right.",
+      "oldExplanation": "正确"
+    },
+    {
+      "expression": "fine",
+      "text": "Pay the fine.",
+      "oldSentence": "The weather is fine.",
+      "oldExplanation": "晴朗"
+    },
+    {
+      "expression": "watch",
+      "text": "My watch stopped.",
+      "oldSentence": "Watch the road.",
+      "oldExplanation": "看"
+    }
+  ]
+}

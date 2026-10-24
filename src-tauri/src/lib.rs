@@ -64,6 +64,8 @@ pub fn run() {
             commands::saved::saved_migration_report,
             commands::saved::saved_record_conflicts,
             commands::saved::saved_for_selection,
+            commands::recall::saved_recall_index,
+            commands::recall::saved_recall_contexts,
             commands::materials::import_reading_material,
             commands::materials::list_materials,
             commands::history::list_legacy_records,

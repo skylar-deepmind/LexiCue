@@ -1,5 +1,6 @@
 import AdaptiveMenu from './AdaptiveMenu';
 import { SlidersHorizontal } from 'lucide-react';
+import { useRecallStore } from '../stores/recallStore';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePreferencesStore, type ContentFontSize } from '../stores/preferencesStore';
@@ -41,6 +42,7 @@ export default function DisplaySettingsMenu({ className = '' }: { className?: st
 export function DisplaySettingsControls() {
   const { t } = useTranslation();
   const preferences = usePreferencesStore();
+  const recall=useRecallStore();
   return <div className="display-settings-controls">{CATEGORIES.map(([category, valueKey, setterKey]) => {
             const value = preferences[valueKey] as ContentFontSize;
             const setValue = preferences[setterKey] as (size: ContentFontSize) => void;
@@ -62,5 +64,6 @@ export function DisplaySettingsControls() {
                 </div>
               </div>
             );
-          })}</div>;
+          })}<section className="recall-display-setting"><label><input type="checkbox" checked={preferences.reencounterHints} onChange={event=>preferences.setReencounterHints(event.target.checked)}/><span>{t('recall.hints')}</span></label>
+          <p>{t('recall.toggleHint')}</p>{recall.error&&<div role="alert"><p>{t('recall.indexFailed')}</p><button className="ui-button" onClick={()=>void recall.refresh()} disabled={recall.loading}>{t('common.retry')}</button></div>}</section></div>;
 }

@@ -82,6 +82,7 @@ pub fn create_tables(conn: &Connection) -> Result<(), String> {
         ) STRICT;
         CREATE INDEX IF NOT EXISTS saved_active_sort ON saved_records(deleted_at,saved_at DESC,record_id);
         CREATE INDEX IF NOT EXISTS saved_expression ON saved_records(normalized_expression,deleted_at);
+        CREATE INDEX IF NOT EXISTS saved_active_recall ON saved_records(normalized_expression,saved_at DESC,record_id) WHERE deleted_at IS NULL;
         CREATE TABLE IF NOT EXISTS saved_actions (
             operation_id TEXT PRIMARY KEY,
             request_json TEXT NOT NULL,

@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { Check, Square, Volume2 } from 'lucide-react';
+import RecallSection from './RecallSection';
+import { useRecallStore } from '../stores/recallStore';
+import { normalizeRecall } from '../lib/recallMatcher';
 import ContextPanel from './ContextPanel';
 import type { Material, ReadingExplanation } from '../lib/materials';
 import type { Segment } from '../lib/types';
@@ -47,6 +50,11 @@ export default function ReadingLookup({ query, material, onClose, drafts }: {
     const live = useRef(true);
     const sourceState = useDictionaryStore(state => dictionaryLanguageState(state, 'en'));
     const speech = useSpeechStore();
+    const reminders=usePreferencesStore(state=>state.reencounterHints);
+    const expressions=useRecallStore(state=>state.expressions);
+    const normalized=normalizeRecall(query.expression);
+    const [recallRequested]=useState(()=>reminders&&expressions.includes(normalized));
+    const showRecall=recallRequested&&reminders&&expressions.includes(normalized);
     const selection = useMemo(() => ({ segment_id: query.segment.id, expression: query.expression, start_offset: query.start, end_offset: query.end, explanation: null, explanation_source: 'unknown' }), [query.segment.id, query.expression, query.start, query.end]);
     const dictionaryReady = useDictionaryStore(state => state.ready);
     const dictionaryFailed=useDictionaryStore(state=>!!state.error||state.snapshot?.state==='failed');
@@ -126,6 +134,7 @@ export default function ReadingLookup({ query, material, onClose, drafts }: {
     return <ContextPanel label={query.expression} onClose={onClose}>
     <header className="lookup-heading"><small>{t('reader.understand')}</small><div><h2 lang="en">{query.expression}</h2><button className="ui-button ui-button--icon" onClick={() => listen(query.expression, 'term')} aria-label={t(speech.key === 'term' ? 'reader.stop' : 'reader.listenExpression')}>{speech.key === 'term' ? <Square size={18}/> : <Volume2 size={20}/>}</button></div></header>
     <div className="lookup-body" data-definition-font={definitionFont} data-aux-font={auxiliaryFont}>
+      {showRecall&&<><RecallSection expression={query.expression}/><h3 className="lookup-current-heading">{t('recall.currentQuery')}</h3></>}
       {loading && !personal.current && <p role="status">{t('common.loading')}</p>}
       {meaning && <><p className="lookup-meaning">{meaning}</p><small className="lookup-provider">{t(`savedRecords.sources.${source}`)}{result && source !== 'personal' ? ` · ${result.provider}` : ''}</small></>}
       {!meaning && !loading && <p role="status">{t(!dictionaryReady ? dictionaryFailed?'reader.dictionaryFailed':'reader.dictionaryPreparing' : `reader.${lookupError || 'notFound'}`)}</p>}

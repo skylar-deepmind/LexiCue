@@ -50,11 +50,15 @@ export interface SavedMigrationReport {
   history_only: { kind: string; legacy_id: number; reason: string }[];
 }
 
-export function mutateSaved(mutation: SavedMutation, operationId: string): Promise<SavedMutationResult> {
-  return invoke('mutate_saved_record', { mutation, operationId });
+export async function mutateSaved(mutation: SavedMutation, operationId: string): Promise<SavedMutationResult> {
+  const result=await invoke<SavedMutationResult>('mutate_saved_record', { mutation, operationId });
+  if(result.changed)window.dispatchEvent(new Event('lexicue-saved-changed'));
+  return result;
 }
-export function undoSaved(operationId: string): Promise<SavedRecord> {
-  return invoke('undo_saved_mutation', { operationId });
+export async function undoSaved(operationId: string): Promise<SavedRecord> {
+  const result=await invoke<SavedRecord>('undo_saved_mutation', { operationId });
+  window.dispatchEvent(new Event('lexicue-saved-changed'));
+  return result;
 }
 export function savedErrorKey(error: unknown): string {
   return String(error).includes('conflict') ? 'savedRecords.conflictError' : 'savedRecords.writeError';
