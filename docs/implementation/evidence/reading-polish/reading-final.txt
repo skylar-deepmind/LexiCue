@@ -1,0 +1,3 @@
+Reading interaction regressions passed: ocean
+Reading interaction regressions passed: midnight
+Reading UI → SQLite: 243 checks passed; visible meaning p95 65.40ms; cached command p95 2.54ms. Evidence: /tmp/lexicue-v31-reading-polish-20261025/delivered-reading

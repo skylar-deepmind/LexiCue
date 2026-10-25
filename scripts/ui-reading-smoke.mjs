@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import {readFile,writeFile} from 'node:fs/promises';
 import {createReadingHarness,root} from './ui-reading-support.mjs';
+import {checkReadingInteractions} from './ui-reading-interactions.mjs';
 const output=process.env.LEXICUE_READING_UI_OUTPUT||'/tmp/lexicue-ui-reading';
 const harness=await createReadingHarness(output);
 const {browser,url,call,fixture,errors}=harness;
@@ -23,7 +24,7 @@ try{
  for(const theme of ['ocean','midnight']){
   await call('test_reset');
   const context=await browser.newContext({viewport:{width:1440,height:900}});const page=await context.newPage();currentPage=page;await fixture(page,theme);await page.goto(`${url}/files`);await waitLibrary(page);
-  eq(await page.locator('.b-dock a').allTextContents(),['材料','已保存','设置'],'pure B dock');
+  eq(await page.locator('.b-dock a').evaluateAll(nodes=>nodes.map(node=>node.getAttribute('aria-label'))),['材料','已保存','设置'],'icon dock retains accessible task names');
   eq(await page.locator('.learning-language-select,.coach-banner,.analysis-model-picker').count(),0,'retired learning controls');
   await page.getByRole('button',{name:'按标签筛选'}).click();
   await page.getByRole('button',{name:'管理标签',exact:true}).click();eq(await page.locator('#root').evaluate(node=>node.inert),true,'tag manager isolates background');
@@ -44,6 +45,7 @@ try{
   const before=await layout();const take=page.locator('.reading-word').filter({hasText:/^take$/}).first();await take.focus();await take.click();await page.locator('.lookup-meaning').waitFor();await settle(page);
   eq(await layout(),before,'opening card preserves font, line height, width and wrapping');
   for(const state of ['default','hover','selected','focus']){if(state==='hover')await take.hover();if(state==='focus'){await page.keyboard.press('Tab');await take.focus();}ok(await contrast(take)>=4.5,`${theme} word ${state} contrast`);if(state==='focus')eq(await take.evaluate(node=>getComputedStyle(node).outlineStyle),'solid','word keyboard focus');}
+  await checkReadingInteractions({page,theme,take,call,ok,eq,settle,output});
 
   eq(await page.locator('.context-panel button[aria-label*=关闭]').count(),0,'no close X');
   await page.getByRole('button',{name:'补充个人解释'}).click();await page.locator('#reader-meaning').fill('我的上下文解释');
@@ -70,7 +72,7 @@ try{
    await page.setViewportSize({width,height:900});await take.click();await settle(page);await noOverflow(page,`${theme} ${width}`);
    ok(await contrast(page.locator('.lookup-footer button,.lookup-saved strong').first())>=4.5,`${theme} save state contrast`);
    await page.screenshot({path:`${output}/${theme}-${width}-card.png`});
-   if(width>=1024){await page.locator('.context-blank-return').click();await page.locator('.context-panel').waitFor({state:'detached'});}else{await page.getByRole('button',{name:'收起，继续',exact:true}).click();await page.locator('.context-panel').waitFor({state:'detached'});}
+   if(width>=1024){await page.mouse.click(110,200);await page.locator('.context-panel').waitFor({state:'detached'});}else{await page.getByRole('button',{name:'收起，继续',exact:true}).click();await page.locator('.context-panel').waitFor({state:'detached'});}
   }
   await page.setViewportSize({width:1440,height:900});
   await page.getByRole('button',{name:'调整学习内容显示',exact:true}).click();await page.locator('.display-settings-controls > div').nth(1).getByRole('button',{name:'大',exact:true}).click();await page.keyboard.press('Escape');await take.click();await page.locator('.lookup-meaning').waitFor();eq(await page.locator('.lookup-meaning').evaluate(node=>getComputedStyle(node).fontSize),'25.6px','definition font preference applies to unified card');await close(page);await page.getByRole('button',{name:'调整学习内容显示',exact:true}).click();await page.locator('.display-settings-controls > div').nth(1).getByRole('button',{name:'标准',exact:true}).click();await page.keyboard.press('Escape');

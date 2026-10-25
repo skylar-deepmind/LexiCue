@@ -1,0 +1,59 @@
+{
+  "sourceBaseCommit": "94ac658c7f38eddcdb4925d09f348b9828289aef",
+  "sourceSha256": {
+    "src/components/ContextPanel.tsx": "3e341e987759064edbbe95f0d51f7f334400c96ffd5e481e3499557be16f5e90",
+    "src/components/ReadingLookup.tsx": "38bfd29cda3379ab1fccddff556fa10d130b53d3a99b303d87c1cfde4d009dc7",
+    "src/components/Sidebar.tsx": "3a244b2aef19c55e0ec65ac0ff7443ec36440c1e13f12cc979c452580656921d",
+    "src/pages/ReadingPage.tsx": "14e42b640116b0071bfa58f5fe1bac068fc6f331709411e7c6283e96b8a2bfcc",
+    "src/reading.css": "9bfeabd54a25da04764a3115343130e9c86ce337903e731388ee4eb698ee314b",
+    "src/index.css": "541daf57bcf6162c6850d23d523d654235ef1e7e2cdd8fbce991ae7d1bd3bdfe",
+    "scripts/ui-reading-interactions.mjs": "feeb7f67ab729de8ef8c109aa261cb5da97d87019318de177c2e2c69bafa7ed5",
+    "scripts/ui-reading-smoke.mjs": "ba292123ea73ab7ffa88f6276d765b7a0284a39894b8c345ff8ce5ea55e70ee4",
+    "scripts/ui-saved-smoke.mjs": "1f22c31f5e6bed05a6d6bce662f93108ac7d3b2fe41e6d923e7c7918e8a2f3d8",
+    "scripts/ui-windows-native.mjs": "ca47ed15ce1bd0acf1904a4b002ffaaf05a2e06891391df4634e71ded14cc5da"
+  },
+  "themes": [
+    "ocean",
+    "midnight"
+  ],
+  "widths": [
+    360,
+    390,
+    430,
+    768,
+    1024,
+    1100,
+    1280,
+    1440
+  ],
+  "checks": {
+    "reading": 243,
+    "saved": 132,
+    "recall": 302,
+    "onboarding": 237
+  },
+  "totalUIChecks": 914,
+  "unitTestFiles": 37,
+  "unitTests": 280,
+  "readingFinalRerunAfterNativePointerFix": true,
+  "nativeMacOS": {
+    "app": "/tmp/LexiCue31PolishQA.app",
+    "identifier": "com.lexicue.qa.v31.polish20261025",
+    "sample": "in-memory English example; persisted material/saved/review counts remain zero",
+    "observations": {
+      "ocean": [
+        "three clicks on an open lookup leave only Curiosity selected",
+        "helps then notice reuse AX container 70 and its fixed frame",
+        "mouse drag resolves small changes",
+        "header blank collapses and restores source focus"
+      ],
+      "midnight": [
+        "three clicks from closed state keep lookup open",
+        "helps then notice reuse AX container 70 and its fixed frame",
+        "mouse drag resolves small changes"
+      ]
+    },
+    "keyboardNote": "Shift+Arrow works in browser regression; native CUA chord highlighted the range but could not deliver a standalone modifier release, so native physical keyboard confirmation remains manual."
+  },
+  "currentUIState": "Mac locked after native theme checks; QA cleanup and user preview reopening await unlock"
+}

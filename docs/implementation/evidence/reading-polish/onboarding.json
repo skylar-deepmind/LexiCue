@@ -1,0 +1,50 @@
+{
+  "checks": 237,
+  "evidence": [
+    {
+      "theme": "ocean",
+      "checks": 118,
+      "realCounts": {
+        "files": 1,
+        "material_import_actions": 1,
+        "phrase_review_logs": 0,
+        "phrase_reviews": 0,
+        "phrases": 0,
+        "review_logs": 0,
+        "reviews": 0,
+        "saved_records": 0,
+        "segments": 1,
+        "words": 0
+      },
+      "status": "skipped"
+    },
+    {
+      "theme": "midnight",
+      "checks": 236,
+      "realCounts": {
+        "files": 1,
+        "material_import_actions": 1,
+        "phrase_review_logs": 0,
+        "phrase_reviews": 0,
+        "phrases": 0,
+        "review_logs": 0,
+        "reviews": 0,
+        "saved_records": 0,
+        "segments": 1,
+        "words": 0
+      },
+      "status": "skipped"
+    }
+  ],
+  "errors": [],
+  "scope": "Chrome UI → actual Rust command cores → disposable real SQLite; example separate in-memory DB",
+  "widths": [
+    360,
+    390,
+    430,
+    768,
+    1024,
+    1280,
+    1440
+  ]
+}

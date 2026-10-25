@@ -1,0 +1,227 @@
+{
+  "profile": "com.lexicue.preview.v31",
+  "businessTables": 27,
+  "allBusinessTablesUnchanged": true,
+  "materials": 27,
+  "savedRecords": 999,
+  "before": {
+    "files": {
+      "count": 27,
+      "sha256": "578b8ed651a68b27c4dd10b1a075fde558790563eea3b0dcdde30878f81e7def"
+    },
+    "segments": {
+      "count": 17621,
+      "sha256": "b2466cb0c567dd17da502861918426ad1afb138beecce4641f859af3edbc01a1"
+    },
+    "occurrences": {
+      "count": 89015,
+      "sha256": "b98cd52509608690503ccc14a96b0bfbc2b026805df71803a7d767a0b594811c"
+    },
+    "reviews": {
+      "count": 216,
+      "sha256": "2e7aeed385f2a9946659eeae91dfc46f19354b310c29f984224cb5cb8bec6430"
+    },
+    "review_logs": {
+      "count": 80,
+      "sha256": "c837991bc707a7cc75b049bcd775cdbdc181ff68c0fa4bd777f7c234d0af23f9"
+    },
+    "phrase_occurrences": {
+      "count": 3579,
+      "sha256": "2e3f0741a12e299b8c92097dab3556558a025753a114fd7743f56f0179d990ef"
+    },
+    "phrase_reviews": {
+      "count": 27,
+      "sha256": "8d76f6988be264d27a29246b937ccecdb928099e79a698a6932beb53cb095381"
+    },
+    "phrase_review_logs": {
+      "count": 6,
+      "sha256": "147e64817be8d195c5a39117a4c6ecbf6c3c79ee73179f05a324379685107c82"
+    },
+    "file_phrase_analysis": {
+      "count": 19,
+      "sha256": "2f62cf46bc80ccd1a083c331a9ef0e7222e160c4ed2a40d50b9733e5fe8bc1b6"
+    },
+    "words": {
+      "count": 7246,
+      "sha256": "3528c23c37600588fdb725dcefe3eaedf5655d7c490670de48400d7849c9893b"
+    },
+    "phrases": {
+      "count": 2027,
+      "sha256": "abd73dd4b44d863148cc6407d986440cd1ef6b9bae95616d04cc5c9e277dceb5"
+    },
+    "categories": {
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "folders": {
+      "count": 1,
+      "sha256": "18e68ce97198f95f3515bc5d6f799c312b378e0e6f1c25d711109f3b6fd5ff47"
+    },
+    "frequency_baseline_profiles": {
+      "count": 1,
+      "sha256": "186fbf079f48ee2231b87439636e4540839a66d7b97f9cfb29a8627294f840f6"
+    },
+    "frequency_baseline_marks": {
+      "count": 1699,
+      "sha256": "742e349c40314e1ab2df290d003dc724c54b288fcbe7362f2a346a4c0529a0d3"
+    },
+    "frequency_baseline_daily_checks": {
+      "count": 12,
+      "sha256": "75dce0d0c0b7a9c4f94814707726a628f517df81b346a4502d8aec7f05198d4f"
+    },
+    "word_aliases": {
+      "count": 8491,
+      "sha256": "15a5f3d5a2ae3cb1cafcc334492577b46f43c41bd2f3b75e4d77211289e3135b"
+    },
+    "phrase_analysis_cache": {
+      "count": 46,
+      "sha256": "b39bd6ba4a39e2a9430d35f31f9ee4d9d3c3652092e4917091fa8b6183395210"
+    },
+    "annotation_actions": {
+      "count": 6,
+      "sha256": "d71b1e47425778bfb60ffcefcdf0594fb81bffa21d37db80ddba8f33a64a7b12"
+    },
+    "tags": {
+      "count": 1,
+      "sha256": "2d2188a66bbccdb16eea0ef1fac1c357b74f83b0c7b00ee37f97960477c09b4d"
+    },
+    "file_tags": {
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "legacy_tag_folders": {
+      "count": 1,
+      "sha256": "e61b9f584dbe27741cef6e9ee440831d7d94470c0871b0871541f0308916efea"
+    },
+    "file_tag_state": {
+      "count": 27,
+      "sha256": "5bfc8cf427bb10402632006cedf7b7f72d6f23d00a61795a9cb8da9cd0966473"
+    },
+    "material_import_actions": {
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "saved_records": {
+      "count": 999,
+      "sha256": "a99a37a44be99779030ffac35dc7ab8bfc1ac53a94620ce2574f55d8011d4474"
+    },
+    "saved_actions": {
+      "count": 2,
+      "sha256": "793e540b86bb3b0bac1d18238a10d5e495b587248594d2e68dcf9bc1bb32fcd9"
+    },
+    "product_migrations": {
+      "count": 1,
+      "sha256": "9183a0c446183375b4ac96ff0e082d00634efb42f2b05a92b27dcb3dc067e9fb"
+    }
+  },
+  "after": {
+    "files": {
+      "count": 27,
+      "sha256": "578b8ed651a68b27c4dd10b1a075fde558790563eea3b0dcdde30878f81e7def"
+    },
+    "segments": {
+      "count": 17621,
+      "sha256": "b2466cb0c567dd17da502861918426ad1afb138beecce4641f859af3edbc01a1"
+    },
+    "occurrences": {
+      "count": 89015,
+      "sha256": "b98cd52509608690503ccc14a96b0bfbc2b026805df71803a7d767a0b594811c"
+    },
+    "reviews": {
+      "count": 216,
+      "sha256": "2e7aeed385f2a9946659eeae91dfc46f19354b310c29f984224cb5cb8bec6430"
+    },
+    "review_logs": {
+      "count": 80,
+      "sha256": "c837991bc707a7cc75b049bcd775cdbdc181ff68c0fa4bd777f7c234d0af23f9"
+    },
+    "phrase_occurrences": {
+      "count": 3579,
+      "sha256": "2e3f0741a12e299b8c92097dab3556558a025753a114fd7743f56f0179d990ef"
+    },
+    "phrase_reviews": {
+      "count": 27,
+      "sha256": "8d76f6988be264d27a29246b937ccecdb928099e79a698a6932beb53cb095381"
+    },
+    "phrase_review_logs": {
+      "count": 6,
+      "sha256": "147e64817be8d195c5a39117a4c6ecbf6c3c79ee73179f05a324379685107c82"
+    },
+    "file_phrase_analysis": {
+      "count": 19,
+      "sha256": "2f62cf46bc80ccd1a083c331a9ef0e7222e160c4ed2a40d50b9733e5fe8bc1b6"
+    },
+    "words": {
+      "count": 7246,
+      "sha256": "3528c23c37600588fdb725dcefe3eaedf5655d7c490670de48400d7849c9893b"
+    },
+    "phrases": {
+      "count": 2027,
+      "sha256": "abd73dd4b44d863148cc6407d986440cd1ef6b9bae95616d04cc5c9e277dceb5"
+    },
+    "categories": {
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "folders": {
+      "count": 1,
+      "sha256": "18e68ce97198f95f3515bc5d6f799c312b378e0e6f1c25d711109f3b6fd5ff47"
+    },
+    "frequency_baseline_profiles": {
+      "count": 1,
+      "sha256": "186fbf079f48ee2231b87439636e4540839a66d7b97f9cfb29a8627294f840f6"
+    },
+    "frequency_baseline_marks": {
+      "count": 1699,
+      "sha256": "742e349c40314e1ab2df290d003dc724c54b288fcbe7362f2a346a4c0529a0d3"
+    },
+    "frequency_baseline_daily_checks": {
+      "count": 12,
+      "sha256": "75dce0d0c0b7a9c4f94814707726a628f517df81b346a4502d8aec7f05198d4f"
+    },
+    "word_aliases": {
+      "count": 8491,
+      "sha256": "15a5f3d5a2ae3cb1cafcc334492577b46f43c41bd2f3b75e4d77211289e3135b"
+    },
+    "phrase_analysis_cache": {
+      "count": 46,
+      "sha256": "b39bd6ba4a39e2a9430d35f31f9ee4d9d3c3652092e4917091fa8b6183395210"
+    },
+    "annotation_actions": {
+      "count": 6,
+      "sha256": "d71b1e47425778bfb60ffcefcdf0594fb81bffa21d37db80ddba8f33a64a7b12"
+    },
+    "tags": {
+      "count": 1,
+      "sha256": "2d2188a66bbccdb16eea0ef1fac1c357b74f83b0c7b00ee37f97960477c09b4d"
+    },
+    "file_tags": {
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "legacy_tag_folders": {
+      "count": 1,
+      "sha256": "e61b9f584dbe27741cef6e9ee440831d7d94470c0871b0871541f0308916efea"
+    },
+    "file_tag_state": {
+      "count": 27,
+      "sha256": "5bfc8cf427bb10402632006cedf7b7f72d6f23d00a61795a9cb8da9cd0966473"
+    },
+    "material_import_actions": {
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "saved_records": {
+      "count": 999,
+      "sha256": "a99a37a44be99779030ffac35dc7ab8bfc1ac53a94620ce2574f55d8011d4474"
+    },
+    "saved_actions": {
+      "count": 2,
+      "sha256": "793e540b86bb3b0bac1d18238a10d5e495b587248594d2e68dcf9bc1bb32fcd9"
+    },
+    "product_migrations": {
+      "count": 1,
+      "sha256": "9183a0c446183375b4ac96ff0e082d00634efb42f2b05a92b27dcb3dc067e9fb"
+    }
+  }
+}

@@ -5,7 +5,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 const { chromium } = await import(process.env.LEXICUE_PLAYWRIGHT_MODULE || 'playwright');
 const browser = await chromium.launch({ channel: process.env.LEXICUE_UI_BROWSER_CHANNEL || 'chrome', headless: true });
 const url = process.env.LEXICUE_UI_URL || 'http://127.0.0.1:5173';
-const output = process.env.LEXICUE_UI_OUTPUT || '/tmp/lexicue-ui-saved';
+const output = process.env.LEXICUE_SAVED_UI_OUTPUT || process.env.LEXICUE_UI_OUTPUT || '/tmp/lexicue-ui-saved';
 await mkdir(output, { recursive: true });
 const errors = [];
 let checks = 0;
@@ -150,7 +150,7 @@ try {
         assert.ok(await contrast(primary) >= 4.5, `${theme} ${state} primary contrast`); checks++;
       }
       if (width === 1440 || width === 390) await page.screenshot({ animations: 'disabled', path: `${output}/${theme}-${width}-saved.png` });
-      if (width === 1440) await page.locator('.context-blank-return').click();
+      if (width >= 1024) await page.mouse.click(110,200);
       else await page.getByRole('button', { name: '收起，继续', exact: true }).last().click();
       await page.getByRole('dialog').waitFor({ state: 'detached' });
     }

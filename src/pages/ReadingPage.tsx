@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type PointerEvent as ReactPointerEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Square, Volume2 } from 'lucide-react';
@@ -49,6 +49,8 @@ export default function ReadingPage({ data, scope }: {
     const recall=useRecallMatches(segments,first,last,!example);
     const [query, setQuery] = useState<ReadingQuery | null>(null);
     const drafts = useRef(new Map<string, LookupDraft>());
+    const pointerSelection = useRef(false);
+    const pointerRange = useRef<{ segment: number; anchor: number; edge: number } | null>(null);
     const importOpen = useImportStore(s => s.open);
     const scroll = useRef<HTMLDivElement>(null);
     const restored = useRef(false);
@@ -123,6 +125,8 @@ export default function ReadingPage({ data, scope }: {
         if (!text.trim())
             return;
         useImportStore.getState().hide();
+        window.getSelection()?.removeAllRanges();
+        keyRange.current = null;
         setKeyboardRange(null);
         setQuery({ segment, start, end, expression: text.trim() });
     };
@@ -141,9 +145,41 @@ export default function ReadingPage({ data, scope }: {
         after.selectNodeContents(paragraph);
         after.setEnd(range.endContainer, range.endOffset);
         const end = after.toString().length;
-        if (/[A-Za-z]/.test(segment.en_text.slice(start, end)))
+        if (/[A-Za-z]/.test(segment.en_text.slice(start, end))) {
+            pointerSelection.current = true;
+            range.startContainer.parentElement?.closest<HTMLElement>('.reading-word')?.focus({ preventScroll: true });
             choose(segment, start, end);
+        }
     };
+    const beginPointerRange = (segment: Segment, event: ReactPointerEvent<HTMLElement>) => {
+        pointerSelection.current = false;
+        pointerRange.current = null;
+        if (event.pointerType === 'touch' || event.button !== 0) return;
+        const word = event.target instanceof Element ? event.target.closest<HTMLElement>('.reading-word') : null;
+        const index = Number(word?.dataset.wordIndex);
+        if (word && Number.isInteger(index)) { word.focus({ preventScroll: true }); pointerRange.current = { segment: segment.id, anchor: index, edge: index }; }
+    };
+    const extendPointerRange = (segment: Segment, event: ReactPointerEvent<HTMLElement>) => {
+        const range = pointerRange.current;
+        if (!range || range.segment !== segment.id) return;
+        // WebKit may keep dispatching a captured drag to the starting button.
+        // Resolve the actual word under the pointer instead of its event target.
+        const word = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>('.reading-word');
+        if (word && !event.currentTarget.contains(word)) return;
+        const index = Number(word?.dataset.wordIndex);
+        if (!word || !Number.isInteger(index) || index === range.edge) return;
+        range.edge = index;
+        setKeyboardRange({ segment: segment.id, start: Math.min(range.anchor, range.edge), end: Math.max(range.anchor, range.edge) });
+    };
+    const finishPointerRange = (segment: Segment) => {
+        const range = pointerRange.current;
+        pointerRange.current = null;
+        if (!range || range.segment !== segment.id || range.anchor === range.edge) return;
+        const spans = tokens.get(segment.index_num) ?? [];
+        pointerSelection.current = true;
+        choose(segment, spans[Math.min(range.anchor, range.edge)].start, spans[Math.max(range.anchor, range.edge)].end);
+    };
+    const cancelPointerRange = () => { if (pointerRange.current) { pointerRange.current = null; setKeyboardRange(null); } };
     const paragraph = (segment: Segment) => {
         const spans = tokens.get(segment.index_num) ?? [];
         const pieces: ReactNode[] = [];
@@ -151,9 +187,9 @@ export default function ReadingPage({ data, scope }: {
         spans.forEach((token, index) => {
             pieces.push(segment.en_text.slice(offset, token.start));
             const marked=recall.matches.get(segment.index_num)?.find(match=>token.start>=match.start&&token.end<=match.end);
-            const selected = query?.segment.id === segment.id && token.start >= query.start && token.end <= query.end || keyboardRange?.segment === segment.id && index >= keyboardRange.start && index <= keyboardRange.end;
+            const selected = keyboardRange ? keyboardRange.segment === segment.id && index >= keyboardRange.start && index <= keyboardRange.end : query?.segment.id === segment.id && token.start >= query.start && token.end <= query.end;
             const punctuation = segment.en_text.slice(token.end, spans[index + 1]?.start ?? segment.en_text.length).match(/^[,.;:!?…’”"')\]]+/)?.[0] ?? '';
-            pieces.push(<span key={`${token.start}-${token.end}`} className="reading-token"><button className={`reading-word${marked?' reading-word--recalled':''}`} data-recall={marked?.expression} title={marked?t('recall.marked',{expression:marked.expression}):undefined} aria-description={marked?t('recall.marked',{expression:marked.expression}):undefined} aria-pressed={!!selected} onClick={event => { if (event.detail === 0 || !window.getSelection()?.toString().trim()) {
+            pieces.push(<span key={`${token.start}-${token.end}`} className="reading-token"><button className={`reading-word${marked?' reading-word--recalled':''}`} data-word-index={index} data-recall={marked?.expression} title={marked?t('recall.marked',{expression:marked.expression}):undefined} aria-description={marked?t('recall.marked',{expression:marked.expression}):undefined} aria-pressed={!!selected} onClick={event => { if (pointerSelection.current && event.detail !== 0) { pointerSelection.current = false; return; } if (event.detail === 0 || !window.getSelection()?.toString().trim()) {
                 event.currentTarget.focus({preventScroll:true});
                 choose(segment, marked?.start??token.start, marked?.end??token.end); } }} onKeyDown={event => { if (!event.shiftKey || !['ArrowRight', 'ArrowLeft'].includes(event.key))
                 return; event.preventDefault(); const range = keyRange.current?.segment === segment.id ? keyRange.current : { segment: segment.id, anchor: index, edge: index }; range.edge = Math.max(0, Math.min(spans.length - 1, range.edge + (event.key === 'ArrowRight' ? 1 : -1))); keyRange.current = range; setKeyboardRange({ segment: segment.id, start: Math.min(range.anchor, range.edge), end: Math.max(range.anchor, range.edge) }); }} onKeyUp={event => { if (event.key !== 'Shift' || !keyRange.current)
@@ -175,11 +211,11 @@ export default function ReadingPage({ data, scope }: {
     {first > 0 && <button className="ui-button" onClick={previous}>{t('reader.previousSentences')}</button>}
     {segments.slice(first, last).map(segment => <section className="reading-sentence" key={segment.id} data-sentence={segment.index_num}>
       <div className="sentence-side"><small>{segment.index_num + 1}</small><button className="ui-button ui-button--icon" aria-label={t(speech.key === `row:${segment.id}` ? 'reader.stop' : 'reader.listenSentence')} onClick={() => speech.key === `row:${segment.id}` ? speech.stop() : speech.speak(segment.en_text, `row:${segment.id}`)}>{speech.key === `row:${segment.id}` ? <Square size={16}/> : <Volume2 size={17}/>}</button></div>
-      <div><p className="reading-original" lang="en" onMouseUp={event => selectText(segment, event.currentTarget)} onTouchEnd={event => selectText(segment, event.currentTarget)}>{paragraph(segment)}</p>{translation && segment.zh_text && <p className="reading-translation">{segment.zh_text}</p>}</div>
+      <div><p className="reading-original" lang="en" onPointerDown={event => beginPointerRange(segment, event)} onPointerMove={event => extendPointerRange(segment, event)} onPointerUp={() => finishPointerRange(segment)} onPointerCancel={cancelPointerRange} onPointerLeave={cancelPointerRange} onMouseDown={event => { if (event.button === 0) { event.preventDefault(); window.getSelection()?.removeAllRanges(); } }} onMouseUp={event => selectText(segment, event.currentTarget)} onTouchEnd={event => selectText(segment, event.currentTarget)}>{paragraph(segment)}</p>{translation && segment.zh_text && <p className="reading-translation">{segment.zh_text}</p>}</div>
     </section>)}
     {last < segments.length && <button className="ui-button reader-next" data-reader-next="" onClick={() => setLast(value => Math.min(value + 60, segments.length))}>{t('reader.moreSentences')}</button>}
     {!query && speech.error && <p className="lookup-note" role="status">{t('reader.noVoice')}</p>}
   </div></div>
-    {query && <ReadingLookup key={`${query.segment.id}:${query.start}:${query.end}`} query={query} material={material} scope={scope} onClose={() => { if(example) useOnboardingStore.getState().closed(); setQuery(null); }} onSkip={skip} drafts={drafts.current}/>}
+    {query && <ReadingLookup query={query} material={material} scope={scope} onClose={() => { if(example) useOnboardingStore.getState().closed(); keyRange.current = null; pointerRange.current = null; setKeyboardRange(null); setQuery(null); }} onSkip={skip} drafts={drafts.current}/>}
   </div>;
 }

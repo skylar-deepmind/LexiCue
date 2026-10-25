@@ -43,7 +43,6 @@
 .context-layer { --context-width: 320px; position: fixed; inset: 0; pointer-events: none; z-index: 95; }
 .context-panel { pointer-events: auto; position: absolute; inset: auto 0 0; display: flex; flex-direction: column; height: min(85dvh, 720px); min-height: 0; overflow: hidden; padding-bottom: var(--safe-bottom); border: 1px solid var(--border); border-radius: 18px 18px 0 0; color: var(--text-body); background: var(--surface); box-shadow: var(--panel-shadow); animation: context-sheet-open 420ms cubic-bezier(.65,0,.35,1); }
 .context-panel:focus { outline: none; }
-.context-blank-return { pointer-events: auto; position: absolute; top: 0; left: 0; width: 44px; height: max(44px, calc(100dvh - min(85dvh, 720px))); border-radius: 8px; background: transparent; }
 .context-mobile-return { display: flex; align-items: center; justify-content: center; gap: 8px; flex: none; min-height: 48px; color: var(--text-muted); border-bottom: 1px solid var(--border-soft); }
 .context-mobile-return:hover { background: var(--interactive-hover); color: var(--text-strong); }
 .saved-detail-heading { flex: none; padding: 16px 24px; border-bottom: 1px solid var(--border-soft); }
@@ -78,7 +77,6 @@
   .context-panel { top: 88px; right: 16px; bottom: 24px; left: auto; width: var(--context-width); height: auto; border-radius: 18px; padding-bottom: 0; animation-name: context-card-open; }
   .context-layer--closing .context-panel { animation-name: context-card-close; }
   .context-mobile-return { display: none; }
-  .context-blank-return { top: 88px; bottom: 24px; left: 200px; height: auto; }
 }
 @media (max-width: 640px) {
   .saved-scroll { padding: 24px 16px 96px; }

@@ -5,10 +5,10 @@ import { useTranslation } from 'react-i18next';
 import { backNavigation } from '../lib/backNavigation';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 
-/** Modeless on desktop: only the dedicated blank strip dismisses the card.
- * Original controls remain usable; Tab, Escape and system back retain focus. */
-export default function ContextPanel({ label, children, onClose, canClose = true, onClosing }: {
-  label: string; children: ReactNode; onClose: () => void; canClose?: boolean; onClosing?: () => void;
+/** Modeless: unused space dismisses the card without covering reading or controls.
+ * Dragging, selection, scrolling and other dialogs retain their normal behavior. */
+export default function ContextPanel({ label, children, onClose, canClose = true, onClosing, interactionKey }: {
+  label: string; children: ReactNode; onClose: () => void; canClose?: boolean; onClosing?: () => void; interactionKey?: unknown;
 }) {
   const { t } = useTranslation();
   const panelRef = useRef<HTMLElement>(null);
@@ -18,6 +18,7 @@ export default function ContextPanel({ label, children, onClose, canClose = true
   const callbacks = useRef({ onClose, canClose, onClosing });
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [closing, setClosing] = useState(false);
+  const lastInteraction = useRef(interactionKey);
   useLayoutEffect(() => { callbacks.current = { onClose, canClose, onClosing }; });
   const requestClose = () => {
     if (!callbacks.current.canClose || timer.current) return false;
@@ -30,6 +31,12 @@ export default function ContextPanel({ label, children, onClose, canClose = true
   };
   const closeRef = useRef(requestClose);
   useLayoutEffect(() => { closeRef.current = requestClose; });
+  useLayoutEffect(() => {
+    if (lastInteraction.current === interactionKey) return;
+    lastInteraction.current = interactionKey;
+    if (timer.current) { clearTimeout(timer.current); timer.current = null; setClosing(false); useWorkspaceStore.getState().add(identity.current); }
+    if (document.activeElement instanceof HTMLElement && !layerRef.current?.contains(document.activeElement)) previous.current = document.activeElement;
+  }, [interactionKey]);
   useEffect(() => {
     const panelIdentity=identity.current;
     useWorkspaceStore.getState().add(panelIdentity);
@@ -48,15 +55,37 @@ export default function ContextPanel({ label, children, onClose, canClose = true
       }
     };
     document.addEventListener('keydown', keys);
+    let pointer: { x: number; y: number; moved: boolean } | null = null;
+    const down = (event: PointerEvent) => { pointer = event.button === 0 ? { x: event.clientX, y: event.clientY, moved: false } : null; };
+    const move = (event: PointerEvent) => { if (pointer && Math.hypot(event.clientX - pointer.x, event.clientY - pointer.y) > 5) pointer.moved = true; };
+    const outside = (event: MouseEvent) => {
+      const target = event.target;
+      // Later clicks in a multi-click gesture may land on newly exposed blank
+      // space while the reading column makes room. They are not dismissals.
+      if (!(target instanceof Element) || event.defaultPrevented || event.button !== 0 || event.detail > 1 || pointer?.moved) return;
+      if (layerRef.current?.contains(target) || document.querySelector('[aria-modal="true"]') || [...document.querySelectorAll('.context-layer')].at(-1) !== layerRef.current) return;
+      if (target.closest('button,a[href],input,textarea,select,label,summary,audio,video,[role="button"],[role="tab"],[role="menuitem"],[data-overlay-layer],[contenteditable]:not([contenteditable="false"])')) return;
+      // A native scrollbar is a control even though it has no DOM button.
+      for (let node: Element | null = target; node; node = node.parentElement) {
+        const rect = node.getBoundingClientRect();
+        if (node instanceof HTMLElement && (node.offsetWidth > node.clientWidth + 2 && event.clientX >= rect.left + node.clientWidth || node.offsetHeight > node.clientHeight + 2 && event.clientY >= rect.top + node.clientHeight)) return;
+      }
+      closeRef.current();
+    };
+    document.addEventListener('pointerdown', down, true);
+    document.addEventListener('pointermove', move, true);
+    document.addEventListener('click', outside);
     return () => {
       useWorkspaceStore.getState().remove(panelIdentity);
       unregister(); document.removeEventListener('keydown', keys);
+      document.removeEventListener('pointerdown', down, true);
+      document.removeEventListener('pointermove', move, true);
+      document.removeEventListener('click', outside);
       if (timer.current) clearTimeout(timer.current);
       if (previous.current?.isConnected) previous.current.focus({ preventScroll: true });
     };
   }, []);
   return createPortal(<div className={`context-layer${closing ? ' context-layer--closing' : ''}`} ref={layerRef}>
-    <button className="context-blank-return" onClick={requestClose} disabled={!canClose} aria-label={t('savedRecords.collapse')} />
     <aside className="context-panel" role="dialog" aria-label={label} tabIndex={-1} ref={panelRef}>
       <button className="context-mobile-return" onClick={requestClose} disabled={!canClose}><ChevronDown size={18} aria-hidden="true" />{t('savedRecords.collapse')}</button>
       {children}

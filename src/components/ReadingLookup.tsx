@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { Check, Square, Volume2 } from 'lucide-react';
@@ -24,28 +24,91 @@ export interface LookupDraft {
     value: string;
     personal: boolean;
 }
-export default function ReadingLookup({ query, material, scope, onClose, onSkip, drafts }: {
+interface LookupProps {
     query: ReadingQuery;
     material: Material;
     scope: ReadingScope;
     onClose: () => void;
     onSkip: () => void;
     drafts: Map<string, LookupDraft>;
-}) {
+}
+interface PreparedLookup {
+    result: ReadingExplanation | null;
+    error: string;
+    saved: SavedRecord | null;
+}
+const queryKey = (query: ReadingQuery) => `${query.segment.id}:${query.start}:${query.end}`;
+
+/** Keep the frame in place. A new page replaces the old one only when its data
+ * is ready; rapid queries cancel their predecessors without queuing motion. */
+export default function ReadingLookup(props: LookupProps) {
+    const { t } = useTranslation();
+    const requestedKey = queryKey(props.query);
+    const [view, setView] = useState<{ query: ReadingQuery; prepared?: PreparedLookup }>({ query: props.query });
+    const visibleKey = queryKey(view.query);
+    const pending = visibleKey !== requestedKey;
+    const latest = useRef(requestedKey);
+    const content = useRef<HTMLDivElement>(null);
+    const animation = useRef<Animation | null>(null);
+    const previousKey = useRef(visibleKey);
+    useLayoutEffect(() => { latest.current = requestedKey; }, [requestedKey]);
+    useEffect(() => {
+        if (!pending) return;
+        let active = true;
+        useSpeechStore.getState().stop();
+        const { query, scope } = props;
+        const selection = { segment_id: query.segment.id, expression: query.expression, start_offset: query.start, end_offset: query.end, explanation: null, explanation_source: 'unknown' as const };
+        void Promise.allSettled([
+            invoke<ReadingExplanation>('lookup_reading_expression', { expression: query.expression }),
+            selectionInScope(scope, selection),
+        ]).then(([result, saved]) => {
+            if (!active || latest.current !== requestedKey) return;
+            setView({ query, prepared: {
+                result: result.status === 'fulfilled' ? result.value : null,
+                error: result.status === 'rejected' ? String(result.reason).includes('NOT_FOUND') ? 'notFound' : 'failed' : '',
+                saved: saved.status === 'fulfilled' ? saved.value : null,
+            } });
+        });
+        return () => { active = false; };
+    }, [props.query, props.scope, pending, requestedKey]);
+    useLayoutEffect(() => {
+        if (previousKey.current === visibleKey) return;
+        previousKey.current = visibleKey;
+        animation.current?.cancel();
+        if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            animation.current = content.current?.animate([
+                { opacity: .84, transform: 'translateY(4px)' },
+                { opacity: 1, transform: 'translateY(0)' },
+            ], { duration: 180, easing: 'cubic-bezier(.2,.7,.2,1)' }) ?? null;
+        }
+    }, [visibleKey]);
+    useEffect(() => () => animation.current?.cancel(), []);
+    return <ContextPanel label={view.query.expression} interactionKey={props.query} onClose={props.onClose}>
+      <div className="lookup-stage" aria-busy={pending} data-lookup-state={pending ? 'pending' : 'ready'}>
+        <div className="lookup-content" ref={content} inert={pending} aria-hidden={pending || undefined}>
+          <LookupContent key={visibleKey} {...props} query={view.query} prepared={view.prepared}/>
+        </div>
+        {pending && <p className="lookup-pending" role="status">{props.query.expression} · {t('common.loading')}</p>}
+      </div>
+    </ContextPanel>;
+}
+
+function LookupContent({ query, material, scope, onSkip, drafts, prepared }: LookupProps & { prepared?: PreparedLookup }) {
     const { t } = useTranslation();
     const example = scope.kind === 'example';
     const guideActive = useOnboardingStore(state => state.active);
     const guideStep = useOnboardingStore(state => state.step);
     const key = `${query.segment.id}:${query.start}:${query.end}`;
     const existingDraft = drafts.get(key);
-    const [result, setResult] = useState<ReadingExplanation | null>(null);
-    const [lookupError, setLookupError] = useState('');
-    const [loading, setLoading] = useState(true);
+    const [result, setResult] = useState<ReadingExplanation | null>(prepared?.result ?? null);
+    const [lookupError, setLookupError] = useState(prepared?.error ?? '');
+    const [loading, setLoading] = useState(!prepared);
     const [retry, setRetry] = useState(0);
-    const [draft, setDraft] = useState(existingDraft?.value ?? '');
-    const personal = useRef(existingDraft?.personal ?? false);
+    const savedPersonal = prepared?.saved?.explanation_source === 'personal';
+    const [draft, setDraft] = useState(existingDraft?.personal ? existingDraft.value : savedPersonal ? prepared?.saved?.explanation ?? '' : existingDraft?.value ?? '');
+    const personal = useRef(!!existingDraft?.personal || savedPersonal);
     const [editing, setEditing] = useState(!!existingDraft?.personal);
-    const [saved, setSaved] = useState<SavedRecord | null>(null);
+    const [saved, setSaved] = useState<SavedRecord | null>(prepared?.saved ?? null);
     const [receipt, setReceipt] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
     const [writeError, setWriteError] = useState('');
@@ -56,6 +119,7 @@ export default function ReadingLookup({ query, material, scope, onClose, onSkip,
     const acted = useRef(false);
     const live = useRef(true);
     const sourceState = useDictionaryStore(state => dictionaryLanguageState(state, 'en'));
+    const preparedSource = useRef(sourceState);
     const speech = useSpeechStore();
     const reminders=usePreferencesStore(state=>state.reencounterHints);
     const expressions=useRecallStore(state=>state.expressions);
@@ -69,6 +133,10 @@ export default function ReadingLookup({ query, material, scope, onClose, onSkip,
     const auxiliaryFont=usePreferencesStore(state=>state.auxiliaryFontSize);
     useEffect(() => { live.current = true; return () => { live.current = false; useSpeechStore.getState().stop(); }; }, []);
     useEffect(() => {
+        if (prepared && retry === 0 && sourceState === preparedSource.current) {
+            if (example && prepared.result) useOnboardingStore.getState().lookedUp();
+            return;
+        }
         let active = true;
         setLoading(true);
         setLookupError('');
@@ -77,15 +145,18 @@ export default function ReadingLookup({ query, material, scope, onClose, onSkip,
             setLookupError(String(error).includes('NOT_FOUND') ? 'notFound' : 'failed'); }).finally(() => { if (active)
             setLoading(false); });
         return () => { active = false; };
-    }, [query.expression, retry, sourceState, example]);
-    useEffect(() => { let active = true; void selectionInScope(scope, selection).then(record => { if (active && !acted.current) {
+    }, [query.expression, retry, sourceState, example, prepared]);
+    useEffect(() => { if (prepared) {
+        if (example && prepared.saved) useOnboardingStore.getState().recordChanged(prepared.saved);
+        return;
+    } let active = true; void selectionInScope(scope, selection).then(record => { if (active && !acted.current) {
         setSaved(record);
         if(example && record) useOnboardingStore.getState().recordChanged(record);
         if (record?.explanation_source === 'personal' && !personal.current) {
             personal.current = true;
             setDraft(record.explanation ?? '');
         }
-    } }).catch(() => { }); return () => { active = false; }; }, [key, selection, scope, example]);
+    } }).catch(() => { }); return () => { active = false; }; }, [key, selection, scope, example, prepared]);
     const meaning = personal.current ? draft : result?.meaning ?? '';
     const source = personal.current ? 'personal' : result?.source ?? 'unknown';
     const save = async (edit = false) => {
@@ -141,7 +212,7 @@ export default function ReadingLookup({ query, material, scope, onClose, onSkip,
             setBusy(false);
     } };
     const listen = (text: string, audioKey: string) => speech.key === audioKey ? speech.stop() : speech.speak(text, audioKey);
-    return <ContextPanel label={query.expression} onClose={onClose}>
+    return <>
     <header className="lookup-heading">{example && guideActive && <div className="example-card-hint"><small role="status">{t(guideStep === 3 ? 'onboarding.step3' : 'onboarding.step2')}</small><button className="ui-button" onClick={onSkip}>{t('onboarding.skip')}</button></div>}<small>{t('reader.understand')}</small><div><h2 lang="en">{query.expression}</h2><button className="ui-button ui-button--icon" onClick={() => listen(query.expression, 'term')} aria-label={t(speech.key === 'term' ? 'reader.stop' : 'reader.listenExpression')}>{speech.key === 'term' ? <Square size={18}/> : <Volume2 size={20}/>}</button></div></header>
     <div className="lookup-body" data-definition-font={definitionFont} data-aux-font={auxiliaryFont}>
       {showRecall&&<><RecallSection expression={query.expression}/><h3 className="lookup-current-heading">{t('recall.currentQuery')}</h3></>}
@@ -158,5 +229,5 @@ export default function ReadingLookup({ query, material, scope, onClose, onSkip,
       {writeError && <p className="saved-error" role="alert">{writeError}</p>}
     </div>
     <footer className="lookup-footer">{saved ? <div className="lookup-saved" role="status"><Check size={20} aria-hidden="true"/><strong>{t('reader.saved')}</strong>{receipt && <button className="ui-button" onClick={() => void undo()} disabled={busy}>{t('savedRecords.undo')}</button>}</div> : <button className="ui-button saved-primary" onClick={() => void save()} disabled={busy}>{t('common.save')}</button>}</footer>
-  </ContextPanel>;
+  </>;
 }

@@ -1,0 +1,10 @@
+
+> lexicue@0.4.5 test:ui
+> node scripts/ui-smoke.mjs && node scripts/ui-saved-smoke.mjs && node scripts/ui-recall-smoke.mjs && node scripts/ui-onboarding-smoke.mjs
+
+Reading interaction regressions passed: ocean
+Reading interaction regressions passed: midnight
+Reading UI → SQLite: 235 checks passed; visible meaning p95 65.20ms; cached command p95 2.06ms. Evidence: /tmp/lexicue-v31-reading-polish-20261025/verified/reading
+PASS: 132 saved-context UI checks; screenshots: /tmp/lexicue-v31-reading-polish-20261025/verified/saved
+PASS: 302 recall checks; 10k saved records, 40 cold loads, p95 108.20ms; lookup p95 98.30ms. Evidence: /tmp/lexicue-v31-reading-polish-20261025/verified/recall
+Onboarding UI: 237 checks passed; /tmp/lexicue-v31-reading-polish-20261025/verified/onboarding

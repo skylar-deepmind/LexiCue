@@ -10,9 +10,9 @@ export default function Sidebar() {
     const open = useImportStore(s => s.open);
     const running = useImportStore(s => s.running);
     return <aside className="b-dock"><nav aria-label={t('sidebar.navAria')}>
-    {navigationItems.slice(0, 2).map(item => <Link className="b-dock-control" key={item.to} to={item.to} aria-current={navigationActive(pathname, item.to) ? 'page' : undefined} onClick={() => useImportStore.getState().hide()}><item.icon size={21} aria-hidden="true"/><span>{t(item.key)}</span></Link>)}
-    <button className="b-dock-control" onClick={show} aria-pressed={open} aria-label={t(running ? 'materials.importRunning' : 'materials.import')}><Upload size={21} aria-hidden="true"/><span>{t('materials.import')}</span>{running && <span className="dock-busy" aria-hidden="true"/>}</button>
+    {navigationItems.slice(0, 2).map(item => <Link className="b-dock-control" key={item.to} to={item.to} aria-label={t(item.key)} aria-current={navigationActive(pathname, item.to) ? 'page' : undefined} onClick={() => useImportStore.getState().hide()}><item.icon size={22} aria-hidden="true"/></Link>)}
+    <button className="b-dock-control" onClick={show} aria-pressed={open} aria-label={t(running ? 'materials.importRunning' : 'materials.import')}><Upload size={22} aria-hidden="true"/>{running && <span className="dock-busy" aria-hidden="true"/>}</button>
     <span className="b-dock-divider"/>
-    <Link className="b-dock-control" to="/settings" aria-current={pathname.startsWith('/settings') ? 'page' : undefined} onClick={() => useImportStore.getState().hide()}><Settings size={21} aria-hidden="true"/><span>{t('sidebar.settings')}</span></Link>
+    <Link className="b-dock-control" to="/settings" aria-label={t('sidebar.settings')} aria-current={pathname.startsWith('/settings') ? 'page' : undefined} onClick={() => useImportStore.getState().hide()}><Settings size={22} aria-hidden="true"/></Link>
   </nav></aside>;
 }

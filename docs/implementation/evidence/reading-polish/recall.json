@@ -1,0 +1,47 @@
+{
+  "checks": 302,
+  "seedEvidence": [
+    {
+      "expressions": 9988,
+      "filler": "deterministic ECDICT sample: single words and two-word phrases",
+      "records": 10000,
+      "source_file_id": 1
+    },
+    {
+      "expressions": 9988,
+      "filler": "deterministic ECDICT sample: single words and two-word phrases",
+      "records": 10000,
+      "source_file_id": 3
+    }
+  ],
+  "corpus": {
+    "positive": 20,
+    "negative": 20,
+    "polysemy": 10
+  },
+  "themes": [
+    "ocean",
+    "midnight"
+  ],
+  "widths": [
+    360,
+    390,
+    430,
+    768,
+    1024,
+    1280,
+    1440
+  ],
+  "coldMarksMs": {
+    "samples": 40,
+    "p95": 108.20000000298023,
+    "max": 127.09999999403954
+  },
+  "cachedLookupMs": {
+    "samples": 100,
+    "p95": 98.29999999701977,
+    "max": 125
+  },
+  "longTasks": [],
+  "errors": []
+}
