@@ -55,5 +55,7 @@
     },
     "keyboardNote": "Shift+Arrow works in browser regression; native CUA chord highlighted the range but could not deliver a standalone modifier release, so native physical keyboard confirmation remains manual."
   },
-  "currentUIState": "Mac locked after native theme checks; QA cleanup and user preview reopening await unlock"
+  "currentUIState": "Native QA closed; current macOS preview raised at the last reading material; data verified after reopening",
+  "previewReopened": true,
+  "qaClosed": true
 }
