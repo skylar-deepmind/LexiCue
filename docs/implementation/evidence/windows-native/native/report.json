@@ -1,0 +1,2515 @@
+{
+  "startedAt": "2026-10-25T03:35:26.565Z",
+  "identifier": "com.lexicue.qa.v31.windows20261025",
+  "appSha256": "4c61d0faa63852f8d89fb4db53e59af2bff5764222922e0a0520bb8be36ee22e",
+  "scope": "Windows EXE → native WebView2 → actual Tauri IPC/SQLite, actual Windows file dialogs; only synthetic QA learning data",
+  "checks": [
+    "native IPC identifier protects real data",
+    "clean isolated launch opens English guide",
+    "ocean: three actual example sentences",
+    "ocean: example is explicitly separate",
+    "ocean: example uses actual ECDICT lookup",
+    "ocean: completion persisted",
+    "ocean: example query/save/undo never changes real backup tables",
+    "native IPC identifier protects real data",
+    "ocean: restart does not repeat completed guide",
+    "ocean: skip step 1 persisted",
+    "ocean: skip step 2 persisted",
+    "ocean: skip step 3 persisted",
+    "native IPC identifier protects real data",
+    "ocean: skipped guide stays skipped",
+    "ocean: native Shift+Arrow selects continuous phrase",
+    "ocean: phrase example remains isolated",
+    "midnight: three actual example sentences",
+    "midnight: example is explicitly separate",
+    "midnight: example uses actual ECDICT lookup",
+    "midnight: completion persisted",
+    "midnight: example query/save/undo never changes real backup tables",
+    "native IPC identifier protects real data",
+    "midnight: restart does not repeat completed guide",
+    "midnight: skip step 1 persisted",
+    "midnight: skip step 2 persisted",
+    "midnight: skip step 3 persisted",
+    "native IPC identifier protects real data",
+    "midnight: skipped guide stays skipped",
+    "midnight: native Shift+Arrow selects continuous phrase",
+    "midnight: phrase example remains isolated",
+    "native clean dictionary: at least 45/50 common words pass Chinese meaning sanity check",
+    "native clean dictionary: at least 16/20 common phrases pass Chinese meaning sanity check",
+    "unknown native phrase never receives an invented definition",
+    "native multi-file picker commits only two valid English SRTs",
+    "real per-file successes displayed",
+    "empty, invalid and non-English files have honest errors",
+    "retry imports failed files without duplicating successes",
+    "duplicate shown without reimport",
+    "duplicate keeps file count",
+    "native file-dialog cancel leaves all tables unchanged",
+    "cancel reports uncommitted files truthfully",
+    "cancelled items can be retried",
+    "cancel and retry retain exactly four sources",
+    "ocean: opening explanation preserves body width, line height and wrapping",
+    "ocean: saved state contrast",
+    "ocean: twenty UI saves retain independent positions",
+    "ocean: every UI save includes original sentence, file and offsets",
+    "ocean: ten native duplicate requests keep one position",
+    "ocean: duplicate save does not increase count",
+    "ocean: missing dictionary answer can be saved honestly through UI",
+    "ocean: disabled return action contrast",
+    "ocean: actual personal edit persisted",
+    "ocean: personal edit has correct provenance",
+    "ocean: remove/undo restores exact edited snapshot",
+    "ocean: return opens actual source",
+    "ocean: deleted source reported honestly",
+    "ocean: source deletion preserves sentence copy",
+    "ocean: no word reviews added",
+    "ocean: no phrase reviews added",
+    "midnight: opening explanation preserves body width, line height and wrapping",
+    "midnight: saved state contrast",
+    "midnight: twenty UI saves retain independent positions",
+    "midnight: every UI save includes original sentence, file and offsets",
+    "midnight: ten native duplicate requests keep one position",
+    "midnight: duplicate save does not increase count",
+    "midnight: missing dictionary answer can be saved honestly through UI",
+    "midnight: disabled return action contrast",
+    "midnight: actual personal edit persisted",
+    "midnight: personal edit has correct provenance",
+    "midnight: remove/undo restores exact edited snapshot",
+    "midnight: return opens actual source",
+    "midnight: deleted source reported honestly",
+    "midnight: source deletion preserves sentence copy",
+    "midnight: no word reviews added",
+    "midnight: no phrase reviews added",
+    "replaying guide leaves existing real QA saved records unchanged",
+    "replayed example preserves actual continue-reading position",
+    "native IPC identifier protects real data",
+    "native app restart retains materials, saved snapshots and edits",
+    "native backup contains actual saved snapshots",
+    "native backup/restore round-trip: files",
+    "native backup/restore round-trip: segments",
+    "native backup/restore round-trip: words",
+    "native backup/restore round-trip: reviews",
+    "native backup/restore round-trip: phrase_reviews",
+    "native backup/restore round-trip: saved_records",
+    "native backup/restore round-trip: saved_actions",
+    "native IPC identifier protects real data",
+    "restored canonical snapshots survive native restart",
+    "10,000 active saved records created with actual native Save commands",
+    "10k set contains over 9,900 distinct expressions",
+    "ocean: re-encounter never opens a card before click",
+    "ocean: old contexts absent before click",
+    "ocean: positive corpus 0",
+    "ocean: positive corpus 1",
+    "ocean: positive corpus 2",
+    "ocean: positive corpus 3",
+    "ocean: positive corpus 4",
+    "ocean: positive corpus 5",
+    "ocean: positive corpus 6",
+    "ocean: positive corpus 7",
+    "ocean: positive corpus 8",
+    "ocean: positive corpus 9",
+    "ocean: positive corpus 10",
+    "ocean: positive corpus 11",
+    "ocean: positive corpus 12",
+    "ocean: positive corpus 13",
+    "ocean: positive corpus 14",
+    "ocean: positive corpus 15",
+    "ocean: positive corpus 16",
+    "ocean: positive corpus 17",
+    "ocean: positive corpus 18",
+    "ocean: positive corpus 19",
+    "ocean: complete-word/phrase boundary corpus 0",
+    "ocean: complete-word/phrase boundary corpus 1",
+    "ocean: complete-word/phrase boundary corpus 2",
+    "ocean: complete-word/phrase boundary corpus 3",
+    "ocean: complete-word/phrase boundary corpus 4",
+    "ocean: complete-word/phrase boundary corpus 5",
+    "ocean: complete-word/phrase boundary corpus 6",
+    "ocean: complete-word/phrase boundary corpus 7",
+    "ocean: complete-word/phrase boundary corpus 8",
+    "ocean: complete-word/phrase boundary corpus 9",
+    "ocean: complete-word/phrase boundary corpus 10",
+    "ocean: complete-word/phrase boundary corpus 11",
+    "ocean: complete-word/phrase boundary corpus 12",
+    "ocean: complete-word/phrase boundary corpus 13",
+    "ocean: complete-word/phrase boundary corpus 14",
+    "ocean: complete-word/phrase boundary corpus 15",
+    "ocean: complete-word/phrase boundary corpus 16",
+    "ocean: complete-word/phrase boundary corpus 17",
+    "ocean: complete-word/phrase boundary corpus 18",
+    "ocean: complete-word/phrase boundary corpus 19",
+    "ocean: polysemy corpus 0",
+    "ocean: old meaning belongs to labeled old context 0",
+    "ocean: current lookup separately labeled 0",
+    "ocean: current original sentence remains current 0",
+    "ocean: polysemy corpus 1",
+    "ocean: old meaning belongs to labeled old context 1",
+    "ocean: current lookup separately labeled 1",
+    "ocean: current original sentence remains current 1",
+    "ocean: polysemy corpus 2",
+    "ocean: old meaning belongs to labeled old context 2",
+    "ocean: current lookup separately labeled 2",
+    "ocean: current original sentence remains current 2",
+    "ocean: polysemy corpus 3",
+    "ocean: old meaning belongs to labeled old context 3",
+    "ocean: current lookup separately labeled 3",
+    "ocean: current original sentence remains current 3",
+    "ocean: polysemy corpus 4",
+    "ocean: old meaning belongs to labeled old context 4",
+    "ocean: current lookup separately labeled 4",
+    "ocean: current original sentence remains current 4",
+    "ocean: polysemy corpus 5",
+    "ocean: old meaning belongs to labeled old context 5",
+    "ocean: current lookup separately labeled 5",
+    "ocean: current original sentence remains current 5",
+    "ocean: polysemy corpus 6",
+    "ocean: old meaning belongs to labeled old context 6",
+    "ocean: current lookup separately labeled 6",
+    "ocean: current original sentence remains current 6",
+    "ocean: polysemy corpus 7",
+    "ocean: old meaning belongs to labeled old context 7",
+    "ocean: current lookup separately labeled 7",
+    "ocean: current original sentence remains current 7",
+    "ocean: polysemy corpus 8",
+    "ocean: old meaning belongs to labeled old context 8",
+    "ocean: current lookup separately labeled 8",
+    "ocean: current original sentence remains current 8",
+    "ocean: polysemy corpus 9",
+    "ocean: old meaning belongs to labeled old context 9",
+    "ocean: current lookup separately labeled 9",
+    "ocean: current original sentence remains current 9",
+    "ocean: one old sentence initially visible",
+    "ocean: old sentences expand in bounded page",
+    "ocean: thirteen old contexts remain distinct",
+    "ocean: same spelling in new sentence has independent identity",
+    "ocean: new save has current sentence",
+    "ocean: current dictionary answer saved instead of old personal meaning",
+    "ocean: hints off clears marks",
+    "ocean: hints off retains records",
+    "native IPC identifier protects real data",
+    "midnight: re-encounter never opens a card before click",
+    "midnight: old contexts absent before click",
+    "midnight: positive corpus 0",
+    "midnight: positive corpus 1",
+    "midnight: positive corpus 2",
+    "midnight: positive corpus 3",
+    "midnight: positive corpus 4",
+    "midnight: positive corpus 5",
+    "midnight: positive corpus 6",
+    "midnight: positive corpus 7",
+    "midnight: positive corpus 8",
+    "midnight: positive corpus 9",
+    "midnight: positive corpus 10",
+    "midnight: positive corpus 11",
+    "midnight: positive corpus 12",
+    "midnight: positive corpus 13",
+    "midnight: positive corpus 14",
+    "midnight: positive corpus 15",
+    "midnight: positive corpus 16",
+    "midnight: positive corpus 17",
+    "midnight: positive corpus 18",
+    "midnight: positive corpus 19",
+    "midnight: complete-word/phrase boundary corpus 0",
+    "midnight: complete-word/phrase boundary corpus 1",
+    "midnight: complete-word/phrase boundary corpus 2",
+    "midnight: complete-word/phrase boundary corpus 3",
+    "midnight: complete-word/phrase boundary corpus 4",
+    "midnight: complete-word/phrase boundary corpus 5",
+    "midnight: complete-word/phrase boundary corpus 6",
+    "midnight: complete-word/phrase boundary corpus 7",
+    "midnight: complete-word/phrase boundary corpus 8",
+    "midnight: complete-word/phrase boundary corpus 9",
+    "midnight: complete-word/phrase boundary corpus 10",
+    "midnight: complete-word/phrase boundary corpus 11",
+    "midnight: complete-word/phrase boundary corpus 12",
+    "midnight: complete-word/phrase boundary corpus 13",
+    "midnight: complete-word/phrase boundary corpus 14",
+    "midnight: complete-word/phrase boundary corpus 15",
+    "midnight: complete-word/phrase boundary corpus 16",
+    "midnight: complete-word/phrase boundary corpus 17",
+    "midnight: complete-word/phrase boundary corpus 18",
+    "midnight: complete-word/phrase boundary corpus 19",
+    "midnight: polysemy corpus 0",
+    "midnight: old meaning belongs to labeled old context 0",
+    "midnight: current lookup separately labeled 0",
+    "midnight: current original sentence remains current 0",
+    "midnight: polysemy corpus 1",
+    "midnight: old meaning belongs to labeled old context 1",
+    "midnight: current lookup separately labeled 1",
+    "midnight: current original sentence remains current 1",
+    "midnight: polysemy corpus 2",
+    "midnight: old meaning belongs to labeled old context 2",
+    "midnight: current lookup separately labeled 2",
+    "midnight: current original sentence remains current 2",
+    "midnight: polysemy corpus 3",
+    "midnight: old meaning belongs to labeled old context 3",
+    "midnight: current lookup separately labeled 3",
+    "midnight: current original sentence remains current 3",
+    "midnight: polysemy corpus 4",
+    "midnight: old meaning belongs to labeled old context 4",
+    "midnight: current lookup separately labeled 4",
+    "midnight: current original sentence remains current 4",
+    "midnight: polysemy corpus 5",
+    "midnight: old meaning belongs to labeled old context 5",
+    "midnight: current lookup separately labeled 5",
+    "midnight: current original sentence remains current 5",
+    "midnight: polysemy corpus 6",
+    "midnight: old meaning belongs to labeled old context 6",
+    "midnight: current lookup separately labeled 6",
+    "midnight: current original sentence remains current 6",
+    "midnight: polysemy corpus 7",
+    "midnight: old meaning belongs to labeled old context 7",
+    "midnight: current lookup separately labeled 7",
+    "midnight: current original sentence remains current 7",
+    "midnight: polysemy corpus 8",
+    "midnight: old meaning belongs to labeled old context 8",
+    "midnight: current lookup separately labeled 8",
+    "midnight: current original sentence remains current 8",
+    "midnight: polysemy corpus 9",
+    "midnight: old meaning belongs to labeled old context 9",
+    "midnight: current lookup separately labeled 9",
+    "midnight: current original sentence remains current 9",
+    "midnight: one old sentence initially visible",
+    "midnight: old sentences expand in bounded page",
+    "midnight: thirteen old contexts remain distinct",
+    "midnight: same spelling in new sentence has independent identity",
+    "midnight: new save has current sentence",
+    "midnight: current dictionary answer saved instead of old personal meaning",
+    "midnight: hints off clears marks",
+    "midnight: hints off retains records",
+    "native IPC identifier protects real data",
+    "ocean 360: no horizontal overflow",
+    "ocean 360: context inside viewport",
+    "ocean 360: old/current note text contrast",
+    "ocean 360: unified card has no close cross",
+    "ocean 390: no horizontal overflow",
+    "ocean 390: context inside viewport",
+    "ocean 390: old/current note text contrast",
+    "ocean 390: unified card has no close cross",
+    "ocean 430: no horizontal overflow",
+    "ocean 430: context inside viewport",
+    "ocean 430: old/current note text contrast",
+    "ocean 430: unified card has no close cross",
+    "ocean 768: no horizontal overflow",
+    "ocean 768: context inside viewport",
+    "ocean 768: old/current note text contrast",
+    "ocean 768: unified card has no close cross",
+    "ocean 1024: no horizontal overflow",
+    "ocean 1024: context inside viewport",
+    "ocean 1024: old/current note text contrast",
+    "ocean 1024: unified card has no close cross",
+    "ocean 1280: no horizontal overflow",
+    "ocean 1280: context inside viewport",
+    "ocean 1280: old/current note text contrast",
+    "ocean 1280: unified card has no close cross",
+    "ocean 1440: no horizontal overflow",
+    "ocean 1440: context inside viewport",
+    "ocean 1440: old/current note text contrast",
+    "ocean 1440: unified card has no close cross",
+    "ocean: selected word text contrast",
+    "ocean: hover word text contrast",
+    "ocean: native keyboard focus visible",
+    "ocean: focus word text contrast",
+    "ocean: default word text contrast",
+    "ocean: Escape restores triggering word focus",
+    "ocean: dedicated blank-return restores focus",
+    "ocean: internal editing never accidentally closes card",
+    "ocean short-height editor: no horizontal overflow",
+    "ocean short-height editor: context inside viewport",
+    "ocean: short-height save footer reachable",
+    "ocean large fonts: no horizontal overflow",
+    "ocean large fonts: context inside viewport",
+    "ocean: reduced-motion preference honored",
+    "ocean: installed English voices visible to native WebView2",
+    "ocean: real Windows English word synthesis starts",
+    "ocean: ten speech actions do not leave a queued overlap",
+    "ocean: real Windows phrase synthesis starts",
+    "ocean: real Windows sentence synthesis starts",
+    "ocean: injected unavailable voice does not block lookup/save",
+    "ocean: offline dictionary and reading stay usable",
+    "midnight 360: no horizontal overflow",
+    "midnight 360: context inside viewport",
+    "midnight 360: old/current note text contrast",
+    "midnight 360: unified card has no close cross",
+    "midnight 390: no horizontal overflow",
+    "midnight 390: context inside viewport",
+    "midnight 390: old/current note text contrast",
+    "midnight 390: unified card has no close cross",
+    "midnight 430: no horizontal overflow",
+    "midnight 430: context inside viewport",
+    "midnight 430: old/current note text contrast",
+    "midnight 430: unified card has no close cross",
+    "midnight 768: no horizontal overflow",
+    "midnight 768: context inside viewport",
+    "midnight 768: old/current note text contrast",
+    "midnight 768: unified card has no close cross",
+    "midnight 1024: no horizontal overflow",
+    "midnight 1024: context inside viewport",
+    "midnight 1024: old/current note text contrast",
+    "midnight 1024: unified card has no close cross",
+    "midnight 1280: no horizontal overflow",
+    "midnight 1280: context inside viewport",
+    "midnight 1280: old/current note text contrast",
+    "midnight 1280: unified card has no close cross",
+    "midnight 1440: no horizontal overflow",
+    "midnight 1440: context inside viewport",
+    "midnight 1440: old/current note text contrast",
+    "midnight 1440: unified card has no close cross",
+    "midnight: selected word text contrast",
+    "midnight: hover word text contrast",
+    "midnight: native keyboard focus visible",
+    "midnight: focus word text contrast",
+    "midnight: default word text contrast",
+    "midnight: Escape restores triggering word focus",
+    "midnight: dedicated blank-return restores focus",
+    "midnight: internal editing never accidentally closes card",
+    "midnight short-height editor: no horizontal overflow",
+    "midnight short-height editor: context inside viewport",
+    "midnight: short-height save footer reachable",
+    "midnight large fonts: no horizontal overflow",
+    "midnight large fonts: context inside viewport",
+    "midnight: reduced-motion preference honored",
+    "midnight: installed English voices visible to native WebView2",
+    "midnight: real Windows English word synthesis starts",
+    "midnight: ten speech actions do not leave a queued overlap",
+    "midnight: real Windows phrase synthesis starts",
+    "midnight: real Windows sentence synthesis starts",
+    "midnight: injected unavailable voice does not block lookup/save",
+    "midnight: offline dictionary and reading stay usable",
+    "ocean: 10k saved list keeps first render bounded",
+    "midnight: 10k saved list keeps first render bounded",
+    "native 10k cold marking p95 <= 500ms",
+    "native 10k cached lookup p95 <= 500ms",
+    "no main-thread long task starts during cold matching interval",
+    "old backup migrates only explicit English records and preserves each context",
+    "old save time remains unknown",
+    "missing old sources are not invented",
+    "both old Chinese and English personal phrase edits preserved",
+    "automatic-only and non-English records stay out of new learning",
+    "old migration repeats without new identities",
+    "all old language records remain exportable",
+    "old review remains retained",
+    "old review log retained",
+    "old tags retained",
+    "retired frequency preferences retained",
+    "native read-only history exposes Japanese old record",
+    "ocean: legacy UI keeps personal content readable",
+    "ocean: only English legacy material enters new material gallery",
+    "midnight: legacy UI keeps personal content readable",
+    "midnight: only English legacy material enters new material gallery",
+    "legacy regression restores full isolated 10k QA dataset"
+  ],
+  "stages": [
+    "onboarding",
+    "native-dictionary-50-20",
+    "native-import",
+    "saved-flow-themes",
+    "native-backup-restore",
+    "recall-10000",
+    "native-layout-accessibility-speech",
+    "native-10000-performance",
+    "native-legacy-backup-migration"
+  ],
+  "themes": [
+    "ocean",
+    "midnight"
+  ],
+  "webviewProfile": {
+    "path": "C:\\Users\\skylar\\AppData\\Local\\Temp\\lexicue-v31-windows-20261025\\webview2-native-profile",
+    "method": "explicit persistent QA folder; launch native EXE then attach EdgeDriver",
+    "debugPort": 1074
+  },
+  "capabilities": {
+    "acceptInsecureCerts": false,
+    "browserName": "webview2",
+    "browserVersion": "155.0.4283.62",
+    "fedcm:accounts": true,
+    "ms:edgeOptions": {
+      "debuggerAddress": "127.0.0.1:1074"
+    },
+    "msedge": {
+      "msedgedriverVersion": "155.0.4283.62 (aa3a7406ba8c53a83536df539f07124d73c899bd)"
+    },
+    "pageLoadStrategy": "normal",
+    "platformName": "",
+    "proxy": {},
+    "setWindowRect": false,
+    "strictFileInteractability": false,
+    "timeouts": {
+      "implicit": 0,
+      "pageLoad": 300000,
+      "script": 30000
+    },
+    "unhandledPromptBehavior": "dismiss and notify",
+    "webauthn:extension:cmtgKey": true,
+    "webauthn:extension:credBlob": true,
+    "webauthn:extension:largeBlob": true,
+    "webauthn:extension:minPinLength": true,
+    "webauthn:extension:prf": true,
+    "webauthn:virtualAuthenticators": true
+  },
+  "dictionary": {
+    "currentSource": null,
+    "runId": 1,
+    "sequence": 38,
+    "sources": [
+      {
+        "error": null,
+        "language": "en",
+        "name": "ECDICT",
+        "processedRows": 56992,
+        "state": "ready"
+      },
+      {
+        "error": null,
+        "language": "en",
+        "name": "PhraseDict",
+        "processedRows": 4875,
+        "state": "ready"
+      }
+    ],
+    "state": "ready"
+  },
+  "restarts": [
+    {
+      "method": "normal Windows WM_CLOSE, followed by WebDriver session cleanup",
+      "before": {
+        "onboarding": "{\"version\":1,\"status\":\"completed\"}",
+        "preferences": "{\"state\":{\"reencounterHints\":true,\"vocabularyKind\":\"word\",\"youtube\":{\"browserSession\":{\"enabled\":false,\"browser\":\"chrome\",\"profile\":\"\"},\"favoriteLanguages\":[],\"recentLanguages\":[],\"lastSelection\":null},\"annotationModes\":{\"word\":\"batch\",\"phrase\":\"batch\"},\"language\":\"all\",\"uiLanguage\":\"zh\",\"learningTextFontSize\":\"md\",\"definitionFontSize\":\"md\",\"auxiliaryFontSize\":\"md\",\"readingLineHeight\":\"normal\"},\"version\":0}"
+      },
+      "after": {
+        "onboarding": "{\"version\":1,\"status\":\"completed\"}",
+        "preferences": "{\"state\":{\"reencounterHints\":true,\"vocabularyKind\":\"word\",\"youtube\":{\"browserSession\":{\"enabled\":false,\"browser\":\"chrome\",\"profile\":\"\"},\"favoriteLanguages\":[],\"recentLanguages\":[],\"lastSelection\":null},\"annotationModes\":{\"word\":\"batch\",\"phrase\":\"batch\"},\"language\":\"all\",\"uiLanguage\":\"zh\",\"learningTextFontSize\":\"md\",\"definitionFontSize\":\"md\",\"auxiliaryFontSize\":\"md\",\"readingLineHeight\":\"normal\"},\"version\":0}"
+      }
+    },
+    {
+      "method": "normal Windows WM_CLOSE, followed by WebDriver session cleanup",
+      "before": {
+        "onboarding": "{\"version\":1,\"status\":\"skipped\"}",
+        "preferences": "{\"state\":{\"reencounterHints\":true,\"vocabularyKind\":\"word\",\"youtube\":{\"browserSession\":{\"enabled\":false,\"browser\":\"chrome\",\"profile\":\"\"},\"favoriteLanguages\":[],\"recentLanguages\":[],\"lastSelection\":null},\"annotationModes\":{\"word\":\"batch\",\"phrase\":\"batch\"},\"language\":\"all\",\"uiLanguage\":\"zh\",\"learningTextFontSize\":\"md\",\"definitionFontSize\":\"md\",\"auxiliaryFontSize\":\"md\",\"readingLineHeight\":\"normal\"},\"version\":0}"
+      },
+      "after": {
+        "onboarding": "{\"version\":1,\"status\":\"skipped\"}",
+        "preferences": "{\"state\":{\"reencounterHints\":true,\"vocabularyKind\":\"word\",\"youtube\":{\"browserSession\":{\"enabled\":false,\"browser\":\"chrome\",\"profile\":\"\"},\"favoriteLanguages\":[],\"recentLanguages\":[],\"lastSelection\":null},\"annotationModes\":{\"word\":\"batch\",\"phrase\":\"batch\"},\"language\":\"all\",\"uiLanguage\":\"zh\",\"learningTextFontSize\":\"md\",\"definitionFontSize\":\"md\",\"auxiliaryFontSize\":\"md\",\"readingLineHeight\":\"normal\"},\"version\":0}"
+      }
+    },
+    {
+      "method": "normal Windows WM_CLOSE, followed by WebDriver session cleanup",
+      "before": {
+        "onboarding": "{\"version\":1,\"status\":\"completed\"}",
+        "preferences": "{\"state\":{\"reencounterHints\":true,\"vocabularyKind\":\"word\",\"youtube\":{\"browserSession\":{\"enabled\":false,\"browser\":\"chrome\",\"profile\":\"\"},\"favoriteLanguages\":[],\"recentLanguages\":[],\"lastSelection\":null},\"annotationModes\":{\"word\":\"batch\",\"phrase\":\"batch\"},\"language\":\"all\",\"uiLanguage\":\"zh\",\"learningTextFontSize\":\"md\",\"definitionFontSize\":\"md\",\"auxiliaryFontSize\":\"md\",\"readingLineHeight\":\"normal\"},\"version\":0}"
+      },
+      "after": {
+        "onboarding": "{\"version\":1,\"status\":\"completed\"}",
+        "preferences": "{\"state\":{\"reencounterHints\":true,\"vocabularyKind\":\"word\",\"youtube\":{\"browserSession\":{\"enabled\":false,\"browser\":\"chrome\",\"profile\":\"\"},\"favoriteLanguages\":[],\"recentLanguages\":[],\"lastSelection\":null},\"annotationModes\":{\"word\":\"batch\",\"phrase\":\"batch\"},\"language\":\"all\",\"uiLanguage\":\"zh\",\"learningTextFontSize\":\"md\",\"definitionFontSize\":\"md\",\"auxiliaryFontSize\":\"md\",\"readingLineHeight\":\"normal\"},\"version\":0}"
+      }
+    },
+    {
+      "method": "normal Windows WM_CLOSE, followed by WebDriver session cleanup",
+      "before": {
+        "onboarding": "{\"version\":1,\"status\":\"skipped\"}",
+        "preferences": "{\"state\":{\"reencounterHints\":true,\"vocabularyKind\":\"word\",\"youtube\":{\"browserSession\":{\"enabled\":false,\"browser\":\"chrome\",\"profile\":\"\"},\"favoriteLanguages\":[],\"recentLanguages\":[],\"lastSelection\":null},\"annotationModes\":{\"word\":\"batch\",\"phrase\":\"batch\"},\"language\":\"all\",\"uiLanguage\":\"zh\",\"learningTextFontSize\":\"md\",\"definitionFontSize\":\"md\",\"auxiliaryFontSize\":\"md\",\"readingLineHeight\":\"normal\"},\"version\":0}"
+      },
+      "after": {
+        "onboarding": "{\"version\":1,\"status\":\"skipped\"}",
+        "preferences": "{\"state\":{\"reencounterHints\":true,\"vocabularyKind\":\"word\",\"youtube\":{\"browserSession\":{\"enabled\":false,\"browser\":\"chrome\",\"profile\":\"\"},\"favoriteLanguages\":[],\"recentLanguages\":[],\"lastSelection\":null},\"annotationModes\":{\"word\":\"batch\",\"phrase\":\"batch\"},\"language\":\"all\",\"uiLanguage\":\"zh\",\"learningTextFontSize\":\"md\",\"definitionFontSize\":\"md\",\"auxiliaryFontSize\":\"md\",\"readingLineHeight\":\"normal\"},\"version\":0}"
+      }
+    },
+    {
+      "method": "normal Windows WM_CLOSE, followed by WebDriver session cleanup",
+      "before": {
+        "onboarding": "{\"version\":1,\"status\":\"completed\"}",
+        "preferences": "{\"state\":{\"reencounterHints\":true,\"vocabularyKind\":\"word\",\"youtube\":{\"browserSession\":{\"enabled\":false,\"browser\":\"chrome\",\"profile\":\"\"},\"favoriteLanguages\":[],\"recentLanguages\":[],\"lastSelection\":null},\"annotationModes\":{\"word\":\"batch\",\"phrase\":\"batch\"},\"language\":\"all\",\"uiLanguage\":\"zh\",\"learningTextFontSize\":\"md\",\"definitionFontSize\":\"md\",\"auxiliaryFontSize\":\"md\",\"readingLineHeight\":\"normal\"},\"version\":0}"
+      },
+      "after": {
+        "onboarding": "{\"version\":1,\"status\":\"completed\"}",
+        "preferences": "{\"state\":{\"reencounterHints\":true,\"vocabularyKind\":\"word\",\"youtube\":{\"browserSession\":{\"enabled\":false,\"browser\":\"chrome\",\"profile\":\"\"},\"favoriteLanguages\":[],\"recentLanguages\":[],\"lastSelection\":null},\"annotationModes\":{\"word\":\"batch\",\"phrase\":\"batch\"},\"language\":\"all\",\"uiLanguage\":\"zh\",\"learningTextFontSize\":\"md\",\"definitionFontSize\":\"md\",\"auxiliaryFontSize\":\"md\",\"readingLineHeight\":\"normal\"},\"version\":0}"
+      }
+    },
+    {
+      "method": "normal Windows WM_CLOSE, followed by WebDriver session cleanup",
+      "before": {
+        "onboarding": "{\"version\":1,\"status\":\"completed\"}",
+        "preferences": "{\"state\":{\"reencounterHints\":true,\"vocabularyKind\":\"word\",\"youtube\":{\"browserSession\":{\"enabled\":false,\"browser\":\"chrome\",\"profile\":\"\"},\"favoriteLanguages\":[],\"recentLanguages\":[],\"lastSelection\":null},\"annotationModes\":{\"word\":\"batch\",\"phrase\":\"batch\"},\"language\":\"all\",\"uiLanguage\":\"zh\",\"learningTextFontSize\":\"md\",\"definitionFontSize\":\"md\",\"auxiliaryFontSize\":\"md\",\"readingLineHeight\":\"normal\"},\"version\":0}"
+      },
+      "after": {
+        "onboarding": "{\"version\":1,\"status\":\"completed\"}",
+        "preferences": "{\"state\":{\"reencounterHints\":true,\"vocabularyKind\":\"word\",\"youtube\":{\"browserSession\":{\"enabled\":false,\"browser\":\"chrome\",\"profile\":\"\"},\"favoriteLanguages\":[],\"recentLanguages\":[],\"lastSelection\":null},\"annotationModes\":{\"word\":\"batch\",\"phrase\":\"batch\"},\"language\":\"all\",\"uiLanguage\":\"zh\",\"learningTextFontSize\":\"md\",\"definitionFontSize\":\"md\",\"auxiliaryFontSize\":\"md\",\"readingLineHeight\":\"normal\"},\"version\":0}"
+      }
+    },
+    {
+      "method": "normal Windows WM_CLOSE, followed by WebDriver session cleanup",
+      "before": {
+        "onboarding": "{\"version\":1,\"status\":\"completed\"}",
+        "preferences": "{\"state\":{\"reencounterHints\":false,\"vocabularyKind\":\"word\",\"youtube\":{\"browserSession\":{\"enabled\":false,\"browser\":\"chrome\",\"profile\":\"\"},\"favoriteLanguages\":[],\"recentLanguages\":[],\"lastSelection\":null},\"annotationModes\":{\"word\":\"batch\",\"phrase\":\"batch\"},\"language\":\"all\",\"uiLanguage\":\"zh\",\"learningTextFontSize\":\"md\",\"definitionFontSize\":\"md\",\"auxiliaryFontSize\":\"md\",\"readingLineHeight\":\"normal\"},\"version\":0}"
+      },
+      "after": {
+        "onboarding": "{\"version\":1,\"status\":\"completed\"}",
+        "preferences": "{\"state\":{\"reencounterHints\":false,\"vocabularyKind\":\"word\",\"youtube\":{\"browserSession\":{\"enabled\":false,\"browser\":\"chrome\",\"profile\":\"\"},\"favoriteLanguages\":[],\"recentLanguages\":[],\"lastSelection\":null},\"annotationModes\":{\"word\":\"batch\",\"phrase\":\"batch\"},\"language\":\"all\",\"uiLanguage\":\"zh\",\"learningTextFontSize\":\"md\",\"definitionFontSize\":\"md\",\"auxiliaryFontSize\":\"md\",\"readingLineHeight\":\"normal\"},\"version\":0}"
+      }
+    },
+    {
+      "method": "normal Windows WM_CLOSE, followed by WebDriver session cleanup",
+      "before": {
+        "onboarding": "{\"version\":1,\"status\":\"completed\"}",
+        "preferences": "{\"state\":{\"reencounterHints\":false,\"vocabularyKind\":\"word\",\"youtube\":{\"browserSession\":{\"enabled\":false,\"browser\":\"chrome\",\"profile\":\"\"},\"favoriteLanguages\":[],\"recentLanguages\":[],\"lastSelection\":null},\"annotationModes\":{\"word\":\"batch\",\"phrase\":\"batch\"},\"language\":\"all\",\"uiLanguage\":\"zh\",\"learningTextFontSize\":\"md\",\"definitionFontSize\":\"md\",\"auxiliaryFontSize\":\"md\",\"readingLineHeight\":\"normal\"},\"version\":0}"
+      },
+      "after": {
+        "onboarding": "{\"version\":1,\"status\":\"completed\"}",
+        "preferences": "{\"state\":{\"reencounterHints\":false,\"vocabularyKind\":\"word\",\"youtube\":{\"browserSession\":{\"enabled\":false,\"browser\":\"chrome\",\"profile\":\"\"},\"favoriteLanguages\":[],\"recentLanguages\":[],\"lastSelection\":null},\"annotationModes\":{\"word\":\"batch\",\"phrase\":\"batch\"},\"language\":\"all\",\"uiLanguage\":\"zh\",\"learningTextFontSize\":\"md\",\"definitionFontSize\":\"md\",\"auxiliaryFontSize\":\"md\",\"readingLineHeight\":\"normal\"},\"version\":0}"
+      }
+    }
+  ],
+  "dictionaryProbe": {
+    "method": "fixed common expressions; actual native offline dictionary; expected Chinese keyword sanity checks, not a target-user usefulness study",
+    "words": [
+      {
+        "expression": "book",
+        "expected": "书",
+        "answer": {
+          "meaning": "n. 书, 书籍, 帐簿, 名册, 工作簿\\nv. 登记, 预订\\n[计] 工作簿",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "water",
+        "expected": "水",
+        "answer": {
+          "meaning": "n. 水, 雨水, 海水, 水位, 水面, 流水\\nvt. 给...浇水, 供以水, 注入水, 使湿\\nvi. 流泪, 流口水, 加水\\na. 水的, 水上的, 水生的, 含水的",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "friend",
+        "expected": "朋|友",
+        "answer": {
+          "meaning": "n. 朋友, 支持者, 赞助者\\n[法] 朋友, 友人, 赞助者",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "family",
+        "expected": "家",
+        "answer": {
+          "meaning": "n. 家庭, 家人, 族\\na. 家庭的",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "school",
+        "expected": "学",
+        "answer": {
+          "meaning": "n. 学校, 鱼群, 门派, 学派\\nvt. 教育, 训练, 培养\\nvi. 成群地游",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "work",
+        "expected": "工作|劳动|工",
+        "answer": {
+          "meaning": "n. 工作, 劳动, 职业, 行为, 功, 作品, 成果, 产品, 工程\\nvi. 工作, 劳动, 做, 运转, 起作用, 被加工\\nvt. 使工作, 使转动, 开动, 使用, 经营, 使逐渐变得, 造成",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "time",
+        "expected": "时间|时",
+        "answer": {
+          "meaning": "n. 时间, 时侯, 时机, 时期, 期限, 次数, 节拍, 暂停, 规定时间\\nvt. 测定...的时间, 记录...的时间, 计时, 定时\\na. 时间的, 记时的, 定时的, 定期的, 分期的\\n[计] DOS内部命令:用于显示或设定系统的时间",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "day",
+        "expected": "日|天",
+        "answer": {
+          "meaning": "n. 天, 日子, 白天, 工作日\\n[医] 日(一昼夜), 昼, 白天",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "food",
+        "expected": "食物|食品|食",
+        "answer": {
+          "meaning": "n. 食物, 养料\\n[医] 食物, 食品",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "house",
+        "expected": "房|住宅",
+        "answer": {
+          "meaning": "n. 房子, 住宅, 机构, 议院, 家族, 家庭\\nvt. 给...房子住, 收藏\\nvi. 住, 躲藏",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "home",
+        "expected": "家|住所",
+        "answer": {
+          "meaning": "n. 家, 避难所, 故乡\\na. 家庭的, 国内的, 打中目标的\\nadv. 在家, 在本国, 打中目标地\\n[计] 返回始位",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "child",
+        "expected": "孩|儿童",
+        "answer": {
+          "meaning": "n. 孩子, 产物, 追随者\\n[医] 儿童",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "city",
+        "expected": "城|市",
+        "answer": {
+          "meaning": "n. 城市, 市\\n[法] 都市, 城市, 市",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "country",
+        "expected": "国家|乡",
+        "answer": {
+          "meaning": "n. 国家, 乡村, 地区, 故乡\\na. 乡下的, 农村的\\n[计] DOS外部命令:用于设定国家代码, 包括日期时间及货币格式",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "language",
+        "expected": "语言|言语",
+        "answer": {
+          "meaning": "n. 语言, 文字, 措辞\\n[计] 语言",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "learn",
+        "expected": "学",
+        "answer": {
+          "meaning": "vt. 学习；认识到；得知",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "read",
+        "expected": "读",
+        "answer": {
+          "meaning": "v. 读, 阅读, 理解\\na. 有学问的\\nn. 读取, 阅读\\n[计] 读取",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "write",
+        "expected": "写|书写",
+        "answer": {
+          "meaning": "vt. 书写, 著述, 写, 写满, 写信给\\nvi. 写, 写字, 写信, 写作, 作曲\\n[计] 书写器",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "speak",
+        "expected": "说|讲|言",
+        "answer": {
+          "meaning": "vi. 说, 说话, 演说, 发言\\nvt. 说, 讲, 说出",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "listen",
+        "expected": "听",
+        "answer": {
+          "meaning": "vi. 听, 倾听, 听从\\nn. 听, 倾听",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "music",
+        "expected": "音乐",
+        "answer": {
+          "meaning": "n. 音乐, 乐曲",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "light",
+        "expected": "光|轻|灯",
+        "answer": {
+          "meaning": "n. 光, 光亮, 灯, 日光, 发光体, 光源, 杰出人物, 火花, 眼光\\na. 轻的, 少量的, 轻微的, 轻快的, 轻浮的, 明亮的, 淡色的, 容易的\\nvt. 点燃, 照亮\\nvi. 点着, 变亮, 突降, 偶然碰到\\nadv. 轻地",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "change",
+        "expected": "改变|变化|变更",
+        "answer": {
+          "meaning": "n. 变化, 找回的零钱, 找头, 更换\\nvt. 改变, 更换, 兑换",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "understand",
+        "expected": "理解|懂",
+        "answer": {
+          "meaning": "vt. 理解, 了解, 领会, 听说, 懂\\nvi. 懂得, 认为",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "question",
+        "expected": "问题|疑问|问",
+        "answer": {
+          "meaning": "n. 问题, 询问\\nv. 询问, 审问, 怀疑\\n[计] 询问",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "answer",
+        "expected": "回答|答案",
+        "answer": {
+          "meaning": "n. 答案, 回答, 回报, 答辩\\nvt. 回答, 反驳, 适应, 响应, 符合\\nvi. 回答, 答应, 负责, 符合, 成功\\n[计] 用户问题及答案新闻组",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "important",
+        "expected": "重要",
+        "answer": {
+          "meaning": "a. 重要的, 有地位的, 大量的, 显要的, 自负的\\n[计] 要点",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "different",
+        "expected": "不同|差|各",
+        "answer": {
+          "meaning": "a. 不同的\\n[机] 差动, 微分的, 差速器",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "possible",
+        "expected": "可能",
+        "answer": {
+          "meaning": "a. 可能的, 潜在的, 合适的\\nn. 可能性, 可能的事物",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "simple",
+        "expected": "简单|简易",
+        "answer": {
+          "meaning": "a. 简单的, 普通的, 朴素的, 单纯的, 绝对的, 初级的, 原始的, 迟钝的\\nn. 出身低微者, 傻子",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "idea",
+        "expected": "想法|主意|观念",
+        "answer": {
+          "meaning": "n. 主意, 办法, 理想, 思想, 概念, 意见\\n[医] 观念, 思想",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "story",
+        "expected": "故事|小说",
+        "answer": {
+          "meaning": "n. 故事, 小说, 传奇, 描述, 阅历, 经历, 层",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "journey",
+        "expected": "旅行|行程",
+        "answer": {
+          "meaning": "n. 旅程, 旅行, 行程\\nvi. 旅行\\nvt. 游历",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "travel",
+        "expected": "旅行|行",
+        "answer": {
+          "meaning": "n. 旅行, 游历, 行进\\nvi. 旅行, 行进, 移动, 被传播\\nvt. 旅行, 通过, 使移动",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "morning",
+        "expected": "早晨|上午|早上",
+        "answer": {
+          "meaning": "n. 早晨, 早上, 初期",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "evening",
+        "expected": "晚上|傍晚",
+        "answer": {
+          "meaning": "n. 傍晚, 晚间, 末期",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "today",
+        "expected": "今天|今日",
+        "answer": {
+          "meaning": "n. 今天, 当今, 现在\\nadv. 今天, 当今",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "tomorrow",
+        "expected": "明天|明日",
+        "answer": {
+          "meaning": "n. 明天, 未来\\nadv. 明天, 未来地",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "yesterday",
+        "expected": "昨天|昨日",
+        "answer": {
+          "meaning": "n. 昨天\\nadv. 昨天",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "money",
+        "expected": "钱|货币|金钱",
+        "answer": {
+          "meaning": "n. 金钱, 一笔款, 财富, 货币, 金额\\n[经] 货币, 金钱, 财产",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "bank",
+        "expected": "银行|岸",
+        "answer": {
+          "meaning": "n. 银行, 堤, 岸\\n[医] 库",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "river",
+        "expected": "河",
+        "answer": {
+          "meaning": "n. 河, 江\\n[法] 河流, 江河, 内河",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "mountain",
+        "expected": "山",
+        "answer": {
+          "meaning": "n. 山, 山脉, 大堆",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "ocean",
+        "expected": "海|洋",
+        "answer": {
+          "meaning": "n. 海洋, 广阔, 许多, 一大片\\n[法] 海洋, 海",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "garden",
+        "expected": "花园|园",
+        "answer": {
+          "meaning": "n. 花园, 果园, 菜园\\nvi. 栽培花木\\nvt. 造园\\na. 花园的, 普通的",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "knowledge",
+        "expected": "知识",
+        "answer": {
+          "meaning": "n. 知识, 学问, 认识, 知道",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "science",
+        "expected": "科学",
+        "answer": {
+          "meaning": "n. 科学, 学科, 学问, 自然科学\\n[医] 科学",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "curiosity",
+        "expected": "好奇",
+        "answer": {
+          "meaning": "n. 好奇心, 新奇的事物, 珍品",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "habit",
+        "expected": "习惯",
+        "answer": {
+          "meaning": "n. 习惯, 嗜好, 习性\\nvt. 使穿衣",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "remember",
+        "expected": "记|想起",
+        "answer": {
+          "meaning": "vt. 记得, 回忆起, 记住, 铭记, 纪念\\nvi. 记得",
+          "more": [],
+          "provider": "ECDICT",
+          "source": "dictionary"
+        },
+        "passed": true
+      }
+    ],
+    "phrases": [
+      {
+        "expression": "take off",
+        "expected": "脱下|起飞",
+        "answer": {
+          "meaning": "起飞;脱下;休假",
+          "more": [],
+          "provider": "PhraseDict",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "look up",
+        "expected": "查|仰望",
+        "answer": {
+          "meaning": "查阅;抬头看",
+          "more": [],
+          "provider": "PhraseDict",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "give up",
+        "expected": "放弃",
+        "answer": {
+          "meaning": "放弃",
+          "more": [],
+          "provider": "PhraseDict",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "work out",
+        "expected": "解决|算出|锻炼",
+        "answer": {
+          "meaning": "解决;锻炼;算出",
+          "more": [],
+          "provider": "PhraseDict",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "make sense",
+        "expected": "意义|道理|讲得通",
+        "answer": {
+          "meaning": "有道理;有意义",
+          "more": [],
+          "provider": "PhraseDict",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "find out",
+        "expected": "查明|发现",
+        "answer": {
+          "meaning": "发现;查明",
+          "more": [],
+          "provider": "PhraseDict",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "get along",
+        "expected": "相处|进展",
+        "answer": {
+          "meaning": "相处;进展",
+          "more": [],
+          "provider": "PhraseDict",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "by the way",
+        "expected": "顺便",
+        "answer": {
+          "meaning": "顺便说一下；顺便一提",
+          "more": [],
+          "provider": "PhraseDict",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "at first",
+        "expected": "首先|起先|最初",
+        "answer": {
+          "meaning": "起初；最初",
+          "more": [],
+          "provider": "PhraseDict",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "in fact",
+        "expected": "事实|实际",
+        "answer": {
+          "meaning": "实际上；事实上",
+          "more": [],
+          "provider": "PhraseDict",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "as soon as",
+        "expected": "一|尽快",
+        "answer": {
+          "meaning": "一……就……",
+          "more": [],
+          "provider": "PhraseDict",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "a little",
+        "expected": "一点|一些|少许",
+        "answer": {
+          "meaning": "一点；少许",
+          "more": [],
+          "provider": "PhraseDict",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "a lot of",
+        "expected": "许多|很多",
+        "answer": {
+          "meaning": "许多；大量",
+          "more": [],
+          "provider": "PhraseDict",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "look forward to",
+        "expected": "盼望|期待",
+        "answer": {
+          "meaning": "期待",
+          "more": [],
+          "provider": "PhraseDict",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "take care of",
+        "expected": "照顾|照料",
+        "answer": {
+          "meaning": "照顾;处理",
+          "more": [],
+          "provider": "PhraseDict",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "come from",
+        "expected": "来自|出身",
+        "answer": {
+          "meaning": "来自",
+          "more": [],
+          "provider": "PhraseDict",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "turn off",
+        "expected": "关",
+        "answer": {
+          "meaning": "关闭",
+          "more": [],
+          "provider": "PhraseDict",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "put on",
+        "expected": "穿|戴|上演",
+        "answer": {
+          "meaning": "穿上;上演",
+          "more": [],
+          "provider": "PhraseDict",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "pick up",
+        "expected": "拾|捡|接|学",
+        "answer": {
+          "meaning": "捡起;接人;学会",
+          "more": [],
+          "provider": "PhraseDict",
+          "source": "dictionary"
+        },
+        "passed": true
+      },
+      {
+        "expression": "check in",
+        "expected": "登记|入住|报到",
+        "answer": {
+          "meaning": "登记入住;报到",
+          "more": [],
+          "provider": "PhraseDict",
+          "source": "dictionary"
+        },
+        "passed": true
+      }
+    ],
+    "wordPass": 50,
+    "phrasePass": 20
+  },
+  "import": {
+    "initial": 5,
+    "valid": 2,
+    "failed": 3,
+    "repaired": 3,
+    "cancellationBatch": 4,
+    "committedBeforeCancel": 1
+  },
+  "savedFlows": [
+    {
+      "theme": "ocean",
+      "uiSaves": 20,
+      "duplicateRequests": 10,
+      "records": 21
+    },
+    {
+      "theme": "midnight",
+      "uiSaves": 20,
+      "duplicateRequests": 10,
+      "records": 42
+    }
+  ],
+  "backup": {
+    "schema": 9,
+    "files": 11,
+    "savedRecords": 42,
+    "bytes": 7306156
+  },
+  "recallMaterial": 39,
+  "seed": {
+    "activeRecords": 10000,
+    "expressions": 9964,
+    "method": "actual import_reading_material and mutate_saved_record IPC, public ECDICT filler vocabulary",
+    "sourceFile": 38
+  },
+  "recall": {
+    "positive": 20,
+    "negative": 20,
+    "polysemy": 10,
+    "themes": [
+      "ocean",
+      "midnight"
+    ]
+  },
+  "layouts": [
+    {
+      "theme": "ocean",
+      "width": 360,
+      "height": 900
+    },
+    {
+      "theme": "ocean",
+      "width": 390,
+      "height": 900
+    },
+    {
+      "theme": "ocean",
+      "width": 430,
+      "height": 900
+    },
+    {
+      "theme": "ocean",
+      "width": 768,
+      "height": 900
+    },
+    {
+      "theme": "ocean",
+      "width": 1024,
+      "height": 900
+    },
+    {
+      "theme": "ocean",
+      "width": 1280,
+      "height": 900
+    },
+    {
+      "theme": "ocean",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "theme": "midnight",
+      "width": 360,
+      "height": 900
+    },
+    {
+      "theme": "midnight",
+      "width": 390,
+      "height": 900
+    },
+    {
+      "theme": "midnight",
+      "width": 430,
+      "height": 900
+    },
+    {
+      "theme": "midnight",
+      "width": 768,
+      "height": 900
+    },
+    {
+      "theme": "midnight",
+      "width": 1024,
+      "height": 900
+    },
+    {
+      "theme": "midnight",
+      "width": 1280,
+      "height": 900
+    },
+    {
+      "theme": "midnight",
+      "width": 1440,
+      "height": 900
+    }
+  ],
+  "speech": [
+    {
+      "theme": "ocean",
+      "voices": [
+        {
+          "lang": "zh-CN",
+          "local": true,
+          "name": "Microsoft Huihui - Chinese (Simplified, PRC)"
+        },
+        {
+          "lang": "en-US",
+          "local": true,
+          "name": "Microsoft Mark - English (United States)"
+        },
+        {
+          "lang": "en-US",
+          "local": true,
+          "name": "Microsoft Zira - English (United States)"
+        },
+        {
+          "lang": "en-US",
+          "local": true,
+          "name": "Microsoft David - English (United States)"
+        },
+        {
+          "lang": "zh-CN",
+          "local": true,
+          "name": "Microsoft Kangkang - Chinese (Simplified, PRC)"
+        },
+        {
+          "lang": "zh-CN",
+          "local": true,
+          "name": "Microsoft Yaoyao - Chinese (Simplified, PRC)"
+        }
+      ],
+      "normal": {
+        "button": "停止朗读",
+        "note": "",
+        "pending": false,
+        "speaking": true
+      },
+      "actualLifecycleEvents": [
+        {
+          "at": 24848.39999999944,
+          "kind": "cancel"
+        },
+        {
+          "at": 24848.5,
+          "kind": "request",
+          "text": "bank"
+        },
+        {
+          "at": 25032.700000000186,
+          "error": null,
+          "kind": "start",
+          "text": "bank"
+        },
+        {
+          "at": 25112.799999999814,
+          "kind": "cancel"
+        },
+        {
+          "at": 25115.200000000186,
+          "error": "interrupted",
+          "kind": "error",
+          "text": "bank"
+        },
+        {
+          "at": 25160.89999999944,
+          "kind": "cancel"
+        },
+        {
+          "at": 25160.89999999944,
+          "kind": "request",
+          "text": "bank"
+        },
+        {
+          "at": 25210.5,
+          "kind": "cancel"
+        },
+        {
+          "at": 25214.599999999627,
+          "error": "interrupted",
+          "kind": "error",
+          "text": "bank"
+        },
+        {
+          "at": 25261,
+          "kind": "cancel"
+        },
+        {
+          "at": 25261,
+          "kind": "request",
+          "text": "bank"
+        },
+        {
+          "at": 25311.5,
+          "kind": "cancel"
+        },
+        {
+          "at": 25314.599999999627,
+          "error": "interrupted",
+          "kind": "error",
+          "text": "bank"
+        },
+        {
+          "at": 25360.099999999627,
+          "kind": "cancel"
+        },
+        {
+          "at": 25360.200000000186,
+          "kind": "request",
+          "text": "bank"
+        },
+        {
+          "at": 25411.200000000186,
+          "kind": "cancel"
+        },
+        {
+          "at": 25414.599999999627,
+          "error": "interrupted",
+          "kind": "error",
+          "text": "bank"
+        },
+        {
+          "at": 25461.299999999814,
+          "kind": "cancel"
+        },
+        {
+          "at": 25461.299999999814,
+          "kind": "request",
+          "text": "bank"
+        },
+        {
+          "at": 25511.200000000186,
+          "kind": "cancel"
+        },
+        {
+          "at": 25514.599999999627,
+          "error": "interrupted",
+          "kind": "error",
+          "text": "bank"
+        },
+        {
+          "at": 25560.700000000186,
+          "kind": "cancel"
+        },
+        {
+          "at": 25560.700000000186,
+          "kind": "request",
+          "text": "bank"
+        },
+        {
+          "at": 25612.200000000186,
+          "kind": "cancel"
+        },
+        {
+          "at": 25614.39999999944,
+          "error": "interrupted",
+          "kind": "error",
+          "text": "bank"
+        },
+        {
+          "at": 25621.5,
+          "kind": "cancel"
+        },
+        {
+          "at": 25977.599999999627,
+          "kind": "cancel"
+        },
+        {
+          "at": 26522.299999999814,
+          "kind": "cancel"
+        },
+        {
+          "at": 26522.5,
+          "kind": "request",
+          "text": "take off"
+        },
+        {
+          "at": 26541,
+          "error": null,
+          "kind": "start",
+          "text": "take off"
+        },
+        {
+          "at": 26647.799999999814,
+          "kind": "cancel"
+        },
+        {
+          "at": 26654.200000000186,
+          "error": "interrupted",
+          "kind": "error",
+          "text": "take off"
+        },
+        {
+          "at": 26708.89999999944,
+          "kind": "cancel"
+        },
+        {
+          "at": 26709,
+          "kind": "request",
+          "text": "Please take off your coat."
+        },
+        {
+          "at": 26758.39999999944,
+          "error": null,
+          "kind": "start",
+          "text": "Please take off your coat."
+        },
+        {
+          "at": 26923.599999999627,
+          "kind": "cancel"
+        },
+        {
+          "at": 26926.39999999944,
+          "error": "interrupted",
+          "kind": "error",
+          "text": "Please take off your coat."
+        },
+        {
+          "at": 27272,
+          "kind": "cancel"
+        },
+        {
+          "at": 28189.200000000186,
+          "kind": "cancel"
+        }
+      ],
+      "audibleOutput": "not human-confirmed",
+      "unavailableVoice": "fault injection only"
+    },
+    {
+      "theme": "midnight",
+      "voices": [
+        {
+          "lang": "zh-CN",
+          "local": true,
+          "name": "Microsoft Huihui - Chinese (Simplified, PRC)"
+        },
+        {
+          "lang": "en-US",
+          "local": true,
+          "name": "Microsoft Mark - English (United States)"
+        },
+        {
+          "lang": "en-US",
+          "local": true,
+          "name": "Microsoft Zira - English (United States)"
+        },
+        {
+          "lang": "en-US",
+          "local": true,
+          "name": "Microsoft David - English (United States)"
+        },
+        {
+          "lang": "zh-CN",
+          "local": true,
+          "name": "Microsoft Kangkang - Chinese (Simplified, PRC)"
+        },
+        {
+          "lang": "zh-CN",
+          "local": true,
+          "name": "Microsoft Yaoyao - Chinese (Simplified, PRC)"
+        }
+      ],
+      "normal": {
+        "button": "停止朗读",
+        "note": "",
+        "pending": false,
+        "speaking": true
+      },
+      "actualLifecycleEvents": [
+        {
+          "at": 24123.599999999627,
+          "kind": "cancel"
+        },
+        {
+          "at": 24123.700000000186,
+          "kind": "request",
+          "text": "bank"
+        },
+        {
+          "at": 24141.400000000373,
+          "error": null,
+          "kind": "start",
+          "text": "bank"
+        },
+        {
+          "at": 24303.900000000373,
+          "kind": "cancel"
+        },
+        {
+          "at": 24312.700000000186,
+          "error": "interrupted",
+          "kind": "error",
+          "text": "bank"
+        },
+        {
+          "at": 24347.900000000373,
+          "kind": "cancel"
+        },
+        {
+          "at": 24348,
+          "kind": "request",
+          "text": "bank"
+        },
+        {
+          "at": 24397,
+          "kind": "cancel"
+        },
+        {
+          "at": 24402,
+          "error": "interrupted",
+          "kind": "error",
+          "text": "bank"
+        },
+        {
+          "at": 24449.5,
+          "kind": "cancel"
+        },
+        {
+          "at": 24449.5,
+          "kind": "request",
+          "text": "bank"
+        },
+        {
+          "at": 24497.5,
+          "kind": "cancel"
+        },
+        {
+          "at": 24501.700000000186,
+          "error": "interrupted",
+          "kind": "error",
+          "text": "bank"
+        },
+        {
+          "at": 24547.099999999627,
+          "kind": "cancel"
+        },
+        {
+          "at": 24547.099999999627,
+          "kind": "request",
+          "text": "bank"
+        },
+        {
+          "at": 24596.900000000373,
+          "kind": "cancel"
+        },
+        {
+          "at": 24602.400000000373,
+          "error": "interrupted",
+          "kind": "error",
+          "text": "bank"
+        },
+        {
+          "at": 24647.099999999627,
+          "kind": "cancel"
+        },
+        {
+          "at": 24647.200000000186,
+          "kind": "request",
+          "text": "bank"
+        },
+        {
+          "at": 24697.900000000373,
+          "kind": "cancel"
+        },
+        {
+          "at": 24702.400000000373,
+          "error": "interrupted",
+          "kind": "error",
+          "text": "bank"
+        },
+        {
+          "at": 24750.799999999814,
+          "kind": "cancel"
+        },
+        {
+          "at": 24750.799999999814,
+          "kind": "request",
+          "text": "bank"
+        },
+        {
+          "at": 24809.799999999814,
+          "kind": "cancel"
+        },
+        {
+          "at": 24811.599999999627,
+          "error": "interrupted",
+          "kind": "error",
+          "text": "bank"
+        },
+        {
+          "at": 24816.5,
+          "kind": "cancel"
+        },
+        {
+          "at": 25163.700000000186,
+          "kind": "cancel"
+        },
+        {
+          "at": 25743.200000000186,
+          "kind": "cancel"
+        },
+        {
+          "at": 25743.400000000373,
+          "kind": "request",
+          "text": "take off"
+        },
+        {
+          "at": 25762.900000000373,
+          "error": null,
+          "kind": "start",
+          "text": "take off"
+        },
+        {
+          "at": 25869.900000000373,
+          "kind": "cancel"
+        },
+        {
+          "at": 25873.400000000373,
+          "error": "interrupted",
+          "kind": "error",
+          "text": "take off"
+        },
+        {
+          "at": 25927.900000000373,
+          "kind": "cancel"
+        },
+        {
+          "at": 25927.900000000373,
+          "kind": "request",
+          "text": "Please take off your coat."
+        },
+        {
+          "at": 25976.799999999814,
+          "error": null,
+          "kind": "start",
+          "text": "Please take off your coat."
+        },
+        {
+          "at": 26121.299999999814,
+          "kind": "cancel"
+        },
+        {
+          "at": 26124,
+          "error": "interrupted",
+          "kind": "error",
+          "text": "Please take off your coat."
+        },
+        {
+          "at": 26474,
+          "kind": "cancel"
+        },
+        {
+          "at": 27384.299999999814,
+          "kind": "cancel"
+        }
+      ],
+      "audibleOutput": "not human-confirmed",
+      "unavailableVoice": "fault injection only"
+    }
+  ],
+  "performance": {
+    "coldMarks": {
+      "samples": 40,
+      "p50": 57.5,
+      "p95": 63.40000000037253,
+      "max": 78.70000000018626
+    },
+    "cachedLookup": {
+      "samples": 100,
+      "p50": 33.299999999813735,
+      "p95": 40.5,
+      "max": 80.70000000018626
+    },
+    "longTasks": [],
+    "coldSamples": [
+      {
+        "theme": "ocean",
+        "ms": 56.200000000186265
+      },
+      {
+        "theme": "ocean",
+        "ms": 54
+      },
+      {
+        "theme": "ocean",
+        "ms": 53.200000000186265
+      },
+      {
+        "theme": "ocean",
+        "ms": 54
+      },
+      {
+        "theme": "ocean",
+        "ms": 54.799999999813735
+      },
+      {
+        "theme": "ocean",
+        "ms": 53.5
+      },
+      {
+        "theme": "ocean",
+        "ms": 57.90000000037253
+      },
+      {
+        "theme": "ocean",
+        "ms": 57.5
+      },
+      {
+        "theme": "ocean",
+        "ms": 61.39999999944121
+      },
+      {
+        "theme": "ocean",
+        "ms": 55.59999999962747
+      },
+      {
+        "theme": "ocean",
+        "ms": 52.30000000074506
+      },
+      {
+        "theme": "ocean",
+        "ms": 62.799999999813735
+      },
+      {
+        "theme": "ocean",
+        "ms": 63.40000000037253
+      },
+      {
+        "theme": "ocean",
+        "ms": 62.5
+      },
+      {
+        "theme": "ocean",
+        "ms": 57.5
+      },
+      {
+        "theme": "ocean",
+        "ms": 58.40000000037253
+      },
+      {
+        "theme": "ocean",
+        "ms": 60.799999999813735
+      },
+      {
+        "theme": "ocean",
+        "ms": 75.20000000018626
+      },
+      {
+        "theme": "ocean",
+        "ms": 53
+      },
+      {
+        "theme": "ocean",
+        "ms": 51.89999999944121
+      },
+      {
+        "theme": "midnight",
+        "ms": 55.299999999813735
+      },
+      {
+        "theme": "midnight",
+        "ms": 57.90000000037253
+      },
+      {
+        "theme": "midnight",
+        "ms": 59.5
+      },
+      {
+        "theme": "midnight",
+        "ms": 55.299999999813735
+      },
+      {
+        "theme": "midnight",
+        "ms": 78.70000000018626
+      },
+      {
+        "theme": "midnight",
+        "ms": 60
+      },
+      {
+        "theme": "midnight",
+        "ms": 51.89999999944121
+      },
+      {
+        "theme": "midnight",
+        "ms": 57.5
+      },
+      {
+        "theme": "midnight",
+        "ms": 55
+      },
+      {
+        "theme": "midnight",
+        "ms": 59.700000000186265
+      },
+      {
+        "theme": "midnight",
+        "ms": 53.90000000037253
+      },
+      {
+        "theme": "midnight",
+        "ms": 61.89999999944121
+      },
+      {
+        "theme": "midnight",
+        "ms": 55
+      },
+      {
+        "theme": "midnight",
+        "ms": 60.90000000037253
+      },
+      {
+        "theme": "midnight",
+        "ms": 51.5
+      },
+      {
+        "theme": "midnight",
+        "ms": 61.90000000037253
+      },
+      {
+        "theme": "midnight",
+        "ms": 60.10000000055879
+      },
+      {
+        "theme": "midnight",
+        "ms": 60.5
+      },
+      {
+        "theme": "midnight",
+        "ms": 56.39999999944121
+      },
+      {
+        "theme": "midnight",
+        "ms": 54.299999999813735
+      }
+    ],
+    "lookupSamples": [
+      {
+        "theme": "ocean",
+        "ms": 48.5
+      },
+      {
+        "theme": "ocean",
+        "ms": 38.89999999944121
+      },
+      {
+        "theme": "ocean",
+        "ms": 34.40000000037253
+      },
+      {
+        "theme": "ocean",
+        "ms": 34.5
+      },
+      {
+        "theme": "ocean",
+        "ms": 31.600000000558794
+      },
+      {
+        "theme": "ocean",
+        "ms": 34.39999999944121
+      },
+      {
+        "theme": "ocean",
+        "ms": 34.30000000074506
+      },
+      {
+        "theme": "ocean",
+        "ms": 30
+      },
+      {
+        "theme": "ocean",
+        "ms": 38
+      },
+      {
+        "theme": "ocean",
+        "ms": 27.90000000037253
+      },
+      {
+        "theme": "ocean",
+        "ms": 28.09999999962747
+      },
+      {
+        "theme": "ocean",
+        "ms": 36.5
+      },
+      {
+        "theme": "ocean",
+        "ms": 29.200000000186265
+      },
+      {
+        "theme": "ocean",
+        "ms": 31.200000000186265
+      },
+      {
+        "theme": "ocean",
+        "ms": 35.09999999962747
+      },
+      {
+        "theme": "ocean",
+        "ms": 27.90000000037253
+      },
+      {
+        "theme": "ocean",
+        "ms": 36.09999999962747
+      },
+      {
+        "theme": "ocean",
+        "ms": 38.60000000055879
+      },
+      {
+        "theme": "ocean",
+        "ms": 35.700000000186265
+      },
+      {
+        "theme": "ocean",
+        "ms": 38.700000000186265
+      },
+      {
+        "theme": "ocean",
+        "ms": 35.59999999962747
+      },
+      {
+        "theme": "ocean",
+        "ms": 34.59999999962747
+      },
+      {
+        "theme": "ocean",
+        "ms": 33.299999999813735
+      },
+      {
+        "theme": "ocean",
+        "ms": 35.299999999813735
+      },
+      {
+        "theme": "ocean",
+        "ms": 31.299999999813735
+      },
+      {
+        "theme": "ocean",
+        "ms": 36.60000000055879
+      },
+      {
+        "theme": "ocean",
+        "ms": 30.700000000186265
+      },
+      {
+        "theme": "ocean",
+        "ms": 28.90000000037253
+      },
+      {
+        "theme": "ocean",
+        "ms": 27.5
+      },
+      {
+        "theme": "ocean",
+        "ms": 29.09999999962747
+      },
+      {
+        "theme": "ocean",
+        "ms": 33.5
+      },
+      {
+        "theme": "ocean",
+        "ms": 34.19999999925494
+      },
+      {
+        "theme": "ocean",
+        "ms": 30.200000000186265
+      },
+      {
+        "theme": "ocean",
+        "ms": 28.5
+      },
+      {
+        "theme": "ocean",
+        "ms": 30.299999999813735
+      },
+      {
+        "theme": "ocean",
+        "ms": 31.300000000745058
+      },
+      {
+        "theme": "ocean",
+        "ms": 33.89999999944121
+      },
+      {
+        "theme": "ocean",
+        "ms": 33.40000000037253
+      },
+      {
+        "theme": "ocean",
+        "ms": 34.60000000055879
+      },
+      {
+        "theme": "ocean",
+        "ms": 37.299999999813735
+      },
+      {
+        "theme": "ocean",
+        "ms": 32.60000000055879
+      },
+      {
+        "theme": "ocean",
+        "ms": 32.299999999813735
+      },
+      {
+        "theme": "ocean",
+        "ms": 29.5
+      },
+      {
+        "theme": "ocean",
+        "ms": 29.59999999962747
+      },
+      {
+        "theme": "ocean",
+        "ms": 32.60000000055879
+      },
+      {
+        "theme": "ocean",
+        "ms": 36.89999999944121
+      },
+      {
+        "theme": "ocean",
+        "ms": 44.200000000186265
+      },
+      {
+        "theme": "ocean",
+        "ms": 41.90000000037253
+      },
+      {
+        "theme": "ocean",
+        "ms": 31.299999999813735
+      },
+      {
+        "theme": "ocean",
+        "ms": 29.5
+      },
+      {
+        "theme": "midnight",
+        "ms": 31.799999999813735
+      },
+      {
+        "theme": "midnight",
+        "ms": 33.700000000186265
+      },
+      {
+        "theme": "midnight",
+        "ms": 29.09999999962747
+      },
+      {
+        "theme": "midnight",
+        "ms": 34.09999999962747
+      },
+      {
+        "theme": "midnight",
+        "ms": 29.399999999441206
+      },
+      {
+        "theme": "midnight",
+        "ms": 31.800000000745058
+      },
+      {
+        "theme": "midnight",
+        "ms": 30.799999999813735
+      },
+      {
+        "theme": "midnight",
+        "ms": 36.5
+      },
+      {
+        "theme": "midnight",
+        "ms": 32.89999999944121
+      },
+      {
+        "theme": "midnight",
+        "ms": 39.60000000055879
+      },
+      {
+        "theme": "midnight",
+        "ms": 35.5
+      },
+      {
+        "theme": "midnight",
+        "ms": 35.700000000186265
+      },
+      {
+        "theme": "midnight",
+        "ms": 31.899999999441206
+      },
+      {
+        "theme": "midnight",
+        "ms": 31.5
+      },
+      {
+        "theme": "midnight",
+        "ms": 34.799999999813735
+      },
+      {
+        "theme": "midnight",
+        "ms": 35.5
+      },
+      {
+        "theme": "midnight",
+        "ms": 40.5
+      },
+      {
+        "theme": "midnight",
+        "ms": 35.700000000186265
+      },
+      {
+        "theme": "midnight",
+        "ms": 34.5
+      },
+      {
+        "theme": "midnight",
+        "ms": 33.59999999962747
+      },
+      {
+        "theme": "midnight",
+        "ms": 32.40000000037253
+      },
+      {
+        "theme": "midnight",
+        "ms": 25.799999999813735
+      },
+      {
+        "theme": "midnight",
+        "ms": 37.5
+      },
+      {
+        "theme": "midnight",
+        "ms": 40.60000000055879
+      },
+      {
+        "theme": "midnight",
+        "ms": 32.799999999813735
+      },
+      {
+        "theme": "midnight",
+        "ms": 36.39999999944121
+      },
+      {
+        "theme": "midnight",
+        "ms": 32.299999999813735
+      },
+      {
+        "theme": "midnight",
+        "ms": 80.70000000018626
+      },
+      {
+        "theme": "midnight",
+        "ms": 31.700000000186265
+      },
+      {
+        "theme": "midnight",
+        "ms": 30.09999999962747
+      },
+      {
+        "theme": "midnight",
+        "ms": 28
+      },
+      {
+        "theme": "midnight",
+        "ms": 36.60000000055879
+      },
+      {
+        "theme": "midnight",
+        "ms": 35.39999999944121
+      },
+      {
+        "theme": "midnight",
+        "ms": 30.899999999441206
+      },
+      {
+        "theme": "midnight",
+        "ms": 39.40000000037253
+      },
+      {
+        "theme": "midnight",
+        "ms": 32.09999999962747
+      },
+      {
+        "theme": "midnight",
+        "ms": 28.899999999441206
+      },
+      {
+        "theme": "midnight",
+        "ms": 34.09999999962747
+      },
+      {
+        "theme": "midnight",
+        "ms": 34.39999999944121
+      },
+      {
+        "theme": "midnight",
+        "ms": 30.5
+      },
+      {
+        "theme": "midnight",
+        "ms": 36.200000000186265
+      },
+      {
+        "theme": "midnight",
+        "ms": 28.59999999962747
+      },
+      {
+        "theme": "midnight",
+        "ms": 32.799999999813735
+      },
+      {
+        "theme": "midnight",
+        "ms": 26.200000000186265
+      },
+      {
+        "theme": "midnight",
+        "ms": 33.299999999813735
+      },
+      {
+        "theme": "midnight",
+        "ms": 29.299999999813735
+      },
+      {
+        "theme": "midnight",
+        "ms": 36.299999999813735
+      },
+      {
+        "theme": "midnight",
+        "ms": 32.60000000055879
+      },
+      {
+        "theme": "midnight",
+        "ms": 31.799999999813735
+      },
+      {
+        "theme": "midnight",
+        "ms": 34.5
+      }
+    ],
+    "definitions": {
+      "cold": "full navigation: first original-text DOM → real index IPC and matching Worker → ready marked DOM + two animation frames",
+      "cached": "native word click event → current dictionary meaning DOM exists + two animation frames; panel entrance animation is not included"
+    }
+  },
+  "migration": {
+    "schema": 6,
+    "newSavedRecords": 5,
+    "missingSources": 2,
+    "retainedWords": 5,
+    "retainedReviews": 1,
+    "retainedReviewLogs": 1,
+    "retainedTags": 1,
+    "repeatStable": true
+  },
+  "completedAt": "2026-10-25T03:53:01.816Z"
+}

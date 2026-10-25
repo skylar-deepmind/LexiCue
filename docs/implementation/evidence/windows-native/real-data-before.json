@@ -1,0 +1,17 @@
+[
+    {
+        "path":  "C:\\Users\\skylar\\AppData\\Roaming\\com.lexicue.app\\lexicue.db",
+        "sha256":  "41e17d4445afe094c118137a07fbe406810b5c10c7913564a93419dfc369f796",
+        "size":  237699072
+    },
+    {
+        "path":  "C:\\Users\\skylar\\AppData\\Roaming\\com.lexicue.app\\lexicue.db-shm",
+        "sha256":  "1061fd59d93e9376d492814e569cc8fb8cd1317989e7cea726760178ac49cfac",
+        "size":  32768
+    },
+    {
+        "path":  "C:\\Users\\skylar\\AppData\\Roaming\\com.lexicue.app\\lexicue.db-wal",
+        "sha256":  "90f7e6f9b8cd625c28dbe436a1dd1f2b8c1cfca56784aabe6fe7c5374d24be1f",
+        "size":  71473792
+    }
+]

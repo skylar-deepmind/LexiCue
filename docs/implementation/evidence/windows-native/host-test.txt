@@ -1,0 +1,12 @@
+
+> lexicue@0.4.5 test
+> vitest run
+
+
+ RUN  v4.1.10 /Users/skylar/VS Code Files/LexiCue
+
+
+ Test Files  37 passed (37)
+      Tests  280 passed (280)
+   Start at  10:05:19
+   Duration  2.07s (transform 2.90s, setup 0ms, import 5.34s, tests 1.79s, environment 5ms)

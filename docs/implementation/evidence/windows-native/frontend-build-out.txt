@@ -1,0 +1,17 @@
+
+> lexicue@0.4.5 build
+> tsc -b && vite build
+
+vite v8.2.0 building client environment for production...
+
+transforming...✓ 1914 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                         0.44 kB │ gzip:   0.30 kB
+dist/assets/recallWorker-D9H-mYrm.js    1.56 kB
+dist/assets/srtWorker-igZtTBZC.js       8.86 kB
+dist/assets/app-logo-CcF68pVj.png      78.02 kB
+dist/assets/index-FOhPJmuJ.css        149.80 kB │ gzip:  25.96 kB
+dist/assets/index-y7RMt30Q.js         700.34 kB │ gzip: 218.25 kB
+
+✓ built in 1.41s

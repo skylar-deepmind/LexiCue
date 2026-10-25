@@ -1,0 +1,37 @@
+
+> lexicue@0.4.5 lint
+> oxlint
+
+
+  ! eslint(no-control-regex): Unexpected control character
+    ,-[src/components/YouTubeDownloadSettings.tsx:20:32]
+ 19 |   const profile = profileDraft ?? session.profile;
+ 20 |   const invalidProfile = /[\n\r\0:]/.test(profile) || profile.length > 1024;
+    :                                ^|
+    :                                 `-- '\0' matches the null character (U+0000), which is a control character.
+ 21 |   useEffect(() => {
+    `----
+  help: Avoid matching control characters in regular expressions. If intentional, consider using a Unicode escape instead.
+
+  ! eslint(no-control-regex): Unexpected control character
+    ,-[src/components/YouTubeDownloadSettings.tsx:48:151]
+ 47 |     <input id="youtube-browser-profile" className="youtube-input" value={profile} aria-invalid={invalidProfile} disabled={!session.enabled}
+ 48 |       placeholder={t('youtube.downloadSettings.defaultProfile')} onChange={event => { const value = event.target.value; setProfile(value); if (!/[\n\r\0:]/.test(value) && value.length <= 1024) setSession({ ...session, profile: value }); }} />
+    :                                                                                                                                                       ^|
+    :                                                                                                                                                        `-- '\0' matches the null character (U+0000), which is a control character.
+ 49 |     <p className="youtube-muted">{t('youtube.downloadSettings.profileHint')}</p>
+    `----
+  help: Avoid matching control characters in regular expressions. If intentional, consider using a Unicode escape instead.
+
+  ! eslint(no-control-regex): Unexpected control character
+    ,-[src/lib/youtubeDownload.ts:11:58]
+ 10 |   return { enabled: saved.enabled === true && validBrowser, browser: validBrowser ? saved.browser! : 'chrome',
+ 11 |     profile: typeof saved.profile === 'string' && !/[\n\r\0:]/.test(saved.profile) && saved.profile.length <= 1024 ? saved.profile.trim() : '' };
+    :                                                          ^|
+    :                                                           `-- '\0' matches the null character (U+0000), which is a control character.
+ 12 | }
+    `----
+  help: Avoid matching control characters in regular expressions. If intentional, consider using a Unicode escape instead.
+
+Found 3 warnings and 0 errors.
+Finished in 75ms on 192 files with 96 rules using 4 threads.

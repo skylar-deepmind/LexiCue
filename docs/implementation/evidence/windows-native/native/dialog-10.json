@@ -1,0 +1,21 @@
+{
+    "pid":  10608,
+    "controls":  [
+                     {
+                         "nativeClass":  "Button",
+                         "name":  "删除",
+                         "id":  "CommandButton_1000",
+                         "type":  "ControlType.Pane",
+                         "enabled":  true
+                     },
+                     {
+                         "nativeClass":  "Button",
+                         "name":  "取消",
+                         "id":  "CommandButton_1001",
+                         "type":  "ControlType.Pane",
+                         "enabled":  true
+                     }
+                 ],
+    "action":  "button",
+    "window":  "删除文件"
+}

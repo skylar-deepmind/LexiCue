@@ -1,0 +1,10 @@
+{
+    "signer":  "CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+    "source":  "https://msedgedriver.microsoft.com/155.0.4283.62/edgedriver_arm64.zip",
+    "runtime":  "155.0.4283.62",
+    "driver":  "C:\\Users\\skylar\\AppData\\Local\\Temp\\lexicue-v31-windows-20261025\\driver\\msedgedriver.exe",
+    "architecture":  "ARM64",
+    "identifier":  "com.lexicue.qa.v31.windows20261025",
+    "signature":  "Valid",
+    "session":  0
+}

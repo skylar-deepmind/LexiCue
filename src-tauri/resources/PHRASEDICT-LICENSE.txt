@@ -12,3 +12,8 @@ underlying Wiktionary content is available at https://www.wiktionary.org/.
 
 The original LexiCue phrase entries are retained at the beginning of the
 resource and are not part of the Wiktionary-derived data.
+
+Version 2.1 adds six original LexiCue entries for basic discourse and quantity
+expressions (by the way, at first, in fact, as soon as, a little, a lot of).
+These entries are LexiCue editorial definitions under the project MIT license,
+not Wiktionary-derived entries. Existing resource entries are unchanged.

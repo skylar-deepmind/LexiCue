@@ -1,0 +1,76 @@
+{
+  "date": "2026-10-25",
+  "platform": "Parallels Desktop Windows 11 ARM64",
+  "nativeAssertions": 393,
+  "nativeStages": [
+    "onboarding",
+    "native-dictionary-50-20",
+    "native-import",
+    "saved-flow-themes",
+    "native-backup-restore",
+    "recall-10000",
+    "native-layout-accessibility-speech",
+    "native-10000-performance",
+    "native-legacy-backup-migration"
+  ],
+  "nativeCompletedAt": "2026-10-25T03:53:01.816Z",
+  "nativeBinarySha256": "4c61d0faa63852f8d89fb4db53e59af2bff5764222922e0a0520bb8be36ee22e",
+  "themes": [
+    "ocean",
+    "midnight"
+  ],
+  "dictionarySample": {
+    "words": 50,
+    "wordsTotal": 50,
+    "phrases": 20,
+    "phrasesTotal": 20
+  },
+  "windowsRust": {
+    "unitPassed": 244,
+    "integrationPassed": 4,
+    "ignored": 13
+  },
+  "macOSRust": {
+    "unitPassed": 246,
+    "integrationPassed": 4,
+    "ignored": 13
+  },
+  "windowsAndMacOSFrontend": {
+    "testFiles": 37,
+    "testsPassed": 280,
+    "build": "pass",
+    "lint": "pass with existing warnings"
+  },
+  "dataProtection": {
+    "windowsRealFiles": 3,
+    "allWindowsRealFilesUnchanged": true,
+    "preexistingWorkspaceFiles": 1600,
+    "allPreexistingWorkspaceFilesUnchanged": true
+  },
+  "performance": {
+    "coldMarks": {
+      "samples": 40,
+      "p50": 57.5,
+      "p95": 63.40000000037253,
+      "max": 78.70000000018626
+    },
+    "cachedLookup": {
+      "samples": 100,
+      "p50": 33.299999999813735,
+      "p95": 40.5,
+      "max": 80.70000000018626
+    }
+  },
+  "limits": [
+    "Windows ARM64 VM debug binary, not x64 hardware or installer/updater",
+    "Speech starts observed, audible output not human-confirmed",
+    "WebView network offline and unavailable speech API are explicit fault injection",
+    "No live account sync or human learning-effect acceptance in this run"
+  ],
+  "endState": {
+    "parallelsVM": "suspended",
+    "qaProcesses": "closed",
+    "macPreview": "still running",
+    "existingDevelopmentServer": "still running"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "sourceBaseCommit": "9cfc66b29e423f45d2d7cfffc2d550d03e682ed7",
+  "sourceSha256": {
+    "scripts/ui-windows-native.mjs": "f83e1821cda7781978e7cef69916a1c0868b3c4a5326dd0891fd355c90529cca",
+    "scripts/windows-native-ui.ps1": "600c87c47797db70f3191cc1e7c5e49f8078006f61ff27d9f968df7a3f891a1e",
+    "src-tauri/build.rs": "2c9938df855f5232b5fb4defa46963e178e79a9d8bd33b0fa9e733e2aa7642cf",
+    "src-tauri/windows-app-manifest.xml": "39273e46149ada60cd8ce38dd4158eb5388ce96c870a80a5e4bf5a9c520dbf77",
+    "src-tauri/src/commands/dictionary.rs": "063ea49c11e89c886bb0510c918f42eb7ce6446bed1f7291ba0b77ce22ad4ea0",
+    "src-tauri/resources/phrase_dict.tsv.gz": "f5bf0329d7faa7d787dd050ff66233272042155b3bea069d49832bbee24b6272",
+    "src-tauri/resources/PHRASEDICT-LICENSE.txt": "893c64edd6867d17fb83d6f2bd4a6f915674e490df6390e8e2b3e8e007e3289c"
+  },
+  "executedHarnessCopiesMatch": true
+}

@@ -1,0 +1,49 @@
+{
+    "pid":  10608,
+    "controls":  [
+                     {
+                         "nativeClass":  "ComboBoxEx32",
+                         "name":  "",
+                         "id":  "1148",
+                         "type":  "ControlType.Pane",
+                         "enabled":  true
+                     },
+                     {
+                         "nativeClass":  "ComboBox",
+                         "name":  "",
+                         "id":  "1148",
+                         "type":  "ControlType.Pane",
+                         "enabled":  true
+                     },
+                     {
+                         "nativeClass":  "Edit",
+                         "name":  "",
+                         "id":  "1148",
+                         "type":  "ControlType.Pane",
+                         "enabled":  true
+                     },
+                     {
+                         "nativeClass":  "ComboBox",
+                         "name":  "English SRT (*.srt)",
+                         "id":  "1136",
+                         "type":  "ControlType.Pane",
+                         "enabled":  true
+                     },
+                     {
+                         "nativeClass":  "Button",
+                         "name":  "打开(O)",
+                         "id":  "1",
+                         "type":  "ControlType.Pane",
+                         "enabled":  true
+                     },
+                     {
+                         "nativeClass":  "Button",
+                         "name":  "取消",
+                         "id":  "2",
+                         "type":  "ControlType.Pane",
+                         "enabled":  true
+                     }
+                 ],
+    "action":  "button",
+    "window":  "打开"
+}

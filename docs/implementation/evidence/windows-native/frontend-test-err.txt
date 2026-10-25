@@ -1,0 +1,61 @@
+stderr | src/stores/__tests__/modelDownloadStore.test.ts > local model downloads > registers events before pulling, confirms installation, and uses the checked model
+[zustand persist middleware] Unable to update item 'lexicue-ai', the given storage is currently unavailable.
+
+stderr | src/stores/__tests__/modelDownloadStore.test.ts > local model downloads > registers events before pulling, confirms installation, and uses the checked model
+[zustand persist middleware] Unable to update item 'lexicue-ai', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'lexicue-ai', the given storage is currently unavailable.
+
+stderr | src/stores/__tests__/modelDownloadStore.test.ts > local model downloads > keeps the user selection if it changed during a download, even if restored
+[zustand persist middleware] Unable to update item 'lexicue-ai', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'lexicue-ai', the given storage is currently unavailable.
+
+stderr | src/stores/__tests__/modelDownloadStore.test.ts > local model downloads > keeps the user selection if it changed during a download, even if restored
+[zustand persist middleware] Unable to update item 'lexicue-ai', the given storage is currently unavailable.
+
+stderr | src/stores/__tests__/modelDownloadStore.test.ts > local model downloads > does not automatically select unchecked downloads or issue duplicate pulls
+[zustand persist middleware] Unable to update item 'lexicue-ai', the given storage is currently unavailable.
+
+stderr | src/stores/__tests__/modelDownloadStore.test.ts > local model downloads > ignores duplicate, out of order, old-job and terminal late events
+[zustand persist middleware] Unable to update item 'lexicue-ai', the given storage is currently unavailable.
+
+stderr | src/stores/__tests__/modelDownloadStore.test.ts > local model downloads > imports through the native command without reading weights in the WebView
+[zustand persist middleware] Unable to update item 'lexicue-ai', the given storage is currently unavailable.
+
+stderr | src/stores/__tests__/modelDownloadStore.test.ts > local model deletion > clears only a matching local selection and refreshes both model lists
+[zustand persist middleware] Unable to update item 'lexicue-ai', the given storage is currently unavailable.
+
+stderr | src/stores/__tests__/modelDownloadStore.test.ts > local model deletion > clears only a matching local selection and refreshes both model lists
+[zustand persist middleware] Unable to update item 'lexicue-ai', the given storage is currently unavailable.
+
+stderr | src/stores/__tests__/modelDownloadStore.test.ts > local model deletion > preserves a new model selected while deletion is pending and deduplicates clicks
+[zustand persist middleware] Unable to update item 'lexicue-ai', the given storage is currently unavailable.
+
+stderr | src/stores/__tests__/modelDownloadStore.test.ts > local model deletion > preserves a new model selected while deletion is pending and deduplicates clicks
+[zustand persist middleware] Unable to update item 'lexicue-ai', the given storage is currently unavailable.
+
+stderr | src/stores/__tests__/modelDownloadStore.test.ts > local model deletion > preserves a new model selected while deletion is pending and deduplicates clicks
+[zustand persist middleware] Unable to update item 'lexicue-ai', the given storage is currently unavailable.
+
+stderr | src/stores/__tests__/modelDownloadStore.test.ts > local model deletion > keeps cloud settings when clearing a deleted local model
+[zustand persist middleware] Unable to update item 'lexicue-ai', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'lexicue-ai', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'lexicue-ai', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'lexicue-ai', the given storage is currently unavailable.
+
+stderr | src/stores/__tests__/modelDownloadStore.test.ts > local model deletion > preserves selection after failure and allows retry
+[zustand persist middleware] Unable to update item 'lexicue-ai', the given storage is currently unavailable.
+
+stderr | src/stores/__tests__/modelDownloadStore.test.ts > local model deletion > preserves selection after failure and allows retry
+[zustand persist middleware] Unable to update item 'lexicue-ai', the given storage is currently unavailable.
+
+stderr | src/stores/__tests__/fileTags.test.ts > file tags > retains the import and tag draft when the transaction fails
+Import failed: Error: write failed
+    at C:/Users/skylar/AppData/Local/Temp/lexicue-v31-windows-20261025/repo/src/stores/__tests__/fileTags.test.ts:68:40
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at file:///C:/Users/skylar/AppData/Local/Temp/lexicue-v31-windows-20261025/repo/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20
+
+stderr | src/lib/__tests__/ai.test.ts > shared AI model discovery > loads distinct model names without changing the selected model or issuing analysis requests
+[zustand persist middleware] Unable to update item 'lexicue-ai', the given storage is currently unavailable.
+
+stderr | src/lib/__tests__/ai.test.ts > rejects discovery responses started before model-list invalidation
+[zustand persist middleware] Unable to update item 'lexicue-ai', the given storage is currently unavailable.

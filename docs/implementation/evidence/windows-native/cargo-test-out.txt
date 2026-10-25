@@ -1,0 +1,281 @@
+
+running 257 tests
+test commands::annotations::tests::failed_receipt_write_rolls_back_status_baseline_and_card ... ok
+test commands::annotations::tests::deleted_baseline_mark_is_restored_and_external_changes_are_not_overwritten ... ok
+test commands::annotations::tests::existing_or_reviewed_card_history_is_preserved ... ok
+test commands::annotations::tests::retry_is_idempotent_and_undo_restores_baseline_and_removes_unused_card ... ok
+test commands::chinese::tests::assigns_sequential_positions ... ok
+test commands::chinese::tests::attaches_pinyin_reading ... ok
+test commands::chinese::tests::filters_punctuation_and_whitespace ... ok
+test commands::chinese::tests::batch_matches_single_calls ... ok
+test commands::chinese::tests::segments_common_chinese_words ... ok
+test commands::collins::tests::missing_private_index_has_no_entries ... ok
+test commands::dictionary::tests::audio_cache_filenames_are_collision_free ... ok
+test commands::collins::tests::reads_headwords_and_embedded_phrases_without_confusing_examples ... ok
+test commands::dictionary::tests::lists_builtin_phrase_dictionary_record_counts ... ok
+test commands::chinese::tests::keeps_latin_and_digits ... ok
+test commands::dictionary::tests::loads_builtin_chinese_phrase_dictionary_once ... ok
+test commands::dictionary::tests::interrupted_import_keeps_chunks_and_retries_without_duplicates ... ok
+test commands::dictionary::tests::loads_builtin_dictionary_once ... ok
+test commands::dictionary::tests::loads_builtin_german_dictionary_once ... ok
+test commands::dictionary::tests::loads_builtin_japanese_phrase_dictionary_once ... ok
+test commands::dictionary::tests::loads_builtin_phrase_dictionary_with_duplicate_rows ... ok
+test commands::dictionary::tests::collins_resolution_keeps_requested_spelling_and_verifies_the_variant ... ok
+test commands::dictionary::tests::offline_lookup_uses_all_languages_inflections_and_cache_without_writes ... ok
+test commands::dictionary_init::tests::empty_resources_cannot_be_marked_ready_by_restored_metadata ... ok
+test commands::dictionary_init::tests::failure_retry_preserves_completed_sources_and_advances_run ... ok
+test commands::dictionary_init::tests::concurrent_starts_only_claim_one_worker ... ok
+test commands::english::tests::contractions_and_web_resources_do_not_create_fragments ... ok
+test commands::english::tests::batch_matches_single_calls ... ok
+test commands::english::tests::drops_hyphenated_compounds ... ok
+test commands::english::tests::filters_single_letters_and_keeps_a_i ... ok
+test commands::english::tests::keeps_base_forms_and_unknown_words ... ok
+test commands::english::tests::handles_case_and_punctuation ... ok
+test commands::english::tests::maps_inflected_forms_to_lemmas ... ok
+test commands::english::tests::plural_resolution_is_conservative_and_spelling_variants_are_candidates_only ... ok
+test commands::english::tests::rare_plural_analyses_do_not_replace_independent_headwords ... ok
+test commands::english::tests::migrates_surface_forms_to_base_lemmas ... ok
+test commands::english::tests::startup_migration_preserves_independent_headwords_and_learning_records ... ok
+test commands::example::tests::skip_before_a_delayed_begin_cannot_replace_the_next_example ... ok
+test commands::dictionary::tests::loads_builtin_chinese_dictionary_once ... ok
+test commands::example::tests::stale_and_other_window_tokens_cannot_mutate_a_replayed_session ... ok
+test commands::example::tests::actual_sample_save_dedup_undo_and_cleanup_never_touch_real_library ... ok
+test commands::export::english_learning_tests::backup_round_trip_keeps_context_meaning_and_other_senses ... ok
+test commands::export::english_learning_tests::retired_frequency_settings_round_trip_and_old_backups_default_empty ... ok
+test commands::files::tests::file_progress_is_unique_isolated_and_includes_hidden_occurrences ... ok
+test commands::frequency_baseline::tests::daily_review_words_are_limited_and_not_repeated ... ok
+test commands::frequency_baseline::tests::applies_only_unprocessed_words_and_preserves_manual_statuses ... ok
+test commands::frequency_baseline::tests::lowering_a_tier_restores_only_pending_marks_outside_it ... ok
+test commands::frequency_baseline::tests::manual_correction_is_not_reverted ... ok
+test commands::frequency_baseline::tests::review_answer_confirms_or_creates_one_learning_card ... ok
+test commands::gemma::models::tests::catalog_is_pinned_and_only_two_platform_models_are_visible ... ok
+test commands::frequency_baseline::tests::previews_are_stable_and_stay_inside_the_tier_interval ... ok
+test commands::gemma::models::tests::corrupt_or_incomplete_weights_cannot_be_installed ... ok
+test commands::gemma::models::tests::model_cache_reserve_and_deletion_are_scoped_to_the_asset ... ok
+test commands::gemma::runtime::native_switch_tests::gemma4_local_model_switch_smoke ... ignored, requires both pinned Gemma models and the matching native engine
+test commands::gemma::models::tests::resumes_only_verified_ranges_and_restarts_when_server_ignores_range ... ok
+test commands::gemma::runtime::native_switch_tests::signing_rejection_has_a_stable_reason_without_private_paths ... ok
+test commands::german::tests::filters_punctuation ... ok
+test commands::german::tests::keeps_german_umlauts_and_eszett ... ok
+test commands::files::tests::background_delete_batches_cascade_and_emits_one_library_tombstone ... ok
+test commands::german::tests::preserves_case_of_unknown_words ... ok
+test commands::german::tests::maps_inflected_forms_to_lemmas ... ok
+test commands::german::tests::batch_matches_single_calls ... ok
+test commands::import::tests::chinese_phrase_positions_are_jieba_token_indexes ... ok
+test commands::import::tests::detects_chinese_phrases_in_segments ... ok
+test commands::history::tests::read_only_history_keeps_all_languages_and_missing_contexts ... ok
+test commands::dictionary::tests::loads_builtin_japanese_dictionary_once ... ok
+test commands::import::tests::longest_match_wins_and_no_overlap ... ok
+test commands::language::tests::batch_matches_single_calls ... ok
+test commands::import::tests::japanese_phrase_positions_are_lindera_token_indexes ... ok
+test commands::language::tests::cached_dictionary_is_fast_across_calls ... ignored, timing measurement
+test commands::import::tests::detects_japanese_phrases_in_segments ... ok
+test commands::import::tests::japanese_longest_match_wins_and_no_overlap ... ok
+test commands::language::tests::conjugates_to_base_form ... ok
+test commands::language::tests::filters_particles_and_symbols ... ok
+test commands::language::tests::handles_compound_and_conjugation ... ok
+test commands::language::tests::keeps_content_words ... ok
+test commands::language::tests::offsets_match_surfaces_in_original_text ... ok
+test commands::language::tests::offsets_skip_particles_sequentially ... ok
+test commands::materials::source_tests::labels_cached_explanations_without_guessing_unknown_providers_are_ai ... ok
+test commands::materials::tests::failed_file_rolls_back_and_other_successes_stay_and_no_phrase_is_fabricated ... ok
+test commands::materials::tests::material_import_retry_duplicate_and_save_are_independent_of_legacy_learning ... ok
+test commands::ollama::english_phrases::cache::tests::expiry_corruption_lru_and_file_deletion_clean_up ... ok
+test commands::ollama::english_phrases::cache::tests::fingerprints_exclude_secrets_and_include_model_endpoint_and_input ... ok
+test commands::ollama::english_phrases::cache::tests::checkpoints_persist_are_file_scoped_and_force_bypasses_reads ... ok
+test commands::ollama::english_phrases::cache::tests::restore_removes_checkpoints_and_backup_excludes_them ... ok
+test commands::ollama::english_phrases::diagnostics::tests::metadata_excludes_response_and_clears_raw_on_completion ... ok
+test commands::ollama::english_phrases::diagnostics::tests::stage_totals_count_retries_once_and_unknown_usage_stays_unknown ... ok
+test commands::ollama::english_phrases::gemma_model_smoke::gemma4_local_streaming_smoke ... ignored, requires pinned Gemma weights and prepared native engine
+test commands::ollama::english_phrases::gemma_model_smoke::gemma4_packaged_extraction_smoke ... ignored, requires pinned Gemma weights; sign the test host to verify packaged runtime conditions
+test commands::ollama::english_phrases::gemma_model_smoke::gemma4_phrase_quality_benchmark ... ignored, explicit full product-quality benchmark; pinned local model, temporary database only
+test commands::ollama::english_phrases::gemma_model_smoke::gemma4_phrase_review_probe ... ignored, local Gemma reviewer feasibility probe; no learning data writes
+test commands::ollama::english_phrases::gemma_model_smoke::gemma4_subtitle_extraction_smoke ... ignored, requires pinned Gemma weights and a local subtitle JSON fixture; no learning data writes
+test commands::ollama::english_phrases::grounding::tests::hallucinations_and_discontinuous_collocations_cannot_enter_retry_choices ... ok
+test commands::ollama::english_phrases::grounding::tests::repeated_words_offer_only_source_verified_choices_on_a_new_request ... ok
+test commands::ollama::english_phrases::parsing::tests::empty_and_broken_json_are_distinct_from_a_valid_empty_array ... ok
+test commands::ollama::english_phrases::parsing::tests::incremental_objects_share_final_validation_and_wait_for_closing_brace ... ok
+test commands::ollama::english_phrases::parsing::tests::malformed_item_does_not_discard_valid_neighbors ... ok
+test commands::ollama::english_phrases::parsing::tests::missing_segment_index_is_recovered_only_by_unique_exact_tokens ... ok
+test commands::materials::acceptance::duplicate_transactions_and_restart_preserve_receipts_and_backup ... ok
+test commands::ollama::english_phrases::cache::tests::upgrade_removes_only_obsolete_explanation_checkpoints ... ok
+test commands::ollama::english_phrases::pipeline::tests::cache_and_force_only_request_extraction_and_publish_preview ... ok
+test commands::ollama::english_phrases::pipeline::tests::complete_invalid_stream_retries_with_new_attempt_and_rolls_back_previous_candidate ... ok
+test commands::ollama::english_phrases::pipeline::tests::empty_batches_and_cancellation_never_need_explanations ... ok
+Fixed dictionary usefulness: 49/50 words, 20/20 phrases (expected Chinese meaning fragments)
+test commands::materials::acceptance::fresh_english_dictionaries_cover_the_fixed_useful_meaning_set ... ok
+test commands::ollama::english_phrases::pipeline::tests::invalid_structured_checkpoint_is_revalidated_before_preview ... ok
+test commands::ollama::english_phrases::pipeline::tests::preview_ranges_use_original_positions_and_utf16 ... ok
+test commands::ollama::english_phrases::pipeline::tests::live_candidate_is_published_before_completion_then_committed_with_same_usage ... ok
+test commands::ollama::english_phrases::preview::tests::retention_does_not_evict_active_runs ... ok
+test commands::ollama::english_phrases::preview::tests::snapshots_only_include_committed_batches_and_isolate_runs ... ok
+test commands::ollama::english_phrases::quality::tests::all_occurrences_and_unicode_spans_are_preserved ... ok
+test commands::ollama::english_phrases::quality::tests::contractions_keep_original_surface_and_verified_spans ... ok
+test commands::ollama::english_phrases::quality::tests::core_labels_and_separability_are_independent_of_type ... ok
+test commands::ollama::english_phrases::quality::tests::dictionary_and_discovery_use_the_same_farewell_headword ... ok
+test commands::ollama::english_phrases::pipeline::tests::interrupted_or_cancelled_stream_rolls_back_without_cache_or_automatic_resend ... ok
+test commands::ollama::english_phrases::quality::tests::grammar_floor_preserves_formulas_and_lexical_support_verbs ... ok
+test commands::ollama::english_phrases::quality::tests::json_object_endpoints_get_fields_without_changing_gemma_inputs ... ok
+test commands::ollama::english_phrases::pipeline::tests::interrupted_split_recovers_children_and_publishes_before_failure ... ok
+test commands::ollama::english_phrases::quality::tests::only_verified_particle_gaps_or_explicit_pronoun_slots_are_allowed ... ok
+test commands::ollama::english_phrases::quality::tests::separable_occurrences_do_not_pair_across_another_head_verb ... ok
+test commands::ollama::english_phrases::quality::tests::source_positions_use_adjacent_listen_not_repeated_words ... ok
+test commands::ollama::english_phrases::pipeline::tests::streamed_parent_rolls_back_before_split_and_successful_child_resumes_from_cache ... ok
+test commands::ollama::english_phrases::streaming::tests::authentication_and_rate_errors_do_not_trigger_compatibility_fallback ... ok
+test commands::ollama::english_phrases::streaming::tests::explicit_parameter_rejections_are_bounded_and_remembered ... ok
+test commands::ollama::english_phrases::streaming::tests::full_json_ignored_stream_is_consumed_without_incremental_fragments ... ok
+test commands::ollama::english_phrases::streaming::tests::native_ollama_keeps_schema_options_and_reads_final_usage ... ok
+test commands::ollama::english_phrases::streaming::tests::ndjson_thinking_is_hidden_and_final_usage_required_for_known_totals ... ok
+test commands::ollama::english_phrases::streaming::tests::sse_utf8_boundaries_heartbeats_and_usage_are_decoded_once ... ok
+test commands::ollama::english_phrases::streaming::tests::streaming_and_original_requests_have_identical_generation_inputs_and_reported_usage ... ok
+test commands::ollama::english_phrases::tests::empty_and_length_limited_replies_follow_bounded_retry ... ok
+test commands::ollama::english_phrases::quality::tests::incomplete_context_review_never_becomes_a_successful_empty_result ... ok
+test commands::ollama::english_phrases::tests::local_runtime_failure_explains_signing_and_preserves_old_results ... ok
+test commands::ollama::english_phrases::tests::ollama_usage_is_optional_and_deserialized_when_available ... ok
+test commands::ollama::english_phrases::quality::tests::unknown_expression_review_rejects_fragments_and_cache_avoids_repeat_calls ... ok
+test commands::ollama::english_phrases::quality::tests::lexical_profile_is_shared_but_usage_is_reviewed_per_occurrence ... ok
+test commands::ollama::english_phrases::tests::rejects_wrong_positions_and_noncontiguous_collocations ... ok
+test commands::ollama::english_phrases::tests::request_failure_records_status_without_provider_body_or_secret ... ok
+test commands::ollama::english_phrases::tests::retries_all_invalid_items_then_keeps_recovered_result_without_leaking_key ... ok
+test commands::ollama::english_phrases::tests::retry_exhaustion_keeps_final_response_only_in_memory ... ok
+test commands::ollama::english_phrases::tests::retry_feedback_uses_original_tokens_without_accepting_invalid_positions ... ok
+test commands::ollama::english_phrases::tests::separated_phrasal_verb_matches_lemma_and_positions ... ok
+test commands::ollama::english_phrases::tests::supplied_subtitle_example_maps_inflected_phrase_to_exact_tokens ... ok
+test commands::ollama::tests::dictionary_boundaries_are_used_only_with_unambiguous_same_segment_evidence ... ok
+test commands::ollama::tests::finds_japanese_phrase_position_via_lindera ... ok
+test commands::ollama::tests::japanese_phrase_ignores_inserted_spaces ... ok
+test commands::ollama::tests::japanese_phrase_not_found_returns_none ... ok
+test commands::ollama::english_phrases::tests::extraction_saves_no_meanings_and_is_visible_without_a_dictionary_sense ... ok
+test commands::ollama::tests::phrase_filter_handles_mixed_scripts ... ok
+test commands::ollama::tests::phrase_filter_keeps_chinese_phrases ... ok
+test commands::ollama::tests::phrase_filter_keeps_japanese_phrases ... ok
+test commands::ollama::tests::phrase_filter_keeps_space_separated_phrases ... ok
+test commands::ollama::tests::phrase_filter_rejects_short_japanese_text ... ok
+test commands::ollama::tests::phrase_filter_rejects_single_han_char ... ok
+test commands::ollama::tests::repair_handles_bare_array_top_level ... ok
+test commands::ollama::tests::repair_handles_malformed_phrase_json ... ok
+test commands::ollama::tests::repair_leaves_valid_json_untouched ... ok
+test commands::ollama::word_context::tests::cancellation_token_is_scoped_to_the_occurrence ... ok
+test commands::ollama::word_context::tests::finishing_a_replaced_request_cannot_remove_the_new_cancellation_token ... ok
+test commands::ollama::word_context::tests::validates_required_text_and_never_accepts_an_unknown_dictionary_id ... ok
+test commands::ollama::english_phrases::tests::reanalysis_preserves_unedited_legacy_explanations_and_occurrence_identity ... ok
+test commands::ollama::english_phrases::tests::reanalysis_preserves_edits_reviews_and_rolls_back_a_failed_save ... ok
+test commands::reader::tests::english_builtin_and_ai_positions_keep_their_original_rules ... ok
+test commands::reader::tests::full_reader_tokens_include_unsaved_words_without_mutating_occurrences ... ok
+test commands::reading_bridge_test::serve_reading_bridge ... ignored, Opt-in temporary SQLite HTTP bridge for browser validation
+test commands::reader::tests::read_only_spans_preserve_utf16_and_repeated_terms ... ok
+test commands::saved::tests::audit_temporary_legacy_copy ... ignored, requires an explicitly supplied temporary database copy
+test commands::ollama::tests::non_english_reanalysis_preserves_occurrence_edits_and_learning_data ... ok
+test commands::phrases::study_list_tests::candidate_toggle_only_exposes_unverified_new_expressions_on_demand ... ok
+test commands::recall::tests::exact_recall_keeps_contexts_orders_known_times_and_filters_tombstones ... ok
+test commands::saved::tests::duplicate_legacy_position_keeps_both_personal_versions_under_one_saved_identity ... ok
+test commands::saved::tests::backup_roundtrip_keeps_tombstones_identity_and_undo_receipts ... ok
+test commands::saved::tests::migration_interruption_rolls_back_records_marker_and_queue ... ok
+test commands::saved::tests::migration_keeps_every_context_edits_and_history_without_inventing_source_or_time ... ok
+test commands::saved::tests::receipt_failure_rolls_back_snapshot_and_sync_queue ... ok
+test commands::saved::tests::concurrent_connections_enforce_dedupe_in_database ... ok
+test commands::saved::tests::old_backup_missing_new_fields_migrates_atomically_and_failed_restore_preserves_current_data ... ok
+test commands::saved::tests::save_without_explanation_preserves_snapshot_after_source_deletion ... ok
+test commands::saved::tests::ten_clicks_dedupe_context_but_new_sentence_is_distinct_and_no_review_is_created ... ok
+test commands::saved::tests::save_retry_is_idempotent_and_undo_is_crash_safe ... ok
+test commands::saved::tests::undo_remove_restores_exact_context_metadata_and_stale_actions_fail ... ok
+test commands::saved::tests::whitespace_around_a_selection_does_not_create_a_second_source_position ... ok
+test commands::stats::tests::learning_stats_are_scoped_to_the_requested_language ... ok
+test commands::stats::tests::storage_usage_reads_while_a_writer_holds_a_transaction ... ok
+test commands::sync::saved_sync_tests::concurrent_personal_versions_are_preserved_and_automatic_answer_cannot_replace_local_edit ... ok
+test commands::sync::saved_sync_tests::encrypted_outbox_carries_deletion_epoch_and_backup_restore_can_requeue_tombstone ... ok
+test commands::saved::tests::upgrade_creates_consistent_backup_before_migration_and_backup_failure_stops_upgrade ... ok
+test commands::sync::saved_sync_tests::concurrent_remove_keeps_personal_snapshot_and_tombstones_win_in_both_orders ... ok
+test commands::sync::saved_sync_tests::personal_conflict_rebuilds_frozen_envelope_with_clock_after_remote ... ok
+test commands::sync::saved_sync_tests::snapshot_arrives_before_material_and_deletion_survives_delayed_offline_edit ... ok
+test commands::sync::tag_sync_tests::enrollment_preserves_portable_association_identity_on_readd ... ok
+test commands::sync::tag_sync_tests::concurrent_rename_collision_preserves_and_tracks_all_associations ... ok
+test commands::sync::tag_sync_tests::unknown_tag_tombstones_are_remembered_and_newer_recreation_is_allowed ... ok
+test commands::sync::tag_sync_tests::legacy_cloud_paths_convert_but_do_not_overwrite_later_tag_edits ... ok
+test commands::sync::tag_sync_tests::offline_same_name_tags_and_same_association_converge ... ok
+test commands::sync::tests::german_word_ids_preserve_case_while_other_languages_remain_case_insensitive ... ok
+test commands::sync::tag_sync_tests::tags_and_associations_sync_portably_and_remove_readd_keeps_identity ... ok
+test commands::sync::tests::legacy_library_child_events_are_acknowledged_without_local_writes ... ok
+test commands::sync::tests::concurrent_local_edit_wins_over_remote_delete ... ok
+test commands::sync::tests::entity_event_merges_natural_word_key_and_newer_clock_wins ... ok
+test commands::sync::tests::memory_secret_store_has_the_native_lifecycle_contract ... ok
+test commands::sync::tests::native_storage_failures_are_never_exposed_as_unknown_errors ... ok
+test commands::sync::tests::record_aad_rejects_substitution_and_account_copy ... ok
+test commands::sync::tests::recovery_verifier_does_not_contain_the_recovery_code ... ok
+test commands::sync::tests::library_write_failure_preserves_diagnostic_and_rolls_back ... ok
+test commands::sync::tests::stabilization_rejects_an_existing_tombstone_identity_without_writing ... ok
+test commands::sync::tests::stable_ids_are_deterministic_normalized_and_purpose_separated ... ok
+test commands::sync::tests::stabilization_repairs_partially_rewritten_german_case_variants ... ok
+test commands::sync::tests::library_snapshot_preserves_ai_output_and_occurrences_in_one_compressed_event ... ok
+test commands::sync::tests::tombstone_prevents_older_remote_resurrection ... ok
+test commands::sync::tests::tombstoned_vocabulary_does_not_block_old_library_snapshot ... ok
+test commands::tags::tests::and_filter_untagged_and_language_are_independent ... ok
+test commands::tags::tests::import_saves_names_atomically_and_failed_replacement_keeps_original ... ok
+test commands::tags::tests::names_cannot_collide_and_delete_keeps_files_and_unused_tags ... ok
+test commands::tags::tests::legacy_paths_empty_folders_and_duplicate_paths_convert_once ... ok
+test commands::youtube::downloads::tests::access_limits_and_cancel_never_auto_retry ... ok
+test commands::youtube::downloads::tests::browser_arguments_disable_implicit_cookies_and_isolate_cache ... ok
+test commands::words::tests::proper_noun_filter_never_exposes_unprotected_noise ... ok
+test commands::youtube::downloads::tests::cached_track_bypasses_network_and_cancel_prevents_cached_completion ... ok
+test commands::tags::tests::v8_round_trip_and_v7_restore_keep_classification_without_resurrection ... ok
+test commands::youtube::downloads::tests::cancellation_before_registration_is_preserved_and_cleaned_up ... ok
+test commands::youtube::downloads::tests::converts_vtt_without_collapsing_cues_or_retaining_timestamp_tags ... ok
+test commands::youtube::downloads::tests::cache_survives_reopen_then_expires_and_ignores_corruption ... ok
+test commands::youtube::downloads::tests::countdown_uses_ceiling_without_waiting_in_tests ... ok
+test commands::youtube::downloads::tests::real_caption_kinds_smoke ... ignored, uses installed yt-dlp and public YouTube network resources
+test commands::youtube::downloads::tests::distinguishes_original_translation_and_unknown_sources ... ok
+test commands::youtube::tests::anchors_no_punctuation_track_on_translation_boundaries ... ok
+test commands::youtube::tests::cancel_kills_ytdlp_subprocess ... ignored, hits the network
+test commands::youtube::tests::attaches_spanning_translation_to_best_overlap ... ok
+test commands::youtube::tests::cancel_token_flips_immediately ... ok
+test commands::youtube::tests::chooses_direct_srt_before_other_caption_formats ... ok
+test commands::youtube::tests::classifies_transient_errors ... ok
+test commands::youtube::tests::continues_sentences_across_cue_boundaries_inside_quotes ... ok
+test commands::youtube::tests::converts_json3_to_srt ... ok
+test commands::youtube::downloads::tests::capacity_cleanup_removes_least_recently_used_track ... ok
+test commands::youtube::tests::corrects_global_time_offset_between_tracks ... ok
+test commands::youtube::tests::detects_sentence_boundaries ... ok
+test commands::youtube::tests::extracts_player_response_json ... ok
+test commands::youtube::tests::extracts_video_id_from_common_urls ... ok
+test commands::youtube::tests::joins_cues_into_complete_sentences ... ok
+test commands::youtube::tests::leaves_translation_empty_when_tracks_drift ... ok
+test commands::youtube::tests::maps_common_ytdlp_errors_to_friendly_messages ... ok
+test commands::youtube::tests::merges_overlapping_secondary_cues ... ok
+test commands::youtube::tests::parses_standard_srt ... ok
+test commands::youtube::tests::parses_ytdlp_version_output_only_when_command_succeeds ... ok
+test commands::youtube::tests::real_auto_subtitle_download ... ignored, hits the network
+test commands::youtube::tests::real_download_and_merge ... ignored, hits the network
+test commands::youtube::tests::subtitle_file_lookup_prefers_exact_lang_match ... ok
+test db::tests::adds_hidden_column_to_occurrence_tables ... ok
+test db::tests::autoincrement_continues_after_migration ... ok
+test db::tests::creates_navigation_query_indexes_idempotently ... ok
+test db::tests::migrates_dictionary_tables_to_composite_primary_keys ... ok
+test db::tests::migrates_legacy_words_schema_preserving_data_and_foreign_keys ... ok
+test db::tests::skips_migration_for_current_schema ... ok
+test db::tests::english_learning_migration_keeps_cached_online_dictionary_and_is_idempotent ... ok
+test db::tests::product_upgrade_does_not_reclassify_existing_legacy_word_metadata ... ok
+test db::tests::study_view_hides_unverified_new_candidates_but_keeps_edits_and_legacy_data ... ok
+test db::tests::sync_tracking_assigns_stable_identity_and_tombstone ... ok
+test db::tests::sync_layout_self_heals_a_stale_legacy_pending_queue ... ok
+test commands::sync::tests::key_package_requires_correct_secret ... ok
+
+test result: ok. 244 passed; 0 failed; 13 ignored; 0 measured; 0 filtered out; finished in 11.80s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 4 tests
+test tests::test_insert_or_ignore_words ... ok
+test tests::test_rollback_on_error ... ok
+test tests::test_restore_foreign_key_check ... ok
+test tests::test_foreign_key_cascade ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

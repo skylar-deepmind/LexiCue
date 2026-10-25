@@ -422,7 +422,7 @@ pub fn initialize_builtin_phrase_dictionary(conn: &rusqlite::Connection) -> Resu
         .query_row(
             "SELECT EXISTS(
                 SELECT 1 FROM dictionary_sources
-                WHERE provider = 'PhraseDict' AND version = '2.0'
+                WHERE provider = 'PhraseDict' AND version = '2.1'
             )",
             [],
             |row| row.get(0),
@@ -475,7 +475,7 @@ pub fn initialize_builtin_phrase_dictionary(conn: &rusqlite::Connection) -> Resu
     transaction
         .execute(
             "INSERT OR REPLACE INTO dictionary_sources (language, provider, version, source_url, license, imported_at)
-              VALUES ('en', 'PhraseDict', '2.0', 'https://kaikki.org/dictionary/English/pos-phrase/', 'CC BY-SA 4.0', ?1)",
+              VALUES ('en', 'PhraseDict', '2.1', 'https://kaikki.org/dictionary/English/pos-phrase/', 'CC BY-SA 4.0', ?1)",
             [now_ms()],
         )
         .map_err(|e| e.to_string())?;
@@ -2049,7 +2049,12 @@ mod tests {
 
         conn.execute(
             "INSERT INTO dictionary_sources (language, provider, version, imported_at)
-             VALUES ('en', 'PhraseDict', '1.0', 0)",
+             VALUES ('en', 'PhraseDict', '2.0', 0)",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO builtin_phrase_dictionary VALUES('take off','保留已有缓存行','phrasal_verb')",
             [],
         )
         .unwrap();
@@ -2071,7 +2076,32 @@ mod tests {
                 |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(version, "2.0");
+        assert_eq!(version, "2.1");
+        for (term, expected) in [
+            ("by the way", "顺便"),
+            ("at first", "起初"),
+            ("in fact", "事实上"),
+            ("as soon as", "一……就……"),
+            ("a little", "少许"),
+            ("a lot of", "大量"),
+            ("take off", "保留已有缓存行"),
+        ] {
+            let meaning: String = conn
+                .query_row(
+                    "SELECT translation FROM builtin_phrase_dictionary WHERE text=?1",
+                    [term],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert!(meaning.contains(expected), "{term}: {meaning}");
+        }
+        initialize_builtin_phrase_dictionary(&conn).unwrap();
+        let repeated_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM builtin_phrase_dictionary", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(repeated_count, count);
     }
 
     #[test]

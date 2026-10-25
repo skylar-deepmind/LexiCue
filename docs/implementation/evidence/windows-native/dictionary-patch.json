@@ -1,0 +1,40 @@
+{
+  "versionBefore": "2.0",
+  "versionAfter": "2.1",
+  "oldRows": 4869,
+  "newRows": 4875,
+  "allOriginalRowsByteIdentical": true,
+  "originalPayloadSha256": "730052d0b7a5d6030d7ff25aad9e7f89c99509629a4fc9d95896a9fdb0f268d3",
+  "additions": [
+    {
+      "expression": "by the way",
+      "meaning": "顺便说一下；顺便一提",
+      "category": "idiom"
+    },
+    {
+      "expression": "at first",
+      "meaning": "起初；最初",
+      "category": "idiom"
+    },
+    {
+      "expression": "in fact",
+      "meaning": "实际上；事实上",
+      "category": "idiom"
+    },
+    {
+      "expression": "as soon as",
+      "meaning": "一……就……",
+      "category": "idiom"
+    },
+    {
+      "expression": "a little",
+      "meaning": "一点；少许",
+      "category": "idiom"
+    },
+    {
+      "expression": "a lot of",
+      "meaning": "许多；大量",
+      "category": "idiom"
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+    "pid":  12568,
+    "controls":  [
+                     {
+                         "nativeClass":  "ComboBox",
+                         "name":  "文件名:",
+                         "id":  "FileNameControlHost",
+                         "type":  "ControlType.Pane",
+                         "enabled":  true
+                     },
+                     {
+                         "nativeClass":  "Edit",
+                         "name":  "lexicue-backup-2026-10-25.json",
+                         "id":  "1001",
+                         "type":  "ControlType.Pane",
+                         "enabled":  true
+                     },
+                     {
+                         "nativeClass":  "ComboBox",
+                         "name":  "保存类型:",
+                         "id":  "FileTypeControlHost",
+                         "type":  "ControlType.Pane",
+                         "enabled":  true
+                     },
+                     {
+                         "nativeClass":  "Button",
+                         "name":  "保存(S)",
+                         "id":  "1",
+                         "type":  "ControlType.Pane",
+                         "enabled":  true
+                     },
+                     {
+                         "nativeClass":  "Button",
+                         "name":  "取消",
+                         "id":  "2",
+                         "type":  "ControlType.Pane",
+                         "enabled":  true
+                     }
+                 ],
+    "action":  "file",
+    "window":  "另存为"
+}

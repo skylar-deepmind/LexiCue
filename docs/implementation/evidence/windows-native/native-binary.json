@@ -1,0 +1,12 @@
+{
+    "sourceCommit":  "9cfc66b29e423f45d2d7cfffc2d550d03e682ed7",
+    "compiledSha256":  "4C61D0FAA63852F8D89FB4DB53E59AF2BFF5764222922E0A0520BB8BE36EE22E",
+    "frozenSha256":  "4C61D0FAA63852F8D89FB4DB53E59AF2BFF5764222922E0A0520BB8BE36EE22E",
+    "sourcePatch":  [
+                        "src-tauri/build.rs",
+                        "src-tauri/windows-app-manifest.xml",
+                        "src-tauri/src/commands/dictionary.rs",
+                        "src-tauri/resources/phrase_dict.tsv.gz",
+                        "src-tauri/resources/PHRASEDICT-LICENSE.txt"
+                    ]
+}

@@ -1,0 +1,21 @@
+{
+    "pid":  12568,
+    "controls":  [
+                     {
+                         "nativeClass":  "Button",
+                         "name":  "恢复数据",
+                         "id":  "CommandButton_1000",
+                         "type":  "ControlType.Pane",
+                         "enabled":  true
+                     },
+                     {
+                         "nativeClass":  "Button",
+                         "name":  "取消",
+                         "id":  "CommandButton_1001",
+                         "type":  "ControlType.Pane",
+                         "enabled":  true
+                     }
+                 ],
+    "action":  "button",
+    "window":  "恢复数据"
+}

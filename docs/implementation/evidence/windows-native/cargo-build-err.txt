@@ -1,0 +1,39 @@
+   Compiling lexicue v0.4.5 (C:\Users\skylar\AppData\Local\Temp\lexicue-v31-windows-20261025\repo\src-tauri)
+warning: function `initialize_builtin_japanese_dictionary` is never used
+   --> src\commands\dictionary.rs:485:8
+    |
+485 | pub fn initialize_builtin_japanese_dictionary(conn: &rusqlite::Connection) -> Result<(), String> {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `initialize_builtin_german_dictionary` is never used
+   --> src\commands\dictionary.rs:548:8
+    |
+548 | pub fn initialize_builtin_german_dictionary(conn: &rusqlite::Connection) -> Result<(), String> {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `initialize_builtin_chinese_dictionary` is never used
+   --> src\commands\dictionary.rs:612:8
+    |
+612 | pub fn initialize_builtin_chinese_dictionary(conn: &rusqlite::Connection) -> Result<(), String> {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `initialize_builtin_chinese_phrase_dictionary` is never used
+   --> src\commands\dictionary.rs:673:8
+    |
+673 | pub fn initialize_builtin_chinese_phrase_dictionary(
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `initialize_builtin_japanese_phrase_dictionary` is never used
+   --> src\commands\dictionary.rs:739:8
+    |
+739 | pub fn initialize_builtin_japanese_phrase_dictionary(
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: linker stdout: 正在创建库 C:\Users\skylar\AppData\Local\Temp\lexicue-v31-windows-20261025\repo\src-tauri\target\debug\deps\app_lib.dll.lib 和对象 C:\Users\skylar\AppData\Local\Temp\lexicue-v31-windows-20261025\repo\src-tauri\target\debug\deps\app_lib.dll.exp
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `lexicue` (lib) generated 6 warnings
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 00s
