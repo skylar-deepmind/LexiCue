@@ -103,11 +103,14 @@ async function lookup(css){
 }
 async function save(){await button('保存','.lookup-footer button');await exists('.lookup-saved');}
 async function choose(paths){
- await dialogClick(()=>button('选择文件'),{action:'file',paths});
+ if(await count('.lc-import-footer'))await button('继续导入');
+ await dialogClick(()=>button('导入文件'),{action:'file',paths});
+ await exists('.lc-import-summary');
  const names=paths.map(path=>path.split(/[\\/]/).at(-1)).sort();
- await wait(()=>exec(names=>{const actual=[...document.querySelectorAll('.import-items strong')].map(n=>n.textContent).sort();return JSON.stringify(actual)===JSON.stringify(names);},names),'selected files enter new import queue');
+ await wait(()=>exec(names=>{const actual=[...document.querySelectorAll('.lc-import-items strong')].map(n=>n.textContent).sort();return names.length===1?!!document.querySelector('.lc-import-preview'):JSON.stringify(actual)===JSON.stringify(names);},names),'selected files enter preview');
 }
-async function importDone(){await wait(()=>exec(()=>!!document.querySelector('.import-summary')&&!document.querySelector('.import-body button')?.disabled&&!!document.querySelector('.material-drop')),'import queue completed',120000);}
+async function confirmImport(){await click('.lc-import-footer .lc-import-primary');}
+async function importDone(){await wait(()=>exec(()=>document.querySelector('.lc-import-header h2')?.textContent==='导入结果'),'import queue completed',120000);}
 const srt=rows=>rows.map((text,i)=>`${i+1}\n00:00:01,000 --> 00:00:03,000\n${text}\n`).join('\n');
 async function importCore(name,rows){return call('import_reading_material',{input:{operation_id:randomUUID(),name,content:srt(rows),segments:rows.map((en_text,index)=>({index,en_text,zh_text:null,start_time:'00:00:01.000',end_time:'00:00:03.000'}))}});}
 async function saveCore(segment,expression,explanation=null){const start=segment.en_text.toLowerCase().indexOf(expression.toLowerCase());assert.ok(start>=0,`${expression} in source`);return call('mutate_saved_record',{operationId:randomUUID(),mutation:{kind:'save',input:{segment_id:segment.id,expression,start_offset:start,end_offset:start+expression.length,explanation,explanation_source:explanation?'personal':'unknown'}}});}
@@ -150,23 +153,22 @@ try{
   const unknown=await call('lookup_reading_expression',{expression:'zzxqv opaque phrase'}).catch(error=>({error:error.message}));ok(!unknown.meaning,'unknown native phrase never receives an invented definition');
  });
  await stage('native-import',async()=>{
-  await theme('ocean');await go('/files');await click('.b-dock button');await exists('.material-drop');
+  await theme('ocean');await go('/files');await click('.b-dock button');await exists('.lc-import-sources');
   const fixtures=join(task,'fixtures');await mkdir(fixtures,{recursive:true});
   const names=['英语 示例一.srt','Context notes.srt','empty.srt','invalid.srt','日本語.srt'];
   const contents=[await readFile(join(repo,'docs','implementation','fixtures','v31-reading.srt'),'utf8'),srt(['A small habit can change the day.','We take off before sunrise.']),'','This is not an SRT subtitle.',srt(['これは日本語の字幕です。'])];
   for(let i=0;i<names.length;i++)await writeFile(join(fixtures,names[i]),contents[i]);
-  const before=(await fingerprint()).counts.files;await choose(names.map(n=>join(fixtures,n)));await importDone();
-  eq((await fingerprint()).counts.files,before+2,'native multi-file picker commits only two valid English SRTs');
-  eq(await count('.import-items .import-check'),2,'real per-file successes displayed');eq(await count('.import-items [role="alert"]'),3,'empty, invalid and non-English files have honest errors');await shot('ocean-native-import-partial');
+  const before=(await fingerprint()).counts.files;await choose(names.map(n=>join(fixtures,n)));
+  eq((await fingerprint()).counts.files,before,'native picker prepares without writes');
+  eq(await count('.lc-import-items [role="alert"]'),3,'invalid files stay outside confirmation');await shot('ocean-native-import-preview');
+  await confirmImport();await importDone();eq((await fingerprint()).counts.files,before+2,'confirmation commits only valid English SRTs');await shot('ocean-native-import-partial');
   for(let i=2;i<names.length;i++)await writeFile(join(fixtures,names[i]),srt([`This repaired English subtitle is number ${i}.`]));
-  await button('重试未完成项');await importDone();eq((await fingerprint()).counts.files,before+5,'retry imports failed files without duplicating successes');
-  await choose([join(fixtures,names[0])]);await importDone();ok((await text('.import-items')).includes('已存在'),'duplicate shown without reimport');eq((await fingerprint()).counts.files,before+5,'duplicate keeps file count');
-  const unchanged=await fingerprint();await dialogClick(()=>button('选择文件'),{action:'button',name:'^(取消|Cancel)'});eq(await fingerprint(),unchanged,'native file-dialog cancel leaves all tables unchanged');
-  const big=Array.from({length:5000},(_,i)=>`This English cancellation test sentence is number ${i}.`),batch=[];
-  for(let i=0;i<4;i++){const path=join(fixtures,`cancel-${i}.srt`);await writeFile(path,srt([...big,`Unique cancellation source ${i}.`]));batch.push(path);}
-  await choose(batch);await button('取消余下导入');await wait(()=>exec(()=>!!document.querySelector('.material-drop')),'cancel settles');ok((await text('.import-items')).includes('未导入'),'cancel reports uncommitted files truthfully');
-  const committed=await count('.import-items .import-check');await button('重试未完成项');await importDone();eq(await count('.import-items .import-check'),4,'cancelled items can be retried');eq((await fingerprint()).counts.files,before+9,'cancel and retry retain exactly four sources');report.import={initial:5,valid:2,failed:3,repaired:3,cancellationBatch:4,committedBeforeCancel:committed};
-  await close();await exists('.materials-paper');await click('.material-view-switch button',{aria:'列表'});await exists('.material-collection--list');await shot('ocean-material-list');await click('.material-view-switch button',{aria:'画廊'});await exists('.material-collection--gallery');await shot('ocean-material-gallery');
+  await choose(names.slice(2).map(n=>join(fixtures,n)));eq((await fingerprint()).counts.files,before+2,'repaired files need new preview');await confirmImport();await importDone();eq((await fingerprint()).counts.files,before+5,'repaired files import on confirmation');
+  await choose([join(fixtures,names[0])]);await confirmImport();await importDone();ok((await text('.lc-import-items')).includes('已存在'),'duplicate shown without reimport');eq((await fingerprint()).counts.files,before+5,'duplicate keeps file count');
+  await button('继续导入');const unchanged=await fingerprint();await dialogClick(()=>button('导入文件'),{action:'button',name:'^(取消|Cancel)'});eq(await fingerprint(),unchanged,'native file-dialog cancel leaves all tables unchanged');
+  await button('返回');await choose([join(fixtures,names[0])]);await key('\uE00C');await wait(()=>count('.lc-import-modal').then(n=>n===0),'preview dismissed');eq(await fingerprint(),unchanged,'closing a preview writes nothing');
+  report.import={initial:5,valid:2,failed:3,repaired:3,previewBeforeConfirmation:true};
+  await exists('.materials-paper');await click('.material-view-switch button',{aria:'列表'});await exists('.material-collection--list');await shot('ocean-material-list');await click('.material-view-switch button',{aria:'画廊'});await exists('.material-collection--gallery');await shot('ocean-material-gallery');
  });
  await stage('saved-flow-themes',async()=>{
   const words=['Curiosity','Language','Science','Music','Family','Garden','Travel','Friend','Story','Water','Future','Change','Light','School','Knowledge','Morning','Ocean','Mountain','Book','Journey'];

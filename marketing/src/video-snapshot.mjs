@@ -1,7 +1,8 @@
 import {initialSession,IMPORT_SAMPLE} from './demo-model.mjs';
-import {themeAt} from './video-revision.mjs';
-export function videoSnapshot(id,frame,seconds){
- const t=frame/30,p=t/seconds,session=initialSession();
+import {themeAt,videoFps} from './video-revision.mjs';
+export function videoSnapshot(id,frame,seconds,locale='zh'){
+ const t=frame/videoFps,p=t/seconds,session=initialSession();
+ session.uiLocale=locale;
  session.files.push({...structuredClone(IMPORT_SAMPLE),tags:[1,4]});
  session.selectedTerm=null;session.statuses[3]='learning';
  const result={session,modal:null,drawerOpen:false,query:'',filter:'all',notice:'',target:null,clickAt:null,drawerAt:null};
@@ -16,7 +17,7 @@ export function videoSnapshot(id,frame,seconds){
    else if(p<.55)action('.sample-dialog .sample-tag-bar button:last-child',.55);
    else action('.sample-dialog .sample-toolbar button:last-child',.73);
   }
-  else{session.files.push({...structuredClone(IMPORT_SAMPLE),tags:[1,4]});result.notice='SRT 字幕已加入文件库';}
+  else{session.files.push({...structuredClone(IMPORT_SAMPLE),tags:[1,4]});result.notice=locale==='en'?'SRT subtitle added to the library':'SRT 字幕已加入文件库';}
  }else if(id==='tags'){
   session.selectedTags=p>.28?[2]:[];action(p<.3?'[data-tag-id="2"]':'[data-edit-file="2"]',p<.3?.28:.54);
   if(p>.54&&p<.86){result.modal={type:'edit',id:2,tags:p>.68?[1,2,4]:[1,2]};action(p<.68?'.sample-dialog .sample-tag-bar button:last-child':'.sample-dialog .sample-toolbar button:last-child',p<.68?.68:.86);}
@@ -29,7 +30,7 @@ export function videoSnapshot(id,frame,seconds){
    if(p<.28)action('text:meaningful',.28);
    else if(p<.62)action('[data-status="learning"]',.61);
    else if(p<.87)action('.sample-detail-heading button',.87);
-   if(p>.62&&p<.8)result.notice='meaningful 已标记为学习中';
+   if(p>.62&&p<.8)result.notice=locale==='en'?'meaningful marked as Learning':'meaningful 已标记为学习中';
   }else{
    session.aiEnabled=p>.1;session.analyzed=p>.3?[1]:[];
    action('[data-action="analyze"]',p<.1?.1:.3);
@@ -46,13 +47,13 @@ export function videoSnapshot(id,frame,seconds){
  }else if(id==='review'){
   session.module='review';session.reviewQueue=[3,26,27];session.revealed=p>.25&&p<.7;
   action(p<.26?'[data-task="answer"]':'.sample-review>.grid button:nth-child(3)',p<.26?.25:.7);
-  if(p>=.7){session.reviewIndex=1;session.reviews=[{id:3,rating:3}];result.notice='meaningful · 已保存评分';}
+  if(p>=.7){session.reviewIndex=1;session.reviews=[{id:3,rating:3}];result.notice=locale==='en'?'meaningful · Rating saved':'meaningful · 已保存评分';}
  }else if(id==='progress'){
   session.module='insights';session.reviews=[{id:3,rating:3}];
  }else if(id==='languages'){
   const index=Math.min(3,Math.floor(p*4));
   session.module='reading';session.language=['en','ja','de','zh'][index];session.fileId=[1,4,5,6][index];
-  session.theme=themeAt(frame,seconds);session.uiLocale='zh';session.selectedTerm=[3,17,20,25][index];result.drawerOpen=true;
+  session.theme=themeAt(frame,seconds);session.uiLocale=locale;session.selectedTerm=[3,17,20,25][index];result.drawerOpen=true;
  }else session.module='settings';
  return result;
 }

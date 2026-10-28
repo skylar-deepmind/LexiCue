@@ -944,8 +944,17 @@ fn row_record(
     local_id: i64,
 ) -> Result<Option<serde_json::Value>, String> {
     if table == "saved_records" {
-        let raw:Option<String>=conn.query_row("SELECT snapshot_json FROM saved_records WHERE id=?1",[local_id],|r|r.get(0)).optional().map_err(|e|e.to_string())?;
-        return raw.map(|json|serde_json::from_str(&json).map_err(|e|e.to_string())).transpose();
+        let raw: Option<String> = conn
+            .query_row(
+                "SELECT snapshot_json FROM saved_records WHERE id=?1",
+                [local_id],
+                |r| r.get(0),
+            )
+            .optional()
+            .map_err(|e| e.to_string())?;
+        return raw
+            .map(|json| serde_json::from_str(&json).map_err(|e| e.to_string()))
+            .transpose();
     }
     let key = if matches!(table, "reviews" | "phrase_reviews") {
         if table == "reviews" {
@@ -1386,7 +1395,9 @@ fn saved_conflict(
     local: &super::saved::SavedRecord,
     remote: &super::saved::SavedRecord,
 ) -> Result<(), String> {
-    if local.explanation == remote.explanation {
+    if local.explanation == remote.explanation
+        && local.dictionary_reference == remote.dictionary_reference
+    {
         return Ok(());
     }
     let left = serde_json::to_string(local).map_err(|e| e.to_string())?;
@@ -1435,7 +1446,25 @@ fn apply_saved_event(
         .optional()
         .map_err(|e| e.to_string())?;
     let pending:bool=conn.query_row("SELECT EXISTS(SELECT 1 FROM sync_changes WHERE table_name='saved_records' AND sync_id=?1 AND uploaded_at IS NULL)",[&event.sync_id],|r|r.get(0)).map_err(|e|e.to_string())?;
+    let mut enriched_reference = false;
     if let Some(ref local) = local {
+        if let Some(reference) = &local.dictionary_reference {
+            if remote.dictionary_reference.as_ref() != Some(reference) {
+                if remote.dictionary_reference.is_some() {
+                    saved_conflict(conn, local, &remote)?;
+                }
+                // Old clients omit optional metadata. Preserve a richer local
+                // excerpt instead of interpreting absence as a user deletion.
+                if remote
+                    .dictionary_reference
+                    .as_ref()
+                    .map_or(true, |other| other.senses.len() < reference.senses.len())
+                {
+                    remote.dictionary_reference = Some(reference.clone());
+                    enriched_reference = true;
+                }
+            }
+        }
         if remote.generation < local.generation
             || remote.generation == local.generation
                 && local.deleted_at.is_some()
@@ -1476,6 +1505,8 @@ fn apply_saved_event(
             if remote.deleted_at.is_some() && pending && local.explanation_source == "personal" {
                 remote.explanation = local.explanation.clone();
                 remote.explanation_source = local.explanation_source.clone();
+                remote.dictionary_snapshot = local.dictionary_snapshot.clone();
+                remote.dictionary_reference = local.dictionary_reference.clone();
             }
         }
     }
@@ -1490,7 +1521,7 @@ fn apply_saved_event(
         clock,
         remote.deleted_at.is_some(),
     )?;
-    if pending {
+    if pending || enriched_reference {
         queue_saved_state(conn, &remote)?;
     }
     Ok(true)
@@ -1518,6 +1549,20 @@ mod saved_sync_tests {
                     end_offset: 11,
                     explanation: Some("起飞".into()),
                     explanation_source: "dictionary".into(),
+                    dictionary_reference: None,
+                    dictionary_snapshot: Some(serde_json::from_value(serde_json::json!({
+                        "schema_version": 1,
+                        "headword": "take off",
+                        "source": {
+                            "provider": "longman", "dataset": "ldoce6-en-zh", "edition": "6",
+                            "release": "longman6-reviewed-v5-quick-local-v1", "adapter_version": "1.0.0",
+                            "entry_key": "take", "locator": "fixture-expression"
+                        },
+                        "entry_id": "longman:fixture:take-off", "group_id": "longman:fixture:take-off-group",
+                        "sense_id": "longman:fixture:sense-2", "part_of_speech": "verb",
+                        "meaning": { "en": "to leave the ground and begin to fly", "zh": "起飞" },
+                        "examples": [{ "id": "longman:fixture:example-2", "english": "The plane took off.", "chinese": "飞机起飞了。" }]
+                    })).unwrap()),
                 },
             },
         )
@@ -1546,6 +1591,81 @@ mod saved_sync_tests {
         result
     }
     #[test]
+    fn dictionary_reference_sync_roundtrip_and_old_client_omission_preserve_excerpt_and_tombstones()
+    {
+        let (_d, source) = db();
+        let mut first = record(&source);
+        let reference = saved::DictionaryReference {
+            schema_version: 1,
+            kind: "dictionary_excerpt".into(),
+            headword: "take off".into(),
+            senses: vec![first.dictionary_snapshot.clone().unwrap()],
+        };
+        first.dictionary_snapshot = None;
+        first.explanation = None;
+        first.explanation_source = "unknown".into();
+        first.dictionary_reference = Some(reference.clone());
+        saved::write_record(&source, &first).unwrap();
+        let (_d2, target) = db();
+        assert!(apply(&target, &first, 1));
+        assert_eq!(
+            saved::get(&target, &first.record_id)
+                .unwrap()
+                .unwrap()
+                .dictionary_reference,
+            Some(reference.clone())
+        );
+        let mut old = first.clone();
+        old.dictionary_reference = None;
+        old.revision = "old-client-new-revision".into();
+        assert!(apply(&target, &old, 2));
+        let arrived = saved::get(&target, &first.record_id).unwrap().unwrap();
+        assert_eq!(arrived.dictionary_reference, Some(reference.clone()));
+        assert_eq!(arrived.explanation, None);
+        let removed = saved::mutate(
+            &target,
+            "remove-reference",
+            &Mutation::Remove {
+                record_id: arrived.record_id.clone(),
+                expected_revision: arrived.revision.clone(),
+            },
+        )
+        .unwrap();
+        let (_d3, third) = db();
+        assert!(apply(&third, &removed.record, 3));
+        assert!(saved::get(&third, &first.record_id)
+            .unwrap()
+            .unwrap()
+            .deleted_at
+            .is_some());
+        let restored = saved::undo(&target, &removed.operation_id).unwrap();
+        assert!(apply(&third, &restored, 4));
+        assert_eq!(
+            saved::get(&third, &first.record_id)
+                .unwrap()
+                .unwrap()
+                .dictionary_reference,
+            Some(reference)
+        );
+        assert_eq!(saved::groups(&third, "", 50, 0).unwrap().total_groups, 1);
+        // A valid but different excerpt retains both complete wire versions.
+        let mut alternative = restored.clone();
+        alternative.revision = "different-excerpt".into();
+        alternative.dictionary_reference.as_mut().unwrap().senses[0]
+            .meaning
+            .zh = Some("另一个词典参考".into());
+        assert!(apply(&third, &alternative, 5));
+        let conflicts: i64 = third
+            .query_row(
+                "SELECT COUNT(*) FROM sync_conflicts WHERE table_name='saved_records'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(conflicts, 1);
+    }
+
+    #[test]
     fn snapshot_arrives_before_material_and_deletion_survives_delayed_offline_edit() {
         let (_d, source) = db();
         let first = record(&source);
@@ -1557,6 +1677,13 @@ mod saved_sync_tests {
                 .unwrap()
                 .sentence,
             first.sentence
+        );
+        assert_eq!(
+            saved::get(&target, &first.record_id)
+                .unwrap()
+                .unwrap()
+                .dictionary_snapshot,
+            first.dictionary_snapshot
         );
         assert!(saved::resolve_source(&target, &first.record_id)
             .unwrap()
@@ -1584,6 +1711,7 @@ mod saved_sync_tests {
             .is_some());
         let restored = saved::undo(&source, "remove").unwrap();
         assert_eq!(restored.generation, 1);
+        assert_eq!(restored.dictionary_snapshot, first.dictionary_snapshot);
         assert!(apply(&target, &restored, 3));
         assert!(saved::get(&target, &first.record_id)
             .unwrap()
@@ -1603,6 +1731,141 @@ mod saved_sync_tests {
             0
         );
     }
+
+    #[test]
+    fn cambridge_source_url_and_retrieval_time_survive_real_encrypted_local_sync() {
+        let (_dir, source) = db();
+        let mut first = record(&source);
+        let chosen = first.dictionary_snapshot.as_mut().unwrap();
+        chosen.source.provider = "cambridge".into();
+        chosen.source.dataset = "test-en-cn".into();
+        chosen.source.edition = None;
+        chosen.source.release = None;
+        chosen.source.adapter_version = "cambridge-v1.0.0".into();
+        chosen.source.entry_url = Some(
+            "https://dictionary.cambridge.org/dictionary/english-chinese-simplified/take-off"
+                .into(),
+        );
+        chosen.source.retrieved_at = Some("2026-10-26T01:02:03Z".into());
+        chosen.entry_id = "cambridge:test:entry".into();
+        chosen.group_id = "cambridge:test:group".into();
+        chosen.sense_id = "cambridge:test:later-sense".into();
+        saved::write_record(&source, &first).unwrap();
+        let config = LocalConfig {
+            endpoint: "http://127.0.0.1:1".into(),
+            email: "test@example.invalid".into(),
+            device_id: "cambridge-sync-test".into(),
+            access_token: String::new(),
+            data_key: String::new(),
+            last_synced_at: None,
+            last_remote_cursor: 0,
+            auto_sync_enabled: false,
+        };
+        let key = [11; 32];
+        prepare_outbox(&source, &config, &key, "test-account").unwrap();
+        let rows = pending_outbox(&source).unwrap();
+        let row = rows
+            .iter()
+            .find(|r| r.entity_type == "saved_records")
+            .unwrap();
+        let remote = RemoteRecord {
+            entity_type: row.entity_type.clone(),
+            entity_id: row.entity_id.clone(),
+            etag: "etag".into(),
+            seq: 1,
+            schema_version: 1,
+            deleted: false,
+            nonce: URL_SAFE_NO_PAD.encode(&row.ciphertext[..24]),
+            ciphertext: URL_SAFE_NO_PAD.encode(&row.ciphertext[24..]),
+        };
+        let decoded =
+            decode_event(&decrypt_record(&key, "test-account", &remote, &row.ciphertext).unwrap())
+                .unwrap();
+        let arrived: SavedRecord = serde_json::from_value(decoded.record.unwrap()).unwrap();
+        assert_eq!(arrived.dictionary_snapshot, first.dictionary_snapshot);
+        let (_d, target) = db();
+        assert!(apply(&target, &arrived, 1));
+        assert_eq!(
+            saved::get(&target, &first.record_id)
+                .unwrap()
+                .unwrap()
+                .dictionary_snapshot,
+            first.dictionary_snapshot
+        );
+    }
+    #[test]
+    fn public_source_unknown_originals_and_received_time_survive_encrypted_local_sync() {
+        for version in ["cambridge-public-v1.0.0", "cambridge-public-v1.1.0"] {
+            let (_dir, source) = db();
+            let mut first = record(&source);
+            let chosen = first.dictionary_snapshot.as_mut().unwrap();
+            chosen.source.provider = "cambridge".into();
+            chosen.source.dataset = "Cambridge Dictionary (author public API)".into();
+            chosen.source.edition = None;
+            chosen.source.release = None;
+            chosen.source.adapter_version = version.into();
+            chosen.source.access_channel = Some("author_public_api".into());
+            chosen.source.service_url = Some("https://dictionary-api.eliaschen.dev".into());
+            chosen.source.received_at = Some("2026-10-26T03:04:05Z".into());
+            chosen.entry_id = format!("cambridge:public:{version}:entry");
+            chosen.group_id = format!("cambridge:public:{version}:group");
+            chosen.sense_id = format!("cambridge:public:{version}:later-sense");
+            for example in &mut chosen.examples {
+                example.id = format!("cambridge:public:{version}:{}", example.id);
+            }
+            saved::write_record(&source, &first).unwrap();
+            let config = LocalConfig {
+                endpoint: "http://127.0.0.1:1".into(),
+                email: "test@example.invalid".into(),
+                device_id: "public-sync-test".into(),
+                access_token: String::new(),
+                data_key: String::new(),
+                last_synced_at: None,
+                last_remote_cursor: 0,
+                auto_sync_enabled: false,
+            };
+            let key = [12; 32];
+            prepare_outbox(&source, &config, &key, "test-account").unwrap();
+            let rows = pending_outbox(&source).unwrap();
+            let row = rows
+                .iter()
+                .find(|r| r.entity_type == "saved_records")
+                .unwrap();
+            let remote = RemoteRecord {
+                entity_type: row.entity_type.clone(),
+                entity_id: row.entity_id.clone(),
+                etag: "etag".into(),
+                seq: 1,
+                schema_version: 1,
+                deleted: false,
+                nonce: URL_SAFE_NO_PAD.encode(&row.ciphertext[..24]),
+                ciphertext: URL_SAFE_NO_PAD.encode(&row.ciphertext[24..]),
+            };
+            let decoded = decode_event(
+                &decrypt_record(&key, "test-account", &remote, &row.ciphertext).unwrap(),
+            )
+            .unwrap();
+            let wire = decoded.record.unwrap();
+            assert!(wire["dictionary_snapshot"]["source"]
+                .get("entry_url")
+                .is_none());
+            assert!(wire["dictionary_snapshot"]["source"]
+                .get("retrieved_at")
+                .is_none());
+            let arrived: SavedRecord = serde_json::from_value(wire).unwrap();
+            assert_eq!(arrived.dictionary_snapshot, first.dictionary_snapshot);
+            let (_target_dir, target) = db();
+            assert!(apply(&target, &arrived, 1));
+            assert_eq!(
+                saved::get(&target, &first.record_id)
+                    .unwrap()
+                    .unwrap()
+                    .dictionary_snapshot,
+                first.dictionary_snapshot
+            );
+        }
+    }
+
     #[test]
     fn concurrent_personal_versions_are_preserved_and_automatic_answer_cannot_replace_local_edit() {
         let (_d, source) = db();
@@ -1690,7 +1953,14 @@ mod saved_sync_tests {
     #[test]
     fn encrypted_outbox_carries_deletion_epoch_and_backup_restore_can_requeue_tombstone() {
         let (_d, c) = db();
-        let first = record(&c);
+        let mut first = record(&c);
+        first.dictionary_reference = Some(saved::DictionaryReference {
+            schema_version: 1,
+            kind: "dictionary_excerpt".into(),
+            headword: "take off".into(),
+            senses: vec![first.dictionary_snapshot.clone().unwrap()],
+        });
+        saved::write_record(&c, &first).unwrap();
         let removed = saved::mutate(
             &c,
             "remove",
@@ -1734,6 +2004,17 @@ mod saved_sync_tests {
                 .unwrap();
         let snapshot: SavedRecord = serde_json::from_value(decoded.record.unwrap()).unwrap();
         assert_eq!(snapshot.generation, removed.generation);
+        assert_eq!(snapshot.dictionary_snapshot, first.dictionary_snapshot);
+        assert_eq!(snapshot.dictionary_reference, first.dictionary_reference);
+        let (_target_dir, target) = db();
+        assert!(apply(&target, &snapshot, 1));
+        assert_eq!(
+            saved::get(&target, &snapshot.record_id)
+                .unwrap()
+                .unwrap()
+                .dictionary_reference,
+            first.dictionary_reference
+        );
         assert!(snapshot.deleted_at.is_some());
         assert_eq!(snapshot.record_id, first.record_id);
         c.execute(
@@ -1814,7 +2095,7 @@ fn apply_entity_event(
     clock: &str,
 ) -> Result<bool, String> {
     if event.table_name == "saved_records" {
-        return with_remote_apply_guard(conn, || apply_saved_event(conn,event,clock));
+        return with_remote_apply_guard(conn, || apply_saved_event(conn, event, clock));
     }
     // Library snapshots are the canonical representation of files, subtitle
     // segments and their word/phrase occurrences. Older development builds
@@ -2402,7 +2683,10 @@ fn prepare_outbox(
         let mut record = if table == "saved_records" {
             // Deletion envelopes carry the epoch and snapshot too. A fresh
             // device must remember a tombstone before any late offline edit.
-            super::saved::get(conn,&sync_id)?.map(serde_json::to_value).transpose().map_err(|e|e.to_string())?
+            super::saved::get(conn, &sync_id)?
+                .map(serde_json::to_value)
+                .transpose()
+                .map_err(|e| e.to_string())?
         } else if operation == "upsert" {
             if table == "library_item" {
                 let id = local_id_for(conn, "files", &sync_id)?
@@ -2439,9 +2723,17 @@ fn prepare_outbox(
             &encode_event(&event)?,
         )?;
         if table != "library_item" {
-            let local_id=if table=="saved_records" {
-                conn.query_row("SELECT id FROM saved_records WHERE record_id=?1",[&sync_id],|r|r.get(0)).optional().map_err(|e|e.to_string())?
-            } else {local_id_for(conn, &table, &sync_id)?};
+            let local_id = if table == "saved_records" {
+                conn.query_row(
+                    "SELECT id FROM saved_records WHERE record_id=?1",
+                    [&sync_id],
+                    |r| r.get(0),
+                )
+                .optional()
+                .map_err(|e| e.to_string())?
+            } else {
+                local_id_for(conn, &table, &sync_id)?
+            };
             if let Some(local_id) = local_id {
                 mark_state(
                     conn,

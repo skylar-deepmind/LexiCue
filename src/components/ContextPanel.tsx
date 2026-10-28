@@ -46,7 +46,7 @@ export default function ContextPanel({ label, children, onClose, canClose = true
     const keys = (event: KeyboardEvent) => {
       if (event.key !== 'Tab' || !layerRef.current?.contains(document.activeElement)) return;
       const items = Array.from(layerRef.current.querySelectorAll<HTMLElement>('button:not(:disabled),input,textarea,summary,a[href]'))
-        .filter(item => item.getClientRects().length > 0);
+        .filter(item => item.getClientRects().length > 0 && !item.closest('[inert],[aria-hidden="true"]') && getComputedStyle(item).visibility !== 'hidden');
       if (!items.length) return;
       if (event.shiftKey && (document.activeElement === items[0] || document.activeElement === panelRef.current)) {
         event.preventDefault(); items.at(-1)?.focus();
@@ -62,8 +62,13 @@ export default function ContextPanel({ label, children, onClose, canClose = true
       const target = event.target;
       // Later clicks in a multi-click gesture may land on newly exposed blank
       // space while the reading column makes room. They are not dismissals.
-      if (!(target instanceof Element) || event.defaultPrevented || event.button !== 0 || event.detail > 1 || pointer?.moved) return;
-      if (layerRef.current?.contains(target) || document.querySelector('[aria-modal="true"]') || [...document.querySelectorAll('.context-layer')].at(-1) !== layerRef.current) return;
+      // A panel opened by pointerup did not observe that gesture's pointerdown.
+      // Its trailing click must not immediately dismiss the newly opened card.
+      if (!(target instanceof Element) || event.defaultPrevented || event.button !== 0 || event.detail > 1 || !pointer || pointer.moved) return;
+      // React can replace an icon during this click (play → stop). The original
+      // SVG target is then detached, while the gesture's composed path still
+      // identifies the panel that received it.
+      if (event.composedPath().includes(layerRef.current as EventTarget) || layerRef.current?.contains(target) || document.querySelector('[aria-modal="true"]') || [...document.querySelectorAll('.context-layer')].at(-1) !== layerRef.current) return;
       if (target.closest('button,a[href],input,textarea,select,label,summary,audio,video,[role="button"],[role="tab"],[role="menuitem"],[data-overlay-layer],[contenteditable]:not([contenteditable="false"])')) return;
       // A native scrollbar is a control even though it has no DOM button.
       for (let node: Element | null = target; node; node = node.parentElement) {

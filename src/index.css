@@ -1,6 +1,62 @@
 @import "tailwindcss";
 @import "./reading.css";
 
+/* Dictionary overview and word archives share semantic colors in both themes. */
+.dictionary-overview h3 { font-size: .8125rem; font-weight: 500; color: var(--text-muted); margin-bottom: 12px; }
+.dictionary-overview-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.dictionary-overview-line > div { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; }
+.dictionary-overview-line p { margin-top: 4px; line-height: 1.65; }
+.dictionary-overview-headword { color: var(--text-strong); font-size: .9375rem; font-weight: 600; overflow-wrap: anywhere; }
+.dictionary-inflection-relation { color: var(--text-body); font-size: .875rem; line-height: 1.65; overflow-wrap: anywhere; }
+.dictionary-overview-ipa { color: var(--text-body); font-size: .875rem; display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.dictionary-overview-ipa small { color: var(--text-muted); }
+.dictionary-more { margin-top: 12px; border-bottom: 1px solid var(--border-soft); padding-bottom: 8px; }
+.dictionary-more > summary, .recall-history > summary, .saved-reference > summary { cursor: pointer; min-height: 44px; padding-block: 10px; color: var(--text-body); font-size: .875rem; border-radius: 4px; }
+.dictionary-more > summary:hover, .recall-history > summary:hover, .saved-reference > summary:hover { background: var(--interactive-hover); color: var(--text-strong); }
+.dictionary-more > summary:active, .recall-history > summary:active, .saved-reference > summary:active { background: var(--interactive-pressed); }
+.dictionary-more[open] > summary, .recall-history[open] > summary { color: var(--accent-700); }
+.dictionary-more .longman-sense-content { padding-left: 0; }
+.longman-definition { padding-block: 6px; }
+.lookup-footer .lookup-note { margin-top: 8px; text-align: center; }
+.saved-group-row { padding-right: 0; }
+.saved-context-count { color: var(--text-muted); font-size: .8125rem; }
+.saved-record-meaning > span { display: block; margin-top: 4px; line-height: 1.65; }
+.saved-context-entry + .saved-context-entry { border-top: 1px solid var(--border); padding-top: 24px; margin-top: 24px; }
+.saved-context-entry .saved-context-copy { margin-top: 12px; padding-top: 0; border-top: 0; }
+.saved-context-actions, .saved-context-secondary { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.saved-context-actions .ui-button { min-height: 44px; }
+.saved-context-secondary { flex-basis: 100%; margin-top: 4px; }
+.saved-context-meaning { color: var(--text-body); line-height: 1.7; white-space: pre-wrap; }
+.saved-history-label { display: block; margin-top: 12px; color: var(--text-muted); font-size: .8125rem; line-height: 1.6; }
+.saved-reference-sense { margin-block: 12px; padding-left: 12px; border-left: 2px solid var(--border); line-height: 1.7; }
+.saved-reference-sense > small { color: var(--text-muted); }
+.recall-history { margin-top: 12px; border-bottom: 1px solid var(--border-soft); padding-bottom: 8px; }
+.recall-history .recall-context { margin-top: 16px; }
+
+/* Speech controls use the same semantic tokens in every theme. */
+.speech-button.ui-button { min-width: 44px; min-height: 44px; flex: none; color: var(--text-body); background: var(--surface); border: 1px solid var(--border); gap: 8px; }
+.speech-button.ui-button:hover:not(:disabled) { color: var(--text-strong); background: var(--interactive-hover); }
+.speech-button.ui-button[aria-pressed='true'] { color: var(--accent-700); background: var(--accent-50); border-color: var(--accent-600); }
+.speech-button.ui-button[aria-pressed='true']:hover:not(:disabled) { background: var(--accent-100); }
+.speech-button.ui-button:active:not(:disabled) { background: var(--interactive-pressed); }
+.speech-button.ui-button:disabled { color: var(--text-muted); background: var(--interactive-disabled); opacity: 1; }
+.speech-button.ui-button:focus-visible, .speech-settings :is(button,input,summary):focus-visible { outline: 2px solid var(--accent-600); outline-offset: 3px; }
+.speech-feedback { color: var(--text-body); font-size: .875rem; line-height: 1.65; margin-block: 12px; }
+.speech-feedback--error { color: var(--sync-error-text); }
+.speech-spinner { animation: speech-spin 1s linear infinite; }
+@keyframes speech-spin { to { transform: rotate(360deg); } }
+.speech-settings__fields { display: grid; grid-template-columns: minmax(110px,1fr) minmax(160px,1.4fr) minmax(110px,1fr); gap: 16px; margin-block: 20px; }
+.speech-settings__fields > div { min-width: 0; }
+.speech-settings__fields label { display: block; font-size: .875rem; color: var(--text-strong); margin-bottom: 8px; }
+.speech-settings__fields .app-select { width: 100%; min-height: 44px; }
+.speech-settings__preview { margin-block: 12px; }
+.speech-settings > details { margin-top: 16px; }
+.speech-settings__toggle { display: flex; gap: 12px; align-items: center; min-height: 44px; color: var(--text-body); cursor: pointer; }
+.speech-settings__toggle input { width: 18px; height: 18px; accent-color: var(--accent-600); flex: none; }
+.speech-settings__toggle + p { margin-top: 0; }
+@media (max-width: 600px) { .speech-settings__fields { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .speech-spinner { animation: none; } }
+
 /* Independent saved contexts: use the same semantic states in every theme. */
 .saved-page { position: relative; height: 100%; display: flex; flex-direction: column; overflow: hidden; background: var(--surface); color: var(--text-body); }
 .saved-page-path { flex: none; display: flex; align-items: center; gap: 12px; min-height: 68px; padding: max(12px, var(--safe-top)) 24px 12px; border-bottom: 1px solid var(--border-soft); color: var(--text-muted); }
@@ -89,6 +145,12 @@
 }
 
 :root {
+  --dictionary-pos-bg: #f0eafb; --dictionary-pos-text: #59407b;
+  --dictionary-pattern-bg: #e3f3ea; --dictionary-pattern-text: #275c46;
+  --dictionary-expression-bg: #fff0e6; --dictionary-expression-text: #834625;
+  --dictionary-hit-bg: #fff3be; --dictionary-hit-text: #6c5415;
+  --dictionary-usage-bg: #e7f0fa; --dictionary-usage-text: #355978;
+  --dictionary-selected-bg: #f3f7fe;
   --app-bg: #f8fafc;
   --surface: #ffffff;
   --surface-muted: #f8fafc;
@@ -149,6 +211,12 @@
   --accent-500: #d39a31; --accent-600: #b7791f; --accent-700: #965f12;
 }
 [data-theme='midnight'] {
+  --dictionary-pos-bg: #393047; --dictionary-pos-text: #ddc9f5;
+  --dictionary-pattern-bg: #263e35; --dictionary-pattern-text: #b6dfca;
+  --dictionary-expression-bg: #45342b; --dictionary-expression-text: #f0c8ad;
+  --dictionary-hit-bg: #453e27; --dictionary-hit-text: #f1dc99;
+  --dictionary-usage-bg: #2a394a; --dictionary-usage-text: #c2d8ee;
+  --dictionary-selected-bg: #252e40;
   --app-bg: #151820; --surface: #1d222c; --surface-muted: #252b36;
   --text-strong: #eef1f5; --text-body: #cbd1da; --text-muted: #9ca6b5; --text-faint: #8e99aa;
   --border: #353d4b; --border-soft: #2b323e;

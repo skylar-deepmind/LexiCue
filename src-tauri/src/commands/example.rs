@@ -219,6 +219,8 @@ mod tests {
             end_offset: 9,
             explanation: Some("好奇心".into()),
             explanation_source: "dictionary".into(),
+            dictionary_snapshot: None,
+            dictionary_reference: None,
         };
         let first = state
             .with("main", &id, |c| {

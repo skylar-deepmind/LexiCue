@@ -10,7 +10,7 @@
     "test": "vitest run",
     "preview": "vite preview",
     "tauri": "tauri",
-    "test:ui": "node scripts/ui-smoke.mjs && node scripts/ui-saved-smoke.mjs && node scripts/ui-recall-smoke.mjs && node scripts/ui-onboarding-smoke.mjs",
+    "test:ui": "node scripts/ui-import-smoke.mjs && node scripts/ui-smoke.mjs && node scripts/ui-saved-smoke.mjs && node scripts/ui-recall-smoke.mjs && node scripts/ui-onboarding-smoke.mjs",
     "check:release": "node scripts/check-release.mjs",
     "check:release:tests": "node scripts/check-release-tests.mjs",
     "prepare:gemma": "node scripts/prepare-gemma.mjs",
@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@tauri-apps/api": "^2.11.1",
+    "@tauri-apps/plugin-clipboard-manager": "2.3.0",
     "@tauri-apps/plugin-dialog": "^2.7.2",
     "@tauri-apps/plugin-fs": "^2.5.1",
     "@tauri-apps/plugin-opener": "^2.5.4",

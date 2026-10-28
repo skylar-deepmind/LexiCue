@@ -1,5 +1,50 @@
 import { invoke } from '@tauri-apps/api/core';
 
+/** Portable selected sense; does not depend on an installed dictionary package. */
+export interface DictionarySnapshot {
+  schema_version: 1;
+  headword: string;
+  source: {
+    provider: 'longman' | 'cambridge';
+    dataset: string;
+    edition: string | null;
+    release: string | null;
+    adapter_version: string;
+    entry_key: string;
+    locator: string | null;
+    entry_url?: string | null;
+    retrieved_at?: string | null;
+    access_channel?: 'author_public_api';
+    service_url?: string;
+    received_at?: string;
+  };
+  entry_id: string;
+  group_id: string;
+  sense_id: string;
+  part_of_speech: string | null;
+  meaning: { en: string | null; zh: string | null };
+  labels: { kind: string; text: string }[];
+  examples: { id: string; english: string; chinese: string | null }[];
+  patterns: string[];
+}
+
+/** Source-labelled excerpt; does not assert a meaning for the saved sentence. */
+export interface DictionaryReference {
+  schema_version: 1;
+  kind: 'dictionary_excerpt';
+  headword: string;
+  senses: DictionarySnapshot[];
+}
+export interface SavedGroup {
+  group_id: string;
+  expression: string;
+  context_count: number;
+  latest_saved_at: number | null;
+  preview: SavedRecord;
+}
+export interface SavedGroupPage { groups: SavedGroup[]; total_groups: number; total_records: number }
+export interface SavedContextPage { records: SavedRecord[]; total: number }
+
 export interface SavedRecord {
   record_id: string;
   expression: string;
@@ -18,6 +63,8 @@ export interface SavedRecord {
   } | null;
   explanation: string | null;
   explanation_source: 'dictionary' | 'ai' | 'personal' | 'unknown';
+  dictionary_snapshot?: DictionarySnapshot | null;
+  dictionary_reference?: DictionaryReference | null;
   origin: 'reader' | 'legacy';
   legacy: Record<string, unknown> | null;
   saved_at: number | null;
@@ -36,6 +83,8 @@ export type SavedMutation = {
     end_offset: number;
     explanation: string | null;
     explanation_source: SavedRecord['explanation_source'];
+    dictionary_snapshot?: DictionarySnapshot | null;
+  dictionary_reference?: DictionaryReference | null;
   };
 } | {
   kind: 'edit'; record_id: string; expected_revision: string; explanation: string;

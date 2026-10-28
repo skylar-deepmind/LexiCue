@@ -6,7 +6,7 @@ export function materialPickerOptions(): OpenDialogOptions {
   // display name and SRT contents after selection instead of hiding valid files.
   return /Android/i.test(navigator.userAgent)
     ? { multiple: true }
-    : { multiple: true, filters: [{ name: 'English SRT', extensions: ['srt'] }] };
+    : { multiple: true, filters: [{ name: 'English text / subtitles', extensions: ['srt', 'txt'] }] };
 }
 
 export function selectedMaterialName(path: string): string {

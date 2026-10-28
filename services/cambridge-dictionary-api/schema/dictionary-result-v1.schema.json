@@ -1,0 +1,931 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "LexiCue Dictionary Result V1",
+  "description": "Dictionary-only results. Metadata revision 1.2 retains explicit author_public_api source metadata for known public adapters 1.0.0/1.1.0; current query validators require 1.1.0 and reject unconfirmed mixed flat scope. Legacy rules remain. Structural validation must be followed by dictionary-result-standard-v1.txt.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "query",
+    "status",
+    "default_entry_id",
+    "entries",
+    "notices"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "query": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text",
+        "language",
+        "context"
+      ],
+      "properties": {
+        "text": {
+          "$ref": "#/$defs/text"
+        },
+        "language": {
+          "const": "en"
+        },
+        "context": {
+          "$ref": "#/$defs/nullableText",
+          "description": "Original reading context, kept locally; never a dictionary example."
+        }
+      }
+    },
+    "status": {
+      "enum": [
+        "found",
+        "partial",
+        "not_found",
+        "unavailable"
+      ]
+    },
+    "default_entry_id": {
+      "$ref": "#/$defs/nullableText"
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/entry"
+      }
+    },
+    "notices": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "text",
+          "entry_id"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "text": {
+            "$ref": "#/$defs/text"
+          },
+          "entry_id": {
+            "$ref": "#/$defs/nullableText"
+          }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "found",
+              "partial"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "entries": {
+            "minItems": 1
+          },
+          "default_entry_id": {
+            "$ref": "#/$defs/text"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "entries": {
+            "maxItems": 0
+          },
+          "default_entry_id": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "partial",
+              "unavailable"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "notices": {
+            "minItems": 1
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "nullableText": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/text"
+        }
+      ]
+    },
+    "httpsUrl": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https://[^\\s]+$"
+    },
+    "expressionType": {
+      "enum": [
+        null,
+        "phrasal_verb",
+        "idiom",
+        "collocation",
+        "fixed_expression"
+      ]
+    },
+    "bilingualText": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "en",
+        "zh"
+      ],
+      "properties": {
+        "en": {
+          "$ref": "#/$defs/nullableText"
+        },
+        "zh": {
+          "$ref": "#/$defs/nullableText"
+        }
+      },
+      "anyOf": [
+        {
+          "properties": {
+            "en": {
+              "$ref": "#/$defs/text"
+            }
+          }
+        },
+        {
+          "properties": {
+            "zh": {
+              "$ref": "#/$defs/text"
+            }
+          }
+        }
+      ]
+    },
+    "audio": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "location"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "local_file",
+            "remote_url"
+          ]
+        },
+        "location": {
+          "$ref": "#/$defs/text"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "remote_url"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "location": {
+                "$ref": "#/$defs/httpsUrl"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "nullableAudio": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/audio"
+        }
+      ]
+    },
+    "label": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "text"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "grammar",
+            "register",
+            "region",
+            "level",
+            "frequency"
+          ]
+        },
+        "text": {
+          "$ref": "#/$defs/text"
+        }
+      }
+    },
+    "example": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "english",
+        "chinese",
+        "audio"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/text"
+        },
+        "english": {
+          "$ref": "#/$defs/text"
+        },
+        "chinese": {
+          "$ref": "#/$defs/nullableText"
+        },
+        "audio": {
+          "$ref": "#/$defs/nullableAudio"
+        }
+      }
+    },
+    "note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "content",
+        "examples"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/text"
+        },
+        "kind": {
+          "enum": [
+            "grammar",
+            "usage",
+            "register",
+            "region"
+          ]
+        },
+        "content": {
+          "$ref": "#/$defs/bilingualText"
+        },
+        "examples": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/example"
+          }
+        }
+      }
+    },
+    "pattern": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "text",
+        "explanation",
+        "labels",
+        "examples",
+        "notes"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/text"
+        },
+        "text": {
+          "$ref": "#/$defs/text"
+        },
+        "explanation": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/bilingualText"
+            }
+          ]
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/label"
+          }
+        },
+        "examples": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/example"
+          }
+        },
+        "notes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/note"
+          }
+        }
+      }
+    },
+    "sense": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "meaning",
+        "labels",
+        "patterns",
+        "examples",
+        "notes"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/text"
+        },
+        "meaning": {
+          "$ref": "#/$defs/bilingualText"
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/label"
+          }
+        },
+        "patterns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/pattern"
+          }
+        },
+        "examples": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/example"
+          }
+        },
+        "notes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/note"
+          }
+        }
+      }
+    },
+    "pronunciation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "region",
+        "ipa",
+        "audio",
+        "form_label"
+      ],
+      "properties": {
+        "region": {
+          "enum": [
+            "uk",
+            "us",
+            "unspecified"
+          ]
+        },
+        "ipa": {
+          "$ref": "#/$defs/nullableText"
+        },
+        "audio": {
+          "$ref": "#/$defs/nullableAudio"
+        },
+        "form_label": {
+          "$ref": "#/$defs/nullableText"
+        }
+      },
+      "anyOf": [
+        {
+          "properties": {
+            "ipa": {
+              "$ref": "#/$defs/text"
+            }
+          }
+        },
+        {
+          "properties": {
+            "audio": {
+              "$ref": "#/$defs/audio"
+            }
+          }
+        }
+      ]
+    },
+    "group": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "part_of_speech",
+        "source_part_of_speech",
+        "pronunciations",
+        "forms",
+        "labels",
+        "senses",
+        "notes"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/text"
+        },
+        "part_of_speech": {
+          "enum": [
+            null,
+            "noun",
+            "verb",
+            "adjective",
+            "adverb",
+            "pronoun",
+            "determiner",
+            "preposition",
+            "conjunction",
+            "interjection",
+            "auxiliary",
+            "modal",
+            "numeral",
+            "particle",
+            "prefix",
+            "suffix",
+            "abbreviation",
+            "symbol",
+            "other"
+          ]
+        },
+        "source_part_of_speech": {
+          "$ref": "#/$defs/nullableText"
+        },
+        "pronunciations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/pronunciation"
+          }
+        },
+        "forms": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "text",
+              "label"
+            ],
+            "properties": {
+              "text": {
+                "$ref": "#/$defs/text"
+              },
+              "label": {
+                "$ref": "#/$defs/text"
+              }
+            }
+          }
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/label"
+          }
+        },
+        "senses": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/sense"
+          }
+        },
+        "notes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/note"
+          }
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider",
+        "dataset",
+        "edition",
+        "release",
+        "adapter_version",
+        "delivery",
+        "entry_key",
+        "locator",
+        "entry_url",
+        "retrieved_at"
+      ],
+      "properties": {
+        "provider": {
+          "enum": [
+            "longman",
+            "cambridge"
+          ]
+        },
+        "dataset": {
+          "$ref": "#/$defs/text"
+        },
+        "edition": {
+          "$ref": "#/$defs/nullableText"
+        },
+        "release": {
+          "$ref": "#/$defs/nullableText"
+        },
+        "adapter_version": {
+          "$ref": "#/$defs/text"
+        },
+        "delivery": {
+          "enum": [
+            "local",
+            "online",
+            "cache"
+          ]
+        },
+        "entry_key": {
+          "$ref": "#/$defs/text"
+        },
+        "locator": {
+          "$ref": "#/$defs/nullableText"
+        },
+        "entry_url": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/httpsUrl"
+            }
+          ]
+        },
+        "retrieved_at": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "format": "date-time"
+            }
+          ]
+        },
+        "access_channel": {
+          "const": "author_public_api"
+        },
+        "service_url": {
+          "const": "https://dictionary-api.eliaschen.dev"
+        },
+        "received_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "provider": {
+                "const": "longman"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "release": {
+                "$ref": "#/$defs/text"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "anyOf": [
+              {
+                "required": [
+                  "access_channel"
+                ]
+              },
+              {
+                "required": [
+                  "service_url"
+                ]
+              },
+              {
+                "required": [
+                  "received_at"
+                ]
+              },
+              {
+                "required": [
+                  "adapter_version"
+                ],
+                "properties": {
+                  "adapter_version": {
+                    "enum": [
+                      "cambridge-public-v1.0.0",
+                      "cambridge-public-v1.1.0"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          "then": {
+            "required": [
+              "access_channel",
+              "service_url",
+              "received_at"
+            ],
+            "properties": {
+              "provider": {
+                "const": "cambridge"
+              },
+              "dataset": {
+                "const": "Cambridge Dictionary (author public API)"
+              },
+              "adapter_version": {
+                "enum": [
+                  "cambridge-public-v1.0.0",
+                  "cambridge-public-v1.1.0"
+                ]
+              },
+              "delivery": {
+                "enum": [
+                  "online",
+                  "cache"
+                ]
+              },
+              "edition": {
+                "type": "null"
+              },
+              "release": {
+                "type": "null"
+              },
+              "entry_url": {
+                "type": "null"
+              },
+              "retrieved_at": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "if": {
+              "properties": {
+                "provider": {
+                  "const": "cambridge"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "entry_url": {
+                  "$ref": "#/$defs/httpsUrl"
+                },
+                "retrieved_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "match": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "pattern",
+        "note",
+        "sense_ids"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "exact",
+            "inflection",
+            "spelling_variant",
+            "expression_pattern",
+            "reference"
+          ]
+        },
+        "pattern": {
+          "$ref": "#/$defs/nullableText"
+        },
+        "note": {
+          "$ref": "#/$defs/nullableText"
+        },
+        "sense_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/text"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "expression_pattern"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "pattern": {
+                "$ref": "#/$defs/text"
+              },
+              "sense_ids": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "headword",
+        "kind",
+        "expression_type",
+        "origin",
+        "parent_headword",
+        "source",
+        "match",
+        "groups",
+        "notes",
+        "related_expressions"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/text"
+        },
+        "headword": {
+          "$ref": "#/$defs/text"
+        },
+        "kind": {
+          "enum": [
+            "word",
+            "expression"
+          ]
+        },
+        "expression_type": {
+          "$ref": "#/$defs/expressionType"
+        },
+        "origin": {
+          "enum": [
+            "headword",
+            "subentry",
+            "construction",
+            "note"
+          ]
+        },
+        "parent_headword": {
+          "$ref": "#/$defs/nullableText"
+        },
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "match": {
+          "$ref": "#/$defs/match"
+        },
+        "groups": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/group"
+          }
+        },
+        "notes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/note"
+          }
+        },
+        "related_expressions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "text",
+              "expression_type",
+              "scope_id",
+              "target_query"
+            ],
+            "properties": {
+              "text": {
+                "$ref": "#/$defs/text"
+              },
+              "expression_type": {
+                "$ref": "#/$defs/expressionType"
+              },
+              "scope_id": {
+                "$ref": "#/$defs/text",
+                "description": "Containing entry, group or sense ID."
+              },
+              "target_query": {
+                "$ref": "#/$defs/text"
+              }
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "word"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "expression_type": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "origin": {
+                "enum": [
+                  "subentry",
+                  "construction",
+                  "note"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "parent_headword": {
+                "$ref": "#/$defs/text"
+              },
+              "source": {
+                "properties": {
+                  "locator": {
+                    "$ref": "#/$defs/text"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

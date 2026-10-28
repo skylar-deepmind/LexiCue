@@ -33,6 +33,8 @@
     "createUpdaterArtifacts": true,
     "resources": [
       "resources/ECDICT-LICENSE.txt",
+      "resources/ENGLISH-LICENSE.txt",
+      "resources/TTS-LICENSE.txt",
       "resources/PHRASEDICT-LICENSE.txt",
       "resources/JMDICT-LICENSE.txt",
       "resources/CC-CEDICT-LICENSE.txt",

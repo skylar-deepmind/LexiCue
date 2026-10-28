@@ -1,13 +1,14 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { FileText, LayoutGrid, List, MoreHorizontal, Tags, Trash2 } from 'lucide-react';
+import { ArrowUpRight, FileText, LayoutGrid, List, MoreHorizontal, Tags, Trash2 } from 'lucide-react';
 import { useMaterialStore } from '../stores/materialStore';
 import { useFileStore } from '../stores/fileStore';
 import type { Material } from '../lib/materials';
 import TagFilterBar from '../components/TagFilterBar';
 import TagManager from '../components/TagManager';
 import TagEditDialog from '../components/TagEditDialog';
+import './materials-settings.css';
 export default function FilesPage() {
     const { t } = useTranslation();
     const navigate = useNavigate();
@@ -72,15 +73,18 @@ export default function FilesPage() {
       <div className="material-view-switch" role="group" aria-label={t('materials.view')}><button className="ui-button ui-button--icon" aria-label={t('materials.gallery')} aria-pressed={materials.view === 'gallery'} onClick={() => setView('gallery')}><LayoutGrid size={18} aria-hidden="true"/></button><button className="ui-button ui-button--icon" aria-label={t('materials.list')} aria-pressed={materials.view === 'list'} onClick={() => setView('list')}><List size={20} aria-hidden="true"/></button></div>
     </div></div>
     {tagsOpen && <TagFilterBar onManage={() => setManager(true)}/>}
-    {last !== null && <Link className="material-continue" to={`/files/${last}`}>{t('materials.continueReading')}<span>{materials.files.find(file => file.id === last)?.name}</span></Link>}
+    {last !== null && <Link className="material-continue" to={`/files/${last}`}><small>{t('materials.continueReading')}</small><span title={materials.files.find(file => file.id === last)?.name}>{materials.files.find(file => file.id === last)?.name}</span><ArrowUpRight size={17} aria-hidden="true"/></Link>}
     {materials.loading && <p className="material-status" role="status">{t('common.loading')}</p>}
     {materials.error && <div className="saved-error" role="alert"><p>{t('materials.loadFailed')}</p><button className="ui-button" onClick={() => void materials.load(selected, untagged)}>{t('common.retry')}</button></div>}
     {!materials.loading && !materials.error && !materials.files.length && <div className="material-empty"><FileText size={32} aria-hidden="true"/><p>{t(selected.length || untagged ? 'materials.noMatches' : 'materials.empty')}</p></div>}
     <div className={`material-collection material-collection--${materials.view}`}>{materials.files.map(file => <article className="material-card" key={file.id} data-material={file.id}>
       <button className="material-open" onClick={() => navigate(`/files/${file.id}`)} disabled={!!deleting[file.id]} aria-label={file.name}>
-        <div className="material-preview"><span>ENGLISH · SRT</span><p lang="en">{file.preview}</p></div><h2>{file.name}</h2><small>{t('materials.sentences', { count: file.segment_count })}</small>
+        {materials.view === 'gallery' ? <>
+          <h2 title={file.name}>{file.name}</h2><p className="material-excerpt" lang="en" title={file.preview}>{file.preview}</p>
+          <small className="material-card-meta"><span>{t('materials.sentences', { count: file.segment_count })}</span><span>{file.name.toLowerCase().endsWith('.txt') ? 'TXT' : 'SRT'}</span>{file.tags.map(tag => <span key={tag.id}>{tag.name}</span>)}</small>
+        </> : <><div className="material-preview"><p lang="en">{file.preview}</p></div><h2 title={file.name}>{file.name}</h2><small>{t('materials.sentences', { count: file.segment_count })}</small></>}
       </button>
-      {file.tags.length > 0 && <div className="material-tags">{file.tags.map(tag => <span className="file-tag" key={tag.id}>{tag.name}</span>)}</div>}
+      {materials.view === 'list' && file.tags.length > 0 && <div className="material-tags">{file.tags.map(tag => <span className="file-tag" key={tag.id}>{tag.name}</span>)}</div>}
       <div className="material-row-menu"><button className="ui-button ui-button--icon" aria-label={t('materials.more', { name: file.name })} aria-expanded={menu === file.id} onClick={() => setMenu(menu === file.id ? null : file.id)}><MoreHorizontal size={20} aria-hidden="true"/></button>
         {menu === file.id && <div className="material-actions"><button className="ui-button" onClick={() => { setMenu(null); setEdit(file); }}><Tags size={16} aria-hidden="true"/>{t('tags.edit')}</button><button className="ui-button ui-button--danger" disabled={!!deleting[file.id]} onClick={() => { setMenu(null); void useFileStore.getState().deleteFile(file.id).then(() => materials.changed()); }}><Trash2 size={16} aria-hidden="true"/>{t('materials.delete')}</button></div>}
       </div>

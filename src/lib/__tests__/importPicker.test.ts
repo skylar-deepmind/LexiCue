@@ -1,8 +1,8 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { materialPickerOptions, selectedMaterialName, pickedMaterialSource } from '../importPicker';
 afterEach(()=>vi.unstubAllGlobals());
-it('keeps desktop SRT filtering and permits Android providers with inconsistent MIME metadata',()=>{
-  vi.stubGlobal('navigator',{userAgent:'Macintosh'});expect(materialPickerOptions()).toEqual({multiple:true,filters:[{name:'English SRT',extensions:['srt']}]});
+it('filters desktop text and subtitles and permits Android providers with inconsistent MIME metadata',()=>{
+  vi.stubGlobal('navigator',{userAgent:'Macintosh'});expect(materialPickerOptions()).toEqual({multiple:true,filters:[{name:'English text / subtitles',extensions:['srt','txt']}]});
   vi.stubGlobal('navigator',{userAgent:'Mozilla/5.0 (Linux; Android 16)'});expect(materialPickerOptions()).toEqual({multiple:true});
 });
 it('uses provider display names for opaque Android document IDs without changing the read URI',async()=>{

@@ -86,6 +86,52 @@
 .lookup-heading > div { display:flex; gap:12px; justify-content:space-between; align-items:center; }
 .lookup-heading h2 { font-family:Georgia,'Times New Roman',serif; font-size:1.75rem; font-weight:400; line-height:1.5; color:var(--text-strong); overflow-wrap:anywhere; min-width:0; }
 .lookup-heading button { border:0; flex:none; }
+.longman-result { color:var(--text-body); line-height:1.7; }
+.longman-entry { margin-top:20px; }
+.longman-entry + .longman-entry { padding-top:16px; border-top:1px solid var(--border); }
+.longman-entry-heading { display:flex; flex-wrap:wrap; gap:8px; align-items:baseline; color:var(--text-strong); }
+.longman-entry-heading h3 { font-size:1.125rem; font-weight:600; }
+.longman-tag { display:inline-block; border-radius:4px; padding:2px 6px; font-size:.8125rem; font-weight:500; line-height:1.6; max-width:100%; overflow-wrap:anywhere; }
+.longman-tag--pos { color:var(--dictionary-pos-text); background:var(--dictionary-pos-bg); }
+.longman-tag--pattern { color:var(--dictionary-pattern-text); background:var(--dictionary-pattern-bg); }
+.longman-tag--expression { color:var(--dictionary-expression-text); background:var(--dictionary-expression-bg); }
+.longman-tag--usage { color:var(--dictionary-usage-text); background:var(--dictionary-usage-bg); }
+.longman-match { color:var(--dictionary-hit-text); background:var(--dictionary-hit-bg); border-radius:3px; padding-inline:3px; }
+.longman-match-pattern { margin-top:8px; }
+.longman-group { margin-top:16px; min-width:0; }
+.longman-labels { display:flex; flex-wrap:wrap; align-items:center; gap:4px 6px; }
+.longman-pronunciations { display:flex; flex-wrap:wrap; gap:4px 12px; margin-top:6px; color:var(--text-body); font-size:.875rem; }
+.longman-pronunciations > div { display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+.longman-ipa { font-family:Arial,sans-serif; }
+.longman-pronunciations small { color:var(--text-muted); }
+.longman-sense { border:1px solid transparent; border-radius:8px; margin-top:8px; padding:4px 8px 12px; }
+.longman-sense[data-selected='true'] { background:var(--dictionary-selected-bg); border-color:var(--accent-600); }
+.longman-choice { display:flex; gap:10px; align-items:baseline; min-height:44px; padding-block:6px; cursor:pointer; }
+.longman-choice input { accent-color:var(--accent-600); width:17px; height:17px; flex:none; }
+.longman-choice > span { min-width:0; }
+.longman-sense-number { color:var(--text-muted); font-size:.875rem; }
+.longman-meaning { font-size:1.125rem; color:var(--text-strong); }
+.longman-choice .longman-tag { margin-left:6px; }
+.longman-sense-content { padding-left:27px; }
+.longman-sense:has(.longman-choice:hover) { border-color:var(--accent-600); }
+.longman-sense:has(input:focus-visible) { outline:2px solid var(--accent-600); outline-offset:2px; }
+.longman-sense-content p { white-space:pre-wrap; }
+.longman-example { margin-top:8px; padding-left:10px; border-left:2px solid var(--border); font-size:.9375rem; }
+.longman-example p + p { color:var(--text-muted); margin-top:2px; }
+.longman-more,.longman-english { font-size:.875rem; margin-top:4px; }
+.longman-result summary,.longman-saved-snapshot summary { min-height:44px; padding-block:10px; cursor:pointer; color:var(--text-body); }
+.longman-result summary:hover,.longman-saved-snapshot summary:hover { color:var(--accent-700); }
+.longman-result summary:focus-visible,.longman-saved-snapshot summary:focus-visible { outline:2px solid var(--accent-600); outline-offset:2px; border-radius:3px; }
+.longman-patterns section,.longman-notes section { margin-top:10px; }
+.longman-notice { margin-top:10px; padding:8px 10px; border-radius:6px; background:var(--dictionary-usage-bg); color:var(--dictionary-usage-text); font-size:.875rem; }
+.longman-selection-hint { color:var(--text-muted); font-size:.8125rem; margin-top:8px; }
+.longman-saved-snapshot { padding:12px; margin-bottom:16px; border:1px solid var(--border); border-radius:8px; background:var(--surface-muted); }
+.longman-saved-snapshot small { color:var(--text-muted); font-size:.8125rem; }
+.longman-saved-snapshot h3 { color:var(--text-strong); margin-top:4px; }
+.lookup-body[data-definition-font='sm'] .longman-meaning { font-size:1rem; }
+.lookup-body[data-definition-font='lg'] .longman-meaning { font-size:1.35rem; }
+.lookup-body[data-aux-font='lg'] :is(.longman-tag,.longman-example,.longman-more,.longman-english,.longman-selection-hint) { font-size:1rem; }
+.lookup-body[data-aux-font='sm'] :is(.longman-example,.longman-more,.longman-english) { font-size:.8125rem; }
 .lookup-body,.import-body { flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; padding:24px; overflow-wrap:anywhere; }
 .lookup-meaning { font-size:1.4rem; line-height:1.7; color:var(--text-strong); white-space:pre-wrap; }
 .lookup-provider,.lookup-note { color:var(--text-muted); font-size:.8125rem; line-height:1.7; display:block; margin-top:10px; }
@@ -231,3 +277,98 @@
  .lookup-body { padding:12px 16px; }
  .lookup-footer { padding:8px 16px; }
 }
+
+.dictionary-controls { display:flex; flex-wrap:wrap; gap:8px; margin-block:8px 12px; }
+.dictionary-controls .ui-button { min-height:44px; color:var(--text-body); background:var(--surface); border:1px solid var(--border); }
+.dictionary-controls .ui-button:hover:not(:disabled) { background:var(--interactive-hover); color:var(--text-strong); }
+.dictionary-controls .ui-button:active:not(:disabled) { background:var(--interactive-pressed); }
+.dictionary-controls .ui-button:disabled { color:var(--text-muted); background:var(--interactive-disabled); }
+.dictionary-controls .ui-button:focus-visible,.dictionary-source a:focus-visible { outline:2px solid var(--accent-600); outline-offset:3px; }
+.dictionary-source { margin-bottom:10px; }
+.dictionary-source small { display:block; overflow-wrap:anywhere; }
+.dictionary-source a { display:inline-flex; align-items:center; min-height:44px; color:var(--accent-700); text-decoration:underline; text-underline-offset:3px; }
+.dictionary-source a:hover { color:var(--text-strong); }
+
+/* The global entries stay anchored while page tools appear in the same column. */
+.b-dock { top: calc(50% - 128px); transform: none; }
+.b-dock-control[aria-current='page'], .b-dock-control[aria-pressed='true'] { color: var(--accent-700); background: transparent; }
+.b-dock-control[aria-current='page']:hover, .b-dock-control[aria-pressed='true']:hover { background: var(--interactive-hover); }
+.b-dock-control:focus-visible { outline: 2px solid var(--accent-600); outline-offset: 3px; }
+.b-dock-control:disabled { color: var(--text-muted); background: transparent; opacity: 1; cursor: default; }
+.dock-reading-tools { display: flex; flex-direction: column; align-items: center; gap: 6px; animation: reading-tools-enter 220ms ease-out; }
+.dock-reading-tools[hidden] { display: none; }
+.dock-reading-tools[data-visible='false']:not([hidden]) { animation: reading-tools-leave 140ms ease-in forwards; pointer-events: none; }
+.mobile-reading-tools { display: none; }
+@keyframes reading-tools-enter { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes reading-tools-leave { to { opacity: 0; transform: translateY(-3px); } }
+.sentence-side { padding-top: 1px; }
+.sentence-number-static, .sentence-side .sentence-listen { position: relative; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; min-height: 44px; margin: 0; flex: none; border-radius: 8px; }
+.sentence-side .sentence-listen { cursor: pointer; }
+.sentence-number, .sentence-play { position: absolute; }
+.sentence-play { opacity: 0; }
+.reading-sentence:hover .sentence-listen .sentence-number, .sentence-listen:focus-visible .sentence-number { opacity: 0; }
+.reading-sentence:hover .sentence-play, .sentence-listen:focus-visible .sentence-play { opacity: 1; }
+.sentence-listen:hover, .sentence-listen:focus-visible { background: var(--interactive-hover); color: var(--accent-700); }
+.sentence-listen:focus-visible { outline: 2px solid var(--accent-600); outline-offset: 2px; }
+.reading-page[data-listening='true'] .reading-sentence { cursor: pointer; }
+.reading-sentence[data-current='true'] :is(.reading-original,.sentence-listen) { color: var(--accent-700); }
+.reading-sentence[data-speech-state='error'] .sentence-listen { color: var(--sync-error-text); }
+.reading-page[data-listening='true'] .reading-original { user-select: none; }
+@media (hover: none) { .sentence-listen .sentence-number { opacity: 0; } .sentence-listen .sentence-play { opacity: 1; } }
+@media (max-height: 610px) and (min-width: 768px) { .b-dock { top: 80px; max-height: calc(100dvh - 92px); overflow-y: auto; scrollbar-width: thin; } .b-dock .b-dock-control { min-height: 44px; height: 44px; } .b-dock nav, .dock-reading-tools { gap: 2px; } }
+@media (max-width: 767px) {
+  .mobile-reading-tools { display: block; flex: none; background: var(--surface); }
+  .mobile-reading-tools .dock-reading-tools { flex-direction: row; justify-content: flex-end; border-top: 1px solid var(--border-soft); padding: 3px 12px; }
+  .mobile-reading-tools .b-dock-divider { display: none; }
+  .mobile-reading-tools .b-dock-control { min-width: 48px; min-height: 44px; padding: 6px; }
+  .sentence-number-static, .sentence-side .sentence-listen { width: 36px; }
+}
+@media (prefers-reduced-motion: reduce) { .dock-reading-tools, .dock-reading-tools[data-visible='false']:not([hidden]) { animation: none; } }
+
+/* Continuous scale composes with the user's existing sm/md/lg base sizes. */
+.reading-paper { --reading-font-base: 1.5rem; --translation-font-base: .9375rem; --number-font-base: .75rem; }
+.reading-paper[data-font='sm'] { --reading-font-base: 1.25rem; }
+.reading-paper[data-font='lg'] { --reading-font-base: 1.75rem; }
+.reading-paper[data-definition-font='sm'] { --translation-font-base: .8125rem; }
+.reading-paper[data-definition-font='lg'] { --translation-font-base: 1.125rem; }
+.reading-paper[data-aux-font='sm'] { --number-font-base: .6875rem; }
+.reading-paper[data-aux-font='lg'] { --number-font-base: .9375rem; }
+.reading-paper[data-font] .reading-original { font-size: calc(var(--reading-font-base) * var(--learning-font-scale, 1)); }
+.reading-paper[data-definition-font] .reading-translation { font-size: calc(var(--translation-font-base) * var(--auxiliary-font-scale, 1)); }
+.reading-paper[data-aux-font] .sentence-side small { font-size: calc(var(--number-font-base) * var(--auxiliary-font-scale, 1)); }
+.lookup-body { --meaning-font-base: 1.4rem; --longman-font-base: 1.125rem; --recall-font-base: 1.125rem; --aux-font-base: .8125rem; --example-font-base: .9375rem; --more-font-base: .875rem; }
+.lookup-body[data-definition-font='sm'] { --meaning-font-base: 1.2rem; --longman-font-base: 1rem; }
+.lookup-body[data-definition-font='lg'] { --meaning-font-base: 1.6rem; --longman-font-base: 1.35rem; --recall-font-base: 1.3rem; }
+.lookup-body[data-aux-font='sm'] { --aux-font-base: .75rem; --example-font-base: .8125rem; --more-font-base: .8125rem; }
+.lookup-body[data-aux-font='lg'] { --aux-font-base: 1rem; --example-font-base: 1rem; --more-font-base: 1rem; }
+.lookup-body[data-definition-font] .lookup-meaning { font-size: calc(var(--meaning-font-base) * var(--definition-font-scale, 1)); }
+.lookup-body[data-definition-font] .longman-meaning { font-size: calc(var(--longman-font-base) * var(--definition-font-scale, 1)); }
+.lookup-body[data-definition-font] .recall-meaning { font-size: calc(var(--recall-font-base) * var(--definition-font-scale, 1)); }
+.lookup-body[data-aux-font] :is(.lookup-provider,.lookup-context small,.longman-selection-hint,.recall-note,.recall-context small) { font-size: calc(var(--aux-font-base) * var(--auxiliary-font-scale, 1)); }
+.lookup-body[data-aux-font] .longman-example { font-size: calc(var(--example-font-base) * var(--auxiliary-font-scale, 1)); }
+.lookup-body[data-aux-font] :is(.longman-more,.longman-english) { font-size: calc(var(--more-font-base) * var(--auxiliary-font-scale, 1)); }
+.lookup-body[data-aux-font] .longman-tag { font-size: calc(var(--aux-font-base) * var(--auxiliary-font-scale, 1)); }
+.lookup-body .lookup-context p[lang='en'] { font-size: calc(1.2rem * var(--learning-font-scale, 1)); }
+@media (max-width: 767px) { .reading-paper:not([data-font='sm']):not([data-font='lg']) { --reading-font-base: 1.375rem; } }
+
+/* Only the secondary actions listed in the approved plan lose their box. */
+:is(.dictionary-controls,.lookup-context) .ui-button, .lookup-context .speech-button.ui-button, .lookup-edit.ui-button,
+.saved-context-actions > .ui-button:not(.saved-primary):not(.saved-remove), .saved-undo .ui-button {
+  border-color: transparent; background: transparent; color: var(--text-body); box-shadow: none;
+}
+:is(.dictionary-controls,.lookup-context) .ui-button:hover:not(:disabled), .lookup-edit.ui-button:hover:not(:disabled),
+.saved-context-actions > .ui-button:not(.saved-primary):not(.saved-remove):hover:not(:disabled), .saved-undo .ui-button:hover:not(:disabled) { background: var(--interactive-hover); color: var(--accent-700); }
+:is(.dictionary-controls,.lookup-context) .ui-button:active:not(:disabled), .lookup-edit.ui-button:active:not(:disabled),
+.saved-context-actions > .ui-button:not(.saved-primary):not(.saved-remove):active:not(:disabled), .saved-undo .ui-button:active:not(:disabled) { background: var(--interactive-pressed); }
+:is(.dictionary-controls,.lookup-context) .ui-button:disabled, .lookup-edit.ui-button:disabled,
+.saved-context-actions > .ui-button:not(.saved-primary):not(.saved-remove):disabled, .saved-undo .ui-button:disabled { color: var(--text-muted); background: transparent; opacity: 1; }
+
+.b-mobile-nav .b-dock-control[aria-current="page"] > span { color: var(--text-muted); }
+
+.reading-word-passive { display: inline-block; font: inherit; color: inherit; padding: 2px; margin: 0 -2px; vertical-align: baseline; text-align: inherit; }
+
+.lookup-context .speech-button.ui-button:hover:not(:disabled) { background: var(--interactive-hover); color: var(--accent-700); }
+.lookup-context .speech-button.ui-button:active:not(:disabled) { background: var(--interactive-pressed); }
+.lookup-context .speech-button.ui-button:disabled { background: transparent; color: var(--text-muted); opacity: 1; }
+
+@media (max-width: 767px), (pointer: coarse) { .reading-word-passive { min-width: 48px; min-height: 48px; } }

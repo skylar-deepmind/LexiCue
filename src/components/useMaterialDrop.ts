@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { readTextFile } from '@tauri-apps/plugin-fs';
-import { importFileName } from '../lib/materials';
+import { pickedMaterialSource } from '../lib/importPicker';
 import { useImportStore } from '../stores/importStore';
 export default function useMaterialDrop() {
     useEffect(() => {
@@ -21,7 +21,7 @@ export default function useMaterialDrop() {
                 if (payload.type === 'enter')
                     useImportStore.getState().show();
                 if (payload.type === 'drop')
-                    void useImportStore.getState().start(payload.paths.map(path => ({ name: importFileName(path), read: () => readTextFile(path) })));
+                    void useImportStore.getState().start(payload.paths.map(path => pickedMaterialSource(path, readTextFile)));
             }).then(unlisten => { if (disposed)
                 unlisten();
             else

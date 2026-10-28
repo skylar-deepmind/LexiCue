@@ -1,7 +1,7 @@
 import { ExpressionTags } from './ExpressionTags';
 import Overlay from './Overlay';
 import { dictionaryLanguageState, useDictionaryStore } from '../stores/dictionaryStore';
-import { X, BookOpen, RefreshCw, EyeOff, Eye, Pencil, Plus, Trash2, Volume2 } from 'lucide-react';
+import { X, BookOpen, RefreshCw, EyeOff, Eye, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
@@ -12,7 +12,7 @@ import Pagination from './Pagination';
 import DisplaySettingsMenu from './DisplaySettingsMenu';
 import { usePreferencesStore } from '../stores/preferencesStore';
 import { CONTENT_FONT_CLASS } from '../lib/contentTypography';
-import { speakText } from '../lib/tts';
+import SpeechButton, { SpeechFeedback } from './SpeechButton';
 
 const OCCURRENCE_PAGE_SIZE = 5;
 
@@ -248,22 +248,14 @@ export default function PhraseDetailPanel({ detail, onClose, onStatusChange, onD
       <div className="flex items-center justify-between p-4 border-b border-gray-100">
         <h2 className={`min-w-0 break-words font-semibold text-gray-900 ${CONTENT_FONT_CLASS.learning[learningTextFontSize]}`}>{detail.phrase.text}</h2>
         <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => speakText(detail.phrase.text, detail.phrase.language)}
-            disabled={typeof window === 'undefined' || !('speechSynthesis' in window)}
-            aria-label={t('phraseDetail.playAria', { phrase: detail.phrase.text })}
-            title={t('wordDetail.systemVoiceTitle')}
-            className="phrase-audio-action flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
-          >
-            <Volume2 size={18} aria-hidden="true" />
-          </button>
+          <SpeechButton text={detail.phrase.text} speechKey={`phrase-detail:${detail.phrase.id}`} kind="phrase" language={detail.phrase.language} label={t('phraseDetail.playAria', { phrase: detail.phrase.text })}/>
           <DisplaySettingsMenu />
           <button onClick={() => void requestClose()} aria-label={t('common.close')} className="text-gray-400 hover:text-gray-600 p-1"><X size={20} /></button>
         </div>
       </div>
 
       <div className="detail-panel__body p-4 space-y-4">
+        <SpeechFeedback speechKeys={[`phrase-detail:${detail.phrase.id}`]}/>
         {definitionError && <p role="alert" className="annotation-error">{t('shell.saveFailed')}</p>}
         {explanationError && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{t('phraseDetail.saveFailed')}</p>}
         <div className="flex items-center gap-2 flex-wrap">

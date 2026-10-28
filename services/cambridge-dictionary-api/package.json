@@ -1,0 +1,22 @@
+{
+  "name": "lexicue-cambridge-dictionary-api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "V1 source-scoped repair of Nongfsq/cambridge-dictionary-api",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test test/*.test.js",
+    "capture": "node scripts/capture.js"
+  },
+  "dependencies": {
+    "ajv": "8.17.1",
+    "ajv-formats": "3.0.1",
+    "cheerio": "1.0.0",
+    "undici": "6.21.3"
+  }
+}

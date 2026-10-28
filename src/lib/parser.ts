@@ -115,7 +115,7 @@ function parseSrtBlocks(content: string, _mode: SubtitleMode, language: Language
     .replace(/\r\n/g, '\n')
     .replace(/\r/g, '\n');
 
-  const blocks = normalized.split(/\n\n+/);
+  const blocks = normalized.split(/\n\s*\n/);
 
   interface Cue {
     startTime: string | null;
@@ -252,7 +252,9 @@ function parseTxtBlocks(content: string, language: Language): ParsedResult {
     // Preserve the existing single-language TXT behavior, including paragraphs
     // whose selected language cannot be detected from their characters.
     if (sourceLines.length === 0 || translationLines.length === 0) {
-      addSegment(plainText, null);
+      if (language === 'en') {
+        for (const sentence of splitIntoSentences(plainText, language)) addSegment(sentence, null);
+      } else addSegment(plainText, null);
       continue;
     }
 

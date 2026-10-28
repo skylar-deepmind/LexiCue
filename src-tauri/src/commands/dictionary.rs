@@ -56,7 +56,6 @@ struct ApiEntry {
 #[derive(Deserialize)]
 struct ApiPhonetic {
     text: Option<String>,
-    audio: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -84,7 +83,6 @@ struct PackEntry {
     provider: Option<String>,
     phonetic: Option<String>,
     definitions: Vec<DictionaryDefinition>,
-    audio_base64: Option<String>,
 }
 
 fn now_ms() -> i64 {
@@ -331,8 +329,8 @@ fn stored_entry(
             language: language.to_string(),
             provider: row.get(1)?,
             phonetic: row.get(2)?,
-            audio_url: row.get(3)?,
-            local_audio_path: row.get(4)?,
+            audio_url: None,
+            local_audio_path: None,
             definitions,
             fetched_at: row.get(6)?,
         })
@@ -1270,19 +1268,6 @@ fn urlencoding(s: &str) -> String {
     result
 }
 
-fn google_tts_audio_url(text: &str, language: &str) -> String {
-    let tl = match language {
-        "ja" => "ja",
-        "zh" => "zh-CN",
-        _ => "de",
-    };
-    format!(
-        "https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl={}&q={}",
-        tl,
-        urlencoding(text)
-    )
-}
-
 #[tauri::command]
 pub async fn lookup_dictionary(
     state: State<'_, DbState>,
@@ -1419,16 +1404,6 @@ pub async fn lookup_dictionary(
                 .find_map(|item| item.text.clone())
         })
     });
-    let audio_url = api_entries.iter().find_map(|entry| {
-        entry.phonetics.as_ref().and_then(|items| {
-            items.iter().find_map(|item| {
-                item.audio
-                    .as_ref()
-                    .filter(|audio| !audio.is_empty())
-                    .cloned()
-            })
-        })
-    });
     if api_entries.is_empty() {
         return local_fallback.ok_or_else(|| "empty dictionary response".to_string());
     }
@@ -1457,7 +1432,7 @@ pub async fn lookup_dictionary(
         language: language.clone(),
         provider: "dictionaryapi.dev".to_string(),
         phonetic,
-        audio_url,
+        audio_url: None,
         local_audio_path: None,
         definitions,
         fetched_at: now_ms(),
@@ -1488,7 +1463,7 @@ pub async fn lookup_dictionary(
 
 async fn lookup_japanese(
     state: State<'_, DbState>,
-    app: AppHandle,
+    _app: AppHandle,
     normalized: String,
     refresh: bool,
 ) -> Result<DictionaryEntry, String> {
@@ -1517,7 +1492,7 @@ async fn lookup_japanese(
                 language: "ja".to_string(),
                 provider: "JMdict".to_string(),
                 phonetic: reading.clone(),
-                audio_url: Some(google_tts_audio_url(&normalized, "ja")),
+                audio_url: None,
                 local_audio_path: None,
                 definitions: vec![DictionaryDefinition {
                     part_of_speech: part_of_speech.clone().unwrap_or_default(),
@@ -1535,13 +1510,6 @@ async fn lookup_japanese(
             jisho_entry.phonetic = jisho_entry
                 .phonetic
                 .or_else(|| builtin.as_ref().and_then(|b| b.0.clone()));
-            jisho_entry.audio_url = Some(google_tts_audio_url(&normalized, "ja"));
-            if let Some(audio_url) = jisho_entry.audio_url.clone() {
-                if let Ok(path) = download_audio(&app, &normalized, "ja", &audio_url).await {
-                    jisho_entry.local_audio_path = Some(path);
-                }
-            }
-
             let definitions_json =
                 serde_json::to_string(&jisho_entry.definitions).map_err(|e| e.to_string())?;
             let conn = state.conn.lock().map_err(|e| e.to_string())?;
@@ -1573,7 +1541,7 @@ async fn lookup_japanese(
 
 async fn lookup_german(
     state: State<'_, DbState>,
-    app: AppHandle,
+    _app: AppHandle,
     normalized: String,
     refresh: bool,
 ) -> Result<DictionaryEntry, String> {
@@ -1592,7 +1560,7 @@ async fn lookup_german(
         }
     }
 
-    let mut entry = builtin
+    let entry = builtin
         .map(|(phonetic, translation, part_of_speech)| DictionaryEntry {
             lemma: key.clone(),
             requested_form: normalized.clone(),
@@ -1601,7 +1569,7 @@ async fn lookup_german(
             language: "de".to_string(),
             provider: "GermanDict".to_string(),
             phonetic,
-            audio_url: Some(google_tts_audio_url(&key, "de")),
+            audio_url: None,
             local_audio_path: None,
             definitions: vec![DictionaryDefinition {
                 part_of_speech: part_of_speech.unwrap_or_default(),
@@ -1612,12 +1580,6 @@ async fn lookup_german(
             fetched_at: now_ms(),
         })
         .ok_or_else(|| format!("word not found: {}", normalized))?;
-
-    if let Some(audio_url) = entry.audio_url.clone() {
-        if let Ok(path) = download_audio(&app, &key, "de", &audio_url).await {
-            entry.local_audio_path = Some(path);
-        }
-    }
 
     let definitions_json = serde_json::to_string(&entry.definitions).map_err(|e| e.to_string())?;
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
@@ -1642,7 +1604,7 @@ async fn lookup_german(
 
 async fn lookup_chinese(
     state: State<'_, DbState>,
-    app: AppHandle,
+    _app: AppHandle,
     normalized: String,
     refresh: bool,
 ) -> Result<DictionaryEntry, String> {
@@ -1660,7 +1622,7 @@ async fn lookup_chinese(
         }
     }
 
-    let mut entry = builtin
+    let entry = builtin
         .map(|(reading, translation, part_of_speech)| DictionaryEntry {
             lemma: normalized.clone(),
             requested_form: normalized.clone(),
@@ -1669,7 +1631,7 @@ async fn lookup_chinese(
             language: "zh".to_string(),
             provider: "CC-CEDICT".to_string(),
             phonetic: reading,
-            audio_url: Some(google_tts_audio_url(&normalized, "zh")),
+            audio_url: None,
             local_audio_path: None,
             definitions: vec![DictionaryDefinition {
                 part_of_speech: part_of_speech.unwrap_or_default(),
@@ -1680,12 +1642,6 @@ async fn lookup_chinese(
             fetched_at: now_ms(),
         })
         .ok_or_else(|| format!("word not found: {}", normalized))?;
-
-    if let Some(audio_url) = entry.audio_url.clone() {
-        if let Ok(path) = download_audio(&app, &normalized, "zh", &audio_url).await {
-            entry.local_audio_path = Some(path);
-        }
-    }
 
     let definitions_json = serde_json::to_string(&entry.definitions).map_err(|e| e.to_string())?;
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
@@ -1709,11 +1665,7 @@ async fn lookup_chinese(
 }
 
 #[tauri::command]
-pub fn import_dictionary_pack(
-    state: State<DbState>,
-    app: AppHandle,
-    pack_json: String,
-) -> Result<usize, String> {
+pub fn import_dictionary_pack(state: State<DbState>, pack_json: String) -> Result<usize, String> {
     let pack: DictionaryPack =
         serde_json::from_str(&pack_json).map_err(|e| format!("invalid dictionary pack: {}", e))?;
     let provider = pack
@@ -1737,13 +1689,6 @@ pub fn import_dictionary_pack(
         .manifest
         .get("license")
         .and_then(|value| value.as_str());
-    let audio_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| e.to_string())?
-        .join("dictionary-audio")
-        .join(&language);
-    std::fs::create_dir_all(&audio_dir).map_err(|e| e.to_string())?;
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
     conn.execute(
         "INSERT OR REPLACE INTO dictionary_sources (language, provider, version, source_url, license, imported_at)
@@ -1760,17 +1705,6 @@ pub fn import_dictionary_pack(
         }
         let definitions_json =
             serde_json::to_string(&item.definitions).map_err(|e| e.to_string())?;
-        let local_audio_path = if let Some(encoded) =
-            item.audio_base64.filter(|value| !value.is_empty())
-        {
-            let bytes = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, encoded)
-                .map_err(|e| format!("invalid audio for {}: {}", lemma, e))?;
-            let path = audio_dir.join(audio_cache_filename(&lemma));
-            std::fs::write(&path, bytes).map_err(|e| e.to_string())?;
-            Some(path.to_string_lossy().to_string())
-        } else {
-            None
-        };
         conn.execute(
             "INSERT OR REPLACE INTO dictionary_entries
              (language, lemma, provider, phonetic, audio_url, local_audio_path, definitions_json, fetched_at)
@@ -1781,7 +1715,7 @@ pub fn import_dictionary_pack(
                 lemma,
                 item.provider.unwrap_or_else(|| provider.clone()),
                 item.phonetic,
-                local_audio_path,
+                Option::<String>::None,
                 definitions_json,
                 now_ms(),
             ],
@@ -1792,117 +1726,15 @@ pub fn import_dictionary_pack(
     Ok(imported)
 }
 
-fn audio_cache_filename(lemma: &str) -> String {
-    let slug: String = lemma
-        .chars()
-        .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
-        .collect();
-    let mut hash: u64 = 0xcbf29ce484222325;
-    for byte in lemma.as_bytes() {
-        hash ^= *byte as u64;
-        hash = hash.wrapping_mul(0x100000001b3);
-    }
-    format!("{}-{:x}.mp3", slug, hash)
-}
-
-async fn download_audio(
-    app: &AppHandle,
-    lemma: &str,
-    language: &str,
-    audio_url: &str,
-) -> Result<String, String> {
-    let directory = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| e.to_string())?
-        .join("dictionary-audio")
-        .join(language);
-    std::fs::create_dir_all(&directory).map_err(|e| e.to_string())?;
-    let path = directory.join(audio_cache_filename(lemma));
-    if !path.exists() {
-        let bytes = Client::new()
-            .get(audio_url)
-            .timeout(std::time::Duration::from_secs(10))
-            .send()
-            .await
-            .map_err(|e| e.to_string())?
-            .bytes()
-            .await
-            .map_err(|e| e.to_string())?;
-        std::fs::write(&path, bytes).map_err(|e| e.to_string())?;
-    }
-    Ok(path.to_string_lossy().to_string())
-}
-
-#[tauri::command]
-pub async fn cache_dictionary_audio(
-    state: State<'_, DbState>,
-    app: AppHandle,
-    lemma: String,
-    language: Option<String>,
-) -> Result<DictionaryEntry, String> {
-    let normalized = lemma.trim().to_lowercase();
-    let language = language.unwrap_or_else(|| "en".to_string());
-    let (audio_url, mut entry) = {
-        let conn = state.conn.lock().map_err(|e| e.to_string())?;
-        let entry = if language == "en" {
-            stored_entry(&conn, &normalized, &language, "online_dictionary_entries")?
-                .or(cached_entry(&conn, &normalized, &language)?)
-        } else {
-            cached_entry(&conn, &normalized, &language)?
-        }
-        .ok_or("dictionary entry not cached")?;
-        (entry.audio_url.clone(), entry)
-    };
-    let url = audio_url.unwrap_or_else(|| google_tts_audio_url(&normalized, &language));
-    let path = download_audio(&app, &normalized, &language, &url).await?;
-    let conn = state.conn.lock().map_err(|e| e.to_string())?;
-    let table = if language == "en" && entry.provider.starts_with("dictionaryapi.dev") {
-        "online_dictionary_entries"
-    } else {
-        "dictionary_entries"
-    };
-    conn.execute(
-        &format!("UPDATE {table} SET local_audio_path = ?1 WHERE language = ?2 AND lemma = ?3"),
-        rusqlite::params![path, language, normalized],
-    )
-    .map_err(|e| e.to_string())?;
-    entry.local_audio_path = Some(path);
-    Ok(entry)
-}
-
-#[tauri::command]
-pub fn read_dictionary_audio(
-    state: State<DbState>,
-    lemma: String,
-    language: Option<String>,
-) -> Result<Vec<u8>, String> {
-    let normalized = lemma.trim().to_lowercase();
-    let language = language.unwrap_or_else(|| "en".to_string());
-    let conn = state.conn.lock().map_err(|e| e.to_string())?;
-    let entry = if language == "en" {
-        stored_entry(&conn, &normalized, &language, "online_dictionary_entries")?
-            .filter(|entry| entry.local_audio_path.is_some())
-            .or(cached_entry(&conn, &normalized, &language)?)
-    } else {
-        cached_entry(&conn, &normalized, &language)?
-    }
-    .ok_or("dictionary entry not cached")?;
-    let path = entry
-        .local_audio_path
-        .ok_or("audio is not cached locally")?;
-    std::fs::read(path).map_err(|e| e.to_string())
-}
-
 #[cfg(test)]
 mod tests {
     use super::lookup_offline_entry;
     use super::{
-        audio_cache_filename, initialize_builtin_chinese_dictionary,
-        initialize_builtin_chinese_phrase_dictionary, initialize_builtin_dictionary,
-        initialize_builtin_german_dictionary, initialize_builtin_japanese_dictionary,
-        initialize_builtin_japanese_phrase_dictionary, initialize_builtin_phrase_dictionary,
-        list_dictionary_sources_for_conn, resolve_collins_word,
+        initialize_builtin_chinese_dictionary, initialize_builtin_chinese_phrase_dictionary,
+        initialize_builtin_dictionary, initialize_builtin_german_dictionary,
+        initialize_builtin_japanese_dictionary, initialize_builtin_japanese_phrase_dictionary,
+        initialize_builtin_phrase_dictionary, list_dictionary_sources_for_conn,
+        resolve_collins_word,
     };
     use rusqlite::Connection;
 
@@ -2097,9 +1929,11 @@ mod tests {
         }
         initialize_builtin_phrase_dictionary(&conn).unwrap();
         let repeated_count: i64 = conn
-            .query_row("SELECT COUNT(*) FROM builtin_phrase_dictionary", [], |row| {
-                row.get(0)
-            })
+            .query_row(
+                "SELECT COUNT(*) FROM builtin_phrase_dictionary",
+                [],
+                |row| row.get(0),
+            )
             .unwrap();
         assert_eq!(repeated_count, count);
     }
@@ -2240,20 +2074,6 @@ mod tests {
             )
             .unwrap();
         assert!(count > 100_000);
-    }
-
-    #[test]
-    fn audio_cache_filenames_are_collision_free() {
-        assert_ne!(
-            audio_cache_filename("食べる"),
-            audio_cache_filename("走った")
-        );
-        assert_ne!(
-            audio_cache_filename("Häuser"),
-            audio_cache_filename("Hauser")
-        );
-        assert_eq!(audio_cache_filename("Haus"), audio_cache_filename("Haus"));
-        assert!(audio_cache_filename("das").ends_with(".mp3"));
     }
 
     #[test]

@@ -8,7 +8,7 @@ describe('dictionary initialization recovery', () => {
   it('subscribes first, ignores stale snapshots and stops polling at completion', async () => {
     vi.resetModules(); vi.useFakeTimers();
     vi.stubGlobal('document', { visibilityState: 'visible', addEventListener: vi.fn() });
-    vi.stubGlobal('window', { addEventListener: vi.fn() });
+    vi.stubGlobal('window', { addEventListener: vi.fn(), dispatchEvent: vi.fn() });
     let notify!: (event: { payload: unknown }) => void;
     mocks.listen.mockImplementation(async (_, callback) => { notify = callback; });
     mocks.invoke.mockImplementation(async () => { notify({ payload: snapshot(10, 'ready') }); return snapshot(9); });
@@ -26,7 +26,7 @@ describe('dictionary initialization recovery', () => {
     vi.resetModules(); vi.useFakeTimers(); mocks.listen.mockReset(); mocks.invoke.mockReset();
     let foreground!: () => void;
     vi.stubGlobal('document', { visibilityState: 'visible', addEventListener: (_: string, callback: () => void) => { foreground = callback; } });
-    vi.stubGlobal('window', { addEventListener: vi.fn() });
+    vi.stubGlobal('window', { addEventListener: vi.fn(), dispatchEvent: vi.fn() });
     mocks.listen.mockRejectedValueOnce(new Error('subscription unavailable')).mockResolvedValue(() => {});
     mocks.invoke.mockResolvedValue(snapshot(2));
     const { useDictionaryStore } = await import('../dictionaryStore');
@@ -41,5 +41,18 @@ describe('dictionary initialization recovery', () => {
     const count = mocks.invoke.mock.calls.length;
     await vi.advanceTimersByTimeAsync(6000);
     expect(mocks.invoke).toHaveBeenCalledTimes(count);
+  });
+  it('invalidates derived reading relations only for accepted source transitions', async () => {
+    vi.resetModules(); vi.useFakeTimers();
+    const dispatchEvent = vi.fn(); vi.stubGlobal('window', { dispatchEvent });
+    const { applyDictionarySnapshot } = await import('../dictionaryStore');
+    applyDictionarySnapshot(snapshot(1, 'ready'));
+    expect(dispatchEvent).toHaveBeenCalledTimes(1);
+    applyDictionarySnapshot(snapshot(2, 'ready'));
+    applyDictionarySnapshot(snapshot(0, 'failed'));
+    expect(dispatchEvent).toHaveBeenCalledTimes(1);
+    applyDictionarySnapshot(snapshot(3, 'failed'));
+    expect(dispatchEvent).toHaveBeenCalledTimes(2);
+    expect(dispatchEvent.mock.calls.every(([event]) => event.type === 'lexicue-dictionary-changed')).toBe(true);
   });
 });

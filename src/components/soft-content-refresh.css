@@ -1,0 +1,10 @@
+.soft-refresh,.soft-refresh-current { display:flex; flex:1; flex-direction:column; min-height:0; min-width:0; }
+.soft-refresh { position:relative; isolation:isolate; overflow:clip; }
+.soft-refresh-current { position:relative; z-index:2; background:var(--surface); }
+.soft-refresh-ghost { position:absolute; inset:0; z-index:1; display:flex; flex-direction:column; min-height:0; overflow:hidden; pointer-events:none; user-select:none; background:var(--surface); }
+.soft-refresh-ghost:empty { display:none; }
+.soft-refresh-edge { display:none; position:absolute; top:0; bottom:0; width:160px; z-index:3; pointer-events:none; backdrop-filter:blur(2.5px); -webkit-backdrop-filter:blur(2.5px); mask-image:linear-gradient(to right,transparent,#000 35%,#000 65%,transparent); -webkit-mask-image:linear-gradient(to right,transparent,#000 35%,#000 65%,transparent); }
+.soft-refresh[data-refresh-state='revealing'] > .soft-refresh-edge { display:block; }
+.soft-refresh > .lookup-pending { z-index:4; }
+.lookup-action-slot { flex:none; }
+@media(prefers-reduced-motion:reduce) { .soft-refresh-edge { display:none!important; } }

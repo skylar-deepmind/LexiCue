@@ -30,17 +30,20 @@ pub struct ImportResult {
 }
 
 pub fn import_material(conn: &Connection, input: &MaterialInput) -> Result<ImportResult, String> {
+    let name = input.name.to_lowercase();
+    let kind = if name.ends_with(".txt") { "txt" } else { "srt" };
     if input.operation_id.is_empty()
         || input.operation_id.len() > 200
-        || !input.name.to_lowercase().ends_with(".srt")
+        || !(name.ends_with(".srt") || name.ends_with(".txt"))
+        || input.content.trim().is_empty()
         || input.content.len() > 32 * 1024 * 1024
-        || !input.content.contains("-->")
+        || (kind == "srt" && !input.content.contains("-->"))
         || input.segments.is_empty()
         || input.segments.iter().enumerate().any(|(i, s)| {
             s.index != i as i32
                 || !s.en_text.chars().any(|c| c.is_ascii_alphabetic())
-                || s.start_time.is_none()
-                || s.end_time.is_none()
+                || (kind == "srt" && (s.start_time.is_none() || s.end_time.is_none()))
+                || (kind == "txt" && (s.start_time.is_some() || s.end_time.is_some()))
         })
     {
         return Err("material_invalid_srt".into());
@@ -88,10 +91,10 @@ pub fn import_material(conn: &Connection, input: &MaterialInput) -> Result<Impor
         ImportResult {
             file_id: id,
             outcome: "duplicate".into(),
-            readable: language == "en" && kind == "srt",
+            readable: language == "en" && matches!(kind.as_str(), "srt" | "txt"),
         }
     } else {
-        tx.execute("INSERT INTO files(name,type,content,content_hash,imported_at,language) VALUES(?1,'srt',?2,?3,?4,'en')",params![input.name,input.content,hash,super::saved::now_ms()]).map_err(|e|e.to_string())?;
+        tx.execute("INSERT INTO files(name,type,content,content_hash,imported_at,language) VALUES(?1,?2,?3,?4,?5,'en')",params![input.name,kind,input.content,hash,super::saved::now_ms()]).map_err(|e|e.to_string())?;
         let id = tx.last_insert_rowid();
         super::tags::replace_file_tags(&tx, id, &[], &[])?;
         let mut statement=tx.prepare_cached("INSERT INTO segments(file_id,index_num,en_text,zh_text,start_time,end_time) VALUES(?1,?2,?3,?4,?5,?6)").map_err(|e|e.to_string())?;
@@ -144,7 +147,7 @@ pub struct Material {
 pub fn list(conn: &Connection, tag_ids: &[i64], untagged: bool) -> Result<Vec<Material>, String> {
     let ids = serde_json::to_string(tag_ids).unwrap();
     let mut stmt=conn.prepare("SELECT f.id,f.name,f.content_hash,f.imported_at,(SELECT COUNT(*) FROM segments s WHERE s.file_id=f.id),COALESCE((SELECT en_text FROM segments s WHERE s.file_id=f.id ORDER BY index_num LIMIT 1),'') FROM files f
-        WHERE f.language='en' AND f.type='srt' AND (?2=0 OR NOT EXISTS(SELECT 1 FROM file_tags ft WHERE ft.file_id=f.id))
+        WHERE f.language='en' AND f.type IN ('srt','txt') AND (?2=0 OR NOT EXISTS(SELECT 1 FROM file_tags ft WHERE ft.file_id=f.id))
         AND NOT EXISTS(SELECT 1 FROM json_each(?1) selected WHERE NOT EXISTS(SELECT 1 FROM file_tags ft WHERE ft.file_id=f.id AND ft.tag_id=selected.value)) ORDER BY imported_at DESC,id DESC").map_err(|e|e.to_string())?;
     let rows = stmt
         .query_map(params![ids, untagged], |r| {
@@ -340,6 +343,40 @@ pub async fn lookup_reading_expression(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn text_material_roundtrips_original_sentences_translations_and_receipt() {
+        let dir = tempfile::tempdir().unwrap();
+        let c = crate::db::init_db(&dir.path().join("text.db")).unwrap();
+        let mut data = input("text", "She bought a book.");
+        data.name = "book.txt".into();
+        data.content = "She bought a book. She read it.".into();
+        data.segments[0].zh_text = Some("她买了一本书。".into());
+        data.segments[0].start_time = None;
+        data.segments[0].end_time = None;
+        data.segments.push(SegmentInput {
+            index: 1,
+            en_text: "She read it.".into(),
+            zh_text: Some("她读了它。".into()),
+            start_time: None,
+            end_time: None,
+        });
+        let result = import_material(&c, &data).unwrap();
+        assert!(result.readable);
+        let opened = open(&c, result.file_id).unwrap();
+        assert_eq!(opened.segments.len(), 2);
+        assert_eq!(opened.segments[1].zh_text.as_deref(), Some("她读了它。"));
+        assert_eq!(import_material(&c, &data).unwrap().file_id, result.file_id);
+        let original: String = c
+            .query_row(
+                "SELECT content FROM files WHERE id=?1",
+                [result.file_id],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(original, data.content);
+        data.operation_id = "text-duplicate".into();
+        assert_eq!(import_material(&c, &data).unwrap().outcome, "duplicate");
+    }
     fn input(op: &str, text: &str) -> MaterialInput {
         MaterialInput {
             operation_id: op.into(),
@@ -381,6 +418,8 @@ mod tests {
                     end_offset: 11,
                     explanation: None,
                     explanation_source: "unknown".into(),
+                    dictionary_snapshot: None,
+                    dictionary_reference: None,
                 },
             },
         )

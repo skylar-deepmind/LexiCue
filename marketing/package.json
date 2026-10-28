@@ -22,8 +22,13 @@
     "preview:video": "node scripts/video-preview.mjs",
     "test:video-preview": "node scripts/video-preview-qa.mjs",
     "render:video-final": "node scripts/video-final.mjs",
+    "test:video-render-locale": "node scripts/video-locale-smoke.mjs",
     "check:video-final": "node scripts/video-final-verify.mjs",
-    "deliver:video-final": "node scripts/video-final-delivery.mjs"
+    "check:video-final-page": "node scripts/video-final-page-qa.mjs",
+    "preview:video-cover": "node scripts/video-cover-snapshot.mjs --preview && node scripts/video-covers.mjs --preview",
+    "render:video-covers": "node scripts/video-cover-snapshot.mjs && node scripts/video-covers.mjs",
+    "deliver:video-final": "npm run render:video-covers && node scripts/video-final-delivery.mjs && node scripts/video-final-package.mjs",
+    "package:video-final": "node scripts/video-final-package.mjs"
   },
   "dependencies": {
     "@remotion/bundler": "4.0.534",

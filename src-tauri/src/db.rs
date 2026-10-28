@@ -1048,11 +1048,16 @@ fn create_tables(conn: &Connection) -> Result<(), rusqlite::Error> {
 }
 
 fn migrate_english_learning(conn: &Connection) -> Result<(), rusqlite::Error> {
-    let has_column = |table:&str,column:&str| -> Result<bool,rusqlite::Error> {
-        Ok(conn.prepare(&format!("PRAGMA table_info({table})"))?.query_map([],|r|r.get::<_,String>(1))?.collect::<Result<Vec<_>,_>>()?.iter().any(|name|name==column))
+    let has_column = |table: &str, column: &str| -> Result<bool, rusqlite::Error> {
+        Ok(conn
+            .prepare(&format!("PRAGMA table_info({table})"))?
+            .query_map([], |r| r.get::<_, String>(1))?
+            .collect::<Result<Vec<_>, _>>()?
+            .iter()
+            .any(|name| name == column))
     };
-    let backfill_kind=!has_column("words","word_kind")?;
-    let backfill_collins=!has_column("file_phrase_analysis","collins_evidence_available")?;
+    let backfill_kind = !has_column("words", "word_kind")?;
+    let backfill_collins = !has_column("file_phrase_analysis", "collins_evidence_available")?;
     for (table, column, definition) in [
         ("words", "word_kind", "TEXT NOT NULL DEFAULT 'common' CHECK(word_kind IN ('common','proper_noun','noise','ambiguous'))"),
         ("words", "kind_edited", "INTEGER NOT NULL DEFAULT 0"),
@@ -1120,13 +1125,15 @@ fn migrate_english_learning(conn: &Connection) -> Result<(), rusqlite::Error> {
     // A v3 analysis with a selected sense could only have run with the private
     // index installed. This restores that fact for analyses made before this
     // column existed, without guessing about zero-match files.
-    if backfill_collins { conn.execute(
+    if backfill_collins {
+        conn.execute(
         "UPDATE file_phrase_analysis SET collins_evidence_available=1
          WHERE pipeline_version>=3 AND pipeline_version<5 AND collins_evidence_available=0
            AND EXISTS (SELECT 1 FROM segments s JOIN phrase_occurrences po ON po.segment_id=s.id
                        WHERE s.file_id=file_phrase_analysis.file_id AND po.collins_sense_id IS NOT NULL)",
         [],
-    )?; }
+    )?;
+    }
     Ok(())
 }
 
@@ -1235,12 +1242,22 @@ mod tests {
 
     #[test]
     fn product_upgrade_does_not_reclassify_existing_legacy_word_metadata() {
-        let dir=tempfile::tempdir().unwrap();
-        let conn=init_db(&dir.path().join("legacy.db")).unwrap();
-        conn.execute("INSERT INTO words(lemma,status,word_kind) VALUES('re','learning','common')",[]).unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let conn = init_db(&dir.path().join("legacy.db")).unwrap();
+        conn.execute(
+            "INSERT INTO words(lemma,status,word_kind) VALUES('re','learning','common')",
+            [],
+        )
+        .unwrap();
         migrate_english_learning(&conn).unwrap();
-        let old:(String,String)=conn.query_row("SELECT status,word_kind FROM words WHERE lemma='re'",[],|r|Ok((r.get(0)?,r.get(1)?))).unwrap();
-        assert_eq!(old,("learning".into(),"common".into()));
+        let old: (String, String) = conn
+            .query_row(
+                "SELECT status,word_kind FROM words WHERE lemma='re'",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(old, ("learning".into(), "common".into()));
     }
 
     #[test]

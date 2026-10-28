@@ -35,3 +35,9 @@ mod reading_bridge_test;
 pub mod recall;
 
 pub mod example;
+
+pub mod cambridge;
+pub mod longman;
+
+pub mod translation;
+pub mod tts;

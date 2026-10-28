@@ -1,8 +1,8 @@
 import Overlay from './Overlay';
 import AppSelect from './AppSelect';
-import { X, Volume2, RefreshCw, Download, EyeOff, Eye } from 'lucide-react';
+import { X, RefreshCw, EyeOff, Eye } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { playPronunciation } from '../lib/tts';
+import SpeechButton, { SpeechFeedback } from './SpeechButton';
 import type { DictionaryEntry, OccurrenceDetail, WordDetail, WordStatus } from '../lib/types';
 import StatusBadge from './StatusBadge';
 import OccurrenceText from './OccurrenceText';
@@ -39,7 +39,6 @@ export default function WordDetailPanel({ detail, onClose, onStatusChange, onDef
   const [dictionaryReason, setDictionaryReason] = useState('');
   const [localDictionaryState, setLocalDictionaryState] = useState<'idle' | 'loading' | 'hit' | 'missing' | 'unavailable'>('idle');
   const [onlineDictionaryError, setOnlineDictionaryError] = useState(false);
-  const [audioLoading, setAudioLoading] = useState(false);
   const [statusSaving, setStatusSaving] = useState<WordStatus | null>(null);
   const [definitionSaved, setDefinitionSaved] = useState(false);
   const [definitionError, setDefinitionError] = useState(false);
@@ -164,37 +163,6 @@ export default function WordDetailPanel({ detail, onClose, onStatusChange, onDef
     }
   };
 
-  const playAudio = async () => {
-    setAudioLoading(true);
-    try {
-      const text = detail.word.language === 'ja' && detail.word.reading ? detail.word.reading : detail.word.lemma;
-      const audioEntry = onlineDictionary?.local_audio_path ? onlineDictionary : dictionary?.local_audio_path ? dictionary : onlineDictionary ?? dictionary;
-      await playPronunciation(text, detail.word.language, audioEntry, (cached) => {
-        if (cached.provider.startsWith('dictionaryapi.dev')) setOnlineDictionary(cached);
-        else setDictionary(cached);
-      });
-    } catch (error) {
-      console.error('Failed to play pronunciation:', error);
-      setDictionaryError(true);
-    } finally {
-      setAudioLoading(false);
-    }
-  };
-
-  const cacheAudio = async () => {
-    setAudioLoading(true);
-    try {
-      const entry = await invoke<DictionaryEntry>('cache_dictionary_audio', { lemma: detail.word.lemma, language: detail.word.language });
-      if (detail.word.language === 'en' && entry.provider.startsWith('dictionaryapi.dev')) setOnlineDictionary(entry);
-      else setDictionary(entry);
-    } catch (error) {
-      console.error('Failed to cache pronunciation:', error);
-      setDictionaryError(true);
-    } finally {
-      setAudioLoading(false);
-    }
-  };
-
   useEffect(() => {
     let active = true;
     dictionaryRequest.current++;
@@ -239,12 +207,14 @@ export default function WordDetailPanel({ detail, onClose, onStatusChange, onDef
       <div className="flex items-center justify-between p-4 border-b border-gray-100">
         <h2 ref={panelTitleRef} tabIndex={-1} id="word-detail-title" className={`font-semibold text-gray-900 outline-none ${CONTENT_FONT_CLASS.learning[learningTextFontSize]}`}>{detail.word.lemma}</h2>
         <div className="flex items-center gap-1">
+          <SpeechButton text={detail.word.lemma} speechKey={`word-detail:${detail.word.id}`} kind="word" language={detail.word.language} label={t('wordDetail.playAria')}/>
           <DisplaySettingsMenu />
           <button onClick={() => void requestClose()} aria-label={t('common.close')} className="text-gray-400 hover:text-gray-600 p-1"><X size={20} /></button>
         </div>
       </div>
 
       <div className="detail-panel__body p-4 space-y-4">
+        <SpeechFeedback speechKeys={[`word-detail:${detail.word.id}`]}/>
         {definitionError && <p role="alert" className="annotation-error">{t('shell.saveFailed')}</p>}
         <div className="flex items-center gap-2">
           <StatusBadge status={detail.word.status} />
@@ -278,28 +248,6 @@ export default function WordDetailPanel({ detail, onClose, onStatusChange, onDef
               {(dictionary?.phonetic ?? onlineDictionary?.phonetic) && <p className={`mt-1 text-blue-700 ${CONTENT_FONT_CLASS.auxiliary[auxiliaryFontSize]}`}>{dictionary?.phonetic ?? onlineDictionary?.phonetic}</p>}
             </div>
             <div className="flex items-center gap-1">
-              {(dictionary || onlineDictionary || detail.word.language === 'en') && (
-                <button
-                  onClick={() => void playAudio()}
-                  disabled={audioLoading}
-                  aria-label={t('wordDetail.playAria')}
-                  title={onlineDictionary?.local_audio_path || dictionary?.local_audio_path ? t('wordDetail.playTitle') : t('wordDetail.systemVoiceTitle')}
-                  className="word-audio-action rounded-md p-1.5 text-blue-600 hover:bg-blue-100"
-                >
-                  <Volume2 size={16} />
-                </button>
-              )}
-              {(onlineDictionary ?? dictionary)?.audio_url && !(onlineDictionary ?? dictionary)?.local_audio_path && (
-                <button
-                  onClick={() => void cacheAudio()}
-                  disabled={audioLoading}
-                  aria-label={t('wordDetail.cacheAria')}
-                  title={t('wordDetail.cacheTitle')}
-                  className="word-audio-action rounded-md p-1.5 text-blue-600 hover:bg-blue-100"
-                >
-                  <Download size={16} />
-                </button>
-              )}
               <button
                 onClick={() => void loadDictionary(true)}
                 disabled={dictionaryLoading}

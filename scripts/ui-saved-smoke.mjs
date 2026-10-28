@@ -22,6 +22,7 @@ async function fixture(page, theme) {
       legacy: index === 1 ? { definition: '个人注释', occurrence: { meaning_en: 'My earlier English note' } } : null,
       saved_at: index ? null : 1700000000000, updated_at: 1, revision: `revision-${index}`, generation: 0, deleted_at: null,
     }));
+    records.push({ ...structuredClone(records[0]), record_id: 'saved-fixture-3', source_key: 'source-3', sentence: 'Please take off your coat.', explanation: '脱下', saved_at: 1600000000000, revision: 'revision-3', source: { ...records[0].source, content_hash: 'hash-3', segment_index: 3 } });
     const receipts = new Map();
     window.__uiCalls = []; window.__uiFailSave = false;
     window.__TAURI_EVENT_PLUGIN_INTERNALS__ = { unregisterListener() {} };
@@ -29,11 +30,19 @@ async function fixture(page, theme) {
       transformCallback: () => 1, unregisterCallback() {}, convertFileSrc: path => path,
       invoke: async (command, args = {}) => {
         window.__uiCalls.push({ command, args: structuredClone(args) });
-        if (command === 'list_saved_records') {
+        const activeGroups = () => [...new Set(records.filter(record => record.deleted_at === null).map(record => record.expression))].map(expression => {
+          const contexts = records.filter(record => record.deleted_at === null && record.expression === expression).sort((a, b) => (b.saved_at ?? -1) - (a.saved_at ?? -1) || a.record_id.localeCompare(b.record_id));
+          return { group_id: `group:${expression}`, expression, context_count: contexts.length, latest_saved_at: contexts[0].saved_at, preview: contexts[0], records: contexts };
+        }).sort((a, b) => (b.latest_saved_at ?? -1) - (a.latest_saved_at ?? -1) || a.expression.localeCompare(b.expression));
+        if (command === 'list_saved_groups') {
           const query = (args.query || '').toLowerCase();
-          const result = records.filter(record => record.deleted_at === null && JSON.stringify(record).toLowerCase().includes(query)).slice(args.offset, args.offset + args.limit);
+          const groups = activeGroups().filter(group => JSON.stringify(group).toLowerCase().includes(query));
           if (query === 'take') await new Promise(resolve => setTimeout(resolve, 120));
-          return structuredClone(result);
+          return structuredClone({ groups: groups.slice(args.offset, args.offset + args.limit).map(({ records: _records, ...group }) => group), total_groups: groups.length, total_records: groups.reduce((count, group) => count + group.context_count, 0) });
+        }
+        if (command === 'saved_group_contexts') {
+          const group = activeGroups().find(group => group.group_id === args.groupId);
+          return structuredClone({ records: group?.records.slice(args.offset, args.offset + args.limit) ?? [], total: group?.context_count ?? 0 });
         }
         if (command === 'saved_migration_report') return { eligible_words: 1, eligible_phrases: 1, saved_contexts: 2, missing_sources: 1, merged_duplicate_positions: 0, history_only: [] };
         if (command === 'saved_record_conflicts') return [];
@@ -107,7 +116,7 @@ try {
     await page.keyboard.press('Escape'); await page.getByRole('dialog').waitFor({ state: 'detached' });
     assert.ok(await first.evaluate(node => node === document.activeElement)); checks++;
     // A failed edit keeps the draft; the retry uses the same operation receipt.
-    await first.click(); await settle(page); await page.getByRole('button', { name: '修改解释', exact: true }).click();
+    await first.click(); await settle(page); await page.getByRole('dialog').locator('.saved-context-entry').first().getByRole('button', { name: 'take off 的更多操作', exact: true }).click(); await page.getByRole('button', { name: '补充个人解释', exact: true }).click();
     await page.getByRole('textbox', { name: '个人解释' }).fill('我的个人修正');
     await page.evaluate(() => { window.__uiFailSave = true; }); await page.getByRole('button', { name: '保存修改' }).click();
     await page.getByRole('dialog').getByRole('alert').waitFor(); assert.equal(await page.getByRole('textbox', { name: '个人解释' }).inputValue(), '我的个人修正'); checks++;
@@ -117,21 +126,30 @@ try {
     await page.getByRole('dialog').getByText('我的个人修正', { exact: true }).waitFor();
     assert.ok(await page.evaluate(() => { const calls = window.__uiCalls.filter(call => call.command === 'mutate_saved_record' && call.args.mutation.kind === 'edit'); return calls.at(-1).args.operationId === calls.at(-2).args.operationId; })); checks++;
     await page.evaluate(() => window.__lexicueBack()); await page.getByRole('dialog').waitFor({ state: 'detached' });
-    // Remove affects only that saved context and undo restores its personal edit.
-    await page.getByRole('button', { name: 'take off 的更多操作' }).click();
-    const removeButton = page.getByRole('button', { name: '移除', exact: true });
+    // One word card contains two independent contexts; removing one leaves its sibling.
+    assert.match(await first.innerText(), /2 处原句/); checks++;
+    await first.click(); await settle(page); await page.getByRole('dialog').locator('.saved-context-entry').nth(1).waitFor();
+    assert.equal(await page.getByRole('dialog').locator('.saved-context-entry').count(), 2); checks++;
+    assert.ok(await page.getByRole('dialog').getByText('Please take off your coat.', { exact: true }).isVisible()); checks++;
+    await page.getByRole('dialog').locator('.saved-context-entry').first().getByRole('button', { name: 'take off 的更多操作', exact: true }).click();
+    const removeButton = page.getByRole('button', { name: '移除这句', exact: true });
     for (const state of ['default', 'hover', 'focus']) {
       if (state === 'hover') await removeButton.hover();
       if (state === 'focus') await removeButton.focus();
       assert.ok(await contrast(removeButton) >= 4.5, `${theme} remove ${state}`); checks++;
     }
     await removeButton.click();
-    await page.waitForFunction(() => document.querySelectorAll('.saved-record-row').length === 2); checks++;
+    await page.waitForFunction(() => document.querySelectorAll('.saved-context-entry').length === 1); checks++;
+    assert.equal(await page.locator('.saved-record-row').count(), 3); checks++;
+    assert.match(await first.innerText(), /1 处原句/); checks++;
+    assert.ok(await page.getByRole('dialog').getByText('Please take off your coat.', { exact: true }).isVisible()); checks++;
     assert.ok(await page.getByRole('button', { name: '撤销', exact: true }).evaluate(node => node === document.activeElement)); checks++;
     assert.ok(await contrast(page.locator('.saved-undo > span')) >= 4.5); checks++;
-    await page.getByRole('button', { name: '撤销', exact: true }).click(); await page.waitForFunction(() => document.querySelectorAll('.saved-record-row').length === 3);
+    await page.getByRole('button', { name: '撤销', exact: true }).click(); await page.waitForFunction(() => document.querySelectorAll('.saved-context-entry').length === 2);
     assert.match(await first.innerText(), /我的个人修正/); checks++;
-    await page.locator('.saved-record-open').nth(1).click(); await settle(page); await page.getByRole('button', { name: '返回原文', exact: true }).click();
+    assert.match(await first.innerText(), /2 处原句/); checks++;
+    await page.keyboard.press('Escape'); await page.getByRole('dialog').waitFor({ state: 'detached' });
+    await page.locator('.saved-record-open').filter({ has: page.locator('.saved-record-term', { hasText: /^curiosity$/ }) }).click(); await settle(page); await page.getByRole('button', { name: '返回原文', exact: true }).click();
     await page.getByText('原材料已不存在或已变更，仍可阅读此副本。', { exact: true }).waitFor();
     assert.ok(await page.getByRole('dialog').getByText('Curiosity helps us learn.', { exact: true }).isVisible()); checks++;
     assert.ok(await page.getByRole('button', { name: '返回原文', exact: true }).isDisabled()); checks++;
@@ -143,7 +161,7 @@ try {
       await page.setViewportSize({ width, height: 900 }); await first.click(); await settle(page);
       await noOverflow(page, `${theme} ${width}`);
       assert.ok(await contrast(first.locator('small')) >= 4.5, `${theme} selected source contrast`); checks++;
-      const primary = page.getByRole('button', { name: '返回原文', exact: true });
+      const primary = page.getByRole('dialog').getByRole('button', { name: '返回原文', exact: true }).first();
       for (const state of ['default', 'hover', 'focus']) {
         if (state === 'hover') await primary.hover();
         if (state === 'focus') await primary.focus();
@@ -162,7 +180,7 @@ try {
     await context.close();
   }
   assert.deepEqual(errors, []);
-  const report = { checks, errors, themes: ['ocean', 'midnight'], widths: [360, 390, 430, 768, 1024, 1280, 1440], data: 'isolated in-memory UI fixture' };
+  const report = { checks, errors, themes: ['ocean', 'midnight'], widths: [360, 390, 430, 768, 1024, 1280, 1440], data: 'isolated in-memory UI fixture with native archive API shape; real persistence is covered by separate Rust bridge tests' };
   await writeFile(`${output}/report.json`, JSON.stringify(report, null, 2));
   console.log(`PASS: ${checks} saved-context UI checks; screenshots: ${output}`);
 } finally { await browser.close(); }

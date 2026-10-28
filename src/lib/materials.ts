@@ -26,7 +26,7 @@ export interface MaterialImportResult {
     readable: boolean;
 }
 export { parseEnglishSrt } from './englishSrt';
-export function parseSrtInWorker(content: string, signal: AbortSignal): Promise<SegmentInput[]> {
+export function parseSrtInWorker(content: string, signal: AbortSignal, name = 'subtitles.srt'): Promise<SegmentInput[]> {
     return new Promise((resolve, reject) => {
         if (signal.aborted) {
             reject(new Error('material_cancelled'));
@@ -41,7 +41,7 @@ export function parseSrtInWorker(content: string, signal: AbortSignal): Promise<
         else
             resolve(event.data.segments); };
         worker.onerror = () => { cleanup(); reject(new Error('material_parse_failed')); };
-        worker.postMessage(content);
+        worker.postMessage({ content, type: name.toLowerCase().endsWith('.txt') ? 'txt' : 'srt' });
     });
 }
 export function materialError(error: unknown) {

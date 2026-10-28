@@ -1,0 +1,4 @@
+# Private validation tooling only; not added to application dependencies.
+readmdict==0.1.1
+lxml>=5,<7
+beautifulsoup4>=4.12,<5

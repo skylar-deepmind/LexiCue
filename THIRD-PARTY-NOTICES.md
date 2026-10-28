@@ -73,3 +73,11 @@ Gemma weights are downloaded separately and are subject to
 [Google's Gemma terms](https://ai.google.dev/gemma/terms). See
 [the pinned catalog](src-tauri/native/gemma/models.json) and
 [validation status](docs/embedded-gemma.md).
+
+## Edge Read Aloud compatible client
+
+- `msedge-tts` 0.4.1 — published MIT OR Apache-2.0; selected MIT license, copyright (c) 2024 shuai.huang. Vendored source and license: `src-tauri/vendor/msedge-tts/`. Original manifest, source checksums and local modifications are retained in that folder. The upstream DRM module attributes its protocol compatibility algorithm to the `edge-tts` project; see `LEXICUE-CHANGES.md` for provenance.
+- `async-tungstenite` 0.35.0 / `tungstenite` 0.30.0 — MIT, verified rustls/webpki TLS transport.
+- `symphonia` 0.5.5 — MPL-2.0, in-process MP3 decoding and integrity validation.
+
+This third-party client connects directly to Microsoft Edge Read Aloud. Its code license does not grant rights to or guarantee availability, quota or terms of the Microsoft service.

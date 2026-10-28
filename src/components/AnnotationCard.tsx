@@ -1,12 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
-import { Volume2, BookOpen, ExternalLink } from 'lucide-react';
+import { BookOpen, ExternalLink } from 'lucide-react';
 import type { DictionaryEntry, OccurrenceDetail, PhraseDetail, PhraseDictionaryEntry, WordDetail } from '../lib/types';
 import { CONTENT_FONT_CLASS, FLASHCARD_TERM_FONT_CLASS } from '../lib/contentTypography';
 import { usePreferencesStore } from '../stores/preferencesStore';
 import { dictionaryLanguageState, useDictionaryStore } from '../stores/dictionaryStore';
-import { playPronunciation, speakText } from '../lib/tts';
+import SpeechButton, { SpeechFeedback } from './SpeechButton';
 import OccurrenceText from './OccurrenceText';
 import StatusBadge from './StatusBadge';
 
@@ -32,14 +32,11 @@ export default function AnnotationCard({ detail, onDetail, onOccurrence }: {
   } | null>(null);
   const [revision, setRevision] = useState(0);
   const [expanded, setExpanded] = useState(false);
-  const [audioLoading, setAudioLoading] = useState(false);
   const validLookup = lookup?.source === detail && lookup.revision === revision && lookup.mode === mode && lookup.ready === (mode === 'local' ? dictionaryReady : '');
   const dictionary = validLookup ? lookup.dictionary : null;
   const phraseDictionary = validLookup ? lookup.phraseDictionary : null;
   const loading = !validLookup;
   const failed = validLookup && lookup.failed;
-  const alive = useRef(true);
-  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
 
   const localSourceState = mode === 'local' ? dictionaryReady : '';
   useEffect(() => {
@@ -62,14 +59,6 @@ export default function AnnotationCard({ detail, onDetail, onOccurrence }: {
     return () => { active = false; };
   }, [item.id, term, item.language, kind, localSourceState, mode, revision, detail]);
 
-  const play = async () => {
-    if (audioLoading) return;
-    setAudioLoading(true);
-    try {
-      if (word) await playPronunciation(word.language === 'ja' && word.reading ? word.reading : term, item.language, dictionary, entry => { if (alive.current) setLookup(current => current?.source === detail ? { ...current, dictionary: entry } : current); });
-      else speakText(term, item.language);
-    } finally { if (alive.current) setAudioLoading(false); }
-  };
   const occurrences = detail.occurrences.filter(occ => !occ.hidden);
   const first = occurrences[0];
   const contextMeaning = first?.meaning_zh || first?.meaning_en;
@@ -80,8 +69,7 @@ export default function AnnotationCard({ detail, onDetail, onOccurrence }: {
     <div className="annotation-card__top">
       <div className="annotation-card__term">
         <h2 className={FLASHCARD_TERM_FONT_CLASS[kind][learningSize]}>{term}</h2>
-        <button type="button" className="ui-button ui-button--icon" disabled={audioLoading || !('speechSynthesis' in window) && !dictionary?.local_audio_path && !dictionary?.audio_url}
-          onClick={() => void play()} aria-label={t('annotation.play')} title={t('annotation.play')}><Volume2 size={20} aria-hidden="true" /></button>
+        <SpeechButton text={term} speechKey={`annotation:${kind}:${item.id}`} kind={kind} language={item.language} label={t('annotation.play')}/>
       </div>
       <div className={`annotation-card__meta ${CONTENT_FONT_CLASS.auxiliary[auxiliarySize]}`}>
         <StatusBadge status={item.status} label={item.status === 'ignored' ? t('annotation.ignore') : undefined} /><span>{item.language.toUpperCase()}</span><span>{t('wordDetail.frequency', { count: item.frequency })}</span>
@@ -91,6 +79,7 @@ export default function AnnotationCard({ detail, onDetail, onOccurrence }: {
       </div>
       {word && (word.reading || word.part_of_speech) && <p className="annotation-muted">{[word.reading, word.part_of_speech].filter(Boolean).join(' · ')}</p>}
     </div>
+    <SpeechFeedback speechKeys={[`annotation:${kind}:${item.id}`]}/>
     <section className={`annotation-card__section ${font}`} aria-label={t('annotation.meaning')}>
       <h3><BookOpen size={16} aria-hidden="true" />{t('annotation.meaning')}</h3>
       {item.definition && <p className="annotation-card__definition">{item.definition}</p>}

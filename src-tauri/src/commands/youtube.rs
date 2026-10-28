@@ -551,7 +551,12 @@ async fn fetch_ytdlp_json(
         .arg("--retries")
         .arg("0")
         .arg("--extractor-retries")
-        .arg("0");
+        .arg("0")
+        .arg("--socket-timeout")
+        .arg("10")
+        .arg("--extractor-args")
+        .arg("youtube:skip=hls,dash")
+        .arg("--ignore-no-formats-error");
     downloads::configure_session(&mut cmd, session)?;
     cmd.arg(format!("https://www.youtube.com/watch?v={video_id}"));
     let (status, stdout, stderr) = run_ytdlp_capture(&mut cmd, cancel, timeout).await?;

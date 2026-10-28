@@ -75,6 +75,8 @@ Gemma: [E2B / E4B](docs/embedded-gemma.md).
 
 阅读、词典与复习在本地运行。获取 YouTube 字幕或下载 AI 模型需要联网。可选云端 AI 将所选文本发送到你配置的 API；可选云同步上传加密后的学习记录。
 
+英语朗读默认使用微软 Edge 在线语音服务，仅发送你主动要求朗读的英文及所选语音参数。校验后的音频缓存在本机，与学习记录和备份分开。可在「设置 → 英语朗读」中选择英美口音、音色和语速，关闭在线请求或明确标注的设备语音备用；已有缓存可离线复播。该第三方服务可能变化或暂不可用，无需 Azure Key、Edge 浏览器或额外安装 Python／Node。
+
 ## 支持项目
 
 [支持作者 — 爱发电 / Aifadian](https://www.ifdian.net/a/skylar-lexicue) · [GitHub Star](https://github.com/skylar-deepmind/LexiCue)

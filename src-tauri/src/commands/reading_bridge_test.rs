@@ -1,6 +1,9 @@
 //! Opt-in browser → production command cores → temporary SQLite evidence.
 //! This module is compiled only for tests and never starts with the application.
-use super::{dictionary, example::ExampleState, export, history, materials, recall, saved, tags};
+use super::{
+    cambridge, dictionary, example::ExampleState, export, history, longman, materials, recall,
+    saved, tags,
+};
 use serde_json::{json, Value};
 use std::io::{Read, Write};
 use std::net::TcpListener;
@@ -49,6 +52,9 @@ fn route(
             .map_err(|e| e.to_string())
         }
         "saved_recall_index" => serde_json::to_value(recall::index(c)?).map_err(|e| e.to_string()),
+        "saved_recall_catalog" => {
+            serde_json::to_value(recall::catalog(c)?).map_err(|e| e.to_string())
+        }
         "saved_recall_contexts" => serde_json::to_value(recall::contexts(
             c,
             text("expression"),
@@ -75,6 +81,18 @@ fn route(
             serde_json::to_value(materials::lookup(c, text("expression"))?)
                 .map_err(|e| e.to_string())
         }
+        "lookup_longman_expression" => Ok(longman::query_configured(
+            text("expression"),
+            a["context"].as_str(),
+        )),
+        "longman_dictionary_status" => Ok(longman::status_configured()),
+        "lookup_cambridge_expression" => {
+            Ok(tauri::async_runtime::block_on(cambridge::query_configured(
+                text("expression"),
+                a["context"].as_str(),
+                a["refresh"].as_bool().unwrap_or(false),
+            )))
+        }
         "mutate_saved_record" => serde_json::to_value(saved::mutate(
             c,
             text("operationId"),
@@ -87,6 +105,20 @@ fn route(
         "saved_for_selection" => serde_json::to_value(saved::selection(
             c,
             &serde_json::from_value(a["input"].clone()).map_err(|e| e.to_string())?,
+        )?)
+        .map_err(|e| e.to_string()),
+        "list_saved_groups" => serde_json::to_value(saved::groups(
+            c,
+            text("query"),
+            a["limit"].as_i64().unwrap_or(50),
+            id("offset"),
+        )?)
+        .map_err(|e| e.to_string()),
+        "saved_group_contexts" => serde_json::to_value(saved::group_contexts(
+            c,
+            text("groupId"),
+            a["limit"].as_i64().unwrap_or(10),
+            id("offset"),
         )?)
         .map_err(|e| e.to_string()),
         "list_saved_records" => serde_json::to_value(saved::list(
@@ -235,6 +267,8 @@ fn seed_recall(c: &rusqlite::Connection, a: &Value) -> Result<Value, String> {
                 + expression.encode_utf16().count(),
             explanation: row["explanation"].as_str().map(str::to_string),
             explanation_source: "personal".into(),
+            dictionary_snapshot: None,
+            dictionary_reference: None,
         };
         let mut record = saved::mutate(
             c,
@@ -299,6 +333,8 @@ fn seed_recall(c: &rusqlite::Connection, a: &Value) -> Result<Value, String> {
                 }),
                 explanation: Some("临时性能样本".into()),
                 explanation_source: "personal".into(),
+                dictionary_snapshot: None,
+                dictionary_reference: None,
                 origin: "reader".into(),
                 legacy: None,
                 saved_at: Some(1700000000000 + i as i64),
@@ -317,10 +353,17 @@ fn seed_recall(c: &rusqlite::Connection, a: &Value) -> Result<Value, String> {
 #[test]
 #[ignore = "Opt-in temporary SQLite HTTP bridge for browser validation"]
 fn serve_reading_bridge() {
+    // UI runs may use a separate local Vite port to avoid the user's dev server.
+    let ui_url = std::env::var("LEXICUE_UI_URL").unwrap_or_else(|_| "http://127.0.0.1:5173".into());
+    let ui_url = reqwest::Url::parse(&ui_url).expect("valid local UI URL");
+    assert_eq!(ui_url.scheme(), "http");
+    assert!(matches!(ui_url.host_str(), Some("127.0.0.1" | "localhost")));
+    let ui_origin = ui_url.origin().ascii_serialization();
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("reading.db");
     let mut conn = crate::db::init_db(&path).unwrap();
     let examples = ExampleState::default();
+    let tts_service = super::tts::TtsService::new(dir.path().join("edge-tts-v1"));
     dictionary::initialize_builtin_dictionary(&conn).unwrap();
     dictionary::initialize_builtin_phrase_dictionary(&conn).unwrap();
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
@@ -367,6 +410,47 @@ fn serve_reading_bridge() {
         let request: Value = serde_json::from_slice(&bytes[header_end..]).unwrap_or(Value::Null);
         let command = request["command"].as_str().unwrap_or("");
         let args = &request["args"];
+        if matches!(
+            command,
+            "resolve_tts_audio" | "cancel_tts" | "clear_tts_cache" | "invalidate_tts_cache"
+        ) {
+            // Speech waits run independently so stop/clear can interrupt a pending synthesis.
+            let service = tts_service.clone();
+            let command = command.to_string();
+            let args = args.clone();
+            let origin = ui_origin.clone();
+            std::thread::spawn(move || {
+                let result = match command.as_str() {
+                    "resolve_tts_audio" => match serde_json::from_value::<super::tts::TtsRequest>(
+                        args["request"].clone(),
+                    ) {
+                        Ok(request) => tauri::async_runtime::block_on(service.resolve(request))
+                            .map(|a| serde_json::to_value(a).unwrap()),
+                        Err(_) => Err(super::tts::TtsError {
+                            code: "invalid_input".into(),
+                            message: "invalid_input".into(),
+                            retryable: false,
+                        }),
+                    },
+                    "cancel_tts" => {
+                        service.cancel(args["requestId"].as_str().unwrap_or(""));
+                        Ok(Value::Null)
+                    }
+                    "clear_tts_cache" => service.clear().map(|_| Value::Null),
+                    _ => service
+                        .invalidate(args["cacheKey"].as_str().unwrap_or(""))
+                        .map(|_| Value::Null),
+                };
+                let body = match result {
+                    Ok(value) => json!({"value":value}),
+                    Err(error) => json!({"error":error}),
+                }
+                .to_string();
+                let response = format!("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: {origin}\r\nAccess-Control-Allow-Headers: content-type\r\nAccess-Control-Allow-Methods: POST, OPTIONS\r\nConnection: close\r\nContent-Length: {}\r\n\r\n{}",body.len(),body);
+                let _ = stream.write_all(response.as_bytes());
+            });
+            continue;
+        }
         let result = if command == "test_stop" {
             Ok(Value::Null)
         } else if command == "test_reopen" {
@@ -383,7 +467,7 @@ fn serve_reading_bridge() {
             Err(error) => json!({"error":error}),
         }
         .to_string();
-        let response=format!("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: http://127.0.0.1:5173\r\nAccess-Control-Allow-Headers: content-type\r\nAccess-Control-Allow-Methods: POST, OPTIONS\r\nConnection: close\r\nContent-Length: {}\r\n\r\n{}",body.len(),body);
+        let response=format!("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: {ui_origin}\r\nAccess-Control-Allow-Headers: content-type\r\nAccess-Control-Allow-Methods: POST, OPTIONS\r\nConnection: close\r\nContent-Length: {}\r\n\r\n{}",body.len(),body);
         stream.write_all(response.as_bytes()).unwrap();
         if command == "test_stop" {
             break;

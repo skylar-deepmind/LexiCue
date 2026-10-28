@@ -6,7 +6,7 @@ authors = ["skylar-deepmind"]
 license = "MIT"
 repository = "https://github.com/skylar-deepmind/LexiCue"
 edition = "2021"
-rust-version = "1.77.2"
+rust-version = "1.88"
 
 [lib]
 name = "app_lib"
@@ -22,9 +22,14 @@ tauri-plugin-fs = "2"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 tauri-plugin-opener = "2"
+tauri-plugin-clipboard-manager = "=2.3.0"
 rusqlite = { version = "0.31", features = ["bundled"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+jsonschema = { version = "0.18", default-features = false, features = ["draft202012"] }
+regex = "1"
+unicode-normalization = "0.1"
+percent-encoding = "2"
 libloading = "0.7"
 libc = "0.2"
 log = "0.4"
@@ -32,6 +37,8 @@ tauri-plugin-log = "2"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 tokio = { version = "1", features = ["time", "macros", "process", "sync", "fs", "io-util"] }
 base64 = "0.22"
+msedge-tts = { path = "vendor/msedge-tts", default-features = false, features = ["tokio-runtime"] }
+symphonia = { version = "=0.5.5", default-features = false, features = ["mp3"] }
 argon2 = "0.5"
 chacha20poly1305 = "0.10"
 rand = "0.8"
@@ -39,6 +46,7 @@ uuid = { version = "1", features = ["v4"] }
 flate2 = "1.1"
 zstd = "0.13"
 sha2 = "0.10"
+time = { version = "0.3", features = ["formatting", "parsing"] }
 lindera = { version = "4.0.1", features = ["embed-unidic"] }
 jieba-rs = "0.10"
 keyring = { version = "4.1.6", features = ["android-native-keyring-store"] }

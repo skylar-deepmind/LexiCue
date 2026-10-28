@@ -5,6 +5,8 @@ import type { AnnotationKind, AnnotationMode } from '../lib/annotation';
 import type { Language, UILanguage } from '../lib/languages';
 import { isLanguage, detectSystemLanguage, isUILanguage } from '../lib/languages';
 import { languageKey, normalizeYouTubePreferences, rememberYouTubeImport, type YouTubeLanguagePair, type YouTubePreferences } from '../lib/youtubeSelection';
+import { normalizeSpeechPreferences, type SpeechPreferences, type SpeechAccent } from '../lib/speechPreferences';
+import { normalizeContentFontScale, type ContentFontCategory, type ContentFontScale } from '../lib/contentFontScale';
 
 export type ContentFontSize = 'sm' | 'md' | 'lg';
 export type ReadingLineHeight = 'compact' | 'normal' | 'loose';
@@ -13,6 +15,11 @@ const FONT_SIZES: ContentFontSize[] = ['sm', 'md', 'lg'];
 const LINE_HEIGHTS: ReadingLineHeight[] = ['compact', 'normal', 'loose'];
 
 interface PreferencesState {
+  contentFontScale: ContentFontScale;
+  setContentFontScale: (category: ContentFontCategory, scale: number) => void;
+  speech: SpeechPreferences;
+  setSpeech: (patch: Partial<SpeechPreferences>) => void;
+  setSpeechVoice: (accent: SpeechAccent, voice: string) => void;
   reencounterHints: boolean;
   setReencounterHints: (enabled: boolean) => void;
   vocabularyKind: 'word' | 'phrase';
@@ -41,6 +48,11 @@ export const usePreferencesStore = create<PreferencesState>()(
   subscribeWithSelector(
     persist(
       (set) => ({
+        contentFontScale: normalizeContentFontScale(null),
+        setContentFontScale: (category, scale) => set(state => ({ contentFontScale: normalizeContentFontScale({ ...state.contentFontScale, [category]: scale }) })),
+        speech: normalizeSpeechPreferences(null),
+        setSpeech: patch => set(state => ({ speech: normalizeSpeechPreferences({ ...state.speech, ...patch, voices: { ...state.speech.voices, ...patch.voices } }) })),
+        setSpeechVoice: (accent, voice) => set(state => ({ speech: normalizeSpeechPreferences({ ...state.speech, voices: { ...state.speech.voices, [accent]: voice } }) })),
         reencounterHints: true,
         setReencounterHints: reencounterHints => set({reencounterHints}),
         vocabularyKind: 'word',
@@ -75,6 +87,8 @@ export const usePreferencesStore = create<PreferencesState>()(
         storage: createJSONStorage(() => localStorage),
         merge: (persisted, current) => {
           const saved = (persisted ?? {}) as {
+            speech?: unknown;
+            contentFontScale?: unknown;
             reencounterHints?: unknown;
             vocabularyKind?: unknown;
             youtube?: unknown;
@@ -113,7 +127,7 @@ export const usePreferencesStore = create<PreferencesState>()(
             word: saved.annotationModes?.word === 'single' ? 'single' : 'batch',
             phrase: saved.annotationModes?.phrase === 'single' ? 'single' : 'batch',
           };
-          return { ...current, reencounterHints: typeof saved.reencounterHints==='boolean'?saved.reencounterHints:current.reencounterHints, vocabularyKind: saved.vocabularyKind === 'phrase' ? 'phrase' : 'word', youtube: normalizeYouTubePreferences(saved.youtube), annotationModes, language, uiLanguage, learningTextFontSize, definitionFontSize, auxiliaryFontSize, readingLineHeight };
+          return { ...current, contentFontScale: normalizeContentFontScale(saved.contentFontScale), speech: normalizeSpeechPreferences(saved.speech), reencounterHints: typeof saved.reencounterHints==='boolean'?saved.reencounterHints:current.reencounterHints, vocabularyKind: saved.vocabularyKind === 'phrase' ? 'phrase' : 'word', youtube: normalizeYouTubePreferences(saved.youtube), annotationModes, language, uiLanguage, learningTextFontSize, definitionFontSize, auxiliaryFontSize, readingLineHeight };
         },
       },
     ),

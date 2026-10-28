@@ -3,12 +3,13 @@ import {mkdir,readFile,writeFile,mkdtemp} from 'node:fs/promises';
 import {spawn} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 export const root=fileURLToPath(new URL('../',import.meta.url));
-export async function createReadingHarness(output) {
+export async function createReadingHarness(output,extraCommands=[]) {
 await mkdir(output,{recursive:true});
 let bridge=process.env.LEXICUE_READING_BRIDGE_URL,server,log='';
 if(!bridge){
  const temp=await mkdtemp(`/tmp/lexicue-reading-ui-`);const info=`${temp}/bridge.json`;
- server=spawn('cargo',['test','serve_reading_bridge','--','--ignored','--nocapture'],{cwd:`${root}/src-tauri`,env:{...process.env,LEXICUE_READING_BRIDGE_INFO:info}});
+ const binary=process.env.LEXICUE_READING_BRIDGE_BINARY;
+ server=spawn(binary||'cargo',binary?['serve_reading_bridge','--ignored','--nocapture']:['test','serve_reading_bridge','--','--ignored','--nocapture'],{cwd:`${root}/src-tauri`,env:{...process.env,LEXICUE_READING_BRIDGE_INFO:info}});
  server.stdout.on('data',chunk=>{log+=chunk;});server.stderr.on('data',chunk=>{log+=chunk;});
  const deadline=Date.now()+180000;
  while(!bridge&&Date.now()<deadline){try{bridge=`http://127.0.0.1:${JSON.parse(await readFile(info,'utf8')).port}`;}catch{if(server.exitCode!==null)throw Error(log);await new Promise(done=>setTimeout(done,100));}}
@@ -21,22 +22,24 @@ const url=process.env.LEXICUE_UI_URL||'http://127.0.0.1:5173';
 const errors=[];
 async function fixture(page,theme){
  page.on('pageerror',error=>errors.push(error.message));
- await page.addInitScript(({bridge,theme})=>{
+ await page.addInitScript(({bridge,theme,extraCommands})=>{
   localStorage.setItem('lexicue-theme',theme);const previous=JSON.parse(localStorage.getItem('lexicue-preferences')||'{"state":{},"version":0}');localStorage.setItem('lexicue-preferences',JSON.stringify({...previous,state:{...previous.state,uiLanguage:'zh'}}));
   window.__uiCalls=[];window.__uiFiles={};window.__uiFailure=null;window.__uiDelayLookup=false;window.__uiDelayContexts=false;
   window.__uiStoreModule=name=>{const path=`/src/stores/${name}.ts`;const resource=performance.getEntriesByType('resource').findLast(entry=>new URL(entry.name).pathname===path);return import(resource?.name||path);};
-  const core=new Set(['begin_example_session','end_example_session','example_saved_for_selection','mutate_example_saved_record','undo_example_saved_mutation','saved_recall_index','saved_recall_contexts','import_reading_material','list_materials','open_reading_material','lookup_reading_expression','saved_for_selection','mutate_saved_record','undo_saved_mutation','list_saved_records','saved_record_source','saved_migration_report','saved_record_conflicts','export_all','restore_all','list_tags','create_tag','rename_tag','delete_tag','set_file_tags','list_legacy_records','legacy_record_detail']);
+  const core=new Set(['begin_example_session','end_example_session','example_saved_for_selection','mutate_example_saved_record','undo_example_saved_mutation','saved_recall_index','saved_recall_catalog','saved_recall_contexts','import_reading_material','list_materials','open_reading_material','lookup_reading_expression','lookup_longman_expression','lookup_cambridge_expression','longman_dictionary_status','saved_for_selection','mutate_saved_record','undo_saved_mutation','list_saved_records','list_saved_groups','saved_group_contexts','saved_record_source','saved_migration_report','saved_record_conflicts','export_all','restore_all','list_tags','create_tag','rename_tag','delete_tag','set_file_tags','list_legacy_records','legacy_record_detail']);
+  extraCommands.forEach(command=>core.add(command));
   window.__TAURI_EVENT_PLUGIN_INTERNALS__={unregisterListener(){}};
   window.__TAURI_INTERNALS__={transformCallback:()=>1,unregisterCallback(){},convertFileSrc:path=>path,invoke:async(command,args={})=>{
    window.__uiCalls.push({command,args:structuredClone(args)});
    const fail=window.__uiFailure?.command===command&&window.__uiFailure.remaining>0;
    if(fail&&!window.__uiFailure.afterCommit){window.__uiFailure.remaining--;throw Error('fixture failure before write');}
    if(core.has(command)){
-    const result=await(await fetch(bridge,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({command,args})})).json();if(result.error)throw Error(result.error);
+    const result=await(await fetch(bridge,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({command,args})})).json();if(result.error)throw typeof result.error==='object'?result.error:Error(result.error);
     if(fail){window.__uiFailure.remaining--;throw Error('fixture lost receipt after real commit');}
     if(command==='mutate_example_saved_record'&&window.__uiDelayExampleSave)await new Promise(done=>setTimeout(done,450));
     if(command==='begin_example_session'&&window.__uiDelayExampleBegin)await new Promise(done=>setTimeout(done,450));
-    if(command==='lookup_reading_expression'&&window.__uiDelayLookup&&args.expression==='take')await new Promise(done=>setTimeout(done,400));
+    if(['lookup_reading_expression','lookup_longman_expression'].includes(command)&&((window.__uiDelayLookup&&args.expression==='take')||window.__uiDelayExpression===args.expression))await new Promise(done=>setTimeout(done,window.__uiLookupDelayMs||400));
+    if(command==='lookup_cambridge_expression'&&window.__uiDelayCambridge)await new Promise(done=>setTimeout(done,window.__uiDelayCambridge));
     if(command==='saved_recall_contexts'&&window.__uiDelayContexts&&args.expression==='take off')await new Promise(done=>setTimeout(done,400));
     return result.value;
    }
@@ -54,7 +57,7 @@ async function fixture(page,theme){
    if(command.startsWith('plugin:')||command.startsWith('sync_'))return null;
    throw Error(`Unimplemented native fixture command: ${command}`);
   }};
- },{bridge,theme});
+ },{bridge,theme,extraCommands});
 }
 return {browser,url,call,fixture,errors,dispose:async()=>{await browser.close();if(server){await call('test_stop').catch(()=>{});await writeFile(`${output}/bridge.log`,log);}}};
 }

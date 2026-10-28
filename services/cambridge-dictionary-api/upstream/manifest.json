@@ -1,0 +1,12 @@
+{
+  "repository": "https://github.com/Nongfsq/cambridge-dictionary-api",
+  "commit": "2666e4cb41222a25c58d750603f9dd9cc44e5f00",
+  "license": "MIT",
+  "copyright": "EliasChen",
+  "files": {
+    "upstream/index.js": "1003d2382eff65d75591b8158058b1f7391aa30704cc9f8899635c57d2954585",
+    "upstream/package.json": "50cf149a56595db08f2eb9af51b969dfa1cbd7d27d39cf3a05b0cb1f96ecddac",
+    "upstream/data.js": "9c55acdeb0e05cf89d7945da2444224cae75f056f8f8ada6d516c2a3dfd62ea7",
+    "LICENSE.txt": "89de9acd99a1d070f19d35462a19aea737507ba729afc365f916b58f9eaa21a5"
+  }
+}

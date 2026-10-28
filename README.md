@@ -75,6 +75,8 @@ Gemma: [E2B / E4B](docs/embedded-gemma.md).
 
 Reading, dictionaries and reviews work locally. Downloading YouTube subtitles or AI models requires a connection. Optional cloud AI sends selected text to your configured API; optional cloud sync uploads encrypted learning records.
 
+English read-aloud uses Microsoft's Edge online speech service by default. Only the English text you ask to hear and the chosen voice settings are sent; validated audio is cached on your device, separately from learning records and backups. Settings → English read-aloud lets you choose US/UK voices and speed, turn off online requests, and disable the explicitly labelled device-voice fallback. Cached speech remains available offline. This third-party service can change or become unavailable; no Azure key, Edge installation, or separate Python/Node runtime is required.
+
 ## Support the project
 
 [Support the author — 爱发电 / Aifadian](https://www.ifdian.net/a/skylar-lexicue) · [GitHub Star](https://github.com/skylar-deepmind/LexiCue)

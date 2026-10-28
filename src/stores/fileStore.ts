@@ -485,6 +485,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
       if (!selected) return;
       const packJson = await readTextFile(selected as string);
       const count = await invoke<number>('import_dictionary_pack', { packJson });
+      window.dispatchEvent(new Event('lexicue-dictionary-changed'));
       invalidateCaches('storage');
       useFeedbackStore.getState().show(i18n.t('fileStore.dictionaryImported', { count }), 'success');
     } catch (e) {

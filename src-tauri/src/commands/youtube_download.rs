@@ -399,13 +399,6 @@ fn progress(
 fn seconds_left(duration: Duration) -> u64 {
     duration.as_secs() + u64::from(duration.subsec_nanos() > 0)
 }
-fn subtitle_wait(source: SubtitleSource) -> u64 {
-    if matches!(source, SubtitleSource::Translated | SubtitleSource::Unknown) {
-        60
-    } else {
-        0
-    }
-}
 
 struct TempDir(PathBuf);
 impl Drop for TempDir {
@@ -446,8 +439,6 @@ async fn capture_download(
     });
     let deadline = tokio::time::sleep(timeout);
     tokio::pin!(deadline);
-    let mut ticker = tokio::time::interval(Duration::from_secs(1));
-    let mut waiting_until = None;
     let mut reading = true;
     let result = loop {
         tokio::select! {
@@ -457,20 +448,10 @@ async fn capture_download(
             status = child.wait() => break status.map_err(|_| "download_failed".into()),
             line = rx.recv(), if reading => {
                 if let Some(line) = line {
-                    if line.contains("[download] Sleeping") {
-                        waiting_until = Some(tokio::time::Instant::now() + Duration::from_secs(subtitle_wait(track.source)));
-                        progress(job, "waiting", role, track, Some(subtitle_wait(track.source)));
-                    } else if line.contains("[download] Destination") {
-                        waiting_until = None;
+                    if line.contains("[download] Destination") {
                         progress(job, "downloading", role, track, None);
                     }
                 } else { reading = false; }
-            }
-            _ = ticker.tick(), if waiting_until.is_some() => {
-                let left = waiting_until.unwrap().saturating_duration_since(tokio::time::Instant::now());
-                let left = seconds_left(left);
-                progress(job, if left > 0 { "waiting" } else { "downloading" }, role, track, Some(left));
-                if left == 0 { waiting_until = None; }
             }
         }
     };
@@ -509,6 +490,8 @@ async fn native_track_at(
         "--newline",
         "--retries",
         "0",
+        "--socket-timeout",
+        "10",
         "--extractor-retries",
         "0",
         "--fragment-retries",
@@ -530,7 +513,7 @@ async fn native_track_at(
         },
     )
     .arg("--sleep-subtitles")
-    .arg(subtitle_wait(track.source).to_string())
+    .arg("0")
     .arg("--sub-langs")
     .arg(format!("^{}$", track.lang))
     .arg("--output")
@@ -539,8 +522,21 @@ async fn native_track_at(
         "--write-auto-subs"
     } else {
         "--write-subs"
-    })
-    .arg(format!("https://www.youtube.com/watch?v={video}"));
+    });
+    // Listing already extracted signed subtitle URLs. Let yt-dlp download from
+    // that snapshot instead of fetching the watch page/player a second time.
+    let metadata_key = format!("{video}:{}", session.cache_identity());
+    if let Some(json) = get_cached_metadata(&metadata_key) {
+        let info = dir.0.join("info.json");
+        std::fs::write(
+            &info,
+            serde_json::to_vec(&json).map_err(|_| fail("download_failed"))?,
+        )
+        .map_err(|_| fail("download_failed"))?;
+        cmd.arg("--load-info-json").arg(info);
+    } else {
+        cmd.arg(format!("https://www.youtube.com/watch?v={video}"));
+    }
     progress(job, "extracting", role, track, None);
     let (status, stderr) = capture_download(&mut cmd, job, role, track, timeout)
         .await
@@ -923,6 +919,11 @@ mod tests {
             {
                 continue;
             }
+            if std::env::var_os("LEXICUE_SMOKE_ORIGINAL_ONLY").is_some()
+                && source == SubtitleSource::Translated
+            {
+                continue;
+            }
             let target = if source == SubtitleSource::Translated {
                 "zh-Hans"
             } else {
@@ -934,6 +935,7 @@ mod tests {
                 .chain(info.automatic.iter())
                 .find(|track| track.source == source && track.language == target);
             if let Some(track) = track {
+                let started = std::time::Instant::now();
                 let result = native_track(
                     &job(),
                     "dQw4w9WgXcQ",
@@ -945,9 +947,10 @@ mod tests {
                 .await;
                 match &result {
                     Ok(subtitle) => eprintln!(
-                        "{source:?} {}: {} cues",
+                        "{source:?} {}: {} cues in {:.2}s",
                         track.lang,
-                        parse_srt(&subtitle.content).len()
+                        parse_srt(&subtitle.content).len(),
+                        started.elapsed().as_secs_f64()
                     ),
                     Err(error) => eprintln!("{source:?} {}: {}", track.lang, error.code),
                 }
@@ -983,9 +986,6 @@ mod tests {
             metadata_track("zh-Hant", false, &serde_json::json!([{}])).source,
             SubtitleSource::Manual
         );
-        assert_eq!(subtitle_wait(original.source), 0);
-        assert_eq!(subtitle_wait(translated.source), 60);
-        assert_eq!(subtitle_wait(SubtitleSource::Unknown), 60);
     }
 
     #[test]
@@ -1183,7 +1183,47 @@ mod tests {
 
     #[cfg(unix)]
     #[tokio::test]
-    async fn native_download_uses_exact_track_and_wait_after_extraction_without_real_sleep() {
+    async fn reuses_the_metadata_snapshot_instead_of_extracting_the_video_again() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let executable = dir.path().join("yt-dlp-metadata-mock");
+        std::fs::write(
+            &executable,
+            r#"#!/bin/sh
+output=''; info=''; previous=''
+for argument in "$@"; do
+  case "$previous" in --output) output="$argument" ;; --load-info-json) info="$argument" ;; esac
+  case "$argument" in https://*) exit 3 ;; esac
+  previous="$argument"
+done
+[ -f "$info" ] || exit 2
+directory="${output%/*}"
+printf '1\n00:00:00,000 --> 00:00:02,000\nHello.\n\n' > "$directory/abcdefghijk.en.srt"
+"#,
+        )
+        .unwrap();
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o700)).unwrap();
+        cache_metadata(
+            "abcdefghijk:anonymous",
+            &serde_json::json!({"id":"abcdefghijk","title":"Test"}),
+        );
+        let result = native_track_at(
+            &job(),
+            "abcdefghijk",
+            &player_track("en", false),
+            &BrowserSession::default(),
+            "primary",
+            Duration::from_secs(2),
+            &executable,
+        )
+        .await
+        .unwrap();
+        assert_eq!(result.content, SRT);
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn native_download_uses_exact_track_without_an_unconditional_wait() {
         use std::os::unix::fs::PermissionsExt;
         let dir = tempfile::tempdir().unwrap();
         let executable = dir.path().join("yt-dlp-mock");
@@ -1193,9 +1233,8 @@ for argument in "$@"; do
   case "$previous" in --output) output="$argument" ;; --sub-langs) language="$argument" ;; --sleep-subtitles) wait="$argument" ;; esac
   previous="$argument"
 done
-[ "$language" = '^zh-Hans$' ] && [ "$wait" = '60' ] || exit 2
+[ "$language" = '^zh-Hans$' ] && [ "$wait" = '0' ] || exit 2
 echo '[youtube] extracting'
-echo '[download] Sleeping 60.00 seconds ...'
 directory="${output%/*}"
 printf '1\n00:00:00,000 --> 00:00:02,000\nHello.\n\n' > "$directory/dQw4w9WgXcQ.zh-Hans.srt"
 "#).unwrap();

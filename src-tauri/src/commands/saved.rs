@@ -41,6 +41,200 @@ pub struct SavedSource {
     pub end_time: Option<String>,
 }
 
+/// A portable copy of only the chosen dictionary sense. It stays independent
+/// of the installed package and of the user's editable explanation.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct DictionarySnapshot {
+    pub schema_version: u8,
+    pub headword: String,
+    pub source: DictionarySnapshotSource,
+    pub entry_id: String,
+    pub group_id: String,
+    pub sense_id: String,
+    pub part_of_speech: Option<String>,
+    pub meaning: DictionarySnapshotMeaning,
+    #[serde(default)]
+    pub labels: Vec<DictionarySnapshotLabel>,
+    #[serde(default)]
+    pub examples: Vec<DictionarySnapshotExample>,
+    #[serde(default)]
+    pub patterns: Vec<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct DictionarySnapshotSource {
+    pub provider: String,
+    pub dataset: String,
+    pub edition: Option<String>,
+    pub release: Option<String>,
+    pub adapter_version: String,
+    pub entry_key: String,
+    pub locator: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub entry_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub retrieved_at: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub access_channel: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub service_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub received_at: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct DictionarySnapshotMeaning {
+    pub en: Option<String>,
+    pub zh: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct DictionarySnapshotLabel {
+    pub kind: String,
+    pub text: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct DictionarySnapshotExample {
+    pub id: String,
+    pub english: String,
+    pub chinese: Option<String>,
+}
+
+fn validate_dictionary_snapshot(snapshot: &DictionarySnapshot) -> Result<(), String> {
+    let text = |s: &str| !s.trim().is_empty();
+    let optional_text = |s: &Option<String>| s.as_deref().map_or(true, text);
+    let source = &snapshot.source;
+    // New public metadata is an explicit contract. Old snapshots omit these
+    // fields, retaining their exact serialized request and idempotency signature.
+    const PUBLIC_SNAPSHOT_ADAPTERS: [&str; 2] =
+        ["cambridge-public-v1.0.0", "cambridge-public-v1.1.0"];
+    let public_namespace = format!("cambridge:public:{}:", source.adapter_version);
+    let public_metadata = source.access_channel.is_some()
+        || source.service_url.is_some()
+        || source.received_at.is_some()
+        || PUBLIC_SNAPSHOT_ADAPTERS.contains(&source.adapter_version.as_str());
+    if public_metadata
+        && (source.provider != "cambridge"
+            || source.access_channel.as_deref() != Some("author_public_api")
+            || !PUBLIC_SNAPSHOT_ADAPTERS.contains(&source.adapter_version.as_str())
+            || source.dataset != "Cambridge Dictionary (author public API)"
+            || source.service_url.as_deref() != Some("https://dictionary-api.eliaschen.dev")
+            || !source
+                .received_at
+                .as_deref()
+                .is_some_and(super::cambridge::valid_retrieved_at)
+            || source.entry_url.is_some()
+            || source.retrieved_at.is_some()
+            || source.edition.is_some()
+            || source.release.is_some()
+            || [&snapshot.entry_id, &snapshot.group_id, &snapshot.sense_id]
+                .into_iter()
+                .any(|id| !id.starts_with(&public_namespace))
+            || snapshot
+                .examples
+                .iter()
+                .any(|example| !example.id.starts_with(&public_namespace)))
+    {
+        return Err("saved_dictionary_snapshot_invalid".into());
+    }
+    if snapshot.schema_version != 1
+        || ![
+            snapshot.headword.as_str(),
+            snapshot.entry_id.as_str(),
+            snapshot.group_id.as_str(),
+            snapshot.sense_id.as_str(),
+            snapshot.source.dataset.as_str(),
+            snapshot.source.adapter_version.as_str(),
+            snapshot.source.entry_key.as_str(),
+        ]
+        .iter()
+        .all(|s| text(s))
+        || !matches!(snapshot.source.provider.as_str(), "longman" | "cambridge")
+        || (snapshot.source.provider == "longman" && snapshot.source.release.is_none())
+        || !optional_text(&snapshot.source.edition)
+        || !optional_text(&snapshot.source.release)
+        || !optional_text(&snapshot.source.locator)
+        || snapshot
+            .source
+            .entry_url
+            .as_deref()
+            .is_some_and(|u| !super::cambridge::valid_entry_url(u))
+        || snapshot
+            .source
+            .retrieved_at
+            .as_deref()
+            .is_some_and(|s| !super::cambridge::valid_retrieved_at(s))
+        || !optional_text(&snapshot.part_of_speech)
+        || !optional_text(&snapshot.meaning.en)
+        || !optional_text(&snapshot.meaning.zh)
+        || (snapshot.meaning.en.is_none() && snapshot.meaning.zh.is_none())
+        || snapshot.labels.len() > 30
+        || snapshot.examples.len() > 2
+        || snapshot.patterns.len() > 10
+        || snapshot
+            .labels
+            .iter()
+            .any(|label| !text(&label.kind) || !text(&label.text))
+        || snapshot.examples.iter().any(|example| {
+            !text(&example.id) || !text(&example.english) || !optional_text(&example.chinese)
+        })
+        || snapshot.patterns.iter().any(|pattern| !text(pattern))
+        || serde_json::to_vec(snapshot)
+            .map_err(|e| e.to_string())?
+            .len()
+            > 32_768
+    {
+        return Err("saved_dictionary_snapshot_invalid".into());
+    }
+    Ok(())
+}
+
+/// A bounded excerpt of meanings displayed before saving, never a chosen
+/// meaning for the current sentence. Optional for exact old wire compatibility.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct DictionaryReference {
+    pub schema_version: u8,
+    pub kind: String,
+    pub headword: String,
+    pub senses: Vec<DictionarySnapshot>,
+}
+
+fn validate_dictionary_reference(reference: &DictionaryReference) -> Result<(), String> {
+    let invalid = || "saved_dictionary_reference_invalid".to_string();
+    if reference.schema_version != 1
+        || reference.kind != "dictionary_excerpt"
+        || reference.headword.trim().is_empty()
+        || reference.headword.chars().count() > 256
+        || reference.senses.is_empty()
+        || reference.senses.len() > 5
+        || serde_json::to_vec(reference).map_err(|_| invalid())?.len() > 16_384
+    {
+        return Err(invalid());
+    }
+    let mut ids = std::collections::HashSet::new();
+    for sense in &reference.senses {
+        validate_dictionary_snapshot(sense).map_err(|_| invalid())?;
+        let namespace = format!("{}:", sense.source.provider);
+        if (sense.source.provider == "cambridge"
+            && sense.source.access_channel.is_none()
+            && (sense.source.entry_url.is_none() || sense.source.retrieved_at.is_none()))
+            || sense.headword != reference.headword
+            || !ids.insert(&sense.sense_id)
+            || [&sense.entry_id, &sense.group_id, &sense.sense_id]
+                .iter()
+                .any(|id| !id.starts_with(&namespace))
+            || [&sense.meaning.en, &sense.meaning.zh]
+                .into_iter()
+                .flatten()
+                .any(|text| text.chars().count() > 2000)
+        {
+            return Err(invalid());
+        }
+    }
+    Ok(())
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct SavedRecord {
     pub record_id: String,
@@ -52,6 +246,10 @@ pub struct SavedRecord {
     pub source: Option<SavedSource>,
     pub explanation: Option<String>,
     pub explanation_source: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dictionary_snapshot: Option<DictionarySnapshot>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dictionary_reference: Option<DictionaryReference>,
     pub origin: String,
     /// Preserves every old personal field, including English edits and notes.
     pub legacy: Option<serde_json::Value>,
@@ -137,6 +335,12 @@ pub fn get(conn: &Connection, id: &str) -> Result<Option<SavedRecord>, String> {
 
 /// Used by backup and the encrypted record protocol; no local FK crosses devices.
 pub fn write_record(conn: &Connection, record: &SavedRecord) -> Result<i64, String> {
+    if let Some(snapshot) = &record.dictionary_snapshot {
+        validate_dictionary_snapshot(snapshot)?;
+    }
+    if let Some(reference) = &record.dictionary_reference {
+        validate_dictionary_reference(reference)?;
+    }
     if record.record_id != identity(&record.expression, &record.source_key)
         || record.normalized_expression != normalize(&record.expression)
         || record.generation < 0
@@ -169,6 +373,10 @@ pub struct SaveInput {
     pub end_offset: usize,
     pub explanation: Option<String>,
     pub explanation_source: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dictionary_snapshot: Option<DictionarySnapshot>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dictionary_reference: Option<DictionaryReference>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -196,6 +404,22 @@ pub struct MutationResult {
 }
 
 fn from_input(conn: &Connection, input: &SaveInput) -> Result<SavedRecord, String> {
+    if let Some(reference) = &input.dictionary_reference {
+        validate_dictionary_reference(reference)?;
+    }
+    if let Some(snapshot) = &input.dictionary_snapshot {
+        validate_dictionary_snapshot(snapshot)?;
+        if input.explanation_source == "dictionary"
+            && input.explanation.as_deref()
+                != snapshot
+                    .meaning
+                    .zh
+                    .as_deref()
+                    .or(snapshot.meaning.en.as_deref())
+        {
+            return Err("saved_dictionary_selection_mismatch".into());
+        }
+    }
     let (sentence,translation,hash,name,index,start_time,end_time,language): (String,Option<String>,String,String,i64,Option<String>,Option<String>,String) = conn.query_row(
         "SELECT s.en_text,s.zh_text,f.content_hash,f.name,s.index_num,s.start_time,s.end_time,f.language FROM segments s JOIN files f ON f.id=s.file_id WHERE s.id=?1", [input.segment_id],
         |r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?,r.get(5)?,r.get(6)?,r.get(7)?)),
@@ -252,6 +476,8 @@ fn from_input(conn: &Connection, input: &SaveInput) -> Result<SavedRecord, Strin
         }),
         explanation: input.explanation.clone(),
         explanation_source: input.explanation_source.clone(),
+        dictionary_snapshot: input.dictionary_snapshot.clone(),
+        dictionary_reference: input.dictionary_reference.clone(),
         origin: "reader".into(),
         legacy: None,
         saved_at: Some(now_ms()),
@@ -297,6 +523,15 @@ pub fn mutate(
             let before = get(&tx, &proposed.record_id)?;
             let mut record = before.clone().unwrap_or(proposed);
             if record.deleted_at.is_some() {
+                // A new save intent may include a note the user just typed.
+                // Apply only that explicit personal content when restoring;
+                // ordinary retries/default saves keep the previous snapshot.
+                // Active duplicates remain no-ops, and dictionary references
+                // never replace the frozen content during this restoration.
+                if input.explanation_source == "personal" {
+                    record.explanation = input.explanation.clone();
+                    record.explanation_source = "personal".into();
+                }
                 record.deleted_at = None;
                 record.generation += 1;
                 record.revision = Uuid::new_v4().to_string();
@@ -566,6 +801,8 @@ pub fn migrate_legacy(conn: &Connection) -> Result<MigrationReport, String> {
                     source,
                     explanation,
                     explanation_source: explanation_source.into(),
+                    dictionary_snapshot: None,
+                    dictionary_reference: None,
                     origin: "legacy".into(),
                     legacy: Some(
                         serde_json::json!({"kind":kind,"legacy_id":id,"definition":definition,"occurrence":context,"dictionary":dictionary}),
@@ -685,6 +922,480 @@ pub fn list(
         .map_err(|e| e.to_string())?;
     rows.map(|r| serde_json::from_str(&r.map_err(|e| e.to_string())?).map_err(|e| e.to_string()))
         .collect()
+}
+
+/// Lightweight rebuildable archive view. Only identity/search projections are
+/// read for the full dataset; long snapshots are fetched for returned pages.
+#[derive(Clone)]
+pub struct ArchiveGroup {
+    pub group_id: String,
+    pub expression: String,
+    pub record_ids: Vec<String>,
+    pub latest_saved_at: Option<i64>,
+    pub search_hit: bool,
+}
+pub struct Archive {
+    index: std::sync::OnceLock<Vec<String>>,
+    catalog: std::sync::Arc<super::longman::RelationCatalog>,
+    pub groups: std::collections::BTreeMap<String, ArchiveGroup>,
+    aliases: std::collections::BTreeMap<String, std::collections::BTreeSet<String>>,
+}
+fn compact(expression: &str) -> String {
+    expression.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+fn case_evidence(expression: &str) -> bool {
+    expression.chars().any(char::is_uppercase)
+}
+fn all_caps(expression: &str) -> bool {
+    expression.chars().filter(|c| c.is_alphabetic()).count() > 1
+        && expression
+            .chars()
+            .filter(|c| c.is_alphabetic())
+            .all(char::is_uppercase)
+}
+fn archive_sensitive(catalog: &super::longman::RelationCatalog, expression: &str) -> bool {
+    (catalog.literal_only() && case_evidence(expression))
+        || all_caps(expression)
+        || catalog.case_sensitive_identity(expression)
+}
+fn literal_key(expression: &str, sensitive: bool) -> String {
+    format!(
+        "{}:{}",
+        if sensitive { "case" } else { "fold" },
+        if sensitive {
+            compact(expression)
+        } else {
+            normalize(expression)
+        }
+    )
+}
+fn group_identity(key: &str) -> String {
+    format!("term-{:x}", Sha256::digest(key.as_bytes()))
+}
+fn alias_key(expression: &str, canonical: &str, sensitive: bool) -> Option<String> {
+    // A corrected uppercase headword is not proof that lowercase us means US.
+    // Case-sensitive aliases must remain representable by the string index.
+    if sensitive
+        && (!case_evidence(expression)
+            || (normalize(expression) == normalize(canonical)
+                && compact(expression) != compact(canonical)))
+    {
+        return None;
+    }
+    Some(literal_key(expression, sensitive))
+}
+impl Archive {
+    pub fn resolve(&self, expression: &str) -> Option<&ArchiveGroup> {
+        let exact = literal_key(expression, true);
+        let folded = literal_key(expression, false);
+        // Literal cards remain reachable even when a catalog safely expands
+        // another family. Ambiguous spellings never become another family's
+        // aliases, and historical reference excerpts cannot authorize one.
+        if let Some(group) = self.groups.get(&group_identity(&exact)) {
+            return Some(group);
+        }
+        if let Some(ids) = self.aliases.get(&exact).filter(|ids| ids.len() == 1) {
+            return self.groups.get(ids.first()?);
+        }
+        // A missing uppercase card cannot borrow the lowercase card's history.
+        // The source reserves US/May even when only us/may has been saved.
+        if (self.catalog.literal_only() && case_evidence(expression))
+            || all_caps(expression)
+            || self.catalog.case_sensitive_identity(&compact(expression))
+        {
+            return None;
+        }
+        if let Some(group) = self.groups.get(&group_identity(&folded)) {
+            return Some(group);
+        }
+        let ids = self.aliases.get(&folded)?;
+        if ids.len() != 1 {
+            return None;
+        }
+        self.groups.get(ids.first()?)
+    }
+    pub fn expressions(&self) -> Vec<String> {
+        self.index
+            .get_or_init(|| {
+                self.aliases
+                    .iter()
+                    .filter_map(|(key, ids)| {
+                        (ids.len() == 1 || self.groups.contains_key(&group_identity(key)))
+                            .then(|| key.split_once(':').unwrap().1.to_string())
+                    })
+                    .collect::<std::collections::BTreeSet<_>>()
+                    .into_iter()
+                    .collect()
+            })
+            .clone()
+    }
+    pub fn case_exclusions(&self) -> Vec<String> {
+        self.catalog.case_exclusions(&self.expressions())
+    }
+    pub fn literal_only(&self) -> bool {
+        self.catalog.literal_only()
+    }
+}
+
+#[derive(PartialEq, Eq)]
+struct ArchiveStamp {
+    changes: i64,
+    data_version: i64,
+}
+struct CachedArchive {
+    stamp: ArchiveStamp,
+    catalog_fingerprint: String,
+    archive: std::sync::Arc<Archive>,
+    accessed: u64,
+}
+#[derive(Default)]
+struct ArchiveCache {
+    entries: std::collections::BTreeMap<String, CachedArchive>,
+    clock: u64,
+}
+static ARCHIVE_CACHE: std::sync::OnceLock<std::sync::Mutex<ArchiveCache>> =
+    std::sync::OnceLock::new();
+
+/// The random token belongs to this SQLite connection's TEMP schema, so closing
+/// and reopening a connection can never accidentally reuse an old cache entry.
+/// Local writes (including sync/restore) change total_changes; commits made by a
+/// different connection change data_version. Nothing is persisted or synced.
+fn archive_stamp(conn: &Connection) -> Result<(String, ArchiveStamp), String> {
+    conn.execute_batch("CREATE TEMP TABLE IF NOT EXISTS lexicue_archive_cache_token(token TEXT PRIMARY KEY NOT NULL)").map_err(|e|e.to_string())?;
+    let token = conn
+        .query_row(
+            "SELECT token FROM temp.lexicue_archive_cache_token LIMIT 1",
+            [],
+            |r| r.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+    let token = match token {
+        Some(token) => token,
+        None => {
+            let token = Uuid::new_v4().to_string();
+            conn.execute(
+                "INSERT INTO temp.lexicue_archive_cache_token(token) VALUES(?1)",
+                [&token],
+            )
+            .map_err(|e| e.to_string())?;
+            token
+        }
+    };
+    let changes = conn
+        .query_row("SELECT total_changes()", [], |r| r.get(0))
+        .map_err(|e| e.to_string())?;
+    let data_version = conn
+        .pragma_query_value(None, "data_version", |r| r.get(0))
+        .map_err(|e| e.to_string())?;
+    Ok((
+        token,
+        ArchiveStamp {
+            changes,
+            data_version,
+        },
+    ))
+}
+
+/// Share one immutable derived view between recall, archived lists and context
+/// pages. Transaction-local reads bypass caching: rollback is not represented
+/// by total_changes and must never leave uncommitted facts in a shared view.
+pub fn archive(conn: &Connection, query: &str) -> Result<std::sync::Arc<Archive>, String> {
+    archive_with_catalog(conn, query, super::longman::relation_catalog_configured())
+}
+fn archive_with_catalog(
+    conn: &Connection,
+    query: &str,
+    catalog: std::sync::Arc<super::longman::RelationCatalog>,
+) -> Result<std::sync::Arc<Archive>, String> {
+    if !query.trim().is_empty() || !conn.is_autocommit() {
+        return build_archive(conn, query, &catalog).map(std::sync::Arc::new);
+    }
+    let (token, stamp) = archive_stamp(conn)?;
+    let shared = ARCHIVE_CACHE.get_or_init(|| std::sync::Mutex::new(ArchiveCache::default()));
+    {
+        let mut cache = shared.lock().map_err(|e| e.to_string())?;
+        cache.clock = cache.clock.wrapping_add(1);
+        let accessed = cache.clock;
+        if let Some(entry) = cache.entries.get_mut(&token) {
+            if entry.stamp == stamp && entry.catalog_fingerprint == catalog.fingerprint() {
+                entry.accessed = accessed;
+                return Ok(entry.archive.clone());
+            }
+        }
+    }
+    let archive = std::sync::Arc::new(build_archive(conn, "", &catalog)?);
+    let mut cache = shared.lock().map_err(|e| e.to_string())?;
+    cache.clock = cache.clock.wrapping_add(1);
+    let accessed = cache.clock;
+    cache.entries.insert(
+        token,
+        CachedArchive {
+            stamp,
+            catalog_fingerprint: catalog.fingerprint().into(),
+            archive: archive.clone(),
+            accessed,
+        },
+    );
+    // Closed connections leave only bounded, evictable derived data. Existing
+    // callers retain their Arc safely if another connection evicts this entry.
+    while cache.entries.len() > 16 {
+        let oldest = cache
+            .entries
+            .iter()
+            .min_by_key(|(_, entry)| entry.accessed)
+            .map(|(token, _)| token.clone())
+            .unwrap();
+        cache.entries.remove(&oldest);
+    }
+    Ok(archive)
+}
+/// The current offline catalog, rather than a saved default headword, proves
+/// identity. This is a rebuildable projection: records and their old reference
+/// excerpts remain byte-for-byte facts, including after a dictionary change.
+fn build_archive(
+    conn: &Connection,
+    query: &str,
+    catalog: &std::sync::Arc<super::longman::RelationCatalog>,
+) -> Result<Archive, String> {
+    #[derive(Clone)]
+    struct Row {
+        id: String,
+        expression: String,
+        saved_at: Option<i64>,
+        hit: bool,
+    }
+    let pattern = format!(
+        "%{}%",
+        normalize(query)
+            .replace('!', "!!")
+            .replace('%', "!%")
+            .replace('_', "!_")
+    );
+    let mut stmt = conn.prepare("SELECT record_id,json_extract(snapshot_json,'$.expression'),saved_at,(normalized_expression LIKE ?1 ESCAPE '!' OR json_extract(snapshot_json,'$.explanation') LIKE ?1 ESCAPE '!' OR json_extract(snapshot_json,'$.sentence') LIKE ?1 ESCAPE '!' OR json_extract(snapshot_json,'$.source.file_name') LIKE ?1 ESCAPE '!' OR json_extract(snapshot_json,'$.dictionary_reference') LIKE ?1 ESCAPE '!') FROM saved_records WHERE deleted_at IS NULL ORDER BY saved_at IS NULL,saved_at DESC,record_id").map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([pattern], |r| {
+            Ok(Row {
+                id: r.get(0)?,
+                expression: r.get(1)?,
+                saved_at: r.get(2)?,
+                hit: r.get::<_, Option<bool>>(3)?.unwrap_or(false),
+            })
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<rusqlite::Result<Vec<_>>>()
+        .map_err(|e| e.to_string())?;
+    let mut identities = std::collections::HashMap::new();
+    let mut archive = Archive {
+        index: Default::default(),
+        catalog: catalog.clone(),
+        groups: Default::default(),
+        aliases: Default::default(),
+    };
+    for row in rows {
+        let display = identities
+            .entry(row.expression.clone())
+            .or_insert_with(|| {
+                let identity = catalog.identity(&row.expression);
+                // Keep the existing sentence-capitalization behavior for unknown
+                // literals. Source-confirmed proper heads and abbreviations keep
+                // their exact case; an excerpt's headword cannot supply evidence.
+                if archive_sensitive(catalog, &identity) {
+                    identity
+                } else {
+                    normalize(&identity)
+                }
+            })
+            .clone();
+        let key = literal_key(&display, archive_sensitive(catalog, &display));
+        let id = group_identity(&key);
+        let sensitive = key.starts_with("case:");
+        for alias in [&row.expression, &display] {
+            if let Some(alias) = alias_key(alias, &display, sensitive) {
+                archive.aliases.entry(alias).or_default().insert(id.clone());
+            }
+        }
+        let hit = row.hit || normalize(&display).contains(&normalize(query));
+        let group = archive
+            .groups
+            .entry(id.clone())
+            .or_insert_with(|| ArchiveGroup {
+                group_id: id,
+                expression: display,
+                record_ids: vec![],
+                latest_saved_at: row.saved_at,
+                search_hit: false,
+            });
+        group.record_ids.push(row.id);
+        group.search_hit |= hit;
+        group.latest_saved_at = group.latest_saved_at.max(row.saved_at);
+    }
+    // Expand once per live family, including safe forms never saved before.
+    // Deleted contexts cannot grant identities or keep reminders alive. The
+    // catalog is independent of any one saved sentence, so removing a former
+    // form's last sentence does not unpredictably change the remaining family.
+    let query = normalize(query);
+    for group in archive.groups.values_mut() {
+        let sensitive = archive_sensitive(catalog, &group.expression);
+        for form in catalog.safe_forms(&group.expression) {
+            if let Some(alias) = alias_key(&form, &group.expression, sensitive) {
+                archive
+                    .aliases
+                    .entry(alias)
+                    .or_default()
+                    .insert(group.group_id.clone());
+                group.search_hit |= normalize(&form).contains(&query);
+            }
+        }
+    }
+    Ok(archive)
+}
+#[derive(Serialize)]
+pub struct SavedGroup {
+    pub group_id: String,
+    pub expression: String,
+    pub context_count: usize,
+    pub latest_saved_at: Option<i64>,
+    pub preview: SavedRecord,
+}
+#[derive(Serialize)]
+pub struct SavedGroupPage {
+    pub groups: Vec<SavedGroup>,
+    pub total_groups: usize,
+    pub total_records: usize,
+}
+#[derive(Serialize)]
+pub struct SavedContextPage {
+    pub records: Vec<SavedRecord>,
+    pub total: usize,
+}
+fn preview_text(value: &str, limit: usize) -> String {
+    let mut chars = value.chars();
+    let mut result: String = chars.by_ref().take(limit).collect();
+    if chars.next().is_some() && limit > 0 {
+        result.pop();
+        result.push('…');
+    }
+    result
+}
+/// This clone is a finite list summary. A caller must fetch group_contexts for
+/// the original record before editing/removing or showing full personal data.
+/// The stored snapshot and all mutation identities remain untouched.
+fn group_preview(mut record: SavedRecord) -> SavedRecord {
+    record.expression = preview_text(&record.expression, 256);
+    record.normalized_expression = preview_text(&record.normalized_expression, 256);
+    record.source_key = preview_text(&record.source_key, 512);
+    record.revision = preview_text(&record.revision, 128);
+    record.origin = preview_text(&record.origin, 32);
+    record.explanation = record.explanation.map(|text| preview_text(&text, 300));
+    record.sentence = record.sentence.map(|text| preview_text(&text, 300));
+    record.sentence_translation = record
+        .sentence_translation
+        .map(|text| preview_text(&text, 300));
+    record.legacy = None;
+    record.dictionary_snapshot = None;
+    if let Some(source) = &mut record.source {
+        source.content_hash = preview_text(&source.content_hash, 128);
+        source.file_name = preview_text(&source.file_name, 256);
+        source.start_time = source.start_time.take().map(|text| preview_text(&text, 32));
+        source.end_time = source.end_time.take().map(|text| preview_text(&text, 32));
+    }
+    // New references already have a native 16KiB limit. Unlike a historical
+    // selected sense, this source-labelled excerpt is useful on the word card.
+    record
+}
+pub fn groups(
+    conn: &Connection,
+    query: &str,
+    limit: i64,
+    offset: i64,
+) -> Result<SavedGroupPage, String> {
+    let archive = archive(conn, query)?;
+    let mut matching: Vec<_> = archive.groups.values().filter(|g| g.search_hit).collect();
+    matching.sort_by(|a, b| {
+        b.latest_saved_at
+            .cmp(&a.latest_saved_at)
+            .then_with(|| a.group_id.cmp(&b.group_id))
+    });
+    let total_groups = matching.len();
+    let total_records = matching.iter().map(|g| g.record_ids.len()).sum();
+    let groups = matching
+        .into_iter()
+        .skip(offset.max(0) as usize)
+        .take(limit.clamp(1, 200) as usize)
+        .map(|g| {
+            Ok(SavedGroup {
+                group_id: g.group_id.clone(),
+                expression: preview_text(&g.expression, 256),
+                context_count: g.record_ids.len(),
+                latest_saved_at: g.latest_saved_at,
+                preview: group_preview(get(conn, &g.record_ids[0])?.ok_or("saved_missing")?),
+            })
+        })
+        .collect::<Result<_, String>>()?;
+    Ok(SavedGroupPage {
+        groups,
+        total_groups,
+        total_records,
+    })
+}
+pub fn group_contexts(
+    conn: &Connection,
+    group_id: &str,
+    limit: i64,
+    offset: i64,
+) -> Result<SavedContextPage, String> {
+    let archive = archive(conn, "")?;
+    context_page(conn, archive.groups.get(group_id), limit, offset)
+}
+pub fn context_page(
+    conn: &Connection,
+    group: Option<&ArchiveGroup>,
+    limit: i64,
+    offset: i64,
+) -> Result<SavedContextPage, String> {
+    let Some(group) = group else {
+        return Ok(SavedContextPage {
+            records: vec![],
+            total: 0,
+        });
+    };
+    let records = group
+        .record_ids
+        .iter()
+        .skip(offset.max(0) as usize)
+        .take(limit.clamp(1, 50) as usize)
+        .map(|id| get(conn, id)?.ok_or("saved_missing".into()))
+        .collect::<Result<_, String>>()?;
+    Ok(SavedContextPage {
+        records,
+        total: group.record_ids.len(),
+    })
+}
+#[tauri::command]
+pub fn list_saved_groups(
+    state: State<DbState>,
+    query: Option<String>,
+    limit: Option<i64>,
+    offset: Option<i64>,
+) -> Result<SavedGroupPage, String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    groups(
+        &conn,
+        &query.unwrap_or_default(),
+        limit.unwrap_or(50),
+        offset.unwrap_or(0),
+    )
+}
+#[tauri::command]
+pub fn saved_group_contexts(
+    state: State<DbState>,
+    group_id: String,
+    limit: Option<i64>,
+    offset: Option<i64>,
+) -> Result<SavedContextPage, String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    group_contexts(&conn, &group_id, limit.unwrap_or(10), offset.unwrap_or(0))
 }
 
 #[tauri::command]
@@ -823,8 +1534,1609 @@ mod tests {
                 end_offset: if segment == 1 { 23 } else { 11 },
                 explanation: Some("起飞".into()),
                 explanation_source: "dictionary".into(),
+                dictionary_snapshot: None,
+                dictionary_reference: None,
             },
         }
+    }
+
+    fn selected_dictionary_sense() -> DictionarySnapshot {
+        DictionarySnapshot {
+            schema_version: 1,
+            headword: "take off".into(),
+            source: DictionarySnapshotSource {
+                provider: "longman".into(),
+                dataset: "ldoce6-en-zh".into(),
+                edition: Some("6".into()),
+                release: Some("longman6-reviewed-v5-quick-local-v1".into()),
+                adapter_version: "1.0.0".into(),
+                entry_key: "take".into(),
+                locator: Some("fixture-selected-expression".into()),
+                entry_url: None,
+                retrieved_at: None,
+                access_channel: None,
+                service_url: None,
+                received_at: None,
+            },
+            entry_id: "longman:fixture:entry-take-off".into(),
+            group_id: "longman:fixture:group-take-off".into(),
+            sense_id: "longman:fixture:sense-2".into(),
+            part_of_speech: Some("verb".into()),
+            meaning: DictionarySnapshotMeaning {
+                en: Some("to leave the ground and begin to fly".into()),
+                zh: Some("起飞".into()),
+            },
+            labels: vec![DictionarySnapshotLabel {
+                kind: "grammar".into(),
+                text: "intransitive".into(),
+            }],
+            examples: vec![DictionarySnapshotExample {
+                id: "longman:fixture:example-2".into(),
+                english: "The plane took off.".into(),
+                chinese: Some("飞机起飞了。".into()),
+            }],
+            patterns: vec![],
+        }
+    }
+
+    fn dictionary_input(segment: i64) -> Mutation {
+        let mut mutation = input(segment);
+        if let Mutation::Save { input } = &mut mutation {
+            input.dictionary_snapshot = Some(selected_dictionary_sense());
+        }
+        mutation
+    }
+
+    fn reference(headword: &str) -> DictionaryReference {
+        let mut sense = selected_dictionary_sense();
+        sense.headword = headword.into();
+        sense.labels.clear();
+        sense.examples.clear();
+        sense.patterns.clear();
+        DictionaryReference {
+            schema_version: 1,
+            kind: "dictionary_excerpt".into(),
+            headword: headword.into(),
+            senses: vec![sense],
+        }
+    }
+    fn save_surface(
+        conn: &Connection,
+        id: i64,
+        expression: &str,
+        headword: Option<&str>,
+    ) -> MutationResult {
+        conn.execute(
+            "INSERT INTO segments(id,file_id,index_num,en_text) VALUES(?1,1,?1,?2)",
+            params![id, expression],
+        )
+        .unwrap();
+        mutate(
+            conn,
+            &format!("surface-{id}"),
+            &Mutation::Save {
+                input: SaveInput {
+                    segment_id: id,
+                    expression: expression.into(),
+                    start_offset: 0,
+                    end_offset: expression.encode_utf16().count(),
+                    explanation: None,
+                    explanation_source: "unknown".into(),
+                    dictionary_snapshot: None,
+                    dictionary_reference: headword.map(reference),
+                },
+            },
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn dictionary_excerpt_is_optional_not_selected_and_survives_edit_delete_backup_undo_reopen() {
+        let (dir, conn) = db();
+        let mut request = input(1);
+        if let Mutation::Save { input } = &mut request {
+            input.explanation = None;
+            input.explanation_source = "unknown".into();
+            input.dictionary_reference = Some(reference("take off"));
+        }
+        let first = mutate(&conn, "excerpt-first", &request).unwrap();
+        assert_eq!(first.record.explanation, None);
+        assert_eq!(first.record.explanation_source, "unknown");
+        assert!(first.record.dictionary_snapshot.is_none());
+        assert_eq!(
+            first.record.dictionary_reference,
+            Some(reference("take off"))
+        );
+        assert!(!mutate(&conn, "excerpt-repeat", &request).unwrap().changed);
+        let edited = edit(&conn, &first.record, "个人理解");
+        let removed = remove(&conn, &edited);
+        let backup = backup_payload(&conn).unwrap();
+        let (_d2, target) = db();
+        restore_backup(&target, &backup).unwrap();
+        let restored = undo(&target, &removed.operation_id).unwrap();
+        assert_eq!(
+            restored.dictionary_reference,
+            first.record.dictionary_reference
+        );
+        assert_eq!(restored.explanation.as_deref(), Some("个人理解"));
+        assert_eq!(restored.source, first.record.source);
+        drop(conn);
+        let conn = crate::db::init_db(&dir.path().join("test.db")).unwrap();
+        assert_eq!(
+            get(&conn, &first.record.record_id).unwrap().unwrap(),
+            removed.record
+        );
+        assert_eq!(groups(&conn, "", 50, 0).unwrap().total_groups, 0);
+        undo(&conn, &removed.operation_id).unwrap();
+        assert_eq!(groups(&conn, "", 50, 0).unwrap().total_groups, 1);
+        assert!(serde_json::to_value(input(2)).unwrap()["input"]
+            .get("dictionary_reference")
+            .is_none());
+    }
+
+    #[test]
+    fn native_excerpt_rejects_oversize_duplicate_mixed_scope_and_uncontrolled_provenance() {
+        let (_d, conn) = db();
+        for mode in 0..7 {
+            let mut reference = reference("take off");
+            match mode {
+                0 => reference.senses = vec![reference.senses[0].clone(); 6],
+                1 => reference.senses.push(reference.senses[0].clone()),
+                2 => reference.senses[0].headword = "look".into(),
+                3 => reference.senses[0].meaning.en = Some("x".repeat(2001)),
+                4 => reference.senses[0].sense_id = "other:invented".into(),
+                5 => {
+                    reference.senses[0].source.service_url =
+                        Some("https://uncontrolled.invalid".into())
+                }
+                _ => reference.kind = "current_sentence_meaning".into(),
+            }
+            let mut request = input(1);
+            if let Mutation::Save { input } = &mut request {
+                input.dictionary_reference = Some(reference);
+                input.explanation = None;
+                input.explanation_source = "unknown".into();
+            }
+            assert_eq!(
+                mutate(&conn, &format!("invalid-excerpt-{mode}"), &request)
+                    .err()
+                    .unwrap(),
+                "saved_dictionary_reference_invalid"
+            );
+        }
+        assert_eq!(groups(&conn, "", 50, 0).unwrap().total_records, 0);
+    }
+
+    #[test]
+    fn archive_aggregates_before_pagination_searches_all_contexts_and_keeps_stable_order() {
+        let (_d, conn) = db();
+        for id in 3..=207 {
+            save_surface(&conn, id, "change", Some("change"));
+        }
+        // One historical sentence beyond the first raw page remains searchable;
+        // a matching card still counts all of its independent source contexts.
+        let oldest = groups(&conn, "", 1, 0).unwrap().groups.remove(0);
+        let contexts = group_contexts(&conn, &oldest.group_id, 50, 200).unwrap();
+        assert_eq!(contexts.total, 205);
+        assert_eq!(contexts.records.len(), 5);
+        let edited = edit(&conn, &contexts.records[4], "only-the-oldest-context");
+        let found = groups(&conn, "only-the-oldest-context", 1, 0).unwrap();
+        assert_eq!(found.total_groups, 1);
+        assert_eq!(found.total_records, 205);
+        assert_eq!(found.groups[0].context_count, 205);
+        for id in 208..=410 {
+            save_surface(&conn, id, &format!("term{id}"), None);
+        }
+        let first = groups(&conn, "", 200, 0).unwrap();
+        let second = groups(&conn, "", 200, 200).unwrap();
+        assert_eq!(first.total_groups, 204);
+        assert_eq!(first.total_records, 408);
+        assert_eq!(first.groups.len(), 200);
+        assert_eq!(second.groups.len(), 4);
+        let ids = first
+            .groups
+            .iter()
+            .chain(&second.groups)
+            .map(|g| g.group_id.clone())
+            .collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(ids.len(), 204);
+        assert_eq!(
+            first.groups.iter().map(|g| &g.group_id).collect::<Vec<_>>(),
+            groups(&conn, "", 200, 0)
+                .unwrap()
+                .groups
+                .iter()
+                .map(|g| &g.group_id)
+                .collect::<Vec<_>>()
+        );
+        let removed = remove(&conn, &edited);
+        assert_eq!(
+            groups(&conn, "only-the-oldest-context", 1, 0)
+                .unwrap()
+                .total_groups,
+            0
+        );
+        undo(&conn, &removed.operation_id).unwrap();
+        assert_eq!(
+            groups(&conn, "only-the-oldest-context", 1, 0)
+                .unwrap()
+                .total_records,
+            205
+        );
+    }
+
+    #[test]
+    fn archive_and_recall_keep_ambiguous_excerpts_literal_boundaries_and_case_identity() {
+        let (_d, conn) = db();
+        save_surface(&conn, 3, "changed", Some("change"));
+        save_surface(&conn, 4, "changed", None);
+        save_surface(&conn, 5, "change", None);
+        for (id, expression, headword) in [
+            (6, "US", Some("US")),
+            (7, "us", Some("us")),
+            (8, "look", None),
+            (9, "look up", None),
+            (10, "run-in", None),
+            (11, "run in", None),
+            (12, "take off", Some("take off")),
+            (13, "take off", None),
+        ] {
+            save_surface(&conn, id, expression, headword);
+        }
+        let page = groups(&conn, "", 50, 0).unwrap();
+        assert_eq!(page.total_groups, 9);
+        let change = page
+            .groups
+            .iter()
+            .find(|g| g.expression == "change")
+            .unwrap();
+        assert_eq!(change.context_count, 1);
+        for alias in ["changed", "Changed"] {
+            let history = super::super::recall::contexts(&conn, alias, 0, 50).unwrap();
+            assert_eq!(history.total, 2);
+        }
+        for alias in ["US", "us", "look", "look up", "run-in", "run in"] {
+            assert_eq!(
+                super::super::recall::contexts(&conn, alias, 0, 50)
+                    .unwrap()
+                    .total,
+                1
+            );
+        }
+        assert_eq!(
+            super::super::recall::contexts(&conn, "take", 0, 50)
+                .unwrap()
+                .total,
+            0
+        );
+        let index = super::super::recall::index(&conn).unwrap();
+        assert!(index.contains(&"US".into()));
+        assert!(index.contains(&"us".into()));
+        assert!(index.contains(&"changed".into()));
+        // Old default headwords cannot split one ambiguous surface into guessed senses.
+        save_surface(&conn, 14, "bound", Some("bind"));
+        save_surface(&conn, 15, "bound", Some("bound"));
+        save_surface(&conn, 16, "bound", None);
+        assert_eq!(
+            super::super::recall::contexts(&conn, "bound", 0, 50)
+                .unwrap()
+                .total,
+            3
+        );
+        assert_eq!(
+            super::super::recall::contexts(&conn, "bind", 0, 50)
+                .unwrap()
+                .total,
+            0
+        );
+    }
+
+    #[test]
+    fn deleting_an_old_default_excerpt_does_not_change_an_ambiguous_literal_family() {
+        let (_d, conn) = db();
+        let proven = save_surface(&conn, 3, "changed", Some("change"));
+        let literal = save_surface(&conn, 4, "changed", None);
+        let canonical = save_surface(&conn, 5, "change", None);
+        remove(&conn, &proven.record);
+        let page = groups(&conn, "", 50, 0).unwrap();
+        assert_eq!(page.total_groups, 2);
+        assert_eq!(page.total_records, 2);
+        remove(&conn, &literal.record);
+        assert_eq!(
+            super::super::recall::contexts(&conn, "changed", 0, 10)
+                .unwrap()
+                .total,
+            0
+        );
+        remove(&conn, &canonical.record);
+        assert!(super::super::recall::index(&conn).unwrap().is_empty());
+    }
+
+    #[test]
+    fn removing_or_undoing_one_context_preserves_other_contexts_and_last_delete_clears_index() {
+        let (_d, conn) = db();
+        let first = save_surface(&conn, 3, "change", Some("change"));
+        let second = save_surface(&conn, 4, "change", Some("change"));
+        let third = save_surface(&conn, 5, "change", None);
+        undo(&conn, &third.operation_id).unwrap();
+        assert_eq!(groups(&conn, "", 50, 0).unwrap().groups[0].context_count, 2);
+        assert!(super::super::recall::index(&conn)
+            .unwrap()
+            .contains(&"change".into()));
+        remove(&conn, &first.record);
+        let last = remove(&conn, &second.record);
+        assert_eq!(groups(&conn, "", 50, 0).unwrap().total_groups, 0);
+        assert!(super::super::recall::index(&conn).unwrap().is_empty());
+        undo(&conn, &last.operation_id).unwrap();
+        assert_eq!(groups(&conn, "", 50, 0).unwrap().groups[0].context_count, 1);
+        assert!(super::super::recall::index(&conn)
+            .unwrap()
+            .contains(&"change".into()));
+    }
+
+    #[test]
+    fn archive_cache_invalidates_after_save_edit_remove_undo_restore_and_sync_write() {
+        let (_d, conn) = db();
+        let first = save_surface(&conn, 3, "change", Some("change"));
+        assert!(super::super::recall::index(&conn)
+            .unwrap()
+            .contains(&"change".into()));
+        let backup = backup_payload(&conn).unwrap();
+        let edited = edit(&conn, &first.record, "a personal revision");
+        assert_eq!(
+            groups(&conn, "personal revision", 50, 0)
+                .unwrap()
+                .total_records,
+            1
+        );
+        let removed = remove(&conn, &edited);
+        assert!(super::super::recall::index(&conn).unwrap().is_empty());
+        let restored = undo(&conn, &removed.operation_id).unwrap();
+        assert!(super::super::recall::index(&conn)
+            .unwrap()
+            .contains(&"change".into()));
+        // Sync and restore both commit through the same write_record boundary;
+        // changed excerpts invalidate the view but cannot grant form identities.
+        let mut synced = restored.clone();
+        synced.dictionary_reference = Some(reference("alter"));
+        write_record(&conn, &synced).unwrap();
+        let index = super::super::recall::index(&conn).unwrap();
+        assert!(!index.contains(&"alter".into()));
+        assert!(index.contains(&"change".into()));
+        synced.deleted_at = Some(now_ms());
+        write_record(&conn, &synced).unwrap();
+        assert!(super::super::recall::index(&conn).unwrap().is_empty());
+        restore_backup(&conn, &backup).unwrap();
+        assert!(super::super::recall::index(&conn)
+            .unwrap()
+            .contains(&"change".into()));
+        assert_eq!(groups(&conn, "", 50, 0).unwrap().total_records, 1);
+    }
+
+    #[test]
+    fn archive_cache_detects_other_connection_commits_and_uses_a_fresh_reopen_token() {
+        let (dir, conn) = db();
+        let first = save_surface(&conn, 3, "change", None);
+        let writer = crate::db::init_db(&dir.path().join("test.db")).unwrap();
+        assert!(super::super::recall::index(&conn)
+            .unwrap()
+            .contains(&"change".into()));
+        let (old_token, before) = archive_stamp(&conn).unwrap();
+        let mut remote = first.record.clone();
+        remote.deleted_at = Some(now_ms());
+        write_record(&writer, &remote).unwrap();
+        let (_, after) = archive_stamp(&conn).unwrap();
+        assert_eq!(before.changes, after.changes);
+        assert_ne!(before.data_version, after.data_version);
+        assert!(super::super::recall::index(&conn).unwrap().is_empty());
+        remote.deleted_at = None;
+        remote.generation += 1;
+        write_record(&writer, &remote).unwrap();
+        assert!(super::super::recall::index(&conn)
+            .unwrap()
+            .contains(&"change".into()));
+        drop(writer);
+        drop(conn);
+        let reopened = crate::db::init_db(&dir.path().join("test.db")).unwrap();
+        let (new_token, _) = archive_stamp(&reopened).unwrap();
+        assert_ne!(old_token, new_token);
+        assert!(super::super::recall::index(&reopened)
+            .unwrap()
+            .contains(&"change".into()));
+    }
+
+    #[test]
+    fn independent_databases_never_share_an_archive_cache_identity() {
+        let (_first_dir, first) = db();
+        let (_second_dir, second) = db();
+        save_surface(&first, 3, "change", None);
+        save_surface(&second, 3, "bank", None);
+        assert!(super::super::recall::index(&first)
+            .unwrap()
+            .contains(&"change".into()));
+        assert!(super::super::recall::index(&second)
+            .unwrap()
+            .contains(&"bank".into()));
+        assert_ne!(
+            archive_stamp(&first).unwrap().0,
+            archive_stamp(&second).unwrap().0
+        );
+        assert!(super::super::recall::index(&first)
+            .unwrap()
+            .contains(&"change".into()));
+    }
+
+    #[test]
+    fn archive_cache_never_retains_uncommitted_or_rolled_back_tombstones() {
+        let (_d, conn) = db();
+        let first = save_surface(&conn, 3, "change", None);
+        assert!(super::super::recall::index(&conn)
+            .unwrap()
+            .contains(&"change".into()));
+        let tx = conn.unchecked_transaction().unwrap();
+        let mut removed = first.record.clone();
+        removed.deleted_at = Some(now_ms());
+        write_record(&tx, &removed).unwrap();
+        assert!(super::super::recall::index(&tx).unwrap().is_empty());
+        let (_, before_rollback) = archive_stamp(&tx).unwrap();
+        tx.rollback().unwrap();
+        let (_, after_rollback) = archive_stamp(&conn).unwrap();
+        // total_changes does not detect rollback; explicit transaction bypass
+        // prevents its temporary view from being reused after this boundary.
+        assert_eq!(before_rollback.changes, after_rollback.changes);
+        assert!(super::super::recall::index(&conn)
+            .unwrap()
+            .contains(&"change".into()));
+        assert_eq!(groups(&conn, "", 50, 0).unwrap().total_records, 1);
+    }
+
+    #[test]
+    fn catalog_changes_rebuild_cached_identity_without_rewriting_old_records_or_excerpts() {
+        use super::super::longman::RelationCatalog;
+        let (_d, conn) = db();
+        let went = save_surface(&conn, 3, "went", Some("go"));
+        let go = save_surface(&conn, 4, "go", None);
+        let saw = save_surface(&conn, 5, "saw", Some("see"));
+        let see = save_surface(&conn, 6, "see", None);
+        let before = list(&conn, "", 100, 0).unwrap();
+        let proven = std::sync::Arc::new(RelationCatalog::test_fixture(
+            "fixture-release-a:v1",
+            &[("went", "go")],
+        ));
+        let first = archive_with_catalog(&conn, "", proven.clone()).unwrap();
+        assert_eq!(first.resolve("went").unwrap().record_ids.len(), 2);
+        assert_eq!(first.resolve("go").unwrap().record_ids.len(), 2);
+        assert_eq!(
+            first.resolve("saw").unwrap().record_ids,
+            vec![saw.record.record_id.clone()]
+        );
+        assert_eq!(
+            first.resolve("see").unwrap().record_ids,
+            vec![see.record.record_id.clone()]
+        );
+        assert!(std::sync::Arc::ptr_eq(
+            &first,
+            &archive_with_catalog(&conn, "", proven).unwrap()
+        ));
+        let unavailable =
+            std::sync::Arc::new(RelationCatalog::test_fixture("fixture-unavailable:v1", &[]));
+        let fallback = archive_with_catalog(&conn, "", unavailable).unwrap();
+        assert!(!std::sync::Arc::ptr_eq(&first, &fallback));
+        assert_eq!(
+            fallback.resolve("went").unwrap().record_ids,
+            vec![went.record.record_id.clone()]
+        );
+        assert_eq!(
+            fallback.resolve("go").unwrap().record_ids,
+            vec![go.record.record_id.clone()]
+        );
+        assert_eq!(fallback.groups.len(), 4);
+        let revised =
+            std::sync::Arc::new(RelationCatalog::test_fixture("fixture-release-b:v2", &[]));
+        let revised = archive_with_catalog(&conn, "", revised).unwrap();
+        assert!(!std::sync::Arc::ptr_eq(&fallback, &revised));
+        assert_eq!(list(&conn, "", 100, 0).unwrap(), before);
+        // A late source excerpt, including one arriving from sync, remains a
+        // portable reference and cannot silently move an ambiguous sentence.
+        let mut late = saw.record.clone();
+        late.dictionary_reference = Some(reference("saw"));
+        write_record(&conn, &late).unwrap();
+        let after = archive_with_catalog(
+            &conn,
+            "",
+            std::sync::Arc::new(RelationCatalog::test_fixture(
+                "fixture-release-a:v1",
+                &[("went", "go")],
+            )),
+        )
+        .unwrap();
+        assert_eq!(
+            after.resolve("saw").unwrap().record_ids,
+            vec![late.record_id]
+        );
+        assert_eq!(after.resolve("see").unwrap().record_ids.len(), 1);
+    }
+
+    #[test]
+    fn unavailable_catalog_keeps_casing_literal_and_source_mode_restores_sentence_capitalization() {
+        let (_d, conn) = db();
+        save_surface(&conn, 3, "us", None);
+        save_surface(&conn, 4, "the", None);
+        let unavailable = std::sync::Arc::new(
+            super::super::longman::RelationCatalog::test_fixture("unavailable-case-test", &[]),
+        );
+        let archive = archive_with_catalog(&conn, "", unavailable.clone()).unwrap();
+        assert!(archive.resolve("US").is_none());
+        assert!(archive.resolve("THE").is_none());
+        assert!(archive.resolve("The").is_none());
+        let available = std::sync::Arc::new(super::super::longman::RelationCatalog::test_fixture(
+            "available-case-test",
+            &[("the", "the")],
+        ));
+        assert_eq!(
+            archive_with_catalog(&conn, "", available)
+                .unwrap()
+                .resolve("The")
+                .unwrap()
+                .record_ids
+                .len(),
+            1
+        );
+        save_surface(&conn, 5, "US", None);
+        save_surface(&conn, 6, "I'M", None);
+        let archive = archive_with_catalog(&conn, "", unavailable).unwrap();
+        assert_eq!(archive.resolve("US").unwrap().record_ids.len(), 1);
+        assert_eq!(archive.resolve("us").unwrap().record_ids.len(), 1);
+        assert_eq!(archive.resolve("I'M").unwrap().record_ids.len(), 1);
+        assert!(archive.resolve("i'm").is_none());
+    }
+
+    #[test]
+    fn missing_dictionary_mode_preserves_case_cards_across_cache_reopen_and_source_recovery() {
+        use super::super::longman::RelationCatalog;
+        let (dir, conn) = db();
+        let lower = save_surface(&conn, 3, "may", None);
+        let unavailable =
+            std::sync::Arc::new(RelationCatalog::test_fixture("missing-source-case-v1", &[]));
+        let single = archive_with_catalog(&conn, "", unavailable.clone()).unwrap();
+        assert!(single.literal_only());
+        assert!(single.resolve("May").is_none());
+        assert!(single.resolve("MAY").is_none());
+        assert_eq!(
+            single.resolve("may").unwrap().record_ids,
+            vec![lower.record.record_id.clone()]
+        );
+        let upper = save_surface(&conn, 4, "May", None);
+        save_surface(&conn, 5, "go", None);
+        save_surface(&conn, 6, "Went", None);
+        let facts = list(&conn, "", 100, 0).unwrap();
+        let source = std::sync::Arc::new(RelationCatalog::test_fixture(
+            "available-source-case-v1",
+            &[("may", "may"), ("May", "May"), ("went", "go")],
+        ));
+        let sourced = archive_with_catalog(&conn, "", source.clone()).unwrap();
+        assert!(!sourced.literal_only());
+        assert_eq!(sourced.groups.len(), 3);
+        assert_eq!(sourced.resolve("Went").unwrap().record_ids.len(), 2);
+        let literal = archive_with_catalog(&conn, "", unavailable.clone()).unwrap();
+        assert!(literal.literal_only());
+        assert_eq!(literal.groups.len(), 4);
+        assert_eq!(
+            literal.resolve("May").unwrap().record_ids,
+            vec![upper.record.record_id]
+        );
+        assert_eq!(
+            literal.resolve("may").unwrap().record_ids,
+            vec![lower.record.record_id]
+        );
+        assert_eq!(literal.resolve("Went").unwrap().record_ids.len(), 1);
+        assert!(literal.resolve("went").is_none());
+        assert_eq!(list(&conn, "", 100, 0).unwrap(), facts);
+        drop(conn);
+        let reopened = crate::db::init_db(&dir.path().join("test.db")).unwrap();
+        let literal = archive_with_catalog(&reopened, "", unavailable).unwrap();
+        assert!(literal.literal_only());
+        assert_eq!(literal.groups.len(), 4);
+        assert_eq!(literal.resolve("May").unwrap().record_ids.len(), 1);
+        assert_eq!(literal.resolve("may").unwrap().record_ids.len(), 1);
+        let recovered = archive_with_catalog(&reopened, "", source).unwrap();
+        assert!(!recovered.literal_only());
+        assert_eq!(recovered.groups.len(), 3);
+        assert_eq!(recovered.resolve("Went").unwrap().record_ids.len(), 2);
+        assert_eq!(list(&reopened, "", 100, 0).unwrap(), facts);
+    }
+
+    fn inflection_evidence(name: &str, value: &serde_json::Value) {
+        if let Some(root) = std::env::var_os("LEXICUE_INFLECTION_ARCHIVE_EVIDENCE") {
+            std::fs::create_dir_all(&root).unwrap();
+            std::fs::write(
+                std::path::Path::new(&root).join(name),
+                serde_json::to_vec_pretty(value).unwrap(),
+            )
+            .unwrap();
+        }
+    }
+
+    #[test]
+    #[ignore = "Requires the genuine local Longman text package; uses only temporary SQLite"]
+    fn real_catalog_archive_recall_covers_safe_and_ambiguous_forms_with_durable_source_facts() {
+        let catalog = super::super::longman::relation_catalog_configured();
+        assert_eq!(super::super::longman::status_configured()["state"], "ready");
+        let mut cases = vec![];
+        for (surface, lemma) in [
+            ("children", "child"),
+            ("women", "woman"),
+            ("mice", "mouse"),
+            ("went", "go"),
+            ("bought", "buy"),
+            ("studies", "study"),
+        ] {
+            let (_d, conn) = db();
+            assert_eq!(
+                catalog.identity(surface),
+                lemma,
+                "catalog evidence for {surface}"
+            );
+            let canonical = save_surface(&conn, 3, lemma, None);
+            let index = super::super::recall::index(&conn).unwrap();
+            assert!(
+                index.contains(&surface.into()),
+                "unsaved safe form {surface}"
+            );
+            assert_eq!(
+                super::super::recall::contexts(&conn, surface, 0, 10)
+                    .unwrap()
+                    .records,
+                vec![canonical.record.clone()]
+            );
+            let form = save_surface(&conn, 4, surface, Some(lemma));
+            let grouped = groups(&conn, "", 50, 0).unwrap();
+            assert_eq!(grouped.total_groups, 1, "one card for {surface}/{lemma}");
+            assert_eq!(grouped.groups[0].context_count, 2);
+            assert_eq!(
+                groups(&conn, surface, 50, 0).unwrap().total_records,
+                2,
+                "form search includes all family contexts"
+            );
+            let input = SaveInput {
+                segment_id: 4,
+                expression: surface.into(),
+                start_offset: 0,
+                end_offset: surface.encode_utf16().count(),
+                explanation: None,
+                explanation_source: "unknown".into(),
+                dictionary_snapshot: None,
+                dictionary_reference: None,
+            };
+            assert!(
+                !mutate(&conn, "duplicate-safe-form", &Mutation::Save { input })
+                    .unwrap()
+                    .changed
+            );
+            let removed = remove(&conn, &form.record);
+            assert_eq!(
+                super::super::recall::contexts(&conn, surface, 0, 10)
+                    .unwrap()
+                    .total,
+                1
+            );
+            assert_eq!(
+                undo(&conn, &removed.operation_id).unwrap().source,
+                form.record.source
+            );
+            let removed = remove(&conn, &canonical.record);
+            assert_eq!(
+                super::super::recall::contexts(&conn, lemma, 0, 10)
+                    .unwrap()
+                    .records[0]
+                    .expression,
+                surface,
+                "reverse form lookup remains"
+            );
+            let restored = undo(&conn, &removed.operation_id).unwrap();
+            let edited = edit(&conn, &restored, "my unchanged personal note");
+            let backup = backup_payload(&conn).unwrap();
+            let (target_dir, target) = db();
+            restore_backup(&target, &backup).unwrap();
+            assert_eq!(
+                super::super::recall::contexts(&target, surface, 0, 10)
+                    .unwrap()
+                    .total,
+                2
+            );
+            assert_eq!(get(&target, &edited.record_id).unwrap().unwrap(), edited);
+            drop(target);
+            let target = crate::db::init_db(&target_dir.path().join("test.db")).unwrap();
+            target.execute("DELETE FROM files", []).unwrap();
+            assert_eq!(
+                super::super::recall::contexts(&target, surface, 0, 10)
+                    .unwrap()
+                    .total,
+                2
+            );
+            assert!(resolve_source(&target, &form.record.record_id)
+                .unwrap()
+                .is_none());
+            assert_eq!(
+                get(&target, &form.record.record_id)
+                    .unwrap()
+                    .unwrap()
+                    .dictionary_reference,
+                form.record.dictionary_reference
+            );
+            for record in list(&target, "", 100, 0).unwrap() {
+                remove(&target, &record);
+            }
+            assert!(super::super::recall::index(&target).unwrap().is_empty());
+            cases.push(serde_json::json!({"surface":surface,"lemma":lemma,"safe":true,"unsaved_form_recall":true,"same_card_contexts":2,"delete_undo_reverse_backup_reopen_missing_source":true}));
+        }
+        for (surface, lemma) in [
+            ("saw", "see"),
+            ("left", "leave"),
+            ("found", "find"),
+            ("leaves", "leaf"),
+            ("leaves", "leave"),
+            ("axes", "axe"),
+            ("axes", "axis"),
+            ("better", "good"),
+            ("better", "well"),
+            ("running", "run"),
+            ("studied", "study"),
+            ("changed", "change"),
+            ("books", "book"),
+            ("gone", "go"),
+            ("sawed", "saw"),
+            ("sawn", "saw"),
+            ("saws", "saw"),
+            ("founded", "found"),
+            ("bettered", "better"),
+        ] {
+            let (_d, conn) = db();
+            assert_eq!(
+                catalog.identity(surface),
+                surface,
+                "ambiguous form must remain literal: {surface}"
+            );
+            let canonical = save_surface(&conn, 3, lemma, None);
+            assert!(
+                !super::super::recall::index(&conn)
+                    .unwrap()
+                    .contains(&surface.into()),
+                "{lemma} cannot grant recall of {surface}"
+            );
+            assert_eq!(
+                super::super::recall::contexts(&conn, surface, 0, 10)
+                    .unwrap()
+                    .total,
+                0
+            );
+            let literal = save_surface(&conn, 4, surface, Some(lemma));
+            assert_eq!(groups(&conn, "", 50, 0).unwrap().total_groups, 2);
+            assert_eq!(
+                super::super::recall::contexts(&conn, surface, 0, 10)
+                    .unwrap()
+                    .records,
+                vec![literal.record.clone()]
+            );
+            assert_eq!(
+                super::super::recall::contexts(&conn, lemma, 0, 10)
+                    .unwrap()
+                    .records,
+                vec![canonical.record.clone()]
+            );
+            let mut late = literal.record.clone();
+            late.dictionary_reference = Some(reference(surface));
+            write_record(&conn, &late).unwrap();
+            assert_eq!(
+                super::super::recall::contexts(&conn, surface, 0, 10)
+                    .unwrap()
+                    .records,
+                vec![late]
+            );
+            cases.push(serde_json::json!({"surface":surface,"lemma":lemma,"safe":false,"lemma_alone_recall":false,"literal_saved_recall":true,"same_card":false,"late_excerpt_cannot_move_identity":true}));
+        }
+        for (literal, unrelated) in [
+            ("news", "new"),
+            ("business", "bus"),
+            ("glass", "gla"),
+            ("series", "sery"),
+            ("species", "specy"),
+            ("US", "us"),
+            ("happiness", "happy"),
+            ("action", "act"),
+            ("takeoff", "take off"),
+            ("take off", "take"),
+            ("run-in", "run in"),
+            ("can't", "cant"),
+            ("take%20off", "take off"),
+            ("rock &amp; roll", "rock & roll"),
+            ("taked", "take"),
+            ("buyed", "buy"),
+            ("childs", "child"),
+            ("gooder", "good"),
+            ("look at what is up", "look up"),
+            ("look what is up", "look up"),
+            ("look up quickly", "look up"),
+        ] {
+            let (_d, conn) = db();
+            save_surface(&conn, 3, literal, Some(unrelated));
+            assert_eq!(
+                super::super::recall::contexts(&conn, unrelated, 0, 10)
+                    .unwrap()
+                    .total,
+                0,
+                "{literal}/{unrelated} boundary"
+            );
+            assert_eq!(
+                super::super::recall::contexts(&conn, literal, 0, 10)
+                    .unwrap()
+                    .total,
+                1
+            );
+            cases.push(
+                serde_json::json!({"literal":literal,"unrelated":unrelated,"cannot_merge":true}),
+            );
+        }
+        let (_d, conn) = db();
+        for (i, expression) in ["look it up", "looked the word up"].into_iter().enumerate() {
+            assert_eq!(
+                catalog.identity(expression),
+                "look up",
+                "source whole-expression match"
+            );
+            let saved = save_surface(&conn, i as i64 + 3, expression, Some("look up"));
+            assert_eq!(saved.record.expression, expression);
+            assert_eq!(
+                saved.record.source.as_ref().unwrap().end_offset,
+                Some(expression.encode_utf16().count() as i64)
+            );
+        }
+        assert_eq!(groups(&conn, "", 50, 0).unwrap().total_groups, 1);
+        assert_eq!(
+            super::super::recall::contexts(&conn, "look up", 0, 10)
+                .unwrap()
+                .total,
+            2
+        );
+        assert_eq!(
+            super::super::recall::contexts(&conn, "look", 0, 10)
+                .unwrap()
+                .total,
+            0
+        );
+        assert_eq!(
+            super::super::recall::contexts(&conn, "look up quickly", 0, 10)
+                .unwrap()
+                .total,
+            0
+        );
+        cases.push(serde_json::json!({"surface":["look it up","looked the word up"],"lemma":"look up","source_whole_expression":true,"same_card_contexts":2,"offsets_preserved":true,"no_arbitrary_phrase_extension":true}));
+        inflection_evidence(
+            "rust-archive-recall-cases.json",
+            &serde_json::json!({"passed":true,"kind":"genuine Rust catalog + disposable SQLite save/archive/recall/backup paths","catalog_fingerprint":catalog.fingerprint(),"cases":cases}),
+        );
+    }
+
+    #[test]
+    #[ignore = "Requires source-confirmed uppercase heads from the genuine Longman package"]
+    fn real_catalog_single_sided_case_reservations_never_borrow_lowercase_history() {
+        let catalog = super::super::longman::relation_catalog_configured();
+        let mut cases = vec![];
+        for (lower, reserved) in [("us", "US"), ("may", "May")] {
+            assert!(
+                catalog.case_sensitive_identity(reserved),
+                "source case reservation {reserved}"
+            );
+            let (_d, conn) = db();
+            let lower_saved = save_surface(&conn, 3, lower, None);
+            let batch = super::super::recall::catalog(&conn).unwrap();
+            assert!(batch.expressions.contains(&lower.into()));
+            assert!(batch.case_exclusions.contains(&reserved.into()));
+            if reserved == "May" {
+                assert!(batch.case_exclusions.contains(&"MAY".into()));
+                assert_eq!(
+                    super::super::recall::contexts(&conn, "MAY", 0, 10)
+                        .unwrap()
+                        .total,
+                    0,
+                    "allcaps month/modal conflict must not borrow may"
+                );
+            }
+            assert_eq!(
+                super::super::recall::contexts(&conn, reserved, 0, 10)
+                    .unwrap()
+                    .total,
+                0,
+                "single-sided {lower} save must not mark {reserved}"
+            );
+            let upper_saved = save_surface(&conn, 4, reserved, None);
+            assert_eq!(
+                super::super::recall::contexts(&conn, reserved, 0, 10)
+                    .unwrap()
+                    .records,
+                vec![upper_saved.record.clone()]
+            );
+            assert_eq!(
+                super::super::recall::contexts(&conn, lower, 0, 10)
+                    .unwrap()
+                    .records,
+                vec![lower_saved.record.clone()]
+            );
+            let batch = super::super::recall::catalog(&conn).unwrap();
+            assert!(batch.expressions.contains(&reserved.into()));
+            assert!(batch.case_exclusions.contains(&reserved.into()));
+            remove(&conn, &upper_saved.record);
+            assert_eq!(
+                super::super::recall::contexts(&conn, reserved, 0, 10)
+                    .unwrap()
+                    .total,
+                0
+            );
+            assert_eq!(
+                super::super::recall::contexts(&conn, lower, 0, 10)
+                    .unwrap()
+                    .total,
+                1
+            );
+            cases.push(serde_json::json!({"lower":lower,"reserved":reserved,"lower_only_cannot_recall_reserved":true,"both_explicit_contexts_separate":true,"removed_upper_cannot_borrow_lower":true,"allcaps_source_conflict_also_excluded":true}));
+        }
+        let (_d, conn) = db();
+        save_surface(&conn, 3, "go", None);
+        save_surface(&conn, 4, "the", None);
+        let batch = super::super::recall::catalog(&conn).unwrap();
+        for sentence_case in ["Went", "The"] {
+            assert!(!batch.case_exclusions.contains(&sentence_case.into()));
+            assert_eq!(
+                super::super::recall::contexts(&conn, sentence_case, 0, 10)
+                    .unwrap()
+                    .total,
+                1
+            );
+        }
+        inflection_evidence(
+            "rust-case-reservations.json",
+            &serde_json::json!({"passed":true,"kind":"genuine source catalog plus temporary SQLite; one batch metadata; old Vec IPC retained","cases":cases,"ordinary_sentence_case":["Went","The"]}),
+        );
+    }
+
+    #[test]
+    #[ignore = "Opt-in 10k disposable-history performance comparison with genuine local Longman"]
+    fn real_catalog_archive_ten_thousand_history_benchmark() {
+        use super::super::longman::RelationCatalog;
+        use std::io::Read;
+        use std::time::Instant;
+        let start = Instant::now();
+        let catalog = super::super::longman::relation_catalog_configured();
+        assert_eq!(super::super::longman::status_configured()["state"], "ready");
+        let catalog_ms = start.elapsed().as_secs_f64() * 1000.;
+        let (_d, conn) = db();
+        let seed = save_surface(&conn, 3, "go", None).record;
+        let bytes = include_bytes!("../../resources/ecdict.tsv.gz");
+        let mut text = String::new();
+        flate2::read::GzDecoder::new(&bytes[..])
+            .read_to_string(&mut text)
+            .unwrap();
+        let words = text
+            .lines()
+            .filter_map(|line| line.split('\t').next())
+            .filter(|word| word.len() > 2 && word.bytes().all(|b| b.is_ascii_lowercase()))
+            .take(9000)
+            .collect::<Vec<_>>();
+        assert_eq!(words.len(), 9000);
+        let tx = conn.unchecked_transaction().unwrap();
+        for i in 1..10_000 {
+            let mut record = seed.clone();
+            record.expression = if i < 1000 {
+                ["go", "went"][i % 2].into()
+            } else {
+                words[i - 1000].into()
+            };
+            record.normalized_expression = normalize(&record.expression);
+            record.source_key = format!("benchmark-source-{i}");
+            record.record_id = identity(&record.expression, &record.source_key);
+            record.source.as_mut().unwrap().segment_index = i as i64;
+            record.saved_at = Some(i as i64);
+            record.updated_at = i as i64;
+            record.sentence = Some(format!(
+                "{} was encountered in source sentence {i}.",
+                record.expression
+            ));
+            write_record(&tx, &record).unwrap();
+        }
+        tx.commit().unwrap();
+        let literal =
+            std::sync::Arc::new(RelationCatalog::test_fixture("literal-baseline:v1", &[]));
+        let start = Instant::now();
+        let baseline = archive_with_catalog(&conn, "", literal.clone()).unwrap();
+        let baseline_build_ms = start.elapsed().as_secs_f64() * 1000.;
+        let start = Instant::now();
+        let expanded = archive_with_catalog(&conn, "", catalog.clone()).unwrap();
+        let expanded_build_ms = start.elapsed().as_secs_f64() * 1000.;
+        let index = expanded.expressions();
+        let start = Instant::now();
+        for _ in 0..20 {
+            assert!(std::sync::Arc::ptr_eq(
+                &expanded,
+                &archive_with_catalog(&conn, "", catalog.clone()).unwrap()
+            ));
+        }
+        let warm_archive_ms = start.elapsed().as_secs_f64() * 1000. / 20.;
+        let start = Instant::now();
+        let mut batch = super::super::recall::catalog(&conn).unwrap();
+        for _ in 1..20 {
+            batch = super::super::recall::catalog(&conn).unwrap();
+        }
+        let warm_recall_catalog_ms = start.elapsed().as_secs_f64() * 1000. / 20.;
+        assert_eq!(
+            expanded
+                .groups
+                .values()
+                .map(|g| g.record_ids.len())
+                .sum::<usize>(),
+            10_000
+        );
+        assert_eq!(
+            expanded.resolve("went").unwrap().record_ids.len(),
+            expanded.resolve("go").unwrap().record_ids.len()
+        );
+        assert_eq!(
+            context_page(&conn, expanded.resolve("went"), 50, 900)
+                .unwrap()
+                .records
+                .len(),
+            50
+        );
+        let evidence = serde_json::json!({"passed":true,"kind":"10k synthetic portable records; first 1k go/went, 9k deterministic ECDICT lower-case words; no user data","records":10_000,"catalog_access_ms":catalog_ms,"literal_baseline_build_ms":baseline_build_ms,"expanded_build_ms":expanded_build_ms,"warm_archive_mean_ms":warm_archive_ms,"warm_recall_catalog_mean_ms":warm_recall_catalog_ms,"case_exclusion_forms":batch.case_exclusions.len(),"recall_catalog_json_bytes":serde_json::to_vec(&batch).unwrap().len(),"literal_groups":baseline.groups.len(),"expanded_groups":expanded.groups.len(),"literal_index_expressions":baseline.expressions().len(),"expanded_index_expressions":index.len(),"expanded_index_json_bytes":serde_json::to_vec(&index).unwrap().len(),"catalog_fingerprint":catalog.fingerprint()});
+        println!("{evidence}");
+        inflection_evidence("rust-archive-10k-performance.json", &evidence);
+    }
+
+    #[test]
+    fn archive_preview_is_finite_while_contexts_and_storage_keep_the_full_snapshot() {
+        let (_d, conn) = db();
+        let first = save_surface(&conn, 3, "take off", Some("take off"));
+        let mut complete = first.record;
+        complete.explanation = Some("个人解释".repeat(5000));
+        complete.explanation_source = "personal".into();
+        complete.sentence = Some("The original sentence is preserved. ".repeat(1000));
+        complete.sentence_translation = Some("完整译文".repeat(5000));
+        complete.source.as_mut().unwrap().file_name = "source-title".repeat(500);
+        complete.legacy = Some(serde_json::json!({"original_personal_note":"x".repeat(100_000)}));
+        complete.dictionary_snapshot = Some(selected_dictionary_sense());
+        write_record(&conn, &complete).unwrap();
+        let page = groups(&conn, "", 50, 0).unwrap();
+        let group = &page.groups[0];
+        let preview = &group.preview;
+        assert!(preview.legacy.is_none());
+        assert!(preview.dictionary_snapshot.is_none());
+        for text in [
+            &preview.explanation,
+            &preview.sentence,
+            &preview.sentence_translation,
+        ] {
+            let text = text.as_deref().unwrap();
+            assert_eq!(text.chars().count(), 300);
+            assert!(text.ends_with('…'));
+        }
+        assert_eq!(
+            preview.source.as_ref().unwrap().file_name.chars().count(),
+            256
+        );
+        assert_eq!(preview.dictionary_reference, complete.dictionary_reference);
+        assert!(serde_json::to_vec(preview).unwrap().len() < 20_000);
+        assert_eq!(get(&conn, &complete.record_id).unwrap().unwrap(), complete);
+        assert_eq!(
+            group_contexts(&conn, &group.group_id, 10, 0)
+                .unwrap()
+                .records[0],
+            complete
+        );
+    }
+
+    #[test]
+    fn restore_unknown_tombstone_applies_explicit_personal_note_retries_and_undoes_atomically() {
+        let (_d, conn) = db();
+        let mut original = input(1);
+        if let Mutation::Save { input } = &mut original {
+            input.explanation = None;
+            input.explanation_source = "unknown".into();
+        }
+        let first = mutate(&conn, "unknown-first-save", &original).unwrap();
+        let tombstone = undo(&conn, &first.operation_id).unwrap();
+        assert!(tombstone.deleted_at.is_some());
+        assert!(tombstone.explanation.is_none());
+        let mut personal = input(1);
+        if let Mutation::Save { input } = &mut personal {
+            input.explanation = Some("刚写下的个人解释".into());
+            input.explanation_source = "personal".into();
+            input.dictionary_reference = Some(reference("take off"));
+        }
+        let restored = mutate(&conn, "restore-with-personal-note", &personal).unwrap();
+        assert!(restored.changed);
+        assert_eq!(
+            restored.record.explanation.as_deref(),
+            Some("刚写下的个人解释")
+        );
+        assert_eq!(restored.record.explanation_source, "personal");
+        assert_eq!(restored.record.record_id, tombstone.record_id);
+        assert_eq!(restored.record.source_key, tombstone.source_key);
+        assert_eq!(restored.record.source, tombstone.source);
+        assert_eq!(restored.record.saved_at, tombstone.saved_at);
+        assert_eq!(
+            restored.record.dictionary_reference,
+            tombstone.dictionary_reference
+        );
+        assert_eq!(
+            restored.record.dictionary_snapshot,
+            tombstone.dictionary_snapshot
+        );
+        assert_eq!(restored.record.generation, tombstone.generation + 1);
+        assert_ne!(restored.record.revision, tombstone.revision);
+        assert_eq!(
+            mutate(&conn, "restore-with-personal-note", &personal)
+                .unwrap()
+                .record,
+            restored.record
+        );
+        assert_eq!(
+            groups(&conn, "刚写下的个人解释", 50, 0)
+                .unwrap()
+                .total_records,
+            1
+        );
+        let undone = undo(&conn, "restore-with-personal-note").unwrap();
+        assert!(undone.deleted_at.is_some());
+        assert_eq!(undone.explanation, tombstone.explanation);
+        assert_eq!(undone.explanation_source, tombstone.explanation_source);
+        assert_eq!(undone.source, tombstone.source);
+        assert!(super::super::recall::index(&conn).unwrap().is_empty());
+    }
+
+    #[test]
+    fn restore_personal_tombstone_can_explicitly_replace_or_clear_note_without_replacing_references(
+    ) {
+        for new_note in ["新的个人解释", ""] {
+            let (_d, conn) = db();
+            let mut original = dictionary_input(1);
+            if let Mutation::Save { input } = &mut original {
+                input.dictionary_reference = Some(reference("take off"));
+            }
+            let first = mutate(&conn, "personal-original", &original)
+                .unwrap()
+                .record;
+            let old = edit(&conn, &first, "以前的个人解释");
+            let removed = remove(&conn, &old);
+            let mut personal = input(1);
+            if let Mutation::Save { input } = &mut personal {
+                input.explanation = Some(new_note.into());
+                input.explanation_source = "personal".into();
+            }
+            let restored = mutate(&conn, "personal-explicit-restore", &personal)
+                .unwrap()
+                .record;
+            assert_eq!(restored.explanation.as_deref(), Some(new_note));
+            assert_eq!(restored.explanation_source, "personal");
+            assert_eq!(restored.source, old.source);
+            assert_eq!(restored.dictionary_snapshot, old.dictionary_snapshot);
+            assert_eq!(restored.dictionary_reference, old.dictionary_reference);
+            let undone = undo(&conn, "personal-explicit-restore").unwrap();
+            assert!(undone.deleted_at.is_some());
+            assert_eq!(undone.explanation, old.explanation);
+            assert_eq!(undone.explanation_source, old.explanation_source);
+            assert_eq!(
+                undone.dictionary_snapshot,
+                removed.record.dictionary_snapshot
+            );
+            assert_eq!(
+                undone.dictionary_reference,
+                removed.record.dictionary_reference
+            );
+        }
+    }
+
+    #[test]
+    fn default_restore_preserves_old_personal_content_and_active_duplicates_never_apply_new_notes()
+    {
+        let (_d, conn) = db();
+        let first = mutate(&conn, "saved-original", &dictionary_input(1))
+            .unwrap()
+            .record;
+        let old = edit(&conn, &first, "保留原来的个人解释");
+        remove(&conn, &old);
+        let mut default = input(1);
+        if let Mutation::Save { input } = &mut default {
+            input.explanation = None;
+            input.explanation_source = "unknown".into();
+            input.dictionary_reference = Some(reference("take off"));
+        }
+        let restored = mutate(&conn, "restore-without-note", &default)
+            .unwrap()
+            .record;
+        assert_eq!(restored.explanation, old.explanation);
+        assert_eq!(restored.explanation_source, old.explanation_source);
+        assert_eq!(restored.dictionary_snapshot, old.dictionary_snapshot);
+        assert_eq!(restored.dictionary_reference, old.dictionary_reference);
+        let mut explicit = input(1);
+        if let Mutation::Save { input } = &mut explicit {
+            input.explanation = Some("不能覆盖仍有效的记录".into());
+            input.explanation_source = "personal".into();
+        }
+        let duplicate = mutate(&conn, "active-duplicate-with-note", &explicit).unwrap();
+        assert!(!duplicate.changed);
+        assert_eq!(duplicate.record, restored);
+    }
+
+    #[test]
+    fn selected_later_sense_survives_reopen_personal_edit_restore_and_backup() {
+        let (dir, conn) = db();
+        let chosen = selected_dictionary_sense();
+        let saved = mutate(&conn, "selected-sense", &dictionary_input(1))
+            .unwrap()
+            .record;
+        assert_eq!(saved.dictionary_snapshot.as_ref(), Some(&chosen));
+        assert_eq!(saved.explanation.as_deref(), chosen.meaning.zh.as_deref());
+        assert_eq!(saved.source.as_ref().unwrap().start_offset, Some(15));
+        assert_eq!(
+            saved.source.as_ref().unwrap().start_time.as_deref(),
+            Some("00:00:01,000")
+        );
+        drop(conn);
+        let conn = crate::db::init_db(&dir.path().join("test.db")).unwrap();
+        assert_eq!(get(&conn, &saved.record_id).unwrap().unwrap(), saved);
+        let retry = mutate(&conn, "selected-sense", &dictionary_input(1)).unwrap();
+        assert_eq!(retry.record, saved);
+        let personal = edit(&conn, &saved, "我的起飞笔记");
+        assert_eq!(personal.explanation_source, "personal");
+        assert_eq!(personal.dictionary_snapshot.as_ref(), Some(&chosen));
+        // A later automatic lookup/save must never overwrite the user's edit.
+        assert!(
+            !mutate(&conn, "later-lookup-save", &input(1))
+                .unwrap()
+                .changed
+        );
+        assert_eq!(get(&conn, &saved.record_id).unwrap().unwrap(), personal);
+        let removed = remove(&conn, &personal);
+        let backup = backup_payload(&conn).unwrap();
+        let (_target_dir, target) = db();
+        restore_backup(&target, &backup).unwrap();
+        assert_eq!(
+            get(&target, &saved.record_id).unwrap().unwrap(),
+            removed.record
+        );
+        let restored = undo(&target, &removed.operation_id).unwrap();
+        assert_eq!(restored.dictionary_snapshot, Some(chosen));
+        assert_eq!(restored.explanation.as_deref(), Some("我的起飞笔记"));
+        assert_eq!(restored.source, personal.source);
+        assert_eq!(restored.generation, 1);
+        // A snapshot remains readable without its material or any dictionary.
+        target.execute("DELETE FROM files", []).unwrap();
+        assert_eq!(get(&target, &saved.record_id).unwrap().unwrap(), restored);
+    }
+
+    #[test]
+    fn separable_expression_keeps_surface_context_and_canonical_headword() {
+        let (_dir, conn) = db();
+        conn.execute("INSERT INTO segments(id,file_id,index_num,en_text) VALUES(3,1,2,'She looked the word up yesterday.')", []).unwrap();
+        let mut chosen = selected_dictionary_sense();
+        chosen.headword = "look up".into();
+        chosen.meaning.zh = Some("查阅".into());
+        chosen.meaning.en = Some("to look for information".into());
+        chosen.entry_id = "longman:fixture:look-up".into();
+        chosen.group_id = "longman:fixture:look-up-group".into();
+        chosen.sense_id = "longman:fixture:look-up-2".into();
+        chosen.examples.clear();
+        let mutation = Mutation::Save {
+            input: SaveInput {
+                segment_id: 3,
+                expression: "looked the word up".into(),
+                start_offset: 4,
+                end_offset: 22,
+                explanation: Some("查阅".into()),
+                explanation_source: "dictionary".into(),
+                dictionary_snapshot: Some(chosen.clone()),
+                dictionary_reference: None,
+            },
+        };
+        let record = mutate(&conn, "separable-expression", &mutation)
+            .unwrap()
+            .record;
+        assert_eq!(record.expression, "looked the word up");
+        assert_eq!(record.dictionary_snapshot, Some(chosen));
+        assert_eq!(
+            record.sentence.as_deref(),
+            Some("She looked the word up yesterday.")
+        );
+        assert_eq!(record.source.unwrap().end_offset, Some(22));
+    }
+
+    #[test]
+    fn old_snapshot_and_receipt_without_dictionary_field_remain_compatible() {
+        let (_dir, conn) = db();
+        let old_request = serde_json::to_value(input(1)).unwrap();
+        assert!(old_request["input"].get("dictionary_snapshot").is_none());
+        let old_mutation: Mutation = serde_json::from_value(old_request.clone()).unwrap();
+        let first = mutate(&conn, "old-wire-request", &old_mutation).unwrap();
+        let old_json = serde_json::to_value(&first.record).unwrap();
+        assert!(old_json.get("dictionary_snapshot").is_none());
+        let parsed: SavedRecord = serde_json::from_value(old_json).unwrap();
+        assert_eq!(parsed.dictionary_snapshot, None);
+        assert_eq!(
+            mutate(&conn, "old-wire-request", &input(1)).unwrap().record,
+            parsed
+        );
+        let backup = backup_payload(&conn).unwrap();
+        let (_dir2, target) = db();
+        restore_backup(&target, &backup).unwrap();
+        assert_eq!(get(&target, &parsed.record_id).unwrap().unwrap(), parsed);
+    }
+
+    #[test]
+    fn cambridge_source_snapshot_reopens_edits_undoes_and_roundtrips_backup_without_service() {
+        let (dir, conn) = db();
+        let mut mutation = dictionary_input(1);
+        if let Mutation::Save { input } = &mut mutation {
+            let snapshot = input.dictionary_snapshot.as_mut().unwrap();
+            snapshot.source.provider = "cambridge".into();
+            snapshot.source.dataset = "test-en-cn".into();
+            snapshot.source.edition = None;
+            snapshot.source.release = None;
+            snapshot.source.adapter_version = "cambridge-v1.0.0".into();
+            snapshot.source.entry_url = Some(
+                "https://dictionary.cambridge.org/dictionary/english-chinese-simplified/take-off"
+                    .into(),
+            );
+            snapshot.source.retrieved_at = Some("2026-10-26T01:02:03Z".into());
+            snapshot.entry_id = "cambridge:test:entry".into();
+            snapshot.group_id = "cambridge:test:group".into();
+            snapshot.sense_id = "cambridge:test:later-sense".into();
+        }
+        let first = mutate(&conn, "cambridge-save", &mutation).unwrap().record;
+        let chosen = first.dictionary_snapshot.clone();
+        drop(conn);
+        let conn = crate::db::init_db(&dir.path().join("test.db")).unwrap();
+        assert_eq!(get(&conn, &first.record_id).unwrap().unwrap(), first);
+        assert_eq!(
+            mutate(&conn, "cambridge-save", &mutation).unwrap().record,
+            first
+        );
+        let personal = edit(&conn, &first, "我的剑桥解释");
+        assert_eq!(personal.dictionary_snapshot, chosen);
+        assert!(
+            !mutate(&conn, "late-online-save", &mutation)
+                .unwrap()
+                .changed
+        );
+        let removed = remove(&conn, &personal);
+        let backup = backup_payload(&conn).unwrap();
+        let (_d, target) = db();
+        restore_backup(&target, &backup).unwrap();
+        let restored = undo(&target, &removed.operation_id).unwrap();
+        assert_eq!(restored.dictionary_snapshot, chosen);
+        assert_eq!(restored.explanation.as_deref(), Some("我的剑桥解释"));
+        assert_eq!(restored.source, personal.source);
+        assert_eq!(restored.generation, 1);
+    }
+
+    fn public_dictionary_input_version(version: &str) -> Mutation {
+        let mut mutation = dictionary_input(1);
+        if let Mutation::Save { input } = &mut mutation {
+            let snapshot = input.dictionary_snapshot.as_mut().unwrap();
+            snapshot.source.provider = "cambridge".into();
+            snapshot.source.dataset = "Cambridge Dictionary (author public API)".into();
+            snapshot.source.edition = None;
+            snapshot.source.release = None;
+            snapshot.source.adapter_version = version.into();
+            snapshot.source.access_channel = Some("author_public_api".into());
+            snapshot.source.service_url = Some("https://dictionary-api.eliaschen.dev".into());
+            snapshot.source.received_at = Some("2026-10-26T01:02:03Z".into());
+            snapshot.entry_id = format!("cambridge:public:{version}:entry");
+            snapshot.group_id = format!("cambridge:public:{version}:group");
+            snapshot.sense_id = format!("cambridge:public:{version}:later-sense");
+            for example in &mut snapshot.examples {
+                example.id = format!("cambridge:public:{version}:{}", example.id);
+            }
+        }
+        mutation
+    }
+
+    fn public_dictionary_input() -> Mutation {
+        public_dictionary_input_version("cambridge-public-v1.1.0")
+    }
+
+    #[test]
+    fn public_source_later_sense_reopens_retries_edits_undoes_and_roundtrips_backup_without_service(
+    ) {
+        let (dir, conn) = db();
+        let mutation = public_dictionary_input();
+        let first = mutate(&conn, "public-save", &mutation).unwrap().record;
+        let chosen = first.dictionary_snapshot.clone();
+        let wire = serde_json::to_value(&chosen).unwrap();
+        assert!(wire["source"].get("entry_url").is_none());
+        assert!(wire["source"].get("retrieved_at").is_none());
+        assert_eq!(wire["source"]["access_channel"], "author_public_api");
+        assert_eq!(wire["source"]["received_at"], "2026-10-26T01:02:03Z");
+        drop(conn);
+        let conn = crate::db::init_db(&dir.path().join("test.db")).unwrap();
+        assert_eq!(get(&conn, &first.record_id).unwrap().unwrap(), first);
+        assert_eq!(
+            mutate(&conn, "public-save", &mutation).unwrap().record,
+            first
+        );
+        let personal = edit(&conn, &first, "我的公共接口释义笔记");
+        assert_eq!(personal.dictionary_snapshot, chosen);
+        assert!(
+            !mutate(&conn, "public-late-save", &mutation)
+                .unwrap()
+                .changed
+        );
+        let removed = remove(&conn, &personal);
+        let backup = backup_payload(&conn).unwrap();
+        let (_target_dir, target) = db();
+        restore_backup(&target, &backup).unwrap();
+        let restored = undo(&target, &removed.operation_id).unwrap();
+        assert_eq!(restored.dictionary_snapshot, chosen);
+        assert_eq!(
+            restored.explanation.as_deref(),
+            Some("我的公共接口释义笔记")
+        );
+        assert_eq!(restored.source, personal.source);
+        assert_eq!(restored.generation, 1);
+    }
+
+    #[test]
+    fn public_source_retired_adapter_snapshot_keeps_wire_identity_reopen_backup_and_idempotent_receipt(
+    ) {
+        let (dir, conn) = db();
+        let mutation = public_dictionary_input_version("cambridge-public-v1.0.0");
+        let old_wire = serde_json::to_value(&mutation).unwrap();
+        let first = mutate(&conn, "historical-public-save", &mutation)
+            .unwrap()
+            .record;
+        let chosen = first.dictionary_snapshot.clone();
+        let source = &chosen.as_ref().unwrap().source;
+        assert_eq!(source.adapter_version, "cambridge-public-v1.0.0");
+        assert!(chosen
+            .as_ref()
+            .unwrap()
+            .sense_id
+            .starts_with("cambridge:public:cambridge-public-v1.0.0:"));
+        assert_eq!(source.access_channel.as_deref(), Some("author_public_api"));
+        drop(conn);
+        let conn = crate::db::init_db(&dir.path().join("test.db")).unwrap();
+        assert_eq!(get(&conn, &first.record_id).unwrap().unwrap(), first);
+        let parsed: Mutation = serde_json::from_value(old_wire.clone()).unwrap();
+        assert_eq!(serde_json::to_value(&parsed).unwrap(), old_wire);
+        assert_eq!(
+            mutate(&conn, "historical-public-save", &parsed)
+                .unwrap()
+                .record,
+            first
+        );
+        let backup = backup_payload(&conn).unwrap();
+        let (_target_dir, target) = db();
+        restore_backup(&target, &backup).unwrap();
+        assert_eq!(
+            get(&target, &first.record_id)
+                .unwrap()
+                .unwrap()
+                .dictionary_snapshot,
+            chosen
+        );
+    }
+
+    #[test]
+    fn public_source_snapshot_rejects_fabricated_or_uncontrolled_provenance() {
+        let (_dir, conn) = db();
+        for (index, field, value) in [
+            (0, "access_channel", serde_json::Value::Null),
+            (
+                1,
+                "service_url",
+                serde_json::json!("https://unknown.example"),
+            ),
+            (2, "received_at", serde_json::json!("unknown")),
+            (
+                3,
+                "entry_url",
+                serde_json::json!("https://dictionary.cambridge.org/dictionary/english/take-off"),
+            ),
+            (4, "retrieved_at", serde_json::json!("2026-10-26T01:02:03Z")),
+            (5, "edition", serde_json::json!("6")),
+            (6, "release", serde_json::json!("made-up-release")),
+            (7, "provider", serde_json::json!("longman")),
+        ] {
+            let mut wire = serde_json::to_value(public_dictionary_input()).unwrap();
+            wire["input"]["dictionary_snapshot"]["source"][field] = value;
+            let mutation: Mutation = serde_json::from_value(wire).unwrap();
+            assert_eq!(
+                mutate(&conn, &format!("invalid-public-{index}"), &mutation)
+                    .err()
+                    .unwrap(),
+                "saved_dictionary_snapshot_invalid"
+            );
+        }
+        let unsupported = public_dictionary_input_version("cambridge-public-v2.0.0");
+        assert_eq!(
+            mutate(&conn, "unsupported-public-version", &unsupported)
+                .err()
+                .unwrap(),
+            "saved_dictionary_snapshot_invalid"
+        );
+        let mut wrong_version = public_dictionary_input();
+        if let Mutation::Save { input } = &mut wrong_version {
+            input
+                .dictionary_snapshot
+                .as_mut()
+                .unwrap()
+                .source
+                .adapter_version = "cambridge-public-v1.0.0".into();
+        }
+        assert_eq!(
+            mutate(&conn, "public-id-version-mismatch", &wrong_version)
+                .err()
+                .unwrap(),
+            "saved_dictionary_snapshot_invalid"
+        );
+        let mut invalid_identity = public_dictionary_input();
+        if let Mutation::Save { input } = &mut invalid_identity {
+            input.dictionary_snapshot.as_mut().unwrap().sense_id = "cambridge:legacy:sense".into();
+        }
+        assert_eq!(
+            mutate(&conn, "invalid-public-id", &invalid_identity)
+                .err()
+                .unwrap(),
+            "saved_dictionary_snapshot_invalid"
+        );
+        assert_eq!(count(&conn, "saved_records"), 0);
+    }
+
+    #[test]
+    fn optional_online_source_fields_do_not_change_old_snapshot_request_signature() {
+        let (_d, conn) = db();
+        let mutation = dictionary_input(1);
+        let wire = serde_json::to_value(&mutation).unwrap();
+        assert!(wire["input"]["dictionary_snapshot"]["source"]
+            .get("entry_url")
+            .is_none());
+        assert!(wire["input"]["dictionary_snapshot"]["source"]
+            .get("retrieved_at")
+            .is_none());
+        for field in ["access_channel", "service_url", "received_at"] {
+            assert!(wire["input"]["dictionary_snapshot"]["source"]
+                .get(field)
+                .is_none());
+        }
+        let old_wire: Mutation = serde_json::from_value(wire).unwrap();
+        let first = mutate(&conn, "old-dictionary-request", &old_wire).unwrap();
+        assert_eq!(
+            mutate(&conn, "old-dictionary-request", &mutation)
+                .unwrap()
+                .record,
+            first.record
+        );
+    }
+
+    #[test]
+    fn mismatched_selected_meaning_or_oversized_snapshot_cannot_be_saved() {
+        let (_dir, conn) = db();
+        let mut mutation = dictionary_input(1);
+        if let Mutation::Save { input } = &mut mutation {
+            input.explanation = Some("另一意思".into());
+        }
+        assert_eq!(
+            mutate(&conn, "mismatch", &mutation).err().unwrap(),
+            "saved_dictionary_selection_mismatch"
+        );
+        if let Mutation::Save { input } = &mut mutation {
+            input.explanation = Some("起飞".into());
+            input.dictionary_snapshot.as_mut().unwrap().meaning.en = Some("x".repeat(33_000));
+        }
+        assert_eq!(
+            mutate(&conn, "oversized", &mutation).err().unwrap(),
+            "saved_dictionary_snapshot_invalid"
+        );
+        assert_eq!(count(&conn, "saved_records"), 0);
+        assert_eq!(count(&conn, "saved_actions"), 0);
     }
     fn count(conn: &Connection, table: &str) -> i64 {
         conn.query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |r| r.get(0))

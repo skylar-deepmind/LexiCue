@@ -14,8 +14,30 @@ export interface MergedSentence {
   endTime: string | null;
 }
 
-const MAX_CHARS_PER_SENTENCE = 240;
+export const MAX_CHARS_PER_SENTENCE = 240;
 const MAX_UNITS_PER_SENTENCE = 15;
+const MAX_SENTENCE_SECONDS = 20;
+const timeSeconds = (time: string | null) => time ? time.replace(',', '.').split(':').reduce((n, part) => n * 60 + Number(part), 0) : null;
+
+/** Keep unpunctuated transcripts readable without losing or cutting words. */
+export function splitLongSentence(text: string): string[] {
+  const parts: string[] = [];
+  let rest = text.trim();
+  while (rest.length > MAX_CHARS_PER_SENTENCE) {
+    const window = rest.slice(0, MAX_CHARS_PER_SENTENCE + 1);
+    // Prefer a clause break in the latter half, otherwise the last word boundary.
+    const clauses = [...window.matchAll(/[,;:—–]\s+/g)];
+    const clause = clauses.at(-1);
+    let end = clause && clause.index >= MAX_CHARS_PER_SENTENCE / 2 ? clause.index + 1 : window.lastIndexOf(' ');
+    if (end <= 0) end = MAX_CHARS_PER_SENTENCE;
+    // Do not split a UTF-16 surrogate pair.
+    if (/[\uD800-\uDBFF]/.test(rest[end - 1])) end--;
+    parts.push(rest.slice(0, end).trim());
+    rest = rest.slice(end).trim();
+  }
+  if (rest) parts.push(rest);
+  return parts;
+}
 
 const LATIN_ABBREVIATIONS = new Set([
   'MR', 'MRS', 'MS', 'MISS', 'DR', 'ST', 'JR', 'SR', 'PROF', 'CAPT', 'LT', 'COL',
@@ -103,10 +125,18 @@ export function splitIntoSentences(text: string, language: Language): string[] {
     const next = i < text.length - 1 ? text[i + 1] : ' ';
     scanQuoteChar(quote, ch, prev, next);
     if (quote.depth > 0) continue;
+    if (IMMEDIATE_CLOSERS.has(ch) && endsSentence(text.slice(start, i + 1), language)
+      && (i === text.length - 1 || /^\s+[A-Z]/.test(text.slice(i + 1)))) {
+      parts.push(text.slice(start, i + 1).trim());
+      start = i + 1;
+      continue;
+    }
     if (TERMINAL_CHAR.test(ch)) {
       if (IMMEDIATE_CLOSERS.has(next)) continue;
       if (ch === '.' && /[0-9]/.test(next)) continue;
+      if (language === 'en' && ch === '.' && /[A-Za-z]/.test(next)) continue;
       const chunk = text.slice(start, i + 1);
+      if (language === 'en' && ch === '.' && /(?:^|\s)[A-Z]\.$/.test(chunk)) continue;
       if (endsSentence(chunk, language)) {
         parts.push(chunk.trim());
         start = i + 1;
@@ -116,7 +146,7 @@ export function splitIntoSentences(text: string, language: Language): string[] {
 
   const rest = text.slice(start).trim();
   if (rest.length > 0) parts.push(rest);
-  return parts.filter((part) => part.length > 0);
+  return parts.filter((part) => part.length > 0).flatMap(part => language === 'en' ? splitLongSentence(part) : [part]);
 }
 
 export interface AlignedPair {
@@ -245,6 +275,12 @@ export function mergeUnitsIntoSentences(
   };
 
   for (const unit of units) {
+    if (language === 'en' && buffer.length) {
+      const first = timeSeconds(buffer[0].startTime);
+      const end = timeSeconds(unit.endTime);
+      if (joinSourceLines([...buffer.map(u => u.source), unit.source], language).length > MAX_CHARS_PER_SENTENCE
+        || first !== null && end !== null && end - first > MAX_SENTENCE_SECONDS) flush();
+    }
     buffer.push(unit);
     const source = unit.source;
     for (let i = 0; i < source.length; i++) {
@@ -255,9 +291,12 @@ export function mergeUnitsIntoSentences(
     }
     const text = joinSourceLines(buffer.map((u) => u.source), language);
     const charCount = buffer.reduce((sum, u) => sum + u.source.length, 0);
+    const startSeconds = timeSeconds(buffer[0].startTime);
+    const endSeconds = timeSeconds(unit.endTime);
     if (
       (quote.depth === 0 && endsSentence(text, language)) ||
       charCount >= MAX_CHARS_PER_SENTENCE ||
+      (language === 'en' && startSeconds !== null && endSeconds !== null && endSeconds - startSeconds >= MAX_SENTENCE_SECONDS) ||
       buffer.length >= MAX_UNITS_PER_SENTENCE
     ) {
       flush();
