@@ -10,6 +10,8 @@ export default function SavedReferenceDetails({ reference }: { reference: Dictio
     <p className="recall-note">{t('dictionaryFlow.referenceNote')}</p>
     {reference.senses.map(sense => <section key={sense.sense_id} className="saved-reference-sense">
       {sense.part_of_speech && <small>{sense.part_of_speech}</small>}
+      {sense.source.provider === 'wiktionary' && sense.labels.length > 0 && <small>{sense.labels.map(label => label.text).join(' · ')}</small>}
+      {sense.ancestors?.map(parent => <p className="dictionary-parent-meaning" key={parent.source_path} lang="en">{parent.labels.length > 0 && <small>{parent.labels.map(label => label.text).join(' · ')} · </small>}{parent.meaning.en}</p>)}
       <p lang={sense.meaning.zh ? undefined : 'en'}>{sense.meaning.zh || sense.meaning.en}{!sense.meaning.zh && <small> · {t('dictionaryFlow.englishOnly')}</small>}</p>
       {sense.meaning.zh && sense.meaning.en && <p lang="en">{sense.meaning.en}</p>}
       <DictionarySource source={sense.source} historical />

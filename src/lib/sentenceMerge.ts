@@ -132,6 +132,9 @@ export function splitIntoSentences(text: string, language: Language): string[] {
       continue;
     }
     if (TERMINAL_CHAR.test(ch)) {
+      // A terminal run belongs to the same sentence ("...", "?!", "!!").
+      // Splitting each mark creates punctuation-only import segments.
+      if (TERMINAL_CHAR.test(next) && endsSentence(text.slice(start, i + 2), language)) continue;
       if (IMMEDIATE_CLOSERS.has(next)) continue;
       if (ch === '.' && /[0-9]/.test(next)) continue;
       if (language === 'en' && ch === '.' && /[A-Za-z]/.test(next)) continue;

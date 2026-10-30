@@ -71,6 +71,9 @@ impl ExampleState {
             let imported = materials::import_material(
                 &conn,
                 &materials::MaterialInput {
+                    document: None,
+                    normalized_kind: None,
+                    source: None,
                     operation_id: id.into(),
                     name: "English example.srt".into(),
                     content,

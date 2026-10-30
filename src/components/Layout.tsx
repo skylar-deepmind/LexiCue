@@ -32,6 +32,7 @@ export default function Layout() {
             return;
         const update = () => {
             const paper = stage.querySelector<HTMLElement>('.workspace-paper');
+            if (paper?.classList.contains('reading-paper')) return;
             const right = paper ? stage.getBoundingClientRect().left + paper.offsetLeft + paper.offsetWidth : 0;
             const shift = window.innerWidth >= 1024 ? Math.max(0, right - (window.innerWidth - 352)) : 0;
             stage.style.setProperty('--workspace-shift', `${shift}px`);

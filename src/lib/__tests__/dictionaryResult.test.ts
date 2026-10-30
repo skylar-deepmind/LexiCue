@@ -237,7 +237,9 @@ describe('Cambridge fallback and independent source boundaries', () => {
     const local = result();
     local.entries[0].groups[0].senses[1].meaning.zh = null;
     expect(shouldLookupCambridge(local)).toBe(false);
-    local.status = 'partial'; expect(shouldLookupCambridge(local)).toBe(true);
+    local.status = 'partial'; expect(shouldLookupCambridge(local)).toBe(false);
+    local.notices = [{ code: 'unexpanded_inflection', text: 'The source form is not expanded.', entry_id: null }];
+    expect(shouldLookupCambridge(local)).toBe(true);
     local.status = 'not_found'; local.entries = []; local.default_entry_id = null; expect(shouldLookupCambridge(local)).toBe(true);
     local.status = 'unavailable'; expect(shouldLookupCambridge(local)).toBe(true);
     expect(shouldLookupCambridge(null)).toBe(true);
@@ -260,6 +262,16 @@ describe('Cambridge fallback and independent source boundaries', () => {
   it('does not upgrade a known necessary local extraction gap just because one Chinese meaning exists', () => {
     const local = result(); local.status = 'partial';
     expect(dictionarySourceResult(combineDictionaryResults(local, online(), 'longman'), 'longman')!.status).toBe('partial');
+  });
+
+  it('selects a Wiktionary result by provider instead of assuming every online source is Cambridge', () => {
+    const local = result(); const remote = online(); remote.status = 'partial';
+    remote.entries.forEach(entry => { entry.source.provider = 'wiktionary'; entry.groups.forEach(group => group.senses.forEach(sense => sense.meaning.zh = null)); });
+    const combined = combineDictionaryResults(local, remote, 'wiktionary')!;
+    expect(combined.default_entry_id).toBe(remote.default_entry_id);
+    expect(combined.status).toBe('partial');
+    expect(dictionarySourceResult(combined, 'wiktionary')?.entries).toEqual(remote.entries);
+    expect(dictionarySourceResult(combined, 'longman')?.entries).toEqual(local.entries);
   });
 
   it('preserves the current Cambridge partial status and necessary-gap notice despite usable Chinese', () => {

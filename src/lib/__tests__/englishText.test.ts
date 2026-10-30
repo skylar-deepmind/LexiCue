@@ -1,11 +1,28 @@
 import { describe, expect, it } from 'vitest';
 import { parseEnglishText } from '../englishText';
 import { parseEnglishSrt } from '../englishSrt';
+import { readableEnglishSegment } from '../englishScope';
 
 describe('sentence-first English import', () => {
+  it('keeps repeated sentence punctuation with its words, without empty English fragments', () => {
+    const text = 'Hello... Really?! She said, "Yes!!" Dr. Smith paid 3.50 dollars.';
+    const rows = parseEnglishText(text);
+    expect(rows.map(row => row.en_text)).toEqual(['Hello...', 'Really?!', 'She said, "Yes!!"', 'Dr. Smith paid 3.50 dollars.']);
+    expect(rows.map(row => row.en_text).join(' ')).toBe(text);
+    expect(rows.every(row => /[A-Za-z]/.test(row.en_text) && row.start_time === null && row.end_time === null)).toBe(true);
+  });
   it('splits paragraphs into sentences and keeps abbreviations, decimals and quoted endings', () => {
     const text = 'Dr. Smith paid 3.50 dollars. He said, "Hello." We left.';
     expect(parseEnglishText(text).map(s => s.en_text)).toEqual(['Dr. Smith paid 3.50 dollars.', 'He said, "Hello."', 'We left.']);
+  });
+  it('does not extend an English sentence boundary across a non-terminal tilde', () => {
+    expect(parseEnglishText('Hi!~ Next.').map(row => row.en_text)).toEqual(['Hi!', '~ Next.']);
+  });
+  it('preserves counts within English material while rejecting material with no English', () => {
+    expect(parseEnglishText('There are four colors. 1 2 3 4. They are light.').map(row => row.en_text)).toEqual(['There are four colors.', '1 2 3 4.', 'They are light.']);
+    expect(() => parseEnglishText('1 2 3 4.')).toThrow('material_english_only');
+    expect(readableEnglishSegment('123')).toBe(true);
+    for (const text of ['', ' ', '...', '中文123', 'Привет 123', 'こんにちは123', 'Ⅳ']) expect(readableEnglishSegment(text)).toBe(false);
   });
   it('bounds unpunctuated text without losing words or fabricating timestamps', () => {
     const text = 'we can read these words without a pause '.repeat(35).trim();

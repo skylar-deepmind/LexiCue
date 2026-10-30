@@ -8,6 +8,7 @@ export default function SavedDictionaryDetails({ snapshot }: { snapshot: Diction
   return <details className="longman-more longman-saved-snapshot">
     <summary>{t('longman.savedSense')} · {t(`dictionary.${snapshot.source.provider}`)}</summary>
     <h3 lang="en">{snapshot.headword}</h3>
+    {snapshot.ancestors?.map(parent => <p className="dictionary-parent-meaning" key={parent.source_path} lang="en">{parent.labels.length > 0 && <small>{parent.labels.map(label => label.text).join(' · ')} · </small>}{parent.meaning.en}</p>)}
     <p>{snapshot.meaning.zh ?? snapshot.meaning.en}</p>
     {snapshot.meaning.zh && snapshot.meaning.en && <p lang="en">{snapshot.meaning.en}</p>}
     {!!snapshot.labels.length && <p>{snapshot.labels.map(label => label.text).join(' · ')}</p>}

@@ -81,7 +81,7 @@ export default function FilesPage() {
       <button className="material-open" onClick={() => navigate(`/files/${file.id}`)} disabled={!!deleting[file.id]} aria-label={file.name}>
         {materials.view === 'gallery' ? <>
           <h2 title={file.name}>{file.name}</h2><p className="material-excerpt" lang="en" title={file.preview}>{file.preview}</p>
-          <small className="material-card-meta"><span>{t('materials.sentences', { count: file.segment_count })}</span><span>{file.name.toLowerCase().endsWith('.txt') ? 'TXT' : 'SRT'}</span>{file.tags.map(tag => <span key={tag.id}>{tag.name}</span>)}</small>
+          <small className="material-card-meta"><span>{t('materials.sentences', { count: file.segment_count })}</span><span>{file.document?.origin ? t(file.document.origin.kind === 'clipboard' ? 'materials.importDialog.clipboardText' : 'materials.importDialog.webpage') : (file.document?.original_format ?? (file.name.toLowerCase().endsWith('.txt') ? 'txt' : 'srt')).toUpperCase()}</span>{file.tags.map(tag => <span key={tag.id}>{tag.name}</span>)}</small>
         </> : <><div className="material-preview"><p lang="en">{file.preview}</p></div><h2 title={file.name}>{file.name}</h2><small>{t('materials.sentences', { count: file.segment_count })}</small></>}
       </button>
       {materials.view === 'list' && file.tags.length > 0 && <div className="material-tags">{file.tags.map(tag => <span className="file-tag" key={tag.id}>{tag.name}</span>)}</div>}

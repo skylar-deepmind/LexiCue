@@ -6,7 +6,7 @@ export function materialPickerOptions(): OpenDialogOptions {
   // display name and SRT contents after selection instead of hiding valid files.
   return /Android/i.test(navigator.userAgent)
     ? { multiple: true }
-    : { multiple: true, filters: [{ name: 'English text / subtitles', extensions: ['srt', 'txt'] }] };
+    : { multiple: true, filters: [{ name: 'English documents / subtitles', extensions: ['pdf', 'docx', 'epub', 'md', 'markdown', 'txt', 'srt', 'vtt'] }] };
 }
 
 export function selectedMaterialName(path: string): string {
@@ -19,13 +19,13 @@ export function selectedMaterialName(path: string): string {
   return name;
 }
 
-export function pickedMaterialSource(path: string, read: (path: string) => Promise<string>) {
+export function pickedMaterialSource<T extends string | Uint8Array>(path: string, read: (path: string, signal?: AbortSignal) => Promise<T>) {
   try {
     const name = selectedMaterialName(path);
-    return { name, read: () => read(path) };
+    return { name, read: (signal?: AbortSignal) => signal ? read(path, signal) : read(path) };
   } catch {
     // Keep metadata failures per file, so other selections can still import.
     // This placeholder is never written into a material or saved snapshot.
-    return { name: 'subtitles.srt', read: async (): Promise<string> => { throw new Error('material_read_failed'); } };
+    return { name: 'subtitles.srt', read: async (): Promise<T> => { throw new Error('material_read_failed'); } };
   }
 }

@@ -7,6 +7,7 @@ import {
 } from './sentenceMerge';
 import type { SegmentInput, OccurrenceInput } from './types';
 import type { Language } from './languages';
+import { readableEnglishSegment } from './englishScope';
 
 export type SubtitleMode = 'en-first' | 'zh-first' | 'auto';
 
@@ -95,7 +96,7 @@ function classifyBilingualLines(lines: string[], language: Language): BilingualL
   } else {
     for (const line of lines) {
       const lineLanguage = detectLineLang(line);
-      if (lineLanguage === 'en') {
+      if (lineLanguage === 'en' || language === 'en' && lineLanguage === 'other' && readableEnglishSegment(line)) {
         sourceLines.push(line);
       } else if (lineLanguage === 'zh') {
         translationLines.push(line);
@@ -129,8 +130,8 @@ function parseSrtBlocks(content: string, _mode: SubtitleMode, language: Language
   for (const block of blocks) {
     const lines = block.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     if (lines.length === 0) continue;
-
-    if (lines.findIndex(l => !/^\d+$/.test(l) && !l.includes('-->')) === -1) continue;
+    if (/^\d+$/.test(lines[0])) lines.shift();
+    if (lines.findIndex(l => !l.includes('-->')) === -1) continue;
 
     let startTime: string | null = null;
     let endTime: string | null = null;
@@ -143,7 +144,7 @@ function parseSrtBlocks(content: string, _mode: SubtitleMode, language: Language
       }
     }
 
-    const contentLines = lines.filter(l => !/^\d+$/.test(l) && !l.includes('-->'));
+    const contentLines = lines.filter(l => !l.includes('-->'));
     if (contentLines.length === 0) continue;
 
     const cleanedLines = contentLines.map(cleanFormatting).filter((line) => line.length > 0);

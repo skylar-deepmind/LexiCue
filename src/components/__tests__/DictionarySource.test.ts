@@ -15,6 +15,24 @@ const publicSource: DictionarySnapshot['source'] = {
 };
 
 describe('dictionary source provenance presentation', () => {
+  it('keeps Wiktionary attribution, original locator and the dictionary licence visible in offline references', () => {
+    const source: DictionarySnapshot['source'] = {
+      provider: 'wiktionary', dataset: 'Wiktionary', edition: null, release: null,
+      adapter_version: 'freedictionaryapi-v1.0.0', entry_key: 'wiktionary:freedictionaryapi-v1.0.0:entry:abc', locator: '/entries/0',
+      entry_url: 'https://en.wiktionary.org/wiki/my_bad', retrieved_at: '2026-10-28T03:04:05Z', received_at: '2026-10-28T03:04:05Z',
+      access_channel: 'freedictionaryapi', service_url: 'https://freedictionaryapi.com', content_hash: 'a'.repeat(64),
+      license: { name: 'CC BY-SA 4.0', url: 'https://creativecommons.org/licenses/by-sa/4.0/' },
+      attribution: 'Wiktionary contributors via FreeDictionaryAPI.com',
+      modifications: 'Adapted English definitions and ordinary examples; translations, quotations and audio omitted.',
+    };
+    const markup = renderToStaticMarkup(createElement(DictionarySource, { source, historical: true }));
+    expect(markup).toContain('Wiktionary · 仅英文');
+    expect(markup).toContain('FreeDictionaryAPI.com 提供');
+    expect(markup).toContain('https://en.wiktionary.org/wiki/my_bad');
+    expect(markup).toContain('CC BY-SA 4.0');
+    expect(markup).toContain('许可适用于词典节选');
+    expect(markup).not.toContain('作者公共接口');
+  });
   it('labels the public receipt time and unknown originals without a fabricated entry link', () => {
     const markup = renderToStaticMarkup(createElement(DictionarySource, { source: publicSource, historical: true }));
     expect(markup).toContain('剑桥 · 作者公共接口');

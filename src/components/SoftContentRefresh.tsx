@@ -38,8 +38,11 @@ export default class SoftContentRefresh extends Component<Props> {
     clone.style.visibility = 'visible';
     clone.inert = true;
     clone.setAttribute('aria-hidden', 'true');
+    // The snapshot retains its layout but never advertises itself (or a nested
+    // refresh region) as current content to selectors or interaction owners.
     // Duplicate IDs/autofocus must never participate in the live document.
     for (const node of [clone, ...clone.querySelectorAll<HTMLElement>('*')]) {
+      node.classList.replace('soft-refresh-current', 'soft-refresh-snapshot');
       node.removeAttribute('id'); node.removeAttribute('autofocus');
     }
     // cloneNode does not retain native scroll positions.

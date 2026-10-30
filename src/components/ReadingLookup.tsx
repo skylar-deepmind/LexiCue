@@ -1,9 +1,12 @@
+import { documentLocationLabel } from '../lib/documentTypes';
 import useContentFontScaleStyle from './useContentFontScaleStyle';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { SpeechOwnerContext } from './speechOwner';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Check } from 'lucide-react';
 import SpeechButton, { SpeechFeedback } from './SpeechButton';
+import SourceAudioControls from './SourceAudioControls';
 import RecallSection from './RecallSection';
 import { useRecallStore } from '../stores/recallStore';
 import { recallExpression } from '../lib/recallMatcher';
@@ -13,7 +16,8 @@ import type { Material } from '../lib/materials';
 import LongmanResult from './LongmanResult';
 import SavedDictionaryDetails from './SavedDictionaryDetails';
 import SavedReferenceDetails from './SavedReferenceDetails';
-import { combineDictionaryResults, dictionaryReference, dictionarySourceResult, lookupCambridge, lookupLongman, shouldLookupCambridge, type DictionaryResult } from '../lib/dictionaryResult';
+import { dictionaryReference, hasSubstantiveTargetContent, lookupLongman, shouldLookupCambridge, type DictionaryEntry, type DictionaryResult } from '../lib/dictionaryResult';
+import { runOnlineDictionary, type OnlineIssue, type OnlineProvider } from '../lib/onlineDictionary';
 import type { Segment } from '../lib/types';
 import { savedErrorKey, type SavedRecord, type SavedMutation } from '../lib/savedRecords';
 import { selectionInScope, mutateInScope, undoInScope, type ReadingScope } from '../lib/readingScope';
@@ -21,6 +25,7 @@ import { useOnboardingStore } from '../stores/onboardingStore';
 import { usePreferencesStore } from '../stores/preferencesStore';
 import { useSpeechStore } from '../stores/speechStore';
 export interface ReadingQuery {
+  media?: import('../lib/sourceMedia').MediaRef;
     segment: Segment;
     start: number;
     end: number;
@@ -29,9 +34,10 @@ export interface ReadingQuery {
 export interface LookupDraft {
     value: string;
     personal: boolean;
-    provider?: 'longman' | 'cambridge';
+    provider?: DictionaryEntry['source']['provider'];
 }
 interface LookupProps {
+    layoutSlot?: RefObject<HTMLDivElement | null>;
     query: ReadingQuery;
     material: Material;
     scope: ReadingScope;
@@ -41,8 +47,10 @@ interface LookupProps {
 }
 const queryKey = (query: ReadingQuery) => `${query.segment.id}:${query.start}:${query.end}`;
 
-/** Keep the panel stable while the keyed child prepares the latest selection. */
+/** The new query, context and save action are usable while its dictionary loads. */
 export default function ReadingLookup(props: LookupProps) {
+    const ownerScope=useId();
+    useEffect(()=>()=>useSpeechStore.getState().stopScope(ownerScope),[ownerScope]);
     const { t } = useTranslation();
     const fontScaleStyle = useContentFontScaleStyle();
     const [footerHost, setFooterHost] = useState<HTMLDivElement | null>(null);
@@ -51,14 +59,14 @@ export default function ReadingLookup(props: LookupProps) {
     if (prepared.key !== key) setPrepared({ key, ready: false });
     const onReady = useCallback((readyKey: string) => setPrepared(current => current.key === readyKey && !current.ready ? { key: readyKey, ready: true } : current), []);
     const ready = prepared.key === key && prepared.ready;
-    return <ContextPanel label={props.query.expression} interactionKey={props.query} onClose={props.onClose} onClosing={() => { useSpeechStore.getState().stop(); }}>
+    return <SpeechOwnerContext.Provider value={ownerScope}><ContextPanel layoutSlot={props.layoutSlot} label={props.query.expression} interactionKey={props.query} onClose={props.onClose} onClosing={() => { useSpeechStore.getState().stopScope(ownerScope); }}>
       <div className="lookup-stage" style={fontScaleStyle} data-lookup-state={ready ? 'ready' : 'loading'}>
-        <SoftContentRefresh className="lookup-content" contentKey={key} ready={ready} label={props.query.expression} pendingLabel={t('common.loading')}>
+        <SoftContentRefresh className="lookup-content" contentKey={key} ready label={props.query.expression} pendingLabel={t('common.loading')}>
           <LookupContent key={key} {...props} onReady={onReady} footerHost={footerHost}/>
         </SoftContentRefresh>
         <div className="lookup-action-slot" ref={setFooterHost}/>
       </div>
-    </ContextPanel>;
+    </ContextPanel></SpeechOwnerContext.Provider>;
 }
 
 function LookupContent({ query, material, scope, onSkip, drafts, onReady, footerHost }: LookupProps & { onReady: (key: string) => void; footerHost: HTMLDivElement | null }) {
@@ -71,19 +79,15 @@ function LookupContent({ query, material, scope, onSkip, drafts, onReady, footer
     const [localResult, setLocalResult] = useState<DictionaryResult | null>(null);
     const localResultRef = useRef(localResult);
     localResultRef.current = localResult;
-    const [onlineResult, setOnlineResult] = useState<DictionaryResult | null>(null);
-    const [provider, setProvider] = useState<'longman' | 'cambridge'>(existingDraft?.provider ?? 'longman');
+    const [onlineResults, setOnlineResults] = useState<Partial<Record<OnlineProvider, DictionaryResult>>>({});
+    const [provider, setProvider] = useState<DictionaryEntry['source']['provider']>(existingDraft?.provider ?? 'longman');
     const [onlineRequest, setOnlineRequest] = useState(0);
+    const requestMode = useRef<'automatic' | 'manual' | 'continue'>('automatic');
+    const attempted = useRef<Set<OnlineProvider>>(new Set());
     const [onlineState, setOnlineState] = useState<'idle' | 'loading' | 'ready' | 'failed'>('idle');
-    const combinedResult = useMemo(() => combineDictionaryResults(localResult, onlineResult, provider), [localResult, onlineResult, provider]);
-    const result = useMemo(() => {
-        const preferred = dictionarySourceResult(combinedResult, provider);
-        if (preferred?.entries.length) return preferred;
-        // A late online result is offered separately after personal edits or a save.
-        if (provider === 'longman') return localResult;
-        if (localResult?.entries.length) return dictionarySourceResult(combinedResult, 'longman');
-        return onlineResult ?? localResult;
-    }, [combinedResult, provider, localResult, onlineResult]);
+    const [onlineError, setOnlineError] = useState<OnlineIssue | null>(null);
+    const result = provider === 'longman' ? localResult : onlineResults[provider] ?? localResult;
+    const hasOnlineContent = Object.values(onlineResults).some(value => !!value?.entries.length);
     const activeProvider = result?.entries[0]?.source.provider ?? provider;
     const headword = result?.notices.some(notice => notice.code === 'inflection_candidates')
         ? query.expression : result?.entries.find(entry => entry.id === result.default_entry_id)?.headword ?? query.expression;
@@ -115,7 +119,7 @@ function LookupContent({ query, material, scope, onSkip, drafts, onReady, footer
     const selection = useMemo(() => ({ segment_id: query.segment.id, expression: query.expression, start_offset: query.start, end_offset: query.end, explanation: null, explanation_source: 'unknown' as const }), [query.segment.id, query.expression, query.start, query.end]);
     const definitionFont = usePreferencesStore(state => state.definitionFontSize);
     const auxiliaryFont = usePreferencesStore(state => state.auxiliaryFontSize);
-    useEffect(() => { live.current = true; return () => { live.current = false; useSpeechStore.getState().stop(); }; }, []);
+    useEffect(() => { live.current = true; return () => { live.current = false; }; }, []);
     useEffect(() => {
         let active = true;
         setLoading(true); setLookupError('');
@@ -124,23 +128,31 @@ function LookupContent({ query, material, scope, onSkip, drafts, onReady, footer
         } }).catch(error => { if (active) setLookupError(String(error).includes('NOT_FOUND') ? 'notFound' : 'failed'); }).finally(() => { if (active) setLoading(false); });
         return () => { active = false; };
     }, [query.expression, query.segment.en_text, retry, example]);
-    const displayReady = !loading && (!!localResult?.entries.length || !!onlineResult?.entries.length || onlineState === 'ready' || onlineState === 'failed');
+    const displayReady = !loading;
     useLayoutEffect(() => { if (displayReady) onReady(key); }, [displayReady, key, onReady]);
     useEffect(() => {
-        if (!loading && onlineRequest === 0 && shouldLookupCambridge(localResult)) setOnlineRequest(1);
+        if (!loading && onlineRequest === 0 && shouldLookupCambridge(localResult)) {
+            requestMode.current = 'automatic'; setOnlineRequest(1);
+        }
     }, [loading, localResult, onlineRequest]);
     useEffect(() => {
         if (!onlineRequest) return;
-        let active = true;
-        setOnlineState('loading');
-        void lookupCambridge(query.expression, query.segment.en_text).then(value => {
-            if (!active) return;
-            setOnlineResult(value);
-            setOnlineState(value.status === 'unavailable' ? 'failed' : 'ready');
-            if (value.entries.length && ((manualOnlineSelection.current !== null && manualOnlineSelection.current === interactionVersion.current) || (!userModeTouched.current && !acted.current && !personal.current && (value.status === 'found' || !localResultRef.current?.entries.length)))) setProvider('cambridge');
+        const controller = new AbortController();
+        setOnlineState('loading'); setOnlineError(null);
+        void runOnlineDictionary({ expression: query.expression, context: query.segment.en_text,
+            local: localResultRef.current, mode: requestMode.current, signal: controller.signal,
+            onResult: (next, value) => {
+                if (controller.signal.aborted) return;
+                setOnlineResults(current => current[next]?.entries.length && !hasSubstantiveTargetContent(value) ? current : ({ ...current, [next]: value }));
+                if (hasSubstantiveTargetContent(value) && ((manualOnlineSelection.current !== null && manualOnlineSelection.current === interactionVersion.current) || (!userModeTouched.current && !acted.current && !personal.current))) setProvider(next);
+            },
+        }).then(outcome => {
+            if (controller.signal.aborted) return;
+            outcome.attempted.forEach(next => attempted.current.add(next));
+            setOnlineState(outcome.issue ? 'failed' : 'ready'); setOnlineError(outcome.issue);
             manualOnlineSelection.current = null;
-        }).catch(() => { if (active) setOnlineState('failed'); });
-        return () => { active = false; };
+        });
+        return () => controller.abort();
     }, [onlineRequest, query.expression, query.segment.en_text]);
     useEffect(() => {
         let active = true;
@@ -153,15 +165,20 @@ function LookupContent({ query, material, scope, onSkip, drafts, onReady, footer
         } }).catch(() => {});
         return () => { active = false; };
     }, [selection, scope, example]);
-    useEffect(() => { useSpeechStore.getState().stop(); }, [activeProvider]);
     const touch = () => { userModeTouched.current = true; interactionVersion.current++; };
-    const switchSource = (next: 'longman' | 'cambridge') => {
-        touch(); useSpeechStore.getState().stop(); setProvider(next);
+    const switchSource = (next: DictionaryEntry['source']['provider']) => {
+        touch(); setProvider(next);
         drafts.set(key, { value: draft, personal: personal.current, provider: next });
     };
-    const viewCambridge = () => {
-        if (onlineResult?.entries.length) switchSource('cambridge');
-        else { touch(); manualOnlineSelection.current = interactionVersion.current; setOnlineRequest(value => value + 1); }
+    const continueOnline = () => {
+        if (onlineState === 'loading') return;
+        touch(); manualOnlineSelection.current = interactionVersion.current;
+        requestMode.current = attempted.current.has('cambridge') && !attempted.current.has('wiktionary') ? 'continue' : 'manual';
+        setOnlineRequest(value => value + 1);
+    };
+    const retryLocal = () => {
+        touch(); setLoading(true); setOnlineRequest(0); setOnlineState('idle'); setOnlineError(null);
+        attempted.current.clear(); setRetry(value => value + 1);
     };
     const validSelection = query.start >= 0 && query.end > query.start && query.end <= query.segment.en_text.length
         && query.segment.en_text.slice(query.start, query.end).trim() === query.expression.trim() && /[a-z]/i.test(query.expression);
@@ -173,9 +190,11 @@ function LookupContent({ query, material, scope, onSkip, drafts, onReady, footer
         // Optional dictionary work is never a prerequisite for retaining the source.
         if (!action.current) {
             const note = personal.current ? draft.trim() || null : null;
+            const reference = dictionaryReference(result);
+            if (result?.entries.length && !reference) setSaveFeedback('dictionary.referenceOmitted');
             action.current = { id: crypto.randomUUID(), mutation: edit && saved
                 ? { kind: 'edit', record_id: saved.record_id, expected_revision: saved.revision, explanation: draft }
-                : { kind: 'save', input: { ...selection, explanation: note, explanation_source: note ? 'personal' : 'unknown', dictionary_reference: dictionaryReference(result) } } };
+                : { kind: 'save', input: { ...selection, explanation: note, explanation_source: note ? 'personal' : 'unknown', dictionary_reference: reference } } };
         }
         const hadHistory = !!recalled;
         try {
@@ -186,7 +205,7 @@ function LookupContent({ query, material, scope, onSkip, drafts, onReady, footer
                 if (!personal.current && next.record.explanation_source === 'personal') {
                     personal.current = true; setDraft(next.record.explanation ?? '');
                 }
-                setSaveFeedback(next.changed ? hadHistory ? 'dictionaryFlow.savedAdded' : 'dictionaryFlow.savedNew' : 'dictionaryFlow.savedCurrent');
+                setSaveFeedback(current => current === 'dictionary.referenceOmitted' ? current : next.changed ? hadHistory ? 'dictionaryFlow.savedAdded' : 'dictionaryFlow.savedNew' : 'dictionaryFlow.savedCurrent');
                 setEditing(false); drafts.delete(key); action.current = null;
             }
         } catch (error) { if (live.current) setWriteError(t(savedErrorKey(error))); }
@@ -215,16 +234,14 @@ function LookupContent({ query, material, scope, onSkip, drafts, onReady, footer
       {loading && <p role="status">{t('common.loading')}</p>}
       {!loading && result && <LongmanResult result={result} onInteract={touch}/>}
       {!loading && <div className="dictionary-controls" aria-label={t('dictionary.sources')}>
-        {activeProvider === 'cambridge' && !!localResult?.entries.length && <button className="ui-button" onClick={() => switchSource('longman')}>{t('dictionary.viewLongman')}</button>}
-        {activeProvider === 'longman' && <button className="ui-button" onClick={viewCambridge} disabled={onlineState === 'loading'}>{t(onlineState === 'failed' ? 'dictionary.retryCambridge' : 'dictionary.viewCambridge')}</button>}
-        {activeProvider === 'cambridge' && onlineState !== 'loading' && !onlineResult?.entries.length && <button className="ui-button" onClick={viewCambridge}>{t(onlineState === 'failed' ? 'dictionary.retryCambridge' : 'dictionary.viewCambridge')}</button>}
+        {([['longman', localResult], ['cambridge', onlineResults.cambridge], ['wiktionary', onlineResults.wiktionary]] as const).filter(([, value]) => !!value?.entries.length).map(([next]) => <button key={next} className="ui-button" aria-pressed={activeProvider === next} onClick={() => switchSource(next)}>{t(`dictionary.${next}`)}</button>)}
+        {(!attempted.current.has('wiktionary') || onlineState === 'failed') && <button className="ui-button" onClick={continueOnline} disabled={onlineState === 'loading'}>{t(onlineState === 'failed' ? 'dictionary.retryOnline' : attempted.current.has('cambridge') ? 'dictionary.continueOnline' : 'dictionary.lookupOnline')}</button>}
       </div>}
       {onlineState === 'loading' && <p className="lookup-note" role="status">{t('dictionary.onlineLoading')}</p>}
-      {onlineState === 'failed' && <p className="longman-notice" role="status">{t('dictionary.onlineUnavailable')}</p>}
-      {onlineState === 'ready' && onlineResult?.status === 'not_found' && !!localResult?.entries.length && <p className="lookup-note" role="status">{t('dictionary.onlineNotFound')}</p>}
-      {activeProvider !== 'cambridge' && !!onlineResult?.entries.length && <p className="lookup-note" role="status">{t('dictionary.onlineAvailable')}</p>}
-      {!loading && !localResult?.entries.length && !onlineResult?.entries.length && onlineState !== 'loading' && <p className="longman-notice" role="status">{t(localResult?.status === 'not_found' && onlineResult?.status === 'not_found' ? 'dictionary.noResult' : onlineState === 'idle' && !lookupError && localResult?.status === 'not_found' ? 'longman.notFound' : 'dictionary.cannotConfirm')}</p>}
-      {!loading && (lookupError || localResult?.status === 'unavailable') && activeProvider === 'longman' && <button className="ui-button" onClick={() => setRetry(retry + 1)}>{t('common.retry')}</button>}
+      {onlineState === 'failed' && <p className="longman-notice" role="status">{t(`dictionary.issues.${onlineError ?? 'unavailable'}`)}</p>}
+      {activeProvider === 'longman' && hasOnlineContent && <p className="lookup-note" role="status">{t('dictionary.onlineAvailable')}</p>}
+      {!loading && !localResult?.entries.length && !hasOnlineContent && onlineState === 'idle' && <p className="longman-notice" role="status">{t('dictionary.cannotConfirm')}</p>}
+      {!loading && (lookupError || localResult?.status === 'unavailable') && activeProvider === 'longman' && <button className="ui-button" onClick={retryLocal}>{t('common.retry')}</button>}
       {showRecall && <RecallSection expression={recalled!}/>}
       {saved?.dictionary_reference && <SavedReferenceDetails reference={saved.dictionary_reference}/>}
       {saved?.dictionary_snapshot && <SavedDictionaryDetails snapshot={saved.dictionary_snapshot}/>}
@@ -234,7 +251,7 @@ function LookupContent({ query, material, scope, onSkip, drafts, onReady, footer
         touch(); personal.current = true; setDraft(event.target.value); action.current = null;
         drafts.set(key, { value: event.target.value, personal: true, provider: activeProvider });
       }} disabled={busy}/>{saved && <button className="ui-button" onClick={() => void save(true)} disabled={!canSave}>{t('savedRecords.saveChanges')}</button>}</div>}
-      <section className="lookup-context"><div><small>{t('savedRecords.original')}</small><SpeechButton text={query.segment.en_text} speechKey="lookup:sentence" kind="sentence" label={t('reader.listenSentence')}/></div><p lang="en">{query.segment.en_text}</p><small>{t('savedRecords.source', { name: material.name, index: query.segment.index_num + 1 })}</small></section>
+      <section className="lookup-context"><div><small>{t('savedRecords.original')}</small><SourceAudioControls reference={query.media} target={{ segment_id: query.segment.id }} text={query.segment.en_text} speechKey="lookup:sentence" saved={!!saved}/></div><p lang="en">{query.segment.en_text}</p><small>{t('savedRecords.source', { name: material.name, index: query.segment.index_num + 1 })}</small>{material.document && <small>{[material.document.origin?.kind === 'clipboard' ? t('materials.importDialog.clipboardText') : material.document.origin?.kind === 'webpage' ? material.document.origin.final_url : material.document.original_format.toUpperCase(), documentLocationLabel(material.document.blocks.find(block => block.segment_indices.includes(query.segment.index_num))?.locations[0])].filter(Boolean).join(' · ')}</small>}</section>
       <SpeechFeedback prefix="lookup:"/>
     </div>
     {footerHost && createPortal(<footer className="lookup-footer">{saved ? <div className="lookup-saved" role="status"><Check size={20} aria-hidden="true"/><strong>{t(saveFeedback || 'dictionaryFlow.savedCurrent')}</strong>{receipt && <button className="ui-button" onClick={() => void undo()} disabled={busy}>{t('savedRecords.undo')}</button>}</div> : <><button className="ui-button saved-primary" onClick={() => void save()} disabled={!canSave}>{t(busy ? 'dictionaryFlow.saving' : 'dictionaryFlow.save')}</button><small className="lookup-note">{t('dictionaryFlow.saveHint')}</small></>}{writeError && <p className="saved-error" role="alert">{writeError}</p>}</footer>, footerHost)}

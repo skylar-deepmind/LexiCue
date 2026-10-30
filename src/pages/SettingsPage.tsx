@@ -47,7 +47,7 @@ export default function SettingsPage() {
     </button>)}</div></section>
     <SpeechSettings/>
     <section><h2>{t('onboarding.replayTitle')}</h2><p>{t('onboarding.privacy')}</p><Link className="ui-button" to="/example">{t('onboarding.replay')}</Link></section>
-    <section><h2>{t('materials.backups')}</h2><div className="settings-options"><button className="ui-button settings-quiet-action" disabled={busy} onClick={() => void backup()}>{t('history.export')}</button><button className="ui-button settings-quiet-action" disabled={busy} onClick={() => void backup(true)}>{t('history.restore')}</button><Link className="ui-button" to="/legacy">{t('materials.history')}</Link></div></section>
+    <section><h2>{t('materials.backups')}</h2><p>{t('sourceAudio.backup')}</p><div className="settings-options"><button className="ui-button settings-quiet-action" disabled={busy} onClick={() => void backup()}>{t('history.export')}</button><button className="ui-button settings-quiet-action" disabled={busy} onClick={() => void backup(true)}>{t('history.restore')}</button><Link className="ui-button" to="/legacy">{t('materials.history')}</Link></div></section>
     <CloudSyncSettings />
     <LongmanStatus/>
     <details><summary>{t('settings.youtube.title')}</summary><YouTubeDownloadSettings /></details>

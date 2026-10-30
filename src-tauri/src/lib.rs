@@ -33,6 +33,7 @@ pub fn run() {
             commands::youtube::init_subtitle_cache(app.handle());
             commands::longman::configure(app.handle());
             commands::cambridge::configure(app.handle());
+            commands::free_dictionary::configure(app.handle());
             commands::tts::configure(app.handle());
             let app_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&app_dir)?;
@@ -43,6 +44,8 @@ pub fn run() {
                 log::error!("secure credential store initialization failed: {error}");
             }
             let conn = init_db(&app_dir.join("lexicue.db")).expect("Failed to initialize database");
+            commands::source_media::initialize(app.handle(), &conn)
+                .map_err(std::io::Error::other)?;
             let db_state = DbState {
                 conn: Arc::new(Mutex::new(conn)),
             };
@@ -92,7 +95,10 @@ pub fn run() {
             Ok(())
         })
         .manage(commands::example::ExampleState::default())
+        .manage(commands::webpage::WebpageState::default())
         .invoke_handler(tauri::generate_handler![
+            commands::webpage::fetch_import_webpage,
+            commands::webpage::cancel_import_webpage,
             commands::example::begin_example_session,
             commands::example::end_example_session,
             commands::example::example_saved_for_selection,
@@ -100,6 +106,10 @@ pub fn run() {
             commands::example::undo_example_saved_mutation,
             commands::import::import_file,
             commands::import::check_duplicate,
+            commands::source_media::source_media_status,
+            commands::source_media::prepare_source_media,
+            commands::source_media::resolve_source_media,
+            commands::source_media::resolve_reading_media,
             commands::export::export_all,
             commands::export::restore_all,
             commands::saved::list_saved_records,
@@ -115,6 +125,7 @@ pub fn run() {
             commands::recall::saved_recall_catalog,
             commands::recall::saved_recall_contexts,
             commands::materials::import_reading_material,
+            commands::materials::fill_reading_translations,
             commands::materials::list_materials,
             commands::history::list_legacy_records,
             commands::history::legacy_record_detail,
@@ -123,6 +134,7 @@ pub fn run() {
             commands::longman::lookup_longman_expression,
             commands::longman::longman_dictionary_status,
             commands::cambridge::lookup_cambridge_expression,
+            commands::free_dictionary::lookup_free_dictionary_expression,
             commands::tts::resolve_tts_audio,
             commands::tts::cancel_tts,
             commands::tts::clear_tts_cache,

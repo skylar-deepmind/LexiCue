@@ -60,3 +60,44 @@ output/marketing/
 # Prepared native engines; pinned sources/checksums are versioned instead.
 src-tauri/resources/gemma-runtime/*
 !src-tauri/resources/gemma-runtime/.gitkeep
+
+# Local acceptance reports, captured webpages/media and source snapshots.
+# Keep small, portable regression fixtures beside their tests.
+/prototypes/
+/docs/implementation/*-implementation-report-v*.txt
+/docs/implementation/*-evaluation-report-v*.txt
+/docs/implementation/*-audit-report-v*.txt
+/docs/implementation/*-parent-review-v*.txt
+/docs/implementation/free-online-dictionary-api-research-v*.txt
+/docs/implementation/youtube-*-fix-report-v*.txt
+/docs/implementation/fixtures/adaptive-reading-layout-v1/
+/docs/implementation/fixtures/clipboard-content-import-v1/
+/docs/implementation/fixtures/common-file-import-v1/
+/docs/implementation/fixtures/local-gap-online-rescue-v1/
+/docs/implementation/fixtures/online-dictionary-coverage-v1/
+/docs/implementation/fixtures/online-english-fallback-implementation-v1/
+/docs/implementation/fixtures/webpage-content-extraction-v1/
+/docs/implementation/fixtures/webpage-content-extraction-v2/
+/docs/implementation/fixtures/youtube-continuous-playback-v1/
+/docs/implementation/fixtures/youtube-import-and-listening-lookup-v1/
+/docs/implementation/fixtures/youtube-original-audio-v1/
+
+# One-off native QA hosts and audits that require unversioned local captures.
+/scripts/*-native-qa.html
+/scripts/*-native-qa.mjs
+/scripts/vite-native-qa.config.mjs
+/scripts/analyze-import-lookup-native.py
+/scripts/common-file-delivery-audit.py
+/scripts/dictionary-audit-*.py
+/scripts/dictionary-local-gap-*.py
+/scripts/dictionary-local-gap-*.mjs
+/scripts/online-english-fallback-*.py
+/scripts/online-english-fallback-*.mjs
+/scripts/source-continuous-fixtures.py
+/scripts/ui-common-file-smoke.mjs
+/scripts/ui-dictionary-coverage-*.mjs
+/scripts/ui-listening-lookup.mjs
+/scripts/ui-source-continuous.mjs
+/scripts/ui-source-media.mjs
+/scripts/source-media-rate-qa.html
+/scripts/source-media-rate-qa.mjs

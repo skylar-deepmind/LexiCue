@@ -26,14 +26,22 @@ export function useImportPresence(open: boolean, ref: RefObject<HTMLDivElement |
       duration, easing: open ? 'cubic-bezier(.2,.8,.25,1)' : 'cubic-bezier(.4,0,.2,1)', fill: 'forwards',
     })];
     if (scrim) animations.push(scrim.animate([{ opacity: getComputedStyle(scrim).opacity }, { opacity: open ? '1' : '0' }], { duration, easing: 'ease-out', fill: 'forwards' }));
-    void Promise.allSettled(animations.map(animation => animation.finished)).then(() => {
-      if (token !== sequence.current) return;
+    let settled = false;
+    const finish = () => {
+      if (settled || token !== sequence.current) return;
+      settled = true;
+      clearTimeout(fallback);
       Object.assign(panel.style, target);
       if (scrim) scrim.style.opacity = open ? '1' : '0';
       animations.forEach(animation => animation.cancel());
       if (!open) setPresent(false);
-    });
+    };
+    // Some WKWebView versions suspend Animation.finished in background windows.
+    // Motion must never leave an invisible modal owning focus and inertness.
+    const fallback = setTimeout(finish, duration + 120);
+    void Promise.allSettled(animations.map(animation => animation.finished)).then(finish);
     return () => {
+      clearTimeout(fallback);
       invalidate();
       // Preserve the actual in-flight frame when a quick reopen reverses an exit.
       const current = getComputedStyle(panel);

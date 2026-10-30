@@ -208,3 +208,55 @@ source.adapter_version 独立记录转换程序版本；retrieved_at 记录在�
 原生批量再遇目录同时交付 expressions、case_exclusions 和 literal_only；无可用离线目录时 literal_only=true，归档与阅读均只按原写法匹配大小写，不因缺包扩大历史身份。该结构仅为可重建 IPC 视图，旧字符串列表 IPC 保留；不新增保存、导出、备份或同步字段。没有显式收藏的多字母全大写写法不借用小写历史；普通有证据的句首大小写仍按现有规则处理。
 旧 dictionary_reference.headword、dictionary_snapshot.headword、default_entry_id 和第一条释义都不能单独授权归并。归档与安全词形索引是可失效、可重建的只读派生关系，不改写或物理合并记录；词典不可用或关系变化时安全退回原写法。新旧保存、备份、导出和同步结构保持兼容。
 派生词、大小写身份、连字符、撇号和完整短语仍保留边界；不得任意去词尾或把逐词还原拼成短语。安全扩大标记与历史原句查询必须指向同一身份，删除最后一条有效原句后取消提醒。约三条速览可能包含多个词头时，可选保存节选只包含默认词头的可见释义，禁止将别的候选挂到该词头。
+
+十六、独立 Wiktionary 英文兜底（元数据修订 1.3，2026-10-28）
+
+在本地没有目标实质解释时，现有 Cambridge 之后可调用 FreeDictionaryAPI.com 的英语端点。
+固定 provider=wiktionary，access_channel=freedictionaryapi，service_url=https://freedictionaryapi.com，
+dataset=Wiktionary，adapter_version=freedictionaryapi-v1.0.0。它是第三方 API 提供的 Wiktionary
+内容，不标成 Cambridge 或 Wikimedia 官方托管接口。查询 translations=false，只发目标表达，
+context 在原生验证后绑定于本地返回；不得写进在线缓存或发送整句。
+
+新来源 source 完整保存：原词条 entry_url、API 接收/获取时间 received_at/retrieved_at、适配器、
+原始 JSON 内容 SHA-256 content_hash、locator、license={name:CC BY-SA 4.0,
+url:https://creativecommons.org/licenses/by-sa/4.0/}、attribution=Wiktionary contributors via
+FreeDictionaryAPI.com，以及 modifications=Adapted English definitions and ordinary examples;
+translations, quotations and audio omitted.。原始数据无发布号和版次，release/edition=null。
+entry_key 为相同词条的稳定命名 ID；locator=/entries/{i}，所有 ID 带 wiktionary 和适配器命名空间。
+来源地址必须为 HTTPS en.wiktionary.org/wiki/{目标}，无凭据、异常端口、查询或 fragment；路径只解码
+一次，显式允许 MediaWiki 下划线/空格对应，不合并内部空白，不改大小写或标点，不双重解码。
+原始 API 的 source URL 加内容身份检查不是独立读取 Wiktionary 原站的核验。
+
+sense 的可选扩展对旧来源不强制，但新来源必须有：
+- source_path：/entries/{i}/senses/{j}，逐层 /subsenses/{k} 标出来源层级；
+- content_kind：definition 或 relation，形式/未展开引用不能冒充实质定义；
+- ancestors：完整顺序父链，每项包含 source_path、meaning、labels。子义离开父限定即失义时，展示及
+  保存都保留全部父语义；不以自由 notes 或无类型文本拼接替代。路径深度、父链长度和实际前缀一致。
+英文定义保持 meaning.zh=null。上游 translations 是译词，不能当中文解释；普通 examples 只绑定对应
+意思并忽略空项。quotes 及独立 reference 不展示或保存，词典音频不接入。IPA 仅在 tags 明确地区时
+归入既有 us/gb 偏好；缺地区、例句或 IPA 不构成必要内容缺口。
+
+实质内容判定优先使用 match 范围、结构化 content_kind 和来源关系。完整的 plural of、misspelling of、
+alternative form of、clipping of、a way of saying 等关系句不停止补查；仅 the act of 单个动词-ing
+而无展开内容也作为关系。完整缩写展开、短同义定义可以有效，不能用长度或样本词白名单决定。
+不同词头的裸 reference 未证明适用范围时继续补查，同时保留原本地内容；有来源词形证据的 inflection
+仍有效。混合关系与实义保留各组，不把整包每个义都视为已解决。该层不自动判断语境所需含义。
+本地实质双解无需自动联网；本地实质英文仅缺中文仍只走 Cambridge。Cambridge 已有目标实义时停止
+自动第三源，用户可经唯一的“继续查其他释义”入口查尚未尝试的新源。
+
+缓存按 provider、适配器/schema、精确保留表达和 translations=false 分开；24 小时正缓存、原子写入、
+同请求合并，仅身份、结构和实质内容验证通过才写。网络/解析/限流/关系提示不写持久负缓存，不覆盖
+有效成功缓存；过期有效内容在失败时可回退，并标出未更新。收藏参考独立冻结，不跟随缓存更新。
+自动顺序链采用单一单调时钟 18 秒上限；新源 HTTP 7 秒、外层最多 8 秒，禁止自动跳转和无限重试。
+
+selectedSnapshot 和 dictionaryReference 保留新来源完整署名、许可、获取时间、源定位及父限定；
+保存不等待网络，不把英文参考写成个人/AI 解释。晚到结果不得改写草稿、当前手动来源选择或已保存
+参考。必要归属和父链不能为满足大小上限被丢掉；参考整体超限时省略参考并明确反馈，原句仍可保存。
+离线详情、备份导出/导入与模拟同步经过同一 provider 分流校验；不能把任意 access_channel 一律当作
+Cambridge。已有 Longman、Cambridge 已知历史适配器以及无参考记录保持原 wire 序列化和幂等语义，
+不重写旧数据。schema_version 仍为 1，saved/sync wire 版本不变；读取新 provider 需要本次实现或
+之后兼容它的客户端，不承诺旧客户端能识别。不支持的来源须拒绝整个参考，不能静默丢掉未知归属。
+
+词典内容许可与软件和用户原创材料许可分开。正文/离线参考/导出保留原词条、API 和 CC BY-SA 4.0
+署名及上述修改说明；README 含分发署名，实际下载分发页在发布时也须保留。此节只授权本地实现，
+未发布页面或执行真实云同步。

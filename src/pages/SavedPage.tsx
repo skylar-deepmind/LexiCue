@@ -7,7 +7,9 @@ import ContextPanel from '../components/ContextPanel';
 import SoftContentRefresh from '../components/SoftContentRefresh';
 import SavedDictionaryDetails from '../components/SavedDictionaryDetails';
 import SavedReferenceDetails from '../components/SavedReferenceDetails';
+import SourceAudioControls from '../components/SourceAudioControls';
 import { useImportStore } from '../stores/importStore';
+import { documentLocationLabel } from '../lib/documentTypes';
 import { legacyContent, mutateSaved, savedErrorKey, undoSaved, type SavedConflict, type SavedMigrationReport, type SavedRecord, type SavedGroup, type SavedGroupPage, type SavedContextPage } from '../lib/savedRecords';
 
 const PAGE_SIZE = 50;
@@ -65,9 +67,10 @@ function SavedContext({ record, drafts, removing, displayReady, onRemove, onChan
   };
   return <article className="saved-context-entry" data-record={record.record_id}>
     <section className="saved-context-copy">
-      <h3>{t('savedRecords.original')}</h3><p lang="en">{record.sentence || t('savedRecords.missingOriginal')}</p>
+      <h3>{t('savedRecords.original')}</h3><SourceAudioControls reference={record.source?.media} target={{ record_id: record.record_id }} text={record.sentence ?? ''} speechKey={`saved:${record.record_id}`} saved/><p lang="en">{record.sentence || t('savedRecords.missingOriginal')}</p>
       {record.sentence_translation && <p>{record.sentence_translation}</p>}
       <small>{record.source ? t('savedRecords.source', { name: record.source.file_name, index: record.source.segment_index + 1 }) : t('savedRecords.legacyMissingSource')}</small>
+      <small>{record.source?.document && [record.source.document.origin?.kind === 'clipboard' ? t('materials.importDialog.clipboardText') : record.source.document.origin?.kind === 'webpage' ? record.source.document.origin.final_url : record.source.document.original_format.toUpperCase(), record.source.document.section_title, documentLocationLabel(record.source.document.locations[0])].filter(Boolean).join(' · ')}</small>
       <small className="saved-time">{record.saved_at === null ? t('savedRecords.unknownTime') : new Date(record.saved_at).toLocaleString(i18n.language)}</small>
     </section>
     {editing ? <form onSubmit={event => { event.preventDefault(); void save(); }}>

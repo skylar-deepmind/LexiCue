@@ -48,6 +48,8 @@ pub fn init_db(db_path: &Path) -> Result<Connection, rusqlite::Error> {
     create_study_phrase_view(&conn)?;
     create_performance_indexes(&conn)?;
     crate::commands::materials::create_tables(&conn)?;
+    crate::commands::source_media::migrate(&conn)?;
+    crate::commands::document_source::migrate(&conn)?;
     crate::commands::saved::init(&conn).map_err(rusqlite::Error::InvalidParameterName)?;
     Ok(conn)
 }

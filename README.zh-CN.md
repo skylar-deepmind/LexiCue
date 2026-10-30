@@ -17,7 +17,7 @@
 
 ## 用自己的内容学语言
 
-导入你喜欢的 SRT 字幕。读到生词随手查，在原句里理解、积累，再通过复习真正记住。
+导入你喜欢的英文文档与字幕。读到生词随手查，在原句里理解、积累，再通过复习真正记住。
 
 ## 简单的学习闭环
 
@@ -50,7 +50,7 @@
 
 ## 特色功能
 
-- **[学你真正喜欢的内容](https://skylar-deepmind.github.io/LexiCue/zh/#feature-import)** — 导入 SRT 字幕，预览内容并确认学习语言。也可以通过 YouTube 入口获取字幕。
+- **[学你真正喜欢的内容](https://skylar-deepmind.github.io/LexiCue/zh/#feature-import)** — 支持带文字层的 PDF、DOCX、EPUB、Markdown、TXT、SRT 和 VTT。预览全文，可选 PDF 页码或 EPUB 章节范围。也可以通过 YouTube 入口获取字幕。本地文件离线提取，阅读时按需翻译一小批句子；复杂版式会提示部分提取，不执行 OCR。
 - **[不打断阅读，点词即查](https://skylar-deepmind.github.io/LexiCue/zh/#feature-lookup)** — 点击原句中的单词，随手查看释义。内置离线词典，让阅读顺畅继续。
 - **[在原句里理解地道表达](https://skylar-deepmind.github.io/LexiCue/zh/#feature-phrases)** — 可选 AI 识别英语表达，解释它在原句中的用法。Gemma 模型单独下载后可在本地运行。
 - **[词汇积累，有迹可循](https://skylar-deepmind.github.io/LexiCue/zh/#feature-collect)** — 筛选、标签与学习状态，让单词和词组井然有序。批量或逐项标注，随时回到原文。
@@ -98,3 +98,14 @@ cd src-tauri && cargo test
 ## 许可证
 
 [MIT](LICENSE) · [Third-party notices](THIRD-PARTY-NOTICES.md) · [Dictionary packs](DICTIONARY_PACK.md)
+
+### 在线词典内容署名
+
+可选英文兜底释义和普通例句来自 [Wiktionary 贡献者](https://en.wiktionary.org/)，由
+[FreeDictionaryAPI.com](https://freedictionaryapi.com/) 提供，按
+[CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) 许可改编。
+展示、收藏及导出的参考节选保留接口报告的原 Wiktionary 词条链接、获取时间、署名、许可和修改说明。
+本适配省略译词、引文和词典音频，保留子义所需的父级语义。这项内容许可只标注相应词典节选，
+不将用户原文或个人笔记标为词典许可；软件许可另行适用。未来应用下载或分发页须保留 API 和内容署名。
+新 Wiktionary 参考需要包含该来源 V1 阅读能力的客户端；旧 Longman、已知 Cambridge 历史适配器和无参考记录保持兼容。
+不保证旧客户端可读取新 provider；不支持的来源须校验失败，不能静默丢弃参考；不迁移改写旧记录。

@@ -63,8 +63,8 @@ fn canonical(text: &str) -> String {
         "nbsp" => " ".into(),
         "hellip" => "…".into(),
         t => {
-            let n = if t.starts_with("#x") {
-                u32::from_str_radix(&t[2..], 16).ok()
+            let n = if let Some(hex) = t.strip_prefix("#x") {
+                u32::from_str_radix(hex, 16).ok()
             } else {
                 t[1..].parse().ok()
             };
@@ -609,7 +609,8 @@ impl Package {
         }
         let mut grouped: Vec<(Value, Vec<Value>)> = vec![];
         for sense in &senses {
-            for group in self.rows("SELECT DISTINCT g.* FROM group_map gm JOIN groups g ON g.id=gm.group_id WHERE gm.sense_id=? ORDER BY g.record_index,g.locator",&[s(sense,"id")])?{let gid=s(&group,"id");if m.group.as_ref().is_some_and(|x|x!=gid){continue}if let Some((_,ss))=grouped.iter_mut().find(|(g,_)|s(g,"id")==gid){ss.push(sense.clone())}else{grouped.push((group,vec![sense.clone()]))}}
+            for group in self.rows("SELECT DISTINCT g.* FROM group_map gm JOIN groups g ON g.id=gm.group_id WHERE gm.sense_id=? ORDER BY g.record_index,g.locator",&[s(sense,"id")])?{let gid=s(&group,"id");if m.group.as_ref().is_some_and(|x|x!=gid){continue}
+if let Some((_,ss))=grouped.iter_mut().find(|(g,_)|s(g,"id")==gid){ss.push(sense.clone())}else{grouped.push((group,vec![sense.clone()]))}}
         }
         grouped.sort_by(|(a, _), (b, _)| {
             a["record_index"]

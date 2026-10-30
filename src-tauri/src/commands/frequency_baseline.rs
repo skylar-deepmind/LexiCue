@@ -109,7 +109,7 @@ fn sample_words(language: &str, tier: i64, batch: i64) -> Result<Vec<String>, St
     // A package-version-stable permutation: each batch is a distinct, evenly-spread
     // view of the tier's newly-added interval, with no runtime randomness involved.
     let len = range.len();
-    let step = if len % 2 == 0 {
+    let step = if len.is_multiple_of(2) {
         len.saturating_sub(1)
     } else {
         len

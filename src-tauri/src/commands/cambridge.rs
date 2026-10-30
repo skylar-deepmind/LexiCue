@@ -407,10 +407,9 @@ async fn query_legacy(expression: &str, context: Option<&str>, refresh: bool) ->
                         if tokio::fs::write(&tmp, serde_json::to_vec(&envelope).unwrap())
                             .await
                             .is_ok()
+                            && tokio::fs::rename(&tmp, &path).await.is_err()
                         {
-                            if tokio::fs::rename(&tmp, &path).await.is_err() {
-                                let _ = tokio::fs::remove_file(&tmp).await;
-                            }
+                            let _ = tokio::fs::remove_file(&tmp).await;
                         }
                     }
                 }
@@ -511,7 +510,7 @@ mod tests {
     use super::*;
     use std::io::{Read, Write};
     use std::net::TcpListener;
-    static ENV: Mutex<()> = Mutex::new(());
+    static ENV: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
     /// Synthetic contract/transport fixture, never represented as dictionary evidence.
     fn fixture(query: &str) -> Value {
         json!({"schema_version":1,"query":{"text":query,"language":"en","context":null},"status":"found","default_entry_id":"cambridge:test:entry","entries":[{
@@ -558,6 +557,10 @@ mod tests {
         let content_type = content_type.to_owned();
         let handle = std::thread::spawn(move || {
             let (mut stream, _) = listener.accept().unwrap();
+            stream.set_nonblocking(false).unwrap();
+            stream
+                .set_write_timeout(Some(Duration::from_secs(2)))
+                .unwrap();
             stream
                 .set_read_timeout(Some(Duration::from_secs(2)))
                 .unwrap();
@@ -646,7 +649,7 @@ mod tests {
     }
     #[tokio::test]
     async fn native_transport_context_privacy_persistent_cache_and_stale_refresh() {
-        let _guard = ENV.lock().unwrap();
+        let _guard = ENV.lock().await;
         let dir = tempfile::tempdir().unwrap();
         let query = "US & us";
         let (origin, handle) = server(200, "application/json", fixture(query).to_string());
@@ -696,7 +699,7 @@ mod tests {
     }
     #[tokio::test]
     async fn native_transport_rejects_html_foreign_identity_and_false_not_found() {
-        let _guard = ENV.lock().unwrap();
+        let _guard = ENV.lock().await;
         let dir = tempfile::tempdir().unwrap();
         std::env::set_var("LEXICUE_CAMBRIDGE_CACHE_DIR", dir.path());
         let mut wrong = fixture("wrong");
@@ -718,7 +721,7 @@ mod tests {
     }
     #[tokio::test]
     async fn partial_refresh_does_not_replace_a_complete_cached_entry() {
-        let _guard = ENV.lock().unwrap_or_else(|e| e.into_inner());
+        let _guard = ENV.lock().await;
         let dir = tempfile::tempdir().unwrap();
         let mut partial = fixture("test");
         partial["status"] = json!("partial");

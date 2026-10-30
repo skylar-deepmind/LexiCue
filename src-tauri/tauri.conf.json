@@ -24,7 +24,11 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost"
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' data: asset: http://asset.localhost; connect-src 'self' ipc: http://ipc.localhost",
+      "assetProtocol": {
+        "enable": true,
+        "scope": []
+      }
     }
   },
   "bundle": {
@@ -35,6 +39,7 @@
       "resources/ECDICT-LICENSE.txt",
       "resources/ENGLISH-LICENSE.txt",
       "resources/TTS-LICENSE.txt",
+      "resources/DOCUMENT-IMPORT-LICENSES.txt",
       "resources/PHRASEDICT-LICENSE.txt",
       "resources/JMDICT-LICENSE.txt",
       "resources/CC-CEDICT-LICENSE.txt",

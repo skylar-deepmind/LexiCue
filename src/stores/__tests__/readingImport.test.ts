@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({ invoke: vi.fn(), parse: vi.fn(), open: vi.fn(), read: vi.fn(), prepare: vi.fn(), cancel: vi.fn(), record: vi.fn(), translate: vi.fn() }));
 vi.mock('@tauri-apps/api/core', () => ({ invoke: mocks.invoke }));
 vi.mock('@tauri-apps/plugin-dialog', () => ({ open: mocks.open }));
-vi.mock('@tauri-apps/plugin-fs', () => ({ readTextFile: mocks.read }));
+vi.mock('@tauri-apps/plugin-fs', () => ({ readFile: mocks.read }));
 vi.mock('../../lib/materials', async original => ({ ...await original<object>(), parseSrtInWorker: mocks.parse }));
 vi.mock('../../lib/importTranslation', () => ({ translateImportSegments: mocks.translate }));
 vi.mock('../youtubeStore', () => ({ useYoutubeStore: { getState: () => ({ prepareSubtitles: mocks.prepare, cancelJob: mocks.cancel }) } }));
@@ -50,22 +50,22 @@ describe('preview and transaction boundaries', () => {
     it('retains the file-type and 32 MiB guards before creating any draft', async () => {
         await store().start([{ name: 'notes.pdf', read: async () => srt() },
             { name: 'oversized.srt', read: async () => 'a'.repeat(32 * 1024 * 1024 + 1) }]);
-        expect(store().items.map(item => item.error)).toEqual(['invalid_srt', 'too_large']);
+        expect(store().items.map(item => item.error)).toEqual(['invalid_format', 'too_large']);
         expect(store().items.every(item => !item.draft)).toBe(true);
         await store().confirm(); expect(mocks.invoke).not.toHaveBeenCalled();
     });
-    it('translates split TXT sentences before freezing the preview and preserves the original file', async () => {
+    it('prepares English TXT without waiting for translation and preserves existing bilingual text', async () => {
         const text = 'She bought a book. She read it yesterday.';
-        mocks.translate.mockImplementationOnce(async segments => ({ segments: segments.map((s: {index: number}) => ({...s, zh_text: `译文${s.index}`})), failed: false }));
         await store().start([{name: 'book.txt', read: async () => text}]);
-        expect(store().items[0].draft?.segments.map(s => [s.en_text,s.zh_text])).toEqual([['She bought a book.','译文0'],['She read it yesterday.','译文1']]);
+        expect(store().items[0].draft?.segments.map(s => [s.en_text,s.zh_text])).toEqual([['She bought a book.',null],['She read it yesterday.',null]]);
         expect(store().items[0].draft?.content).toBe(text);
+        expect(mocks.translate).not.toHaveBeenCalled();
         expect(mocks.invoke).not.toHaveBeenCalled();
     });
-    it('retries only missing translation using retained sentences without reading or downloading again', async () => {
+    it('retries only missing YouTube translation using retained sentences without downloading again', async () => {
         const read = vi.fn(async () => srt('One sentence. Another sentence.'));
         mocks.translate.mockImplementationOnce(async segments => ({segments: segments.map((s: {index:number}) => ({...s,zh_text:s.index===0?'第一句。':null})),failed:true}));
-        await store().start([{name:'retry.srt',read}]);
+        await store().start([{name:'retry.srt',kind:'youtube',read}]);
         expect(store().items[0].fallbackSegments?.[0].zh_text).toBe('第一句。');
         expect(store().items[0].error).toBe('translation_partial');
         mocks.translate.mockImplementationOnce(async segments => ({segments: segments.map((s: {zh_text:string|null}) => ({...s,zh_text:s.zh_text??'另一句。'})),failed:false}));
@@ -74,15 +74,15 @@ describe('preview and transaction boundaries', () => {
         expect(store().items[0].draft?.segments.map(s=>s.zh_text)).toEqual(['第一句。','另一句。']);
         expect(mocks.invoke).not.toHaveBeenCalled();
     });
-    it('continues with completed translations after failure and cancels a late translation on close', async () => {
+    it('continues with completed YouTube translations after failure and cancels a late translation on close', async () => {
         mocks.translate.mockImplementationOnce(async segments => ({segments,failed:true}));
-        await store().start([item('fallback')]);
+        await store().start([{...item('fallback'),kind:'youtube'}]);
         await store().useEnglish(store().items[0].id);
         expect(store().items[0].draft).toBeDefined();expect(mocks.translate).toHaveBeenCalledTimes(1);
         expect(store().items[0].draft?.youtubeSelection).toBeUndefined();
         const late = deferred<{segments: ReturnType<typeof parseEnglishSrt>; failed: boolean}>();
         mocks.translate.mockReturnValueOnce(late.promise);
-        const pending = store().start([item('late')]);
+        const pending = store().start([{...item('late'),kind:'youtube'}]);
         await vi.waitFor(()=>expect(store().items[0].stage).toBe('translating'));
         store().hide();await pending;late.resolve({segments:parseEnglishSrt(srt()),failed:false});await Promise.resolve();
         expect(store()).toMatchObject({open:false,items:[]});
@@ -170,5 +170,24 @@ describe('preview and transaction boundaries', () => {
         await store().retry(); expect(mocks.record).toHaveBeenCalledWith({ primary: 'en', secondary: 'zh-Hans' });
         mocks.record.mockClear(); await store().fromYouTube(youtube); mocks.invoke.mockResolvedValueOnce({ ...receipt, outcome: 'duplicate' }); await store().confirm();
         expect(mocks.record).not.toHaveBeenCalled();
+    });
+});
+
+describe('YouTube provenance is independent of subtitle and translation completion', () => {
+    const source = { version: 1, key: 'immutable-source', audio: null } as unknown as import('../../lib/sourceMedia').YoutubeSource;
+    it('carries the native source snapshot through the frozen draft and exact write payload', async () => {
+        mocks.prepare.mockResolvedValue({ status: 'complete', subtitle: { name: 'native.srt', content: srt(), source } });
+        await store().fromYouTube(youtube);
+        expect(store().items[0].draft?.source).toEqual(source);
+        await store().confirm();
+        expect(mocks.invoke).toHaveBeenCalledWith('import_reading_material', { input: expect.objectContaining({ source }) });
+        expect(mocks.invoke.mock.calls.some(([cmd]) => cmd === 'resolve_source_media' || cmd === 'resolve_tts_audio')).toBe(false);
+    });
+    it('keeps primary source identity when the user retains subtitles after secondary translation failure', async () => {
+        mocks.prepare.mockResolvedValue({ status: 'partial', primary: { name: 'native.srt', content: srt(), source }, error: { code: 'network' } });
+        await store().fromYouTube(youtube);
+        const id = store().items[0].id; await store().useEnglish(id);
+        expect(store().items[0].draft?.source).toEqual(source);
+        expect(store().items[0].stage).toBe('ready');
     });
 });

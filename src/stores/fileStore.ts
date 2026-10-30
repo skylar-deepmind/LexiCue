@@ -684,7 +684,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
       const json = await readTextFile(selected as string);
       const backup: BackupPayload = JSON.parse(json);
 
-      if (!Number.isInteger(backup.schema_version) || backup.schema_version < 1 || backup.schema_version > 9) {
+      if (!Number.isInteger(backup.schema_version) || backup.schema_version < 1 || backup.schema_version > 12) {
         await message(i18n.t('fileStore.backupVersionError', { version: backup.schema_version }), { title: i18n.t('fileStore.backupVersionTitle'), kind: 'error' });
         return;
       }

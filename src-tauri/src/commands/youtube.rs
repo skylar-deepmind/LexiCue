@@ -41,6 +41,10 @@ pub struct VideoSubInfo {
 pub struct SubtitleResult {
     pub name: String,
     pub content: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source: Option<super::source_media::YoutubeSource>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_issue: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -60,7 +64,7 @@ pub struct TrackSelection {
     pub is_auto: bool,
 }
 
-fn tool_path(name: &str) -> Option<PathBuf> {
+pub(super) fn tool_path(name: &str) -> Option<PathBuf> {
     let mut dirs = vec![
         PathBuf::from("/opt/homebrew/bin"),
         PathBuf::from("/usr/local/bin"),
@@ -84,7 +88,7 @@ fn tool_path(name: &str) -> Option<PathBuf> {
         .find(|path| path.is_file())
 }
 
-fn ytdlp_path() -> Option<PathBuf> {
+pub(super) fn ytdlp_path() -> Option<PathBuf> {
     tool_path("yt-dlp")
 }
 
@@ -122,15 +126,26 @@ async fn ytdlp_version_with_timeout() -> Option<String> {
     ytdlp_version_from_output(status.success(), &output)
 }
 
-fn is_valid_video_id(id: &str) -> bool {
+pub(super) fn is_valid_video_id(id: &str) -> bool {
     id.len() == 11
         && id
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
 }
 
-fn extract_video_id(url: &str) -> Option<String> {
+pub(super) fn extract_video_id(url: &str) -> Option<String> {
     let url = url.trim();
+    let parsed = reqwest::Url::parse(url).ok()?;
+    if !matches!(parsed.scheme(), "https" | "http")
+        || !parsed.username().is_empty()
+        || parsed.password().is_some()
+        || !matches!(
+            parsed.host_str(),
+            Some("youtube.com" | "www.youtube.com" | "m.youtube.com" | "youtu.be")
+        )
+    {
+        return None;
+    }
     if url.is_empty() {
         return None;
     }
@@ -245,18 +260,18 @@ fn is_junk_track_lang(lang: &str) -> bool {
     )
 }
 
-struct DownloadJob {
+pub(super) struct DownloadJob {
     app: Option<AppHandle>,
     job_id: i64,
     token: Arc<AtomicBool>,
 }
 
 impl DownloadJob {
-    fn cancelled(&self) -> bool {
+    pub(super) fn cancelled(&self) -> bool {
         self.token.load(Ordering::Relaxed)
     }
 
-    async fn cancel_signal(&self) {
+    pub(super) async fn cancel_signal(&self) {
         while !self.cancelled() {
             tokio::time::sleep(Duration::from_millis(100)).await;
         }
@@ -269,7 +284,7 @@ fn download_registry() -> &'static Mutex<HashMap<i64, Arc<DownloadJob>>> {
     DOWNLOAD_REGISTRY.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
-fn register_download_job(app: Option<AppHandle>, job_id: i64) -> Arc<DownloadJob> {
+pub(super) fn register_download_job(app: Option<AppHandle>, job_id: i64) -> Arc<DownloadJob> {
     // Register and preserve early cancellation under the same lock.
     let mut registry = download_registry()
         .lock()
@@ -283,12 +298,12 @@ fn register_download_job(app: Option<AppHandle>, job_id: i64) -> Arc<DownloadJob
     job
 }
 
-fn create_download_job(app: AppHandle, job_id: i64) -> Arc<DownloadJob> {
+pub(super) fn create_download_job(app: AppHandle, job_id: i64) -> Arc<DownloadJob> {
     register_download_job(Some(app), job_id)
 }
 
-struct JobGuard {
-    job_id: i64,
+pub(super) struct JobGuard {
+    pub(super) job_id: i64,
 }
 
 impl Drop for JobGuard {
@@ -403,7 +418,7 @@ enum RunOutcome {
 /// Spawn yt-dlp, capture stderr, enforce a timeout and honour cancellation.
 /// Spawn yt-dlp, capture both stdout and stderr, enforce a timeout and honour
 /// cancellation. The spawned child is always killed on timeout/cancel.
-async fn run_ytdlp_capture(
+pub(super) async fn run_ytdlp_capture(
     cmd: &mut tokio::process::Command,
     cancel: Option<&DownloadJob>,
     timeout: Duration,
@@ -533,7 +548,7 @@ fn cache_metadata(video_id: &str, json: &serde_json::Value) {
     }
 }
 
-async fn fetch_ytdlp_json(
+pub(super) async fn fetch_ytdlp_json(
     cancel: Option<&DownloadJob>,
     url: &str,
     session: &downloads::BrowserSession,
@@ -925,7 +940,7 @@ fn vtt_to_srt(content: &str) -> String {
     out
 }
 
-fn parse_ts(raw: &str) -> Option<i64> {
+pub(super) fn parse_ts(raw: &str) -> Option<i64> {
     let raw = raw.trim();
     let comma = raw.find(['.', ','])?;
     let (hms, ms) = (&raw[..comma], &raw[comma + 1..]);
@@ -947,13 +962,13 @@ fn parse_ts_line(line: &str) -> Option<(i64, i64)> {
     Some((start, end))
 }
 
-struct SrtCue {
-    start_ms: i64,
-    end_ms: i64,
-    text: String,
+pub(super) struct SrtCue {
+    pub(super) start_ms: i64,
+    pub(super) end_ms: i64,
+    pub(super) text: String,
 }
 
-fn parse_srt(content: &str) -> Vec<SrtCue> {
+pub(super) fn parse_srt(content: &str) -> Vec<SrtCue> {
     let normalized = content.replace("\r\n", "\n").replace('\u{feff}', "");
     let mut cues = Vec::new();
     let mut lines = normalized.lines().peekable();

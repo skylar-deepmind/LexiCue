@@ -560,12 +560,14 @@ async fn native_track_at(
         return Err(fail("no subtitles"));
     }
     Ok(SubtitleResult {
+        source: None,
+        source_issue: None,
         name: format!("{video}.{}.srt", track.lang),
         content,
     })
 }
 
-async fn native_track(
+pub(in crate::commands) async fn native_track(
     job: &DownloadJob,
     video: &str,
     track: &SubtitleTrack,
@@ -749,7 +751,31 @@ pub async fn youtube_prepare_subtitles(
         lock = tokio::time::timeout_at(deadline, DOWNLOAD_LOCK.lock()) => lock.map_err(|_| fail("timeout"))?,
     };
     let original = resolve_track(&job, &url, &primary, &session, "primary", deadline).await?;
-    let sub_a = managed_track(&job, &video, &original, &session, &dir, "primary", deadline).await?;
+    let mut sub_a =
+        managed_track(&job, &video, &original, &session, &dir, "primary", deadline).await?;
+    if let Some(metadata) = get_cached_metadata(&format!("{video}:{}", session.cache_identity())) {
+        match super::super::source_media::checked_source_from_subtitles(
+            &video,
+            &original,
+            &sub_a.content,
+            &metadata,
+        ) {
+            Ok(source) => {
+                sub_a.source_issue = source
+                    .audio
+                    .is_none()
+                    .then(|| "media_unconfirmed_track".into());
+                sub_a.source = Some(source);
+            }
+            Err(error) => {
+                sub_a.source = None;
+                sub_a.source_issue = Some(error);
+            }
+        }
+    } else {
+        sub_a.source = None;
+        sub_a.source_issue = Some("media_metadata_missing".into());
+    }
     let Some(secondary) = secondary else {
         return Ok(PreparedSubtitles::Complete { subtitle: sub_a });
     };
@@ -779,6 +805,8 @@ pub async fn youtube_prepare_subtitles(
             progress(&job, "merging", "secondary", &translated, None);
             Ok(PreparedSubtitles::Complete {
                 subtitle: SubtitleResult {
+                    source: sub_a.source.clone(),
+                    source_issue: sub_a.source_issue.clone(),
                     name: format!("{video}.{}-{}.srt", primary.lang, secondary.lang),
                     content: merge_srt_cues(&parse_srt(&sub_a.content), &parse_srt(&sub_b.content)),
                 },
@@ -880,6 +908,8 @@ mod tests {
     }
     fn sample() -> SubtitleResult {
         SubtitleResult {
+            source: None,
+            source_issue: None,
             name: "test.srt".into(),
             content: SRT.into(),
         }
@@ -1080,6 +1110,8 @@ mod tests {
             dir.path(),
             "empty",
             &SubtitleResult {
+                source: None,
+                source_issue: None,
                 name: "empty".into(),
                 content: "".into()
             }

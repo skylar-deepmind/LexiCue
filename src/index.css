@@ -145,6 +145,12 @@
 }
 
 :root {
+  /* Saved-context markers inherit the accent palette, including midnight. */
+  --recall-marker: var(--accent-200);
+  --recall-text: var(--text-strong);
+  --recall-hover-bg: var(--accent-100);
+  --recall-selected-bg: var(--accent-100);
+  --recall-selected-line: var(--accent-600);
   --dictionary-pos-bg: #f0eafb; --dictionary-pos-text: #59407b;
   --dictionary-pattern-bg: #e3f3ea; --dictionary-pattern-text: #275c46;
   --dictionary-expression-bg: #fff0e6; --dictionary-expression-text: #834625;

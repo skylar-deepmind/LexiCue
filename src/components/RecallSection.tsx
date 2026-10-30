@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { SavedRecord } from '../lib/savedRecords';
 import { useRecallStore } from '../stores/recallStore';
 import SavedReferenceDetails from './SavedReferenceDetails';
+import SourceAudioControls from './SourceAudioControls';
 
 interface Page { records: SavedRecord[]; total: number }
 
@@ -50,6 +51,7 @@ export default function RecallSection({ expression }: { expression: string }) {
     <summary>{t('dictionaryFlow.historySummary', { count: page.total })}</summary>
     <p className="recall-note">{t('recall.notCurrent')}</p>
     {page.records.map(value => <article className="recall-context" key={value.record_id} data-record={value.record_id}>
+      <SourceAudioControls reference={value.source?.media} target={{ record_id: value.record_id }} text={value.sentence ?? ''} speechKey={`recall:${value.record_id}`} saved/>
       <p className="recall-sentence" lang="en">{value.sentence || t('savedRecords.missingOriginal')}</p>
       {value.sentence_translation && <p className="recall-translation">{value.sentence_translation}</p>}
       <small>{value.source ? t('savedRecords.source', { name: value.source.file_name, index: value.source.segment_index + 1 }) : t('savedRecords.legacyMissingSource')} · {value.saved_at === null ? t('savedRecords.unknownTime') : new Date(value.saved_at).toLocaleString(i18n.language)}</small>

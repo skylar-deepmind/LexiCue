@@ -1,7 +1,8 @@
-/** Import UI: real SRT Worker + Rust commands + disposable SQLite.
+/** Import UI: real document/SRT Workers + Rust commands + disposable SQLite.
  * File pickers/drag IPC and YouTube network responses are controlled at the native boundary.
  * Physical OS picker/drop are verified separately, never claimed by this harness. */
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import {readFile,writeFile} from 'node:fs/promises';
 import {createReadingHarness,root} from './ui-reading-support.mjs';
 const output=process.env.LEXICUE_IMPORT_UI_OUTPUT||'/tmp/lexicue-ui-import';
@@ -25,7 +26,8 @@ async function contrast(locator,label){const value=await locator.evaluate(node=>
  const rgb=v=>v.match(/[\d.]+/g).map(Number),lum=c=>c.slice(0,3).map(n=>{n/=255;return n<=.04045?n/12.92:((n+.055)/1.055)**2.4;}).reduce((v,n,i)=>v+n*[.2126,.7152,.0722][i],0);
  let p=node,bg;do{bg=rgb(getComputedStyle(p).backgroundColor);p=p.parentElement;}while(p&&(bg[3]??1)===0);const a=lum(rgb(getComputedStyle(node).color)),b=lum(bg);return(Math.max(a,b)+.05)/(Math.min(a,b)+.05);
 });contrasts.push({label,ratio:value});ok(value>=4.5,`${label}: ${value.toFixed(2)}:1`);}
-async function youtube(info,prepared){await page.evaluate(({info,prepared})=>{window.__youtube={info,prepared};},{info,prepared});await open();await page.getByRole('button',{name:'粘贴链接',exact:true}).click();await page.getByLabel('链接',{exact:true}).fill('https://www.youtube.com/watch?v=test');await page.getByRole('button',{name:'查找英语字幕',exact:true}).click();}
+async function youtube(info,prepared){await page.evaluate(({info,prepared})=>{window.__youtube={info,prepared};window.__clipboardText='https://www.youtube.com/watch?v=abcdefghijk';},{info,prepared});await open();await page.getByRole('button',{name:'粘贴内容',exact:true}).click();}
+
 try{
  for(const theme of ['ocean','midnight']){
   await call('test_reset');const context=await browser.newContext({viewport:{width:1440,height:900}});page=await context.newPage();await fixture(page,theme);
@@ -45,7 +47,7 @@ try{
      if(window.__clipboardFail)throw Error('clipboard unavailable');
      return window.__clipboardText??null;
     }
-    if(command==='plugin:fs|read_text_file'&&window.__holdRead){await new Promise(done=>window.__releaseRead=done);}
+    if(['plugin:fs|read_text_file','plugin:fs|read'].includes(command)&&window.__holdRead){await new Promise(done=>window.__releaseRead=done);}
     if(command==='cancel_import_translation'){window.__uiCalls.push({command,args:structuredClone(args)});return;}
     if(command==='translate_import_sentences'){
      window.__uiCalls.push({command,args:structuredClone(args)});
@@ -74,8 +76,8 @@ try{
   await page.locator('.lc-import-close').focus();await page.keyboard.press('Shift+Tab');ok(await sources.last().evaluate(n=>n===document.activeElement),'reverse focus loop');await page.keyboard.press('Tab');ok(await page.locator('.lc-import-close').evaluate(n=>n===document.activeElement),'forward focus loop');
   eq(await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='plugin:clipboard-manager|read_text').length),0,'opening never reads clipboard');
   ok(!(await page.locator('.lc-import-modal').innerText()).includes('TXT'),'compact entry has no type or marketing copy');
-  ok(!(await page.locator('.lc-import-modal').innerText()).includes('YouTube'),'entry is source-neutral');
-  ok(await page.locator('.lc-import-modal').evaluate(n=>{const r=n.getBoundingClientRect();return r.width<=356&&r.height<170;}),'symmetric compact entry dimensions');
+  ok((await page.locator('.lc-import-modal').innerText()).includes('支持英文文本、网页和 YouTube 链接'),'entry explains supported content without a type-selection flow');
+  ok(await page.locator('.lc-import-modal').evaluate(n=>{const r=n.getBoundingClientRect();return r.width<=356&&r.height<230;}),'symmetric compact entry dimensions');
   ok(await page.locator('.lc-import-close').evaluate(n=>{const r=n.getBoundingClientRect();return r.width===r.height&&r.height<=36;}),'desktop close control remains compact and square');
   await page.screenshot({path:`${output}/${theme}-sources.png`});
   const exiting=await page.locator('.lc-import-close').evaluate(n=>{
@@ -86,7 +88,7 @@ try{
   await open();eq(await page.evaluate(()=>window.__lexicueBack()),true,'system back handled');await page.locator('.lc-import-modal').waitFor({state:'detached'});
   await page.evaluate(text=>window.__uiFiles={'/fixture/真实英语.srt':text},flight);await open();await page.getByRole('button',{name:'选择文件',exact:true}).click();await preview();await settle();
   eq((await writes()).length,0,'native picker boundary has zero writes before confirmation');eq((await call('test_counts')).files,0,'no material before confirmation');
-  ok((await page.locator('.lc-import-preview').innerText()).includes('take off'),'real English excerpt');ok(await page.locator('.lc-import-excerpts [lang=zh]').count()>0,'real Chinese excerpt');
+  ok((await page.locator('.lc-import-preview').innerText()).includes('take off'),'real English excerpt');eq((await page.locator('.lc-import-excerpts').innerText()).split('飞机很快就要起飞了。').length-1,1,'existing Chinese appears once in the original source block');ok((await page.locator('.lc-import-excerpts').innerText()).includes('Curiosity helps us make sense of new ideas.'),'full local preview includes the final cue, beyond the former three-sentence excerpt');
   await contrast(page.locator('.lc-import-preview-source'),`${theme} source metadata`);await contrast(page.getByRole('button',{name:/^确认导入/}),`${theme} primary default`);await page.getByRole('button',{name:/^确认导入/}).hover();await contrast(page.getByRole('button',{name:/^确认导入/}),`${theme} primary hover`);
   await page.screenshot({path:`${output}/${theme}-preview.png`});
   // A cancelled picker preserves the already prepared content.
@@ -94,14 +96,14 @@ try{
   await page.evaluate(async()=>{window.__uiFiles={};const{useImportStore}=await window.__uiStoreModule('importStore');await useImportStore.getState().choose();});await preview();
   eq(await page.evaluate(async()=>{const{useImportStore}=await window.__uiStoreModule('importStore');return useImportStore.getState().items[0].draft;}),beforeDraft,'cancelled picker retains preview');
   await page.getByRole('button',{name:/^确认导入/}).evaluate(n=>{n.click();n.click();});await page.waitForURL(/\/files\/\d+$/);await page.locator('.reading-word').first().waitFor();
-  eq((await writes()).length,1,'double confirmation invokes write once');eq((await writes())[0].args.input.content,flight,'submitted original exactly matches preview');eq((await call('test_counts')).files,1,'one material committed');
+  eq((await writes()).length,1,'double confirmation invokes write once');eq((await writes())[0].args.input.content,beforeDraft.content,'submitted normalized content exactly matches frozen preview');eq((await writes())[0].args.input.segments,beforeDraft.segments,'submitted sentences exactly match frozen preview');eq((await writes())[0].args.input.document.source_sha256,createHash('sha256').update(flight).digest('hex'),'original file byte identity retained separately');eq((await writes())[0].args.input.document.original_format,'srt','original format retained despite normalized storage');eq((await call('test_counts')).files,1,'one material committed');
   const readingBounds=await page.locator('.reading-original').first().boundingBox();eq(await page.getByRole('button',{name:'导入',exact:true}).count(),0,'reading has no import button');await page.evaluate(async()=>{const {useImportStore}=await window.__uiStoreModule('importStore');useImportStore.getState().show();});await settle();eq(await page.locator('.reading-original').first().boundingBox(),readingBounds,'reader dimensions unchanged while import open');await close();
   await drop([['duplicate.srt',flight],['empty.srt',''],['second.srt',srt('A second material is ready.','第二份材料已经准备好了。')]]);await preview();
   eq((await writes()).length,1,'browser drop prepares without writing');eq((await call('test_counts')).files,1,'browser drop does not mutate database');
   await page.locator('.lc-import-item-select').last().click();ok((await page.locator('.lc-import-preview').innerText()).includes('A second material is ready.'),'each valid file has its own real preview');
   await contrast(page.locator('.lc-import-item-select[aria-pressed=true] small'),`${theme} selected`);await page.locator('.lc-import-item-select[aria-pressed=true]').hover();await contrast(page.locator('.lc-import-item-select[aria-pressed=true] small'),`${theme} selected hover`);
   await settle();await page.screenshot({path:`${output}/${theme}-batch-preview.png`});await confirm();await page.getByText('已导入 1 份材料',{exact:true}).waitFor();
-  eq(await page.locator('.lc-import-items small').allTextContents(),['内容已存在，未覆盖','未完成，可重试','已导入'],'partial results isolated');eq((await call('test_counts')).files,2,'only valid new content is created');await close();
+  eq(await page.locator('.lc-import-items small').allTextContents(),['内容已存在，未覆盖','未完成','已导入'],'partial results isolated');eq((await call('test_counts')).files,2,'only valid new content is created');await close();
   // Lost receipt after real COMMIT: same exact operation and content on retry.
   await drop([['lost.srt',srt('A lost receipt can be safely recovered.')]]);await preview();await page.evaluate(()=>window.__uiFailure={command:'import_reading_material',remaining:1,afterCommit:true});await confirm();await page.locator('.lc-import-error').waitFor();
   const lost=(await writes()).at(-1);eq((await call('test_counts')).files,3,'lost receipt really committed');await page.getByRole('button',{name:'重试未完成项'}).click();await page.waitForURL(/\/files\/\d+$/);eq((await writes()).at(-1),lost,'retry resends exact operation payload');eq((await call('test_counts')).files,3,'idempotent retry has one result');
@@ -114,8 +116,8 @@ try{
   const workerCancel=await page.evaluate(async content=>{
    const OriginalWorker=window.Worker;let started;let terminated=0;
    const created=new Promise(done=>started=done);
-   window.Worker=class extends OriginalWorker{constructor(...args){super(...args);if(String(args[0]).includes('srtWorker'))started();}terminate(){terminated++;super.terminate();}};
-   try{const{useImportStore}=await window.__uiStoreModule('importStore');const work=useImportStore.getState().start([{name:'worker-cancel.srt',read:async()=>content}]);await created;useImportStore.getState().hide();await work;return {terminated,open:useImportStore.getState().open,items:useImportStore.getState().items.length};}
+   window.Worker=class extends OriginalWorker{constructor(...args){super(...args);if(String(args[0]).includes('documentWorker'))started();}terminate(){terminated++;super.terminate();}};
+   try{const{useImportStore}=await window.__uiStoreModule('importStore');const work=useImportStore.getState().start([{name:'worker-cancel.srt',read:async()=>new TextEncoder().encode(content)}]);await created;useImportStore.getState().hide();await work;return {terminated,open:useImportStore.getState().open,items:useImportStore.getState().items.length};}
    finally{window.Worker=OriginalWorker;}
   },flight);
   eq(workerCancel,{terminated:1,open:false,items:0},'closing terminates the actual parsing Worker and releases drafts');eq((await call('test_counts')).files,3,'aborted Worker has no write');
@@ -129,42 +131,61 @@ try{
   eq((await call('test_counts')).files,5,'translation failure writes nothing');await page.getByRole('button',{name:'保留已获取内容，继续预览'}).click();await preview();eq(await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='youtube_prepare_subtitles').length),1,'fallback does not redownload');eq(await page.locator('.lc-import-excerpts [lang=zh]').count(),0,'fallback shows English only');await confirm();await page.waitForURL(/\/files\/\d+$/);eq((await call('test_counts')).files,6,'YouTube confirms through actual material command');
   eq(await page.evaluate(async()=>{const{usePreferencesStore}=await window.__uiStoreModule('preferencesStore');return usePreferencesStore.getState().youtube.lastSelection;}),{primary:'en',secondary:null},'only actual successful fallback preference saved');
   await youtube(info,{status:'complete',subtitle:{name:'both.srt',content:srt('We can read both languages here.','这里可以阅读双语字幕。')}});await page.getByRole('button',{name:'生成预览'}).click();await preview();eq(await page.locator('.lc-import-excerpts [lang=zh]').innerText(),'这里可以阅读双语字幕。','YouTube bilingual preview is parsed content');eq((await call('test_counts')).files,6,'YouTube success still awaits confirmation');await close();
-  await open();await page.getByRole('button',{name:'粘贴链接',exact:true}).click();await page.getByLabel('链接',{exact:true}).fill('https://www.youtube.com/watch?v=late');await page.evaluate(value=>window.__youtube={info:value,hold:true},info);await page.getByRole('button',{name:'查找英语字幕'}).click();await close();await open();await page.evaluate(()=>window.__releaseYouTube());await page.waitForTimeout(80);await page.locator('.lc-import-sources').waitFor();eq(await page.locator('.lc-import-tracks').count(),0,'late query never revives its closed source');await close();
+  await page.evaluate(value=>{window.__youtube={info:value,hold:true};window.__clipboardText='https://youtu.be/abcdefghijk';},info);await open();await page.getByRole('button',{name:'粘贴内容',exact:true}).click();await page.waitForFunction(()=>typeof window.__releaseYouTube==='function');await close();await open();await page.evaluate(()=>window.__releaseYouTube());await page.waitForTimeout(80);await page.locator('.lc-import-sources').waitFor();eq(await page.locator('.lc-import-tracks').count(),0,'late query never revives its closed source');await close();
   // Explicit clipboard action: one native read and one lookup, no import before confirmation.
   await page.evaluate(info=>{window.__clipboardText='https://youtu.be/abcdefghijk';window.__youtube={info};},info);
   const clipBefore=await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='plugin:clipboard-manager|read_text').length);
   const listBefore=await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='youtube_list_subs').length);
-  await open();await page.getByRole('button',{name:'粘贴链接',exact:true}).evaluate(n=>{n.click();n.click();});await page.locator('.lc-import-tracks').waitFor();
+  await open();await page.getByRole('button',{name:'粘贴内容',exact:true}).evaluate(n=>{n.click();n.click();});await page.locator('.lc-import-tracks').waitFor();
   eq(await page.getByLabel('链接',{exact:true}).inputValue(),'https://youtu.be/abcdefghijk','clipboard link is used automatically');
   eq(await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='plugin:clipboard-manager|read_text').length),clipBefore+1,'double paste reads once');
   eq(await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='youtube_list_subs').length),listBefore+1,'valid clipboard starts one lookup');
   await close();
-  for(const [text,fail,message]of [['https://example.org/private',false,'暂不支持此链接。'],[null,false,'剪贴板里没有链接，请输入。'],[null,true,'无法读取剪贴板，请粘贴链接。']]){
+  for(const [text,fail,message]of [['https://',false,'链接格式不完整，请修改或重新粘贴。'],[null,false,'未读到文字，请先复制英文或链接；图片或文件请使用选择文件。'],[null,true,'无法读取剪贴板，请在下方手动粘贴。']]){
    await page.evaluate(({text,fail})=>{window.__clipboardText=text;window.__clipboardFail=fail;},{text,fail});
    const before=await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='youtube_list_subs').length);
-   await open();await page.getByRole('button',{name:'粘贴链接',exact:true}).click();await page.getByText(message,{exact:true}).waitFor();
+   await open();await page.getByRole('button',{name:'粘贴内容',exact:true}).click();await page.getByText(message,{exact:true}).waitFor();
    eq(await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='youtube_list_subs').length),before,'invalid or unavailable clipboard stays local');
-   ok(await page.getByLabel('链接',{exact:true}).isVisible(),'manual fallback remains available');await close();
+   if(text||fail)ok(await page.getByLabel('英文正文或链接',{exact:true}).isVisible(),'manual fallback remains available');await close();
   }
   await page.evaluate(()=>{window.__clipboardFail=false;window.__clipboardHold=true;window.__clipboardText='https://youtu.be/abcdefghijk';});
-  await open();await page.getByRole('button',{name:'粘贴链接',exact:true}).click();await page.getByRole('button',{name:'读取中…',exact:true}).waitFor();await contrast(page.getByRole('button',{name:'读取中…',exact:true}),`${theme} clipboard disabled`);
+  await open();await page.getByRole('button',{name:'粘贴内容',exact:true}).click();await page.getByRole('button',{name:'读取中…',exact:true}).waitFor();await contrast(page.getByRole('button',{name:'读取中…',exact:true}),`${theme} clipboard disabled`);
   await close();await open();await page.evaluate(()=>{window.__clipboardHold=false;window.__releaseClipboard();});await page.waitForTimeout(70);
   eq(await page.locator('.lc-import-sources').count(),1,'late clipboard result cannot replace a reopened entry');await close();
-  // Plain-text source, sentence translation, retry and cancel share the same preview boundary.
+  // Local files prepare without a translation dependency; reading requests are explicit.
+  const translationRequestsBeforeLocal=await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='translate_import_sentences').length);
   await drop([['book.txt','Dr. Smith bought a book. She read it yesterday.']]);await preview();
-  eq(await page.locator('.lc-import-excerpts [lang=en]').allTextContents(),['Dr. Smith bought a book.','She read it yesterday.'],'TXT is split into sentences');
-  eq(await page.locator('.lc-import-excerpts [lang=zh]').allTextContents(),['测试译文 1。','测试译文 2。'],'translations appear directly under each sentence');
+  const bookDraft=await page.evaluate(async()=>{const{useImportStore}=await window.__uiStoreModule('importStore');return useImportStore.getState().items[0].draft;});
+  eq(bookDraft.segments.map(s=>s.en_text),['Dr. Smith bought a book.','She read it yesterday.'],'TXT is split into reading sentences');
+  eq(await page.locator('.lc-import-excerpts [lang=en]').allTextContents(),['Dr. Smith bought a book. She read it yesterday.'],'preview preserves original paragraph structure');
+  eq(bookDraft.segments.map(s=>s.zh_text),[null,null],'English-only local preview does not manufacture translation');
+  eq(await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='translate_import_sentences').length),translationRequestsBeforeLocal,'local import makes no translation request');
   await confirm();await page.waitForURL(/\/files\/\d+$/);eq((await call('test_counts')).files,7,'TXT commits through real SQLite');await page.locator('.reading-word').first().waitFor();
-  await page.evaluate(async()=>{const{useImportStore}=await window.__uiStoreModule('importStore');window.__importTrace=[];useImportStore.subscribe(s=>window.__importTrace.push({open:s.open,phase:s.phase,running:s.running,items:s.items.map(i=>({name:i.name,stage:i.stage,error:i.error}))}));window.__translationFail=true;});await drop([['failure.txt','The source survives a translation failure.']]);
-  await page.getByRole('button',{name:'保留已获取内容，继续预览'}).waitFor();
-  const requests=await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='translate_import_sentences').length);
-  await page.evaluate(()=>window.__translationFail=false);await page.getByRole('button',{name:'重试未完成项'}).click();await preview();
-  eq(await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='translate_import_sentences').length),requests+1,'translation retry succeeds');await close();
-  await page.evaluate(()=>window.__translationHold=true);await drop([['cancel.txt','A cancelled translation must not reopen.']]);await page.getByText('逐句补充中文翻译',{exact:true}).waitFor();
-  await contrast(page.locator('.lc-import-loading-copy small'),`${theme} translation status`);await page.screenshot({path:`${output}/${theme}-translating.png`});await close();
-  await page.evaluate(()=>{window.__translationHold=false;window.__releaseTranslation();});
-  await page.waitForTimeout(80);eq(await page.locator('.lc-import-modal').count(),0,'cancel discards late translation');
-  ok(await page.evaluate(()=>window.__uiCalls.some(c=>c.command==='cancel_import_translation')),'cancel reaches native translation');
+  const bookId=Number(new URL(page.url()).pathname.split('/').at(-1));
+  await page.evaluate(async()=>{const{useImportStore}=await window.__uiStoreModule('importStore');window.__importTrace=[];useImportStore.subscribe(s=>window.__importTrace.push({open:s.open,phase:s.phase,running:s.running,items:s.items.map(i=>({name:i.name,stage:i.stage,error:i.error}))}));window.__translationFail=true;});
+  await drop([['failure.txt','The source survives a translation failure.']]);await preview();
+  eq(await page.getByRole('button',{name:'保留已获取内容，继续预览'}).count(),0,'unavailable translation does not gate local preview');
+  eq(await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='translate_import_sentences').length),translationRequestsBeforeLocal,'failing service is never contacted during local preparation');await close();
+  const translationToggle=()=>page.locator('.dock-reading-tools:visible button').filter({has:page.locator('svg.lucide-languages')}).first();
+  await translationToggle().click();await page.getByText('部分译文未生成。英文阅读与保存不受影响。',{exact:true}).waitFor();
+  ok(await page.locator('.reading-original').first().isVisible(),'reading stays available after explicit translation error');
+  const failedRequests=await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='translate_import_sentences').length);
+  eq(failedRequests,translationRequestsBeforeLocal+1,'reading translation requires an explicit request');
+  await page.evaluate(()=>window.__translationFail=false);await page.locator('.reading-translation-status').getByRole('button',{name:'重试',exact:true}).click();await page.waitForFunction(()=>document.querySelectorAll('.reading-translation').length===2);
+  eq(await page.locator('.reading-translation').allTextContents(),['测试译文 1。','测试译文 2。'],'explicit reading retry renders current sentence translations');
+  eq(await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='translate_import_sentences').length),failedRequests+1,'explicit translation retry makes one request');
+  const translated=await call('open_reading_material',{fileId:bookId});eq(translated.segments.map(s=>s.zh_text),['测试译文 1。','测试译文 2。'],'reading translations persist through real Rust writeback');
+  // Clear the controlled QA translations, reopen, then navigate away during a held request.
+  for(const segment of translated.segments)await call('test_edit_segment',{segmentId:segment.id,zhText:null});
+  await page.locator('.b-path a').click();await page.locator('.materials-paper').waitFor();await page.getByRole('button',{name:'book.txt',exact:true}).click();await page.locator('.reading-word').first().waitFor();
+  await page.evaluate(()=>{window.__translationHold=true;window.__releaseTranslation=undefined;});await translationToggle().click();await page.waitForFunction(()=>typeof window.__releaseTranslation==='function');
+  await contrast(page.locator('.reading-translation-status span'),`${theme} translation status`);await page.screenshot({path:`${output}/${theme}-translating.png`});
+  const fillsBeforeCancel=await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='fill_reading_translations').length);
+  await page.locator('.b-path a').click();await page.locator('.materials-paper').waitFor();await page.evaluate(()=>{window.__translationHold=false;window.__releaseTranslation();});
+  await page.waitForTimeout(80);eq(await page.locator('.reading-page,.lc-import-modal').count(),0,'late reading translation cannot reopen a departed material');
+  ok(await page.evaluate(()=>window.__uiCalls.some(c=>c.command==='cancel_import_translation')),'navigation reaches native translation cancellation');
+  eq(await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='fill_reading_translations').length),fillsBeforeCancel,'cancelled late translation cannot write back');
+  eq((await call('open_reading_material',{fileId:bookId})).segments.map(s=>s.zh_text),[null,null],'cancelled translations do not change stored source');
   // Responsive, zoom, reduced motion and an IME-sized viewport.
   await drop([['responsive.srt',flight]]);await preview();
   for(const [width,height,scale]of [[375,812,1],[320,568,1],[390,320,1],[768,420,1],[390,844,2]]){
@@ -178,5 +199,5 @@ try{
   await page.evaluate(()=>document.documentElement.style.fontSize='100%');await page.setViewportSize({width:1440,height:900});await close();await page.emulateMedia({reducedMotion:'reduce'});await open();eq(await page.locator('.lc-import-modal').evaluate(n=>getComputedStyle(n).animationName),'none','reduced motion modal');await close();
   await page.evaluate(async()=>{const{useImportStore}=await window.__uiStoreModule('importStore');void useImportStore.getState().start([{name:'reduced.srt',read:()=>new Promise(done=>window.__reducedRead=done)}]);});await page.locator('.lc-import-paper-character').waitFor();eq(await page.locator('.lc-import-paper-character').evaluate(n=>getComputedStyle(n).animationName),'none','reduced motion paper');await close();await page.evaluate(()=>window.__reducedRead(''));await context.close();
  }
- eq(errors,[],'no browser exceptions');await writeFile(`${output}/evidence.json`,JSON.stringify({checks,themes:['ocean','midnight'],contrasts,errors,nativeBoundary:'simulated OS picker/drop IPC and YouTube network; real SRT Worker, Rust transactions and temporary SQLite'},null,2));console.log(`Import UI: ${checks} checks passed. Evidence: ${output}`);
+ eq(errors,[],'no browser exceptions');await writeFile(`${output}/evidence.json`,JSON.stringify({checks,themes:['ocean','midnight'],contrasts,errors,nativeBoundary:'simulated OS picker/drop/chunked FS IPC, YouTube and translation-service responses; actual document/SRT Workers, Rust transactions, explicit reading translation writeback and temporary SQLite'},null,2));console.log(`Import UI: ${checks} checks passed. Evidence: ${output}`);
 }catch(error){if(page){await page.screenshot({path:`${output}/failure.png`}).catch(()=>{});await writeFile(`${output}/failure.json`,JSON.stringify(await page.evaluate(async()=>{const{useImportStore}=await window.__uiStoreModule('importStore');const s=useImportStore.getState();return {text:document.body.innerText,calls:window.__uiCalls,trace:window.__importTrace,state:{open:s.open,phase:s.phase,running:s.running,items:s.items.map(i=>({name:i.name,stage:i.stage,error:i.error}))}};}),null,2)).catch(()=>{});}throw error;}finally{await h.dispose();}

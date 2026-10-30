@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -7,8 +7,9 @@ import { useWorkspaceStore } from '../stores/workspaceStore';
 
 /** Modeless: unused space dismisses the card without covering reading or controls.
  * Dragging, selection, scrolling and other dialogs retain their normal behavior. */
-export default function ContextPanel({ label, children, onClose, canClose = true, onClosing, interactionKey }: {
+export default function ContextPanel({ label, children, onClose, canClose = true, onClosing, interactionKey, layoutSlot }: {
   label: string; children: ReactNode; onClose: () => void; canClose?: boolean; onClosing?: () => void; interactionKey?: unknown;
+  layoutSlot?: RefObject<HTMLDivElement | null>;
 }) {
   const { t } = useTranslation();
   const panelRef = useRef<HTMLElement>(null);
@@ -19,6 +20,25 @@ export default function ContextPanel({ label, children, onClose, canClose = true
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [closing, setClosing] = useState(false);
   const lastInteraction = useRef(interactionKey);
+  useLayoutEffect(() => {
+    const slot = layoutSlot?.current, panel = panelRef.current;
+    const viewport = slot?.closest('.reader-scroll');
+    if (!slot || !panel || !viewport) return;
+    const update = () => {
+      const rect = slot.getBoundingClientRect();
+      const columns = rect.width > 0;
+      panel.dataset.readingLayout = columns ? 'columns' : 'overlay';
+      panel.style.setProperty('--reading-slot-left', `${rect.left}px`);
+      panel.style.setProperty('--reading-slot-width', `${rect.width}px`);
+      panel.style.setProperty('--reading-slot-top', `${viewport.getBoundingClientRect().top + 8}px`);
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(slot); observer.observe(viewport);
+    slot.addEventListener('reading-layout', update);
+    window.addEventListener('resize', update);
+    return () => { observer.disconnect(); slot.removeEventListener('reading-layout', update); window.removeEventListener('resize', update); };
+  }, [layoutSlot]);
   useLayoutEffect(() => { callbacks.current = { onClose, canClose, onClosing }; });
   const requestClose = () => {
     if (!callbacks.current.canClose || timer.current) return false;

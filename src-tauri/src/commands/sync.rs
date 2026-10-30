@@ -953,7 +953,10 @@ fn row_record(
             .optional()
             .map_err(|e| e.to_string())?;
         return raw
-            .map(|json| serde_json::from_str(&json).map_err(|e| e.to_string()))
+            .map(|json| {
+                let value = serde_json::from_str(&json).map_err(|e| e.to_string())?;
+                super::source_media::portable_saved_value(conn, value)
+            })
             .transpose();
     }
     let key = if matches!(table, "reviews" | "phrase_reviews") {
@@ -1167,8 +1170,20 @@ fn library_item_record(
 }
 
 fn encode_event(event: &EntityEvent) -> Result<Vec<u8>, String> {
+    let mut portable = serde_json::to_value(event).map_err(|_| "local_sync_storage_error")?;
+    if portable.to_string().contains("\"media_source\":\"")
+        || portable.to_string().contains("\"media\":{")
+        || portable.to_string().contains("\"media_identity\":\"")
+    {
+        portable["version"] = serde_json::json!(5);
+    }
+    if super::document_source::contains_content_origin(&portable) {
+        portable["version"] = serde_json::json!(7);
+    } else if super::document_source::contains_document(&portable) {
+        portable["version"] = serde_json::json!(6);
+    }
     let serialized =
-        serde_json::to_vec(event).map_err(|_| "local_sync_storage_error".to_string())?;
+        serde_json::to_vec(&portable).map_err(|_| "local_sync_storage_error".to_string())?;
     if event.table_name != "library_item" {
         return Ok(serialized);
     }
@@ -1309,6 +1324,37 @@ fn apply_library_item_event(
         .file
         .as_object()
         .ok_or("invalid_encrypted_record")?;
+    if let Some(raw) = file_record.get("document_source").and_then(|v| v.as_str()) {
+        let source: super::document_source::DocumentSource =
+            serde_json::from_str(raw).map_err(|_| "material_invalid_document")?;
+        source.validate(
+            file_record
+                .get("content")
+                .and_then(|v| v.as_str())
+                .ok_or("material_invalid_document")?,
+            Some(snapshot.segments.len()),
+        )?;
+        let segments = snapshot
+            .segments
+            .iter()
+            .map(|s| super::import::SegmentInput {
+                index: s.index_num as i32,
+                en_text: s.en_text.clone(),
+                zh_text: s.zh_text.clone(),
+                start_time: s.start_time.clone(),
+                end_time: s.end_time.clone(),
+            })
+            .collect::<Vec<_>>();
+        source.validate_segment_text(&segments)?;
+        if snapshot
+            .segments
+            .iter()
+            .enumerate()
+            .any(|(i, s)| s.index_num != i as i64)
+        {
+            return Err("material_invalid_document".into());
+        }
+    }
     let file_id = apply_record(conn, "files", sync_id, file_record)?;
     if file_record.get("tag_model").and_then(|v| v.as_i64()) == Some(1) {
         conn.execute(
@@ -1458,7 +1504,7 @@ fn apply_saved_event(
                 if remote
                     .dictionary_reference
                     .as_ref()
-                    .map_or(true, |other| other.senses.len() < reference.senses.len())
+                    .is_none_or(|other| other.senses.len() < reference.senses.len())
                 {
                     remote.dictionary_reference = Some(reference.clone());
                     enriched_reference = true;
@@ -1590,6 +1636,83 @@ mod saved_sync_tests {
         tx.commit().unwrap();
         result
     }
+    #[test]
+    fn wiktionary_reference_simulated_sync_preserves_attribution_parent_context_and_personal_notes()
+    {
+        let (_d, source) = db();
+        let mut first = record(&source);
+        first.dictionary_snapshot = None;
+        first.dictionary_reference = Some(saved::DictionaryReference {
+            schema_version: 1,
+            kind: "dictionary_excerpt".into(),
+            headword: "take off".into(),
+            senses: vec![saved::wiktionary_snapshot_fixture()],
+        });
+        first.explanation = Some("My own explanation".into());
+        first.explanation_source = "personal".into();
+        saved::write_record(&source, &first).unwrap();
+        // Exercise the actual outbox encryption and decrypted event decoder;
+        // the configured loopback endpoint is inert and is never contacted.
+        let config = LocalConfig {
+            endpoint: "http://127.0.0.1:1".into(),
+            email: "test@example.invalid".into(),
+            device_id: "wiktionary-sync-test".into(),
+            access_token: String::new(),
+            data_key: String::new(),
+            last_synced_at: None,
+            last_remote_cursor: 0,
+            auto_sync_enabled: false,
+        };
+        let key = [12; 32];
+        prepare_outbox(&source, &config, &key, "test-account").unwrap();
+        let rows = pending_outbox(&source).unwrap();
+        let row = rows
+            .iter()
+            .find(|r| r.entity_type == "saved_records")
+            .unwrap();
+        let remote = RemoteRecord {
+            entity_type: row.entity_type.clone(),
+            entity_id: row.entity_id.clone(),
+            etag: "etag".into(),
+            seq: 1,
+            schema_version: 1,
+            deleted: false,
+            nonce: URL_SAFE_NO_PAD.encode(&row.ciphertext[..24]),
+            ciphertext: URL_SAFE_NO_PAD.encode(&row.ciphertext[24..]),
+        };
+        let decoded =
+            decode_event(&decrypt_record(&key, "test-account", &remote, &row.ciphertext).unwrap())
+                .unwrap();
+        let arrived: SavedRecord = serde_json::from_value(decoded.record.unwrap()).unwrap();
+        assert_eq!(arrived.dictionary_reference, first.dictionary_reference);
+        let (_target_dir, target) = db();
+        assert!(apply(&target, &arrived, 1));
+        let offline = saved::get(&target, &first.record_id).unwrap().unwrap();
+        assert_eq!(offline.dictionary_reference, first.dictionary_reference);
+        assert_eq!(offline.explanation, first.explanation);
+        let chosen = &offline.dictionary_reference.as_ref().unwrap().senses[0];
+        assert_eq!(chosen.source.provider, "wiktionary");
+        assert_eq!(
+            chosen.source.attribution.as_deref(),
+            Some(super::super::free_dictionary::ATTRIBUTION)
+        );
+        assert_eq!(
+            chosen.ancestors.as_ref().unwrap()[0].meaning.en.as_deref(),
+            Some("In aviation.")
+        );
+        let mut old = first.clone();
+        old.dictionary_reference = None;
+        old.revision = "old-omitted-reference".into();
+        assert!(apply(&target, &old, 2));
+        assert_eq!(
+            saved::get(&target, &first.record_id)
+                .unwrap()
+                .unwrap()
+                .dictionary_reference,
+            first.dictionary_reference
+        );
+    }
+
     #[test]
     fn dictionary_reference_sync_roundtrip_and_old_client_omission_preserve_excerpt_and_tombstones()
     {
@@ -2291,6 +2414,10 @@ fn apply_record(
     sync_id: &str,
     r: &serde_json::Map<String, serde_json::Value>,
 ) -> Result<i64, String> {
+    if table == "files" {
+        super::source_media::validate_file_source(r)?;
+        super::document_source::validate_file_source(r)?;
+    }
     if table == "tags" {
         let name = string(r, "name")?;
         let key = super::tags::name_key(&name)?;
@@ -2374,6 +2501,9 @@ fn apply_record(
         return Ok(conn.last_insert_rowid());
     }
     if let Some(id) = local_id_for(conn, table, sync_id)? {
+        if table == "files" {
+            super::document_source::protect_existing(conn, id, r)?;
+        }
         if matches!(table, "words" | "phrases") {
             let local_definition: Option<String> = conn
                 .query_row(
@@ -2415,7 +2545,7 @@ fn apply_record(
                     .map(|value| local_id_for(conn, "folders", &value))
                     .transpose()?
                     .flatten();
-                conn.execute("UPDATE files SET name=?1,type=?2,content=?3,content_hash=?4,imported_at=?5,language=?6,folder_id=?7 WHERE id=?8",rusqlite::params![string(r,"name")?,string(r,"type")?,string(r,"content")?,string(r,"content_hash")?,integer(r,"imported_at")?,string(r,"language")?,folder,id]).map_err(|e|e.to_string())?;
+                conn.execute("UPDATE files SET name=?1,type=?2,content=?3,content_hash=?4,imported_at=?5,language=?6,folder_id=?7,media_source=?9,media_identity=?10,document_source=?11,document_identity=?12 WHERE id=?8",rusqlite::params![string(r,"name")?,string(r,"type")?,string(r,"content")?,string(r,"content_hash")?,integer(r,"imported_at")?,string(r,"language")?,folder,id,optional_string(r,"media_source"),optional_string(r,"media_identity"),optional_string(r,"document_source"),optional_string(r,"document_identity")]).map_err(|e|e.to_string())?;
             }
             "segments" => {
                 let file = optional_string(r, "file_id_sync_id")
@@ -2477,8 +2607,8 @@ fn apply_record(
             .optional(),
         "files" => conn
             .query_row(
-                "SELECT id FROM files WHERE language=?1 AND content_hash=?2",
-                rusqlite::params![string(r, "language")?, string(r, "content_hash")?],
+                "SELECT id FROM files WHERE language=?1 AND ((?4 IS NOT NULL AND document_identity=?4) OR (?4 IS NULL AND content_hash=?2 AND media_identity IS ?3 AND document_identity IS NULL)) ORDER BY id LIMIT 1",
+                rusqlite::params![string(r, "language")?, string(r, "content_hash")?, optional_string(r,"media_identity"),optional_string(r,"document_identity")],
                 |x| x.get(0),
             )
             .optional(),
@@ -2486,6 +2616,9 @@ fn apply_record(
     }
     .map_err(|e| e.to_string())?;
     if let Some(id) = natural {
+        if table == "files" {
+            super::document_source::protect_existing(conn, id, r)?;
+        }
         if matches!(table, "words" | "phrases") {
             let local_definition: Option<String> = conn
                 .query_row(
@@ -2559,7 +2692,7 @@ fn apply_record(
         }
         "files" => {
             let folder = fk("folder_id", "folders")?;
-            conn.execute("INSERT INTO files(name,type,content,content_hash,imported_at,language,folder_id) VALUES(?1,?2,?3,?4,?5,?6,?7)",rusqlite::params![string(r,"name")?,string(r,"type")?,string(r,"content")?,string(r,"content_hash")?,integer(r,"imported_at")?,string(r,"language")?,folder]).map_err(|e|e.to_string())?;
+            conn.execute("INSERT INTO files(name,type,content,content_hash,imported_at,language,folder_id,media_source,media_identity,document_source,document_identity) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)",rusqlite::params![string(r,"name")?,string(r,"type")?,string(r,"content")?,string(r,"content_hash")?,integer(r,"imported_at")?,string(r,"language")?,folder,optional_string(r,"media_source"),optional_string(r,"media_identity"),optional_string(r,"document_source"),optional_string(r,"document_identity")]).map_err(|e|e.to_string())?;
             conn.last_insert_rowid()
         }
         "segments" => {
@@ -3079,7 +3212,11 @@ async fn stage_remote_records(
         }
         let encrypted = encrypted_remote_payload(local, &remote).await?;
         let event = decode_event(&decrypt_record(data_key, account_id, &remote, &encrypted)?)?;
-        if !(event.version == 3 || event.version == 4)
+        if !(event.version == 3
+            || event.version == 4
+            || event.version == 5
+            || event.version == 6
+            || event.version == 7)
             || event.table_name != remote.entity_type
             || event.sync_id != remote.entity_id
             || (event.operation == "delete") != remote.deleted
@@ -3676,7 +3813,7 @@ fn stable_identity_updates(
         ("phrases", "SELECT id,language,text FROM phrases", "phrase"),
         (
             "files",
-            "SELECT id,language,content_hash FROM files",
+            "SELECT id,language,CASE WHEN document_identity IS NOT NULL THEN content_hash||':document:'||document_identity WHEN media_identity IS NULL THEN content_hash ELSE content_hash||':'||media_identity END FROM files",
             "file",
         ),
     ] {
@@ -5480,5 +5617,284 @@ mod tag_sync_tests {
         assert!(tags::file_tags(&target, local_file).unwrap().is_empty());
         assert_eq!(entity_order("tags"), 0);
         assert!(entity_order("file_tags") > entity_order("library_item"));
+    }
+}
+
+#[cfg(test)]
+mod source_media_sync_tests {
+    use super::*;
+    use crate::commands::{import::SegmentInput, materials, source_media, youtube};
+    fn input(video: &str) -> materials::MaterialInput {
+        let content = "1\n00:00:01,000 --> 00:00:02,000\nHello world.\n";
+        let track = youtube::SubtitleTrack {
+            lang: "en".into(),
+            language: "en".into(),
+            is_auto: false,
+            source: youtube::downloads::SubtitleSource::Manual,
+            source_language: Some("en".into()),
+        };
+        let source=source_media::source_from_subtitles(video,&track,content,&serde_json::json!({"title":"fixture","duration":3,"formats":[{"format_id":"140","ext":"m4a","acodec":"mp4a.40.2","vcodec":"none","language":"en"}]})).unwrap();
+        materials::MaterialInput {
+            document: None,
+            normalized_kind: None,
+            operation_id: video.into(),
+            name: "same.srt".into(),
+            content: content.into(),
+            segments: vec![SegmentInput {
+                index: 0,
+                en_text: "Hello world.".into(),
+                zh_text: None,
+                start_time: Some("00:00:01.000".into()),
+                end_time: Some("00:00:02.000".into()),
+            }],
+            source: Some(source),
+        }
+    }
+    #[test]
+    fn simulated_two_device_library_merge_keeps_distinct_media_and_uses_capability_gate() {
+        let d = tempfile::tempdir().unwrap();
+        let a = crate::db::init_db(&d.path().join("a.db")).unwrap();
+        let b = crate::db::init_db(&d.path().join("b.db")).unwrap();
+        for video in ["abcdefghijk", "lmnopqrstuv"] {
+            let import = materials::import_material(&a, &input(video)).unwrap();
+            let record = library_item_record(&a, import.file_id).unwrap();
+            let event = EntityEvent {
+                version: 4,
+                table_name: "library_item".into(),
+                sync_id: video.into(),
+                operation: "upsert".into(),
+                record: Some(serde_json::to_value(record).unwrap()),
+            };
+            let encoded = encode_event(&event).unwrap();
+            let decoded = decode_event(&encoded).unwrap();
+            assert_eq!(decoded.version, 5); // existing v3/v4-only clients stop before applying unknown fields
+            assert!(
+                apply_library_item_event(&b, video, "upsert", decoded.record.as_ref(), "1")
+                    .unwrap()
+            );
+        }
+        let rows = materials::list(&b, &[], false).unwrap();
+        assert_eq!(rows.len(), 2);
+        assert_ne!(
+            rows[0].source.as_ref().unwrap().key,
+            rows[1].source.as_ref().unwrap().key
+        );
+        assert_eq!(
+            stable_identity_updates(&b, &[7; 32])
+                .unwrap()
+                .iter()
+                .filter(|r| r.table == "files")
+                .count(),
+            2
+        );
+        for row in rows {
+            let opened = materials::open(&b, row.id).unwrap();
+            assert_eq!(opened.media_refs.len(), 1);
+            let r = opened.media_refs.values().next().unwrap();
+            assert_eq!(
+                source_media::status(&b, d.path(), r).unwrap().status,
+                "missing"
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod document_source_sync_tests {
+    use super::*;
+    use crate::commands::{document_source_tests, materials, saved};
+    #[test]
+    fn clipboard_and_web_origins_use_version_seven_and_keep_saved_snapshots() {
+        let dir = tempfile::tempdir().unwrap();
+        let a = crate::db::init_db(&dir.path().join("a.db")).unwrap();
+        let b = crate::db::init_db(&dir.path().join("b.db")).unwrap();
+        for format in ["clipboard", "webpage"] {
+            let mut input = document_source_tests::input(format, format);
+            let doc = input.document.as_mut().unwrap();
+            doc.schema_version = 2;
+            doc.origin = Some(if format == "clipboard" {
+                crate::commands::document_source::ContentOrigin::Clipboard {
+                    title: doc.display_name.clone(),
+                }
+            } else {
+                crate::commands::document_source::ContentOrigin::Webpage {
+                    title: doc.display_name.clone(),
+                    submitted_url: "https://example.com/one".into(),
+                    final_url: "https://example.com/one".into(),
+                    fetched_at: 1793350000000,
+                }
+            });
+            let id = materials::import_material(&a, &input).unwrap().file_id;
+            let event = EntityEvent {
+                version: 3,
+                table_name: "library_item".into(),
+                sync_id: format.into(),
+                operation: "upsert".into(),
+                record: Some(serde_json::to_value(library_item_record(&a, id).unwrap()).unwrap()),
+            };
+            let decoded = decode_event(&encode_event(&event).unwrap()).unwrap();
+            assert_eq!(decoded.version, 7);
+            assert!(![3, 4, 5, 6].contains(&decoded.version));
+            assert!(apply_entity_event(&b, &decoded, "00000000000000000001:00000000:a").unwrap());
+            let remote = local_id_for(&b, "files", format).unwrap().unwrap();
+            assert_eq!(
+                materials::open(&b, remote).unwrap().material.document,
+                input.document
+            );
+            let segment = materials::open(&a, id).unwrap().segments[0].id;
+            let record = saved::mutate(
+                &a,
+                format,
+                &saved::Mutation::Save {
+                    input: saved::SaveInput {
+                        segment_id: segment,
+                        expression: "world".into(),
+                        start_offset: 9,
+                        end_offset: 14,
+                        explanation: None,
+                        explanation_source: "unknown".into(),
+                        dictionary_snapshot: None,
+                        dictionary_reference: None,
+                    },
+                },
+            )
+            .unwrap()
+            .record;
+            let event = EntityEvent {
+                version: 3,
+                table_name: "saved_records".into(),
+                sync_id: record.record_id.clone(),
+                operation: "upsert".into(),
+                record: Some(serde_json::to_value(&record).unwrap()),
+            };
+            let decoded = decode_event(&encode_event(&event).unwrap()).unwrap();
+            assert_eq!(decoded.version, 7);
+            assert!(apply_entity_event(&b, &decoded, "00000000000000000002:00000000:a").unwrap());
+            assert_eq!(saved::get(&b, &record.record_id).unwrap().unwrap(), record);
+        }
+    }
+    #[test]
+    fn simulated_documents_and_saved_locations_roundtrip_with_version_six_gate() {
+        let dir = tempfile::tempdir().unwrap();
+        let a = crate::db::init_db(&dir.path().join("a.db")).unwrap();
+        let b = crate::db::init_db(&dir.path().join("b.db")).unwrap();
+        let mut ids = Vec::new();
+        for (i, format) in ["pdf", "txt", "epub"].iter().enumerate() {
+            let input = document_source_tests::input(format, format);
+            let id = materials::import_material(&a, &input).unwrap().file_id;
+            let file_sync_id = format!("fixture-{i}");
+            let event = EntityEvent {
+                version: 3,
+                table_name: "library_item".into(),
+                sync_id: file_sync_id.clone(),
+                operation: "upsert".into(),
+                record: Some(serde_json::to_value(library_item_record(&a, id).unwrap()).unwrap()),
+            };
+            let decoded = decode_event(&encode_event(&event).unwrap()).unwrap();
+            assert_eq!(decoded.version, 6);
+            // Existing clients recognize at most 3/4/5 and stop before apply.
+            assert!(![3, 4, 5].contains(&decoded.version));
+            assert!(apply_entity_event(&b, &decoded, "00000000000000000001:00000000:a").unwrap());
+            let remote = local_id_for(&b, "files", &file_sync_id).unwrap().unwrap();
+            ids.push(remote);
+            let opened = materials::open(&b, remote).unwrap();
+            assert_eq!(opened.material.document.as_ref(), input.document.as_ref());
+            assert!(opened.media_refs.is_empty());
+            let segment = materials::open(&a, id).unwrap().segments[0].id;
+            let saved = saved::mutate(
+                &a,
+                &format!("save-{i}"),
+                &saved::Mutation::Save {
+                    input: saved::SaveInput {
+                        segment_id: segment,
+                        expression: "world".into(),
+                        start_offset: 9,
+                        end_offset: 14,
+                        explanation: Some("context meaning".into()),
+                        explanation_source: "personal".into(),
+                        dictionary_snapshot: None,
+                        dictionary_reference: None,
+                    },
+                },
+            )
+            .unwrap()
+            .record;
+            let event = EntityEvent {
+                version: 3,
+                table_name: "saved_records".into(),
+                sync_id: saved.record_id.clone(),
+                operation: "upsert".into(),
+                record: Some(serde_json::to_value(&saved).unwrap()),
+            };
+            let decoded = decode_event(&encode_event(&event).unwrap()).unwrap();
+            assert_eq!(decoded.version, 6);
+            assert!(apply_entity_event(&b, &decoded, "00000000000000000002:00000000:a").unwrap());
+            assert_eq!(saved::get(&b, &saved.record_id).unwrap().unwrap(), saved);
+            assert_eq!(
+                saved::resolve_source(&b, &saved.record_id)
+                    .unwrap()
+                    .unwrap()
+                    .file_id,
+                remote
+            );
+        }
+        assert_eq!(ids.iter().collect::<HashSet<_>>().len(), 3);
+        assert_eq!(
+            stable_identity_updates(&b, &[7; 32])
+                .unwrap()
+                .iter()
+                .filter(|r| r.table == "files")
+                .count(),
+            3
+        );
+    }
+    #[test]
+    fn old_or_changed_remote_document_cannot_silently_strip_provenance_or_rewrite_body() {
+        let dir = tempfile::tempdir().unwrap();
+        let a = crate::db::init_db(&dir.path().join("a.db")).unwrap();
+        let b = crate::db::init_db(&dir.path().join("b.db")).unwrap();
+        let input = document_source_tests::input("pdf", "pdf");
+        let id = materials::import_material(&a, &input).unwrap().file_id;
+        let mut event = EntityEvent {
+            version: 6,
+            table_name: "library_item".into(),
+            sync_id: "pdf-source".into(),
+            operation: "upsert".into(),
+            record: Some(serde_json::to_value(library_item_record(&a, id).unwrap()).unwrap()),
+        };
+        assert!(apply_entity_event(&b, &event, "1").unwrap());
+        let local = local_id_for(&b, "files", "pdf-source").unwrap().unwrap();
+        let file = event.record.as_mut().unwrap()["file"]
+            .as_object_mut()
+            .unwrap();
+        file.remove("document_source");
+        file.remove("document_identity");
+        assert_eq!(
+            apply_entity_event(&b, &event, "2").err().unwrap(),
+            "material_document_version_conflict"
+        );
+        assert!(materials::open(&b, local)
+            .unwrap()
+            .material
+            .document
+            .is_some());
+        let mut changed = document_source_tests::input("changed", "pdf");
+        changed.content = changed.content.replace("42", "43");
+        changed.segments[0].en_text = changed.content.clone();
+        let doc = changed.document.as_mut().unwrap();
+        doc.blocks[0].text = changed.content.clone();
+        doc.normalized_sha256 = format!("{:x}", sha2::Sha256::digest(changed.content.as_bytes()));
+        doc.extractor_version = "later-extractor".into();
+        let c = crate::db::init_db(&dir.path().join("c.db")).unwrap();
+        let newer = materials::import_material(&c, &changed).unwrap().file_id;
+        event.record = Some(serde_json::to_value(library_item_record(&c, newer).unwrap()).unwrap());
+        assert_eq!(
+            apply_entity_event(&b, &event, "3").err().unwrap(),
+            "material_document_version_conflict"
+        );
+        assert_eq!(
+            materials::open(&b, local).unwrap().segments[0].en_text,
+            input.content
+        );
     }
 }

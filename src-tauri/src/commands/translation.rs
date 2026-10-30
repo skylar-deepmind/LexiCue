@@ -94,10 +94,10 @@ fn prune(dir: &Path) {
     files.sort_by_key(|(_, _, modified)| *modified);
     let mut size: u64 = files.iter().map(|(_, len, _)| len).sum();
     for (path, len, modified) in files {
-        if size > CACHE_LIMIT || modified.elapsed().unwrap_or_default().as_secs() > CACHE_TTL {
-            if std::fs::remove_file(path).is_ok() {
-                size = size.saturating_sub(len);
-            }
+        if (size > CACHE_LIMIT || modified.elapsed().unwrap_or_default().as_secs() > CACHE_TTL)
+            && std::fs::remove_file(path).is_ok()
+        {
+            size = size.saturating_sub(len);
         }
     }
 }
@@ -395,11 +395,15 @@ mod tests {
                     );
                     std::thread::sleep(Duration::from_millis(5));
                 };
+                socket.set_nonblocking(false).unwrap();
+                socket
+                    .set_write_timeout(Some(Duration::from_secs(2)))
+                    .unwrap();
                 socket
                     .set_read_timeout(Some(Duration::from_secs(2)))
                     .unwrap();
                 let mut bytes = [0; 8192];
-                socket.read(&mut bytes).unwrap();
+                assert!(socket.read(&mut bytes).unwrap() > 0);
                 let body = body.to_string();
                 write!(socket, "HTTP/1.1 {status} Test\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).unwrap();
                 count += 1;

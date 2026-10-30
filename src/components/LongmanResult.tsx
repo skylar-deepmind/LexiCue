@@ -35,6 +35,7 @@ function Pronunciations({ group, compact = false }: { group: DictionaryGroup; co
 function Sense({ sense, number }: { sense: DictionarySense; number: number }) {
   const { t } = useTranslation();
   return <section className="longman-sense" data-sense-id={sense.id}>
+    {sense.ancestors?.map(parent => <p className="dictionary-parent-meaning" key={parent.source_path} lang="en"><Labels labels={parent.labels}/>{parent.meaning.en}</p>)}
     <p className="longman-definition"><span className="longman-sense-number">{number}.</span> <span className="longman-meaning" lang={sense.meaning.zh ? 'zh' : 'en'}>{sense.meaning.zh ?? sense.meaning.en}</span>{!sense.meaning.zh && <span className="longman-tag longman-tag--usage">{t('longman.englishOnly')}</span>}</p>
     <div className="longman-sense-content"><div className="longman-labels"><Labels labels={sense.labels}/></div>
       {sense.meaning.zh && sense.meaning.en && <details className="longman-english"><summary>{t('longman.english')}</summary><p lang="en">{sense.meaning.en}</p></details>}
@@ -65,22 +66,24 @@ function Group({ group }: { group: DictionaryGroup }) {
 export default function LongmanResult({ result, onInteract }: { result: DictionaryResult; onInteract?: () => void }) {
   const { t } = useTranslation();
   const overview = dictionaryOverview(result);
+  const wiktionary = result.entries[0]?.source.provider === 'wiktionary';
   const groupsShown = new Set<string>();
   const differentHeadwords = new Set(result.entries.map(entry => entry.headword)).size > 1;
   let previousHeadword: string | undefined;
   return <div className="longman-result" data-result-status={result.status} onPointerDownCapture={onInteract} onKeyDownCapture={onInteract} onWheelCapture={onInteract}>
     {!!overview.length && <section className="dictionary-overview" aria-label={t('dictionaryFlow.overview')}>
       <h3>{t('dictionaryFlow.overview')}</h3>
+      {wiktionary && <DictionarySource source={result.entries[0].source} compact/>}
       <ul className="dictionary-overview-list">{overview.map(({ entry, group, sense }) => {
         const showPronunciation = !groupsShown.has(group.id); groupsShown.add(group.id);
         const relatedForm = entry.match.type === 'inflection' && entry.headword !== result.query.text;
         const showHeadword = differentHeadwords && previousHeadword !== entry.headword; previousHeadword = entry.headword;
-        return <li className="dictionary-overview-line" key={sense.id} data-overview-sense={sense.id} data-overview-headword={entry.headword}><div>{showHeadword && <span className="dictionary-overview-headword" lang="en">{relatedForm ? `${result.query.text} → ${entry.headword}` : entry.headword}</span>}<PartOfSpeech group={group}/>{showPronunciation && <Pronunciations group={group} compact/>}</div><p className="longman-meaning" lang={sense.meaning.zh ? 'zh' : 'en'}>{sense.meaning.zh ?? sense.meaning.en}{!sense.meaning.zh && <small className="longman-tag longman-tag--usage">{t('longman.englishOnly')}</small>}</p></li>;
+        return <li className="dictionary-overview-line" key={sense.id} data-overview-sense={sense.id} data-overview-headword={entry.headword}><div>{showHeadword && <span className="dictionary-overview-headword" lang="en">{relatedForm ? `${result.query.text} → ${entry.headword}` : entry.headword}</span>}<PartOfSpeech group={group}/>{entry.source.provider === 'wiktionary' && <Labels labels={[...group.labels, ...sense.labels]}/>} {showPronunciation && <Pronunciations group={group} compact/>}</div>{sense.ancestors?.map(parent => <p className="dictionary-parent-meaning" key={parent.source_path} lang="en"><Labels labels={parent.labels}/>{parent.meaning.en}</p>)}<p className="longman-meaning" lang={sense.meaning.zh ? 'zh' : 'en'}>{sense.meaning.zh ?? sense.meaning.en}{!sense.meaning.zh && <small className="longman-tag longman-tag--usage">{t('longman.englishOnly')}</small>}</p></li>;
       })}</ul>
-      <small className="lookup-provider">{t(`dictionary.${result.entries[0].source.provider}`)}</small>
+      {!wiktionary && <small className="lookup-provider">{t(`dictionary.${result.entries[0].source.provider}`)}</small>}
     </section>}
-    {result.status === 'partial' && <p className="longman-notice" role="status">{t('longman.partial')}</p>}
-    {result.notices.map((notice, index) => <p className="longman-notice" role="status" key={index}>{t(`longman.notices.${notice.code}`, { defaultValue: notice.text })}</p>)}
+    {result.status === 'partial' && !wiktionary && <p className="longman-notice" role="status">{t('longman.partial')}</p>}
+    {result.notices.filter(notice => notice.code !== 'online_free_english_only').map((notice, index) => <p className="longman-notice" role="status" key={index}>{t(`longman.notices.${notice.code}`, { defaultValue: notice.text })}</p>)}
     {!!result.entries.length && <details className="dictionary-more"><summary>{t('dictionaryFlow.more')}</summary>
       {result.entries.map(entry => <article className="longman-entry" data-entry-id={entry.id} key={entry.id}>
         <DictionarySource source={entry.source}/>

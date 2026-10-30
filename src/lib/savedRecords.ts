@@ -5,7 +5,7 @@ export interface DictionarySnapshot {
   schema_version: 1;
   headword: string;
   source: {
-    provider: 'longman' | 'cambridge';
+    provider: 'longman' | 'cambridge' | 'wiktionary';
     dataset: string;
     edition: string | null;
     release: string | null;
@@ -14,9 +14,13 @@ export interface DictionarySnapshot {
     locator: string | null;
     entry_url?: string | null;
     retrieved_at?: string | null;
-    access_channel?: 'author_public_api';
+    access_channel?: 'author_public_api' | 'freedictionaryapi';
     service_url?: string;
     received_at?: string;
+    content_hash?: string;
+    license?: { name: string; url: string };
+    attribution?: string;
+    modifications?: string;
   };
   entry_id: string;
   group_id: string;
@@ -26,6 +30,9 @@ export interface DictionarySnapshot {
   labels: { kind: string; text: string }[];
   examples: { id: string; english: string; chinese: string | null }[];
   patterns: string[];
+  source_path?: string;
+  content_kind?: 'definition' | 'relation';
+  ancestors?: { source_path: string; meaning: { en: string | null; zh: string | null }; labels: { kind: string; text: string }[] }[];
 }
 
 /** Source-labelled excerpt; does not assert a meaning for the saved sentence. */
@@ -54,6 +61,14 @@ export interface SavedRecord {
   sentence_translation: string | null;
   source: {
     content_hash: string;
+    document?: {
+      schema_version: 1 | 2; origin?: import('./documentTypes').ContentOrigin; identity: string; original_format: import('./documentTypes').DocumentFormat;
+      source_sha256: string; extractor_version: string; selection: import('./documentTypes').DocumentSelection;
+      locations: import('./documentTypes').DocumentLocation[]; section_title: string;
+    } | null;
+    media?: import('./sourceMedia').MediaRef | null;
+    media_identity?: string | null;
+    youtube?: Omit<import('./sourceMedia').YoutubeSource, 'cues'> | null;
     file_name: string;
     segment_index: number;
     start_offset: number | null;

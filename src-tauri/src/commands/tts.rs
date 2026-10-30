@@ -686,7 +686,7 @@ fn validate_audio(bytes: &[u8], metadata_end_ms: u64) -> Result<u64, TtsError> {
         return Err(bad());
     }
     // A lost final MP3 frame can otherwise appear as normal EOF. Fixed format is 48kbit/s CBR.
-    if bytes.len() % 144 != 0 {
+    if !bytes.len().is_multiple_of(144) {
         return Err(bad());
     }
     Ok(duration)

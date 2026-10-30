@@ -32,6 +32,14 @@ fn identity(expression: &str, source_key: &str) -> String {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct SavedSource {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub document: Option<super::document_source::SavedDocumentSource>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub youtube: Option<super::source_media::SourceIdentity>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub media_identity: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub media: Option<super::source_media::MediaRef>,
     pub content_hash: String,
     pub file_name: String,
     pub segment_index: i64,
@@ -59,6 +67,24 @@ pub struct DictionarySnapshot {
     pub examples: Vec<DictionarySnapshotExample>,
     #[serde(default)]
     pub patterns: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_path: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub content_kind: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ancestors: Option<Vec<DictionarySnapshotAncestor>>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct DictionarySnapshotAncestor {
+    pub source_path: String,
+    pub meaning: DictionarySnapshotMeaning,
+    pub labels: Vec<DictionarySnapshotLabel>,
+}
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct DictionaryContentLicense {
+    pub name: String,
+    pub url: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -80,6 +106,14 @@ pub struct DictionarySnapshotSource {
     pub service_url: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub received_at: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub content_hash: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub license: Option<DictionaryContentLicense>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub attribution: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub modifications: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -103,17 +137,18 @@ pub struct DictionarySnapshotExample {
 
 fn validate_dictionary_snapshot(snapshot: &DictionarySnapshot) -> Result<(), String> {
     let text = |s: &str| !s.trim().is_empty();
-    let optional_text = |s: &Option<String>| s.as_deref().map_or(true, text);
+    let optional_text = |s: &Option<String>| s.as_deref().is_none_or(text);
     let source = &snapshot.source;
     // New public metadata is an explicit contract. Old snapshots omit these
     // fields, retaining their exact serialized request and idempotency signature.
     const PUBLIC_SNAPSHOT_ADAPTERS: [&str; 2] =
         ["cambridge-public-v1.0.0", "cambridge-public-v1.1.0"];
     let public_namespace = format!("cambridge:public:{}:", source.adapter_version);
-    let public_metadata = source.access_channel.is_some()
-        || source.service_url.is_some()
-        || source.received_at.is_some()
-        || PUBLIC_SNAPSHOT_ADAPTERS.contains(&source.adapter_version.as_str());
+    let public_metadata = source.provider != "wiktionary"
+        && (source.access_channel.is_some()
+            || source.service_url.is_some()
+            || source.received_at.is_some()
+            || PUBLIC_SNAPSHOT_ADAPTERS.contains(&source.adapter_version.as_str()));
     if public_metadata
         && (source.provider != "cambridge"
             || source.access_channel.as_deref() != Some("author_public_api")
@@ -138,6 +173,18 @@ fn validate_dictionary_snapshot(snapshot: &DictionarySnapshot) -> Result<(), Str
     {
         return Err("saved_dictionary_snapshot_invalid".into());
     }
+    if source.provider == "wiktionary" {
+        validate_wiktionary_snapshot(snapshot)?;
+    } else if source.content_hash.is_some()
+        || source.license.is_some()
+        || source.attribution.is_some()
+        || source.modifications.is_some()
+        || snapshot.source_path.is_some()
+        || snapshot.ancestors.is_some()
+        || snapshot.content_kind.is_some()
+    {
+        return Err("saved_dictionary_snapshot_invalid".into());
+    }
     if snapshot.schema_version != 1
         || ![
             snapshot.headword.as_str(),
@@ -150,16 +197,17 @@ fn validate_dictionary_snapshot(snapshot: &DictionarySnapshot) -> Result<(), Str
         ]
         .iter()
         .all(|s| text(s))
-        || !matches!(snapshot.source.provider.as_str(), "longman" | "cambridge")
+        || !matches!(
+            snapshot.source.provider.as_str(),
+            "longman" | "cambridge" | "wiktionary"
+        )
         || (snapshot.source.provider == "longman" && snapshot.source.release.is_none())
         || !optional_text(&snapshot.source.edition)
         || !optional_text(&snapshot.source.release)
         || !optional_text(&snapshot.source.locator)
-        || snapshot
-            .source
-            .entry_url
-            .as_deref()
-            .is_some_and(|u| !super::cambridge::valid_entry_url(u))
+        || snapshot.source.entry_url.as_deref().is_some_and(|u| {
+            source.provider != "wiktionary" && !super::cambridge::valid_entry_url(u)
+        })
         || snapshot
             .source
             .retrieved_at
@@ -186,6 +234,101 @@ fn validate_dictionary_snapshot(snapshot: &DictionarySnapshot) -> Result<(), Str
             > 32_768
     {
         return Err("saved_dictionary_snapshot_invalid".into());
+    }
+    Ok(())
+}
+
+/// New providers carry complete attribution in every offline excerpt. Preserve
+/// legacy snapshots byte-for-byte by making each extension optional for them.
+fn validate_wiktionary_snapshot(snapshot: &DictionarySnapshot) -> Result<(), String> {
+    let invalid = || "saved_dictionary_snapshot_invalid".to_string();
+    let mut source = serde_json::to_value(&snapshot.source).map_err(|_| invalid())?;
+    source["delivery"] = serde_json::json!("cache");
+    if !super::free_dictionary::valid_source(&source)
+        || !super::free_dictionary::source_identity(
+            snapshot.source.entry_url.as_deref().unwrap_or(""),
+            &snapshot.headword,
+        )
+        || snapshot.source.entry_key != snapshot.entry_id
+    {
+        return Err(invalid());
+    }
+    let url = reqwest::Url::parse(snapshot.source.entry_url.as_deref().unwrap_or(""))
+        .map_err(|_| invalid())?;
+    let word = percent_encoding::percent_decode_str(
+        url.path().strip_prefix("/wiki/").ok_or_else(invalid)?,
+    )
+    .decode_utf8()
+    .map_err(|_| invalid())?
+    .replace('_', " ");
+    let namespace = "wiktionary:freedictionaryapi-v1.0.0:";
+    let path = regex::Regex::new(r"^/entries/[0-9]+/senses/[0-9]+(?:/subsenses/[0-9]+)*$").unwrap();
+    let Some(sense_path) = snapshot.source_path.as_deref() else {
+        return Err(invalid());
+    };
+    let Some(ancestors) = snapshot.ancestors.as_ref() else {
+        return Err(invalid());
+    };
+    if word != snapshot.headword.replace('_', " ")
+        || !path.is_match(sense_path)
+        || !matches!(
+            snapshot.content_kind.as_deref(),
+            Some("definition" | "relation")
+        )
+        || (snapshot.content_kind.as_deref() == Some("definition")
+            && super::free_dictionary::relation_only(
+                snapshot.meaning.en.as_deref().unwrap_or(""),
+                &[],
+            ))
+        || snapshot.meaning.zh.is_some()
+        || snapshot
+            .meaning
+            .en
+            .as_ref()
+            .is_none_or(|v| v.trim().is_empty())
+        || [&snapshot.entry_id, &snapshot.group_id, &snapshot.sense_id]
+            .iter()
+            .any(|id| !id.starts_with(namespace))
+        || snapshot
+            .examples
+            .iter()
+            .any(|example| !example.id.starts_with(namespace) || example.chinese.is_some())
+        || !sense_path.starts_with(&format!(
+            "{}/senses/",
+            snapshot.source.locator.as_deref().unwrap_or("")
+        ))
+        || ancestors.len() > 8
+        || ancestors.len() != sense_path.matches("/subsenses/").count()
+    {
+        return Err(invalid());
+    }
+    let mut previous: Option<&str> = None;
+    for (index, ancestor) in ancestors.iter().enumerate() {
+        let expected = sense_path
+            .split("/subsenses/")
+            .take(index + 1)
+            .collect::<Vec<_>>()
+            .join("/subsenses/");
+        if ancestor.source_path != expected
+            || !path.is_match(&ancestor.source_path)
+            || !sense_path.starts_with(&format!("{}/subsenses/", ancestor.source_path))
+            || previous
+                .is_some_and(|p| !ancestor.source_path.starts_with(&format!("{p}/subsenses/")))
+            || ancestor.meaning.zh.is_some()
+            || ancestor
+                .meaning
+                .en
+                .as_ref()
+                .is_none_or(|v| v.trim().is_empty() || v.chars().count() > 2000)
+            || ancestor.labels.len() > 30
+            || ancestor
+                .labels
+                .iter()
+                .any(|l| l.kind.trim().is_empty() || l.text.trim().is_empty())
+        {
+            return Err(invalid());
+        }
+        previous = Some(&ancestor.source_path);
     }
     Ok(())
 }
@@ -341,6 +484,18 @@ pub fn write_record(conn: &Connection, record: &SavedRecord) -> Result<i64, Stri
     if let Some(reference) = &record.dictionary_reference {
         validate_dictionary_reference(reference)?;
     }
+    if let Some(origin) = record.source.as_ref().and_then(|s| s.youtube.as_ref()) {
+        origin.validate()?;
+    }
+    if let Some(m) = record.source.as_ref().and_then(|s| s.media.as_ref()) {
+        m.validate()?;
+    }
+    if let Some(source) = record.source.as_ref().filter(|s| s.document.is_some()) {
+        source.document.as_ref().unwrap().validate()?;
+        if source.media.is_some() || source.media_identity.is_some() || source.youtube.is_some() {
+            return Err("invalid_saved_record".into());
+        }
+    }
     if record.record_id != identity(&record.expression, &record.source_key)
         || record.normalized_expression != normalize(&record.expression)
         || record.generation < 0
@@ -381,6 +536,8 @@ pub struct SaveInput {
 
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
+// Short-lived IPC payload; keep the existing input type and serialization contract.
+#[allow(clippy::large_enum_variant)]
 pub enum Mutation {
     Save {
         input: SaveInput,
@@ -420,7 +577,17 @@ fn from_input(conn: &Connection, input: &SaveInput) -> Result<SavedRecord, Strin
             return Err("saved_dictionary_selection_mismatch".into());
         }
     }
-    let (sentence,translation,hash,name,index,start_time,end_time,language): (String,Option<String>,String,String,i64,Option<String>,Option<String>,String) = conn.query_row(
+    type SourceRow = (
+        String,
+        Option<String>,
+        String,
+        String,
+        i64,
+        Option<String>,
+        Option<String>,
+        String,
+    );
+    let (sentence,translation,hash,name,index,start_time,end_time,language): SourceRow = conn.query_row(
         "SELECT s.en_text,s.zh_text,f.content_hash,f.name,s.index_num,s.start_time,s.end_time,f.language FROM segments s JOIN files f ON f.id=s.file_id WHERE s.id=?1", [input.segment_id],
         |r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?,r.get(5)?,r.get(6)?,r.get(7)?)),
     ).map_err(|_|"saved_source_missing".to_string())?;
@@ -457,7 +624,20 @@ fn from_input(conn: &Connection, input: &SaveInput) -> Result<SavedRecord, Strin
             .take_while(|c| c.is_whitespace())
             .map(char::len_utf16)
             .sum::<usize>();
-    let source_key = serde_json::to_string(&(&hash, index, start_offset)).unwrap();
+    let media = super::source_media::segment_reference(conn, input.segment_id)?;
+    let document = super::document_source::segment_source(conn, input.segment_id)?;
+    let (provenance,origin):(Option<String>,Option<String>)=conn.query_row("SELECT f.media_identity,f.media_source FROM segments s JOIN files f ON f.id=s.file_id WHERE s.id=?1",[input.segment_id],|r|Ok((r.get(0)?,r.get(1)?))).map_err(|e|e.to_string())?;
+    let youtube = origin
+        .as_deref()
+        .and_then(|j| serde_json::from_str::<super::source_media::YoutubeSource>(j).ok())
+        .map(|s| super::source_media::SourceIdentity::from(&s));
+    let source_key = if let Some(doc) = &document {
+        serde_json::to_string(&(&hash, index, start_offset, &doc.identity)).unwrap()
+    } else if let Some(key) = &provenance {
+        serde_json::to_string(&(&hash, index, start_offset, key)).unwrap()
+    } else {
+        serde_json::to_string(&(&hash, index, start_offset)).unwrap()
+    };
     Ok(SavedRecord {
         record_id: identity(&input.expression, &source_key),
         expression: input.expression.trim().into(),
@@ -466,6 +646,10 @@ fn from_input(conn: &Connection, input: &SaveInput) -> Result<SavedRecord, Strin
         sentence: Some(sentence),
         sentence_translation: translation,
         source: Some(SavedSource {
+            document,
+            media,
+            media_identity: provenance,
+            youtube,
             content_hash: hash,
             file_name: name,
             segment_index: index,
@@ -758,6 +942,10 @@ pub fn migrate_legacy(conn: &Connection) -> Result<MigrationReport, String> {
                             .unwrap()
                         };
                         source = Some(SavedSource {
+                            document: None,
+                            media: None,
+                            media_identity: None,
+                            youtube: None,
                             content_hash: hash.into(),
                             file_name: name.into(),
                             segment_index: index,
@@ -1019,10 +1207,10 @@ impl Archive {
             .get_or_init(|| {
                 self.aliases
                     .iter()
-                    .filter_map(|(key, ids)| {
-                        (ids.len() == 1 || self.groups.contains_key(&group_identity(key)))
-                            .then(|| key.split_once(':').unwrap().1.to_string())
+                    .filter(|&(key, ids)| {
+                        ids.len() == 1 || self.groups.contains_key(&group_identity(key))
                     })
+                    .map(|(key, _ids)| key.split_once(':').unwrap().1.to_string())
                     .collect::<std::collections::BTreeSet<_>>()
                     .into_iter()
                     .collect()
@@ -1456,7 +1644,7 @@ pub fn resolve_source(
     let Some(source) = record.source else {
         return Ok(None);
     };
-    conn.query_row("SELECT f.id,s.index_num FROM files f JOIN segments s ON s.file_id=f.id WHERE f.language='en' AND f.content_hash=?1 AND s.index_num=?2 AND s.en_text=?3 ORDER BY f.id LIMIT 1",params![source.content_hash,source.segment_index,record.sentence],|r|Ok(SourceLocation{file_id:r.get(0)?,segment_index:r.get(1)?})).optional().map_err(|e|e.to_string())
+    conn.query_row("SELECT f.id,s.index_num FROM files f JOIN segments s ON s.file_id=f.id WHERE f.language='en' AND f.content_hash=?1 AND s.index_num=?2 AND s.en_text=?3 AND f.media_identity IS ?4 AND f.document_identity IS ?5 ORDER BY f.id LIMIT 1",params![source.content_hash,source.segment_index,record.sentence,source.media_identity.as_ref().or_else(||source.media.as_ref().map(|m|&m.source.key)),source.document.as_ref().map(|d|&d.identity)],|r|Ok(SourceLocation{file_id:r.get(0)?,segment_index:r.get(1)?})).optional().map_err(|e|e.to_string())
 }
 #[tauri::command]
 pub fn saved_record_source(
@@ -1512,6 +1700,31 @@ pub fn saved_record_conflicts(state: State<DbState>) -> Result<Vec<SavedConflict
     .collect()
 }
 
+/// Synthetic source data through the production adapter, shared by isolated
+/// saved/export/sync tests; never represents a public-service observation.
+#[cfg(test)]
+pub(crate) fn wiktionary_snapshot_fixture() -> DictionarySnapshot {
+    let raw = serde_json::json!({"word":"take off","entries":[{"language":{"code":"en","name":"English"},"partOfSpeech":"verb","pronunciations":[],"senses":[{"definition":"In aviation.","tags":["technical"],"examples":[],"subsenses":[{"definition":"To leave the ground and begin to fly.","tags":[],"examples":["The plane took off."],"subsenses":[]}]}]}],"source":{"url":"https://en.wiktionary.org/wiki/take_off","license":{"name":"CC BY-SA 4.0","url":"https://creativecommons.org/licenses/by-sa/4.0/"}}});
+    let result = super::free_dictionary::convert(&raw, "take off", "2026-10-28T12:00:00Z").unwrap();
+    let entry = &result["entries"][0];
+    let group = &entry["groups"][0];
+    let sense = group["senses"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["source_path"].as_str().unwrap().contains("/subsenses/"))
+        .unwrap();
+    let mut source = entry["source"].clone();
+    source.as_object_mut().unwrap().remove("delivery");
+    let examples: Vec<serde_json::Value> = sense["examples"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|e| serde_json::json!({"id":e["id"],"english":e["english"],"chinese":e["chinese"]}))
+        .collect();
+    serde_json::from_value(serde_json::json!({"schema_version":1,"headword":entry["headword"],"source":source,"entry_id":entry["id"],"group_id":group["id"],"sense_id":sense["id"],"part_of_speech":group["part_of_speech"],"meaning":sense["meaning"],"labels":sense["labels"],"examples":examples,"patterns":[],"source_path":sense["source_path"],"content_kind":sense["content_kind"],"ancestors":sense["ancestors"]})).unwrap()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1557,6 +1770,10 @@ mod tests {
                 access_channel: None,
                 service_url: None,
                 received_at: None,
+                content_hash: None,
+                license: None,
+                attribution: None,
+                modifications: None,
             },
             entry_id: "longman:fixture:entry-take-off".into(),
             group_id: "longman:fixture:group-take-off".into(),
@@ -1576,6 +1793,9 @@ mod tests {
                 chinese: Some("飞机起飞了。".into()),
             }],
             patterns: vec![],
+            source_path: None,
+            content_kind: None,
+            ancestors: None,
         }
     }
 
@@ -2917,6 +3137,101 @@ mod tests {
         assert_eq!(restored.generation, 1);
     }
 
+    #[test]
+    fn wiktionary_reference_preserves_parents_and_attribution_offline_export_import_edit_undo_and_late_save(
+    ) {
+        let (dir, conn) = db();
+        let chosen = wiktionary_snapshot_fixture();
+        validate_dictionary_snapshot(&chosen).unwrap();
+        let reference = DictionaryReference {
+            schema_version: 1,
+            kind: "dictionary_excerpt".into(),
+            headword: chosen.headword.clone(),
+            senses: vec![chosen.clone()],
+        };
+        let mut mutation = input(1);
+        if let Mutation::Save { input } = &mut mutation {
+            input.explanation = None;
+            input.explanation_source = "unknown".into();
+            input.dictionary_reference = Some(reference.clone());
+        }
+        let first = mutate(&conn, "wiktionary-save", &mutation).unwrap().record;
+        assert_eq!(first.explanation, None);
+        drop(conn);
+        let conn = crate::db::init_db(&dir.path().join("test.db")).unwrap();
+        let reopened = get(&conn, &first.record_id).unwrap().unwrap();
+        assert_eq!(reopened.dictionary_reference, Some(reference.clone()));
+        assert_eq!(
+            reopened.dictionary_reference.as_ref().unwrap().senses[0]
+                .ancestors
+                .as_ref()
+                .unwrap()[0]
+                .meaning
+                .en
+                .as_deref(),
+            Some("In aviation.")
+        );
+        let personal = edit(&conn, &reopened, "我的个人解释");
+        assert!(
+            !mutate(&conn, "wiktionary-late-save", &mutation)
+                .unwrap()
+                .changed
+        );
+        assert_eq!(get(&conn, &first.record_id).unwrap().unwrap(), personal);
+        let backup = backup_payload(&conn).unwrap();
+        let json = serde_json::to_vec(&backup).unwrap();
+        let parsed: BackupPayload = serde_json::from_slice(&json).unwrap();
+        let (_target_dir, target) = db();
+        restore_backup(&target, &parsed).unwrap();
+        let offline = get(&target, &first.record_id).unwrap().unwrap();
+        assert_eq!(offline.dictionary_reference, Some(reference.clone()));
+        assert_eq!(offline.explanation.as_deref(), Some("我的个人解释"));
+        let removed = remove(&target, &offline);
+        let restored = undo(&target, &removed.operation_id).unwrap();
+        assert_eq!(restored.dictionary_reference, Some(reference));
+        assert_eq!(
+            restored.dictionary_reference.as_ref().unwrap().senses[0]
+                .source
+                .attribution
+                .as_deref(),
+            Some(super::super::free_dictionary::ATTRIBUTION)
+        );
+    }
+
+    #[test]
+    fn wiktionary_snapshot_rejects_fabricated_source_translation_and_parent_scope() {
+        let snapshot = wiktionary_snapshot_fixture();
+        let mutations = [
+            ("license", serde_json::Value::Null),
+            ("content_hash", serde_json::json!("invalid")),
+            (
+                "entry_url",
+                serde_json::json!("https://evil.example/wiki/take_off"),
+            ),
+            ("service_url", serde_json::json!("https://other.example")),
+            ("access_channel", serde_json::json!("author_public_api")),
+            ("attribution", serde_json::json!("")),
+        ];
+        for (field, replacement) in mutations {
+            let mut wire = serde_json::to_value(&snapshot).unwrap();
+            wire["source"][field] = replacement;
+            let bad: DictionarySnapshot = serde_json::from_value(wire).unwrap();
+            assert!(validate_dictionary_snapshot(&bad).is_err(), "{field}");
+        }
+        let mut translation = snapshot.clone();
+        translation.meaning.zh = Some("译词".into());
+        assert!(validate_dictionary_snapshot(&translation).is_err());
+        let mut parent = snapshot.clone();
+        parent.ancestors.as_mut().unwrap()[0].source_path = "/entries/1/senses/0".into();
+        assert!(validate_dictionary_snapshot(&parent).is_err());
+        let mut fake_definition = snapshot.clone();
+        fake_definition.meaning.en = Some("Plural of aircraft.".into());
+        assert!(validate_dictionary_snapshot(&fake_definition).is_err());
+        let mut missing = snapshot;
+        missing.ancestors = None;
+        assert!(validate_dictionary_snapshot(&missing).is_err());
+    }
+
     fn public_dictionary_input_version(version: &str) -> Mutation {
         let mut mutation = dictionary_input(1);
         if let Mutation::Save { input } = &mut mutation {
@@ -3422,7 +3737,7 @@ mod tests {
         source.execute("INSERT INTO sync_conflicts(table_name,sync_id,local_value,remote_value,created_at) VALUES('saved_records',?1,?2,?3,1)",params![record.record_id,serde_json::to_string(&record).unwrap(),serde_json::to_string(&personal).unwrap()]).unwrap();
         let removed = remove(&source, &personal);
         let backup = backup_payload(&source).unwrap();
-        assert_eq!(backup.schema_version, 9);
+        assert_eq!(backup.schema_version, 10);
         let (_dir2, target) = db();
         restore_backup(&target, &backup).unwrap();
         assert_eq!(

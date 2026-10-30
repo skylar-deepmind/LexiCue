@@ -117,7 +117,7 @@ pub(super) fn valid_entry(entry: &Value, expression: &str) -> bool {
     fn namespaced_ids(value: &Value) -> bool {
         match value {
             Value::Object(map) => {
-                map.get("id").map_or(true, |id| {
+                map.get("id").is_none_or(|id| {
                     id.as_str()
                         .is_some_and(|id| id.starts_with(&format!("cambridge:public:{ADAPTER}:")))
                 }) && map.values().all(namespaced_ids)
@@ -900,7 +900,7 @@ mod tests {
     use super::*;
     use std::io::{Read, Write};
     use std::net::TcpListener;
-    static ENV: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    static ENV: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
     const RECEIVED: &str = "2026-10-26T01:02:03Z";
     /// Synthetic transport fixtures exercise structure, not lexical accuracy.
     fn raw(word: &str) -> Value {
@@ -920,6 +920,10 @@ mod tests {
         let content_type = content_type.to_owned();
         let handle = std::thread::spawn(move || {
             let (mut stream, _) = listener.accept().unwrap();
+            stream.set_nonblocking(false).unwrap();
+            stream
+                .set_write_timeout(Some(Duration::from_secs(2)))
+                .unwrap();
             stream
                 .set_read_timeout(Some(Duration::from_secs(3)))
                 .unwrap();
@@ -1165,7 +1169,7 @@ mod tests {
     }
     #[tokio::test]
     async fn unsupported_multiword_scope_uses_zero_http_requests() {
-        let _guard = ENV.lock().unwrap_or_else(|e| e.into_inner());
+        let _guard = ENV.lock().await;
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         listener.set_nonblocking(true).unwrap();
         let origin = format!("http://{}/", listener.local_addr().unwrap());
@@ -1210,7 +1214,7 @@ mod tests {
     }
     #[tokio::test]
     async fn current_cache_revalidates_scope_and_rejects_old_adapter_without_deletion() {
-        let _guard = ENV.lock().unwrap_or_else(|e| e.into_inner());
+        let _guard = ENV.lock().await;
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path().to_path_buf();
         let received_at =
@@ -1258,7 +1262,7 @@ mod tests {
     }
     #[tokio::test]
     async fn public_transport_cache_context_privacy_and_failure_coalescing() {
-        let _guard = ENV.lock().unwrap_or_else(|e| e.into_inner());
+        let _guard = ENV.lock().await;
         let dir = tempfile::tempdir().unwrap();
         let (origin, handle) = serve(
             200,
@@ -1316,7 +1320,7 @@ mod tests {
     }
     #[tokio::test]
     async fn less_complete_refresh_preserves_complete_cache_and_expired_failure_is_stale() {
-        let _guard = ENV.lock().unwrap_or_else(|e| e.into_inner());
+        let _guard = ENV.lock().await;
         let dir = tempfile::tempdir().unwrap();
         let mut partial = raw("record");
         partial["definition"][0]["translation"] = Value::Null;
@@ -1353,7 +1357,7 @@ mod tests {
     }
     #[tokio::test]
     async fn public_http_errors_and_changed_payload_never_create_negative_cache() {
-        let _guard = ENV.lock().unwrap_or_else(|e| e.into_inner());
+        let _guard = ENV.lock().await;
         let dir = tempfile::tempdir().unwrap();
         for (status, kind, body, code) in [
             (
@@ -1444,7 +1448,7 @@ mod tests {
             let source_url = Url::parse(captured["url"].as_str().unwrap()).unwrap();
             assert_eq!(source_url.host_str(), Some("dictionary-api.eliaschen.dev"));
             let expression = percent_encoding::percent_decode_str(
-                source_url.path_segments().unwrap().last().unwrap(),
+                source_url.path_segments().unwrap().next_back().unwrap(),
             )
             .decode_utf8()
             .unwrap()

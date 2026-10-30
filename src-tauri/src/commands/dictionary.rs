@@ -480,6 +480,8 @@ pub fn initialize_builtin_phrase_dictionary(conn: &rusqlite::Connection) -> Resu
     transaction.commit().map_err(|e| e.to_string())
 }
 
+// Retained for legacy-data regression fixtures; new imports target English only.
+#[cfg(test)]
 pub fn initialize_builtin_japanese_dictionary(conn: &rusqlite::Connection) -> Result<(), String> {
     let exists: bool = conn
         .query_row(
@@ -543,6 +545,8 @@ pub fn initialize_builtin_japanese_dictionary(conn: &rusqlite::Connection) -> Re
     transaction.commit().map_err(|e| e.to_string())
 }
 
+// Retained for legacy-data regression fixtures; new imports target English only.
+#[cfg(test)]
 pub fn initialize_builtin_german_dictionary(conn: &rusqlite::Connection) -> Result<(), String> {
     let exists: bool = conn
         .query_row(
@@ -607,6 +611,8 @@ pub fn initialize_builtin_german_dictionary(conn: &rusqlite::Connection) -> Resu
     transaction.commit().map_err(|e| e.to_string())
 }
 
+// Retained for legacy-data regression fixtures; new imports target English only.
+#[cfg(test)]
 pub fn initialize_builtin_chinese_dictionary(conn: &rusqlite::Connection) -> Result<(), String> {
     let exists: bool = conn
         .query_row(
@@ -668,6 +674,8 @@ pub fn initialize_builtin_chinese_dictionary(conn: &rusqlite::Connection) -> Res
     transaction.commit().map_err(|e| e.to_string())
 }
 
+// Retained for legacy-data regression fixtures; new imports target English only.
+#[cfg(test)]
 pub fn initialize_builtin_chinese_phrase_dictionary(
     conn: &rusqlite::Connection,
 ) -> Result<(), String> {
@@ -734,6 +742,8 @@ pub fn initialize_builtin_chinese_phrase_dictionary(
     transaction.commit().map_err(|e| e.to_string())
 }
 
+// Retained for legacy-data regression fixtures; new imports target English only.
+#[cfg(test)]
 pub fn initialize_builtin_japanese_phrase_dictionary(
     conn: &rusqlite::Connection,
 ) -> Result<(), String> {

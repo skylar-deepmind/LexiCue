@@ -43,6 +43,13 @@ export async function checkReadingInteractions({page,theme,take,call,ok,eq,settl
  const bounds=await page.locator('.context-panel').boundingBox();
  const beforeSave=(await call('list_saved_records',{query:'',limit:100,offset:0})).length;
  await page.evaluate(()=>{window.__uiDelayLookup=true;window.__uiLookupDelayMs=1800;});await take.click();
+ // Read the short-lived snapshot atomically before its normal reveal cleanup.
+ const outgoing=await page.locator('.soft-refresh-ghost > .soft-refresh-snapshot').evaluate(node=>{const style=getComputedStyle(node);return{currentCount:document.querySelectorAll('.soft-refresh-current').length,ghostCurrentCount:document.querySelectorAll('.soft-refresh-ghost .soft-refresh-current').length,heading:node.querySelector('.lookup-heading h2')?.textContent,inert:node.inert&&node.getAttribute('aria-hidden')==='true',layout:[style.display,style.flexDirection,style.position]};});
+ eq(outgoing.currentCount,1,`${theme}: only the live lookup region advertises current ownership`);
+ eq(outgoing.ghostCurrentCount,0,`${theme}: outgoing visual snapshots never masquerade as current content`);
+ eq(outgoing.heading,'noon',`${theme}: previous lookup remains available as an outgoing visual snapshot`);
+ ok(outgoing.inert,`${theme}: outgoing snapshot is inert and hidden from accessibility`);
+ eq(outgoing.layout,['flex','column','relative'],`${theme}: snapshot retains the current region's layout geometry`);
  eq(await page.locator('.soft-refresh-current .lookup-heading h2').innerText(),'take',`${theme}: new word labels the card immediately`);
  eq(await page.locator('.lookup-content').evaluate(n=>n.inert),false,`${theme}: new selection stays interactive during lookup`);
  await page.locator('.lookup-footer').getByRole('button',{name:'记下',exact:true}).click();await page.locator('.lookup-saved').waitFor();

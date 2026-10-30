@@ -96,7 +96,24 @@ fn query_all(conn: &rusqlite::Connection, table: &str) -> Result<Vec<serde_json:
 
     let mut result = Vec::new();
     for row in rows {
-        result.push(row.map_err(|e| e.to_string())?);
+        let mut row = row.map_err(|e| e.to_string())?;
+        let fields: &[&str] = match table {
+            "saved_records" => &["snapshot_json"],
+            "saved_actions" => &["before_json"],
+            "sync_conflicts" => &["local_value", "remote_value"],
+            _ => &[],
+        };
+        for field in fields {
+            if let Some(raw) = row.get(*field).and_then(|v| v.as_str()) {
+                if let Ok(value) = serde_json::from_str::<serde_json::Value>(raw) {
+                    let portable = super::source_media::portable_saved_value(conn, value)?;
+                    row[*field] = serde_json::json!(
+                        serde_json::to_string(&portable).map_err(|e| e.to_string())?
+                    );
+                }
+            }
+        }
+        result.push(row);
     }
     Ok(result)
 }
@@ -137,6 +154,10 @@ fn insert_from_json(
         .map_err(|e| e.to_string())?;
     for row in rows {
         let obj = row.as_object().ok_or("invalid row format")?;
+        if table == "files" {
+            super::source_media::validate_file_source(obj)?;
+            super::document_source::validate_file_source(obj)?;
+        }
         // Older backups may omit new columns on individual rows. Use their
         // defaults without dropping fields that appear on later rows.
         let columns: Vec<&str> = obj.keys().map(String::as_str).collect();
@@ -234,50 +255,62 @@ pub fn backup_payload(conn: &rusqlite::Connection) -> Result<BackupPayload, Stri
     let phrase_dictionary_entries = query_all(conn, "phrase_dictionary_entries")?;
     let file_phrase_analysis = query_all(conn, "file_phrase_analysis")?;
 
+    let data = BackupData {
+        frequency_baseline_profiles: query_all(conn, "frequency_baseline_profiles")?,
+        frequency_baseline_marks: query_all(conn, "frequency_baseline_marks")?,
+        frequency_baseline_daily_checks: query_all(conn, "frequency_baseline_daily_checks")?,
+        material_import_actions: query_all(conn, "material_import_actions")?,
+        annotation_actions: query_all(conn, "annotation_actions")?,
+        saved_records: query_all(conn, "saved_records")?,
+        saved_actions: query_all(conn, "saved_actions")?,
+        saved_conflicts: query_all(conn, "sync_conflicts")?
+            .into_iter()
+            .filter_map(|mut row| {
+                if row.get("table_name").and_then(|v| v.as_str()) != Some("saved_records") {
+                    return None;
+                }
+                row.as_object_mut()?.remove("id");
+                Some(row)
+            })
+            .collect(),
+        product_migrations: query_all(conn, "product_migrations")?,
+        files,
+        folders,
+        tags: query_all(conn, "tags")?,
+        file_tags: query_all(conn, "file_tags")?,
+        legacy_tag_folders: query_all(conn, "legacy_tag_folders")?,
+        file_tag_state: query_all(conn, "file_tag_state")?,
+        segments,
+        words,
+        word_aliases,
+        occurrences,
+        reviews,
+        review_logs,
+        dictionary_entries,
+        dictionary_sources,
+        phrases,
+        phrase_occurrences,
+        phrase_reviews,
+        phrase_review_logs,
+        phrase_dictionary_entries,
+        file_phrase_analysis,
+    };
+    let schema_version = if super::document_source::contains_content_origin(
+        &serde_json::to_value(&data).map_err(|e| e.to_string())?,
+    ) {
+        12
+    } else if super::document_source::contains_document(
+        &serde_json::to_value(&data).map_err(|e| e.to_string())?,
+    ) {
+        11
+    } else {
+        10
+    };
     Ok(BackupPayload {
-        schema_version: 9,
+        schema_version,
         exported_at: now_ms(),
-        app_version: env!("CARGO_PKG_VERSION").to_string(),
-        data: BackupData {
-            frequency_baseline_profiles: query_all(conn, "frequency_baseline_profiles")?,
-            frequency_baseline_marks: query_all(conn, "frequency_baseline_marks")?,
-            frequency_baseline_daily_checks: query_all(conn, "frequency_baseline_daily_checks")?,
-            material_import_actions: query_all(conn, "material_import_actions")?,
-            annotation_actions: query_all(conn, "annotation_actions")?,
-            saved_records: query_all(conn, "saved_records")?,
-            saved_actions: query_all(conn, "saved_actions")?,
-            saved_conflicts: query_all(conn, "sync_conflicts")?
-                .into_iter()
-                .filter_map(|mut row| {
-                    if row.get("table_name").and_then(|v| v.as_str()) != Some("saved_records") {
-                        return None;
-                    }
-                    row.as_object_mut()?.remove("id");
-                    Some(row)
-                })
-                .collect(),
-            product_migrations: query_all(conn, "product_migrations")?,
-            files,
-            folders,
-            tags: query_all(conn, "tags")?,
-            file_tags: query_all(conn, "file_tags")?,
-            legacy_tag_folders: query_all(conn, "legacy_tag_folders")?,
-            file_tag_state: query_all(conn, "file_tag_state")?,
-            segments,
-            words,
-            word_aliases,
-            occurrences,
-            reviews,
-            review_logs,
-            dictionary_entries,
-            dictionary_sources,
-            phrases,
-            phrase_occurrences,
-            phrase_reviews,
-            phrase_review_logs,
-            phrase_dictionary_entries,
-            file_phrase_analysis,
-        },
+        app_version: env!("CARGO_PKG_VERSION").into(),
+        data,
     })
 }
 
@@ -300,6 +333,9 @@ pub fn restore_backup(conn: &rusqlite::Connection, backup: &BackupPayload) -> Re
         && backup.schema_version != 7
         && backup.schema_version != 8
         && backup.schema_version != 9
+        && backup.schema_version != 10
+        && backup.schema_version != 11
+        && backup.schema_version != 12
     {
         return Err(format!(
             "Unsupported backup schema version: {}",
@@ -399,6 +435,7 @@ pub fn restore_backup(conn: &rusqlite::Connection, backup: &BackupPayload) -> Re
             &backup.data.frequency_baseline_daily_checks,
         )?;
         insert_material_rows(conn, "segments", &backup.data.segments)?;
+        super::document_source::validate_database_sources(conn)?;
         insert_material_rows(conn, "occurrences", &backup.data.occurrences)?;
         insert_from_json(conn, "reviews", &backup.data.reviews)?;
         insert_from_json(conn, "review_logs", &backup.data.review_logs)?;
@@ -606,7 +643,7 @@ mod english_learning_tests {
             )
             .unwrap();
         let backup = backup_payload(&source).unwrap();
-        assert_eq!(backup.schema_version, 9);
+        assert_eq!(backup.schema_version, 10);
 
         let target_file = tempfile::NamedTempFile::new().unwrap();
         let target = crate::db::init_db(target_file.path()).unwrap();

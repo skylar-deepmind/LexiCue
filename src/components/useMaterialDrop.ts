@@ -1,11 +1,12 @@
 import { useEffect } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { readTextFile } from '@tauri-apps/plugin-fs';
+import { readDocumentFile } from '../lib/readDocumentFile';
+import { DOCUMENT_LIMITS } from '../lib/documentTypes';
 import { pickedMaterialSource } from '../lib/importPicker';
 import { useImportStore } from '../stores/importStore';
 export default function useMaterialDrop() {
     useEffect(() => {
-        const sources = (files: FileList) => Array.from(files).map(file => ({ name: file.name, read: () => file.text() }));
+        const sources = (files: FileList) => Array.from(files).map(file => ({ name: file.name, read: async (signal: AbortSignal) => {if (file.size > DOCUMENT_LIMITS.binaryBytes) throw new Error('material_too_large'); const bytes = new Uint8Array(await file.arrayBuffer()); if (signal.aborted) throw new Error('material_cancelled'); return bytes;} }));
         const drag = (event: DragEvent) => { if (event.dataTransfer?.types.includes('Files')) {
             event.preventDefault();
             useImportStore.getState().show();
@@ -21,7 +22,7 @@ export default function useMaterialDrop() {
                 if (payload.type === 'enter')
                     useImportStore.getState().show();
                 if (payload.type === 'drop')
-                    void useImportStore.getState().start(payload.paths.map(path => pickedMaterialSource(path, readTextFile)));
+                    void useImportStore.getState().start(payload.paths.map(path => pickedMaterialSource(path, readDocumentFile)));
             }).then(unlisten => { if (disposed)
                 unlisten();
             else

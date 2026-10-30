@@ -12,6 +12,7 @@ pub mod language;
 pub mod ollama;
 pub mod phrases;
 pub mod reviews;
+pub mod source_media;
 pub mod stats;
 pub mod sync;
 pub mod tags;
@@ -37,7 +38,14 @@ pub mod recall;
 pub mod example;
 
 pub mod cambridge;
+pub mod free_dictionary;
 pub mod longman;
 
 pub mod translation;
 pub mod tts;
+
+pub mod document_source;
+#[cfg(test)]
+mod document_source_tests;
+
+pub mod webpage;

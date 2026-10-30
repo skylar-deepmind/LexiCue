@@ -568,7 +568,7 @@ pub fn check_duplicate(
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
 
     let mut stmt = conn
-        .prepare("SELECT id, name FROM files WHERE content_hash = ?1")
+        .prepare("SELECT id, name FROM files WHERE content_hash = ?1 AND media_identity IS NULL")
         .map_err(|e| e.to_string())?;
 
     let result = stmt.query_row(params![hash], |row| {

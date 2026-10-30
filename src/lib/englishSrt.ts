@@ -1,4 +1,4 @@
-import { clearlyNonEnglish } from './englishScope';
+import { clearlyNonEnglish, readableEnglishSegment } from './englishScope';
 import { parseFile } from './parser';
 import type { SegmentInput } from './types';
 /** Validate the SRT structure before using the existing bilingual sentence parser. */
@@ -18,7 +18,7 @@ export function parseEnglishSrt(content: string): SegmentInput[] {
             throw new Error('material_invalid_srt');
     }
     const segments = parseFile(content, 'srt', 'auto', 'en').segments;
-    if (!segments.length || !segments.some(segment => /[A-Za-z]/.test(segment.en_text)))
+    if (!segments.length || !segments.some(segment => /[A-Za-z]/.test(segment.en_text)) || segments.some(segment => !readableEnglishSegment(segment.en_text)))
         throw new Error('material_english_only');
     // Reject clear non-English source scripts; Chinese translation lines remain valid.
     if (segments.some(segment => /[\p{Script=Cyrillic}\p{Script=Hiragana}\p{Script=Katakana}]/u.test(segment.en_text)))

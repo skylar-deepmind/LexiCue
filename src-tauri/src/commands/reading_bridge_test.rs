@@ -1,8 +1,8 @@
 //! Opt-in browser → production command cores → temporary SQLite evidence.
 //! This module is compiled only for tests and never starts with the application.
 use super::{
-    cambridge, dictionary, example::ExampleState, export, history, longman, materials, recall,
-    saved, tags,
+    cambridge, dictionary, example::ExampleState, export, free_dictionary, history, longman,
+    materials, recall, saved, tags,
 };
 use serde_json::{json, Value};
 use std::io::{Read, Write};
@@ -74,6 +74,24 @@ fn route(
             a["untagged"].as_bool().unwrap_or(false),
         )?)
         .map_err(|e| e.to_string()),
+        "fill_reading_translations" => serde_json::to_value(materials::fill_translations(
+            c,
+            id("fileId"),
+            text("contentHash"),
+            &serde_json::from_value::<Vec<materials::ReadingTranslationPatch>>(
+                a["segments"].clone(),
+            )
+            .map_err(|e| e.to_string())?,
+        )?)
+        .map_err(|e| e.to_string()),
+        "test_edit_segment" => {
+            c.execute(
+                "UPDATE segments SET en_text=COALESCE(?1,en_text),zh_text=?2 WHERE id=?3",
+                rusqlite::params![a["enText"].as_str(), a["zhText"].as_str(), id("segmentId")],
+            )
+            .map_err(|e| e.to_string())?;
+            Ok(Value::Null)
+        }
         "open_reading_material" => {
             serde_json::to_value(materials::open(c, id("fileId"))?).map_err(|e| e.to_string())
         }
@@ -93,6 +111,19 @@ fn route(
                 a["refresh"].as_bool().unwrap_or(false),
             )))
         }
+        "lookup_free_dictionary_expression" => {
+            Ok(tauri::async_runtime::block_on(free_dictionary::query(
+                text("expression"),
+                a["context"].as_str(),
+                a["refresh"].as_bool().unwrap_or(false),
+                a["timeoutMs"].as_u64(),
+            )))
+        }
+        "parse_free_dictionary_fixture" => free_dictionary::convert(
+            &a["raw"],
+            text("expression"),
+            a["receivedAt"].as_str().unwrap_or("2026-10-28T12:00:00Z"),
+        ),
         "mutate_saved_record" => serde_json::to_value(saved::mutate(
             c,
             text("operationId"),
@@ -235,6 +266,9 @@ fn seed_recall(c: &rusqlite::Connection, a: &Value) -> Result<Value, String> {
     let imported = materials::import_material(
         c,
         &materials::MaterialInput {
+            document: None,
+            normalized_kind: None,
+            source: None,
             operation_id: "seed-source".into(),
             name: "earlier-flight.srt".into(),
             content,
@@ -323,6 +357,10 @@ fn seed_recall(c: &rusqlite::Connection, a: &Value) -> Result<Value, String> {
                 sentence: Some(format!("An earlier sentence includes {expression}.")),
                 sentence_translation: None,
                 source: Some(saved::SavedSource {
+                    document: None,
+                    media: None,
+                    media_identity: None,
+                    youtube: None,
                     content_hash: "synthetic-recall-material".into(),
                     file_name: "benchmark.srt".into(),
                     segment_index: i as i64,

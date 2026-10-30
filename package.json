@@ -17,6 +17,7 @@
     "test:windows:native": "node scripts/ui-windows-native.mjs"
   },
   "dependencies": {
+    "@mozilla/readability": "0.6.0",
     "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/plugin-clipboard-manager": "2.3.0",
     "@tauri-apps/plugin-dialog": "^2.7.2",
@@ -24,13 +25,21 @@
     "@tauri-apps/plugin-opener": "^2.5.4",
     "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-updater": "^2.10.1",
+    "fast-xml-parser": "5.11.2",
+    "fflate": "0.8.3",
     "i18next": "^26.3.6",
+    "linkedom": "0.18.12",
     "lucide-react": "^1.28.0",
+    "mammoth": "1.13.0",
+    "marked": "18.1.2",
+    "parse5": "8.0.1",
+    "pdfjs-dist": "5.7.284",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-i18next": "^17.0.11",
     "react-router-dom": "^7.18.2",
     "ts-fsrs": "^5.4.1",
+    "webvtt-parser": "2.2.0",
     "zustand": "^5.0.14"
   },
   "devDependencies": {
