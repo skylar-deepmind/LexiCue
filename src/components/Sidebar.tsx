@@ -1,26 +1,44 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { navigationActive, navigationItems } from './NavigationItems';
-import LearningLanguageSelect from './LearningLanguageSelect';
-import { usePreferencesStore } from '../stores/preferencesStore';
-import appLogo from '../media/app-logo.png';
-
+import { FilePlus2, Settings } from 'lucide-react';
+import { useLayoutEffect, useRef } from 'react';
+import { navigationItems, navigationActive, importEntryVisible } from './NavigationItems';
+import { useImportStore } from '../stores/importStore';
+import ReadingTools from './ReadingTools';
+import DockPresence from './DockPresence';
+import { rememberImportFocus } from './importFocus';
+import './navigation.css';
 export default function Sidebar() {
-  const { t } = useTranslation();
-  const { pathname } = useLocation();
-  const kind = usePreferencesStore(state => state.vocabularyKind);
-  return <aside className="app-sidebar">
-    <Link to="/files" className="app-brand" aria-label="LexiCue"><img className="brand-mark" src={appLogo} alt="" width={36} height={36} /><span className="brand-name">LexiCue</span></Link>
-    <nav aria-label={t('sidebar.navAria')}>
-      {navigationItems.map(item => {
-        const active = navigationActive(pathname, item.to, item.vocabulary);
-        return <Link key={item.key} to={item.vocabulary && kind === 'phrase' ? '/phrases' : item.to}
-          title={t(item.key)} aria-label={t(item.key)} aria-current={active ? 'page' : undefined}
-          className={`navigation-link${item.to === '/settings' ? ' navigation-link--settings' : ''}`}>
-          <item.icon size={22} aria-hidden="true" /><span>{t(item.key)}</span>
-        </Link>;
-      })}
-    </nav>
-    <div className="sidebar-language"><LearningLanguageSelect /></div>
-  </aside>;
+    const { t } = useTranslation();
+    const { pathname } = useLocation();
+    const show = useImportStore(s => s.show);
+    const open = useImportStore(s => s.open);
+    const running = useImportStore(s => s.running);
+    const dockRef = useRef<HTMLElement>(null);
+    useLayoutEffect(() => {
+        const center = () => {
+            const viewport = window.visualViewport;
+            dockRef.current?.style.setProperty('--dock-center', `${viewport ? viewport.offsetTop + viewport.height / 2 : window.innerHeight / 2}px`);
+        };
+        center();
+        window.addEventListener('resize', center);
+        window.visualViewport?.addEventListener('resize', center);
+        window.visualViewport?.addEventListener('scroll', center);
+        return () => {
+            window.removeEventListener('resize', center);
+            window.visualViewport?.removeEventListener('resize', center);
+            window.visualViewport?.removeEventListener('scroll', center);
+        };
+    }, []);
+    return <aside className="b-dock b-dock-centered" ref={dockRef}><nav aria-label={t('sidebar.navAria')}>
+    <div className="dock-base-controls">
+    {navigationItems.slice(0, 2).map(item => <Link className="b-dock-control" key={item.to} to={item.to} aria-label={t(item.key)} aria-current={navigationActive(pathname, item.to) ? 'page' : undefined} onClick={() => useImportStore.getState().hide()}><item.icon size={22} aria-hidden="true"/></Link>)}
+    <span className="b-dock-divider"/>
+    <DockPresence visible={importEntryVisible(pathname)} className="dock-import-presence">
+      <div className="dock-import-slot"><button className="b-dock-control" onClick={event => { rememberImportFocus(event.currentTarget); show(); }} aria-pressed={open} aria-label={t(running ? 'materials.importRunning' : 'materials.import')}><FilePlus2 size={22} aria-hidden="true"/>{running && <span className="dock-busy" aria-hidden="true"/>}</button></div>
+    </DockPresence>
+    <Link className="b-dock-control" to="/settings" aria-label={t('sidebar.settings')} aria-current={pathname.startsWith('/settings') ? 'page' : undefined} onClick={() => useImportStore.getState().hide()}><Settings size={22} aria-hidden="true"/></Link>
+    </div>
+  <ReadingTools/>
+  </nav></aside>;
 }

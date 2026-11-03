@@ -1,0 +1,10 @@
+.overlay-panel.restore-progress {
+  width: min(100%, 360px);
+  padding: 24px;
+  color: var(--text-strong);
+  text-align: center;
+}
+.restore-progress > p {
+  margin: 0;
+  line-height: 1.5;
+}

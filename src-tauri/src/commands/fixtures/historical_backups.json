@@ -1,0 +1,2127 @@
+[
+  {
+    "producer_commit": "eb772ddf9fa0b29ed460518288ddcfbc85865c22",
+    "version": 4,
+    "backup": {
+      "schema_version": 4,
+      "exported_at": 1234,
+      "app_version": "historical-synthetic-fixture",
+      "data": {
+        "files": [
+          {
+            "id": 1,
+            "name": "legacy-en.txt",
+            "type": "txt",
+            "content": "Hello world. We take off.",
+            "content_hash": "legacy-en-hash",
+            "imported_at": 101,
+            "language": "en"
+          },
+          {
+            "id": 2,
+            "name": "legacy-ja.txt",
+            "type": "txt",
+            "content": "昔の記録です。",
+            "content_hash": "legacy-ja-hash",
+            "imported_at": 102,
+            "language": "ja"
+          },
+          {
+            "id": 3,
+            "name": "legacy-de.txt",
+            "type": "txt",
+            "content": "Ein altes Wort.",
+            "content_hash": "legacy-de-hash",
+            "imported_at": 103,
+            "language": "de"
+          }
+        ],
+        "segments": [
+          {
+            "id": 1,
+            "file_id": 1,
+            "index_num": 0,
+            "en_text": "Hello world. We take off.",
+            "zh_text": "保留原句-en",
+            "start_time": null,
+            "end_time": null
+          },
+          {
+            "id": 2,
+            "file_id": 2,
+            "index_num": 0,
+            "en_text": "昔の記録です。",
+            "zh_text": "保留原句-ja",
+            "start_time": null,
+            "end_time": null
+          },
+          {
+            "id": 3,
+            "file_id": 3,
+            "index_num": 0,
+            "en_text": "Ein altes Wort.",
+            "zh_text": "保留原句-de",
+            "start_time": null,
+            "end_time": null
+          }
+        ],
+        "words": [
+          {
+            "id": 1,
+            "language": "en",
+            "lemma": "Hello",
+            "status": "learning",
+            "definition": "保留个人备注-en",
+            "reading": "old-reading",
+            "part_of_speech": "noun"
+          },
+          {
+            "id": 2,
+            "language": "ja",
+            "lemma": "昔",
+            "status": "learning",
+            "definition": "保留个人备注-ja",
+            "reading": "old-reading",
+            "part_of_speech": "noun"
+          },
+          {
+            "id": 3,
+            "language": "de",
+            "lemma": "Wort",
+            "status": "learning",
+            "definition": "保留个人备注-de",
+            "reading": "old-reading",
+            "part_of_speech": "noun"
+          }
+        ],
+        "occurrences": [
+          {
+            "id": 1,
+            "word_id": 1,
+            "segment_id": 1,
+            "original_form": "Hello",
+            "position": 0
+          },
+          {
+            "id": 2,
+            "word_id": 2,
+            "segment_id": 2,
+            "original_form": "昔",
+            "position": 0
+          },
+          {
+            "id": 3,
+            "word_id": 3,
+            "segment_id": 3,
+            "original_form": "Wort",
+            "position": 0
+          }
+        ],
+        "reviews": [
+          {
+            "word_id": 1,
+            "due_at": 501,
+            "stability": 2.5,
+            "difficulty": 3.5,
+            "elapsed_days": 0,
+            "scheduled_days": 0,
+            "reps": 2,
+            "lapses": 0,
+            "state": 0,
+            "last_review_at": null
+          },
+          {
+            "word_id": 2,
+            "due_at": 502,
+            "stability": 2.5,
+            "difficulty": 3.5,
+            "elapsed_days": 0,
+            "scheduled_days": 0,
+            "reps": 2,
+            "lapses": 0,
+            "state": 0,
+            "last_review_at": null
+          },
+          {
+            "word_id": 3,
+            "due_at": 503,
+            "stability": 2.5,
+            "difficulty": 3.5,
+            "elapsed_days": 0,
+            "scheduled_days": 0,
+            "reps": 2,
+            "lapses": 0,
+            "state": 0,
+            "last_review_at": null
+          }
+        ],
+        "review_logs": [
+          {
+            "id": 1,
+            "word_id": 1,
+            "rating": 3,
+            "reviewed_at": 201,
+            "stability_before": null,
+            "stability_after": null,
+            "difficulty_before": null,
+            "difficulty_after": null,
+            "elapsed_days": null,
+            "scheduled_days": null,
+            "state_before": null,
+            "state_after": null
+          },
+          {
+            "id": 2,
+            "word_id": 2,
+            "rating": 3,
+            "reviewed_at": 202,
+            "stability_before": null,
+            "stability_after": null,
+            "difficulty_before": null,
+            "difficulty_after": null,
+            "elapsed_days": null,
+            "scheduled_days": null,
+            "state_before": null,
+            "state_after": null
+          },
+          {
+            "id": 3,
+            "word_id": 3,
+            "rating": 3,
+            "reviewed_at": 203,
+            "stability_before": null,
+            "stability_after": null,
+            "difficulty_before": null,
+            "difficulty_after": null,
+            "elapsed_days": null,
+            "scheduled_days": null,
+            "state_before": null,
+            "state_after": null
+          }
+        ],
+        "dictionary_entries": [
+          {
+            "language": "ja",
+            "lemma": "昔",
+            "provider": "historical-cache",
+            "phonetic": null,
+            "audio_url": null,
+            "local_audio_path": null,
+            "definitions_json": "[{\"definition\":\"过去\"}]",
+            "fetched_at": 150
+          }
+        ],
+        "dictionary_sources": [
+          {
+            "language": "ja",
+            "provider": "historical-cache",
+            "version": "fixture",
+            "source_url": null,
+            "license": null,
+            "imported_at": 150
+          }
+        ],
+        "phrases": [
+          {
+            "id": 1,
+            "language": "en",
+            "text": "take off",
+            "status": "learning",
+            "definition": "旧短语备注",
+            "source": "manual"
+          }
+        ],
+        "phrase_occurrences": [
+          {
+            "id": 1,
+            "phrase_id": 1,
+            "segment_id": 1,
+            "position": 3
+          }
+        ],
+        "phrase_reviews": [
+          {
+            "phrase_id": 1,
+            "due_at": 600,
+            "stability": 3.5,
+            "difficulty": 0.0,
+            "elapsed_days": 0,
+            "scheduled_days": 0,
+            "reps": 0,
+            "lapses": 0,
+            "state": 0,
+            "last_review_at": null
+          }
+        ],
+        "phrase_review_logs": [
+          {
+            "id": 1,
+            "phrase_id": 1,
+            "rating": 4,
+            "reviewed_at": 300,
+            "stability_before": null,
+            "stability_after": null,
+            "difficulty_before": null,
+            "difficulty_after": null,
+            "elapsed_days": null,
+            "scheduled_days": null,
+            "state_before": null,
+            "state_after": null
+          }
+        ],
+        "phrase_dictionary_entries": [
+          {
+            "language": "en",
+            "text": "take off",
+            "translation": "起飞",
+            "pinyin": null,
+            "usage_zh": null,
+            "category": null,
+            "provider": "historical-model",
+            "updated_at": 250
+          }
+        ],
+        "file_phrase_analysis": [
+          {
+            "file_id": 1,
+            "model": "historical-model",
+            "completed_at": 250
+          }
+        ]
+      }
+    }
+  },
+  {
+    "producer_commit": "1daad927beabf0815e7dc8719095af6b0860705f",
+    "version": 5,
+    "backup": {
+      "schema_version": 5,
+      "exported_at": 1234,
+      "app_version": "historical-synthetic-fixture",
+      "data": {
+        "files": [
+          {
+            "id": 1,
+            "name": "legacy-en.txt",
+            "type": "txt",
+            "content": "Hello world. We take off.",
+            "content_hash": "legacy-en-hash",
+            "imported_at": 101,
+            "language": "en",
+            "folder_id": 1
+          },
+          {
+            "id": 2,
+            "name": "legacy-ja.txt",
+            "type": "txt",
+            "content": "昔の記録です。",
+            "content_hash": "legacy-ja-hash",
+            "imported_at": 102,
+            "language": "ja",
+            "folder_id": 1
+          },
+          {
+            "id": 3,
+            "name": "legacy-de.txt",
+            "type": "txt",
+            "content": "Ein altes Wort.",
+            "content_hash": "legacy-de-hash",
+            "imported_at": 103,
+            "language": "de",
+            "folder_id": 1
+          }
+        ],
+        "folders": [
+          {
+            "id": 1,
+            "name": "Legacy folder",
+            "parent_id": null,
+            "created_at": 101
+          }
+        ],
+        "segments": [
+          {
+            "id": 1,
+            "file_id": 1,
+            "index_num": 0,
+            "en_text": "Hello world. We take off.",
+            "zh_text": "保留原句-en",
+            "start_time": null,
+            "end_time": null
+          },
+          {
+            "id": 2,
+            "file_id": 2,
+            "index_num": 0,
+            "en_text": "昔の記録です。",
+            "zh_text": "保留原句-ja",
+            "start_time": null,
+            "end_time": null
+          },
+          {
+            "id": 3,
+            "file_id": 3,
+            "index_num": 0,
+            "en_text": "Ein altes Wort.",
+            "zh_text": "保留原句-de",
+            "start_time": null,
+            "end_time": null
+          }
+        ],
+        "words": [
+          {
+            "id": 1,
+            "language": "en",
+            "lemma": "Hello",
+            "status": "learning",
+            "definition": "保留个人备注-en",
+            "reading": "old-reading",
+            "part_of_speech": "noun"
+          },
+          {
+            "id": 2,
+            "language": "ja",
+            "lemma": "昔",
+            "status": "learning",
+            "definition": "保留个人备注-ja",
+            "reading": "old-reading",
+            "part_of_speech": "noun"
+          },
+          {
+            "id": 3,
+            "language": "de",
+            "lemma": "Wort",
+            "status": "learning",
+            "definition": "保留个人备注-de",
+            "reading": "old-reading",
+            "part_of_speech": "noun"
+          }
+        ],
+        "occurrences": [
+          {
+            "id": 1,
+            "word_id": 1,
+            "segment_id": 1,
+            "original_form": "Hello",
+            "position": 0,
+            "hidden": 0
+          },
+          {
+            "id": 2,
+            "word_id": 2,
+            "segment_id": 2,
+            "original_form": "昔",
+            "position": 0,
+            "hidden": 0
+          },
+          {
+            "id": 3,
+            "word_id": 3,
+            "segment_id": 3,
+            "original_form": "Wort",
+            "position": 0,
+            "hidden": 1
+          }
+        ],
+        "reviews": [
+          {
+            "word_id": 1,
+            "due_at": 501,
+            "stability": 2.5,
+            "difficulty": 3.5,
+            "elapsed_days": 0,
+            "scheduled_days": 0,
+            "reps": 2,
+            "lapses": 0,
+            "state": 0,
+            "last_review_at": null
+          },
+          {
+            "word_id": 2,
+            "due_at": 502,
+            "stability": 2.5,
+            "difficulty": 3.5,
+            "elapsed_days": 0,
+            "scheduled_days": 0,
+            "reps": 2,
+            "lapses": 0,
+            "state": 0,
+            "last_review_at": null
+          },
+          {
+            "word_id": 3,
+            "due_at": 503,
+            "stability": 2.5,
+            "difficulty": 3.5,
+            "elapsed_days": 0,
+            "scheduled_days": 0,
+            "reps": 2,
+            "lapses": 0,
+            "state": 0,
+            "last_review_at": null
+          }
+        ],
+        "review_logs": [
+          {
+            "id": 1,
+            "word_id": 1,
+            "rating": 3,
+            "reviewed_at": 201,
+            "stability_before": null,
+            "stability_after": null,
+            "difficulty_before": null,
+            "difficulty_after": null,
+            "elapsed_days": null,
+            "scheduled_days": null,
+            "state_before": null,
+            "state_after": null
+          },
+          {
+            "id": 2,
+            "word_id": 2,
+            "rating": 3,
+            "reviewed_at": 202,
+            "stability_before": null,
+            "stability_after": null,
+            "difficulty_before": null,
+            "difficulty_after": null,
+            "elapsed_days": null,
+            "scheduled_days": null,
+            "state_before": null,
+            "state_after": null
+          },
+          {
+            "id": 3,
+            "word_id": 3,
+            "rating": 3,
+            "reviewed_at": 203,
+            "stability_before": null,
+            "stability_after": null,
+            "difficulty_before": null,
+            "difficulty_after": null,
+            "elapsed_days": null,
+            "scheduled_days": null,
+            "state_before": null,
+            "state_after": null
+          }
+        ],
+        "dictionary_entries": [
+          {
+            "language": "ja",
+            "lemma": "昔",
+            "provider": "historical-cache",
+            "phonetic": null,
+            "audio_url": null,
+            "local_audio_path": null,
+            "definitions_json": "[{\"definition\":\"过去\"}]",
+            "fetched_at": 150
+          }
+        ],
+        "dictionary_sources": [
+          {
+            "language": "ja",
+            "provider": "historical-cache",
+            "version": "fixture",
+            "source_url": null,
+            "license": null,
+            "imported_at": 150
+          }
+        ],
+        "phrases": [
+          {
+            "id": 1,
+            "language": "en",
+            "text": "take off",
+            "status": "learning",
+            "definition": "旧短语备注",
+            "source": "manual"
+          }
+        ],
+        "phrase_occurrences": [
+          {
+            "id": 1,
+            "phrase_id": 1,
+            "segment_id": 1,
+            "position": 3,
+            "hidden": 0
+          }
+        ],
+        "phrase_reviews": [
+          {
+            "phrase_id": 1,
+            "due_at": 600,
+            "stability": 3.5,
+            "difficulty": 0.0,
+            "elapsed_days": 0,
+            "scheduled_days": 0,
+            "reps": 0,
+            "lapses": 0,
+            "state": 0,
+            "last_review_at": null
+          }
+        ],
+        "phrase_review_logs": [
+          {
+            "id": 1,
+            "phrase_id": 1,
+            "rating": 4,
+            "reviewed_at": 300,
+            "stability_before": null,
+            "stability_after": null,
+            "difficulty_before": null,
+            "difficulty_after": null,
+            "elapsed_days": null,
+            "scheduled_days": null,
+            "state_before": null,
+            "state_after": null
+          }
+        ],
+        "phrase_dictionary_entries": [
+          {
+            "language": "en",
+            "text": "take off",
+            "translation": "起飞",
+            "pinyin": null,
+            "usage_zh": null,
+            "category": null,
+            "provider": "historical-model",
+            "updated_at": 250
+          }
+        ],
+        "file_phrase_analysis": [
+          {
+            "file_id": 1,
+            "model": "historical-model",
+            "completed_at": 250
+          }
+        ]
+      }
+    }
+  },
+  {
+    "producer_commit": "c2288b0bb78c8a33d95c1ba22b8ae4488b0bc5dd",
+    "version": 6,
+    "backup": {
+      "schema_version": 6,
+      "exported_at": 1234,
+      "app_version": "historical-synthetic-fixture",
+      "data": {
+        "files": [
+          {
+            "id": 1,
+            "name": "legacy-en.txt",
+            "type": "txt",
+            "content": "Hello world. We take off.",
+            "content_hash": "legacy-en-hash",
+            "imported_at": 101,
+            "language": "en",
+            "folder_id": 1
+          },
+          {
+            "id": 2,
+            "name": "legacy-ja.txt",
+            "type": "txt",
+            "content": "昔の記録です。",
+            "content_hash": "legacy-ja-hash",
+            "imported_at": 102,
+            "language": "ja",
+            "folder_id": 1
+          },
+          {
+            "id": 3,
+            "name": "legacy-de.txt",
+            "type": "txt",
+            "content": "Ein altes Wort.",
+            "content_hash": "legacy-de-hash",
+            "imported_at": 103,
+            "language": "de",
+            "folder_id": 1
+          }
+        ],
+        "folders": [
+          {
+            "id": 1,
+            "name": "Legacy folder",
+            "parent_id": null,
+            "created_at": 101
+          }
+        ],
+        "segments": [
+          {
+            "id": 1,
+            "file_id": 1,
+            "index_num": 0,
+            "en_text": "Hello world. We take off.",
+            "zh_text": "保留原句-en",
+            "start_time": null,
+            "end_time": null
+          },
+          {
+            "id": 2,
+            "file_id": 2,
+            "index_num": 0,
+            "en_text": "昔の記録です。",
+            "zh_text": "保留原句-ja",
+            "start_time": null,
+            "end_time": null
+          },
+          {
+            "id": 3,
+            "file_id": 3,
+            "index_num": 0,
+            "en_text": "Ein altes Wort.",
+            "zh_text": "保留原句-de",
+            "start_time": null,
+            "end_time": null
+          }
+        ],
+        "words": [
+          {
+            "id": 1,
+            "language": "en",
+            "lemma": "Hello",
+            "status": "learning",
+            "definition": "保留个人备注-en",
+            "reading": "old-reading",
+            "part_of_speech": "noun"
+          },
+          {
+            "id": 2,
+            "language": "ja",
+            "lemma": "昔",
+            "status": "learning",
+            "definition": "保留个人备注-ja",
+            "reading": "old-reading",
+            "part_of_speech": "noun"
+          },
+          {
+            "id": 3,
+            "language": "de",
+            "lemma": "Wort",
+            "status": "learning",
+            "definition": "保留个人备注-de",
+            "reading": "old-reading",
+            "part_of_speech": "noun"
+          }
+        ],
+        "occurrences": [
+          {
+            "id": 1,
+            "word_id": 1,
+            "segment_id": 1,
+            "original_form": "Hello",
+            "position": 0,
+            "hidden": 0
+          },
+          {
+            "id": 2,
+            "word_id": 2,
+            "segment_id": 2,
+            "original_form": "昔",
+            "position": 0,
+            "hidden": 0
+          },
+          {
+            "id": 3,
+            "word_id": 3,
+            "segment_id": 3,
+            "original_form": "Wort",
+            "position": 0,
+            "hidden": 1
+          }
+        ],
+        "reviews": [
+          {
+            "word_id": 1,
+            "due_at": 501,
+            "stability": 2.5,
+            "difficulty": 3.5,
+            "elapsed_days": 0,
+            "scheduled_days": 0,
+            "reps": 2,
+            "lapses": 0,
+            "state": 0,
+            "last_review_at": null
+          },
+          {
+            "word_id": 2,
+            "due_at": 502,
+            "stability": 2.5,
+            "difficulty": 3.5,
+            "elapsed_days": 0,
+            "scheduled_days": 0,
+            "reps": 2,
+            "lapses": 0,
+            "state": 0,
+            "last_review_at": null
+          },
+          {
+            "word_id": 3,
+            "due_at": 503,
+            "stability": 2.5,
+            "difficulty": 3.5,
+            "elapsed_days": 0,
+            "scheduled_days": 0,
+            "reps": 2,
+            "lapses": 0,
+            "state": 0,
+            "last_review_at": null
+          }
+        ],
+        "review_logs": [
+          {
+            "id": 1,
+            "word_id": 1,
+            "rating": 3,
+            "reviewed_at": 201,
+            "stability_before": null,
+            "stability_after": null,
+            "difficulty_before": null,
+            "difficulty_after": null,
+            "elapsed_days": null,
+            "scheduled_days": null,
+            "state_before": null,
+            "state_after": null,
+            "due_at_after": 501
+          },
+          {
+            "id": 2,
+            "word_id": 2,
+            "rating": 3,
+            "reviewed_at": 202,
+            "stability_before": null,
+            "stability_after": null,
+            "difficulty_before": null,
+            "difficulty_after": null,
+            "elapsed_days": null,
+            "scheduled_days": null,
+            "state_before": null,
+            "state_after": null,
+            "due_at_after": 502
+          },
+          {
+            "id": 3,
+            "word_id": 3,
+            "rating": 3,
+            "reviewed_at": 203,
+            "stability_before": null,
+            "stability_after": null,
+            "difficulty_before": null,
+            "difficulty_after": null,
+            "elapsed_days": null,
+            "scheduled_days": null,
+            "state_before": null,
+            "state_after": null,
+            "due_at_after": 503
+          }
+        ],
+        "dictionary_entries": [
+          {
+            "language": "ja",
+            "lemma": "昔",
+            "provider": "historical-cache",
+            "phonetic": null,
+            "audio_url": null,
+            "local_audio_path": null,
+            "definitions_json": "[{\"definition\":\"过去\"}]",
+            "fetched_at": 150
+          }
+        ],
+        "dictionary_sources": [
+          {
+            "language": "ja",
+            "provider": "historical-cache",
+            "version": "fixture",
+            "source_url": null,
+            "license": null,
+            "imported_at": 150
+          }
+        ],
+        "phrases": [
+          {
+            "id": 1,
+            "language": "en",
+            "text": "take off",
+            "status": "learning",
+            "definition": "旧短语备注",
+            "source": "manual"
+          }
+        ],
+        "phrase_occurrences": [
+          {
+            "id": 1,
+            "phrase_id": 1,
+            "segment_id": 1,
+            "position": 3,
+            "hidden": 0,
+            "surface_text": "take off",
+            "token_positions_json": "[3,4]",
+            "meaning_zh": "起飞",
+            "usage_zh": null,
+            "meaning_edited": 1,
+            "meaning_en": null,
+            "usage_en": null,
+            "meaning_en_edited": 0,
+            "collins_sense_id": null
+          }
+        ],
+        "phrase_reviews": [
+          {
+            "phrase_id": 1,
+            "due_at": 600,
+            "stability": 3.5,
+            "difficulty": 0.0,
+            "elapsed_days": 0,
+            "scheduled_days": 0,
+            "reps": 0,
+            "lapses": 0,
+            "state": 0,
+            "last_review_at": null
+          }
+        ],
+        "phrase_review_logs": [
+          {
+            "id": 1,
+            "phrase_id": 1,
+            "rating": 4,
+            "reviewed_at": 300,
+            "stability_before": null,
+            "stability_after": null,
+            "difficulty_before": null,
+            "difficulty_after": null,
+            "elapsed_days": null,
+            "scheduled_days": null,
+            "state_before": null,
+            "state_after": null,
+            "due_at_after": 600
+          }
+        ],
+        "phrase_dictionary_entries": [
+          {
+            "language": "en",
+            "text": "take off",
+            "translation": "起飞",
+            "pinyin": null,
+            "usage_zh": null,
+            "category": null,
+            "provider": "historical-model",
+            "updated_at": 250,
+            "other_senses_json": "[{\"meaning_zh\":\"脱下\"}]",
+            "other_senses_edited": 1,
+            "meaning_en": null,
+            "usage_en": null,
+            "other_senses_en_json": "[]",
+            "other_senses_en_edited": 0
+          }
+        ],
+        "file_phrase_analysis": [
+          {
+            "file_id": 1,
+            "model": "historical-model",
+            "completed_at": 250,
+            "pipeline_version": 1,
+            "collins_evidence_available": 0,
+            "skipped_items": 0
+          }
+        ]
+      }
+    }
+  },
+  {
+    "producer_commit": "1307035e1c7b0f7ea78fef55e8d6ce85ca11f600",
+    "version": 7,
+    "backup": {
+      "schema_version": 7,
+      "exported_at": 1234,
+      "app_version": "historical-synthetic-fixture",
+      "data": {
+        "files": [
+          {
+            "id": 1,
+            "name": "legacy-en.txt",
+            "type": "txt",
+            "content": "Hello world. We take off.",
+            "content_hash": "legacy-en-hash",
+            "imported_at": 101,
+            "language": "en",
+            "folder_id": 1
+          },
+          {
+            "id": 2,
+            "name": "legacy-ja.txt",
+            "type": "txt",
+            "content": "昔の記録です。",
+            "content_hash": "legacy-ja-hash",
+            "imported_at": 102,
+            "language": "ja",
+            "folder_id": 1
+          },
+          {
+            "id": 3,
+            "name": "legacy-de.txt",
+            "type": "txt",
+            "content": "Ein altes Wort.",
+            "content_hash": "legacy-de-hash",
+            "imported_at": 103,
+            "language": "de",
+            "folder_id": 1
+          }
+        ],
+        "folders": [
+          {
+            "id": 1,
+            "name": "Legacy folder",
+            "parent_id": null,
+            "created_at": 101
+          }
+        ],
+        "segments": [
+          {
+            "id": 1,
+            "file_id": 1,
+            "index_num": 0,
+            "en_text": "Hello world. We take off.",
+            "zh_text": "保留原句-en",
+            "start_time": null,
+            "end_time": null
+          },
+          {
+            "id": 2,
+            "file_id": 2,
+            "index_num": 0,
+            "en_text": "昔の記録です。",
+            "zh_text": "保留原句-ja",
+            "start_time": null,
+            "end_time": null
+          },
+          {
+            "id": 3,
+            "file_id": 3,
+            "index_num": 0,
+            "en_text": "Ein altes Wort.",
+            "zh_text": "保留原句-de",
+            "start_time": null,
+            "end_time": null
+          }
+        ],
+        "words": [
+          {
+            "id": 1,
+            "language": "en",
+            "lemma": "Hello",
+            "status": "learning",
+            "definition": "保留个人备注-en",
+            "reading": "old-reading",
+            "part_of_speech": "noun",
+            "word_kind": "common",
+            "kind_edited": 0
+          },
+          {
+            "id": 2,
+            "language": "ja",
+            "lemma": "昔",
+            "status": "learning",
+            "definition": "保留个人备注-ja",
+            "reading": "old-reading",
+            "part_of_speech": "noun",
+            "word_kind": "common",
+            "kind_edited": 0
+          },
+          {
+            "id": 3,
+            "language": "de",
+            "lemma": "Wort",
+            "status": "learning",
+            "definition": "保留个人备注-de",
+            "reading": "old-reading",
+            "part_of_speech": "noun",
+            "word_kind": "common",
+            "kind_edited": 0
+          }
+        ],
+        "word_aliases": [
+          {
+            "word_id": 1,
+            "alias": "hello",
+            "alias_kind": "surface"
+          }
+        ],
+        "occurrences": [
+          {
+            "id": 1,
+            "word_id": 1,
+            "segment_id": 1,
+            "original_form": "Hello",
+            "position": 0,
+            "hidden": 0,
+            "meaning_zh": "保留语境-en",
+            "usage_zh": null,
+            "collins_sense_id": null,
+            "meaning_edited": 1,
+            "analysis_model": null,
+            "analyzed_at": null
+          },
+          {
+            "id": 2,
+            "word_id": 2,
+            "segment_id": 2,
+            "original_form": "昔",
+            "position": 0,
+            "hidden": 0,
+            "meaning_zh": "保留语境-ja",
+            "usage_zh": null,
+            "collins_sense_id": null,
+            "meaning_edited": 1,
+            "analysis_model": null,
+            "analyzed_at": null
+          },
+          {
+            "id": 3,
+            "word_id": 3,
+            "segment_id": 3,
+            "original_form": "Wort",
+            "position": 0,
+            "hidden": 1,
+            "meaning_zh": "保留语境-de",
+            "usage_zh": null,
+            "collins_sense_id": null,
+            "meaning_edited": 1,
+            "analysis_model": null,
+            "analyzed_at": null
+          }
+        ],
+        "reviews": [
+          {
+            "word_id": 1,
+            "due_at": 501,
+            "stability": 2.5,
+            "difficulty": 3.5,
+            "elapsed_days": 0,
+            "scheduled_days": 0,
+            "reps": 2,
+            "lapses": 0,
+            "state": 0,
+            "last_review_at": null
+          },
+          {
+            "word_id": 2,
+            "due_at": 502,
+            "stability": 2.5,
+            "difficulty": 3.5,
+            "elapsed_days": 0,
+            "scheduled_days": 0,
+            "reps": 2,
+            "lapses": 0,
+            "state": 0,
+            "last_review_at": null
+          },
+          {
+            "word_id": 3,
+            "due_at": 503,
+            "stability": 2.5,
+            "difficulty": 3.5,
+            "elapsed_days": 0,
+            "scheduled_days": 0,
+            "reps": 2,
+            "lapses": 0,
+            "state": 0,
+            "last_review_at": null
+          }
+        ],
+        "review_logs": [
+          {
+            "id": 1,
+            "word_id": 1,
+            "rating": 3,
+            "reviewed_at": 201,
+            "stability_before": null,
+            "stability_after": null,
+            "difficulty_before": null,
+            "difficulty_after": null,
+            "elapsed_days": null,
+            "scheduled_days": null,
+            "state_before": null,
+            "state_after": null,
+            "due_at_after": 501
+          },
+          {
+            "id": 2,
+            "word_id": 2,
+            "rating": 3,
+            "reviewed_at": 202,
+            "stability_before": null,
+            "stability_after": null,
+            "difficulty_before": null,
+            "difficulty_after": null,
+            "elapsed_days": null,
+            "scheduled_days": null,
+            "state_before": null,
+            "state_after": null,
+            "due_at_after": 502
+          },
+          {
+            "id": 3,
+            "word_id": 3,
+            "rating": 3,
+            "reviewed_at": 203,
+            "stability_before": null,
+            "stability_after": null,
+            "difficulty_before": null,
+            "difficulty_after": null,
+            "elapsed_days": null,
+            "scheduled_days": null,
+            "state_before": null,
+            "state_after": null,
+            "due_at_after": 503
+          }
+        ],
+        "dictionary_entries": [
+          {
+            "language": "ja",
+            "lemma": "昔",
+            "provider": "historical-cache",
+            "phonetic": null,
+            "audio_url": null,
+            "local_audio_path": null,
+            "definitions_json": "[{\"definition\":\"过去\"}]",
+            "fetched_at": 150
+          }
+        ],
+        "dictionary_sources": [
+          {
+            "language": "ja",
+            "provider": "historical-cache",
+            "version": "fixture",
+            "source_url": null,
+            "license": null,
+            "imported_at": 150
+          }
+        ],
+        "phrases": [
+          {
+            "id": 1,
+            "language": "en",
+            "text": "take off",
+            "status": "learning",
+            "definition": "旧短语备注",
+            "source": "manual"
+          }
+        ],
+        "phrase_occurrences": [
+          {
+            "id": 1,
+            "phrase_id": 1,
+            "segment_id": 1,
+            "position": 3,
+            "hidden": 0,
+            "surface_text": "take off",
+            "token_positions_json": "[3,4]",
+            "meaning_zh": "起飞",
+            "usage_zh": null,
+            "meaning_edited": 1,
+            "meaning_en": null,
+            "usage_en": null,
+            "meaning_en_edited": 0,
+            "collins_sense_id": null
+          }
+        ],
+        "phrase_reviews": [
+          {
+            "phrase_id": 1,
+            "due_at": 600,
+            "stability": 3.5,
+            "difficulty": 0.0,
+            "elapsed_days": 0,
+            "scheduled_days": 0,
+            "reps": 0,
+            "lapses": 0,
+            "state": 0,
+            "last_review_at": null
+          }
+        ],
+        "phrase_review_logs": [
+          {
+            "id": 1,
+            "phrase_id": 1,
+            "rating": 4,
+            "reviewed_at": 300,
+            "stability_before": null,
+            "stability_after": null,
+            "difficulty_before": null,
+            "difficulty_after": null,
+            "elapsed_days": null,
+            "scheduled_days": null,
+            "state_before": null,
+            "state_after": null,
+            "due_at_after": 600
+          }
+        ],
+        "phrase_dictionary_entries": [
+          {
+            "language": "en",
+            "text": "take off",
+            "translation": "起飞",
+            "pinyin": null,
+            "usage_zh": null,
+            "category": null,
+            "provider": "historical-model",
+            "updated_at": 250,
+            "other_senses_json": "[{\"meaning_zh\":\"脱下\"}]",
+            "other_senses_edited": 1,
+            "meaning_en": null,
+            "usage_en": null,
+            "other_senses_en_json": "[]",
+            "other_senses_en_edited": 0
+          }
+        ],
+        "file_phrase_analysis": [
+          {
+            "file_id": 1,
+            "model": "historical-model",
+            "completed_at": 250,
+            "pipeline_version": 1,
+            "collins_evidence_available": 0,
+            "skipped_items": 0
+          }
+        ]
+      }
+    }
+  },
+  {
+    "producer_commit": "fc47ce5a590ca5453c0c73dc7f2b5834cfa3ab7c",
+    "version": 8,
+    "backup": {
+      "schema_version": 8,
+      "exported_at": 1234,
+      "app_version": "historical-synthetic-fixture",
+      "data": {
+        "files": [
+          {
+            "id": 1,
+            "name": "legacy-en.txt",
+            "type": "txt",
+            "content": "Hello world. We take off.",
+            "content_hash": "legacy-en-hash",
+            "imported_at": 101,
+            "language": "en",
+            "folder_id": 1
+          },
+          {
+            "id": 2,
+            "name": "legacy-ja.txt",
+            "type": "txt",
+            "content": "昔の記録です。",
+            "content_hash": "legacy-ja-hash",
+            "imported_at": 102,
+            "language": "ja",
+            "folder_id": 1
+          },
+          {
+            "id": 3,
+            "name": "legacy-de.txt",
+            "type": "txt",
+            "content": "Ein altes Wort.",
+            "content_hash": "legacy-de-hash",
+            "imported_at": 103,
+            "language": "de",
+            "folder_id": 1
+          }
+        ],
+        "folders": [
+          {
+            "id": 1,
+            "name": "Legacy folder",
+            "parent_id": null,
+            "created_at": 101
+          }
+        ],
+        "tags": [
+          {
+            "id": 1,
+            "name": "Historical tag",
+            "name_key": "historical tag",
+            "created_at": 90
+          }
+        ],
+        "file_tags": [
+          {
+            "id": 1,
+            "file_id": 1,
+            "tag_id": 1
+          }
+        ],
+        "legacy_tag_folders": [
+          {
+            "folder_id": 1,
+            "tag_id": 1
+          }
+        ],
+        "file_tag_state": [
+          {
+            "file_id": 1
+          },
+          {
+            "file_id": 2
+          },
+          {
+            "file_id": 3
+          }
+        ],
+        "segments": [
+          {
+            "id": 1,
+            "file_id": 1,
+            "index_num": 0,
+            "en_text": "Hello world. We take off.",
+            "zh_text": "保留原句-en",
+            "start_time": null,
+            "end_time": null
+          },
+          {
+            "id": 2,
+            "file_id": 2,
+            "index_num": 0,
+            "en_text": "昔の記録です。",
+            "zh_text": "保留原句-ja",
+            "start_time": null,
+            "end_time": null
+          },
+          {
+            "id": 3,
+            "file_id": 3,
+            "index_num": 0,
+            "en_text": "Ein altes Wort.",
+            "zh_text": "保留原句-de",
+            "start_time": null,
+            "end_time": null
+          }
+        ],
+        "words": [
+          {
+            "id": 1,
+            "language": "en",
+            "lemma": "Hello",
+            "status": "learning",
+            "definition": "保留个人备注-en",
+            "reading": "old-reading",
+            "part_of_speech": "noun",
+            "word_kind": "common",
+            "kind_edited": 0
+          },
+          {
+            "id": 2,
+            "language": "ja",
+            "lemma": "昔",
+            "status": "learning",
+            "definition": "保留个人备注-ja",
+            "reading": "old-reading",
+            "part_of_speech": "noun",
+            "word_kind": "common",
+            "kind_edited": 0
+          },
+          {
+            "id": 3,
+            "language": "de",
+            "lemma": "Wort",
+            "status": "learning",
+            "definition": "保留个人备注-de",
+            "reading": "old-reading",
+            "part_of_speech": "noun",
+            "word_kind": "common",
+            "kind_edited": 0
+          }
+        ],
+        "word_aliases": [
+          {
+            "word_id": 1,
+            "alias": "hello",
+            "alias_kind": "surface"
+          }
+        ],
+        "occurrences": [
+          {
+            "id": 1,
+            "word_id": 1,
+            "segment_id": 1,
+            "original_form": "Hello",
+            "position": 0,
+            "hidden": 0,
+            "meaning_zh": "保留语境-en",
+            "usage_zh": null,
+            "collins_sense_id": null,
+            "meaning_edited": 1,
+            "analysis_model": null,
+            "analyzed_at": null
+          },
+          {
+            "id": 2,
+            "word_id": 2,
+            "segment_id": 2,
+            "original_form": "昔",
+            "position": 0,
+            "hidden": 0,
+            "meaning_zh": "保留语境-ja",
+            "usage_zh": null,
+            "collins_sense_id": null,
+            "meaning_edited": 1,
+            "analysis_model": null,
+            "analyzed_at": null
+          },
+          {
+            "id": 3,
+            "word_id": 3,
+            "segment_id": 3,
+            "original_form": "Wort",
+            "position": 0,
+            "hidden": 1,
+            "meaning_zh": "保留语境-de",
+            "usage_zh": null,
+            "collins_sense_id": null,
+            "meaning_edited": 1,
+            "analysis_model": null,
+            "analyzed_at": null
+          }
+        ],
+        "reviews": [
+          {
+            "word_id": 1,
+            "due_at": 501,
+            "stability": 2.5,
+            "difficulty": 3.5,
+            "elapsed_days": 0,
+            "scheduled_days": 0,
+            "reps": 2,
+            "lapses": 0,
+            "state": 0,
+            "last_review_at": null
+          },
+          {
+            "word_id": 2,
+            "due_at": 502,
+            "stability": 2.5,
+            "difficulty": 3.5,
+            "elapsed_days": 0,
+            "scheduled_days": 0,
+            "reps": 2,
+            "lapses": 0,
+            "state": 0,
+            "last_review_at": null
+          },
+          {
+            "word_id": 3,
+            "due_at": 503,
+            "stability": 2.5,
+            "difficulty": 3.5,
+            "elapsed_days": 0,
+            "scheduled_days": 0,
+            "reps": 2,
+            "lapses": 0,
+            "state": 0,
+            "last_review_at": null
+          }
+        ],
+        "review_logs": [
+          {
+            "id": 1,
+            "word_id": 1,
+            "rating": 3,
+            "reviewed_at": 201,
+            "stability_before": null,
+            "stability_after": null,
+            "difficulty_before": null,
+            "difficulty_after": null,
+            "elapsed_days": null,
+            "scheduled_days": null,
+            "state_before": null,
+            "state_after": null,
+            "due_at_after": 501
+          },
+          {
+            "id": 2,
+            "word_id": 2,
+            "rating": 3,
+            "reviewed_at": 202,
+            "stability_before": null,
+            "stability_after": null,
+            "difficulty_before": null,
+            "difficulty_after": null,
+            "elapsed_days": null,
+            "scheduled_days": null,
+            "state_before": null,
+            "state_after": null,
+            "due_at_after": 502
+          },
+          {
+            "id": 3,
+            "word_id": 3,
+            "rating": 3,
+            "reviewed_at": 203,
+            "stability_before": null,
+            "stability_after": null,
+            "difficulty_before": null,
+            "difficulty_after": null,
+            "elapsed_days": null,
+            "scheduled_days": null,
+            "state_before": null,
+            "state_after": null,
+            "due_at_after": 503
+          }
+        ],
+        "dictionary_entries": [
+          {
+            "language": "ja",
+            "lemma": "昔",
+            "provider": "historical-cache",
+            "phonetic": null,
+            "audio_url": null,
+            "local_audio_path": null,
+            "definitions_json": "[{\"definition\":\"过去\"}]",
+            "fetched_at": 150
+          }
+        ],
+        "dictionary_sources": [
+          {
+            "language": "ja",
+            "provider": "historical-cache",
+            "version": "fixture",
+            "source_url": null,
+            "license": null,
+            "imported_at": 150
+          }
+        ],
+        "phrases": [
+          {
+            "id": 1,
+            "language": "en",
+            "text": "take off",
+            "status": "learning",
+            "definition": "旧短语备注",
+            "source": "manual"
+          }
+        ],
+        "phrase_occurrences": [
+          {
+            "id": 1,
+            "phrase_id": 1,
+            "segment_id": 1,
+            "position": 3,
+            "hidden": 0,
+            "surface_text": "take off",
+            "token_positions_json": "[3,4]",
+            "meaning_zh": "起飞",
+            "usage_zh": null,
+            "meaning_edited": 1,
+            "meaning_en": null,
+            "usage_en": null,
+            "meaning_en_edited": 0,
+            "collins_sense_id": null,
+            "expression_meta_json": null
+          }
+        ],
+        "phrase_reviews": [
+          {
+            "phrase_id": 1,
+            "due_at": 600,
+            "stability": 3.5,
+            "difficulty": 0.0,
+            "elapsed_days": 0,
+            "scheduled_days": 0,
+            "reps": 0,
+            "lapses": 0,
+            "state": 0,
+            "last_review_at": null
+          }
+        ],
+        "phrase_review_logs": [
+          {
+            "id": 1,
+            "phrase_id": 1,
+            "rating": 4,
+            "reviewed_at": 300,
+            "stability_before": null,
+            "stability_after": null,
+            "difficulty_before": null,
+            "difficulty_after": null,
+            "elapsed_days": null,
+            "scheduled_days": null,
+            "state_before": null,
+            "state_after": null,
+            "due_at_after": 600
+          }
+        ],
+        "phrase_dictionary_entries": [
+          {
+            "language": "en",
+            "text": "take off",
+            "translation": "起飞",
+            "pinyin": null,
+            "usage_zh": null,
+            "category": null,
+            "provider": "historical-model",
+            "updated_at": 250,
+            "other_senses_json": "[{\"meaning_zh\":\"脱下\"}]",
+            "other_senses_edited": 1,
+            "meaning_en": null,
+            "usage_en": null,
+            "other_senses_en_json": "[]",
+            "other_senses_en_edited": 0,
+            "expression_meta_json": null
+          }
+        ],
+        "file_phrase_analysis": [
+          {
+            "file_id": 1,
+            "model": "historical-model",
+            "completed_at": 250,
+            "pipeline_version": 1,
+            "collins_evidence_available": 0,
+            "skipped_items": 0
+          }
+        ]
+      }
+    }
+  },
+  {
+    "producer_commit": "2e0c8ddd9f6ae4b15517e37bb8fa9b0f95ad1ee2",
+    "version": 9,
+    "backup": {
+      "schema_version": 9,
+      "exported_at": 1234,
+      "app_version": "historical-synthetic-fixture",
+      "data": {
+        "annotation_actions": [],
+        "saved_records": [
+          {
+            "id": 1,
+            "record_id": "saved-8583a83521c9323538d8d7101df5741af65bd0d8b7859bdaa384af06836a81c6",
+            "normalized_expression": "hello",
+            "source_key": "[\"legacy-en-hash\",0,0]",
+            "snapshot_json": "{\"record_id\":\"saved-8583a83521c9323538d8d7101df5741af65bd0d8b7859bdaa384af06836a81c6\",\"expression\":\"Hello\",\"normalized_expression\":\"hello\",\"source_key\":\"[\\\"legacy-en-hash\\\",0,0]\",\"sentence\":\"Hello world. We take off.\",\"sentence_translation\":\"保留原句-en\",\"source\":{\"content_hash\":\"legacy-en-hash\",\"file_name\":\"legacy-en.txt\",\"segment_index\":0,\"start_offset\":0,\"end_offset\":5,\"start_time\":null,\"end_time\":null},\"explanation\":\"旧保存备注-Hello\",\"explanation_source\":\"personal\",\"origin\":\"reader\",\"legacy\":null,\"saved_at\":400,\"updated_at\":401,\"revision\":\"old-active-1\",\"generation\":0,\"deleted_at\":null}",
+            "saved_at": 400,
+            "updated_at": 401,
+            "revision": "old-active-1",
+            "generation": 0,
+            "deleted_at": null
+          },
+          {
+            "id": 2,
+            "record_id": "saved-96cb83026016c3de8edd200d571ef4994ab2fbbc86cabead0b218fd10975e1b0",
+            "normalized_expression": "take off",
+            "source_key": "[\"legacy-en-hash\",0,16]",
+            "snapshot_json": "{\"record_id\":\"saved-96cb83026016c3de8edd200d571ef4994ab2fbbc86cabead0b218fd10975e1b0\",\"expression\":\"take off\",\"normalized_expression\":\"take off\",\"source_key\":\"[\\\"legacy-en-hash\\\",0,16]\",\"sentence\":\"Hello world. We take off.\",\"sentence_translation\":\"保留原句-en\",\"source\":{\"content_hash\":\"legacy-en-hash\",\"file_name\":\"legacy-en.txt\",\"segment_index\":0,\"start_offset\":16,\"end_offset\":24,\"start_time\":null,\"end_time\":null},\"explanation\":\"旧保存备注-take off\",\"explanation_source\":\"personal\",\"origin\":\"reader\",\"legacy\":null,\"saved_at\":400,\"updated_at\":402,\"revision\":\"old-deleted-2\",\"generation\":0,\"deleted_at\":402}",
+            "saved_at": 400,
+            "updated_at": 402,
+            "revision": "old-deleted-2",
+            "generation": 0,
+            "deleted_at": 402
+          }
+        ],
+        "saved_actions": [
+          {
+            "operation_id": "old-remove",
+            "request_json": "{\"kind\":\"remove\",\"record_id\":\"saved-96cb83026016c3de8edd200d571ef4994ab2fbbc86cabead0b218fd10975e1b0\",\"expected_revision\":\"old-active-2\"}",
+            "record_id": "saved-96cb83026016c3de8edd200d571ef4994ab2fbbc86cabead0b218fd10975e1b0",
+            "before_json": "{\"record_id\":\"saved-96cb83026016c3de8edd200d571ef4994ab2fbbc86cabead0b218fd10975e1b0\",\"expression\":\"take off\",\"normalized_expression\":\"take off\",\"source_key\":\"[\\\"legacy-en-hash\\\",0,16]\",\"sentence\":\"Hello world. We take off.\",\"sentence_translation\":\"保留原句-en\",\"source\":{\"content_hash\":\"legacy-en-hash\",\"file_name\":\"legacy-en.txt\",\"segment_index\":0,\"start_offset\":16,\"end_offset\":24,\"start_time\":null,\"end_time\":null},\"explanation\":\"旧保存备注-take off\",\"explanation_source\":\"personal\",\"origin\":\"reader\",\"legacy\":null,\"saved_at\":400,\"updated_at\":401,\"revision\":\"old-active-2\",\"generation\":0,\"deleted_at\":null}",
+            "after_revision": "old-deleted-2",
+            "changed": 1,
+            "undone": 0
+          }
+        ],
+        "saved_conflicts": [],
+        "product_migrations": [
+          {
+            "migration_key": "saved-context-v1",
+            "completed_at": 350,
+            "report_json": "{\"eligible_words\":1,\"eligible_phrases\":1,\"saved_contexts\":2,\"missing_sources\":0,\"history_only\":[{\"kind\":\"word\",\"legacy_id\":2,\"reason\":\"non_english\"},{\"kind\":\"word\",\"legacy_id\":3,\"reason\":\"non_english\"}]}"
+          }
+        ],
+        "files": [
+          {
+            "id": 1,
+            "name": "legacy-en.txt",
+            "type": "txt",
+            "content": "Hello world. We take off.",
+            "content_hash": "legacy-en-hash",
+            "imported_at": 101,
+            "language": "en",
+            "category": null,
+            "folder_id": 1
+          },
+          {
+            "id": 2,
+            "name": "legacy-ja.txt",
+            "type": "txt",
+            "content": "昔の記録です。",
+            "content_hash": "legacy-ja-hash",
+            "imported_at": 102,
+            "language": "ja",
+            "category": null,
+            "folder_id": 1
+          },
+          {
+            "id": 3,
+            "name": "legacy-de.txt",
+            "type": "txt",
+            "content": "Ein altes Wort.",
+            "content_hash": "legacy-de-hash",
+            "imported_at": 103,
+            "language": "de",
+            "category": null,
+            "folder_id": 1
+          }
+        ],
+        "folders": [
+          {
+            "id": 1,
+            "name": "Legacy folder",
+            "parent_id": null,
+            "created_at": 101
+          }
+        ],
+        "tags": [
+          {
+            "id": 1,
+            "name": "Historical tag",
+            "name_key": "historical tag",
+            "created_at": 90
+          }
+        ],
+        "file_tags": [
+          {
+            "id": 1,
+            "file_id": 1,
+            "tag_id": 1
+          }
+        ],
+        "legacy_tag_folders": [
+          {
+            "folder_id": 1,
+            "tag_id": 1
+          }
+        ],
+        "file_tag_state": [
+          {
+            "file_id": 1
+          },
+          {
+            "file_id": 2
+          },
+          {
+            "file_id": 3
+          }
+        ],
+        "segments": [
+          {
+            "id": 1,
+            "file_id": 1,
+            "index_num": 0,
+            "en_text": "Hello world. We take off.",
+            "zh_text": "保留原句-en",
+            "start_time": null,
+            "end_time": null
+          },
+          {
+            "id": 2,
+            "file_id": 2,
+            "index_num": 0,
+            "en_text": "昔の記録です。",
+            "zh_text": "保留原句-ja",
+            "start_time": null,
+            "end_time": null
+          },
+          {
+            "id": 3,
+            "file_id": 3,
+            "index_num": 0,
+            "en_text": "Ein altes Wort.",
+            "zh_text": "保留原句-de",
+            "start_time": null,
+            "end_time": null
+          }
+        ],
+        "words": [
+          {
+            "id": 1,
+            "language": "en",
+            "lemma": "Hello",
+            "status": "learning",
+            "definition": "保留个人备注-en",
+            "reading": "old-reading",
+            "part_of_speech": "noun",
+            "word_kind": "common",
+            "kind_edited": 0
+          },
+          {
+            "id": 2,
+            "language": "ja",
+            "lemma": "昔",
+            "status": "learning",
+            "definition": "保留个人备注-ja",
+            "reading": "old-reading",
+            "part_of_speech": "noun",
+            "word_kind": "common",
+            "kind_edited": 0
+          },
+          {
+            "id": 3,
+            "language": "de",
+            "lemma": "Wort",
+            "status": "learning",
+            "definition": "保留个人备注-de",
+            "reading": "old-reading",
+            "part_of_speech": "noun",
+            "word_kind": "common",
+            "kind_edited": 0
+          }
+        ],
+        "word_aliases": [
+          {
+            "word_id": 1,
+            "alias": "hello",
+            "alias_kind": "surface"
+          }
+        ],
+        "occurrences": [
+          {
+            "id": 1,
+            "word_id": 1,
+            "segment_id": 1,
+            "original_form": "Hello",
+            "position": 0,
+            "hidden": 0,
+            "meaning_zh": "保留语境-en",
+            "usage_zh": null,
+            "collins_sense_id": null,
+            "meaning_edited": 1,
+            "analysis_model": null,
+            "analyzed_at": null
+          },
+          {
+            "id": 2,
+            "word_id": 2,
+            "segment_id": 2,
+            "original_form": "昔",
+            "position": 0,
+            "hidden": 0,
+            "meaning_zh": "保留语境-ja",
+            "usage_zh": null,
+            "collins_sense_id": null,
+            "meaning_edited": 1,
+            "analysis_model": null,
+            "analyzed_at": null
+          },
+          {
+            "id": 3,
+            "word_id": 3,
+            "segment_id": 3,
+            "original_form": "Wort",
+            "position": 0,
+            "hidden": 1,
+            "meaning_zh": "保留语境-de",
+            "usage_zh": null,
+            "collins_sense_id": null,
+            "meaning_edited": 1,
+            "analysis_model": null,
+            "analyzed_at": null
+          }
+        ],
+        "reviews": [
+          {
+            "word_id": 1,
+            "due_at": 501,
+            "stability": 2.5,
+            "difficulty": 3.5,
+            "elapsed_days": 0,
+            "scheduled_days": 0,
+            "reps": 2,
+            "lapses": 0,
+            "state": 0,
+            "last_review_at": null
+          },
+          {
+            "word_id": 2,
+            "due_at": 502,
+            "stability": 2.5,
+            "difficulty": 3.5,
+            "elapsed_days": 0,
+            "scheduled_days": 0,
+            "reps": 2,
+            "lapses": 0,
+            "state": 0,
+            "last_review_at": null
+          },
+          {
+            "word_id": 3,
+            "due_at": 503,
+            "stability": 2.5,
+            "difficulty": 3.5,
+            "elapsed_days": 0,
+            "scheduled_days": 0,
+            "reps": 2,
+            "lapses": 0,
+            "state": 0,
+            "last_review_at": null
+          }
+        ],
+        "review_logs": [
+          {
+            "id": 1,
+            "word_id": 1,
+            "rating": 3,
+            "reviewed_at": 201,
+            "stability_before": null,
+            "stability_after": null,
+            "difficulty_before": null,
+            "difficulty_after": null,
+            "elapsed_days": null,
+            "scheduled_days": null,
+            "state_before": null,
+            "state_after": null,
+            "due_at_after": 501
+          },
+          {
+            "id": 2,
+            "word_id": 2,
+            "rating": 3,
+            "reviewed_at": 202,
+            "stability_before": null,
+            "stability_after": null,
+            "difficulty_before": null,
+            "difficulty_after": null,
+            "elapsed_days": null,
+            "scheduled_days": null,
+            "state_before": null,
+            "state_after": null,
+            "due_at_after": 502
+          },
+          {
+            "id": 3,
+            "word_id": 3,
+            "rating": 3,
+            "reviewed_at": 203,
+            "stability_before": null,
+            "stability_after": null,
+            "difficulty_before": null,
+            "difficulty_after": null,
+            "elapsed_days": null,
+            "scheduled_days": null,
+            "state_before": null,
+            "state_after": null,
+            "due_at_after": 503
+          }
+        ],
+        "dictionary_entries": [
+          {
+            "language": "ja",
+            "lemma": "昔",
+            "provider": "historical-cache",
+            "phonetic": null,
+            "audio_url": null,
+            "local_audio_path": null,
+            "definitions_json": "[{\"definition\":\"过去\"}]",
+            "fetched_at": 150
+          }
+        ],
+        "dictionary_sources": [
+          {
+            "language": "ja",
+            "provider": "historical-cache",
+            "version": "fixture",
+            "source_url": null,
+            "license": null,
+            "imported_at": 150
+          }
+        ],
+        "phrases": [
+          {
+            "id": 1,
+            "language": "en",
+            "text": "take off",
+            "status": "learning",
+            "definition": "旧短语备注",
+            "source": "manual"
+          }
+        ],
+        "phrase_occurrences": [
+          {
+            "id": 1,
+            "phrase_id": 1,
+            "segment_id": 1,
+            "position": 3,
+            "hidden": 0,
+            "surface_text": "take off",
+            "token_positions_json": "[3,4]",
+            "meaning_zh": "起飞",
+            "usage_zh": null,
+            "meaning_edited": 1,
+            "meaning_en": null,
+            "usage_en": null,
+            "meaning_en_edited": 0,
+            "collins_sense_id": null,
+            "expression_meta_json": null
+          }
+        ],
+        "phrase_reviews": [
+          {
+            "phrase_id": 1,
+            "due_at": 600,
+            "stability": 3.5,
+            "difficulty": 0.0,
+            "elapsed_days": 0,
+            "scheduled_days": 0,
+            "reps": 0,
+            "lapses": 0,
+            "state": 0,
+            "last_review_at": null
+          }
+        ],
+        "phrase_review_logs": [
+          {
+            "id": 1,
+            "phrase_id": 1,
+            "rating": 4,
+            "reviewed_at": 300,
+            "stability_before": null,
+            "stability_after": null,
+            "difficulty_before": null,
+            "difficulty_after": null,
+            "elapsed_days": null,
+            "scheduled_days": null,
+            "state_before": null,
+            "state_after": null,
+            "due_at_after": 600
+          }
+        ],
+        "phrase_dictionary_entries": [
+          {
+            "language": "en",
+            "text": "take off",
+            "translation": "起飞",
+            "pinyin": null,
+            "usage_zh": null,
+            "category": null,
+            "provider": "historical-model",
+            "updated_at": 250,
+            "other_senses_json": "[{\"meaning_zh\":\"脱下\"}]",
+            "other_senses_edited": 1,
+            "meaning_en": null,
+            "usage_en": null,
+            "other_senses_en_json": "[]",
+            "other_senses_en_edited": 0,
+            "expression_meta_json": null
+          }
+        ],
+        "file_phrase_analysis": [
+          {
+            "file_id": 1,
+            "model": "historical-model",
+            "completed_at": 250,
+            "pipeline_version": 1,
+            "collins_evidence_available": 0,
+            "skipped_items": 0
+          }
+        ]
+      }
+    }
+  }
+]

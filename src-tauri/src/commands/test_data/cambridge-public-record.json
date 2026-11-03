@@ -1,0 +1,247 @@
+{
+  "definition": [
+    {
+      "example": [
+        {
+          "id": 0,
+          "text": "Synthetic example 1.1.",
+          "translation": "测试例句 1.1。"
+        },
+        {
+          "id": 1,
+          "text": "Synthetic example 1.2.",
+          "translation": "测试例句 1.2。"
+        },
+        {
+          "id": 2,
+          "text": "Synthetic example 1.3.",
+          "translation": "测试例句 1.3。"
+        },
+        {
+          "id": 3,
+          "text": "Synthetic example 1.4.",
+          "translation": "测试例句 1.4。"
+        }
+      ],
+      "id": 0,
+      "pos": "verb",
+      "text": "Synthetic meaning 1.",
+      "translation": "测试释义 1。"
+    },
+    {
+      "example": [
+        {
+          "id": 0,
+          "text": "Synthetic example 2.1.",
+          "translation": "测试例句 2.1。"
+        },
+        {
+          "id": 1,
+          "text": "Synthetic example 2.2.",
+          "translation": "测试例句 2.2。"
+        },
+        {
+          "id": 2,
+          "text": "Synthetic example 2.3.",
+          "translation": "测试例句 2.3。"
+        },
+        {
+          "id": 3,
+          "text": "Synthetic example 2.4.",
+          "translation": "测试例句 2.4。"
+        }
+      ],
+      "id": 1,
+      "pos": "verb",
+      "text": "Synthetic meaning 2.",
+      "translation": "测试释义 2。"
+    },
+    {
+      "example": [
+        {
+          "id": 0,
+          "text": "Synthetic example 3.1.",
+          "translation": "测试例句 3.1。"
+        }
+      ],
+      "id": 2,
+      "pos": "verb",
+      "text": "Synthetic meaning 3.",
+      "translation": "测试释义 3。"
+    },
+    {
+      "example": [
+        {
+          "id": 0,
+          "text": "Synthetic example 4.1.",
+          "translation": "测试例句 4.1。"
+        },
+        {
+          "id": 1,
+          "text": "Synthetic example 4.2.",
+          "translation": "测试例句 4.2。"
+        }
+      ],
+      "id": 3,
+      "pos": "noun",
+      "text": "Synthetic meaning 4.",
+      "translation": "测试释义 4。"
+    },
+    {
+      "example": [
+        {
+          "id": 0,
+          "text": "Synthetic example 5.1.",
+          "translation": "测试例句 5.1。"
+        },
+        {
+          "id": 1,
+          "text": "Synthetic example 5.2.",
+          "translation": "测试例句 5.2。"
+        }
+      ],
+      "id": 4,
+      "pos": "noun",
+      "text": "Synthetic meaning 5.",
+      "translation": "测试释义 5。"
+    },
+    {
+      "example": [
+        {
+          "id": 0,
+          "text": "Synthetic example 6.1.",
+          "translation": "测试例句 6.1。"
+        }
+      ],
+      "id": 5,
+      "pos": "noun",
+      "text": "Synthetic meaning 6.",
+      "translation": "测试释义 6。"
+    },
+    {
+      "example": [
+        {
+          "id": 0,
+          "text": "Synthetic example 7.1.",
+          "translation": "测试例句 7.1。"
+        }
+      ],
+      "id": 6,
+      "pos": "noun",
+      "text": "Synthetic meaning 7.",
+      "translation": ""
+    },
+    {
+      "example": [
+        {
+          "id": 0,
+          "text": "Synthetic example 8.1.",
+          "translation": "测试例句 8.1。"
+        }
+      ],
+      "id": 7,
+      "pos": "noun",
+      "text": "Synthetic meaning 8.",
+      "translation": "测试释义 8。"
+    },
+    {
+      "example": [
+        {
+          "id": 0,
+          "text": "Synthetic example 9.1.",
+          "translation": "测试例句 9.1。"
+        }
+      ],
+      "id": 8,
+      "pos": "noun",
+      "text": "Synthetic meaning 9.",
+      "translation": "测试释义 9。"
+    },
+    {
+      "example": [
+        {
+          "id": 0,
+          "text": "Synthetic example 10.1.",
+          "translation": "测试例句 10.1。"
+        },
+        {
+          "id": 1,
+          "text": "Synthetic example 10.2.",
+          "translation": "测试例句 10.2。"
+        }
+      ],
+      "id": 9,
+      "pos": "noun",
+      "text": "Synthetic meaning 10.",
+      "translation": "测试释义 10。"
+    },
+    {
+      "example": [
+        {
+          "id": 0,
+          "text": "Synthetic example 11.1.",
+          "translation": "测试例句 11.1。"
+        },
+        {
+          "id": 1,
+          "text": "Synthetic example 11.2.",
+          "translation": "测试例句 11.2。"
+        },
+        {
+          "id": 2,
+          "text": "Synthetic example 11.3.",
+          "translation": "测试例句 11.3。"
+        }
+      ],
+      "id": 10,
+      "pos": "adjective",
+      "text": "Synthetic meaning 11.",
+      "translation": "测试释义 11。"
+    }
+  ],
+  "pos": [
+    "verb",
+    "noun",
+    "adjective"
+  ],
+  "pronunciation": [
+    {
+      "lang": "uk",
+      "pos": "verb [ T ]",
+      "pron": "/rɪˈkɔːd/",
+      "url": "https://dictionary.cambridge.org/us/media/english-chinese-simplified/uk_pron/u/ukr/ukrec/ukrecor002.mp3"
+    },
+    {
+      "lang": "us",
+      "pos": "verb [ T ]",
+      "pron": "/rɪˈkɔːrd/",
+      "url": "https://dictionary.cambridge.org/us/media/english-chinese-simplified/us_pron/r/rec/recor/record_01_00.mp3"
+    },
+    {
+      "lang": "uk",
+      "pos": "noun",
+      "pron": "/ˈrek.ɔːd/",
+      "url": "https://dictionary.cambridge.org/us/media/english-chinese-simplified/uk_pron/u/ukr/ukrec/ukrecor001.mp3"
+    },
+    {
+      "lang": "us",
+      "pos": "noun",
+      "pron": "/ˈrek.ɚd/",
+      "url": "https://dictionary.cambridge.org/us/media/english-chinese-simplified/us_pron/r/rec/recor/record_01_01.mp3"
+    },
+    {
+      "lang": "uk",
+      "pos": "adjective",
+      "pron": "/ˈrek.ɔːd/",
+      "url": "https://dictionary.cambridge.org/us/media/english-chinese-simplified/uk_pron/u/ukr/ukrec/ukrecor001.mp3"
+    },
+    {
+      "lang": "us",
+      "pos": "adjective",
+      "pron": "/ˈrek.ɚd/",
+      "url": "https://dictionary.cambridge.org/us/media/english-chinese-simplified/us_pron/r/rec/recor/record_01_01.mp3"
+    }
+  ],
+  "verbs": [],
+  "word": "record"
+}

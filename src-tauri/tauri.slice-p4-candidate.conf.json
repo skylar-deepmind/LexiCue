@@ -1,0 +1,37 @@
+{
+  "productName": "LexiCue P4 Candidate",
+  "identifier": "com.lexicue.slice-p4-candidate",
+  "build": {
+    "devUrl": "http://127.0.0.1:5197",
+    "beforeDevCommand": "",
+    "beforeBuildCommand": "npm run prepare:gemma && npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "LexiCue · 发布候选体验版",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "capabilities": [
+        "default"
+      ]
+    }
+  },
+  "bundle": {
+    "createUpdaterArtifacts": false,
+    "targets": [
+      "app",
+      "dmg"
+    ],
+    "macOS": {
+      "signingIdentity": "-"
+    }
+  }
+}

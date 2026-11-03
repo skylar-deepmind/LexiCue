@@ -1,0 +1,32 @@
+/* Optional tools change the dock's natural height, keeping its center fixed. */
+.b-dock.b-dock-centered {
+  top: var(--dock-center, 50dvh);
+  transform: translateY(-50%);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  transition: top 350ms cubic-bezier(.22,.8,.28,1);
+}
+.b-dock.b-dock-centered nav { gap: 0; }
+.b-dock-centered .dock-base-controls { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.b-dock.b-dock-centered .b-dock-control { min-height: 48px; height: 48px; flex: none; }
+.dock-presence {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  width: 100%;
+  transition: grid-template-rows 350ms cubic-bezier(.22,.8,.28,1), opacity 250ms ease;
+}
+.dock-presence[data-visible='true'] { grid-template-rows: 1fr; opacity: 1; }
+.dock-presence[data-visible='false'] { pointer-events: none; }
+.dock-presence-clip { min-height: 0; overflow: hidden; }
+.dock-import-slot { padding-bottom: 6px; display: flex; justify-content: center; }
+.b-dock-centered .dock-reading-tools { gap: 6px; padding-top: 6px; animation: none; }
+/* Keep focus rings inside the folding clip, including the Aa trigger. */
+.dock-presence .b-dock-control:focus-visible { outline-offset: -2px; }
+@media (max-width: 767px) {
+  .mobile-reading-tools .dock-reading-tools { animation: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .b-dock.b-dock-centered, .dock-presence { transition: none; }
+}

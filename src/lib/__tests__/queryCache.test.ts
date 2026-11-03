@@ -56,3 +56,15 @@ describe('QueryCache', () => {
     expect(cache.isFresh('tags')).toBe(true);
   });
 });
+
+it('hard clear removes stale values and prevents an old pending request from repopulating the cache', async () => {
+  const cache = new QueryCache<string>();
+  cache.prime('old', 'old value');
+  let resolve!: (value: string) => void;
+  const pending = cache.fetch('pending', () => new Promise(done => { resolve = done; }));
+  const version = cache.version;
+  cache.clear();
+  expect(cache.peek('old')).toBeUndefined(); expect(cache.version).toBe(version + 1);
+  resolve('old pending value'); await pending;
+  expect(cache.peek('pending')).toBeUndefined();
+});

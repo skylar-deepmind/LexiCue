@@ -12,6 +12,7 @@ pub mod language;
 pub mod ollama;
 pub mod phrases;
 pub mod reviews;
+pub mod source_media;
 pub mod stats;
 pub mod sync;
 pub mod tags;
@@ -23,4 +24,30 @@ pub mod gemma;
 
 pub mod dictionary_init;
 
+pub mod materials;
 pub mod reader;
+pub mod saved;
+
+pub mod history;
+
+#[cfg(test)]
+mod reading_bridge_test;
+
+pub mod recall;
+
+pub mod example;
+
+pub mod cambridge;
+pub mod free_dictionary;
+pub mod longman;
+
+pub mod translation;
+pub mod tts;
+
+pub mod document_source;
+#[cfg(test)]
+mod document_source_tests;
+
+#[cfg(test)]
+mod slice3_fixture_test;
+pub mod webpage;

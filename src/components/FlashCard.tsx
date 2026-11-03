@@ -1,8 +1,8 @@
-import { BookOpen, Volume2 } from 'lucide-react';
+import { BookOpen } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
-import { playPronunciation, speakText } from '../lib/tts';
+import SpeechButton, { SpeechFeedback } from './SpeechButton';
 import type { DictionaryEntry, DueCard, DuePhraseCard, PhraseDictionaryEntry } from '../lib/types';
 import OccurrenceText from './OccurrenceText';
 import { dictionaryLanguageState, useDictionaryStore } from '../stores/dictionaryStore';
@@ -36,24 +36,12 @@ export default function FlashCard({ card, revealed, onReveal }: FlashCardProps) 
   const [dictionary, setDictionary] = useState<DictionaryEntry | null>(null);
   const [phraseDictionary, setPhraseDictionary] = useState<PhraseDictionaryEntry | null>(null);
   const [expandedSenses, setExpandedSenses] = useState(false);
-  const [audioLoading, setAudioLoading] = useState(false);
   const wordText = getWordText(card);
   const phraseMode = isPhraseCard(card);
+  const speechKey = `flashcard:${phraseMode ? 'phrase' : 'word'}:${phraseMode ? card.phrase_id : (card as DueCard).word_id}`;
   const learningTextFontSize = usePreferencesStore((state) => state.learningTextFontSize);
   const definitionFontSize = usePreferencesStore((state) => state.definitionFontSize);
   const auxiliaryFontSize = usePreferencesStore((state) => state.auxiliaryFontSize);
-
-  const playAudio = async () => {
-    setAudioLoading(true);
-    try {
-      const text = isWordCard(card) && card.language === 'ja' && card.reading ? card.reading : wordText;
-      await playPronunciation(text, card.language, phraseMode ? null : dictionary, setDictionary);
-    } catch (error) {
-      console.error('Failed to play pronunciation:', error);
-    } finally {
-      setAudioLoading(false);
-    }
-  };
 
   useEffect(() => {
     let active = true;
@@ -83,17 +71,11 @@ export default function FlashCard({ card, revealed, onReveal }: FlashCardProps) 
         <div className="flex min-h-[190px] flex-col items-center justify-center">
           <div className="flex max-w-full items-center justify-center gap-2">
             <span className={`min-w-0 break-words font-bold text-gray-900 ${FLASHCARD_TERM_FONT_CLASS[phraseMode ? 'phrase' : 'word'][learningTextFontSize]}`}>{wordText}</span>
-            {phraseMode && <button
-              type="button"
-              onClick={(event) => { event.stopPropagation(); speakText(wordText, card.language); }}
-              disabled={typeof window === 'undefined' || !('speechSynthesis' in window)}
-              aria-label={t('phraseDetail.playAria', { phrase: wordText })}
-              title={t('wordDetail.systemVoiceTitle')}
-              className="phrase-audio-action flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
-            ><Volume2 size={18} aria-hidden="true" /></button>}
+            <SpeechButton text={wordText} speechKey={speechKey} kind={phraseMode ? 'phrase' : 'word'} language={card.language} label={t('flashcard.playAria')}/>
           </div>
         </div>
 
+        <SpeechFeedback speechKeys={[speechKey]}/>
         {!revealed ? (
           <p className={`mt-4 text-center text-gray-400 ${CONTENT_FONT_CLASS.auxiliary[auxiliaryFontSize]}`}>{t('flashcard.clickToReveal')}</p>
         ) : (
@@ -137,15 +119,7 @@ export default function FlashCard({ card, revealed, onReveal }: FlashCardProps) 
               <div className="mt-3 space-y-2 rounded-xl bg-blue-50/60 p-3">
                 <div className="flex items-center gap-2">
                   {dictionary.phonetic && <p className={`text-blue-700 ${CONTENT_FONT_CLASS.auxiliary[auxiliaryFontSize]}`}>{dictionary.phonetic}</p>}
-                  <button
-                    onClick={() => void playAudio()}
-                    disabled={audioLoading}
-                    aria-label={t('flashcard.playAria')}
-                    title={t('flashcard.playAria')}
-                    className="rounded-md p-1 text-blue-600 hover:bg-blue-100 disabled:opacity-40"
-                  >
-                    <Volume2 size={14} />
-                  </button>
+
                 </div>
                 {dictionary.definitions.slice(0, 4).map((definition, index) => (
                   <div key={`${definition.definition}-${index}`} className={`text-gray-700 ${CONTENT_FONT_CLASS.definition[definitionFontSize]}`}>

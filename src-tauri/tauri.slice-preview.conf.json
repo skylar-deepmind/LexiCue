@@ -1,0 +1,20 @@
+{
+  "productName": "LexiCue Slice Preview",
+  "identifier": "com.lexicue.slice-preview",
+  "build": {
+    "devUrl": "http://127.0.0.1:5174",
+    "beforeDevCommand": "",
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "windows": [{"label":"main","title":"LexiCue · 阅读保存体验版","width":1280,"height":800,"minWidth":800,"minHeight":600,"resizable":true}],
+    "security": {
+      "capabilities": ["default", {
+        "identifier": "slice-preview-evidence",
+        "windows": ["main"],
+        "permissions": [{"identifier":"fs:allow-write-text-file","allow":[{"path":"$APPDATA/slice-qa-*.json"}]}]
+      }]
+    }
+  },
+  "bundle": {"createUpdaterArtifacts": false,"targets":["app"],"macOS":{"signingIdentity":"-"}}
+}

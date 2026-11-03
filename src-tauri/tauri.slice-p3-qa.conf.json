@@ -1,0 +1,52 @@
+{
+  "productName": "LexiCue P3 QA",
+  "identifier": "com.lexicue.slice-p3-qa",
+  "build": {
+    "devUrl": "http://127.0.0.1:5187",
+    "beforeDevCommand": "",
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "LexiCue P3 · Native QA",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "capabilities": [
+        "default",
+        {
+          "identifier": "slice-preview-evidence",
+          "windows": [
+            "main"
+          ],
+          "permissions": [
+            {
+              "identifier": "fs:allow-write-text-file",
+              "allow": [
+                {
+                  "path": "$APPDATA/slice-qa-*.json"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "bundle": {
+    "createUpdaterArtifacts": false,
+    "targets": [
+      "app"
+    ],
+    "macOS": {
+      "signingIdentity": "-"
+    }
+  }
+}

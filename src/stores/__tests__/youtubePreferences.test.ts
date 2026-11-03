@@ -50,3 +50,15 @@ describe('YouTube preferences persistence', () => {
     expect(merged.learningTextFontSize).toBe('lg'); expect(merged.language).toBe('ja');
   });
 });
+
+describe('re-encounter preference compatibility',()=>{
+  it('defaults old installations to hints on and respects an explicit off value',()=>{
+    const merge=usePreferencesStore.persist.getOptions().merge!;
+    expect(merge({uiLanguage:'de',language:'ja'},{...store(),reencounterHints:true})).toMatchObject({uiLanguage:'de',language:'ja',reencounterHints:true});
+    expect(merge({reencounterHints:false,definitionFontSize:'lg'},store())).toMatchObject({reencounterHints:false,definitionFontSize:'lg'});
+  });
+  it('persists the switch without deleting or replacing other preferences',()=>{
+    store().setReencounterHints(false);expect(JSON.parse(storage.get('lexicue-preferences')!).state.reencounterHints).toBe(false);
+    expect(store().youtube).toEqual(normalizeYouTubePreferences(null));store().setReencounterHints(true);
+  });
+});

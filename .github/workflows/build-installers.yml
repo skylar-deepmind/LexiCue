@@ -59,12 +59,12 @@ jobs:
 
   macos:
     needs: release-checks
-    name: macOS (Apple Silicon / Intel)
+    name: macOS local installers (not public distribution)
     if: ${{ inputs.platform == 'all' || inputs.platform == 'macos' }}
     runs-on: macos-latest
     timeout-minutes: 60
     permissions:
-      contents: write
+      contents: read
     env:
       SCCACHE_GHA_ENABLED: "true"
       RUSTC_WRAPPER: "sccache"
@@ -93,40 +93,20 @@ jobs:
         with:
           workspaces: src-tauri
       - run: npm ci
-      - name: Build macOS branch installer
-        if: ${{ github.ref != 'refs/heads/main' && !inputs.publish_release }}
+      # macOS never publishes from this general workflow, including main and
+      # publish_release=true. Formal Developer ID staging has its own gate.
+      - name: Build macOS local installer (ad-hoc, not notarized)
         env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           NODE_OPTIONS: --use-system-ca
-        run: npm run tauri build -- --target ${{ matrix.target }} --bundles app,dmg
+        run: npm run tauri build -- --target ${{ matrix.target }} --bundles app,dmg --config '{"bundle":{"createUpdaterArtifacts":false}}'
       - name: Verify packaged Gemma library signing
-        if: ${{ github.ref != 'refs/heads/main' && !inputs.publish_release }}
         run: node scripts/check-gemma-macos-signing.mjs --app src-tauri/target/${{ matrix.target }}/release/bundle/macos/LexiCue.app
-      - name: Upload macOS branch installer
-        if: ${{ github.ref != 'refs/heads/main' && !inputs.publish_release }}
+      - name: Upload macOS local installer
         uses: actions/upload-artifact@v4
         with:
-          name: LexiCue-macOS-${{ matrix.target }}-${{ github.sha }}
+          name: LexiCue-macOS-local-${{ matrix.target }}-${{ github.sha }}
           path: src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
           if-no-files-found: error
-      - uses: tauri-apps/tauri-action@v1
-        if: ${{ github.ref == 'refs/heads/main' || inputs.publish_release }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          NODE_OPTIONS: --use-system-ca
-        with:
-          tagName: v__VERSION__
-          releaseName: 'LexiCue v__VERSION__'
-          releaseDraft: ${{ inputs.draft }}
-          prerelease: false
-          retryAttempts: 2
-          args: --target ${{ matrix.target }} --bundles app,dmg
-      - name: Verify packaged release Gemma library signing
-        if: ${{ github.ref == 'refs/heads/main' || inputs.publish_release }}
-        run: node scripts/check-gemma-macos-signing.mjs --app src-tauri/target/${{ matrix.target }}/release/bundle/macos/LexiCue.app
 
   windows:
     needs: release-checks

@@ -26,7 +26,7 @@ export default function StatusBadge({ status, label: customLabel, onClick }: Sta
             e.stopPropagation();
             onClick(e);
         }}
-        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer transition-colors hover:ring-2 hover:ring-offset-1 ${config.className}`}
+        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer transition-colors status-badge-control ${config.className}`}
         title={t('statusBadge.selectTitle')}
       >
         {label}

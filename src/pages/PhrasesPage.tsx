@@ -282,7 +282,7 @@ export default function PhrasesPage() {
                   ? store.clearSelection()
                   : store.selectAll(pagePhrases.map((phrase) => phrase.id))}
                 aria-label={t('phrases.selectAllAria')}
-                className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                className="w-4 h-4 rounded border-gray-300 text-purple-600 "
               />
               <span>{t('phrases.currentResults', { count: visiblePhrases.length })}</span>
               {someVisibleSelected && <span>{t('phrases.selectedCount', { count: selected.size })}</span>}
@@ -307,7 +307,7 @@ export default function PhrasesPage() {
                   type="checkbox"
                   checked={selected.has(phrase.id)}
                   onChange={() => store.toggleSelected(phrase.id)}
-                  className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500 shrink-0 mt-0.5"
+                  className="w-4 h-4 rounded border-gray-300 text-purple-600 shrink-0 mt-0.5"
                 />
                 <div className="vocabulary-row__main flex-1 min-w-0">
                   <div className="vocabulary-row__heading flex items-center gap-2">

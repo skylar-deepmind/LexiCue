@@ -1,0 +1,36 @@
+{
+  "productName": "LexiCue P3 Preview",
+  "identifier": "com.lexicue.slice-p3-preview",
+  "build": {
+    "devUrl": "http://127.0.0.1:5187",
+    "beforeDevCommand": "",
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "LexiCue · 听读与译文体验版",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "capabilities": [
+        "default"
+      ]
+    }
+  },
+  "bundle": {
+    "createUpdaterArtifacts": false,
+    "targets": [
+      "app"
+    ],
+    "macOS": {
+      "signingIdentity": "-"
+    }
+  }
+}

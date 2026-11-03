@@ -25,7 +25,7 @@ export default function RatingButtons({ onRate, disabled, hints = {} }: RatingBu
             key={r.key}
             onClick={() => onRate(r.value)}
             disabled={disabled}
-            className={`min-h-12 px-4 py-3 rounded-xl text-white font-medium text-sm transition-all sm:px-6 ${colorClass} focus:outline-none focus:ring-2 disabled:opacity-40 disabled:cursor-not-allowed`}
+            className={`min-h-12 px-4 py-3 rounded-xl text-white font-medium text-sm transition-all sm:px-6 ${colorClass} focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed`}
           >
             <span className="inline-flex items-center justify-center gap-1.5">{t(r.labelKey)}</span>
             {hints[r.key] && <span className="block text-[11px] font-normal">{hints[r.key]}</span>}

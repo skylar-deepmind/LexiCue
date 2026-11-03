@@ -5,7 +5,8 @@ import { STAGE_THEME_COLORS } from '../lib/stageColors';
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<ThemeId>(() => {
-    const saved = localStorage.getItem('lexicue-theme');
+    let saved: string | null = null;
+    try { saved = localStorage.getItem('lexicue-theme'); } catch { /* Storage restrictions must not prevent opening a material. */ }
     return THEMES.some((item) => item.id === saved) ? saved as ThemeId : 'ocean';
   });
 
@@ -19,7 +20,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     for (const [stage, color] of Object.entries(STAGE_THEME_COLORS[theme])) {
       document.documentElement.style.setProperty(`--stage-${stage}`, color);
     }
-    localStorage.setItem('lexicue-theme', theme);
+    try { localStorage.setItem('lexicue-theme', theme); } catch { /* Keep the active theme for this session. */ }
   }, [theme]);
 
   return <ThemeContext.Provider value={{ theme, setTheme }}>{children}</ThemeContext.Provider>;

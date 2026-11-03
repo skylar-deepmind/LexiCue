@@ -42,6 +42,7 @@ interface ReaderStore {
   error: string;
   loading: boolean;
   setFile: (fileId: number) => Promise<void>;
+  resetAfterRestore: () => void;
   setActiveSegmentIndex: (index: number) => void;
 }
 
@@ -56,6 +57,7 @@ export const useReaderStore = create<ReaderStore>((set) => ({
   readerTokens: new Map(),
   error: '',
   loading: false,
+  resetAfterRestore: () => { ++fileGeneration; set({ currentFileId: null, currentLanguage: 'en', segments: [], wordStatusMap: new Map(), phraseMap: new Map(), segmentTokens: new Map(), readerTokens: new Map(), activeSegmentIndex: 0, error: '', loading: false }); },
   setActiveSegmentIndex: (index) => set((state) => ({
     activeSegmentIndex: Math.min(
       Math.max(0, index),

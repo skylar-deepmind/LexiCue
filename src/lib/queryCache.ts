@@ -7,6 +7,7 @@ export class QueryCache<T> {
   private readonly entries = new Map<string, CacheEntry<T>>();
   private readonly pending = new Map<string, Promise<T>>();
   private readonly maxEntries: number;
+  version = 0;
 
   constructor(maxEntries = 8) {
     this.maxEntries = maxEntries;
@@ -40,6 +41,8 @@ export class QueryCache<T> {
     this.pending.clear();
     for (const entry of this.entries.values()) entry.stale = true;
   }
+
+  clear(): void { this.version++; this.pending.clear(); this.entries.clear(); }
 
   async fetch(key: string, loader: () => Promise<T>, force = false): Promise<T> {
     const cached = this.entries.get(key);

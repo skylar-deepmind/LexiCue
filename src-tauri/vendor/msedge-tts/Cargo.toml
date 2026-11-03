@@ -1,0 +1,25 @@
+[package]
+name = "msedge-tts"
+version = "0.4.1"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/hs-CN/msedge-tts"
+[features]
+default = ["tokio-runtime"]
+tokio-runtime = []
+blocking = []
+smol-runtime = []
+proxy = []
+[dependencies]
+chrono = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tungstenite = "=0.30.0"
+uuid = { version = "1", features = ["v4"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+async-tungstenite = { version = "=0.35.0", default-features = false, features = ["tokio-runtime", "tokio-rustls-webpki-roots"] }
+futures-util = { version = "0.3", features = ["std", "io"] }
+tokio = { version = "1", features = ["net", "time"] }
+
+base64 = "0.22"

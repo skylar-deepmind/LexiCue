@@ -55,7 +55,10 @@ interface InsightsStore {
 }
 
 const statsCache = new QueryCache<LearningStats>(1);
-registerCacheInvalidator('insights', () => statsCache.invalidate());
+registerCacheInvalidator('insights', hard => {
+  if (!hard) { statsCache.invalidate(); return; }
+  statsCache.clear(); useInsightsStore.setState({ stats: null, loading: false, error: false });
+});
 
 function statsKey(language: Language | 'all'): string {
   return `learning-stats:${language}`;
@@ -68,6 +71,7 @@ export const useInsightsStore = create<InsightsStore>((set) => ({
   activeLanguage: 'all',
   load: async (language, force = false) => {
     const key = statsKey(language);
+    const version = statsCache.version;
     const cached = statsCache.peek(key);
     set({ activeLanguage: language });
     if (cached) set({ stats: cached, loading: false, error: false });
@@ -81,12 +85,12 @@ export const useInsightsStore = create<InsightsStore>((set) => ({
         }),
         force,
       );
-      if (useInsightsStore.getState().activeLanguage === language) set({ stats, error: false });
+      if (version === statsCache.version && useInsightsStore.getState().activeLanguage === language) set({ stats, error: false });
     } catch (reason) {
       console.error('Failed to load learning stats:', reason);
-      if (!cached && useInsightsStore.getState().activeLanguage === language) set({ error: true });
+      if (version === statsCache.version && !cached && useInsightsStore.getState().activeLanguage === language) set({ error: true });
     } finally {
-      if (useInsightsStore.getState().activeLanguage === language) set({ loading: false });
+      if (version === statsCache.version && useInsightsStore.getState().activeLanguage === language) set({ loading: false });
     }
   },
   invalidate: () => statsCache.invalidate(),

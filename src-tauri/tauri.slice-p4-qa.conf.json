@@ -1,0 +1,53 @@
+{
+  "productName": "LexiCue P4 QA",
+  "identifier": "com.lexicue.slice-p4-qa",
+  "build": {
+    "devUrl": "http://127.0.0.1:5197",
+    "beforeDevCommand": "",
+    "beforeBuildCommand": "npm run prepare:gemma && npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "LexiCue P4 · Native QA",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "capabilities": [
+        "default",
+        {
+          "identifier": "slice-preview-evidence",
+          "windows": [
+            "main"
+          ],
+          "permissions": [
+            {
+              "identifier": "fs:allow-write-text-file",
+              "allow": [
+                {
+                  "path": "$APPDATA/slice-qa-*.json"
+                }
+              ]
+            },
+            "core:window:allow-set-size"
+          ]
+        }
+      ]
+    }
+  },
+  "bundle": {
+    "createUpdaterArtifacts": false,
+    "targets": [
+      "app"
+    ],
+    "macOS": {
+      "signingIdentity": "-"
+    }
+  }
+}

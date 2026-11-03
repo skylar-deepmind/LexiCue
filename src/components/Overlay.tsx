@@ -11,11 +11,13 @@ interface Props {
   label: string;
   variant?: 'dialog' | 'detail' | 'sheet';
   className?: string;
+  layerClassName?: string;
   panelRef?: RefObject<HTMLDivElement | null>;
+  returnFocus?: () => HTMLElement | null;
 }
 
 /** Body portal: background inertness and focus ownership are shared across all dialogs. */
-export default function Overlay({ children, onClose, label, variant = 'dialog', className = '', panelRef }: Props) {
+export default function Overlay({ children, onClose, label, variant = 'dialog', className = '', layerClassName = '', panelRef, returnFocus }: Props) {
   const ownRef = useRef<HTMLDivElement>(null);
   const ref = panelRef ?? ownRef;
   const closing = useRef(false);
@@ -26,9 +28,9 @@ export default function Overlay({ children, onClose, label, variant = 'dialog', 
     closing.current = true;
     try { return await onClose(); } finally { closing.current = false; }
   };
-  useOverlay(ref, requestClose);
+  useOverlay(ref, requestClose, true, true, returnFocus);
   return createPortal(
-    <div className={`overlay-layer overlay-layer--${variant}${expanded ? ' is-expanded' : ''}`} data-overlay-layer="">
+    <div className={`overlay-layer overlay-layer--${variant}${expanded ? ' is-expanded' : ''} ${layerClassName}`} data-overlay-layer="">
       <div className="overlay-scrim" onClick={() => void requestClose().catch(() => {})} aria-hidden="true" />
       <div ref={ref} role="dialog" aria-modal="true" aria-label={label} tabIndex={-1}
         className={`overlay-panel ${className}`}>
