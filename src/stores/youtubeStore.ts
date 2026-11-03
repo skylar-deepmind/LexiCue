@@ -24,6 +24,8 @@ export interface VideoSubInfo {
 }
 
 export interface SubtitleResult {
+  source_issue?: string | null;
+  source?: import('../lib/sourceMedia').YoutubeSource | null;
   name: string;
   content: string;
 }

@@ -283,7 +283,7 @@ export default function WordsPage() {
                   ? store.clearSelection()
                   : store.selectAll(pageWords.map((word) => word.id))}
                 aria-label={t('words.selectAllAria')}
-                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                className="w-4 h-4 rounded border-gray-300 text-blue-600 "
               />
               <span>{t('words.currentResults', { count: visibleWords.length })}</span>
               {someVisibleSelected && <span>{t('words.selectedCount', { count: selected.size })}</span>}
@@ -308,7 +308,7 @@ export default function WordsPage() {
                   type="checkbox"
                   checked={selected.has(word.id)}
                   onChange={() => store.toggleSelected(word.id)}
-                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 shrink-0 mt-0.5"
+                  className="w-4 h-4 rounded border-gray-300 text-blue-600 shrink-0 mt-0.5"
                 />
                 <div className="vocabulary-row__main flex-1 min-w-0">
                   <div className="vocabulary-row__heading flex items-center gap-2">

@@ -1,5 +1,7 @@
 package com.lexicue.app
 
+import android.net.Uri
+import android.provider.OpenableColumns
 import android.os.Bundle
 import android.webkit.WebView
 import android.webkit.JavascriptInterface
@@ -43,6 +45,19 @@ class MainActivity : TauriActivity() {
         val content = findViewById<android.view.View>(android.R.id.content)
         // This local-only bridge coordinates system chrome and IME-first UI Back.
         webView.addJavascriptInterface(object {
+            // Metadata only. ContentResolver enforces the permission granted
+            // by the system picker; file bytes still use the scoped fs plugin.
+            @JavascriptInterface
+            fun documentDisplayName(rawUri: String): String? {
+                val uri = Uri.parse(rawUri)
+                if (uri.scheme != "content") return null
+                return try {
+                    contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                        if (cursor.moveToFirst()) cursor.getString(0) else null
+                    }
+                } catch (_: Exception) { null }
+            }
+
             @JavascriptInterface
             fun requestBack() {
                 runOnUiThread { onBackPressedDispatcher.onBackPressed() }

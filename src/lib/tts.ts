@@ -1,158 +1,19 @@
 import type { Language } from './languages';
-import type { DictionaryEntry } from './types';
-import { invoke } from '@tauri-apps/api/core';
+import { prepareSpeech, useSpeechStore } from '../stores/speechStore';
 
-const VOICE_LANG: Record<Language, string> = {
-  en: 'en-US',
-  ja: 'ja-JP',
-  de: 'de-DE',
-  zh: 'zh-CN',
-};
-
-const RATE: Record<Language, number> = {
-  en: 1,
-  ja: 0.95,
-  de: 0.9,
-  zh: 1,
-};
-
-const HIGH_QUALITY_HINTS = [
-  'google',
-  'premium',
-  'neural',
-  'natural',
-  'enhanced',
-  'improved',
-];
-
-const PREFERRED_VOICES: Partial<Record<Language, string[]>> = {
-  zh: ['sinji', 'eddy', 'xiaoxiao', 'yunxi', 'flo', 'tingting enhanced', 'meijia'],
-};
-
-const LOW_QUALITY_HINTS = ['compact', 'ting-ting'];
-
-let cachedVoices: SpeechSynthesisVoice[] | null = null;
-let voicesListenerRegistered = false;
-
-function loadVoices(): SpeechSynthesisVoice[] {
-  if (cachedVoices && cachedVoices.length > 0) return cachedVoices;
-  const voices = window.speechSynthesis?.getVoices() ?? [];
-  if (voices.length > 0) cachedVoices = voices;
-  return voices;
-}
-
-function registerVoicesChanged() {
-  if (!('speechSynthesis' in window) || voicesListenerRegistered) return;
-  voicesListenerRegistered = true;
-  window.speechSynthesis.addEventListener?.('voiceschanged', () => {
-    cachedVoices = window.speechSynthesis?.getVoices() ?? null;
-  });
-}
-
-function qualityScore(voice: SpeechSynthesisVoice): number {
-  const name = voice.name.toLowerCase();
-  const hint = HIGH_QUALITY_HINTS.find((hint) => name.includes(hint));
-  return hint ? 10 - HIGH_QUALITY_HINTS.indexOf(hint) : 0;
-}
-
-function preferredScore(voice: SpeechSynthesisVoice, language: Language): number {
-  const names = PREFERRED_VOICES[language] ?? [];
-  const name = voice.name.toLowerCase();
-  const index = names.findIndex((preferred) => name.includes(preferred));
-  return index === -1 ? 0 : names.length - index;
-}
-
-function lowQualityPenalty(voice: SpeechSynthesisVoice): number {
-  const name = voice.name.toLowerCase();
-  return LOW_QUALITY_HINTS.some((hint) => name.includes(hint)) ? -10 : 0;
-}
-
-function pickVoice(
-  lang: string,
-  language: Language,
-  voices: SpeechSynthesisVoice[],
-): SpeechSynthesisVoice | undefined {
-  const prefix = lang.slice(0, 2).toLowerCase();
-  const matching = voices.filter((voice) => voice.lang.toLowerCase().startsWith(prefix));
-  if (matching.length === 0) return undefined;
-
-  const scored = matching
-    .map((voice) => ({
-      voice,
-      score:
-        qualityScore(voice) +
-        preferredScore(voice, language) +
-        lowQualityPenalty(voice),
-    }))
-    .sort(
-      (a, b) =>
-        b.score - a.score ||
-        Number(b.voice.localService) - Number(a.voice.localService) ||
-        (b.voice.lang.toLowerCase() === lang ? 1 : 0) - (a.voice.lang.toLowerCase() === lang ? 1 : 0)
-    );
-  return scored[0].voice;
-}
-
+/** Compatibility entry point; all active English UI uses the shared controller. */
 export function speakText(text: string, language: Language) {
-  if (!text || !('speechSynthesis' in window)) return;
-  registerVoicesChanged();
-  const synth = window.speechSynthesis;
-  const lang = VOICE_LANG[language] ?? 'en-US';
-
-  const speak = () => {
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = lang;
-    utterance.rate = RATE[language] ?? 1;
-    const voices = loadVoices();
-    if (voices.length > 0) {
-      const voice = pickVoice(lang, language, voices);
-      if (voice) utterance.voice = voice;
-    }
-    synth.cancel();
-    synth.speak(utterance);
-  };
-
-  // Speak on the click itself. Waiting for voiceschanged can defer the first word indefinitely.
-  speak();
+  if (language !== 'en') return;
+  void useSpeechStore.getState().speak(text, `legacy:${text}`, { kind: 'sentence' });
 }
 
+/** Loads only local device voice metadata; never requests or plays Edge audio. */
 export function prepareSpeechVoices() {
-  if ('speechSynthesis' in window) {
-    registerVoicesChanged();
-    loadVoices();
-  }
+  prepareSpeech();
 }
 
-export async function playPronunciation(text: string, language: Language, entry?: DictionaryEntry | null, onCached?: (entry: DictionaryEntry) => void) {
-  if (entry?.local_audio_path) {
-    try {
-      const bytes = await invoke<number[]>('read_dictionary_audio', { lemma: entry.lemma, language });
-      const url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: 'audio/mpeg' }));
-      const audio = new Audio(url);
-      audio.addEventListener('ended', () => URL.revokeObjectURL(url), { once: true });
-      audio.addEventListener('error', () => URL.revokeObjectURL(url), { once: true });
-      window.speechSynthesis?.cancel();
-      await audio.play();
-      return;
-    } catch (error) {
-      console.warn('Cached pronunciation unavailable:', error);
-    }
-  }
-  if (language === 'en') {
-    speakText(text, language);
-    if (entry?.audio_url && !entry.local_audio_path) {
-      void invoke<DictionaryEntry>('cache_dictionary_audio', { lemma: entry.lemma, language })
-        .then((cached) => onCached?.(cached)).catch(() => {});
-    }
-    return;
-  }
-  if (entry?.audio_url) {
-    try {
-      await new Audio(entry.audio_url).play();
-      return;
-    } catch (error) {
-      console.warn('Dictionary pronunciation unavailable:', error);
-    }
-  }
-  speakText(text, language);
+/** Dictionary recordings remain retired. Pass the displayed English text. */
+export function playPronunciation(text: string, language: Language) {
+  if (language !== 'en') return;
+  void useSpeechStore.getState().speak(text, `legacy:${text}`, { kind: text.trim().includes(' ') ? 'phrase' : 'word' });
 }

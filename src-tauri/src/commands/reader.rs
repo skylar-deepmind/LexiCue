@@ -18,7 +18,7 @@ pub struct ReaderToken {
     pub word_id: Option<i64>,
     pub status: Option<String>,
 }
-fn latin_spans(text: &str) -> Vec<(String, usize, usize)> {
+pub(crate) fn latin_spans(text: &str) -> Vec<(String, usize, usize)> {
     let mut result = Vec::new();
     let mut start = None;
     let mut utf16 = 0;

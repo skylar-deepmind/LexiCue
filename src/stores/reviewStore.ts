@@ -38,6 +38,7 @@ export function hasActiveSession(state: Pick<ReviewStore, 'queue' | 'sessionStat
   return state.queue.length > 0 || state.sessionStats.reviewed > 0;
 }
 
+let restoreGeneration = 0;
 export const useReviewStore = create<ReviewStore>((set, get) => ({
   queue: [],
   currentIndex: 0,
@@ -56,6 +57,7 @@ export const useReviewStore = create<ReviewStore>((set, get) => ({
   },
 
   loadDueCards: async (force = false) => {
+    const generation = restoreGeneration;
     const { reviewType } = get();
     const language = usePreferencesStore.getState().language;
     const selectedLanguage = language === 'all' ? null : language;
@@ -69,6 +71,7 @@ export const useReviewStore = create<ReviewStore>((set, get) => ({
     try {
       if (reviewType === 'word') {
          const cards: DueCard[] = await invoke('get_due_cards', { language: selectedLanguage });
+        if (generation !== restoreGeneration) return;
         set({
           queue: cards,
           currentIndex: 0,
@@ -77,6 +80,7 @@ export const useReviewStore = create<ReviewStore>((set, get) => ({
         });
       } else {
          const cards: DuePhraseCard[] = await invoke('get_due_phrase_cards', { language: selectedLanguage });
+        if (generation !== restoreGeneration) return;
         set({
           queue: cards,
           currentIndex: 0,
@@ -87,7 +91,7 @@ export const useReviewStore = create<ReviewStore>((set, get) => ({
     } catch (e) {
       console.error('Failed to load due cards:', e);
     } finally {
-      set({ loading: false });
+      if (generation === restoreGeneration) set({ loading: false });
     }
   },
 
@@ -192,6 +196,10 @@ export const useReviewStore = create<ReviewStore>((set, get) => ({
     }
   },
 }));
-registerCacheInvalidator('review', () => useReviewStore.setState({ loadedFor: null }));
+registerCacheInvalidator('review', hard => {
+  if (!hard) { useReviewStore.setState({ loadedFor: null }); return; }
+  restoreGeneration++;
+  useReviewStore.setState({ queue: [], currentIndex: 0, loading: false, loadedFor: null, sessionStats: { reviewed: 0, ratings: { Again: 0, Hard: 0, Good: 0, Easy: 0 } } });
+});
 
 export { RATINGS };

@@ -14,11 +14,15 @@ function schedule() {
 }
 export function applyDictionarySnapshot(next: DictionarySnapshot) {
   if (!next || !Array.isArray(next.sources)) return;
+  let changed = false;
   useDictionaryStore.setState(current => {
     const old = current.snapshot;
     if (old && (next.runId < old.runId || next.runId === old.runId && next.sequence < old.sequence)) return {};
+    changed = !old || old.runId !== next.runId || old.state !== next.state
+      || old.sources.map(source => `${source.name}:${source.state}`).join('|') !== next.sources.map(source => `${source.name}:${source.state}`).join('|');
     return { snapshot: next, ready: next.state === 'ready', error: '' };
   });
+  if (changed) window.dispatchEvent(new Event('lexicue-dictionary-changed'));
   schedule();
 }
 async function synchronize() {

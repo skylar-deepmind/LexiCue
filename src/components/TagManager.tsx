@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Pencil, Plus, Trash2, X } from 'lucide-react';
 import { ask } from '@tauri-apps/plugin-dialog';
 import { useTranslation } from 'react-i18next';
 import { useFileStore } from '../stores/fileStore';
@@ -45,7 +45,7 @@ export default function TagManager({ onClose }: { onClose: () => void }) {
         </ul>
         {!loading && !tagsError && tags.filter(tag => tag.name.toLowerCase().includes(query.trim().toLowerCase())).length === 0 && <p className="tag-hint">{t(query ? 'tags.noMatch' : 'tags.noTags')}</p>}
       </div>
-      <footer className="tag-dialog__footer"><button type="button" className="ui-button" disabled={busy} onClick={onClose}>{t('common.close')}</button></footer>
+      <footer className="tag-dialog__footer"><button type="button" className="ui-button ui-button--icon" aria-label={t('common.close')} title={t('common.close')} disabled={busy} onClick={onClose}><X size={20} aria-hidden="true" /></button></footer>
     </Overlay>
     {prompt && <PromptDialog title={t(prompt.tag ? 'tags.rename' : 'tags.create')} placeholder={t('tags.namePlaceholder')}
       initial={prompt.tag?.name} confirmLabel={t(prompt.tag ? 'tags.rename' : 'tags.create')} onCancel={() => setPrompt(null)}

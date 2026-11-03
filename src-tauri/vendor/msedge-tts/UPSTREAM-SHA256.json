@@ -1,0 +1,23 @@
+{
+  "src/constants.rs": "3842d9e974881e6ba83577a840c436ab893a7c8a80a5a842a4f58f65ecfb170f",
+  "src/error.rs": "bd25c6e14dfa1c24651efce0663b8b6165a1c8a125458a1929af7f3e1c8e28c5",
+  "src/lib.rs": "8683071a4bda07b5798791675c3e1087863e8d1bdbe7adfd349647c0dd2ce245",
+  "src/voice/smol_runtime.rs": "609d7f5c7bf1b351c5cad851f178c120080cd7e3cc7e8904d4c403b3d8b7a236",
+  "src/voice/tokio_runtime.rs": "5f6c437d7a0e5b49b3545b28e3788e5fb61d1caae1aa716fa6294499b7c04135",
+  "src/voice/mod.rs": "d9bc1f0967e3572c5a2b4f650f2af14f2e46a0d931c3ab90f31e8bb4d10e908c",
+  "src/voice/blocking.rs": "f5a5a0669d48cc3a743cab84778e3a95c05ec14161373907cb12c096e43d8dc5",
+  "src/tts/drm.rs": "4559b484ec9bb310222cb67b5b487e9bb0300621a51db3f222e1ecdd8fb502e8",
+  "src/tts/mod.rs": "bcbe6862e4681577511c399ea71220ebc59672383ddb9ba0af961c52a3faf358",
+  "src/tts/proxy/smol_runtime.rs": "d8e6d263cc7bdb405c7bac9cd5518a1226656c0253a494b8434d0f460783e247",
+  "src/tts/proxy/tokio_runtime.rs": "03f0671a732b35282646ce2722f964ea2463b0d3b5c42517309a5b2f7272880b",
+  "src/tts/proxy/mod.rs": "d312189bdd31f6be9e8eb19831b17d850ae1a01e462fed6fd9a2c426ee1e398c",
+  "src/tts/proxy/blocking.rs": "20c223af9ec1f809b76621e011ea5e9fce6c414fcd920ed60248c7bfe88b15b5",
+  "src/tts/stream/smol_runtime.rs": "6bc8b58e1b9a298b5e96a14a5b469775adef90b34e3adddd3ce3645b3aada579",
+  "src/tts/stream/tokio_runtime.rs": "643c76047d145b1bee9b9891fea0119ff05e88f8acaa633c5d7b86b72d6ad7a0",
+  "src/tts/stream/mod.rs": "6c7a1b438c23ff4bc01ed953ee8c390b16b9e4dccb53e4e3abdd96aafab851d3",
+  "src/tts/stream/blocking.rs": "50e3a901da8b2ff0e856172ca8cd2a70a9cf82dd99fbb757a99aec0ba02f252c",
+  "src/tts/client/smol_runtime.rs": "a53a98739167872f35688529747a6a4c9b37fa17e40985f10098895db83c3429",
+  "src/tts/client/tokio_runtime.rs": "6600e0fa089794f3995ef9272f18772b2f5666abc9e9e271d994e84b75cf1043",
+  "src/tts/client/mod.rs": "d4591da4b02432f6f1ed9c8a52450a7845464ec86eccbbd9bca9994032fecb80",
+  "src/tts/client/blocking.rs": "9f7bd1fcf1887f1166efc097acaa9e44c5aa76992cabc58888b1aeb6c401d495"
+}

@@ -73,3 +73,27 @@ Gemma weights are downloaded separately and are subject to
 [Google's Gemma terms](https://ai.google.dev/gemma/terms). See
 [the pinned catalog](src-tauri/native/gemma/models.json) and
 [validation status](docs/embedded-gemma.md).
+
+## Edge Read Aloud compatible client
+
+- `msedge-tts` 0.4.1 — published MIT OR Apache-2.0; selected MIT license, copyright (c) 2024 shuai.huang. Vendored source and license: `src-tauri/vendor/msedge-tts/`. Original manifest, source checksums and local modifications are retained in that folder. The upstream DRM module attributes its protocol compatibility algorithm to the `edge-tts` project; see `LEXICUE-CHANGES.md` for provenance.
+- `async-tungstenite` 0.35.0 / `tungstenite` 0.30.0 — MIT, verified rustls/webpki TLS transport.
+- `symphonia` 0.5.5 — MPL-2.0, in-process MP3 decoding and integrity validation.
+
+This third-party client connects directly to Microsoft Edge Read Aloud. Its code license does not grant rights to or guarantee availability, quota or terms of the Microsoft service.
+
+## Document and webpage import
+
+- Mozilla Readability 0.6.0 and PDF.js 5.7.284 — Apache-2.0.
+- linkedom 0.18.12 — ISC.
+- Mammoth 1.13.0 — BSD-2-Clause.
+- Marked 18.1.2, parse5 8.0.1, fflate 0.8.3 and fast-xml-parser 5.11.2 — MIT.
+- webvtt-parser 2.2.0 — CC0-1.0.
+
+Full notices are bundled in `src-tauri/resources/DOCUMENT-IMPORT-LICENSES.txt`.
+PDF.js character maps, standard fonts and WASM assets retain their additional
+license files in the generated `pdfjs/` assets.
+
+Optional online dictionary excerpts from Wiktionary via FreeDictionaryAPI.com
+retain CC BY-SA 4.0 attribution, the original entry link and adaptation notice.
+See the online dictionary attribution in [README.md](README.md#online-dictionary-content-attribution).

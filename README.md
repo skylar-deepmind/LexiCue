@@ -17,7 +17,7 @@
 
 ## Learn from your own content
 
-Import SRT subtitles you enjoy. Look up words in their original sentences, collect vocabulary and remember it through review.
+Import English documents and subtitles you enjoy. Look up words in their original sentences, collect vocabulary and remember it through review.
 
 ## A simple learning loop
 
@@ -50,7 +50,7 @@ Review words and phrases with their original sentences. Your answers shape the s
 
 ## Features
 
-- **[Bring your own content](https://skylar-deepmind.github.io/LexiCue/#feature-import)** — Import SRT subtitles, preview their content and choose the learning language. YouTube subtitles can also be fetched from their source.
+- **[Bring your own content](https://skylar-deepmind.github.io/LexiCue/#feature-import)** — Import PDF (with a text layer), DOCX, EPUB, Markdown, TXT, SRT or VTT. Preview the full text and optionally choose PDF pages or EPUB chapters. YouTube subtitles can also be fetched from their source. Local files are parsed offline; request small batches of translations while reading. Complex layouts may be partially extracted, and OCR is not performed.
 - **[A word away from understanding](https://skylar-deepmind.github.io/LexiCue/#feature-lookup)** — Tap a word without leaving the sentence. Built-in offline dictionaries keep reading flowing.
 - **[Understand phrases in context](https://skylar-deepmind.github.io/LexiCue/#feature-phrases)** — Optional AI identifies English expressions and explains their use in the original sentence. Gemma runs locally after a separate download.
 - **[Build a vocabulary you can trace](https://skylar-deepmind.github.io/LexiCue/#feature-collect)** — Filter, tag and mark words or phrases. Batch or one-at-a-time annotation keeps the original context within reach.
@@ -75,6 +75,7 @@ Gemma: [E2B / E4B](docs/embedded-gemma.md).
 
 Reading, dictionaries and reviews work locally. Downloading YouTube subtitles or AI models requires a connection. Optional cloud AI sends selected text to your configured API; optional cloud sync uploads encrypted learning records.
 
+English read-aloud uses Microsoft's Edge online speech service by default. Only the English text you ask to hear and the chosen voice settings are sent; validated audio is cached on your device, separately from learning records and backups. Settings → English read-aloud lets you choose US/UK voices and speed, turn off online requests, and disable the explicitly labelled device-voice fallback. Cached speech remains available offline. This third-party service can change or become unavailable; no Azure key, Edge installation, or separate Python/Node runtime is required.
 
 ## Support the project
 
@@ -97,3 +98,23 @@ cd src-tauri && cargo test
 ## License
 
 [MIT](LICENSE) · [Third-party notices](THIRD-PARTY-NOTICES.md) · [Dictionary packs](DICTIONARY_PACK.md)
+
+### Online dictionary content attribution
+
+Optional English fallback definitions and ordinary examples are adapted from
+[Wiktionary contributors](https://en.wiktionary.org/) via
+[FreeDictionaryAPI.com](https://freedictionaryapi.com/), under
+[CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
+Each displayed or saved excerpt retains the API-reported original Wiktionary entry
+link, retrieval time, attribution, license, and adaptation notice. LexiCue omits
+translations, quotations, and dictionary audio from this source and preserves
+necessary parent-sense context. This content license applies to the attributed
+dictionary excerpts, not the user's original reading material or personal notes;
+the application's software license remains separate. A future download or
+distribution page must retain this API and content attribution.
+
+New Wiktionary references require a client containing the FreeDictionaryAPI V1
+reader. The saved-record wire version remains compatible with existing Longman,
+known Cambridge adapters, and records without references. Older clients are not
+promised to recognize the new provider; unsupported references must fail
+validation rather than be silently removed. No migration rewrites old records.

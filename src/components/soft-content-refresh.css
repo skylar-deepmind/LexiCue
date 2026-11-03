@@ -1,0 +1,14 @@
+.soft-refresh,.soft-refresh-current,.soft-refresh-snapshot { display:flex; flex:1; flex-direction:column; min-height:0; min-width:0; }
+.soft-refresh { position:relative; isolation:isolate; overflow:clip; }
+.soft-refresh-current,.soft-refresh-snapshot { position:relative; z-index:2; background:var(--surface); }
+.soft-refresh-ghost { position:absolute; inset:0; z-index:1; display:flex; flex-direction:column; min-height:0; overflow:hidden; pointer-events:none; user-select:none; background:var(--surface); }
+.soft-refresh-ghost:empty { display:none; }
+.soft-refresh > .lookup-pending { z-index:4; }
+.lookup-action-slot { flex:none; }
+/* Preserve the old readable surface until a replacement can be painted calmly. */
+.soft-refresh[data-refresh-state='waiting'] > .soft-refresh-current { visibility:hidden; }
+.soft-refresh[data-refresh-state='revealing'] > .soft-refresh-current { opacity:var(--refresh-opacity,0); }
+.soft-refresh-frame { position:relative; width:100%; min-height:0; background:var(--surface); }
+.soft-refresh-frame > .soft-refresh-snapshot { position:absolute; inset:0 0 auto; }
+/* Keep loading announcements accessible, without inserting a flashing badge. */
+.soft-refresh > .lookup-pending { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); padding:0; border:0; margin:-1px; white-space:nowrap; animation:none; }

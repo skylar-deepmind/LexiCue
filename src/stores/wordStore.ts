@@ -44,7 +44,11 @@ interface WordStore {
 let detailGeneration = 0;
 
 const wordCache = new QueryCache<WordInfo[]>();
-registerCacheInvalidator('words', () => wordCache.invalidate());
+registerCacheInvalidator('words', hard => {
+  if (!hard) { wordCache.invalidate(); return; }
+  wordCache.clear(); detailGeneration++;
+  useWordStore.setState({ words: [], detail: null, selected: new Set(), lastBatchAction: null, loadedKey: null, loading: false, detailLoading: false, detailError: false, detailErrorId: null });
+});
 
 function wordQueryKey(filter: WordStore['filter'], sortBy: WordStore['sortBy'], includeProperNouns = false): string {
   return JSON.stringify([usePreferencesStore.getState().language, filter, sortBy, includeProperNouns]);
@@ -69,6 +73,7 @@ export const useWordStore = create<WordStore>((set, get) => ({
     const { filter, sortBy, includeProperNouns } = get();
     const language = usePreferencesStore.getState().language;
     const key = wordQueryKey(filter, sortBy, includeProperNouns);
+    const version = wordCache.version;
     const cached = wordCache.peek(key);
     if (cached) set({ words: cached, loadedKey: key, loading: false });
     if (!force && wordCache.isFresh(key)) return;
@@ -80,11 +85,11 @@ export const useWordStore = create<WordStore>((set, get) => ({
           language: language === 'all' ? null : language,
           includeProperNouns,
         }), force);
-      if (wordQueryKey(get().filter, get().sortBy, get().includeProperNouns) === key) set({ words, loadedKey: key });
+      if (version === wordCache.version && wordQueryKey(get().filter, get().sortBy, get().includeProperNouns) === key) set({ words, loadedKey: key });
     } catch (e) {
       console.error('Failed to load words:', e);
     } finally {
-      if (wordQueryKey(get().filter, get().sortBy, get().includeProperNouns) === key) set({ loading: false });
+      if (version === wordCache.version && wordQueryKey(get().filter, get().sortBy, get().includeProperNouns) === key) set({ loading: false });
     }
   },
 

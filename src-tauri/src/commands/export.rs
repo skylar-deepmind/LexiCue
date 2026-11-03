@@ -13,6 +13,25 @@ pub struct BackupPayload {
 
 #[derive(Serialize, Deserialize)]
 pub struct BackupData {
+    // Retired settings remain portable and inspectable; never re-enable learning tasks.
+    #[serde(default)]
+    pub frequency_baseline_profiles: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub frequency_baseline_marks: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub frequency_baseline_daily_checks: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub material_import_actions: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub annotation_actions: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub saved_records: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub saved_actions: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub saved_conflicts: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub product_migrations: Vec<serde_json::Value>,
     pub files: Vec<serde_json::Value>,
     #[serde(default)]
     pub folders: Vec<serde_json::Value>,
@@ -77,7 +96,24 @@ fn query_all(conn: &rusqlite::Connection, table: &str) -> Result<Vec<serde_json:
 
     let mut result = Vec::new();
     for row in rows {
-        result.push(row.map_err(|e| e.to_string())?);
+        let mut row = row.map_err(|e| e.to_string())?;
+        let fields: &[&str] = match table {
+            "saved_records" => &["snapshot_json"],
+            "saved_actions" => &["before_json"],
+            "sync_conflicts" => &["local_value", "remote_value"],
+            _ => &[],
+        };
+        for field in fields {
+            if let Some(raw) = row.get(*field).and_then(|v| v.as_str()) {
+                if let Ok(value) = serde_json::from_str::<serde_json::Value>(raw) {
+                    let portable = super::source_media::portable_saved_value(conn, value)?;
+                    row[*field] = serde_json::json!(
+                        serde_json::to_string(&portable).map_err(|e| e.to_string())?
+                    );
+                }
+            }
+        }
+        result.push(row);
     }
     Ok(result)
 }
@@ -109,25 +145,38 @@ fn insert_from_json(
         return Ok(());
     }
 
-    let first = &rows[0];
-    let obj = first.as_object().ok_or("invalid row format")?;
-    let columns: Vec<&str> = obj.keys().map(|k| k.as_str()).collect();
-    let placeholders: Vec<String> = columns
-        .iter()
-        .enumerate()
-        .map(|(i, _)| format!("?{}", i + 1))
-        .collect();
-    let sql = format!(
-        "INSERT INTO {} ({}) VALUES ({})",
-        table,
-        columns.join(", "),
-        placeholders.join(", ")
-    );
-
-    let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
-
+    let available = conn
+        .prepare(&format!("PRAGMA table_info({table})"))
+        .map_err(|e| e.to_string())?
+        .query_map([], |r| r.get::<_, String>(1))
+        .map_err(|e| e.to_string())?
+        .collect::<Result<std::collections::HashSet<_>, _>>()
+        .map_err(|e| e.to_string())?;
     for row in rows {
         let obj = row.as_object().ok_or("invalid row format")?;
+        if table == "files" {
+            super::source_media::validate_file_source(obj)?;
+            super::document_source::validate_file_source(obj)?;
+        }
+        // Older backups may omit new columns on individual rows. Use their
+        // defaults without dropping fields that appear on later rows.
+        let columns: Vec<&str> = obj.keys().map(String::as_str).collect();
+        if columns.is_empty() || columns.iter().any(|column| !available.contains(*column)) {
+            return Err(format!("invalid backup columns for {table}"));
+        }
+        let names = columns
+            .iter()
+            .map(|column| format!("\"{}\"", column.replace('"', "\"\"")))
+            .collect::<Vec<_>>();
+        let placeholders = (1..=columns.len())
+            .map(|i| format!("?{i}"))
+            .collect::<Vec<_>>();
+        let sql = format!(
+            "INSERT INTO {table} ({}) VALUES ({})",
+            names.join(","),
+            placeholders.join(",")
+        );
+        let mut stmt = conn.prepare_cached(&sql).map_err(|e| e.to_string())?;
         let values: Vec<Box<dyn rusqlite::types::ToSql>> = columns
             .iter()
             .map(|col| json_to_sql_value(obj.get(*col).unwrap_or(&serde_json::Value::Null)))
@@ -138,6 +187,38 @@ fn insert_from_json(
     }
 
     Ok(())
+}
+
+/// File rows have already queued complete library snapshots. Avoid scanning the
+/// growing sync queue for every restored subtitle/token; the finished snapshot
+/// is read only after this whole restore transaction commits.
+fn insert_material_rows(
+    conn: &rusqlite::Connection,
+    table: &str,
+    rows: &[serde_json::Value],
+) -> Result<(), String> {
+    use rusqlite::OptionalExtension;
+    let previous: Option<String> = conn
+        .query_row(
+            "SELECT value FROM sync_runtime WHERE key='applying'",
+            [],
+            |r| r.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+    conn.execute("INSERT INTO sync_runtime(key,value) VALUES('applying','1') ON CONFLICT(key) DO UPDATE SET value='1'",[]).map_err(|e|e.to_string())?;
+    let result = insert_from_json(conn, table, rows);
+    if let Some(value) = previous {
+        conn.execute(
+            "UPDATE sync_runtime SET value=?1 WHERE key='applying'",
+            [value],
+        )
+        .map_err(|e| e.to_string())?;
+    } else {
+        conn.execute("DELETE FROM sync_runtime WHERE key='applying'", [])
+            .map_err(|e| e.to_string())?;
+    }
+    result
 }
 
 fn now_ms() -> i64 {
@@ -174,45 +255,130 @@ pub fn backup_payload(conn: &rusqlite::Connection) -> Result<BackupPayload, Stri
     let phrase_dictionary_entries = query_all(conn, "phrase_dictionary_entries")?;
     let file_phrase_analysis = query_all(conn, "file_phrase_analysis")?;
 
+    let data = BackupData {
+        frequency_baseline_profiles: query_all(conn, "frequency_baseline_profiles")?,
+        frequency_baseline_marks: query_all(conn, "frequency_baseline_marks")?,
+        frequency_baseline_daily_checks: query_all(conn, "frequency_baseline_daily_checks")?,
+        material_import_actions: query_all(conn, "material_import_actions")?,
+        annotation_actions: query_all(conn, "annotation_actions")?,
+        saved_records: query_all(conn, "saved_records")?,
+        saved_actions: query_all(conn, "saved_actions")?,
+        saved_conflicts: query_all(conn, "sync_conflicts")?
+            .into_iter()
+            .filter_map(|mut row| {
+                if row.get("table_name").and_then(|v| v.as_str()) != Some("saved_records") {
+                    return None;
+                }
+                row.as_object_mut()?.remove("id");
+                Some(row)
+            })
+            .collect(),
+        product_migrations: query_all(conn, "product_migrations")?,
+        files,
+        folders,
+        tags: query_all(conn, "tags")?,
+        file_tags: query_all(conn, "file_tags")?,
+        legacy_tag_folders: query_all(conn, "legacy_tag_folders")?,
+        file_tag_state: query_all(conn, "file_tag_state")?,
+        segments,
+        words,
+        word_aliases,
+        occurrences,
+        reviews,
+        review_logs,
+        dictionary_entries,
+        dictionary_sources,
+        phrases,
+        phrase_occurrences,
+        phrase_reviews,
+        phrase_review_logs,
+        phrase_dictionary_entries,
+        file_phrase_analysis,
+    };
+    let schema_version = if super::document_source::contains_content_origin(
+        &serde_json::to_value(&data).map_err(|e| e.to_string())?,
+    ) {
+        12
+    } else if super::document_source::contains_document(
+        &serde_json::to_value(&data).map_err(|e| e.to_string())?,
+    ) {
+        11
+    } else {
+        10
+    };
     Ok(BackupPayload {
-        schema_version: 8,
+        schema_version,
         exported_at: now_ms(),
-        app_version: env!("CARGO_PKG_VERSION").to_string(),
-        data: BackupData {
-            files,
-            folders,
-            tags: query_all(conn, "tags")?,
-            file_tags: query_all(conn, "file_tags")?,
-            legacy_tag_folders: query_all(conn, "legacy_tag_folders")?,
-            file_tag_state: query_all(conn, "file_tag_state")?,
-            segments,
-            words,
-            word_aliases,
-            occurrences,
-            reviews,
-            review_logs,
-            dictionary_entries,
-            dictionary_sources,
-            phrases,
-            phrase_occurrences,
-            phrase_reviews,
-            phrase_review_logs,
-            phrase_dictionary_entries,
-            file_phrase_analysis,
-        },
+        app_version: env!("CARGO_PKG_VERSION").into(),
+        data,
     })
 }
 
 #[tauri::command]
-pub fn restore_all(state: State<DbState>, backup: BackupPayload) -> Result<(), String> {
-    let conn = state.conn.lock().map_err(|e| e.to_string())?;
-    restore_backup(&conn, &backup)
+pub async fn restore_all(
+    state: State<'_, DbState>,
+    backup: BackupPayload,
+) -> Result<RestoreResult, String> {
+    let shared = std::sync::Arc::clone(&state.conn);
+    // SQLite lock waits, VACUUM and integrity checking can take seconds. Keep
+    // them off the WebView thread while retaining one mutex for the full write.
+    tauri::async_runtime::spawn_blocking(move || {
+        let conn = shared.lock().map_err(|e| e.to_string())?;
+        restore_with_safety_backup(&conn, &backup)
+    })
+    .await
+    .map_err(|error| {
+        // A worker failure does not prove whether its transaction committed.
+        // Do not present this as a cancelled or never-started restore.
+        format!(
+            "restore_status_unknown: restore worker failed: {error}; check current data and safety backups before retrying"
+        )
+    })?
+}
+
+#[derive(Debug, Serialize)]
+pub struct RestoreResult {
+    pub safety_backup_path: String,
+}
+
+/// Manual recovery keeps a full local SQLite safety copy. This deliberately
+/// leaves the portable export format and the cloud recovery protocol unchanged.
+fn restore_with_safety_backup(
+    conn: &rusqlite::Connection,
+    backup: &BackupPayload,
+) -> Result<RestoreResult, String> {
+    validate_backup_version(backup)?;
+    let path = conn.path().filter(|path| !path.is_empty()).ok_or(
+        "restore_safety_backup_failed: database has no persistent path; restore was not started",
+    )?;
+    let safety_backup =
+        crate::db::consistent_backup(conn, std::path::Path::new(path), "lexicue-pre-restore")
+            .map_err(|error| {
+                format!("restore_safety_backup_failed: {error}; restore was not started")
+            })?;
+    let safety_backup_path = safety_backup.to_string_lossy().into_owned();
+    restore_backup(conn, backup).map_err(|error| {
+        format!("restore_failed; safety_backup_path={safety_backup_path}: {error}")
+    })?;
+    Ok(RestoreResult { safety_backup_path })
 }
 
 /// Restores a portable backup into an existing database connection. Cloud
 /// recovery uses this after making a local safety export; keeping it separate
 /// from the Tauri command makes the destructive step testable and atomic.
 pub fn restore_backup(conn: &rusqlite::Connection, backup: &BackupPayload) -> Result<(), String> {
+    validate_backup_version(backup)?;
+    // RAII also rolls back a failed COMMIT (for example a deferred constraint),
+    // so the shared connection never leaks a partially restored transaction.
+    let transaction =
+        rusqlite::Transaction::new_unchecked(conn, rusqlite::TransactionBehavior::Immediate)
+            .map_err(|e| e.to_string())?;
+
+    restore_rows(conn, backup)?;
+    transaction.commit().map_err(|e| e.to_string())
+}
+
+fn validate_backup_version(backup: &BackupPayload) -> Result<(), String> {
     if backup.schema_version != 1
         && backup.schema_version != 2
         && backup.schema_version != 3
@@ -221,6 +387,10 @@ pub fn restore_backup(conn: &rusqlite::Connection, backup: &BackupPayload) -> Re
         && backup.schema_version != 6
         && backup.schema_version != 7
         && backup.schema_version != 8
+        && backup.schema_version != 9
+        && backup.schema_version != 10
+        && backup.schema_version != 11
+        && backup.schema_version != 12
     {
         return Err(format!(
             "Unsupported backup schema version: {}",
@@ -228,127 +398,246 @@ pub fn restore_backup(conn: &rusqlite::Connection, backup: &BackupPayload) -> Re
         ));
     }
 
-    conn.execute("BEGIN IMMEDIATE", [])
+    Ok(())
+}
+
+fn restore_rows(conn: &rusqlite::Connection, backup: &BackupPayload) -> Result<(), String> {
+    conn.execute("DELETE FROM material_import_actions", [])
+        .map_err(|e| e.to_string())?;
+    // Keep stable saved identities and tombstones in the portable payload.
+    // Remove old local receipts/state before replacing data, in this transaction.
+    conn.execute_batch(
+        "DELETE FROM saved_actions; DELETE FROM saved_records; DELETE FROM product_migrations;
+            DELETE FROM sync_changes WHERE table_name='saved_records';
+            DELETE FROM sync_entity_state WHERE table_name='saved_records';
+            DELETE FROM sync_identity_aliases WHERE table_name='saved_records';
+            DELETE FROM sync_remote_state WHERE table_name='saved_records';
+            DELETE FROM sync_conflicts WHERE table_name='saved_records';",
+    )
+    .map_err(|e| e.to_string())?;
+    conn.execute_batch("DELETE FROM legacy_tag_folders; DELETE FROM file_tags; DELETE FROM file_tag_state; DELETE FROM tags;").map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM annotation_actions", [])
+        .map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM phrase_review_logs", [])
+        .map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM file_phrase_analysis", [])
+        .map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM phrase_dictionary_entries", [])
+        .map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM phrase_reviews", [])
+        .map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM phrase_occurrences", [])
+        .map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM phrases", [])
+        .map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM review_logs", [])
+        .map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM dictionary_entries", [])
+        .map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM dictionary_sources", [])
+        .map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM reviews", [])
+        .map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM occurrences", [])
+        .map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM word_aliases", [])
+        .map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM segments", [])
+        .map_err(|e| e.to_string())?;
+    conn.execute_batch("DELETE FROM frequency_baseline_marks; DELETE FROM frequency_baseline_profiles; DELETE FROM frequency_baseline_daily_checks;").map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM words", [])
+        .map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM files", [])
+        .map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM folders", [])
         .map_err(|e| e.to_string())?;
 
-    let result = (|| -> Result<(), String> {
-        conn.execute_batch("DELETE FROM legacy_tag_folders; DELETE FROM file_tags; DELETE FROM file_tag_state; DELETE FROM tags;").map_err(|e| e.to_string())?;
-        conn.execute("DELETE FROM annotation_actions", [])
-            .map_err(|e| e.to_string())?;
-        conn.execute("DELETE FROM phrase_review_logs", [])
-            .map_err(|e| e.to_string())?;
-        conn.execute("DELETE FROM file_phrase_analysis", [])
-            .map_err(|e| e.to_string())?;
-        conn.execute("DELETE FROM phrase_dictionary_entries", [])
-            .map_err(|e| e.to_string())?;
-        conn.execute("DELETE FROM phrase_reviews", [])
-            .map_err(|e| e.to_string())?;
-        conn.execute("DELETE FROM phrase_occurrences", [])
-            .map_err(|e| e.to_string())?;
-        conn.execute("DELETE FROM phrases", [])
-            .map_err(|e| e.to_string())?;
-        conn.execute("DELETE FROM review_logs", [])
-            .map_err(|e| e.to_string())?;
-        conn.execute("DELETE FROM dictionary_entries", [])
-            .map_err(|e| e.to_string())?;
-        conn.execute("DELETE FROM dictionary_sources", [])
-            .map_err(|e| e.to_string())?;
-        conn.execute("DELETE FROM reviews", [])
-            .map_err(|e| e.to_string())?;
-        conn.execute("DELETE FROM occurrences", [])
-            .map_err(|e| e.to_string())?;
-        conn.execute("DELETE FROM word_aliases", [])
-            .map_err(|e| e.to_string())?;
-        conn.execute("DELETE FROM segments", [])
-            .map_err(|e| e.to_string())?;
-        conn.execute("DELETE FROM words", [])
-            .map_err(|e| e.to_string())?;
-        conn.execute("DELETE FROM files", [])
-            .map_err(|e| e.to_string())?;
-        conn.execute("DELETE FROM folders", [])
-            .map_err(|e| e.to_string())?;
-
-        insert_from_json(conn, "files", &backup.data.files)?;
-        insert_from_json(conn, "folders", &backup.data.folders)?;
-        insert_from_json(conn, "tags", &backup.data.tags)?;
-        insert_from_json(conn, "file_tags", &backup.data.file_tags)?;
-        insert_from_json(conn, "legacy_tag_folders", &backup.data.legacy_tag_folders)?;
-        insert_from_json(conn, "file_tag_state", &backup.data.file_tag_state)?;
-        if backup.schema_version < 8 {
-            super::tags::migrate_legacy(conn)?;
-        } else {
-            conn.execute(
-                "INSERT OR IGNORE INTO file_tag_state(file_id) SELECT id FROM files",
-                [],
-            )
-            .map_err(|e| e.to_string())?;
-        }
-        insert_from_json(conn, "words", &backup.data.words)?;
-        insert_from_json(conn, "word_aliases", &backup.data.word_aliases)?;
-        insert_from_json(conn, "segments", &backup.data.segments)?;
-        insert_from_json(conn, "occurrences", &backup.data.occurrences)?;
-        insert_from_json(conn, "reviews", &backup.data.reviews)?;
-        insert_from_json(conn, "review_logs", &backup.data.review_logs)?;
-        insert_from_json(conn, "dictionary_entries", &backup.data.dictionary_entries)?;
-        insert_from_json(conn, "dictionary_sources", &backup.data.dictionary_sources)?;
-        insert_from_json(conn, "phrases", &backup.data.phrases)?;
-        insert_from_json(conn, "phrase_occurrences", &backup.data.phrase_occurrences)?;
-        insert_from_json(conn, "phrase_reviews", &backup.data.phrase_reviews)?;
-        insert_from_json(conn, "phrase_review_logs", &backup.data.phrase_review_logs)?;
-        insert_from_json(
-            conn,
-            "phrase_dictionary_entries",
-            &backup.data.phrase_dictionary_entries,
-        )?;
-        insert_from_json(
-            conn,
-            "file_phrase_analysis",
-            &backup.data.file_phrase_analysis,
-        )?;
-
-        let violations: Vec<String> = {
-            let mut stmt = conn
-                .prepare("PRAGMA foreign_key_check")
-                .map_err(|e| e.to_string())?;
-            let rows = stmt
-                .query_map([], |row| {
-                    Ok(format!(
-                        "table={} rowid={} parent={} fkid={}",
-                        row.get::<_, String>(0)?,
-                        row.get::<_, i64>(1)?,
-                        row.get::<_, String>(2)?,
-                        row.get::<_, i64>(3)?
-                    ))
-                })
-                .map_err(|e| e.to_string())?;
-            rows.filter_map(|r| r.ok()).collect()
-        };
-
-        if !violations.is_empty() {
-            return Err(format!(
-                "Foreign key integrity check failed:\n{}",
-                violations.join("\n")
-            ));
-        }
-
-        Ok(())
-    })();
-
-    match result {
-        Ok(()) => {
-            conn.execute("COMMIT", []).map_err(|e| e.to_string())?;
-            Ok(())
-        }
-        Err(e) => {
-            let _ = conn.execute("ROLLBACK", []);
-            Err(e)
-        }
+    insert_from_json(conn, "files", &backup.data.files)?;
+    insert_from_json(
+        conn,
+        "material_import_actions",
+        &backup.data.material_import_actions,
+    )?;
+    insert_from_json(conn, "folders", &backup.data.folders)?;
+    insert_from_json(conn, "tags", &backup.data.tags)?;
+    insert_from_json(conn, "file_tags", &backup.data.file_tags)?;
+    insert_from_json(conn, "legacy_tag_folders", &backup.data.legacy_tag_folders)?;
+    insert_from_json(conn, "file_tag_state", &backup.data.file_tag_state)?;
+    if backup.schema_version < 8 {
+        super::tags::migrate_legacy(conn)?;
+    } else {
+        conn.execute(
+            "INSERT OR IGNORE INTO file_tag_state(file_id) SELECT id FROM files",
+            [],
+        )
+        .map_err(|e| e.to_string())?;
     }
+    insert_from_json(conn, "words", &backup.data.words)?;
+    insert_from_json(conn, "word_aliases", &backup.data.word_aliases)?;
+    insert_from_json(
+        conn,
+        "frequency_baseline_profiles",
+        &backup.data.frequency_baseline_profiles,
+    )?;
+    insert_from_json(
+        conn,
+        "frequency_baseline_marks",
+        &backup.data.frequency_baseline_marks,
+    )?;
+    insert_from_json(
+        conn,
+        "frequency_baseline_daily_checks",
+        &backup.data.frequency_baseline_daily_checks,
+    )?;
+    insert_material_rows(conn, "segments", &backup.data.segments)?;
+    super::document_source::validate_database_sources(conn)?;
+    insert_material_rows(conn, "occurrences", &backup.data.occurrences)?;
+    insert_from_json(conn, "reviews", &backup.data.reviews)?;
+    insert_from_json(conn, "review_logs", &backup.data.review_logs)?;
+    insert_from_json(conn, "dictionary_entries", &backup.data.dictionary_entries)?;
+    insert_from_json(conn, "dictionary_sources", &backup.data.dictionary_sources)?;
+    insert_from_json(conn, "phrases", &backup.data.phrases)?;
+    insert_material_rows(conn, "phrase_occurrences", &backup.data.phrase_occurrences)?;
+    insert_from_json(conn, "phrase_reviews", &backup.data.phrase_reviews)?;
+    insert_from_json(conn, "phrase_review_logs", &backup.data.phrase_review_logs)?;
+    insert_from_json(
+        conn,
+        "phrase_dictionary_entries",
+        &backup.data.phrase_dictionary_entries,
+    )?;
+    insert_material_rows(
+        conn,
+        "file_phrase_analysis",
+        &backup.data.file_phrase_analysis,
+    )?;
+
+    // Validate canonical snapshots instead of trusting redundant JSON/index
+    // columns in an exported SQL row. Missing v9 fields behave like an old backup.
+    for row in &backup.data.saved_records {
+        let raw = row
+            .get("snapshot_json")
+            .and_then(|v| v.as_str())
+            .ok_or("invalid_saved_backup")?;
+        let record: super::saved::SavedRecord =
+            serde_json::from_str(raw).map_err(|e| e.to_string())?;
+        super::saved::write_record(conn, &record)?;
+    }
+    insert_from_json(conn, "saved_actions", &backup.data.saved_actions)?;
+    if backup
+        .data
+        .saved_conflicts
+        .iter()
+        .any(|r| r.get("table_name").and_then(|v| v.as_str()) != Some("saved_records"))
+    {
+        return Err("invalid_saved_backup".into());
+    }
+    insert_from_json(conn, "sync_conflicts", &backup.data.saved_conflicts)?;
+    insert_from_json(conn, "annotation_actions", &backup.data.annotation_actions)?;
+    insert_from_json(conn, "product_migrations", &backup.data.product_migrations)?;
+    super::saved::migrate_legacy(conn)?;
+
+    let violations: Vec<String> = {
+        let mut stmt = conn
+            .prepare("PRAGMA foreign_key_check")
+            .map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map([], |row| {
+                Ok(format!(
+                    "table={} rowid={} parent={} fkid={}",
+                    row.get::<_, String>(0)?,
+                    row.get::<_, i64>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, i64>(3)?
+                ))
+            })
+            .map_err(|e| e.to_string())?;
+        rows.filter_map(|r| r.ok()).collect()
+    };
+
+    if !violations.is_empty() {
+        return Err(format!(
+            "Foreign key integrity check failed:\n{}",
+            violations.join("\n")
+        ));
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
 mod english_learning_tests {
     use super::*;
+
+    #[test]
+    fn retired_frequency_settings_round_trip_and_old_backups_default_empty() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = crate::db::init_db(&dir.path().join("source.db")).unwrap();
+        source
+            .execute("INSERT INTO words(language,lemma) VALUES('ja','昔')", [])
+            .unwrap();
+        source
+            .execute(
+                "INSERT INTO frequency_baseline_profiles VALUES('ja',2,1,123)",
+                [],
+            )
+            .unwrap();
+        source.execute("INSERT INTO frequency_baseline_marks VALUES(1,'ja',2,'old-pack','v1','corrected',124,'2026-10-01')",[]).unwrap();
+        source
+            .execute(
+                "INSERT INTO frequency_baseline_daily_checks VALUES('ja','2026-10-01',3)",
+                [],
+            )
+            .unwrap();
+        let backup = backup_payload(&source).unwrap();
+        let target = crate::db::init_db(&dir.path().join("target.db")).unwrap();
+        restore_backup(&target, &backup).unwrap();
+        let restored = backup_payload(&target).unwrap();
+        assert_eq!(
+            restored.data.frequency_baseline_profiles,
+            backup.data.frequency_baseline_profiles
+        );
+        assert_eq!(
+            restored.data.frequency_baseline_marks,
+            backup.data.frequency_baseline_marks
+        );
+        assert_eq!(
+            restored.data.frequency_baseline_daily_checks,
+            backup.data.frequency_baseline_daily_checks
+        );
+        for kind in [
+            "frequency_baseline_profiles",
+            "frequency_baseline_marks",
+            "frequency_baseline_daily_checks",
+        ] {
+            let page = super::super::history::list(&target, kind, "ja", 0).unwrap();
+            assert_eq!(page.rows.len(), 1);
+            let id = page.rows[0]["legacy_rowid"].as_i64().unwrap();
+            assert_eq!(
+                super::super::history::detail(&target, kind, id).unwrap()["record"]["language"],
+                "ja"
+            );
+        }
+        let mut old = serde_json::to_value(backup).unwrap();
+        for key in [
+            "frequency_baseline_profiles",
+            "frequency_baseline_marks",
+            "frequency_baseline_daily_checks",
+        ] {
+            old["data"].as_object_mut().unwrap().remove(key);
+        }
+        restore_backup(&target, &serde_json::from_value(old).unwrap()).unwrap();
+        assert!(backup_payload(&target)
+            .unwrap()
+            .data
+            .frequency_baseline_profiles
+            .is_empty());
+        assert_eq!(
+            target
+                .query_row("SELECT COUNT(*) FROM words", [], |r| r.get::<_, i64>(0))
+                .unwrap(),
+            1
+        );
+    }
 
     #[test]
     fn backup_round_trip_keeps_context_meaning_and_other_senses() {
@@ -397,7 +686,7 @@ mod english_learning_tests {
             )
             .unwrap();
         let backup = backup_payload(&source).unwrap();
-        assert_eq!(backup.schema_version, 8);
+        assert_eq!(backup.schema_version, 10);
 
         let target_file = tempfile::NamedTempFile::new().unwrap();
         let target = crate::db::init_db(target_file.path()).unwrap();
@@ -426,3 +715,167 @@ mod english_learning_tests {
         );
     }
 }
+
+#[cfg(test)]
+mod restore_safety_tests {
+    use super::*;
+    use rusqlite::{Connection, OpenFlags};
+
+    fn data(conn: &Connection) -> serde_json::Value {
+        serde_json::to_value(backup_payload(conn).unwrap().data).unwrap()
+    }
+
+    fn seed(conn: &Connection) {
+        conn.execute_batch("PRAGMA wal_autocheckpoint=0;
+            INSERT INTO files(name,type,content,content_hash,imported_at) VALUES('before.txt','txt','Before restore.','before-hash',1);
+            INSERT INTO segments(file_id,index_num,en_text) VALUES(1,0,'Before restore.');
+            INSERT INTO words(language,lemma) VALUES('ja','昔');
+            INSERT INTO words(language,lemma) VALUES('en','deleted');
+            DELETE FROM words WHERE lemma='deleted';
+            INSERT INTO sync_metadata(key,value,updated_at) VALUES('local-only','kept',123);").unwrap();
+    }
+
+    #[test]
+    fn manual_restore_safety_copy_contains_committed_wal_and_original_sync_state() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("target.db");
+        let target = crate::db::init_db(&path).unwrap();
+        seed(&target);
+        assert!(
+            std::fs::metadata(dir.path().join("target.db-wal"))
+                .unwrap()
+                .len()
+                > 32
+        );
+        let before = data(&target);
+        let sync_before = query_all(&target, "sync_entity_state").unwrap();
+        let queue_before = query_all(&target, "sync_changes").unwrap();
+        let source = crate::db::init_db(&dir.path().join("source.db")).unwrap();
+        let incoming = backup_payload(&source).unwrap();
+        let result = restore_with_safety_backup(&target, &incoming).unwrap();
+        let copy = Connection::open_with_flags(
+            &result.safety_backup_path,
+            OpenFlags::SQLITE_OPEN_READ_ONLY,
+        )
+        .unwrap();
+        assert_eq!(data(&copy), before);
+        assert_eq!(query_all(&copy, "sync_entity_state").unwrap(), sync_before);
+        assert_eq!(query_all(&copy, "sync_changes").unwrap(), queue_before);
+        assert_eq!(
+            query_all(&copy, "sync_metadata").unwrap()[0]["value"],
+            "kept"
+        );
+        assert_eq!(
+            copy.query_row("PRAGMA integrity_check", [], |r| r.get::<_, String>(0))
+                .unwrap(),
+            "ok"
+        );
+        assert!(data(&target)["files"].as_array().unwrap().is_empty());
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(
+                std::fs::metadata(&result.safety_backup_path)
+                    .unwrap()
+                    .permissions()
+                    .mode()
+                    & 0o777,
+                0o600
+            );
+        }
+        let second = restore_with_safety_backup(&target, &incoming).unwrap();
+        assert_ne!(second.safety_backup_path, result.safety_backup_path);
+        assert!(std::path::Path::new(&result.safety_backup_path).exists());
+    }
+
+    #[test]
+    fn manual_restore_backup_failure_is_closed_and_does_not_touch_business_or_sync_rows() {
+        let dir = tempfile::tempdir().unwrap();
+        let conn = crate::db::init_db(&dir.path().join("target.db")).unwrap();
+        seed(&conn);
+        let backup = backup_payload(&conn).unwrap();
+        let before = data(&conn);
+        let queue = query_all(&conn, "sync_changes").unwrap();
+        std::fs::write(dir.path().join("backups"), "blocked").unwrap();
+        let error = restore_with_safety_backup(&conn, &backup).unwrap_err();
+        assert!(
+            error.starts_with("restore_safety_backup_failed:"),
+            "{error}"
+        );
+        assert_eq!(data(&conn), before);
+        assert_eq!(query_all(&conn, "sync_changes").unwrap(), queue);
+        assert!(conn.is_autocommit());
+    }
+
+    #[test]
+    fn invalid_restore_keeps_safety_copy_and_rolls_back_all_changes() {
+        let dir = tempfile::tempdir().unwrap();
+        let conn = crate::db::init_db(&dir.path().join("target.db")).unwrap();
+        seed(&conn);
+        let before = data(&conn);
+        let queue = query_all(&conn, "sync_changes").unwrap();
+        let mut invalid = backup_payload(&conn).unwrap();
+        invalid.data.files[0]["type"] = serde_json::json!("invalid-type");
+        let error = restore_with_safety_backup(&conn, &invalid).unwrap_err();
+        assert!(
+            error.starts_with("restore_failed; safety_backup_path="),
+            "{error}"
+        );
+        assert_eq!(data(&conn), before);
+        assert_eq!(query_all(&conn, "sync_changes").unwrap(), queue);
+        assert!(conn.is_autocommit());
+        let files: Vec<_> = std::fs::read_dir(dir.path().join("backups"))
+            .unwrap()
+            .collect();
+        assert_eq!(files.len(), 1);
+        let copy = Connection::open(files[0].as_ref().unwrap().path()).unwrap();
+        assert_eq!(data(&copy), before);
+        invalid.schema_version = 13;
+        assert!(restore_with_safety_backup(&conn, &invalid)
+            .unwrap_err()
+            .starts_with("Unsupported backup schema version:"));
+        assert_eq!(
+            std::fs::read_dir(dir.path().join("backups"))
+                .unwrap()
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    fn commit_failure_rolls_back_and_releases_shared_connection() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("target.db");
+        let conn = crate::db::init_db(&path).unwrap();
+        seed(&conn);
+        conn.execute_batch(
+            "PRAGMA wal_checkpoint(TRUNCATE); PRAGMA journal_mode=DELETE; PRAGMA busy_timeout=0;",
+        )
+        .unwrap();
+        let before = data(&conn);
+        let queue = query_all(&conn, "sync_changes").unwrap();
+        let source = crate::db::init_db(&dir.path().join("empty.db")).unwrap();
+        let backup = backup_payload(&source).unwrap();
+        let reader = Connection::open(&path).unwrap();
+        reader.execute_batch("BEGIN; SELECT * FROM files;").unwrap();
+        let error = restore_backup(&conn, &backup).unwrap_err();
+        assert!(error.contains("locked"), "{error}");
+        assert!(
+            conn.is_autocommit(),
+            "failed COMMIT must drop its transaction"
+        );
+        assert_eq!(data(&conn), before);
+        assert_eq!(query_all(&conn, "sync_changes").unwrap(), queue);
+        reader.execute_batch("ROLLBACK").unwrap();
+        restore_backup(&conn, &backup).unwrap();
+        assert!(data(&conn)["files"].as_array().unwrap().is_empty());
+    }
+}
+
+#[cfg(test)]
+#[path = "export_compatibility_tests.rs"]
+mod compatibility_tests;
+
+#[cfg(test)]
+#[path = "export_reliability_tests.rs"]
+mod reliability_tests;

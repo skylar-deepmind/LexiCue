@@ -18,7 +18,16 @@ import { usePreferencesStore } from './preferencesStore';
 import i18n from '../i18n';
 import { errorCode } from '../lib/syncErrors';
 import { QueryCache } from '../lib/queryCache';
-import { invalidateCaches, registerCacheInvalidator } from '../lib/cacheInvalidation';
+import { clearCaches, invalidateCaches, registerCacheInvalidator } from '../lib/cacheInvalidation';
+import { useImportStore } from './importStore';
+import { useRestoreGuard } from './restoreGuard';
+import { useMaterialStore } from './materialStore';
+import { useReadingDeskStore } from './readingDeskStore';
+import { useReaderStore } from './readerStore';
+import { useRecallStore } from './recallStore';
+import { useSpeechStore } from './speechStore';
+import { readerNavigation } from '../lib/readerNavigation';
+import { clearImportedReading } from '../lib/readingEntry';
 
 export interface DeleteJobStatus {
   job_id: string;
@@ -87,8 +96,8 @@ interface FileStore {
   cancelYouTubeImport: () => Promise<void>;
   confirming: boolean;
   deletingFiles: Record<number, DeleteJobStatus>;
-  loadFiles: (force?: boolean) => Promise<void>;
-  loadTags: (force?: boolean) => Promise<void>;
+  loadFiles: (force?: boolean, throwOnError?: boolean) => Promise<void>;
+  loadTags: (force?: boolean, throwOnError?: boolean) => Promise<void>;
   invalidateFiles: () => void;
   setTagFilter: (tagIds: number[], untagged?: boolean) => void;
   createTag: (name: string) => Promise<void>;
@@ -287,7 +296,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
   youtubePhase: null,
   confirming: false,
 
-  loadFiles: async (force = false) => {
+  loadFiles: async (force = false, throwOnError = false) => {
     const language = usePreferencesStore.getState().language;
     const { selectedTagIds, untaggedOnly } = get();
     const key = fileQueryKey(selectedTagIds, untaggedOnly);
@@ -305,12 +314,13 @@ export const useFileStore = create<FileStore>((set, get) => ({
     } catch (error) {
       if (current()) useFeedbackStore.getState().show(i18n.t('tags.loadFilesFailed'), 'error');
       console.error('Failed to load files:', error);
+      if (throwOnError) throw error;
     } finally {
       if (current()) set({ loading: false });
     }
   },
 
-  loadTags: async (force = false) => {
+  loadTags: async (force = false, throwOnError = false) => {
     const cached = tagCache.peek('all');
     if (cached) set({ tags: cached });
     if (!force && tagCache.isFresh('all')) return;
@@ -326,6 +336,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
     } catch (error) {
       if (request === tagRequest) set({ tagsError: true });
       console.error('Failed to load tags:', error);
+      if (throwOnError) throw error;
     } finally {
       if (request === tagRequest) set({ loadingTags: false });
     }
@@ -424,6 +435,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
   },
 
   importKnownWords: async () => {
+    const restoreGeneration = useRestoreGuard.getState().generation;
     try {
       const selected = await open({
         filters: [{ name: i18n.t('fileStore.dialogFilterKnownWords'), extensions: ['txt'] }],
@@ -453,6 +465,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
       const wordMap = new Map(words.map((word) => [word.lemma, word]));
       const matched = lemmas.map((lemma) => wordMap.get(lemma)).filter((word): word is { id: number; lemma: string; status: string } => Boolean(word));
       const target = matched.filter((word) => word.status === 'unprocessed');
+      if (useRestoreGuard.getState().active || useRestoreGuard.getState().generation !== restoreGeneration) { useFeedbackStore.getState().show(i18n.t('fileStore.restoreInProgress'), 'error'); return; }
       if (target.length > 0) {
         await invoke('batch_update_status', {
           wordIds: target.map((word) => word.id),
@@ -477,6 +490,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
   },
 
   importDictionaryPack: async () => {
+    const restoreGeneration = useRestoreGuard.getState().generation;
     try {
       const selected = await open({
         filters: [{ name: i18n.t('fileStore.dialogFilterDictionary'), extensions: ['json'] }],
@@ -484,7 +498,9 @@ export const useFileStore = create<FileStore>((set, get) => ({
       });
       if (!selected) return;
       const packJson = await readTextFile(selected as string);
+      if (useRestoreGuard.getState().active || useRestoreGuard.getState().generation !== restoreGeneration) { useFeedbackStore.getState().show(i18n.t('fileStore.restoreInProgress'), 'error'); return; }
       const count = await invoke<number>('import_dictionary_pack', { packJson });
+      window.dispatchEvent(new Event('lexicue-dictionary-changed'));
       invalidateCaches('storage');
       useFeedbackStore.getState().show(i18n.t('fileStore.dictionaryImported', { count }), 'success');
     } catch (e) {
@@ -494,6 +510,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
   },
 
   confirmImport: async () => {
+    if (useRestoreGuard.getState().active) { useFeedbackStore.getState().show(i18n.t('fileStore.restoreInProgress'), 'error'); return; }
     const pending = get().pendingImport;
     if (!pending || !pending.parsed || !pending.language) return;
     if (get().confirming) return;
@@ -540,6 +557,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
   },
 
   importFromYouTube: async ({ url, title, primary, secondary, language, aiTranslate, config, session, fallback }) => {
+    if (useRestoreGuard.getState().active) { useFeedbackStore.getState().show(i18n.t('fileStore.restoreInProgress'), 'error'); return false; }
     if (get().importingYouTube) return false;
     const generation = ++youtubeImportGeneration;
     const ensureCurrent = () => { if (generation !== youtubeImportGeneration) throw { code: 'cancelled' }; };
@@ -673,6 +691,25 @@ export const useFileStore = create<FileStore>((set, get) => ({
   },
 
   restoreAll: async () => {
+    if (useRestoreGuard.getState().active) return;
+    let ownsGuard = false;
+    let committed: { safety_backup_path: string } | undefined;
+    const discardRestoreState = () => {
+      useSpeechStore.getState().stop();
+      useMaterialStore.getState().resetAfterRestore();
+      useReaderStore.getState().resetAfterRestore();
+      useReadingDeskStore.getState().resetAfterRestore();
+      useRecallStore.getState().invalidate();
+      readerNavigation.clear();
+      clearImportedReading();
+      window.dispatchEvent(new Event('lexicue-data-restored'));
+      window.dispatchEvent(new Event('lexicue-saved-changed'));
+      clearCaches('words', 'phrases', 'review', 'insights', 'storage');
+      fileRequest++; tagRequest++;
+      fileCache.clear();
+      tagCache.clear();
+      set({ files: [], tags: [], selectedTagIds: [], untaggedOnly: false, pendingImport: null });
+    };
     try {
       const selected = await open({
         filters: [{ name: i18n.t('fileStore.dialogFilterBackup'), extensions: ['json'] }],
@@ -683,7 +720,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
       const json = await readTextFile(selected as string);
       const backup: BackupPayload = JSON.parse(json);
 
-      if (!Number.isInteger(backup.schema_version) || backup.schema_version < 1 || backup.schema_version > 8) {
+      if (!Number.isInteger(backup.schema_version) || backup.schema_version < 1 || backup.schema_version > 12) {
         await message(i18n.t('fileStore.backupVersionError', { version: backup.schema_version }), { title: i18n.t('fileStore.backupVersionTitle'), kind: 'error' });
         return;
       }
@@ -696,16 +733,33 @@ export const useFileStore = create<FileStore>((set, get) => ({
       });
       if (!confirmed) return;
 
-      await invoke('restore_all', { backup });
-      invalidateCaches('words', 'phrases', 'review', 'insights', 'storage');
-      fileCache.invalidate();
-      tagCache.invalidate();
-      set({ selectedTagIds: [], untaggedOnly: false });
-      await Promise.all([get().loadFiles(true), get().loadTags(true)]);
-      useFeedbackStore.getState().show(i18n.t('fileStore.restored'), 'success');
+      if (useRestoreGuard.getState().active || useImportStore.getState().phase === 'committing' || get().confirming || get().importingYouTube) {
+        useFeedbackStore.getState().show(i18n.t('fileStore.restoreImportBusy'), 'error');
+        return;
+      }
+      useRestoreGuard.getState().setActive(true); ownsGuard = true;
+      const result = await invoke<{ safety_backup_path: string }>('restore_all', { backup });
+      committed = result;
+      discardRestoreState();
+      await Promise.all([get().loadFiles(true, true), get().loadTags(true, true)]);
+      useFeedbackStore.getState().show(i18n.t('fileStore.restoredWithBackup', { path: result.safety_backup_path }), 'success', 15000);
     } catch (e) {
       console.error('Restore failed:', e);
-      useFeedbackStore.getState().show(i18n.t('fileStore.restoreFailed'), 'error');
+      if (committed) {
+        useFeedbackStore.getState().show(i18n.t('fileStore.restoreRefreshFailed', { path: committed.safety_backup_path }), 'error', 15000);
+        return;
+      }
+      const detail = String(e);
+      if (detail.includes('restore_status_unknown:')) {
+        try { discardRestoreState(); } catch (cleanupError) { console.error('Restore state cleanup failed:', cleanupError); }
+        useFeedbackStore.getState().show(i18n.t('fileStore.restoreStatusUnknown'), 'error', 15000);
+        return;
+      }
+      const safetyFailure = detail.includes('restore_safety_backup_failed:');
+      const backupPath = detail.match(/restore_failed; safety_backup_path=(.*?): /)?.[1];
+      useFeedbackStore.getState().show(i18n.t(safetyFailure ? 'fileStore.restoreSafetyFailed' : backupPath ? 'fileStore.restoreFailedWithBackup' : 'fileStore.restoreFailed', { path: backupPath }), 'error', 15000);
+    } finally {
+      if (ownsGuard) useRestoreGuard.getState().setActive(false);
     }
   },
 }));

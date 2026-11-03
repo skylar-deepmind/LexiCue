@@ -44,7 +44,11 @@ interface PhraseStore {
 let detailGeneration = 0;
 
 const phraseCache = new QueryCache<PhraseInfo[]>();
-registerCacheInvalidator('phrases', () => phraseCache.invalidate());
+registerCacheInvalidator('phrases', hard => {
+  if (!hard) { phraseCache.invalidate(); return; }
+  phraseCache.clear(); detailGeneration++;
+  usePhraseStore.setState({ phrases: [], detail: null, selected: new Set(), lastBatchAction: null, loadedKey: null, loading: false, detailLoading: false, detailError: false, detailErrorId: null });
+});
 
 function phraseQueryKey(filter: PhraseStore['filter'], sortBy: PhraseStore['sortBy'], includeUnverified: boolean): string {
   return JSON.stringify([usePreferencesStore.getState().language, filter, sortBy, includeUnverified]);
@@ -69,6 +73,7 @@ export const usePhraseStore = create<PhraseStore>((set, get) => ({
     const { filter, sortBy, includeUnverified } = get();
     const language = usePreferencesStore.getState().language;
     const key = phraseQueryKey(filter, sortBy, includeUnverified);
+    const version = phraseCache.version;
     const cached = phraseCache.peek(key);
     if (cached) set({ phrases: cached, loadedKey: key, loading: false });
     if (!force && phraseCache.isFresh(key)) return;
@@ -80,11 +85,11 @@ export const usePhraseStore = create<PhraseStore>((set, get) => ({
           language: language === 'all' ? null : language,
           includeUnverified,
         }), force);
-      if (phraseQueryKey(get().filter, get().sortBy, get().includeUnverified) === key) set({ phrases, loadedKey: key });
+      if (version === phraseCache.version && phraseQueryKey(get().filter, get().sortBy, get().includeUnverified) === key) set({ phrases, loadedKey: key });
     } catch (e) {
       console.error('Failed to load phrases:', e);
     } finally {
-      if (phraseQueryKey(get().filter, get().sortBy, get().includeUnverified) === key) set({ loading: false });
+      if (version === phraseCache.version && phraseQueryKey(get().filter, get().sortBy, get().includeUnverified) === key) set({ loading: false });
     }
   },
 

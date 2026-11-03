@@ -12,10 +12,33 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
         .setup(|app| {
+            let slice_preview = option_env!("LEXICUE_SLICE_PREVIEW") == Some("1");
+            let isolated_preview = matches!(
+                app.config().identifier.as_str(),
+                "com.lexicue.slice-preview"
+                    | "com.lexicue.slice-p2-preview"
+                    | "com.lexicue.slice-p3-preview"
+                    | "com.lexicue.slice-p3-qa"
+                    | "com.lexicue.slice-p4-candidate"
+                    | "com.lexicue.slice-p4-qa"
+                    | "com.lexicue.mac-release-candidate"
+                    | "com.lexicue.mac-release-qa"
+                    | "com.lexicue.mac-refinement-candidate"
+                    | "com.lexicue.mac-refinement-qa"
+            );
+            if slice_preview != isolated_preview {
+                return Err(
+                    "Slice preview build flag and isolated application identifier must agree"
+                        .into(),
+                );
+            }
             #[cfg(desktop)]
-            app.handle()
-                .plugin(tauri_plugin_updater::Builder::new().build())?;
+            if !slice_preview {
+                app.handle()
+                    .plugin(tauri_plugin_updater::Builder::new().build())?;
+            }
 
             app.handle().plugin(
                 tauri_plugin_log::Builder::default()
@@ -30,15 +53,25 @@ pub fn run() {
 
             commands::gemma::runtime::initialize(app.handle())?;
             commands::youtube::init_subtitle_cache(app.handle());
+            commands::longman::configure(app.handle());
+            commands::cambridge::configure(app.handle());
+            commands::free_dictionary::configure(app.handle());
+            commands::tts::configure(app.handle());
             let app_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&app_dir)?;
             // Sync remains optional: a damaged or unavailable platform store
             // must not prevent access to local learning data. Sync commands
             // return the cached structured error for translated recovery UI.
-            if let Err(error) = commands::sync::init_secret_store() {
+            if let Err(error) = if slice_preview {
+                Ok(())
+            } else {
+                commands::sync::init_secret_store()
+            } {
                 log::error!("secure credential store initialization failed: {error}");
             }
             let conn = init_db(&app_dir.join("lexicue.db")).expect("Failed to initialize database");
+            commands::source_media::initialize(app.handle(), &conn)
+                .map_err(std::io::Error::other)?;
             let db_state = DbState {
                 conn: Arc::new(Mutex::new(conn)),
             };
@@ -50,13 +83,88 @@ pub fn run() {
 
             commands::dictionary_init::start(app.handle().clone(), status);
 
+            // Internal QA only: this hook is inactive in normal builds and
+            // exposes no command or user setting. The probe validates every
+            // transport target as a controlled loopback fixture.
+            #[cfg(debug_assertions)]
+            if option_env!("LEXICUE_PUBLIC_TRANSPORT_DIAGNOSTIC") == Some("1") {
+                tauri::async_runtime::spawn(async {
+                    let config = match option_env!("LEXICUE_PUBLIC_TRANSPORT_DIAGNOSTIC_CONFIG") {
+                        Some(path) => tokio::fs::read(path).await.ok().and_then(|bytes| {
+                            serde_json::from_slice::<serde_json::Value>(&bytes).ok()
+                        }),
+                        None => None,
+                    };
+                    let mut report = match config {
+                        Some(config) => {
+                            commands::cambridge::run_public_transport_diagnostic(config).await
+                        }
+                        None => serde_json::json!({"status":"qa_config_unavailable"}),
+                    };
+                    report["runtime"] = serde_json::json!("tauri_async_runtime_startup");
+                    report["qa_compile_time_only"] = serde_json::json!(true);
+                    let written = match (
+                        option_env!("LEXICUE_PUBLIC_TRANSPORT_DIAGNOSTIC_REPORT"),
+                        serde_json::to_vec_pretty(&report),
+                    ) {
+                        (Some(path), Ok(bytes)) => tokio::fs::write(path, bytes).await.is_ok(),
+                        _ => false,
+                    };
+                    if written {
+                        log::info!("Controlled public transport QA report completed");
+                    } else {
+                        log::warn!("Controlled public transport QA report unavailable");
+                    }
+                });
+            }
+
             Ok(())
         })
+        .manage(commands::example::ExampleState::default())
+        .manage(commands::webpage::WebpageState::default())
         .invoke_handler(tauri::generate_handler![
+            commands::webpage::fetch_import_webpage,
+            commands::webpage::cancel_import_webpage,
+            commands::example::begin_example_session,
+            commands::example::end_example_session,
+            commands::example::example_saved_for_selection,
+            commands::example::mutate_example_saved_record,
+            commands::example::undo_example_saved_mutation,
             commands::import::import_file,
             commands::import::check_duplicate,
+            commands::source_media::source_media_status,
+            commands::source_media::prepare_source_media,
+            commands::source_media::resolve_source_media,
+            commands::source_media::resolve_reading_media,
             commands::export::export_all,
             commands::export::restore_all,
+            commands::saved::list_saved_records,
+            commands::saved::list_saved_groups,
+            commands::saved::saved_group_contexts,
+            commands::saved::mutate_saved_record,
+            commands::saved::undo_saved_mutation,
+            commands::saved::saved_record_source,
+            commands::saved::saved_migration_report,
+            commands::saved::saved_record_conflicts,
+            commands::saved::saved_for_selection,
+            commands::recall::saved_recall_index,
+            commands::recall::saved_recall_catalog,
+            commands::recall::saved_recall_contexts,
+            commands::materials::import_reading_material,
+            commands::materials::fill_reading_translations,
+            commands::materials::list_materials,
+            commands::history::list_legacy_records,
+            commands::history::legacy_record_detail,
+            commands::materials::open_reading_material,
+            commands::materials::lookup_reading_expression,
+            commands::longman::lookup_longman_expression,
+            commands::longman::longman_dictionary_status,
+            commands::cambridge::lookup_cambridge_expression,
+            commands::free_dictionary::lookup_free_dictionary_expression,
+            commands::tts::resolve_tts_audio,
+            commands::tts::cancel_tts,
+            commands::tts::clear_tts_cache,
+            commands::tts::invalidate_tts_cache,
             commands::sync::sync_status,
             commands::sync::sync_set_auto_sync,
             commands::sync::sync_set_diagnostic,
@@ -125,8 +233,6 @@ pub fn run() {
             commands::dictionary::get_cached_dictionary,
             commands::dictionary::list_dictionary_sources,
             commands::dictionary::delete_dictionary_source,
-            commands::dictionary::cache_dictionary_audio,
-            commands::dictionary::read_dictionary_audio,
             commands::dictionary::import_dictionary_pack,
             commands::stats::get_learning_stats,
             commands::stats::get_storage_usage,
@@ -148,6 +254,8 @@ pub fn run() {
             commands::ollama::get_analysis_preview_snapshot,
             commands::ollama::get_analysis_raw_diagnostic,
             commands::ollama::translate_segments,
+            commands::translation::translate_import_sentences,
+            commands::translation::cancel_import_translation,
             commands::ollama::cancel_translate_segments,
             commands::youtube::youtube_list_subs,
             commands::youtube::downloads::youtube_prepare_subtitles,

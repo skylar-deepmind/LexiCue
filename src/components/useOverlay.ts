@@ -18,13 +18,14 @@ function updateInert() {
   }
 }
 
-export function useOverlay(ref: RefObject<HTMLElement | null>, onClose: CloseAction, modal = true, enabled = true) {
+export function useOverlay(ref: RefObject<HTMLElement | null>, onClose: CloseAction, modal = true, enabled = true, returnFocus?: () => HTMLElement | null) {
   const close = useRef(onClose);
-  useLayoutEffect(() => { close.current = onClose; });
+  const focusReturn = useRef(returnFocus);
+  useLayoutEffect(() => { close.current = onClose; focusReturn.current = returnFocus; });
   useLayoutEffect(() => {
     const element = ref.current;
     if (!element || !enabled) return;
-    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previous = focusReturn.current?.() ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
     const layer = { element, modal };
     layers.push(layer);
     element.style.setProperty('--overlay-order', String(layers.length));

@@ -10,9 +10,13 @@
     "dialog:allow-ask",
     "dialog:allow-message",
     "fs:allow-read-text-file",
+    "fs:allow-open",
+    "fs:allow-read",
+    "fs:allow-read-file",
     "fs:allow-write-text-file",
     "updater:default",
     "process:default",
-    "opener:default"
+    "opener:default",
+    "clipboard-manager:allow-read-text"
   ]
 }

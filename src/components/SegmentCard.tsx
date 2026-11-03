@@ -239,7 +239,7 @@ export default function SegmentCard({
                   : info
                     ? 'text-gray-700'
                     : 'text-gray-400 hover:text-blue-500'
-          } ${normalizedQuery && rt.token.toLowerCase().includes(normalizedQuery) ? 'bg-yellow-100 ring-1 ring-yellow-300' : ''}`}
+          } ${normalizedQuery && rt.token.toLowerCase().includes(normalizedQuery) ? 'bg-yellow-100' : ''}`}
         >
           {rt.token}
         </span>
@@ -252,7 +252,7 @@ export default function SegmentCard({
 
   return (
     <div className={`bg-white rounded-lg border p-4 transition-colors ${
-      isActive ? 'border-blue-400 ring-2 ring-blue-100' : 'border-gray-200 hover:border-blue-200'
+      isActive ? 'border-blue-400' : 'border-gray-200 hover:border-blue-200'
     }`}>
       <div className="flex items-start gap-3">
         {segment.start_time && (

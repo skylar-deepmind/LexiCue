@@ -1,0 +1,56 @@
+{
+  "productName": "LexiCue macOS QA",
+  "identifier": "com.lexicue.mac-release-qa",
+  "build": {
+    "devUrl": "http://127.0.0.1:5198",
+    "beforeDevCommand": "",
+    "beforeBuildCommand": "npm run prepare:gemma && npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "LexiCue · macOS 验收",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "capabilities": [
+        "default",
+        {
+          "identifier": "slice-preview-evidence",
+          "windows": [
+            "main"
+          ],
+          "permissions": [
+            {
+              "identifier": "fs:allow-write-text-file",
+              "allow": [
+                {
+                  "path": "$APPDATA/slice-qa-*.json"
+                },
+                {
+                  "path": "$APPDATA/mac-release-*.json"
+                }
+              ]
+            },
+            "core:window:allow-set-size"
+          ]
+        }
+      ]
+    }
+  },
+  "bundle": {
+    "createUpdaterArtifacts": false,
+    "targets": [
+      "app"
+    ],
+    "macOS": {
+      "signingIdentity": "-"
+    }
+  }
+}
