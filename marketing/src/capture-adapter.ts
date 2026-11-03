@@ -13,6 +13,9 @@ export const useAiStore=create<any>(()=>({enabled:false,provider:'gemma',baseUrl
 export const useUpdateStore=create<any>(()=>({status:'idle',version:null,notes:null,progress:null,error:null,downloadUrl:null,check:blocked,install:blocked}));
 export const useYoutubeStore=create<any>(()=>({recheckEnvironment:async()=>{},environment:null}));
 export const useFeedbackStore=create<any>(()=>({show:noop}));
+// Shared product speech buttons must stay silent and never initialize native
+// playback or persisted learning state inside a public demonstration.
+export const useSpeechStore=create<any>(()=>({status:'idle',key:null,loading:false,error:null,errorKey:null,errorCode:null,reading:null,stopOwned:noop,speak:async()=>{}}));
 export const useModelDownloadStore=create<any>(()=>({environment:null,environmentLoading:false,environmentError:null,installedInfo:[],deletion:null,deleteFailure:null,deleteError:null,activity:{},installedModels:[],installedError:null,installedLoading:false,download:null}));
 export const OPENAI_PRESETS=[{label:'OpenAI',baseUrl:'https://api.openai.com/v1'},{key:'custom',label:'Custom',baseUrl:''}];
 export const getAiConfig=()=>({provider:'gemma',model:''});

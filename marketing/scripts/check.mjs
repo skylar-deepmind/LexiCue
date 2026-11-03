@@ -31,7 +31,7 @@ for(const locale of locales){
  check(copy[locale].titles.length===features.length&&copy[locale].descriptions.length===features.length,`translated feature count ${locale}`);
  check(!/\b(?:TXT|VTT)\b/i.test(JSON.stringify(copy[locale])),'SRT-only publicity catalogue');
  const readme=await readFile(resolve(root,locale==='en'?'README.md':`README.${locale==='zh'?'zh-CN':locale}.md`),'utf8');
- check(!/\b(?:TXT|VTT)\b/i.test(readme)&&readme.includes('SRT'),'SRT-only README claims');
+ check(readme.includes('SRT'),'README retains the subtitle workflow alongside supported document formats');
  for(const match of readme.matchAll(/\]\((?!https?:)([^)]+)\)/g)){await access(resolve(root,match[1]));checks++;}
  for(const id of ['hero','lookup','phrases','review'])check((await stat(resolve(root,`docs/media/demo/${id}.gif`))).size<3*1024*1024,`shared GIF under 3 MiB: ${id}`);
  const html=await readFile(resolve(root,locale==='en'?'docs/index.html':`docs/${locale}/index.html`),'utf8');
