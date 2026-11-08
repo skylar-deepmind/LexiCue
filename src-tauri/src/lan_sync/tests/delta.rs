@@ -314,7 +314,7 @@ fn english_historical_notes_are_portable_without_old_private_tables_or_other_lan
         INSERT INTO words(language,lemma,status,definition) VALUES ('en','note','known','孤立的手写注释'),('ja','飛ぶ','learning','保留在本机');
         INSERT INTO phrases(id,text,source) VALUES (1,'take off','manual');
         INSERT INTO phrase_occurrences(phrase_id,segment_id,position,meaning_zh,meaning_edited,meaning_en,meaning_en_edited,token_positions_json)
-        VALUES(1,1,0,'旧个人中文',1,'my older meaning',1,'/private/canary');").unwrap();
+        VALUES(1,1,0,'旧个人中文',1,'my older meaning',1,'/private/canary'), (1,1,0,'同位置的另一条注释',1,NULL,0,NULL);").unwrap();
     saved::migrate_legacy(&a).unwrap();
     let archive: String = a
         .query_row("SELECT group_concat(snapshot) FROM lan_history", [], |r| {
@@ -337,7 +337,7 @@ fn english_historical_notes_are_portable_without_old_private_tables_or_other_lan
     let phrase = remote.iter().find(|s| s.expression == "take off").unwrap();
     assert_eq!(
         phrase.legacy.as_ref().unwrap(),
-        &serde_json::json!({"kind":"phrase","notes":["my older meaning","旧个人中文"]})
+        &serde_json::json!({"kind":"phrase","notes":["my older meaning","同位置的另一条注释","旧个人中文"]})
     );
     edit(&b, phrase, "重写释义");
     round(&mut a, &mut b, &r).unwrap();
@@ -355,4 +355,142 @@ fn english_historical_notes_are_portable_without_old_private_tables_or_other_lan
         rows(&b, "SELECT count(*) FROM words WHERE language='ja'"),
         0
     );
+}
+
+#[test]
+fn oversized_historical_save_resumes_then_sends_following_edits_with_exact_context() {
+    let dir = tempdir().unwrap();
+    let route = pair();
+    let (mac, mut a) = twin(&dir.path().join("mac"), &route);
+    let (phone, mut b) = twin(&dir.path().join("phone"), &route.reverse());
+    let base = seed(&a, "Take off in the morning.", "在早上起飞");
+    round(&mut a, &mut b, &route).unwrap();
+    let notes = "Over 4 MiB with 中文 and \"quoted\" context.\n".repeat(101_000);
+    assert!(notes.len() > 4 * 1024 * 1024);
+    let big = edit(&a, &base, &notes);
+    let later = edit(&a, &big, "后来又编辑了");
+    assert_eq!(
+        rows(
+            &a,
+            "SELECT count(*) FROM lan_saved_outbox WHERE length(CAST(snapshot AS blob))>4194304"
+        ),
+        1
+    );
+
+    let mut interrupted = false;
+    let error = catch_up(&mut a, &route, &ReaderSaves, |request| {
+        let more = matches!(&request.operation,Operation::PutChunk(chunk) if chunk.cursor.offset>0);
+        let reply = respond(&mut b, &route.reverse(), request, &ReaderSaves)?;
+        if more {
+            interrupted = true;
+            return Err("connection dropped".into());
+        }
+        Ok(reply)
+    })
+    .unwrap_err();
+    assert!(interrupted && error == "connection dropped", "{error}");
+    let staged = rows(&b, "SELECT filled FROM lan_material_stage");
+    assert!(staged > 0 && (staged as usize) < notes.len());
+    assert_eq!(saved::get(&b, &base.record_id).unwrap().unwrap(), base);
+    assert_eq!(journal::progress(&a, &route).unwrap().acked, 1);
+
+    drop((a, b));
+    let (mut a, mut b) = (init_db(&mac).unwrap(), init_db(&phone).unwrap());
+    let mut resumed_at = None;
+    let mut lost = false;
+    let error = catch_up(&mut a, &route, &ReaderSaves, |request| {
+        if let Operation::PutChunk(chunk) = &request.operation {
+            resumed_at.get_or_insert(chunk.cursor.offset);
+        }
+        let reply = respond(&mut b, &route.reverse(), request, &ReaderSaves)?;
+        if matches!(reply, Reply::Applied(_)) {
+            lost = true;
+            return Err("lost receipt".into());
+        }
+        Ok(reply)
+    })
+    .unwrap_err();
+    assert!(lost && error == "lost receipt", "{error}");
+    assert_eq!(resumed_at, Some(staged as usize));
+    let received = saved::get(&b, &base.record_id).unwrap().unwrap();
+    assert_eq!(received.source, base.source);
+    assert_eq!(received.sentence, base.sentence);
+    assert_eq!(received.revision, big.revision);
+    assert!(received.explanation.as_deref() == Some(notes.as_str()));
+    assert_eq!(journal::progress(&a, &route).unwrap().acked, 1);
+    drop((a, b));
+    let (mut a, mut b) = (init_db(&mac).unwrap(), init_db(&phone).unwrap());
+    round(&mut a, &mut b, &route).unwrap();
+    for db in [&a, &b] {
+        assert_eq!(saved::get(db, &base.record_id).unwrap().unwrap(), later);
+        assert_eq!(rows(db, "SELECT count(*) FROM saved_records"), 1);
+        assert_eq!(rows(db, "SELECT count(*) FROM lan_saved_versions"), 3);
+        assert_eq!(rows(db, "SELECT count(*) FROM lan_material_blobs"), 1);
+    }
+    assert_eq!(journal::progress(&a, &route).unwrap().acked, 3);
+}
+
+#[test]
+fn v5_legacy_note_replay_keeps_both_notes_and_cannot_override_a_concurrent_deletion() {
+    let dir = tempdir().unwrap();
+    let route = pair();
+    let (_, mut a) = twin(&dir.path().join("mac"), &route);
+    let (_, mut b) = twin(&dir.path().join("phone"), &route.reverse());
+    a.execute_batch("DELETE FROM product_migrations; INSERT INTO words(language,lemma,status,definition) VALUES('en','note','known','第一处注释');").unwrap();
+    saved::migrate_legacy(&a).unwrap();
+    round(&mut a, &mut b, &route).unwrap();
+    let mut old = saved::list(&a, "", 10, 0).unwrap().remove(0);
+    saved::mutate(
+        &b,
+        "remove",
+        &saved::Mutation::Remove {
+            record_id: old.record_id.clone(),
+            expected_revision: old.revision.clone(),
+        },
+    )
+    .unwrap();
+    old.legacy.as_mut().unwrap()["lan_notes"] = serde_json::json!(["另一处注释"]);
+    old.generation += 1; // Model the write from an older paired installation.
+    old.revision = Uuid::new_v4().to_string();
+    saved::write_record(&a, &old).unwrap();
+    round(&mut a, &mut b, &route).unwrap();
+    for c in [&a, &b] {
+        assert!(saved::get(c, &old.record_id)
+            .unwrap()
+            .unwrap()
+            .deleted_at
+            .is_some());
+        assert_eq!(rows(c, "SELECT count(*) FROM lan_saved_heads"), 2);
+        let notes:String=c.query_row("SELECT json_extract(snapshot,'$.legacy.notes') FROM lan_saved_versions WHERE rev=?",[&old.revision],|r|r.get(0)).unwrap();
+        assert!(notes.contains("第一处注释") && notes.contains("另一处注释"));
+    }
+}
+
+#[test]
+fn rejoining_a_backup_taken_before_large_save_encoding_recognizes_the_same_event() {
+    let dir = tempdir().unwrap();
+    let route = pair();
+    let (ap, bp) = (dir.path().join("mac.db"), dir.path().join("phone.db"));
+    let (mut a, mut b) = (init_db(&ap).unwrap(), init_db(&bp).unwrap());
+    prepare_library(&ap, Uuid::new_v4(), &route).unwrap();
+    prepare_library(&bp, Uuid::new_v4(), &route.reverse()).unwrap();
+    let base = seed(&a, "Take off tonight.", "今晚起程");
+    let notes = "saved in v5 before first offer. ".repeat(136_000);
+    let big = edit(&a, &base, &notes);
+    let pre_offer = export::backup_payload(&a).unwrap();
+    round(&mut a, &mut b, &route).unwrap();
+    export::restore_backup(&a, &pre_offer).unwrap();
+    b.execute("UPDATE lan_saved_peer SET active=0", []).unwrap();
+    let fresh = pair();
+    prepare_library(&ap, Uuid::new_v4(), &fresh).unwrap();
+    prepare_library(&bp, Uuid::new_v4(), &fresh.reverse()).unwrap();
+    // B must offer the manifest before A offers its archived raw representation.
+    round(&mut b, &mut a, &fresh.reverse()).unwrap();
+    for db in [&a, &b] {
+        assert_eq!(rows(db, "SELECT count(*) FROM saved_records"), 1);
+        let got = saved::get(db, &big.record_id).unwrap().unwrap();
+        assert_eq!(got.revision, big.revision);
+        assert_eq!(got.source, big.source);
+        assert!(got.explanation.as_deref() == Some(notes.as_str()));
+    }
 }

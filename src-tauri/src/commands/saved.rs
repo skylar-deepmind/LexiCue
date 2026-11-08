@@ -1044,7 +1044,6 @@ pub fn migrate_legacy(conn: &Connection) -> Result<MigrationReport, String> {
                             existing.explanation_source = record.explanation_source;
                         }
                         existing.revision = Uuid::new_v4().to_string();
-                        existing.generation += 1;
                         write_record(conn, &existing)?;
                     }
                     report.merged_duplicate_positions += 1;

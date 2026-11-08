@@ -102,3 +102,12 @@ CREATE TABLE IF NOT EXISTS lan_saved_edges (parent TEXT NOT NULL,child TEXT NOT 
 CREATE VIEW IF NOT EXISTS lan_saved_heads AS SELECT v.* FROM lan_saved_versions v
  WHERE NOT EXISTS(SELECT 1 FROM lan_saved_versions c WHERE c.entity=v.entity AND c.parent=v.rev)
  AND NOT EXISTS(SELECT 1 FROM lan_saved_edges e WHERE e.parent=v.rev);
+
+-- Shared chunk storage for material manifests and large saved snapshots.
+CREATE TABLE IF NOT EXISTS lan_material_blobs (
+    id INTEGER PRIMARY KEY, event TEXT UNIQUE NOT NULL, data BLOB NOT NULL, digest TEXT
+) STRICT;
+CREATE TABLE IF NOT EXISTS lan_material_stage (
+    id INTEGER PRIMARY KEY CHECK(id=1), event TEXT NOT NULL, digest TEXT NOT NULL,
+    bytes INTEGER NOT NULL, filled INTEGER NOT NULL, data BLOB NOT NULL
+) STRICT;

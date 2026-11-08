@@ -199,7 +199,7 @@ pub(crate) fn apply_choice(
             params![eid, encoded],
         )
         .map_err(err)?;
-        let winner:String=db.query_row("SELECT snapshot FROM lan_saved_heads WHERE entity=? ORDER BY json_extract(snapshot,'$.generation') DESC,(json_extract(snapshot,'$.deleted_at') IS NOT NULL) DESC,(json_extract(snapshot,'$.explanation_source')='personal') DESC,depth DESC,rev DESC LIMIT 1",[entity],|r|r.get(0)).map_err(err)?;
+        let winner = saved_history::winner(db, entity)?;
         return apply(db, &winner);
     }
     // The same sentence may have a different pre-pair local UUID. Bind the

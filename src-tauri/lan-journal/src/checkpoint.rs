@@ -97,20 +97,21 @@ impl Hello {
 /// the replaceable library. Each published boundary reaches durable storage
 /// before exposing a batch, receipt, or successful session completion.
 pub struct PublicationFence {
-    db: Connection,
+    pub(crate) db: Connection,
 }
 
 #[derive(Default, Debug, PartialEq, Eq, Serialize, Deserialize)]
-struct Boundaries {
-    acked: i64,
-    offered: Option<Point>,
-    received: Option<Point>,
+pub(crate) struct Boundaries {
+    pub(crate) acked: i64,
+    pub(crate) offered: Option<Point>,
+    pub(crate) received: Option<Point>,
 }
 
 impl PublicationFence {
     pub fn open(path: &std::path::Path) -> Result<Self> {
         let db = Connection::open(path).map_err(err)?;
         db.execute_batch("PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000;
+            CREATE TABLE IF NOT EXISTS migrated_epochs(pair TEXT PRIMARY KEY) STRICT;
             CREATE TABLE IF NOT EXISTS epochs(
               pair TEXT PRIMARY KEY, route TEXT NOT NULL, retired INTEGER NOT NULL, boundaries TEXT NOT NULL
             ) STRICT;").map_err(err)?;
@@ -144,7 +145,7 @@ impl PublicationFence {
                 ],
             )
             .map_err(err)?;
-        Ok(())
+        Self::mark_required(library, route)
     }
 
     pub fn retire(&mut self, route: &Route) -> Result<()> {

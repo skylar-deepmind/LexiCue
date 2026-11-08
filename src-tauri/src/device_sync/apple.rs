@@ -300,11 +300,32 @@ unsafe fn execute_engine(
         .map_err(|e| e.to_string())?;
     db.execute_batch("PRAGMA foreign_keys=ON; PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000;")
         .map_err(|e| e.to_string())?;
+    if action == "upgradeMode" {
+        return Ok(json!(i.fence()?.upgrade_mode(&db, &route)?));
+    }
+    if action == "upgradeProof" {
+        return serde_json::to_value(i.fence()?.prove(&db, &route)?).map_err(|e| e.to_string());
+    }
+    if action == "verifyUpgrade" {
+        if input.is_null() {
+            return Err("missing peer history".into());
+        }
+        let proof =
+            serde_json::from_slice(CStr::from_ptr(input).to_bytes()).map_err(|e| e.to_string())?;
+        i.fence()?.verify_upgrade(&db, &route, &proof)?;
+        return Ok(Value::Null);
+    }
     if action == "prepare" {
         let mut f = i.fence()?;
         if f.known(&route)? {
             f.publish(&db, &route)?;
+            PublicationFence::mark_required(&db, &route)?;
         } else {
+            if f.upgrade_mode(&db, &route)? != "new" {
+                return Err(
+                    "legacy publication needs mutual evidence; reconcile the replica".into(),
+                );
+            }
             // This route was explicitly confirmed on both devices. A copied
             // database may still name the old installation as active. Preserve
             // its complete checkpoint before rotating the delivery namespace.

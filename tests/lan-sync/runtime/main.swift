@@ -11,6 +11,7 @@ var assets: URL!
 var work: URL!
 var prepared = false
 var sawRequest = false
+var verifiedUpgrade = false
 var isMacRole = false
 var replica: UUID!
 var phase = ""
@@ -33,12 +34,24 @@ func engine(
   guard let action else { return nil }
   var output: Any = NSNull()
   switch String(cString: action) {
+  case "upgradeMode":
+    output = phase == "resume" && !verifiedUpgrade ? "legacy" : (prepared ? "known" : "new")
+  case "upgradeProof":
+    guard phase == "resume", !sawRequest else { done("FAIL late history proof", 1) }
+    output = ["qaWitness": isMacRole ? "Mac" : "iPhone"]
+  case "verifyUpgrade":
+    guard phase == "resume", !sawRequest, let input,
+      let value = try? JSONSerialization.jsonObject(with: Data(String(cString: input).utf8)) as? [String: String],
+      value["qaWitness"] == (isMacRole ? "iPhone" : "Mac")
+    else { done("FAIL missing peer proof", 1) }
+    verifiedUpgrade = true
   case "identity":
     guard let p12 = try? Data(contentsOf: assets.appendingPathComponent("identity.p12")) else {
       return nil
     }
     output = ["password": "probe", "p12": p12.base64EncodedString()]
   case "prepare":
+    if phase == "resume", !verifiedUpgrade { done("FAIL prepared unchecked legacy history", 1) }
     if phase != "pair", !prepared { done("FAIL lost preparation", 1) }
     prepared = true
     FileManager.default.createFile(
@@ -108,6 +121,14 @@ func test() throws {
   prepared = FileManager.default.fileExists(atPath: prepFile.path)
   let rt = DeviceRuntime(
     replica: replica, journal: JournalBridge(call: engine, release: { free($0) }), isMac: isMacRole)
+  if phase == "resume" {
+    guard var old = try rt.storage.load(PeerTrust.self, "peer") else {
+      done("FAIL missing legacy Keychain route", 1)
+    }
+    old.quarantined = true
+    old.fenced = nil
+    try rt.storage.save(old, "peer")
+  }
   rt.start()
   if phase == "pair" {
     if isMacRole {
@@ -184,6 +205,12 @@ func test() throws {
       _ = rt.command("confirm", confirmation: id)
     }
     if state == "synced", sawRequest {
+      if phase == "resume" {
+        let trusted = try rt.storage.load(PeerTrust.self, "peer")
+        guard verifiedUpgrade, trusted?.quarantined == false, trusted?.fenced == true else {
+          done("FAIL legacy trust not durably recovered", 1)
+        }
+      }
       if isMacRole && phase == "pair" && !has("ack-after-restart") {
         Thread.sleep(forTimeInterval: 0.1)
         continue

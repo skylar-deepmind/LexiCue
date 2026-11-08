@@ -2,13 +2,6 @@
 CREATE TABLE IF NOT EXISTS lan_material_files (
     file TEXT PRIMARY KEY, local_id INTEGER UNIQUE REFERENCES files(id) ON DELETE SET NULL
 ) STRICT;
-CREATE TABLE IF NOT EXISTS lan_material_blobs (
-    id INTEGER PRIMARY KEY, event TEXT UNIQUE NOT NULL, data BLOB NOT NULL, digest TEXT
-) STRICT;
-CREATE TABLE IF NOT EXISTS lan_material_stage (
-    id INTEGER PRIMARY KEY CHECK(id=1), event TEXT NOT NULL, digest TEXT NOT NULL,
-    bytes INTEGER NOT NULL, filled INTEGER NOT NULL, data BLOB NOT NULL
-) STRICT;
 CREATE TABLE IF NOT EXISTS lan_material_aliases (
     file TEXT NOT NULL, alias TEXT NOT NULL, sentence TEXT NOT NULL, PRIMARY KEY(file,alias)
 ) STRICT;

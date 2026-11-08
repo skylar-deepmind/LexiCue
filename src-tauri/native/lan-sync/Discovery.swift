@@ -4,7 +4,8 @@ import Network
 @available(macOS 12, *)
 extension DeviceRuntime {
   func reconnect() {
-    guard foreground, !restoring, !revoking, trust?.quarantined != true, active == nil,
+    guard foreground, !restoring, !revoking, trust?.quarantined != true || mayVerifyLegacy,
+      active == nil,
       let service = trust?.route.pair ?? pairing?.offer.service ?? scanned?.service
     else { return }
     if monitor == nil {

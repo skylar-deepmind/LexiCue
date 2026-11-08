@@ -17,6 +17,7 @@ struct PeerTrust: Codable {
   var revoked: Bool? = nil
   var provisionalCode: String? = nil
   var quarantined: Bool? = nil
+  var fenced: Bool? = nil
 }
 
 enum DeviceLinkError: Error {

@@ -6,10 +6,13 @@ use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 pub mod checkpoint;
+pub mod checkpoint_upgrade;
 mod conflicts;
 pub mod material;
 mod metadata;
 pub mod portable;
+mod saved_blob;
+mod saved_history;
 pub use conflicts::{conflicts, resolve, Conflict};
 pub mod session;
 pub type Result<T> = std::result::Result<T, String>;
@@ -259,20 +262,22 @@ fn pending(
             .map_err(err)?;
         while let Some(row) = rows.next().map_err(err)? {
             let length = row.get_ref(3).map_err(err)?.as_str().map_err(err)?.len();
-            if length > MAX_BYTES {
-                return Err("saved event requires chunked transfer".into());
-            }
-            if bytes + length > MAX_BYTES {
+            if !events.is_empty() && bytes + length > MAX_BYTES {
                 break;
             }
             let mut event = read_event(row).map_err(err)?;
             if event.seq != p.acked + events.len() as i64 + 1 {
                 return Err("sender log gap".into());
             }
+            if length > MAX_BYTES {
+                saved_blob::prepare(&tx, &mut event, p.offered)?;
+            }
             let mut single = false;
             if let Some(mut change) = material::parse(&event.snapshot)? {
                 single = change.blob().is_some();
-                if matches!(change, material::Change::Create { .. }) {
+                if let material::Change::Saved { entity, .. } = &change {
+                    saved_blob::validate(&tx, &event.id, entity, store)?;
+                } else if matches!(change, material::Change::Create { .. }) {
                     material::check_outgoing_source(&tx, &event.id, store)?;
                 } else if matches!(change, material::Change::Large { .. }) {
                     material::check_outgoing_attachment(&tx, &event.id, store)?;
@@ -374,6 +379,14 @@ pub fn receive(
             };
             if let Some(mut change) = material::parse(&old.snapshot)? {
                 material::transfer::seal(&tx, &mut old, &mut change)?;
+            } else if old.snapshot.len() > MAX_BYTES
+                && matches!(
+                    material::parse(&event.snapshot)?,
+                    Some(material::Change::Saved { .. })
+                )
+            {
+                old.snapshot =
+                    serde_json::to_string(&saved_blob::manifest(&old.snapshot)?).map_err(err)?;
             }
             if old.snapshot != event.snapshot || parent != event.parent {
                 return Err("checkpoint event fork".into());
@@ -383,13 +396,20 @@ pub fn receive(
                     .map_err(err)?;
             }
         } else if let Some(change) = material::parse(&event.snapshot)? {
-            if event.parent.is_some() {
+            if event.parent.is_some() && !matches!(change, material::Change::Saved { .. }) {
                 return Err("unexpected material parent".into());
             }
             if change.blob().is_some() {
                 tx.execute("INSERT INTO lan_material_blobs(event,data,digest) SELECT event,data,digest FROM lan_material_stage WHERE event=? AND filled=bytes",[&event.id]).map_err(err)?;
             }
-            if let material::Change::Resolution {
+            if let material::Change::Saved {
+                entity,
+                bytes,
+                sha256,
+            } = change
+            {
+                saved_blob::apply(&tx, event, &entity, bytes, &sha256, store)?;
+            } else if let material::Change::Resolution {
                 file,
                 field,
                 parents,
@@ -469,7 +489,16 @@ fn merge(
         if Some(h.generation)
             != generation.checked_add(i64::from(was_deleted && h.deleted_at.is_none()))
         {
-            return Err("invalid saved restore generation".into());
+            // Early device builds incremented the deletion generation while
+            // combining duplicated legacy occurrences at one source position.
+            if was_deleted
+                || h.deleted_at.is_some()
+                || h.origin != "legacy"
+                || Some(h.generation) != generation.checked_add(1)
+                || !saved_history::legacy_note_merge(db, &h.record_id, parent, &event.snapshot)?
+            {
+                return Err("invalid saved restore generation".into());
+            }
         }
         depth.checked_add(1).ok_or("saved version depth overflow")?
     } else {
@@ -482,10 +511,7 @@ fn merge(
     .map_err(err)?;
     // Independent edits remain retrievable as heads. Within a generation,
     // delete wins. Never use either wall clock to discard an edit.
-    let winner:String=db.query_row("SELECT v.snapshot FROM lan_saved_heads v WHERE v.entity=?1
-        ORDER BY json_extract(v.snapshot,'$.generation') DESC,(json_extract(v.snapshot,'$.deleted_at') IS NOT NULL) DESC,
-        (json_extract(v.snapshot,'$.explanation_source')='personal') DESC,v.depth DESC,v.rev DESC LIMIT 1",
-        [&h.record_id],|r|r.get(0)).map_err(err)?;
+    let winner = saved_history::winner(db, &h.record_id)?;
     apply(db, &winner)
 }
 

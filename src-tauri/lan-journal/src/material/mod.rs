@@ -23,6 +23,11 @@ pub(crate) fn install(tx: &Connection) -> Result<()> {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "material_op", rename_all = "lowercase", deny_unknown_fields)]
 pub(crate) enum Change {
+    Saved {
+        entity: String,
+        bytes: usize,
+        sha256: String,
+    },
     Create {
         file: String,
         bytes: usize,
@@ -97,16 +102,26 @@ fn title_ok(s: &str) -> bool {
             .is_some_and(|v| v == b":/" || v == b":\\")
 }
 impl Change {
+    pub(crate) fn blob_limit(&self) -> usize {
+        // Existing SQLite TEXT values may exceed the material import limit.
+        // SQLite's default maximum row length bounds valid historical saves.
+        if matches!(self, Self::Saved { .. }) {
+            1_000_000_000
+        } else {
+            MAX_BLOB
+        }
+    }
     pub(crate) fn blob(&self) -> Option<(usize, &str)> {
         match self {
-            Self::Create { bytes, sha256, .. } | Self::Large { bytes, sha256, .. } => {
-                Some((*bytes, sha256))
-            }
+            Self::Saved { bytes, sha256, .. }
+            | Self::Create { bytes, sha256, .. }
+            | Self::Large { bytes, sha256, .. } => Some((*bytes, sha256)),
             _ => None,
         }
     }
     fn file(&self) -> &str {
         match self {
+            Self::Saved { entity, .. } => entity,
             Self::Create { file, .. }
             | Self::Attach { file, .. }
             | Self::Large { file, .. }
@@ -128,7 +143,7 @@ impl Change {
             return Err("invalid material identity".into());
         }
         if let Some((bytes, hash)) = self.blob() {
-            if !(1..=MAX_BLOB).contains(&bytes)
+            if !(1..=self.blob_limit()).contains(&bytes)
                 || hash.len() != 64
                 || !hash.bytes().all(|b| b.is_ascii_hexdigit())
             {
@@ -692,6 +707,7 @@ pub(crate) fn apply(
             db.execute("DELETE FROM lan_material_stage WHERE id=1", [])
                 .map_err(err)?;
         }
+        Change::Saved { .. } => return Err("saved manifest requires saved store".into()),
         Change::Attach { .. } => return Err("expected chunked source".into()),
         Change::Field { .. } => apply_field(db, &change, &event.id)?,
         Change::Resolution { .. } => return Err("resolution must use saved store".into()),

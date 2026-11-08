@@ -25,6 +25,7 @@ final class DeviceRuntime {
   let worker = DispatchQueue(label: "lexicue.device-sync.library", qos: .utility)
   var identity: SecIdentity?
   var pin: Data?
+  var mayVerifyLegacy = false
   var loaded = false
   var checkingPending = false
   var trust: PeerTrust?
@@ -99,9 +100,13 @@ final class DeviceRuntime {
         trust = stored
         state = trust == nil ? "unpaired" : "waiting"
         issue = nil
-        if stored?.quarantined == true {
-          state = "error"
-          issue = "reconcile"
+        if let stored, stored.quarantined == true {
+          let mode = try? journal.run("upgradeMode", stored.route) as? String
+          mayVerifyLegacy = stored.fenced != true && (mode == "legacy" || mode == "migrated")
+          if !mayVerifyLegacy {
+            state = "error"
+            issue = "reconcile"
+          }
         }
       }
     } catch {
@@ -367,6 +372,7 @@ final class DeviceRuntime {
     state = "error"
     if case DeviceLinkError.reconcile = error, var peer = trust {
       stopNetwork()
+      mayVerifyLegacy = false
       peer.quarantined = true
       trust = peer
       do {
@@ -445,7 +451,7 @@ final class DeviceRuntime {
   func wake() {
     suspension = UUID()
     foreground = true
-    if restoring || trust?.quarantined == true { return }
+    if restoring || (trust?.quarantined == true && !mayVerifyLegacy) { return }
     if revocation != nil {
       drainRevocation()
       return

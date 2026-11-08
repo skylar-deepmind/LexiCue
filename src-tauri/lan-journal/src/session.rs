@@ -3,7 +3,7 @@
 use super::*;
 use crate::checkpoint::Hello;
 use crate::material::transfer::{self, Chunk, Cursor};
-pub const SESSION_VERSION: u8 = 5;
+pub const SESSION_VERSION: u8 = 6;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Request {

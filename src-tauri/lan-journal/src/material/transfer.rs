@@ -3,7 +3,6 @@
 use super::*;
 use base64::{engine::general_purpose::STANDARD, Engine};
 use rusqlite::DatabaseName;
-use std::io::Read;
 
 pub const CHUNK_BYTES: usize = 32 * 1024;
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -19,24 +18,25 @@ pub struct Chunk {
     pub checksum: String,
 }
 
-fn digest_blob(db: &Connection, table: &str, row: i64) -> Result<String> {
-    let blob = db
+pub(crate) fn digest_blob(db: &Connection, table: &str, row: i64) -> Result<String> {
+    let mut blob = db
         .blob_open(DatabaseName::Main, table, "data", row, true)
         .map_err(err)?;
     let mut hash = Sha256::new();
-    std::io::copy(&mut blob.take(MAX_BLOB as u64 + 1), &mut hash).map_err(err)?;
+    std::io::copy(&mut blob, &mut hash).map_err(err)?;
     Ok(format!("{:x}", hash.finalize()))
 }
 
 /// Hash immutable local bytes once, before their manifest is first offered.
 pub(crate) fn seal(db: &Connection, event: &mut Event, change: &mut Change) -> Result<()> {
+    let limit = change.blob_limit();
     let (bytes, sha256) = match change {
-        Change::Create { bytes, sha256, .. } | Change::Large { bytes, sha256, .. } => {
-            (*bytes, sha256)
-        }
+        Change::Saved { bytes, sha256, .. }
+        | Change::Create { bytes, sha256, .. }
+        | Change::Large { bytes, sha256, .. } => (*bytes, sha256),
         _ => return change.validate(),
     };
-    if !(1..=MAX_BLOB).contains(&bytes) {
+    if !(1..=limit).contains(&bytes) {
         return Err("material exceeds transfer limit".into());
     }
     let (row, cached): (i64, Option<String>) = db
@@ -92,7 +92,7 @@ pub(crate) fn need(db: &mut Connection, local: &Route, batch: &Batch) -> Result<
     let (bytes, hash) = change.blob().ok_or("expected material manifest")?;
     if !id(&event.id)
         || event.seq <= 0
-        || event.parent.is_some()
+        || event.parent.is_some() && !matches!(change, Change::Saved { .. })
         || event.checksum(&batch.route)? != event.digest
     {
         return Err("invalid material event digest".into());

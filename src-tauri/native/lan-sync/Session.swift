@@ -137,10 +137,13 @@ extension DeviceRuntime {
       guard active === link.connection, trust?.route == peer.route else {
         throw DeviceLinkError.canceled
       }
-      if peer.provisional {
-        var approved = peer
+      guard var approved = trust, approved.quarantined != true else {
+        throw DeviceLinkError.reconcile
+      }
+      if approved.provisional || approved.fenced != true {
         approved.provisional = false
         approved.provisionalCode = nil
+        approved.fenced = true
         try storage.save(approved, "peer")
         trust = approved
       }
@@ -148,13 +151,76 @@ extension DeviceRuntime {
     }
   }
 
+  private func verifyLegacy(_ link: LinkChannel, _ peer: PeerTrust, _ proof: Any) throws {
+    guard permitted(link, peer) else { throw DeviceLinkError.canceled }
+    let raw = try JSONSerialization.data(withJSONObject: proof)
+    _ = try journal.run("verifyUpgrade", peer.route, input: String(decoding: raw, as: UTF8.self))
+    try queue.sync {
+      guard active === link.connection, var approved = trust, approved.route == peer.route else {
+        throw DeviceLinkError.canceled
+      }
+      approved.quarantined = false
+      approved.fenced = true
+      try storage.save(approved, "peer")
+      trust = approved
+      mayVerifyLegacy = false
+    }
+  }
+
+  private func negotiate(_ link: LinkChannel, peer: PeerTrust) throws {
+    let mode = try journal.run("upgradeMode", peer.route) as? String
+    guard let mode else { throw DeviceLinkError.malformed }
+    if peer.fenced == true && (mode == "legacy" || mode == "new") {
+      throw DeviceLinkError.reconcile
+    }
+    let needs = mode == "legacy" || peer.quarantined == true
+    if isMac {
+      let request = try link.object(timeout: 30)
+      guard try verify(request, kind: "sync", service: peer.route.pair, link: link) == peer.route.to
+      else { throw DeviceLinkError.identity }
+      if needs || request["needsHistoryProof"] as? Bool == true {
+        guard request["historyProof"] as? Int == 1 else {
+          try? link.sendObject(["kind": "update"])
+          throw DeviceLinkError.incompatible
+        }
+        try link.sendObject([
+          "kind": "verifyHistory", "proof": try journal.run("upgradeProof", peer.route),
+        ])
+        let reply = try link.object(timeout: 600)
+        guard reply["kind"] as? String == "historyProof",
+          let remote = reply["proof"] as? [String: Any]
+        else { throw DeviceLinkError.malformed }
+        try verifyLegacy(link, peer, remote)
+      }
+    } else {
+      var request = greeting("sync", peer.route.pair)
+      request["historyProof"] = 1
+      request["needsHistoryProof"] = needs
+      try link.sendObject(request)
+      var response = try link.object(timeout: 600)
+      if response["kind"] as? String == "verifyHistory",
+        let remote = response["proof"] as? [String: Any]
+      {
+        let proof = try journal.run("upgradeProof", peer.route)
+        try verifyLegacy(link, peer, remote)
+        try link.sendObject(["kind": "historyProof", "proof": proof])
+        response = try link.object(timeout: 600)
+      } else if needs {
+        try? link.sendObject(["kind": "update"])
+        throw DeviceLinkError.incompatible
+      }
+      guard
+        try verify(response, kind: "ready", service: peer.route.pair, link: link) == peer.route.to
+      else { throw DeviceLinkError.identity }
+    }
+  }
+
   func sync(_ link: LinkChannel, peer: PeerTrust) throws {
-    let kind = isMac ? "sync" : "ready"
-    if !isMac { try link.sendObject(greeting("sync", peer.route.pair)) }
     mark(link, "syncing")
-    let hello = try link.object(timeout: 600)
-    guard try verify(hello, kind: kind, service: peer.route.pair, link: link) == peer.route.to
-    else { throw DeviceLinkError.identity }
+    do { try negotiate(link, peer: peer) } catch DeviceLinkError.reconcile {
+      try? link.sendObject(["kind": "fault", "issue": "reconcile"])
+      throw DeviceLinkError.reconcile
+    }
     do {
       try prepare(link, peer)
     } catch {
