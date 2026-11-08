@@ -23,7 +23,9 @@ CREATE TABLE IF NOT EXISTS lan_saved_versions (
 ) STRICT;
 CREATE INDEX IF NOT EXISTS lan_saved_children ON lan_saved_versions(entity,parent);
 
-CREATE TRIGGER IF NOT EXISTS lan_saved_new_version AFTER INSERT ON lan_saved_outbox BEGIN
+DROP TRIGGER IF EXISTS lan_saved_new_version;
+CREATE TRIGGER lan_saved_new_version AFTER INSERT ON lan_saved_outbox
+WHEN json_type(NEW.snapshot,'$.material_op') IS NULL BEGIN
     INSERT INTO lan_saved_versions(entity,rev,parent,depth,snapshot)
     VALUES(json_extract(NEW.snapshot,'$.record_id'),json_extract(NEW.snapshot,'$.revision'),NEW.parent,
         CASE WHEN NEW.parent IS NULL THEN 0 ELSE 1 + (SELECT depth FROM lan_saved_versions

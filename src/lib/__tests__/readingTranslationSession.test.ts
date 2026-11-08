@@ -71,3 +71,14 @@ describe('reading translation session', () => {
     expect(session.getSnapshot().enabled).toBe(false);
   });
 });
+
+it('opens received material without translating and displays its existing Chinese text on demand', async () => {
+  const received = rows.map(row => ({ ...row, zh_text: row.id === 11 ? '手机上的改译' : row.zh_text }));
+  const session = createReadingTranslationSession({ materialId: 8, contentHash: 'received', segments: received, allowGenerate: true });
+  await settle();
+  expect(translateReadingBatch).not.toHaveBeenCalled();
+  session.toggle(received.slice(0, 2));
+  await settle();
+  expect(session.getSnapshot().status).toBe('ready');
+  expect(translateReadingBatch).not.toHaveBeenCalled();
+});

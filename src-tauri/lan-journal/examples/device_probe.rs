@@ -6,6 +6,8 @@ use serde_json::{json, Value};
 use std::ffi::{c_char, CStr, CString};
 use uuid::Uuid;
 
+#[path = "device_probe/material.rs"]
+mod material;
 struct Fixture;
 impl SavedStore for Fixture {
     fn validate(&self, text: &str) -> Result<()> {
@@ -38,6 +40,8 @@ fn run(
     rpc: Option<Rpc>,
 ) -> Result<String> {
     let mut db = Connection::open(path).map_err(|e| e.to_string())?;
+    db.pragma_update(None, "foreign_keys", true)
+        .map_err(|e| e.to_string())?;
     let mac_id = Uuid::from_u128(1);
     let phone_id = Uuid::from_u128(2);
     let mac_route = Route {
@@ -47,6 +51,18 @@ fn run(
     };
     let local = if mac { mac_route } else { mac_route.reverse() };
     match cmd {
+        "material-seed" => {
+            material::seed(&mut db, &local, mac)?;
+            Ok("seeded".into())
+        }
+        "material-dropped" => material::dropped(&db, &local, mac),
+        "material-edit" => {
+            material::edit(&db)?;
+            Ok("edited".into())
+        }
+        "material-verify" | "material-verify-edited" => {
+            material::verify(&db, &local, mac, cmd.ends_with("edited"))
+        }
         "seed" => {
             db.execute_batch("PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS saved_records(id INTEGER PRIMARY KEY,record_id TEXT UNIQUE, revision TEXT NOT NULL,snapshot_json TEXT NOT NULL);").map_err(|e|e.to_string())?;
             journal::install(&mut db, &local)?;
@@ -70,21 +86,52 @@ fn run(
             let reply = respond(&mut db, &local, request, &Fixture)?;
             serde_json::to_string(&reply).map_err(|e| e.to_string())
         }
-        "run" => {
+        "run" | "material-resume" | "material-patch" => {
+            let mut sent_offset = None;
+            let mut patch_events = 0;
+            let mut json_bytes = 0;
             let exchange = rpc.ok_or("missing transport")?;
             catch_up(&mut db, &local, &Fixture, |req| {
+                if let Operation::PutChunk(frame) = &req.operation {
+                    sent_offset.get_or_insert(frame.cursor.offset);
+                }
+                if cmd == "material-patch"
+                    && !matches!(
+                        req.operation,
+                        Operation::Hello | Operation::Pull { .. } | Operation::Confirm(_)
+                    )
+                {
+                    return Err("unexpected extra edit transfer".into());
+                }
                 let req = CString::new(serde_json::to_vec(&req).map_err(|e| e.to_string())?)
                     .map_err(|e| e.to_string())?;
                 let ptr = exchange(req.as_ptr());
                 if ptr.is_null() {
                     return Err("disconnected".into());
                 }
-                let result = serde_json::from_slice(unsafe { CStr::from_ptr(ptr) }.to_bytes())
-                    .map_err(|e| e.to_string());
+                let response = unsafe { CStr::from_ptr(ptr) }.to_bytes();
+                json_bytes += req.as_bytes().len() + response.len();
+                let result = serde_json::from_slice(response).map_err(|e| e.to_string());
                 unsafe { free(ptr) };
-                result
+                let reply = result?;
+                if cmd == "material-patch" {
+                    material::check_patch(&reply, &mut patch_events)?
+                }
+                Ok(reply)
             })?;
-            Ok("caught up".into())
+            if cmd == "material-resume" && sent_offset != Some(32768) {
+                return Err("incorrect resume offset".into());
+            }
+            if cmd == "material-patch" && patch_events != 1 {
+                return Err(format!(
+                    "unexpected number of translation events: {patch_events}"
+                ));
+            }
+            Ok(if cmd == "material-patch" {
+                format!("one translation event; {json_bytes} request/reply JSON bytes including handshake and ACK")
+            } else {
+                "caught up".into()
+            })
         }
         "dropped" => {
             let p = journal::progress(&db, &local)?;

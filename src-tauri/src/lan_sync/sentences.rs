@@ -15,7 +15,7 @@ pub fn prepare_sentence_ids(database: &Path, operation: Uuid) -> Result<MergeBac
     let tx = connection
         .transaction_with_behavior(TransactionBehavior::Immediate)
         .map_err(|e| e.to_string())?;
-    tx.execute_batch(include_str!("sentences.sql"))
+    tx.execute_batch(lexicue_lan_journal::material::SENTENCE_SCHEMA)
         .map_err(|e| e.to_string())?;
     tx.commit().map_err(|e| e.to_string())?;
     Ok(backup)

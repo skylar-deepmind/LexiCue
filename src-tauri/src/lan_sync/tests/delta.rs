@@ -1,5 +1,5 @@
 use super::*;
-use crate::lan_sync::saved_delta::{self, ReaderSaves};
+use crate::lan_sync::saved_delta::ReaderSaves;
 use lexicue_lan_journal::{
     self as journal,
     session::{catch_up, respond, Operation, Reply},
@@ -17,8 +17,9 @@ fn pair() -> Route {
 fn twin(dir: &Path, route: &Route) -> (PathBuf, Connection) {
     fs::create_dir(dir).unwrap();
     let path = dir.join("lexicue.db");
-    let db = init_db(&path).unwrap();
-    saved_delta::prepare(&path, Uuid::new_v4(), route).unwrap();
+    let mut db = init_db(&path).unwrap();
+    MergeBackup::prepare(&path, Uuid::new_v4()).unwrap();
+    journal::install(&mut db, route).unwrap();
     (path, db)
 }
 fn round(a: &mut Connection, b: &mut Connection, route: &Route) -> journal::Result<()> {
@@ -255,7 +256,7 @@ fn nonportable_or_unknown_saved_metadata_never_leaves_the_sender() {
                 params![field, value],
             )
             .unwrap();
-        saved_delta::prepare(&pre, Uuid::new_v4(), &route).unwrap();
+        journal::install(&mut pre_db, &route).unwrap();
         assert!(catch_up(&mut pre_db, &route, &ReaderSaves, |req| {
             assert!(matches!(req.operation, Operation::Hello));
             respond(&mut b, &route.reverse(), req, &ReaderSaves)

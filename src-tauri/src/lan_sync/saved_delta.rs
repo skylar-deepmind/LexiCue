@@ -8,11 +8,7 @@ use std::path::Path;
 use uuid::Uuid;
 
 pub fn prepare(database: &Path, operation: Uuid, route: &Route) -> Result<MergeBackup, String> {
-    let backup = MergeBackup::prepare(database, operation)?;
-    let mut db = Connection::open_with_flags(database, rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE)
-        .map_err(|e| e.to_string())?;
-    lexicue_lan_journal::install(&mut db, route)?;
-    Ok(backup)
+    super::prepare_library(database, operation, route)
 }
 
 pub struct ReaderSaves;

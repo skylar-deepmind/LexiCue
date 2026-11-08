@@ -83,19 +83,22 @@ final class Host {
 
   init() throws {
     let args = CommandLine.arguments
-    guard args.count >= 3, UUID(uuidString: args[1]) != nil, ["drop", "resume"].contains(args[2])
+    guard args.count >= 3, UUID(uuidString: args[1]) != nil,
+      ["drop", "resume", "material-drop", "material-resume", "material-edit"].contains(args[2])
     else { throw Failure.missingConfig }
     pair = args[1]
     phase = args[2]
     #if os(macOS)
       guard args.count == 4 else { throw Failure.missingConfig }
       assets = URL(fileURLWithPath: args[3])
-      db = assets.appendingPathComponent(pair + ".db").path
+      db =
+        assets.appendingPathComponent(pair + (phase.hasPrefix("material") ? "-material.db" : ".db"))
+        .path
     #else
       assets = Bundle.main.resourceURL!
       db =
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        .appendingPathComponent(pair + ".db").path
+        .appendingPathComponent(pair + (phase.hasPrefix("material") ? "-material.db" : ".db")).path
     #endif
   }
 
@@ -110,7 +113,13 @@ final class Host {
   }
 
   func start() throws {
-    if phase == "drop" {
+    if phase == "material-drop" {
+      _ = try engine("material-seed")
+    } else if phase == "material-resume" {
+      print(try engine("material-dropped"))
+    } else if phase == "material-edit" {
+      if !isMac { _ = try engine("material-edit") }
+    } else if phase == "drop" {
       _ = try engine("seed")
     } else {
       print("reopened: " + (try engine("dropped")))
@@ -162,37 +171,46 @@ final class Host {
   func session(_ connection: NWConnection) throws {
     let link = Channel(connection)
     channel = link
+    let material = phase.hasPrefix("material")
+    let verify =
+      material
+      ? (phase == "material-edit" ? "material-verify-edited" : "material-verify") : "verify"
+    let drop = phase == "drop" || phase == "material-drop"
+    let dropped = material ? "material-dropped" : "dropped"
     if isMac {
-      if phase == "drop" {
+      if drop {
         do {
           _ = try engine("run")
           throw Failure.unexpected("lost receipt was acknowledged")
         } catch Failure.unexpected("ERROR disconnected") {
-          finish("PASS dropped " + (try engine("dropped")), 0)
+          finish("PASS dropped " + (try engine(dropped)), 0)
         }
       }
-      _ = try engine("run")
+      print(
+        try engine(
+          phase == "material-edit"
+            ? "material-patch" : (phase == "material-resume" ? "material-resume" : "run")))
       try link.send("VERIFY")
       let remote = try link.receive()
-      guard remote == (try engine("verify")) else { throw Failure.unexpected(remote) }
+      guard remote == (try engine(verify)) else { throw Failure.unexpected(remote) }
       try link.send("DONE")
       finish("PASS both devices: " + remote, 0)
     }
     while true {
       let request = try link.receive()
       if request == "VERIFY" {
-        try link.send(try engine("verify"))
+        try link.send(try engine(verify))
         continue
       }
-      if request == "DONE" { finish("PASS iPhone " + (try engine("verify")), 0) }
+      if request == "DONE" { finish("PASS iPhone " + (try engine(verify)), 0) }
       let reply = try engine("respond", request)
-      if phase == "drop",
+      if drop,
         let object = try JSONSerialization.jsonObject(with: Data(reply.utf8)) as? [String: Any],
-        object["Applied"] != nil
+        object[material ? "Staged" : "Applied"] != nil
       {
-        let status = try engine("dropped")
+        let status = try engine(dropped)
         connection.cancel()
-        finish("PASS disconnected after COMMIT, before ACK: " + status, 0)
+        finish("PASS disconnected: " + status, 0)
       }
       try link.send(reply)
     }

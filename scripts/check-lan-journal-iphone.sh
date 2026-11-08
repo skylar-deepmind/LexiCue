@@ -73,7 +73,7 @@ xcodegen generate >/dev/null
 if ! xcodebuild -quiet -project JournalProbe.xcodeproj -scheme JournalProbe -configuration Debug \
     -destination "id=$DEVICE_ID" -allowProvisioningUpdates -derivedDataPath build build; then exit 1; fi
 xcrun devicectl device install app --device "$DEVICE_ID" build/Build/Products/Debug-iphoneos/JournalProbe.app
-for phase in drop resume; do
+for phase in drop resume material-drop material-resume material-edit; do
   "$scratch/mac/probe" "$pair" "$phase" "$scratch/mac" > "$scratch/mac.log" 2>&1 &
   mac_pid=$!
   if ! xcrun devicectl device process launch --device "$DEVICE_ID" --terminate-existing --console "$bundle" "$pair" "$phase" | tee "$scratch/phone.log"; then

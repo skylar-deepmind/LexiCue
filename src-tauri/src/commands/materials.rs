@@ -305,6 +305,16 @@ pub fn fill_translations(
     if !current {
         return Err("material_source_removed".into());
     }
+    // Make automatic fill distinguishable from a personal edit in the same
+    // transaction, including on a library reopened after LAN was enabled.
+    let tracked:bool=tx.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name='lan_material_values' AND type='table')",[],|r|r.get(0)).map_err(|e|e.to_string())?;
+    if tracked {
+        tx.execute(
+            "INSERT INTO sync_runtime(key,value) VALUES('lan_auto_translation','1')",
+            [],
+        )
+        .map_err(|e| e.to_string())?;
+    }
     let mut updated = Vec::new();
     for segment in segments {
         let changed=tx.execute("UPDATE segments SET zh_text=?1 WHERE id=?2 AND file_id=?3 AND en_text=?4 AND (zh_text IS NULL OR trim(zh_text)='')",params![segment.zh_text,segment.id,file_id,segment.en_text]).map_err(|e|e.to_string())?;
@@ -325,6 +335,13 @@ pub fn fill_translations(
                 });
             }
         }
+    }
+    if tracked {
+        tx.execute(
+            "DELETE FROM sync_runtime WHERE key='lan_auto_translation'",
+            [],
+        )
+        .map_err(|e| e.to_string())?;
     }
     tx.commit().map_err(|e| e.to_string())?;
     Ok(updated)

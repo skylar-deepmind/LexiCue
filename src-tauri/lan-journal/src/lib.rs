@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
+pub mod material;
 pub mod session;
 pub type Result<T> = std::result::Result<T, String>;
 pub const VERSION: u8 = 1;
@@ -45,6 +46,15 @@ impl Route {
 /// The caller has already made a verified local safety backup. Begin tracking
 /// existing and new saves at one SQLite transaction boundary.
 pub fn install(db: &mut Connection, route: &Route) -> Result<()> {
+    install_streams(db, route, false)
+}
+
+/// Call only after verifying the local pre-merge backup.
+pub fn install_library(db: &mut Connection, route: &Route) -> Result<()> {
+    install_streams(db, route, true)
+}
+fn install_streams(db: &mut Connection, route: &Route, materials: bool) -> Result<()> {
+    db.pragma_update(None, "foreign_keys", true).map_err(err)?;
     db.pragma_update(None, "synchronous", "FULL").map_err(err)?;
     let tx = db
         .transaction_with_behavior(TransactionBehavior::Immediate)
@@ -60,6 +70,9 @@ pub fn install(db: &mut Connection, route: &Route) -> Result<()> {
             [],
         )
         .map_err(err)?;
+    }
+    if materials {
+        material::install(&tx)?;
     }
     tx.commit().map_err(err)
 }
@@ -105,6 +118,7 @@ pub struct Ack {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Progress {
+    pub materials: bool,
     pub head: i64,
     pub received: i64,
     pub acked: i64,
@@ -112,8 +126,8 @@ pub struct Progress {
 }
 pub fn progress(db: &Connection, local: &Route) -> Result<Progress> {
     local.check(db)?;
-    db.query_row("SELECT COALESCE((SELECT MAX(seq) FROM lan_saved_outbox),0),received,acked,offered FROM lan_saved_peer",
-        [], |r|Ok(Progress{head:r.get(0)?,received:r.get(1)?,acked:r.get(2)?,offered:r.get(3)?})).map_err(err)
+    db.query_row("SELECT COALESCE((SELECT MAX(seq) FROM lan_saved_outbox),0),received,acked,offered,EXISTS(SELECT 1 FROM sqlite_schema WHERE name='lan_material_files' AND type='table') FROM lan_saved_peer",
+        [], |r|Ok(Progress{head:r.get(0)?,received:r.get(1)?,acked:r.get(2)?,offered:r.get(3)?,materials:r.get(4)?})).map_err(err)
 }
 
 fn read_event(row: &rusqlite::Row<'_>) -> rusqlite::Result<Event> {
@@ -163,10 +177,22 @@ fn pending(
             if event.seq != p.acked + events.len() as i64 + 1 {
                 return Err("sender log gap".into());
             }
-            validate(&event.snapshot)?;
+            let mut single = false;
+            if let Some(mut change) = material::parse(&event.snapshot)? {
+                single = change.blob().is_some();
+                if single && !events.is_empty() {
+                    break;
+                }
+                material::transfer::seal(&tx, &mut event, &mut change)?;
+            } else {
+                validate(&event.snapshot)?;
+            }
             event.digest = event.checksum(local)?;
             events.push(event);
             bytes += length;
+            if single {
+                break;
+            }
         }
     }
     let end = events.last().ok_or("missing pending event")?.seq;
@@ -205,6 +231,7 @@ pub fn receive(
     {
         return Err("incompatible or misdirected saved batch".into());
     }
+    db.pragma_update(None, "foreign_keys", true).map_err(err)?;
     db.pragma_update(None, "synchronous", "FULL").map_err(err)?;
     let tx = db
         .transaction_with_behavior(TransactionBehavior::Immediate)
@@ -236,8 +263,15 @@ pub fn receive(
         if received.checked_add(1) != Some(event.seq) {
             return Err("saved sequence gap".into());
         }
-        validate(&event.snapshot)?;
-        merge(&tx, event, &apply)?;
+        if let Some(change) = material::parse(&event.snapshot)? {
+            if event.parent.is_some() {
+                return Err("unexpected material parent".into());
+            }
+            material::apply(&tx, event, change)?;
+        } else {
+            validate(&event.snapshot)?;
+            merge(&tx, event, &apply)?;
+        }
         tx.execute(
             "INSERT INTO lan_saved_inbox(seq,eid,digest) VALUES(?1,?2,?3)",
             params![event.seq, event.id, event.digest],
@@ -326,13 +360,16 @@ pub fn confirm(db: &mut Connection, local: &Route, ack: &Ack) -> Result<()> {
     if ack.seq > p.offered {
         return Err("unoffered saved ACK".into());
     }
-    let event = tx
+    let mut event = tx
         .query_row(
             "SELECT seq,eid,parent,snapshot FROM lan_saved_outbox WHERE seq=?1",
             [ack.seq],
             read_event,
         )
         .map_err(err)?;
+    if let Some(mut change) = material::parse(&event.snapshot)? {
+        material::transfer::seal(&tx, &mut event, &mut change)?;
+    }
     if event.checksum(local)? != ack.digest {
         return Err("saved ACK checksum mismatch".into());
     }

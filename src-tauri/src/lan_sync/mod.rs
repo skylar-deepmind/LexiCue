@@ -107,3 +107,18 @@ fn validate(connection: &Connection) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests;
+
+/// Enable material and saved-record exchange at a single consistent boundary.
+pub fn prepare_library(
+    database: &Path,
+    operation: Uuid,
+    route: &lexicue_lan_journal::Route,
+) -> Result<MergeBackup, String> {
+    let backup = MergeBackup::prepare(database, operation)?;
+    let mut db = Connection::open_with_flags(database, OpenFlags::SQLITE_OPEN_READ_WRITE)
+        .map_err(|e| e.to_string())?;
+    db.pragma_update(None, "foreign_keys", true)
+        .map_err(|e| e.to_string())?;
+    lexicue_lan_journal::install_library(&mut db, route)?;
+    Ok(backup)
+}

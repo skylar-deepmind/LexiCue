@@ -1,6 +1,8 @@
 //! One bounded catch-up round on a trusted duplex link. The caller invokes
 //! this on connection/reconnection. All restart state lives in SQLite.
 use super::*;
+use crate::material::transfer::{self, Chunk, Cursor};
+const SESSION_VERSION: u8 = 2;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Request {
@@ -11,6 +13,9 @@ pub struct Request {
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Operation {
     Hello,
+    Offer(Batch),
+    ReadChunk(Cursor),
+    PutChunk(Chunk),
     Deliver(Batch),
     Pull { through: i64 },
     Confirm(Ack),
@@ -18,6 +23,9 @@ pub enum Operation {
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Reply {
     Hello(Progress),
+    Need(Option<Cursor>),
+    Chunk(Chunk),
+    Staged(usize),
     Applied(Ack),
     Pending(Option<Batch>),
     Confirmed,
@@ -34,10 +42,13 @@ pub fn respond(
     request: Request,
     store: &impl SavedStore,
 ) -> Result<Reply> {
-    if request.version != VERSION || request.route != local.reverse() {
+    if request.version != SESSION_VERSION || request.route != local.reverse() {
         return Err("incompatible saved session".into());
     }
     match request.operation {
+        Operation::Offer(batch) => Ok(Reply::Need(transfer::need(db, local, &batch)?)),
+        Operation::ReadChunk(cursor) => Ok(Reply::Chunk(transfer::read(db, local, cursor)?)),
+        Operation::PutChunk(chunk) => Ok(Reply::Staged(transfer::stage(db, local, chunk)?)),
         Operation::Hello => Ok(Reply::Hello(progress(db, local)?)),
         Operation::Deliver(batch) => Ok(Reply::Applied(receive(
             db,
@@ -64,7 +75,7 @@ pub fn catch_up(
 ) -> Result<()> {
     let mut call = |operation| {
         exchange(Request {
-            version: VERSION,
+            version: SESSION_VERSION,
             route: local.clone(),
             operation,
         })
@@ -73,6 +84,9 @@ pub fn catch_up(
     let Reply::Hello(peer) = call(Operation::Hello)? else {
         return Err("expected saved peer progress".into());
     };
+    if peer.materials != p.materials {
+        return Err("incompatible material capability; update or prepare peer".into());
+    }
     if peer.received < p.acked
         || peer.received > p.offered
         || p.received < peer.acked
@@ -90,6 +104,29 @@ pub fn catch_up(
             let batch = pending(db, local, p.head, |s| store.validate(s))?
                 .ok_or("missing local saved changes")?;
             let end = batch.events.last().unwrap().seq;
+            if let Some(size) = transfer::blob_size(&batch.events[0])? {
+                let Reply::Need(need) = call(Operation::Offer(batch.clone()))? else {
+                    return Err("expected material cursor".into());
+                };
+                if let Some(mut cursor) = need {
+                    let event = &batch.events[0];
+                    if cursor.seq != event.seq || cursor.event != event.id || cursor.offset >= size
+                    {
+                        return Err("invalid material cursor".into());
+                    }
+                    while cursor.offset < size {
+                        let expected = size.min(cursor.offset + transfer::CHUNK_BYTES);
+                        let frame = transfer::read(db, local, cursor.clone())?;
+                        let Reply::Staged(next) = call(Operation::PutChunk(frame))? else {
+                            return Err("expected staging offset".into());
+                        };
+                        if next != expected {
+                            return Err("incorrect peer staging offset".into());
+                        }
+                        cursor.offset = next;
+                    }
+                }
+            }
             let Reply::Applied(ack) = call(Operation::Deliver(batch))? else {
                 return Err("expected saved ACK".into());
             };
@@ -107,6 +144,17 @@ pub fn catch_up(
                 || batch.events.last().is_none_or(|e| e.seq > peer.head)
             {
                 return Err("invalid pull interval".into());
+            }
+            if let Some(size) = transfer::blob_size(&batch.events[0])? {
+                if let Some(mut cursor) = transfer::need(db, local, &batch)? {
+                    while cursor.offset < size {
+                        let Reply::Chunk(frame) = call(Operation::ReadChunk(cursor.clone()))?
+                        else {
+                            return Err("expected material bytes".into());
+                        };
+                        cursor.offset = transfer::stage(db, local, frame)?;
+                    }
+                }
             }
             let ack = receive(
                 db,
