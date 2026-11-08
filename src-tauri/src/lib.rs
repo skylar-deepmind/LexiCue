@@ -1,6 +1,9 @@
 mod commands;
 mod db;
 
+#[cfg(any(test, feature = "lan-sync"))]
+pub mod lan_sync;
+
 use db::{init_db, DbState, DictionaryStatus};
 use std::sync::{Arc, Mutex};
 use tauri::Manager;
