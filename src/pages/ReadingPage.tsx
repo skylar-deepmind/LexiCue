@@ -161,8 +161,8 @@ export default function ReadingPage({ data, scope }: {
     const currentReadingIndex = reading?.mode === 'source-continuous' && reading.status === 'playing' ? speech.queueIndex : reading?.index;
     const fontScaleStyle = useContentFontScaleStyle();
     const readingLayout = useReadingLayout(scroll);
-    const preserveReadingPosition = useReadingAnchor(scroll);
-    preserveTranslationPosition.current = preserveReadingPosition;
+    const { preservePosition, rememberViewport } = useReadingAnchor(scroll);
+    preserveTranslationPosition.current = preservePosition;
     const mediaEntries = useSourceMediaStore(state => state.entries);
     const speechItems = useMemo(() => segments.map(segment => ({text:segment.en_text,key:`reader:${mediaIdentity}:${segment.index_num}`})), [segments,mediaIdentity]);
     const pendingListen = useRef<number | null>(null);
@@ -255,12 +255,15 @@ export default function ReadingPage({ data, scope }: {
             const target = node.querySelector<HTMLElement>(`[data-sentence="${initial.segment}"]`);
             if (!target) return;
             node.scrollTop += target.getBoundingClientRect().top - node.getBoundingClientRect().top + initial.offset;
+            // A resize can arrive before the scroll event for this move. Preserve
+            // the restored passage through that reflow, starting in this frame.
+            rememberViewport();
             restored.current = true;
             if (returnView) { readerNavigation.complete(location.state?.restoreVisitToken); returnLookupMemory.delete(location.state?.restoreVisitToken); }
         }); };
         void document.fonts.ready.then(restore);
         return () => { cancelled = true; cancelAnimationFrame(frame); };
-    }, [initial, returnView, location.state?.restoreVisitToken]);
+    }, [initial, returnView, location.state?.restoreVisitToken, rememberViewport]);
     useLayoutEffect(() => {
         const node = scroll.current;
         if (!node)
@@ -286,7 +289,7 @@ export default function ReadingPage({ data, scope }: {
         const markKey = (event:KeyboardEvent) => { if (['ArrowUp','ArrowDown','PageUp','PageDown','Home','End',' '].includes(event.key)) markIntent(); };
         const persist = () => {
             const item = [...positions.entries()].sort((a, b) => a[0] - b[0])[0];
-            if (!example && item && node.isConnected) {
+            if (!example && restored.current && item && node.isConnected) {
                 const offset = node.getBoundingClientRect().top - item[1].getBoundingClientRect().top;
                 try { localStorage.setItem(positionKey, JSON.stringify({segment:item[0],offset,hash:material.content_hash,revision:positionRevision.current})); } catch { /* Best-effort local reading position. */ }
             }
