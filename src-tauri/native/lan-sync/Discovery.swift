@@ -38,7 +38,9 @@ extension DeviceRuntime {
         host.service = .init(
           name: service.uuidString, type: TrustedTransport.serviceType, domain: "local.")
         host.newConnectionHandler = { [weak host] incoming in
-          guard let host, self.listener === host, self.active == nil else {
+          guard let host, self.listener === host, self.authenticating == nil,
+            self.active == nil || (self.trust != nil && self.advertisedPin == self.trust?.pin)
+          else {
             incoming.cancel()
             return
           }
@@ -121,13 +123,31 @@ extension DeviceRuntime {
   }
 
   private func connect(_ connection: NWConnection) {
-    active = connection
     let currentTrust = trust
+    let pinnedIncoming = isMac && currentTrust != nil && advertisedPin == currentTrust?.pin
+    if pinnedIncoming {
+      authenticating = connection
+    } else {
+      active = connection
+    }
     let offer = pairing?.offer ?? scanned
     connection.stateUpdateHandler = { [weak connection] state in
-      guard let connection, self.active === connection else { return }
+      guard let connection, self.active === connection || self.authenticating === connection else { return }
       switch state {
       case .ready:
+        if pinnedIncoming {
+          guard self.authenticating === connection, let peer = currentTrust,
+            self.trust?.route == peer.route, self.trust?.pin == peer.pin,
+            (try? TrustedTransport.authenticatedPin(connection)) == peer.pin
+          else { self.finished(connection, error: DeviceLinkError.identity); return }
+          // TLS has checked possession of this paired key. A relaunched phone
+          // can now displace its half-open socket, even while the Mac awaits
+          // its next pulse. Journal work stays on the same serial worker.
+          let previous = self.active
+          self.authenticating = nil
+          self.active = connection
+          previous?.forceCancel()
+        }
         self.worker.async {
           var failure: Error?
           do {
@@ -145,7 +165,7 @@ extension DeviceRuntime {
       case .waiting(let error):
         if self.isDenied(error) || connection.currentPath?.unsatisfiedReason == .localNetworkDenied
         {
-          self.denied()
+          if self.active === connection { self.denied() }
           self.finished(connection, error: DeviceLinkError.disconnected)
         }
       // Network.framework may enter waiting briefly while resolving paths.
@@ -159,8 +179,8 @@ extension DeviceRuntime {
       self.finished(connection, error: DeviceLinkError.disconnected)
     }
     connection.start(queue: queue)
-    queue.asyncAfter(deadline: .now() + 15) {
-      guard self.active === connection else { return }
+    queue.asyncAfter(deadline: .now() + (pinnedIncoming ? 5 : 15)) {
+      guard self.active === connection || self.authenticating === connection else { return }
       switch connection.state {
       case .ready: break
       default: self.finished(connection, error: DeviceLinkError.timeout)
@@ -169,6 +189,11 @@ extension DeviceRuntime {
   }
 
   private func finished(_ connection: NWConnection, error: Error?) {
+    if authenticating === connection {
+      authenticating = nil
+      connection.forceCancel()
+      return
+    }
     guard active === connection else { return }
     active = nil
     connection.cancel()

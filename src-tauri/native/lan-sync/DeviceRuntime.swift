@@ -47,6 +47,7 @@ final class DeviceRuntime {
   var listener: NWListener?
   var advertisedPin: Data?
   var browser: NWBrowser?
+  var authenticating: NWConnection?
   var active: NWConnection?
   var monitor: NWPathMonitor?
   var preparedRoute: ReplicaRoute?
@@ -464,6 +465,8 @@ final class DeviceRuntime {
   }
 
   func stopNetwork() {
+    authenticating?.forceCancel()
+    authenticating = nil
     active?.cancel()
     active = nil
     listener?.cancel()

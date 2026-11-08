@@ -7,7 +7,9 @@ cd "$(dirname "$0")/.."
 root=$PWD
 scratch=$(mktemp -d)
 mac_pid=
+parked_pid=
 cleanup() {
+  if [[ -n "$parked_pid" ]]; then kill -KILL "$parked_pid" 2>/dev/null || true; fi
   if [[ -n "$mac_pid" ]]; then kill "$mac_pid" 2>/dev/null || true; fi
   rm -rf "$scratch"
 }
@@ -83,11 +85,27 @@ for phase in pair resume revoke revoked; do
       "$scratch/test" phone "$1" "$phone_id" "$scratch/phone"
     fi
   }
-  if ! run_phone "$phase" >"$scratch/phone.log" 2>&1; then cat "$scratch/mac.log" "$scratch/phone.log"; exit 1; fi
+  if [[ "$phase" == pair && -z "${DEVICE_ID:-}" ]]; then
+    # Keep a half-open socket without a FIN, exactly like a suspended peer.
+    QA_HOLD_SOCKET=1 "$scratch/test" phone pair "$phone_id" "$scratch/phone" >"$scratch/phone.log" 2>&1 &
+    parked_pid=$!
+    for _ in {1..300}; do [[ -f "$scratch/phone/parked" ]] && break; sleep 0.1; done
+    test -f "$scratch/phone/parked" || { cat "$scratch/mac.log" "$scratch/phone.log"; exit 1; }
+    touch "$scratch/mac/check-impostor"
+    for _ in {1..70}; do [[ -f "$scratch/mac/impostor-rejected" ]] && break; sleep 0.1; done
+    test -f "$scratch/mac/impostor-rejected" || { cat "$scratch/mac.log" "$scratch/phone.log"; exit 1; }
+  elif ! run_phone "$phase" >"$scratch/phone.log" 2>&1; then
+    cat "$scratch/mac.log" "$scratch/phone.log"; exit 1
+  fi
   if [[ "$phase" == pair ]]; then
     # The original Mac process stays alive from the QR offer through this ACK.
     touch "$scratch/mac/edited-while-offline"
     if ! run_phone rejoin >>"$scratch/phone.log" 2>&1; then cat "$scratch/mac.log" "$scratch/phone.log"; exit 1; fi
+    if [[ -n "$parked_pid" ]]; then
+      kill -KILL "$parked_pid"
+      wait "$parked_pid" 2>/dev/null || true
+      parked_pid=
+    fi
     test -f "$scratch/mac/ack-after-restart" || { echo 'Missing receipt after phone-only restart'; exit 1; }
   fi
   if ! wait "$mac_pid"; then cat "$scratch/mac.log" "$scratch/phone.log"; exit 1; fi

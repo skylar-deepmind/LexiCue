@@ -2,6 +2,7 @@
 // and reconnect code. A stub journal records when TLS permits its first call;
 // data convergence is separately exercised with the real two-library engine.
 import Foundation
+import Network
 
 #if os(iOS)
   import UIKit
@@ -95,6 +96,40 @@ func engine(
   guard let bytes = try? JSONSerialization.data(withJSONObject: ["ok": output]) else { return nil }
   return strdup(String(decoding: bytes, as: UTF8.self))
 }
+
+#if os(macOS)
+  // The original phone process is suspended with its TCP connection open.
+  // Present the host's own certificate instead of the pinned phone key.
+  func checkImpostor(_ runtime: DeviceRuntime) throws {
+    let (original, port, identity, pin) = runtime.queue.sync {
+      (runtime.active, runtime.listener?.port, runtime.identity, runtime.pin)
+    }
+    guard let original, let port, let identity, let pin else { done("FAIL missing active link", 1) }
+    let network = DispatchQueue(label: "lexicue.qa.impostor")
+    let params = try TrustedTransport.parameters(identity: identity, peerPin: pin, queue: network)
+    let connection = NWConnection(host: "127.0.0.1", port: port, using: params)
+    let rejected = DispatchSemaphore(value: 0)
+    connection.stateUpdateHandler = { state in
+      switch state {
+      case .failed: rejected.signal()
+      case .ready:
+        connection.receive(minimumIncompleteLength: 1, maximumLength: 4) { _, _, eof, error in
+          if eof || error != nil { rejected.signal() }
+        }
+      default: break
+      }
+    }
+    connection.start(queue: network)
+    defer { connection.forceCancel() }
+    guard rejected.wait(timeout: .now() + 5) == .success else {
+      done("FAIL did not observe rejection of wrong certificate", 1)
+    }
+    guard runtime.queue.sync(execute: { runtime.active === original }),
+      !has("ack-after-restart")
+    else { done("FAIL wrong key displaced active connection", 1) }
+    flag("impostor-rejected")
+  }
+#endif
 
 func test() throws {
   let args = CommandLine.arguments
@@ -205,6 +240,21 @@ func test() throws {
       _ = rt.command("confirm", confirmation: id)
     }
     if state == "synced", sawRequest {
+      #if os(macOS)
+        if phase == "pair", !isMacRole, ProcessInfo.processInfo.environment["QA_HOLD_SOCKET"] == "1" {
+          flag("parked")
+          raise(SIGSTOP)
+          done("FAIL stale process resumed", 1)
+        }
+        if phase == "pair", isMacRole, has("check-impostor"), !has("impostor-rejected") {
+          try checkImpostor(rt)
+        }
+        if phase == "rejoin", has("parked") {
+          let elapsed = ProcessInfo.processInfo.systemUptime - start
+          guard elapsed < 8 else { done("FAIL stale socket blocked restart for \(elapsed)s", 1) }
+          print(String(format: "DEVICE_RUNTIME PASS authenticated replacement and ACK in %.3fs", elapsed))
+        }
+      #endif
       if phase == "resume" {
         let trusted = try rt.storage.load(PeerTrust.self, "peer")
         guard verifiedUpgrade, trusted?.quarantined == false, trusted?.fenced == true else {
