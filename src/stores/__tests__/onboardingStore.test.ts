@@ -25,4 +25,13 @@ describe('three-action optional example',()=>{
   it('surfaces storage failure while keeping the app usable',()=>{
     vi.stubGlobal('localStorage',{setItem:()=>{throw Error('quota');},getItem:()=>null});useOnboardingStore.getState().finish('skipped');expect(useOnboardingStore.getState()).toMatchObject({active:false,outcome:'skipped',persistError:true});expect(readOnboardingOutcome()).toBe('unseen');
   });
+  it('keeps coached listening and history available after the saved card is closed',()=>{
+    const state=()=>useOnboardingStore.getState();state().begin('lookup');state().lookedUp();
+    expect(state().tour).toBe('save');state().recordChanged(record());state().setTour('tools');state().closed();
+    expect(state().active).toBe(true);expect(state().saved).toHaveLength(1);
+    state().setTour('recall');state().finish('completed');state().recordChanged(record(1));
+    expect(state().records).toEqual(['example']);expect(readOnboardingOutcome()).toBe('completed');
+    state().begin('import');expect(state().saved).toEqual([]);
+  });
+
 });

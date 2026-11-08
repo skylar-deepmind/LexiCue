@@ -76,7 +76,7 @@ function DockDisplaySettingsMenu({ className = '', showRecall = true, dock = fal
       if (!triggerRef.current?.getClientRects().length) { setOpen(false); return; }
       const mobile = window.matchMedia('(max-width: 767px)').matches;
       const left = mobile ? anchor.left + anchor.width / 2 - panel.width / 2 : anchor.right + 10;
-      const top = mobile ? anchor.top - panel.height - 10 : anchor.top + anchor.height / 2 - panel.height / 2;
+      const top = mobile ? (anchor.bottom + panel.height + 10 <= window.innerHeight - 8 ? anchor.bottom + 10 : anchor.top - panel.height - 10) : anchor.top + anchor.height / 2 - panel.height / 2;
       setPosition({
         left: Math.max(8, Math.min(left, window.innerWidth - panel.width - 8)),
         top: Math.max(8, Math.min(top, window.innerHeight - panel.height - 8)),

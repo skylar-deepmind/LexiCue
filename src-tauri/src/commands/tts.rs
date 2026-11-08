@@ -20,6 +20,14 @@ const MAX_CACHE_BYTES: u64 = 100 * 1024 * 1024;
 const WAIT_BUDGET: Duration = Duration::from_secs(8);
 const MAX_AUDIO_BYTES: usize = 4_000_000;
 
+#[tauri::command]
+pub fn prepare_audio_playback() -> Result<(), String> {
+    #[cfg(target_os = "ios")]
+    return crate::ios::prepare_audio_session();
+    #[cfg(not(target_os = "ios"))]
+    Ok(())
+}
+
 #[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct TtsRequest {
@@ -114,6 +122,8 @@ struct TestTransport {
     error: Option<TtsError>,
 }
 static SERVICE: OnceLock<Arc<TtsService>> = OnceLock::new();
+#[cfg(target_os = "ios")]
+static READING_SERVICE: OnceLock<Arc<TtsService>> = OnceLock::new();
 impl TtsService {
     pub fn new(root: PathBuf) -> Arc<Self> {
         Arc::new(Self {
@@ -739,6 +749,8 @@ fn validate_audio(bytes: &[u8], metadata_end_ms: u64) -> Result<AudioTiming, Tts
 pub fn configure(app: &tauri::AppHandle) {
     if let Ok(root) = app.path().app_cache_dir() {
         let _ = SERVICE.set(TtsService::new(root.join("edge-tts-v1")));
+        #[cfg(target_os = "ios")]
+        let _ = READING_SERVICE.set(TtsService::new(root.join("edge-reading-v1")));
     }
 }
 fn configured() -> Result<Arc<TtsService>, TtsError> {
@@ -756,8 +768,22 @@ pub fn cancel_tts(request_id: String) -> Result<(), TtsError> {
     configured()?.cancel(&request_id);
     Ok(())
 }
+#[cfg(target_os = "ios")]
+pub async fn native_reading_audio(request: TtsRequest) -> Result<TtsAudio, TtsError> {
+    READING_SERVICE
+        .get()
+        .cloned()
+        .ok_or_else(|| TtsError::new("cache_io", true))?
+        .resolve(request)
+        .await
+}
+
 #[tauri::command]
 pub fn clear_tts_cache() -> Result<(), TtsError> {
+    #[cfg(target_os = "ios")]
+    if let Some(service) = READING_SERVICE.get() {
+        service.clear()?;
+    }
     configured()?.clear()
 }
 #[tauri::command]

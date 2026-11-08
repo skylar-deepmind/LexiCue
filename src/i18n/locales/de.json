@@ -1234,9 +1234,17 @@
     "options": "Anzeigeoptionen"
   },
   "tags": {
-    "color": "Farbe",
-    "colorFor": "Farbe für {{name}}",
-    "tones": {"blue": "Blau", "green": "Grün", "pink": "Rosa", "purple": "Lila", "amber": "Bernstein", "slate": "Schiefergrau"},
+    "colorFor": "Tag-Farbe · {{name}}",
+    "colorTarget": "Tag zum Einfärben wählen",
+    "colorNamed": "{{name}}: {{color}}",
+    "colors": {
+      "blue": "Nebelblau",
+      "green": "Salbei",
+      "pink": "Rosé",
+      "purple": "Lavendel",
+      "amber": "Aprikose",
+      "slate": "Stein"
+    },
     "filesTitle": "Dateien",
     "all": "Alle",
     "allFiles": "Alle Dateien",
@@ -1281,7 +1289,16 @@
     "saving": "Wird gespeichert…",
     "sharedHint": "Diese Tags werden für alle Lernsprachen verwendet.",
     "search": "Tags suchen",
-    "namePlaceholder": "Tag-Namen eingeben"
+    "namePlaceholder": "Tag-Namen eingeben",
+    "color": "Farbe",
+    "tones": {
+      "blue": "Blau",
+      "green": "Grün",
+      "pink": "Rosa",
+      "purple": "Lila",
+      "amber": "Bernstein",
+      "slate": "Schiefergrau"
+    }
   },
   "expressionTags": {
     "label": "Sprachregister und Verwendung",
@@ -1455,7 +1472,7 @@
       "finding": "Verfügbare englische Untertitel werden gesucht…",
       "generatePreview": "Vorschau erstellen",
       "preview": "Originalvorschau",
-      "previewTitle": "Zuerst ansehen",
+      "previewTitle": "Vorschau",
       "preparingTitle": "Vorschau wird vorbereitet",
       "writingTitle": "Material wird hinzugefügt",
       "resultTitle": "Importergebnisse",
@@ -1471,7 +1488,6 @@
       "backgroundHint": "Du kannst dieses Fenster schließen. Der Import läuft weiter.",
       "minimize": "Schließen und im Hintergrund fortsetzen",
       "importMore": "Weitere importieren",
-      "translationHint": "Automatische Satzteilung. Fehlendes Chinesisch wird mit Google Translate ergänzt. Englischer Text wird an Google gesendet; keine Registrierung nötig.",
       "translationProgress": "{{done}} / {{total}} Sätze übersetzt",
       "pasteLink": "Zwischenablage lesen",
       "readingClipboard": "Wird gelesen…",
@@ -1533,7 +1549,13 @@
     "paused": "Paused",
     "restartSentence": "Restart current sentence",
     "emptyContent": "This material has no readable content.",
-    "translationError": "Translation is unavailable. Retry; reading and saving remain available."
+    "translationError": "Translation is unavailable. Retry; reading and saving remain available.",
+    "translateFullTitle": "Das ganze Material übersetzen?",
+    "translateFullPrompt": "Für {{count}} Sätze fehlt Chinesisch. Die vollständige Übersetzung mit Google ergänzen?",
+    "translateFullConfirm": "Übersetzung starten",
+    "translationProgress": "Ganzes Material wird übersetzt ({{done}} / {{total}} Sätze)",
+    "fullSheet": "Vollbild öffnen",
+    "halfSheet": "Halbbild anzeigen"
   },
   "history": {
     "export": "Datensicherung exportieren",

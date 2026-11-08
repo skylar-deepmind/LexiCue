@@ -310,7 +310,15 @@ pub fn fill_translations(
     }
     let tx = Transaction::new_unchecked(conn, TransactionBehavior::Immediate)
         .map_err(|e| e.to_string())?;
-    let current:bool=tx.query_row("SELECT EXISTS(SELECT 1 FROM files WHERE id=?1 AND content_hash=?2 AND language='en' AND media_source IS NULL)",params![file_id,content_hash],|r|r.get(0)).map_err(|e|e.to_string())?;
+    // Translations are supplemental to the original subtitles. YouTube source
+    // identity and cue timing remain unchanged, just as for local materials.
+    let current: bool = tx
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM files WHERE id=?1 AND content_hash=?2 AND language='en')",
+            params![file_id, content_hash],
+            |r| r.get(0),
+        )
+        .map_err(|e| e.to_string())?;
     if !current {
         return Err("material_source_removed".into());
     }
@@ -528,17 +536,20 @@ pub fn list(conn: &Connection, tag_ids: &[i64], untagged: bool) -> Result<Vec<Ma
         .map_err(|e| e.to_string())
 }
 #[tauri::command]
-pub fn list_materials(
-    state: State<DbState>,
+pub async fn list_materials(
+    state: State<'_, DbState>,
     tag_ids: Option<Vec<i64>>,
     untagged: Option<bool>,
 ) -> Result<Vec<Material>, String> {
-    let conn = state.conn.lock().map_err(|e| e.to_string())?;
-    list(
-        &conn,
-        &tag_ids.unwrap_or_default(),
-        untagged.unwrap_or(false),
-    )
+    state
+        .read("list_materials", move |conn| {
+            list(
+                conn,
+                &tag_ids.unwrap_or_default(),
+                untagged.unwrap_or(false),
+            )
+        })
+        .await
 }
 #[derive(Serialize)]
 pub struct ReadingMaterial {
@@ -914,6 +925,76 @@ mod tests {
         assert_eq!(original, data.content);
         data.operation_id = "text-duplicate".into();
         assert_eq!(import_material(&c, &data).unwrap().outcome, "duplicate");
+    }
+    #[test]
+    fn youtube_reading_translation_fills_only_missing_chinese_without_retargeting_source() {
+        let dir = tempfile::tempdir().unwrap();
+        let conn = crate::db::init_db(&dir.path().join("youtube-translation.db")).unwrap();
+        let mut data = input("translate-youtube", "The blue notebook is on the table.");
+        let track = super::super::youtube::SubtitleTrack {
+            lang: "en".into(),
+            language: "en".into(),
+            is_auto: false,
+            source: super::super::youtube::downloads::SubtitleSource::Manual,
+            source_language: Some("en".into()),
+        };
+        data.source = super::super::source_media::source_from_subtitles(
+            "abcdefghijk",
+            &track,
+            &data.content,
+            &serde_json::json!({"title":"Translation regression","duration":8}),
+        );
+        assert!(data.source.is_some());
+        let imported = import_material(&conn, &data).unwrap();
+        let before = open(&conn, imported.file_id).unwrap();
+        assert!(before.material.source.is_some());
+        let patch = |en: &str, zh: &str| {
+            vec![ReadingTranslationPatch {
+                id: before.segments[0].id,
+                en_text: en.into(),
+                zh_text: zh.into(),
+            }]
+        };
+        let original = &before.segments[0].en_text;
+        let hash = &before.material.content_hash;
+        assert_eq!(
+            fill_translations(
+                &conn,
+                imported.file_id,
+                "stale-hash",
+                &patch(original, "错误")
+            )
+            .err()
+            .as_deref(),
+            Some("material_source_removed")
+        );
+        assert!(fill_translations(
+            &conn,
+            imported.file_id,
+            hash,
+            &patch("A changed sentence.", "错误")
+        )
+        .unwrap()
+        .is_empty());
+        let translated = "蓝色笔记本在桌子上。";
+        let result =
+            fill_translations(&conn, imported.file_id, hash, &patch(original, translated)).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].zh_text, translated);
+        // A retry cannot overwrite an already stored translation.
+        let retry =
+            fill_translations(&conn, imported.file_id, hash, &patch(original, "不得覆盖")).unwrap();
+        assert_eq!(retry[0].zh_text, translated);
+        let mut expected = serde_json::to_value(&before).unwrap();
+        expected["segments"][0]["zh_text"] = serde_json::json!(translated);
+        assert_eq!(
+            serde_json::to_value(open(&conn, imported.file_id).unwrap()).unwrap(),
+            expected
+        );
+        assert_eq!(
+            import_material(&conn, &data).unwrap().file_id,
+            imported.file_id
+        );
     }
     fn input(op: &str, text: &str) -> MaterialInput {
         MaterialInput {

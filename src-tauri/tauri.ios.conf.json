@@ -1,3 +1,18 @@
 {
-  "bundle": { "iOS": { "minimumSystemVersion": "15.0" } }
+  "identifier": "com.skylar.lexicue.ios",
+  "build": {
+    "beforeDevCommand": "npm run dev -- --host 0.0.0.0",
+    "beforeBuildCommand": "npm run build"
+  },
+  "bundle": {
+    "createUpdaterArtifacts": false,
+    "resources": [
+      "resources/ECDICT-LICENSE.txt",
+      "resources/ENGLISH-LICENSE.txt",
+      "resources/TTS-LICENSE.txt",
+      "resources/DOCUMENT-IMPORT-LICENSES.txt",
+      "resources/PHRASEDICT-LICENSE.txt"
+    ],
+    "iOS": { "minimumSystemVersion": "15.0" }
+  }
 }

@@ -1234,9 +1234,17 @@
     "options": "Display options"
   },
   "tags": {
-    "color": "Color",
-    "colorFor": "Color for {{name}}",
-    "tones": {"blue": "Blue", "green": "Green", "pink": "Pink", "purple": "Purple", "amber": "Amber", "slate": "Slate"},
+    "colorFor": "Tag color · {{name}}",
+    "colorTarget": "Choose tag to color",
+    "colorNamed": "{{name}}: {{color}}",
+    "colors": {
+      "blue": "Mist blue",
+      "green": "Sage",
+      "pink": "Rose",
+      "purple": "Lavender",
+      "amber": "Apricot",
+      "slate": "Stone"
+    },
     "filesTitle": "Files",
     "all": "All",
     "allFiles": "All files",
@@ -1281,7 +1289,16 @@
     "saving": "Saving…",
     "sharedHint": "These tags are shared across learning languages.",
     "search": "Search tags",
-    "namePlaceholder": "Enter tag name"
+    "namePlaceholder": "Enter tag name",
+    "color": "Color",
+    "tones": {
+      "blue": "Blue",
+      "green": "Green",
+      "pink": "Pink",
+      "purple": "Purple",
+      "amber": "Amber",
+      "slate": "Slate"
+    }
   },
   "expressionTags": {
     "label": "Register and usage",
@@ -1455,7 +1472,7 @@
       "finding": "Finding available English tracks…",
       "generatePreview": "Generate preview",
       "preview": "Original content preview",
-      "previewTitle": "Take a look first",
+      "previewTitle": "Preview",
       "preparingTitle": "Preparing your preview",
       "writingTitle": "Adding to your materials",
       "resultTitle": "Import results",
@@ -1471,7 +1488,6 @@
       "backgroundHint": "You can close this window; confirmed imports will continue.",
       "minimize": "Close and continue in background",
       "importMore": "Import more",
-      "translationHint": "Split into sentences and fill missing Chinese with Google Translate. English text is sent to Google; no registration needed.",
       "translationProgress": "Translated {{done}} / {{total}} sentences",
       "pasteLink": "Read clipboard",
       "readingClipboard": "Reading…",
@@ -1533,7 +1549,13 @@
     "paused": "Paused",
     "restartSentence": "Restart current sentence",
     "emptyContent": "This material has no readable content.",
-    "translationError": "Translation is unavailable. Retry; reading and saving remain available."
+    "translationError": "Translation is unavailable. Retry; reading and saving remain available.",
+    "translateFullTitle": "Translate the full material?",
+    "translateFullPrompt": "{{count}} sentences are missing Chinese. Use Google to complete the full translation?",
+    "translateFullConfirm": "Start translation",
+    "translationProgress": "Translating full material ({{done}} / {{total}} sentences)",
+    "fullSheet": "Expand to full screen",
+    "halfSheet": "Switch to half screen"
   },
   "history": {
     "export": "Export data backup",

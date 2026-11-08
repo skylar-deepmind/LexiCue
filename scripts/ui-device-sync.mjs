@@ -24,9 +24,10 @@ const browser = await chromium.launch({channel: process.env.LEXICUE_UI_BROWSER_C
 try {
   for (const [role, width] of [['mac', 1280], ['iphone', 390]]) {
     for (const theme of ['ocean', 'midnight']) {
-      const page = await browser.newPage({viewport:{width, height: 844}});
+      const page = await browser.newPage({viewport:{width, height: 844}, ...(role === 'iphone' ? {isMobile:true, hasTouch:true, userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148'} : {})});
       await page.addInitScript(({theme, role}) => {
         localStorage.setItem('lexicue-theme', theme);
+        localStorage.setItem('lexicue-onboarding-v1', JSON.stringify({version:1,status:'skipped'}));
         localStorage.setItem('lexicue-preferences', JSON.stringify({state:{uiLanguage:'zh'},version:0}));
         window.isTauri = true;
         window.qaStatus = {role, state:'unpaired', paired:false};
@@ -53,8 +54,15 @@ try {
         };
       }, {role, theme});
       await page.goto(new URL('/settings', process.env.LEXICUE_UI_URL).href);
+      await page.locator('.mobile-startup').waitFor({state:'detached'});
       const section = page.locator('.device-sync');
       const start = section.getByRole('button', {name:role === 'mac' ? '显示配对码' : '扫描 Mac 配对码'});
+      const disclosure = section.locator(':scope > summary');
+      await disclosure.waitFor();
+      assert.equal(await section.evaluate(el => el.open), false);
+      assert.equal(await start.isVisible(), false);
+      await disclosure.focus();
+      await page.keyboard.press('Enter');
       await start.waitFor();
       await verifyContrast(start, `${theme} default action`);
       await start.hover();

@@ -1,3 +1,4 @@
+import { isMobilePlatform } from '../lib/platform';
 import {Component,createRef,type ReactNode} from 'react';
 
 // Only the incoming page is live. The inert outgoing snapshot preserves its
@@ -10,8 +11,13 @@ export default class PageTransition extends Component<{pageKey:string; children:
   window.addEventListener('resize',this.finish);
  }
  getSnapshotBeforeUpdate(previous: Readonly<{pageKey:string; children:ReactNode}>){
-  if(previous.pageKey===this.props.pageKey||this.media.matches)return null;
+  // Phone tab changes commit immediately; cloning/animating the complete page
+  // on a cold WKWebView can leave an old composited frame until a scroll.
+  if(previous.pageKey===this.props.pageKey||this.media.matches||isMobilePlatform()||innerWidth<768)return null;
   const live=this.live.current!,clone=live.cloneNode(true) as HTMLElement;
+  // Route-dependent shell selectors must only see the incoming live page.
+  // A reader snapshot otherwise hides home navigation until its fade ends.
+  clone.classList.replace('page-live','page-snapshot');
   const source=[live,...live.querySelectorAll<HTMLElement>('*')],target=[clone,...clone.querySelectorAll<HTMLElement>('*')];
   source.forEach((node,i)=>{
    target[i].removeAttribute('id');target[i].removeAttribute('autofocus');target[i].removeAttribute('data-testid');
@@ -26,7 +32,9 @@ export default class PageTransition extends Component<{pageKey:string; children:
  componentDidUpdate(previous: Readonly<{pageKey:string; children:ReactNode}>,_state: unknown,snapshot: HTMLElement | null){
   if(previous.pageKey===this.props.pageKey)return;
   this.finish();
-  if(!snapshot)return;
+  // A portalled phone library is restored in place, including its underlying
+  // desk. Neither direction should animate a snapshot of only that desk.
+  if(!snapshot||(innerWidth<768&&(snapshot.querySelector('[data-library-open="true"]')||this.live.current?.querySelector('[data-library-restored="true"]'))))return;
   const ghost=this.ghost.current!,live=this.live.current!;
   ghost.replaceChildren(snapshot);
   for(const node of snapshot.querySelectorAll<HTMLElement>('[data-page-scroll-top]')){node.scrollTop=Number(node.dataset.pageScrollTop);node.scrollLeft=Number(node.dataset.pageScrollLeft);}

@@ -69,6 +69,10 @@ async function fixture(page,theme){
    if(command==='plugin:fs|read_text_file')return Array.from(new TextEncoder().encode(window.__uiFiles[args.path]));
    if(command==='plugin:fs|write_text_file')return null;
    if(command==='youtube_ytdlp_status')return {available:false,path:'',version:null};
+   // External translation is controlled; imports and reading writeback still
+   // pass through the production preparation logic and real SQLite cores.
+   if(command==='translate_import_sentences')return {translations:args.sentences.map(row=>({index:row.index,translation:`测试译文 ${row.index+1}。`})),error:null};
+   if(command==='cancel_import_translation')return;
    if(command==='plugin:updater|check')return null;
    if(command==='list_files')return [];
    if(command.startsWith('plugin:')||command.startsWith('sync_'))return null;

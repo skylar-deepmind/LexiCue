@@ -1,0 +1,203 @@
+.desktop-launch {
+  --launch-focus: 38.2%;
+  --launch-road-scale-x: 3.6;
+  --launch-road-scale-y: 3.6;
+  --launch-merge-start: 1280ms;
+  --launch-merge-end: 2350ms;
+  --launch-merge-duration: calc(var(--launch-merge-end) - var(--launch-merge-start));
+  --launch-merge-ease: cubic-bezier(.45, 0, .55, 1);
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  min-height: 320px;
+  overflow: hidden;
+  background: var(--surface);
+  color: var(--text-strong);
+}
+
+.desktop-launch__backdrop {
+  position: absolute;
+  top: var(--launch-backdrop-top, calc(var(--launch-focus) - 95px));
+  left: calc(50% - 49px);
+  width: 98px;
+  height: 98px;
+  border-radius: 26px;
+  background: var(--launch-badge);
+  will-change: transform;
+  backface-visibility: hidden;
+  contain: paint;
+  animation: launch-backdrop-contract var(--launch-merge-duration) var(--launch-merge-start) var(--launch-merge-ease) both;
+}
+
+.desktop-launch__lockup {
+  position: absolute;
+  top: var(--launch-focus);
+  width: min(400px, 100%);
+  height: 196px;
+  transform: translateY(-50%);
+  text-align: center;
+}
+
+.desktop-launch__symbols { position: absolute; pointer-events: none; }
+.desktop-launch__encounters {
+  /* Keep the identical card pixels until the full logo underneath is opaque. */
+  animation: launch-encounters-retire 1ms 2530ms step-end forwards;
+}
+.desktop-launch__encounter {
+  position: absolute;
+  top: 0;
+  left: calc(50% - 52px);
+  width: 104px;
+  height: 104px;
+  transform-origin: 50% 35%;
+  will-change: transform;
+  backface-visibility: hidden;
+  animation: launch-encounter-gather var(--launch-merge-duration) var(--launch-merge-start) var(--launch-merge-ease) both;
+}
+.desktop-launch__encounter svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  animation: launch-encounter-arrive 300ms var(--encounter-arrive) ease-out both;
+}
+
+.desktop-launch__road {
+  position: absolute;
+  top: 0;
+  left: calc(50% - 52px);
+  width: 104px;
+  height: 104px;
+  overflow: visible;
+  /* Pin the vanishing point to the star in the original 256px brand asset. */
+  transform-origin: 50% 54.6875%;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  animation: launch-road-home var(--launch-merge-duration) var(--launch-merge-start) var(--launch-merge-ease) both,
+    launch-road-retire 180ms var(--launch-merge-end) linear forwards;
+}
+
+.desktop-launch__road-reveal {
+  animation: launch-road-pave 900ms 80ms cubic-bezier(.22, 1, .36, 1) both;
+}
+
+.desktop-launch__lane-flow { animation: launch-road-travel 1100ms 180ms linear both; }
+.desktop-launch__lanes { animation: launch-lanes-light 600ms 380ms ease-out both; }
+.desktop-launch__horizon { opacity: .65; }
+
+.desktop-launch__halo {
+  position: absolute;
+  top: -24px;
+  left: calc(50% - 92px);
+  width: 184px;
+  height: 184px;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--launch-cue) 16%, transparent), transparent 68%);
+  animation: launch-halo 1200ms 1660ms both;
+}
+
+.desktop-launch__logo {
+  position: absolute;
+  top: 0;
+  left: calc(50% - 52px);
+  width: 104px;
+  height: 104px;
+  object-fit: contain;
+  will-change: opacity;
+  animation: launch-logo-arrive 180ms var(--launch-merge-end) linear both;
+}
+
+.desktop-launch__spark {
+  position: absolute;
+  top: 44px;
+  left: calc(50% - 14px);
+  width: 28px;
+  height: 28px;
+  animation: launch-spark 750ms 2110ms both;
+}
+
+.desktop-launch__name {
+  position: absolute;
+  top: 116px;
+  left: 0;
+  width: 100%;
+  margin: 0;
+  font-family: 'Launch Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 30px;
+  line-height: 1.2;
+  font-weight: 560;
+  letter-spacing: -.9px;
+  will-change: transform, opacity;
+  animation: launch-title-fly 700ms 2150ms cubic-bezier(.22, 1, .36, 1) both;
+}
+
+.desktop-launch__slogan {
+  position: absolute;
+  top: 164px;
+  left: 0;
+  width: 100%;
+  margin: 0;
+  padding-inline: 16px;
+  color: var(--text-body);
+  font-family: 'Launch Chinese', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 18px;
+  line-height: 1.7;
+  letter-spacing: 2px;
+  font-weight: 400;
+  animation: launch-slogan-arrive 650ms 2610ms cubic-bezier(.22, 1, .36, 1) both;
+}
+
+@keyframes launch-road-home {
+  from { transform: translate3d(0, 0, 0) scale(var(--launch-road-scale-x), var(--launch-road-scale-y)); }
+  to { transform: translate3d(0, 0, 0) scale(1); }
+}
+@keyframes launch-road-retire { from { opacity: 1; } to { opacity: 0; } }
+@keyframes launch-road-pave {
+  from { clip-path: inset(100% -40% -20%); opacity: 0; }
+  20% { opacity: 1; }
+  to { clip-path: inset(0 -40% -20%); opacity: 1; }
+}
+@keyframes launch-road-travel { from { stroke-dashoffset: -14; } to { stroke-dashoffset: 12; } }
+@keyframes launch-lanes-light { from { opacity: 0; } to { opacity: 1; } }
+@keyframes launch-encounter-arrive {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes launch-encounter-gather {
+  from { transform: translate3d(var(--encounter-x), var(--encounter-y), 0) scale(var(--encounter-scale)) rotate(var(--encounter-angle)); }
+  to { transform: translate3d(0, 0, 0) scale(1) rotate(0); }
+}
+@keyframes launch-encounters-retire { to { visibility: hidden; } }
+@keyframes launch-backdrop-contract {
+  from { transform: translate3d(0, var(--launch-backdrop-shift-y, 0px), 0) scale(var(--launch-backdrop-scale-x, 1), var(--launch-backdrop-scale-y, 1)); }
+  to { transform: translate3d(0, 0, 0) scale(1, 1); }
+}
+@keyframes launch-logo-arrive {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes launch-title-fly {
+  from { opacity: 0; transform: translate(100px, 6px) rotate(-4deg); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes launch-slogan-arrive {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes launch-spark {
+  0% { opacity: 0; transform: scale(.2); }
+  35% { opacity: .95; transform: scale(1); }
+  100% { opacity: 0; transform: scale(.5); }
+}
+@keyframes launch-halo {
+  0% { opacity: 0; transform: scale(.7); }
+  38% { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.15); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .desktop-launch__road, .desktop-launch__spark, .desktop-launch__halo, .desktop-launch__encounters, .desktop-launch__backdrop { display: none; }
+  .desktop-launch__logo, .desktop-launch__name, .desktop-launch__slogan { animation: none; }
+  .desktop-launch :is(.desktop-launch__backdrop, .desktop-launch__encounter, .desktop-launch__road, .desktop-launch__logo, .desktop-launch__name) { will-change: auto; }
+}

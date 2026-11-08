@@ -1641,29 +1641,35 @@ pub fn context_page(
     })
 }
 #[tauri::command]
-pub fn list_saved_groups(
-    state: State<DbState>,
+pub async fn list_saved_groups(
+    state: State<'_, DbState>,
     query: Option<String>,
     limit: Option<i64>,
     offset: Option<i64>,
 ) -> Result<SavedGroupPage, String> {
-    let conn = state.conn.lock().map_err(|e| e.to_string())?;
-    groups(
-        &conn,
-        &query.unwrap_or_default(),
-        limit.unwrap_or(50),
-        offset.unwrap_or(0),
-    )
+    state
+        .read("list_saved_groups", move |conn| {
+            groups(
+                conn,
+                &query.unwrap_or_default(),
+                limit.unwrap_or(50),
+                offset.unwrap_or(0),
+            )
+        })
+        .await
 }
 #[tauri::command]
-pub fn saved_group_contexts(
-    state: State<DbState>,
+pub async fn saved_group_contexts(
+    state: State<'_, DbState>,
     group_id: String,
     limit: Option<i64>,
     offset: Option<i64>,
 ) -> Result<SavedContextPage, String> {
-    let conn = state.conn.lock().map_err(|e| e.to_string())?;
-    group_contexts(&conn, &group_id, limit.unwrap_or(10), offset.unwrap_or(0))
+    state
+        .read("saved_group_contexts", move |conn| {
+            group_contexts(conn, &group_id, limit.unwrap_or(10), offset.unwrap_or(0))
+        })
+        .await
 }
 
 #[tauri::command]
@@ -1753,16 +1759,19 @@ pub fn saved_record_source(
     resolve_source(&conn, &record_id)
 }
 #[tauri::command]
-pub fn saved_migration_report(state: State<DbState>) -> Result<MigrationReport, String> {
-    let conn = state.conn.lock().map_err(|e| e.to_string())?;
-    let raw: String = conn
-        .query_row(
-            "SELECT report_json FROM product_migrations WHERE migration_key=?1",
-            [MIGRATION],
-            |r| r.get(0),
-        )
-        .map_err(|e| e.to_string())?;
-    serde_json::from_str(&raw).map_err(|e| e.to_string())
+pub async fn saved_migration_report(state: State<'_, DbState>) -> Result<MigrationReport, String> {
+    state
+        .read("saved_migration_report", move |conn| {
+            let raw: String = conn
+                .query_row(
+                    "SELECT report_json FROM product_migrations WHERE migration_key=?1",
+                    [MIGRATION],
+                    |r| r.get(0),
+                )
+                .map_err(|e| e.to_string())?;
+            serde_json::from_str(&raw).map_err(|e| e.to_string())
+        })
+        .await
 }
 
 #[derive(Serialize)]
@@ -1773,8 +1782,11 @@ pub struct SavedConflict {
     pub remote: SavedRecord,
 }
 #[tauri::command]
-pub fn saved_record_conflicts(state: State<DbState>) -> Result<Vec<SavedConflict>, String> {
-    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+pub async fn saved_record_conflicts(
+    state: State<'_, DbState>,
+) -> Result<Vec<SavedConflict>, String> {
+    state.read("saved_record_conflicts", move |conn| {
+
     let mut stmt=conn.prepare("SELECT id,sync_id,local_value,remote_value FROM sync_conflicts WHERE table_name='saved_records' AND resolved_at IS NULL ORDER BY created_at DESC,id DESC").map_err(|e|e.to_string())?;
     let rows = stmt
         .query_map([], |r| {
@@ -1796,6 +1808,8 @@ pub fn saved_record_conflicts(state: State<DbState>) -> Result<Vec<SavedConflict
         })
     })
     .collect()
+
+    }).await
 }
 
 /// Synthetic source data through the production adapter, shared by isolated

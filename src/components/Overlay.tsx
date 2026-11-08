@@ -14,10 +14,11 @@ interface Props {
   layerClassName?: string;
   panelRef?: RefObject<HTMLDivElement | null>;
   returnFocus?: () => HTMLElement | null;
+  initialFocus?:()=>HTMLElement|null;
 }
 
 /** Body portal: background inertness and focus ownership are shared across all dialogs. */
-export default function Overlay({ children, onClose, label, variant = 'dialog', className = '', layerClassName = '', panelRef, returnFocus }: Props) {
+export default function Overlay({ children, onClose, label, variant = 'dialog', className = '', layerClassName = '', panelRef, returnFocus,initialFocus }: Props) {
   const ownRef = useRef<HTMLDivElement>(null);
   const ref = panelRef ?? ownRef;
   const closing = useRef(false);
@@ -28,7 +29,7 @@ export default function Overlay({ children, onClose, label, variant = 'dialog', 
     closing.current = true;
     try { return await onClose(); } finally { closing.current = false; }
   };
-  useOverlay(ref, requestClose, true, true, returnFocus);
+  useOverlay(ref, requestClose, true, true, returnFocus,initialFocus);
   return createPortal(
     <div className={`overlay-layer overlay-layer--${variant}${expanded ? ' is-expanded' : ''} ${layerClassName}`} data-overlay-layer="">
       <div className="overlay-scrim" onClick={() => void requestClose().catch(() => {})} aria-hidden="true" />

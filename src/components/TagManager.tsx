@@ -1,5 +1,3 @@
-import { invoke } from '@tauri-apps/api/core';
-import { tagTones } from '../lib/portableReading';
 import { useRef, useState } from 'react';
 import { Pencil, Plus, Trash2, X } from 'lucide-react';
 import { ask } from '@tauri-apps/plugin-dialog';
@@ -41,18 +39,7 @@ export default function TagManager({ onClose }: { onClose: () => void }) {
         {loading && <p role="status" className="tag-hint">{t('common.loading')}</p>}
         <ul className="tag-manager__list">
           {tags.filter(tag => tag.name.toLowerCase().includes(query.trim().toLowerCase())).map(tag => <li key={tag.id}>
-            <span>{tag.name}</span>
-            <select aria-label={t('tags.colorFor', {name:tag.name})} value={tag.tone ?? ''} disabled={busy}
-              onChange={async event => {
-                const tone=event.target.value;
-                pending.current=true; setBusy(true); setError('');
-                try { await invoke('set_tag_tone',{tagId:tag.id,tone}); await useFileStore.getState().loadTags(true); }
-                catch { setError(t('tags.saveFailed')); }
-                finally { pending.current=false; setBusy(false); }
-              }}>
-              <option value="" disabled>{t('tags.color')}</option>
-              {tagTones.map(tone=><option key={tone} value={tone}>{t(`tags.tones.${tone}`)}</option>)}
-            </select><button type="button" className="ui-button ui-button--icon" disabled={busy} onClick={() => setPrompt({ tag })} aria-label={t('tags.renameNamed', { name: tag.name })}><Pencil size={18} aria-hidden="true" /></button>
+            <span>{tag.name}</span><button type="button" className="ui-button ui-button--icon" disabled={busy} onClick={() => setPrompt({ tag })} aria-label={t('tags.renameNamed', { name: tag.name })}><Pencil size={18} aria-hidden="true" /></button>
             <button type="button" className="ui-button ui-button--icon ui-button--danger" disabled={busy} onClick={() => void remove(tag)} aria-label={t('tags.deleteNamed', { name: tag.name })}><Trash2 size={18} aria-hidden="true" /></button>
           </li>)}
         </ul>

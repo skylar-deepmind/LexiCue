@@ -2,6 +2,8 @@ import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import type { MediaTarget } from '../lib/sourceMedia';
 import { readingGroups, readingIndexAt, type ReadingAnchor, type ReadingPlayback, type ReadingSourceRequest, type ReadingSourceJump } from '../lib/sourceContinuous';
 import { create } from 'zustand';
+import { listen } from '@tauri-apps/api/event';
+import { isIOSPlatform } from '../lib/platform';
 import { usePreferencesStore } from './preferencesStore';
 import { normalizeSpeechPreferences, type SpeechKind, type SpeechPreferences } from '../lib/speechPreferences';
 import { READING_RATES, type ReadingPauseReason, type ReadingRate, type ReadingSessionSnapshot } from '../lib/readingSession';
@@ -68,7 +70,7 @@ interface ContinuousSession {
     active: () => boolean;
 }
 type ReadingSession =
-    | { mode: 'tts-queue'; items: readonly SpeechQueueItem[]; index: number; paused: boolean; pending: boolean; status: ReadingSessionSnapshot['status']; pauseReason: PauseReason | null; resumeMode: ReadingSessionSnapshot['resumeMode']; errorCode: string | null; source: SpeechSource | null; reactivate?: () => void }
+    | { mode: 'tts-queue'; nativeId?: string; nativeRate?: number; items: readonly SpeechQueueItem[]; index: number; paused: boolean; pending: boolean; status: ReadingSessionSnapshot['status']; pauseReason: PauseReason | null; resumeMode: ReadingSessionSnapshot['resumeMode']; errorCode: string | null; source: SpeechSource | null; reactivate?: () => void }
     | { mode: 'source-continuous'; request: ReadingSourceRequest; paused: boolean; pending: boolean; status: ReadingSessionSnapshot['status']; pauseReason: PauseReason | null; resumeMode: ReadingSessionSnapshot['resumeMode']; errorCode: string | null; source: SpeechSource | null; assetId: string | null; reactivate?: () => void };
 interface QueuePrefetch {
     session: ReadingSession;
@@ -93,6 +95,9 @@ let deviceUtterance: SpeechSynthesisUtterance | null = null;
 let deviceStartTimer: ReturnType<typeof setTimeout> | undefined;
 let lifecycleWindow: Window | undefined;
 let lifecycleDocument: Document | undefined;
+let nativeReadingListener: Promise<unknown> | null = null;
+let applyNativeReadingProgress: ((progress: NativeReadingProgress) => void) | null = null;
+interface NativeReadingProgress { id: string; index: number; status: 'loading' | 'playing' | 'paused' | 'ended' | 'error'; source?: SpeechSource; }
 
 function ignoreCommand(command: string, args: Record<string, unknown>) {
     void invoke(command, args).catch(() => { /* Cancellation/invalidation is best effort; never log text. */ });
@@ -175,7 +180,10 @@ export function prepareSpeech() {
     }
     if (typeof document !== 'undefined' && lifecycleDocument !== document) {
         document.addEventListener?.('visibilitychange', () => {
-            if (document.visibilityState === 'hidden') {
+            if (document.visibilityState === 'visible' && readingSession?.mode === 'tts-queue' && readingSession.nativeId) {
+                void invoke<NativeReadingProgress | null>('ios_reading_control', { id: readingSession.nativeId, action: 'state' }).then(progress => { if (progress) applyNativeReadingProgress?.(progress); }).catch(() => {});
+            }
+            if (document.visibilityState === 'hidden' && !isIOSPlatform()) {
                 const speech = useSpeechStore.getState();
                 if (speech.reading) speech.pause('hidden');
                 else speech.stop();
@@ -241,6 +249,49 @@ export const useSpeechStore = create<SpeechState>((set, get) => {
         Object.assign(readingSession, changes);
         set(readingFields());
     };
+    applyNativeReadingProgress = progress => {
+        const session = readingSession;
+        if (session?.mode !== 'tts-queue' || session.nativeId !== progress.id || !session.items[progress.index]) return;
+        session.index = progress.index;
+        if (progress.status === 'ended') {
+            readingSession = null;
+            set({ ...readingFields(), key: null, status: 'idle', loading: false, source: null, playbackMode: null });
+            return;
+        }
+        if (progress.status === 'error') {
+            setReading({status:'error',paused:true,pending:false,errorCode:'network'});
+            set({...readingFields(),status:'error',loading:false,error:true,errorCode:'network',errorKey:session.items[session.index].key});
+            return;
+        }
+        session.source = progress.source ?? session.source;
+        // A temporary word channel owns the foreground while the native queue stays paused.
+        if (get().playbackMode === 'single') { set(readingFields()); return; }
+        setReading({ status: progress.status, pending: false, paused: progress.status === 'paused' });
+        set({ ...readingFields(), key: session.items[session.index].key, status: progress.status, loading: progress.status === 'loading', source: session.source, playbackMode: 'tts-queue' });
+    };
+    const startNativeQueue = async (session: Extract<ReadingSession, {mode:'tts-queue'}>, index: number) => {
+        cancelPlayback();
+        prepareSpeech();
+        const id = nextRequestId();
+        session.nativeId = id; session.nativeRate = get().rate; session.index = index;
+        setReading({ status: 'loading', pending: true, paused: false, pauseReason: null, errorCode: null, resumeMode: 'continue' });
+        const preferences = normalizeSpeechPreferences(usePreferencesStore.getState().speech);
+        session.source = preferences.onlineEnabled ? 'edge-network' : 'device';
+        set({ ...readingFields(), key: session.items[index].key, status: 'loading', loading: true, source: session.source, playbackMode: 'tts-queue', error: false, errorCode: null, errorKey: null });
+        try {
+            if (!nativeReadingListener) nativeReadingListener = listen<NativeReadingProgress>('ios-reading-progress', event => applyNativeReadingProgress?.(event.payload));
+            await nativeReadingListener;
+            if (readingSession !== session || session.nativeId !== id) return;
+            await invoke('ios_reading_start', { request: { id, texts: session.items.map(item => item.text), startIndex: index, rate: get().rate, accent: preferences.accent, voice: preferences.voices[preferences.accent], onlineEnabled: preferences.onlineEnabled, allowDeviceFallback: preferences.allowDeviceFallback } });
+            if (readingSession !== session || session.nativeId !== id) { ignoreCommand('ios_reading_control', { id, action: 'stop' }); return; }
+            const progress = await invoke<NativeReadingProgress | null>('ios_reading_control', { id, action: 'state' });
+            if (progress) applyNativeReadingProgress?.(progress);
+        } catch {
+            if (readingSession !== session || session.nativeId !== id) return;
+            setReading({ status: 'error', errorCode: 'device_failed', paused: true, pending: false });
+            set({ ...readingFields(), key: null, status: 'error', loading: false, error: true, errorCode: 'device_failed', errorKey: session.items[index].key });
+        }
+    };
     const prefetchNext = (session: ReadingSession, index: number, preferences: SpeechPreferences) => {
         // Native TTS resolves only the latest request. Begin speculation only
         // after the current result is playing, never alongside its resolution.
@@ -276,6 +327,7 @@ export const useSpeechStore = create<SpeechState>((set, get) => {
         cancelPlayback();
         prepareSpeech();
         let current = ++generation;
+        if (isIOSPlatform()) ignoreCommand('prepare_audio_playback', {});
         const preferences = normalizeSpeechPreferences(usePreferencesStore.getState().speech);
         const reading = !!queue;
         const session = queue ? readingSession : null;
@@ -465,6 +517,7 @@ export const useSpeechStore = create<SpeechState>((set, get) => {
         cancelPlayback();
         disposeRetainedAudio();
         prepareSpeech();
+        if (isIOSPlatform()) ignoreCommand('prepare_audio_playback', {});
         readingSession = { mode: 'source-continuous', request: { ...request }, paused: false, pending: true,
             status: 'loading', pauseReason: null, resumeMode: 'continue', errorCode: null, source: 'source-media', assetId: null };
         let current = ++generation;
@@ -612,6 +665,7 @@ export const useSpeechStore = create<SpeechState>((set, get) => {
         queueActive: false, queueIndex: null, playbackMode: null, continuousFileId: null, continuousSourceKey: null, continuousAssetId: null,
         startSourceContinuous, jumpSourceContinuous,
         stop: () => {
+            if (readingSession?.mode === 'tts-queue' && readingSession.nativeId) ignoreCommand('ios_reading_control', { id: readingSession.nativeId, action: 'stop' });
             cancelPlayback();
             disposeRetainedAudio();
             readingSession = null;
@@ -620,6 +674,7 @@ export const useSpeechStore = create<SpeechState>((set, get) => {
         exitReading: () => {
             if (!readingSession) return;
             const singleChannel = get().playbackMode === 'single';
+            if (readingSession.mode === 'tts-queue' && readingSession.nativeId) ignoreCommand('ios_reading_control', { id: readingSession.nativeId, action: 'stop' });
             readingSession = null;
             disposeRetainedAudio();
             if (!singleChannel) { cancelPlayback(); set({ key: null, status: 'idle', loading: false, source: null, playbackMode: null, pauseReason: null, resumeMode: null, continuousFileId: null, continuousSourceKey: null, continuousAssetId: null }); }
@@ -627,6 +682,13 @@ export const useSpeechStore = create<SpeechState>((set, get) => {
         },
         pause: (reason = 'user') => {
             if (!readingSession) return;
+            if (readingSession.mode === 'tts-queue' && readingSession.nativeId) {
+                ignoreCommand('ios_reading_control', { id: readingSession.nativeId, action: 'pause' });
+                cancelPlayback();
+                setReading({ status: 'paused', paused: true, pending: false, pauseReason: reason });
+                set({ ...readingFields(), status: 'paused', loading: false, playbackMode: 'tts-queue', owner: null, ownerScope: null });
+                return;
+            }
             cancelPrefetch();
             const readingChannel = get().playbackMode !== 'single';
             const canHoldAudio = readingChannel && !!audio && !readingSession.pending && get().source !== 'device';
@@ -641,6 +703,21 @@ export const useSpeechStore = create<SpeechState>((set, get) => {
         resume: async () => {
             const session = readingSession;
             if (!session || !session.paused) return;
+            if (session.mode === 'tts-queue' && session.nativeId) {
+                cancelPlayback();
+                if (session.nativeRate !== get().rate || session.status === 'error') { await startNativeQueue(session, session.index); return; }
+                setReading({ paused: false, status: 'loading', pauseReason: null });
+                set({ ...readingFields(), key: session.items[session.index].key, playbackMode: 'tts-queue', source: session.source, status: 'loading', loading: true, owner: null, ownerScope: null });
+                try {
+                    const progress = await invoke<NativeReadingProgress | null>('ios_reading_control', { id: session.nativeId, action: 'resume' });
+                    if (progress) applyNativeReadingProgress?.(progress);
+                } catch {
+                    if (readingSession !== session) return;
+                    setReading({ status: 'error', paused: true, errorCode: 'device_failed' });
+                    set({ ...readingFields(), status: 'error', loading: false, error: true, errorCode: 'device_failed', errorKey: session.items[session.index].key });
+                }
+                return;
+            }
             if (get().playbackMode === 'single') cancelPlayback();
             if (retainedAudio) {
                 audio = retainedAudio; mediaCleanup = retainedCleanup; continuousSession = retainedContinuousSession;
@@ -681,6 +758,7 @@ export const useSpeechStore = create<SpeechState>((set, get) => {
         replayCurrent: async () => {
             const session = readingSession;
             if (!session) return;
+            if (session.mode === 'tts-queue' && session.nativeId) { await startNativeQueue(session, session.index); return; }
             if (session.mode === 'source-continuous') {
                 if (retainedAudio && retainedContinuousSession) {
                     const anchor = retainedContinuousSession.anchors.find(item => item.segment_id === session.request.segmentId);
@@ -703,7 +781,9 @@ export const useSpeechStore = create<SpeechState>((set, get) => {
             if (!READING_RATES.includes(rate)) return;
             set({ rate });
             if (readingSession) set(readingFields());
-            if (readingSession && get().playbackMode !== 'single' && audio) {
+            if (readingSession?.mode === 'tts-queue' && readingSession.nativeId && get().playbackMode !== 'single') {
+                if (get().status === 'playing' || get().status === 'loading') void get().replayCurrent();
+            } else if (readingSession && get().playbackMode !== 'single' && audio) {
                 audio.defaultPlaybackRate = rate; audio.playbackRate = rate;
             } else if (readingSession && get().playbackMode !== 'single' && readingSession.source === 'device' && get().status === 'playing') void get().replayCurrent();
         },
@@ -732,7 +812,8 @@ export const useSpeechStore = create<SpeechState>((set, get) => {
             if (!Number.isInteger(startIndex) || startIndex < 0 || startIndex >= queue.length) return;
             readingSession = { mode: 'tts-queue', items: queue, index: startIndex, paused: false, pending: true,
                 status: 'loading', pauseReason: null, resumeMode: 'continue', errorCode: null, source: null };
-            await advanceQueue(startIndex);
+            if (isIOSPlatform()) await startNativeQueue(readingSession, startIndex);
+            else await advanceQueue(startIndex);
         },
     };
 });

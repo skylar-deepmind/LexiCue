@@ -7,6 +7,30 @@ pub struct DbState {
     pub conn: Arc<Mutex<Connection>>,
 }
 
+impl DbState {
+    /// IPC handlers run on the platform event thread. Acquire the SQLite lock,
+    /// initialize cold indexes and serialize owned results on a blocking worker.
+    pub async fn read<T: Send + 'static>(
+        &self,
+        operation: &'static str,
+        work: impl FnOnce(&Connection) -> Result<T, String> + Send + 'static,
+    ) -> Result<T, String> {
+        let shared = self.conn.clone();
+        tauri::async_runtime::spawn_blocking(move || {
+            let start = std::time::Instant::now();
+            let conn = shared.lock().map_err(|e| e.to_string())?;
+            let result = work(&conn);
+            let elapsed = start.elapsed().as_millis();
+            if elapsed >= 100 {
+                log::info!("[db-read] {operation}: {elapsed}ms on background worker");
+            }
+            result
+        })
+        .await
+        .map_err(|e| e.to_string())?
+    }
+}
+
 pub use crate::commands::dictionary_init::DictionaryStatus;
 
 pub fn init_db(db_path: &Path) -> Result<Connection, rusqlite::Error> {
@@ -1775,5 +1799,55 @@ mod tests {
         ));
         assert!(has_index("words", "idx_words_status_language"));
         assert!(has_index("phrases", "idx_phrases_status_language"));
+    }
+}
+
+#[cfg(test)]
+mod background_read_tests {
+    use super::*;
+    #[tokio::test(flavor = "current_thread")]
+    async fn read_and_lock_wait_do_not_block_the_caller_executor() {
+        let db = DbState {
+            conn: Arc::new(Mutex::new(Connection::open_in_memory().unwrap())),
+        };
+        let shared = db.conn.clone();
+        let (held_tx, held_rx) = std::sync::mpsc::channel();
+        let holder = std::thread::spawn(move || {
+            let _guard = shared.lock().unwrap();
+            held_tx.send(()).unwrap();
+            std::thread::sleep(std::time::Duration::from_millis(180));
+        });
+        held_rx.recv().unwrap();
+        let caller = std::thread::current().id();
+        let start = std::time::Instant::now();
+        let (result, tick) = tokio::join!(
+            db.read("contention-test", move |conn| {
+                assert_ne!(std::thread::current().id(), caller);
+                conn.query_row("SELECT 42", [], |row| row.get::<_, i64>(0))
+                    .map_err(|e| e.to_string())
+            }),
+            async {
+                tokio::time::sleep(std::time::Duration::from_millis(15)).await;
+                start.elapsed()
+            }
+        );
+        assert_eq!(result.unwrap(), 42);
+        assert!(
+            tick < std::time::Duration::from_millis(100),
+            "SQLite lock wait stalled executor: {tick:?}"
+        );
+        holder.join().unwrap();
+    }
+    #[tokio::test]
+    async fn read_errors_reach_the_caller() {
+        let db = DbState {
+            conn: Arc::new(Mutex::new(Connection::open_in_memory().unwrap())),
+        };
+        assert_eq!(
+            db.read::<()>("error-test", |_| Err("expected".into()))
+                .await
+                .unwrap_err(),
+            "expected"
+        );
     }
 }

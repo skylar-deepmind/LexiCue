@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { isMobilePlatform } from '../lib/platform';
 import { getVersion } from '@tauri-apps/api/app';
 import {
   checkForUpdates,
@@ -39,7 +40,7 @@ export const useUpdateStore = create<UpdateStore>((set, get) => ({
   progress: 0,
   error: null,
   check: async () => {
-    if (import.meta.env.VITE_SLICE_PREVIEW === '1') return;
+    if (import.meta.env.VITE_SLICE_PREVIEW === '1' || isMobilePlatform()) return;
     if (get().status === 'checking' || get().status === 'downloading') return;
     set({ status: 'checking', error: null });
     try {

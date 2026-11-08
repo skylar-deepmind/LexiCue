@@ -101,13 +101,14 @@ export async function prepareImportQueue(items: ImportItem[], signal: AbortSigna
             const contentKind = item.kind === 'clipboard' || item.kind === 'webpage' ? item.kind : undefined;
             if (!contentKind && !/\.(pdf|docx|epub|md|markdown|vtt|srt|txt)$/i.test(item.name)) throw new Error('material_invalid_srt');
             update(item.id, { stage: item.kind === 'youtube' ? 'downloading' : 'reading', error: undefined });
-            const preparedContent = contentKind ? await abortable(prepareContent(contentKind, contentKind === 'webpage' ? item.url! : item.capturedText!, signal), signal) : undefined;
+            const reusing = !!item.preparedSegments;
+            const preparedContent = contentKind && !reusing ? await abortable(prepareContent(contentKind, contentKind === 'webpage' ? item.url! : item.capturedText!, signal), signal) : undefined;
             const read = preparedContent ? preparedContent.content : await abortable(item.read(signal), signal);
             if (signal.aborted) break;
-            if (!contentKind && !(read instanceof Uint8Array) && !/\.(txt|srt)$/i.test(item.name)) throw new Error('material_invalid_format');
+            if (!reusing && !contentKind && !(read instanceof Uint8Array) && !/\.(txt|srt)$/i.test(item.name)) throw new Error('material_invalid_format');
             update(item.id, { stage: 'parsing' });
             parsing = true;
-            const extraction = preparedContent ?? (read instanceof Uint8Array ? await extractDocument(read, item.name, signal) : undefined);
+            const extraction = preparedContent ?? (reusing ? item.extraction : read instanceof Uint8Array ? await extractDocument(read, item.name, signal) : undefined);
             const content = extraction ? extraction.content : typeof read === 'string' ? read : (read as ReadResult).content;
             const readMeta = typeof read === 'object' && !(read instanceof Uint8Array) ? read : undefined;
             if (readMeta?.translationFailed) {
@@ -116,26 +117,26 @@ export async function prepareImportQueue(items: ImportItem[], signal: AbortSigna
             }
             update(item.id, { stage: 'parsing' });
             parsing = true;
-            let segments = extraction?.segments ?? item.preparedSegments ?? await parse(content, signal, item.name);
+            let segments = item.preparedSegments ?? extraction?.segments ?? await parse(content, signal, item.name);
             if (signal.aborted) break;
-            if (item.kind === 'youtube' && translate && !item.skipTranslation && segments.some(segment => !segment.zh_text?.trim())) {
+            if (translate && !item.skipTranslation && segments.some(segment => !segment.zh_text?.trim())) {
                 update(item.id, { stage: 'translating' });
                 const translated = await abortable(translate(segments, signal, translationProgress => update(item.id, { translationProgress })), signal);
                 if (signal.aborted) break;
                 segments = translated.segments;
                 if (translated.failed) {
-                    update(item.id, { stage: 'failed', error: 'translation_partial', englishFallback: content, fallbackSegments: segments, fallbackSource: readMeta ? readMeta.source : item.fallbackSource, fallbackSourceIssue: readMeta ? readMeta.sourceIssue : item.fallbackSourceIssue, translationProgress: undefined });
+                    update(item.id, { stage: 'failed', error: 'translation_partial', englishFallback: content, fallbackSegments: segments, extraction, fallbackSource: readMeta ? readMeta.source : item.fallbackSource, fallbackSourceIssue: readMeta ? readMeta.sourceIssue : item.fallbackSourceIssue, translationProgress: undefined });
                     continue;
                 }
             }
             // Freeze copies, never objects owned by a parser or another source.
             const frozenSegments = segments.map(segment => Object.freeze({ ...segment }));
             Object.freeze(frozenSegments);
-            const draft = Object.freeze({ operation_id: item.id, name: preparedContent?.document.display_name ?? item.name, content, segments: frozenSegments, source: snapshotSource(readMeta ? readMeta.source : item.fallbackSource), sourceIssue: readMeta ? readMeta.sourceIssue : item.fallbackSourceIssue,
+            const draft = Object.freeze({ operation_id: item.id, name: extraction?.document.display_name ?? item.name, content, segments: frozenSegments, source: snapshotSource(readMeta ? readMeta.source : item.fallbackSource), sourceIssue: readMeta ? readMeta.sourceIssue : item.fallbackSourceIssue,
                 wordCount: segments.reduce((count, segment) => count + (segment.en_text.match(/[A-Za-z]+(?:['’][A-Za-z]+)*/g)?.length ?? 0), 0),
                 youtubeSelection: item.youtubeSelection ? Object.freeze({ ...item.youtubeSelection }) : undefined,
                 ...(extraction ? {document: freezeDocument(extraction.document), normalized_kind: extraction.normalized_kind} : {}) });
-            update(item.id, { ...(preparedContent ? { name: draft.name, title: draft.name } : {}), stage: 'ready', draft, extraction, englishFallback: undefined, fallbackSegments: undefined, translationProgress: undefined });
+            update(item.id, { ...(preparedContent ? { name: draft.name, title: draft.name } : {}), stage: 'ready', draft, extraction: extraction ? {...extraction, segments} : undefined, englishFallback: undefined, fallbackSegments: undefined, translationProgress: undefined });
         } catch (error) {
             if (signal.aborted) break;
             const known = materialError(error);

@@ -1217,9 +1217,17 @@
     "options": "显示选项"
   },
   "tags": {
-    "color": "颜色",
-    "colorFor": "{{name}}的颜色",
-    "tones": {"blue": "蓝色", "green": "绿色", "pink": "粉色", "purple": "紫色", "amber": "琥珀色", "slate": "灰蓝色"},
+    "colorFor": "标签颜色 · {{name}}",
+    "colorTarget": "选择要调整颜色的标签",
+    "colorNamed": "{{name}}：{{color}}",
+    "colors": {
+      "blue": "雾蓝",
+      "green": "鼠尾草绿",
+      "pink": "柔粉",
+      "purple": "浅紫",
+      "amber": "暖杏",
+      "slate": "石灰"
+    },
     "filesTitle": "文件",
     "all": "全部",
     "allFiles": "全部文件",
@@ -1264,7 +1272,16 @@
     "saving": "保存中…",
     "sharedHint": "所有学习语言共用这些标签。",
     "search": "搜索标签",
-    "namePlaceholder": "输入标签名称"
+    "namePlaceholder": "输入标签名称",
+    "color": "颜色",
+    "tones": {
+      "blue": "蓝色",
+      "green": "绿色",
+      "pink": "粉色",
+      "purple": "紫色",
+      "amber": "琥珀色",
+      "slate": "灰蓝色"
+    }
   },
   "expressionTags": {
     "label": "语域与使用提示",
@@ -1438,7 +1455,7 @@
       "finding": "正在查找可用的英语字幕…",
       "generatePreview": "生成预览",
       "preview": "原文预览",
-      "previewTitle": "先看看这份内容",
+      "previewTitle": "预览",
       "preparingTitle": "正在准备你的预览",
       "writingTitle": "正在加入材料",
       "resultTitle": "导入结果",
@@ -1454,7 +1471,6 @@
       "backgroundHint": "可关闭窗口，已确认的导入会在后台继续。",
       "minimize": "收起并在后台继续",
       "importMore": "继续导入",
-      "translationHint": "自动分句，缺失的中文由 Google 翻译补充；英文原文会发送至 Google，无需注册。",
       "translationProgress": "已翻译 {{done}} / {{total}} 句",
       "pasteLink": "读取剪贴板",
       "readingClipboard": "读取中…",
@@ -1516,7 +1532,13 @@
     "paused": "已暂停",
     "restartSentence": "从本句重新播放",
     "emptyContent": "这份材料还没有可阅读的内容。",
-    "translationError": "译文暂时无法生成，请重试。英文阅读与保存不受影响。"
+    "translationError": "译文暂时无法生成，请重试。英文阅读与保存不受影响。",
+    "translateFullTitle": "翻译全文？",
+    "translateFullPrompt": "还有 {{count}} 句缺少中文，是否使用 Google 补齐全文翻译？",
+    "translateFullConfirm": "开始翻译",
+    "translationProgress": "全文翻译中（{{done}} / {{total}} 句）",
+    "fullSheet": "全屏展开",
+    "halfSheet": "切换半屏"
   },
   "history": {
     "export": "导出资料备份",

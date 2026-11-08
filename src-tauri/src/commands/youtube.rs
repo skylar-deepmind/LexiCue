@@ -8,6 +8,8 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter};
 
 const UA: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36";
+const IOS_PLAYER_UA: &str =
+    "com.google.ios.youtube/21.26.4 (iPhone16,2; U; CPU iOS 18_3_2 like Mac OS X;)";
 const CANCELLED_MESSAGE: &str = "ERR_CANCELLED";
 const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(180);
 const LIST_TIMEOUT: Duration = Duration::from_secs(30);
@@ -188,6 +190,7 @@ fn youtube_client() -> Result<reqwest::Client, String> {
 }
 
 /// Extract the `ytInitialPlayerResponse = {...};` JSON blob from a watch page.
+#[cfg(any(test, not(target_os = "ios")))]
 fn extract_initial_player_response(html: &str) -> Option<String> {
     const MARKER: &str = "ytInitialPlayerResponse";
     let pos = html.find(MARKER)?;
@@ -230,6 +233,7 @@ fn sort_tracks(tracks: &mut Vec<SubtitleTrack>) {
     tracks.dedup_by(|a, b| a.lang == b.lang);
 }
 
+#[cfg(not(target_os = "ios"))]
 fn tracks_from_player_json(json: &serde_json::Value) -> (Vec<SubtitleTrack>, Vec<SubtitleTrack>) {
     let tracks = json["captions"]["playerCaptionsTracklistRenderer"]["captionTracks"]
         .as_array()
@@ -559,6 +563,24 @@ pub(super) async fn fetch_ytdlp_json(
     if let Some(json) = get_cached_metadata(&cache_key) {
         return Ok(json);
     }
+    if cfg!(target_os = "ios") && ytdlp_path().is_none() {
+        if session.enabled {
+            return Err("browser_session".into());
+        }
+        let fetch = fetch_http_metadata(&video_id);
+        let json = if let Some(job) = cancel {
+            tokio::select! {
+                _ = job.cancel_signal() => return Err(CANCELLED_MESSAGE.into()),
+                result = tokio::time::timeout(timeout, fetch) => result.map_err(|_| "timeout")??,
+            }
+        } else {
+            tokio::time::timeout(timeout, fetch)
+                .await
+                .map_err(|_| "timeout")??
+        };
+        cache_metadata(&cache_key, &json);
+        return Ok(json);
+    }
     let mut cmd = tokio::process::Command::new(ytdlp_path().expect("yt-dlp not found"));
     cmd.arg("--skip-download")
         .arg("--no-playlist")
@@ -639,6 +661,7 @@ async fn list_subs_ytdlp(
     })
 }
 
+#[cfg(not(target_os = "ios"))]
 async fn list_subs_http(url: &str) -> Result<VideoSubInfo, String> {
     let video_id = extract_video_id(url).ok_or("无法从 URL 解析视频 ID")?;
     let client = youtube_client()?;
@@ -679,6 +702,85 @@ async fn list_subs_http(url: &str) -> Result<VideoSubInfo, String> {
         manual,
         automatic,
     })
+}
+
+#[cfg(target_os = "ios")]
+async fn list_subs_http(url: &str) -> Result<VideoSubInfo, String> {
+    list_subs_ytdlp(url, &downloads::BrowserSession::default()).await
+}
+
+// iOS cannot spawn desktop extractors. Keep signed caption URLs in the same
+// short-lived, process-local metadata cache; only subtitle provenance is saved.
+async fn fetch_http_metadata(video_id: &str) -> Result<serde_json::Value, String> {
+    let client = youtube_client()?;
+    let response = client
+        .post("https://www.youtube.com/youtubei/v1/player?prettyPrint=false")
+        .header("User-Agent", IOS_PLAYER_UA)
+        .header("Origin", "https://www.youtube.com")
+        .json(&serde_json::json!({
+            "videoId": video_id,
+            "context": { "client": {
+                "clientName": "IOS", "clientVersion": "21.26.4",
+                "deviceMake": "Apple", "deviceModel": "iPhone16,2",
+                "osName": "iPhone", "osVersion": "18.3.2.22D82", "hl": "en", "gl": "US"
+            } },
+            "contentCheckOk": true, "racyCheckOk": true
+        }))
+        .send()
+        .await
+        .map_err(|_| "network")?;
+    if !response.status().is_success() {
+        return Err(format!("HTTP error {}", response.status().as_u16()));
+    }
+    let json: serde_json::Value = response.json().await.map_err(|_| "download_failed")?;
+    if json["playabilityStatus"]["status"].as_str() != Some("OK") {
+        return Err("access_denied".into());
+    }
+    Ok(http_player_metadata(&json))
+}
+
+fn http_player_metadata(json: &serde_json::Value) -> serde_json::Value {
+    let thumbnail = json["videoDetails"]["thumbnail"]["thumbnails"]
+        .as_array()
+        .and_then(|arr| arr.last())
+        .and_then(|t| t["url"].as_str())
+        .map(String::from);
+    let duration = json["videoDetails"]["lengthSeconds"]
+        .as_str()
+        .and_then(|s| s.parse::<i64>().ok());
+    let mut metadata = serde_json::json!({
+        "title": json["videoDetails"]["title"], "thumbnail": thumbnail,
+        "duration": duration, "subtitles": {}, "automatic_captions": {},
+    });
+    if let Some(tracks) =
+        json["captions"]["playerCaptionsTracklistRenderer"]["captionTracks"].as_array()
+    {
+        for track in tracks {
+            let (Some(lang), Some(url)) =
+                (track["languageCode"].as_str(), track["baseUrl"].as_str())
+            else {
+                continue;
+            };
+            // Never fetch arbitrary hosts from page metadata.
+            let Ok(mut url) = reqwest::Url::parse(url) else {
+                continue;
+            };
+            if url.scheme() != "https"
+                || !matches!(url.host_str(), Some("www.youtube.com" | "youtube.com"))
+                || url.path() != "/api/timedtext"
+            {
+                continue;
+            }
+            url.query_pairs_mut().append_pair("fmt", "json3");
+            let group = if track["kind"].as_str() == Some("asr") {
+                "automatic_captions"
+            } else {
+                "subtitles"
+            };
+            metadata[group][lang] = serde_json::json!([{ "ext": "json3", "url": url.as_str() }]);
+        }
+    }
+    metadata
 }
 
 #[tauri::command]

@@ -2,6 +2,12 @@ mod commands;
 mod db;
 mod device_sync;
 
+#[cfg(target_os = "ios")]
+mod ios;
+#[cfg(target_os = "ios")]
+mod ios_edge_reading;
+#[cfg(target_os = "ios")]
+mod ios_reading;
 #[cfg(any(test, target_vendor = "apple", feature = "lan-sync"))]
 pub mod lan_sync;
 
@@ -17,7 +23,19 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .on_page_load(|_webview, _payload| {
+            #[cfg(target_os = "ios")]
+            if matches!(_payload.event(), tauri::webview::PageLoadEvent::Finished) {
+                if let Some(window) = _webview.get_webview_window(_webview.label()) {
+                    ios::fit_webview(&window);
+                }
+            }
+        })
         .setup(|app| {
+            #[cfg(target_os = "ios")]
+            if let Some(window) = app.get_webview_window("main") {
+                ios::fit_webview(&window);
+            }
             let slice_preview = option_env!("LEXICUE_SLICE_PREVIEW") == Some("1");
             let isolated_preview = matches!(
                 app.config().identifier.as_str(),
@@ -131,6 +149,12 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
+            #[cfg(target_os = "ios")]
+            if matches!(event, tauri::WindowEvent::Resized(_)) {
+                if let Some(webview) = window.get_webview_window(window.label()) {
+                    ios::fit_webview(&webview);
+                }
+            }
             #[cfg(target_os = "macos")]
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 if window.label() == "main"
@@ -148,8 +172,12 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             device_sync::device_sync,
             device_sync::restore_device_merge_backup,
+            commands::tts::prepare_audio_playback,
+            commands::ios_reading::ios_reading_start,
+            commands::ios_reading::ios_reading_control,
             commands::webpage::fetch_import_webpage,
             commands::webpage::cancel_import_webpage,
+            commands::example::example_recall_contexts,
             commands::example::begin_example_session,
             commands::example::end_example_session,
             commands::example::example_saved_for_selection,

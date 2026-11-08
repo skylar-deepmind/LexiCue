@@ -66,6 +66,10 @@ android-native-keyring-store = "1.0"
 
 [target.'cfg(target_os = "ios")'.dependencies]
 apple-native-keyring-store = { version = "1.0", features = ["protected"] }
+objc2-ui-kit = "0.3"
+objc2 = "0.6"
+objc2-foundation = "0.3"
+objc2-avf-audio = { version = "0.3", default-features = false, features = ["std", "AVSpeechSynthesis", "AVAudioPlayer"] }
 
 [target.'cfg(target_vendor = "apple")'.dependencies]
 rcgen = { version = "0.13.2", default-features = false, features = ["crypto", "ring"] }

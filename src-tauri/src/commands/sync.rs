@@ -54,7 +54,14 @@ pub fn init_secret_store() -> Result<(), String> {
                 keyring_core::set_default_store(store);
                 Ok(())
             }
-            #[cfg(not(target_os = "android"))]
+            #[cfg(target_os = "ios")]
+            {
+                let store = apple_native_keyring_store::protected::Store::new()
+                    .map_err(|_| "credential_store_unavailable".to_string())?;
+                keyring_core::set_default_store(store);
+                Ok(())
+            }
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             {
                 keyring::Entry::store_status()
                     .as_ref()

@@ -112,7 +112,7 @@ export default function ImportPanel() {
         </header>
         <MotionChange changeKey={`${phase}:${source}`} resizeContainer=".lc-import-modal"><div className="lc-import-body">
             {phase === 'source' && (source === 'choose' ? <>
-                <div className="lc-import-sources">
+                <div data-guide="import-sources" className="lc-import-sources">
                     <button type="button" className="lc-import-source lc-import-source--clipboard" disabled={readingClipboard || state.picking || running} onClick={() => void pasteLink()}>
                         <ClipboardPaste aria-hidden="true" size={17} /><strong>{t(readingClipboard ? 'materials.importDialog.readingClipboard' : 'materials.importDialog.pasteLink')}</strong>
                     </button>

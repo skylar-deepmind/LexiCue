@@ -40,8 +40,18 @@ if (process.argv[2] === '--xcode-build') {
   // init, including nvm/asdf/pnpm installations absent from Xcode's PATH.
   writeFileSync(join(project, '.lexicue-node'), process.execPath + '\n');
   const script = '/usr/bin/env "${NODE_BINARY:-$(cat "$SRCROOT/.lexicue-node")}" "$SRCROOT/../../../scripts/prepare-ios.mjs" --xcode-build';
+  // XcodeGen rewrites the target plist whenever it regenerates the project.
+  // Keep the app's audio, Files, LAN discovery and camera keys in its spec too.
+  const plist = JSON.parse(execFileSync('plutil', [
+    '-convert', 'json', '-o', '-', join(root, 'src-tauri/Info.ios.plist'),
+  ], {encoding: 'utf8'}));
+  const properties = Object.entries(plist)
+    .map(([key, value]) => `        ${JSON.stringify(key)}: ${JSON.stringify(value)}`).join('\n');
+  const info = /^(    info:\n      path: [^\n]+\n      properties:)$/m;
+  if (!info.test(source)) throw Error('Cannot locate the generated application Info.plist properties.');
   const updated = source.replace(pattern, (_, indent, args) => `${indent}${script} ${args}`)
-    .replace(/^(\s+iOS:) [\d.]+$/m, `$1 ${minimum}`);
+    .replace(/^(\s+iOS:) [\d.]+$/m, `$1 ${minimum}`)
+    .replace(info, (_, section) => `${section}\n${properties}`);
   writeFileSync(yml, updated);
   run('xcodegen', ['generate'], project);
 }

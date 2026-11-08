@@ -31,7 +31,7 @@ export default function DeviceSyncSettings() {
   const [selectedBackup, setSelectedBackup] = useState<Backup>();
   const active = useRef(false);
   const generation = useRef(0);
-  const summary = useRef<HTMLHeadingElement>(null);
+  const summary = useRef<HTMLElement>(null);
 
   useEffect(() => {
     if (!isTauri()) return;
@@ -73,10 +73,10 @@ export default function DeviceSyncSettings() {
   const attempting = phase === 'offering' || phase === 'scanning' || phase === 'confirming';
   const mac = status?.role === 'mac';
   const pair = () => act(mac ? 'offer' : 'scan');
-  return <section className="device-sync" aria-labelledby="device-sync-title">
-    <h2 id="device-sync-title" tabIndex={-1} ref={summary}>{key('title')}</h2>
+  return <details className="device-sync">
+    <summary ref={summary}>{key('title')}</summary>
     {status && <>
-      <p role="status">{status.peerName && <><strong dir="auto">{status.peerName}</strong> · </>}{key(`state.${hasConflicts && phase === 'synced' ? 'pending' : phase}`)}</p>
+      {phase !== 'unpaired' && <p role="status">{status.peerName && <><strong dir="auto">{status.peerName}</strong> · </>}{key(`state.${hasConflicts && phase === 'synced' ? 'pending' : phase}`)}</p>}
       {!status.paired && !attempting && <p>{key(mac ? 'macIntro' : 'iphoneIntro')}</p>}
       {status.issue && <p>{key(`issue.${status.issue}`)}</p>}
       {phase === 'offering' && status.qr && <img className="device-sync-qr" alt={key('qr')} src={status.qr} />}
@@ -115,5 +115,5 @@ export default function DeviceSyncSettings() {
       </details>
     </>}
     {error && <p role="alert">{key('issue.unavailable')}</p>}
-  </section>;
+  </details>;
 }

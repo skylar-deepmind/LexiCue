@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
 import { ask, message, open, save } from '@tauri-apps/plugin-dialog';
 import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
+import type {TagColors} from '../lib/tagAppearance';
 import type { FileRecord, BackupPayload, TagInfo, TagSelection } from '../lib/types';
 import { computeHash } from '../lib/hash';
 import { parseFile, type ParsedResult } from '../lib/parser';
@@ -104,7 +105,7 @@ interface FileStore {
   createTag: (name: string) => Promise<void>;
   renameTag: (tagId: number, name: string) => Promise<void>;
   deleteTag: (tagId: number) => Promise<void>;
-  setFileTags: (fileId: number, selection: TagSelection) => Promise<void>;
+  setFileTags: (fileId: number, selection: TagSelection, tones?: TagColors) => Promise<void>;
   setImportTags: (selection: TagSelection) => void;
   importFile: () => Promise<void>;
   setImportLanguage: (language: Language) => Promise<void>;
@@ -359,22 +360,29 @@ export const useFileStore = create<FileStore>((set, get) => ({
     await get().loadTags(true);
   },
   renameTag: async (tagId, name) => {
+    const previousName=get().tags.find(tag=>tag.id===tagId)?.name;
     await invoke('rename_tag', { tagId, name });
+    const appearance=usePreferencesStore.getState();
+    const tone=previousName&&appearance.tagColors[previousName.trim().toLowerCase()];
+    if(tone)appearance.setTagColors({[name.trim().toLowerCase()]:tone});
     invalidateCaches('files', 'storage');
     await get().loadTags(true);
     await get().loadFiles(true);
+    await useMaterialStore.getState().load();
   },
   deleteTag: async tagId => {
     await invoke('delete_tag', { tagId });
     invalidateCaches('files', 'storage');
     await get().loadTags(true);
     await get().loadFiles(true);
+    await useMaterialStore.getState().load();
   },
-  setFileTags: async (fileId, selection) => {
-    await invoke('set_file_tags', { fileId, tagIds: selection.tagIds, newTagNames: selection.newTagNames });
+  setFileTags: async (fileId, selection, tones) => {
+    await invoke('set_file_tags', { fileId, tagIds: selection.tagIds, newTagNames: selection.newTagNames, tones });
     invalidateCaches('files', 'storage');
     await get().loadTags(true);
     await get().loadFiles(true);
+    await useMaterialStore.getState().load();
   },
   setImportTags: tags => {
     const pendingImport = get().pendingImport;

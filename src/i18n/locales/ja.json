@@ -1217,9 +1217,17 @@
     "options": "表示オプション"
   },
   "tags": {
-    "color": "色",
-    "colorFor": "{{name}}の色",
-    "tones": {"blue": "青", "green": "緑", "pink": "ピンク", "purple": "紫", "amber": "琥珀色", "slate": "灰青色"},
+    "colorFor": "タグの色 · {{name}}",
+    "colorTarget": "色を変えるタグ",
+    "colorNamed": "{{name}}：{{color}}",
+    "colors": {
+      "blue": "ブルー",
+      "green": "セージ",
+      "pink": "ローズ",
+      "purple": "ラベンダー",
+      "amber": "アプリコット",
+      "slate": "ストーン"
+    },
     "filesTitle": "ファイル",
     "all": "すべて",
     "allFiles": "すべてのファイル",
@@ -1264,7 +1272,16 @@
     "saving": "保存中…",
     "sharedHint": "すべての学習言語でタグを共有します。",
     "search": "タグを検索",
-    "namePlaceholder": "タグ名を入力"
+    "namePlaceholder": "タグ名を入力",
+    "color": "色",
+    "tones": {
+      "blue": "青",
+      "green": "緑",
+      "pink": "ピンク",
+      "purple": "紫",
+      "amber": "琥珀色",
+      "slate": "灰青色"
+    }
   },
   "expressionTags": {
     "label": "語域と使用上の注意",
@@ -1438,7 +1455,7 @@
       "finding": "利用可能な英語字幕を検索中…",
       "generatePreview": "プレビューを作成",
       "preview": "原文プレビュー",
-      "previewTitle": "まず内容を確認",
+      "previewTitle": "プレビュー",
       "preparingTitle": "プレビューを準備中",
       "writingTitle": "教材に追加しています",
       "resultTitle": "取り込み結果",
@@ -1454,7 +1471,6 @@
       "backgroundHint": "この画面を閉じても、確認済みの取り込みは続きます。",
       "minimize": "閉じてバックグラウンドで続行",
       "importMore": "続けて取り込む",
-      "translationHint": "自動で文に分割し、不足する中国語訳を Google 翻訳で補完します。英語原文が Google に送信されます。登録不要。",
       "translationProgress": "{{done}} / {{total}} 文を翻訳済み",
       "pasteLink": "クリップボードを読む",
       "readingClipboard": "読み取り中…",
@@ -1516,7 +1532,13 @@
     "paused": "Paused",
     "restartSentence": "Restart current sentence",
     "emptyContent": "This material has no readable content.",
-    "translationError": "Translation is unavailable. Retry; reading and saving remain available."
+    "translationError": "Translation is unavailable. Retry; reading and saving remain available.",
+    "translateFullTitle": "全文を翻訳しますか？",
+    "translateFullPrompt": "{{count}} 文の中国語訳がありません。Google で全文の翻訳を補完しますか？",
+    "translateFullConfirm": "翻訳を開始",
+    "translationProgress": "全文を翻訳中（{{done}} / {{total}} 文）",
+    "fullSheet": "全画面に展開",
+    "halfSheet": "半画面に切り替え"
   },
   "history": {
     "export": "資料のバックアップをエクスポート",

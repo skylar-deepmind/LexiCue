@@ -60,7 +60,7 @@ export default function YouTubeImport({ initialUrl = '', autoSearch = false, ini
             {english.length > 1 && <><label htmlFor="lc-import-english-track">{t('materials.englishSubtitle')}</label><select id="lc-import-english-track" value={english.findIndex(track => track.lang === primary?.lang && track.is_auto === primary?.is_auto)} onChange={event => setPrimary(english[Number(event.target.value)])}>
                 {english.map((track, index) => <option key={`${track.lang}-${track.is_auto}`} value={index}>{track.lang} · {t(track.is_auto ? 'materials.automaticSubtitle' : 'materials.manualSubtitle')}</option>)}
             </select></>}
-            {primary && <><p className="lc-import-hint">{t('materials.importDialog.translationHint')}</p><button className="ui-button lc-import-primary" onClick={() => void useImportStore.getState().fromYouTube({ url: url.trim(), title: info.title, primary, secondary: null })}>{t('materials.importDialog.generatePreview')}</button></>}
+            {primary && <button className="ui-button lc-import-primary" onClick={() => void useImportStore.getState().fromYouTube({ url: url.trim(), title: info.title, primary, secondary: null })}>{t('materials.importDialog.generatePreview')}</button>}
         </section>}
     </div>;
 }

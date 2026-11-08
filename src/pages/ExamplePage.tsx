@@ -13,7 +13,7 @@ export default function ExamplePage(){
   const [id]=useState(()=>crypto.randomUUID());const [example,setExample]=useState<Example|null>(null);const [error,setError]=useState(false);const [retry,setRetry]=useState(0);const generation=useRef(0);
   const importOpen=useImportStore(state=>state.open);
   useEffect(()=>{
-    const current=++generation.current;let live=true;setError(false);useOnboardingStore.getState().begin();
+    const current=++generation.current;let live=true;setError(false);useOnboardingStore.getState().begin('lookup');
     void invoke<Example>('begin_example_session',{sessionId:id}).then(value=>{if(live)setExample(value);}).catch(()=>{if(live)setError(true);});
     const leave=()=>{if(useOnboardingStore.getState().active)useOnboardingStore.getState().finish('skipped');void invoke('end_example_session',{sessionId:id}).catch(()=>{});};
     window.addEventListener('pagehide',leave);

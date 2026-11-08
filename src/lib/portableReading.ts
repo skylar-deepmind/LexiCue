@@ -3,7 +3,7 @@ import type { Material } from './materials';
 import { positionMatchesMaterial } from './readingDesk';
 import type { TagInfo } from './types';
 
-export const tagTones = ['blue', 'green', 'pink', 'purple', 'amber', 'slate'] as const;
+import {TAG_TONES} from './tagAppearance';
 
 export async function migrateLocalReading(files: Material[]) {
     const keyFor = (file:Material) => file.source?.key ?? file.document?.identity ?? file.content_hash;
@@ -29,7 +29,7 @@ export async function migrateTagColors(tags: TagInfo[]) {
     catch { return; }
     for (const tag of tags) {
         const tone = saved[tag.name.trim().toLowerCase()];
-        if (tag.tone || !tagTones.some(value=>value === tone)) continue;
+        if (tag.tone || !TAG_TONES.some(value=>value === tone)) continue;
         await invoke('set_tag_tone',{tagId:tag.id,tone,onlyIfUnset:true});
         tag.tone = tone as string;
     }

@@ -7,6 +7,7 @@ import { isLanguage, detectSystemLanguage, isUILanguage } from '../lib/languages
 import { languageKey, normalizeYouTubePreferences, rememberYouTubeImport, type YouTubeLanguagePair, type YouTubePreferences } from '../lib/youtubeSelection';
 import { normalizeSpeechPreferences, type SpeechPreferences, type SpeechAccent } from '../lib/speechPreferences';
 import { normalizeContentFontScale, type ContentFontCategory, type ContentFontScale } from '../lib/contentFontScale';
+import {normalizeTagColors,type TagColors} from '../lib/tagAppearance';
 
 export type ContentFontSize = 'sm' | 'md' | 'lg';
 export type ReadingLineHeight = 'compact' | 'normal' | 'loose';
@@ -15,6 +16,8 @@ const FONT_SIZES: ContentFontSize[] = ['sm', 'md', 'lg'];
 const LINE_HEIGHTS: ReadingLineHeight[] = ['compact', 'normal', 'loose'];
 
 interface PreferencesState {
+  tagColors: TagColors;
+  setTagColors: (colors: TagColors) => void;
   contentFontScale: ContentFontScale;
   setContentFontScale: (category: ContentFontCategory, scale: number) => void;
   speech: SpeechPreferences;
@@ -48,6 +51,8 @@ export const usePreferencesStore = create<PreferencesState>()(
   subscribeWithSelector(
     persist(
       (set) => ({
+        tagColors: {},
+        setTagColors: colors => set(state=>({tagColors:{...state.tagColors,...normalizeTagColors(colors)}})),
         contentFontScale: normalizeContentFontScale(null),
         setContentFontScale: (category, scale) => set(state => ({ contentFontScale: normalizeContentFontScale({ ...state.contentFontScale, [category]: scale }) })),
         speech: normalizeSpeechPreferences(null),
@@ -87,6 +92,7 @@ export const usePreferencesStore = create<PreferencesState>()(
         storage: createJSONStorage(() => localStorage),
         merge: (persisted, current) => {
           const saved = (persisted ?? {}) as {
+            tagColors?: unknown;
             speech?: unknown;
             contentFontScale?: unknown;
             reencounterHints?: unknown;
@@ -127,7 +133,7 @@ export const usePreferencesStore = create<PreferencesState>()(
             word: saved.annotationModes?.word === 'single' ? 'single' : 'batch',
             phrase: saved.annotationModes?.phrase === 'single' ? 'single' : 'batch',
           };
-          return { ...current, contentFontScale: normalizeContentFontScale(saved.contentFontScale), speech: normalizeSpeechPreferences(saved.speech), reencounterHints: typeof saved.reencounterHints==='boolean'?saved.reencounterHints:current.reencounterHints, vocabularyKind: saved.vocabularyKind === 'phrase' ? 'phrase' : 'word', youtube: normalizeYouTubePreferences(saved.youtube), annotationModes, language, uiLanguage, learningTextFontSize, definitionFontSize, auxiliaryFontSize, readingLineHeight };
+          return { ...current, tagColors:normalizeTagColors(saved.tagColors), contentFontScale: normalizeContentFontScale(saved.contentFontScale), speech: normalizeSpeechPreferences(saved.speech), reencounterHints: typeof saved.reencounterHints==='boolean'?saved.reencounterHints:current.reencounterHints, vocabularyKind: saved.vocabularyKind === 'phrase' ? 'phrase' : 'word', youtube: normalizeYouTubePreferences(saved.youtube), annotationModes, language, uiLanguage, learningTextFontSize, definitionFontSize, auxiliaryFontSize, readingLineHeight };
         },
       },
     ),
