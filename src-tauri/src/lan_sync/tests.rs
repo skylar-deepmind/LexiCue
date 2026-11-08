@@ -199,3 +199,5 @@ fn simultaneous_retries_publish_one_backup() {
     });
     assert_eq!(fs::read_dir(dir.path().join("backups")).unwrap().count(), 1);
 }
+
+mod delta;

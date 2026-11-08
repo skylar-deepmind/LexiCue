@@ -374,6 +374,18 @@ pub fn restore_backup(conn: &rusqlite::Connection, backup: &BackupPayload) -> Re
         rusqlite::Transaction::new_unchecked(conn, rusqlite::TransactionBehavior::Immediate)
             .map_err(|e| e.to_string())?;
 
+    // A whole-library restore must never continue an older LAN sequence or
+    // publish replacement rows as local edits. Older builds can also open
+    // a database where the optional LAN feature was previously enabled.
+    let has_lan: bool = transaction.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='lan_saved_peer')",
+        [], |r| r.get(0)
+    ).map_err(|e| e.to_string())?;
+    if has_lan {
+        transaction
+            .execute("UPDATE lan_saved_peer SET active=0", [])
+            .map_err(|e| e.to_string())?;
+    }
     restore_rows(conn, backup)?;
     transaction.commit().map_err(|e| e.to_string())
 }

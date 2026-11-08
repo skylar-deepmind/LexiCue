@@ -2791,6 +2791,7 @@ dependencies = [
  "jsonschema",
  "keyring",
  "keyring-core",
+ "lexicue-lan-journal",
  "libc",
  "libloading",
  "lindera",
@@ -2820,6 +2821,17 @@ dependencies = [
  "unicode-normalization",
  "uuid",
  "zstd",
+]
+
+[[package]]
+name = "lexicue-lan-journal"
+version = "0.1.0"
+dependencies = [
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2",
+ "uuid",
 ]
 
 [[package]]

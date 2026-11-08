@@ -477,7 +477,7 @@ pub fn get(conn: &Connection, id: &str) -> Result<Option<SavedRecord>, String> {
 }
 
 /// Used by backup and the encrypted record protocol; no local FK crosses devices.
-pub fn write_record(conn: &Connection, record: &SavedRecord) -> Result<i64, String> {
+pub(crate) fn validate_record(record: &SavedRecord) -> Result<(), String> {
     if let Some(snapshot) = &record.dictionary_snapshot {
         validate_dictionary_snapshot(snapshot)?;
     }
@@ -506,6 +506,11 @@ pub fn write_record(conn: &Connection, record: &SavedRecord) -> Result<i64, Stri
     {
         return Err("invalid_saved_record".into());
     }
+    Ok(())
+}
+
+pub fn write_record(conn: &Connection, record: &SavedRecord) -> Result<i64, String> {
+    validate_record(record)?;
     conn.execute(
         "INSERT INTO saved_records(record_id,normalized_expression,source_key,snapshot_json,saved_at,updated_at,revision,generation,deleted_at)
          VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9)

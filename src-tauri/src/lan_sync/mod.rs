@@ -1,4 +1,5 @@
 //! Local first-merge preparation. No LAN operation is exposed over IPC yet.
+pub mod saved_delta;
 mod sentences;
 pub use sentences::prepare_sentence_ids;
 
