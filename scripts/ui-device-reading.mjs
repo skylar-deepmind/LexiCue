@@ -19,7 +19,7 @@ try {
       fileId, segment, contentHash: material.content_hash, parent, back: false, legacy: false,
     });
     const revision = await move(12, null);
-    const context = await browser.newContext({viewport:{width,height:812}});
+    const context = await browser.newContext({viewport:{width,height:812}, ...(width===375 ? {isMobile:true,hasTouch:true,userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1'} : {})});
     const page = await context.newPage();
     await fixture(page, width === 375 ? 'ocean' : 'midnight');
     // Shrinking the reading viewport during its first scroll reproduces the
@@ -39,8 +39,9 @@ try {
       const row = scroll?.querySelector(`[data-sentence="${idx}"]`);
       return row && Math.abs(row.getBoundingClientRect().top - scroll.getBoundingClientRect().top) <= 8;
     }, segment, {timeout:8000});
-    await page.goto(`${url}/files?view=library`);
-    await page.locator(`[data-open="${fileId}"]`).click();
+    await page.goto(`${url}/files`);
+    await page.locator('.desk-library-dock').click();
+    await page.getByRole('dialog').locator(`.library-open[data-open="${fileId}"]`).click();
     await at(12);
     const top = () => page.locator('.reader-scroll').evaluate(n => n.scrollTop);
     const settleViewport = async () => {

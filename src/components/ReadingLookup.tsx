@@ -280,7 +280,7 @@ function LookupContent({ query, material, scope, onSkip, drafts, session, onRead
         try {
             const next = await request;
             if (session.actions.get(key)?.id === pendingAction.id) session.actions.delete(key);
-            if (next.changed && pendingAction.mutation.kind === 'save') {
+            if (next.changed) {
                 session.receipts.delete(key); session.receipts.set(key, next.operation_id);
                 if (session.receipts.size > 100) session.receipts.delete(session.receipts.keys().next().value!);
             }

@@ -36,7 +36,8 @@ export default function FilesPage() {
     const navigate = useNavigate();
     const location = useLocation();
     const [params, setParams] = useSearchParams();
-    const library = params.get('view') === 'library';
+    const importOpen = useImportStore(s => s.open);
+    const library = params.get('view') === 'library' && !importOpen;
     const materials = useMaterialStore();
     const desk = useReadingDeskStore();
     const selectedTags = useFileStore(s => s.selectedTagIds);
