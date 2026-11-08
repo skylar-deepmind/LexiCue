@@ -59,7 +59,7 @@ export default function TagPicker({ tags, value, onChange, disabled, loading, er
     {loading && <p role="status" className="tag-hint">{t('common.loading')}</p>}
     <div className="tag-picker__options" aria-label={t('tags.existing')}>
       {visible.map(tag => <button type="button" key={tag.id} className="tag-chip" aria-pressed={selected(tag)} disabled={disabled}
-        onClick={() => toggle(tag)}>{selected(tag) && <Check size={15} aria-hidden="true" />}<span>{tag.name}</span></button>)}
+        onClick={() => toggle(tag)}>{selected(tag) && <Check size={15} aria-hidden="true" />}<span className="tag-tone-dot" data-tone={tag.tone} aria-hidden="true"/><span>{tag.name}</span></button>)}
       {!loading && !error && visible.length === 0 && <span className="tag-hint">{t(query ? 'tags.noMatch' : 'tags.noTags')}</span>}
     </div>
     {canCreate && <button type="button" className="ui-button tag-create" onClick={add} disabled={disabled}>

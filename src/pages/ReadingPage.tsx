@@ -1,3 +1,4 @@
+import { invoke } from '@tauri-apps/api/core';
 import { positionMatchesMaterial } from '../lib/readingDesk';
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type PointerEvent as ReactPointerEvent } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
@@ -83,12 +84,18 @@ export default function ReadingPage({ data, scope }: {
             return { segment: Number(requested), offset: 0 };
         try {
             const stored = JSON.parse(localStorage.getItem(positionKey) ?? 'null');
+            if (material.position) return {segment: material.position.segment, offset:
+                stored?.revision === material.position.revision && stored.segment === material.position.segment ? stored.offset : 0};
             if (positionMatchesMaterial(stored, material, mediaIdentity) && segments.some(segment => segment.index_num === stored.segment))
                 return stored;
         }
         catch { /* Ignore invalid local scroll metadata. */ }
-        return { segment: segments[0]?.index_num ?? 0, offset: 0 };
+        return { segment: material.position?.segment ?? segments[0]?.index_num ?? 0, offset: 0 };
     });
+    const progressIntent = useRef(false);
+    const lastPosition = useRef(initial.segment);
+    const positionRevision = useRef(material.position?.revision);
+    const positionWrites = useRef(Promise.resolve());
     const initialIndex = Math.max(0, segments.findIndex(segment => segment.index_num === initial.segment));
     const [first, setFirst] = useState(Math.max(0, initialIndex - 20));
     const [last, setLast] = useState(Math.min(segments.length, Math.max(0, initialIndex - 20) + 80));
@@ -136,6 +143,7 @@ export default function ReadingPage({ data, scope }: {
     };
     const [documentJump, setDocumentJump] = useState<number | null>(null);
     const jumpDocument = (index: number) => {
+        progressIntent.current = true;
         followAllowed.current = false;
         setQuery(null);
         setFirst(Math.max(0, index));
@@ -187,6 +195,7 @@ export default function ReadingPage({ data, scope }: {
         } else void state.startQueue(speechItems.map(({text,key})=>({text,key})),index);
     },[segments,data.media_refs,material.id,material.source,speechItems,mediaIdentity,t,followAllowed]);
     const listenFrom = (index: number) => {
+        progressIntent.current = true;
         followAllowed.current=true;
         setListening(true);
         pointerRange.current = null; keyRange.current = null; setKeyboardRange(null);
@@ -259,14 +268,33 @@ export default function ReadingPage({ data, scope }: {
         visible.current.clear();
         const positions = visible.current;
         let frame = 0;
+        let idle: ReturnType<typeof setTimeout> | undefined;
+        const write = () => {
+            const segment = [...positions.keys()].sort((a,b)=>a-b)[0];
+            if (example || !progressIntent.current || !restored.current || segment === undefined) return;
+            progressIntent.current=false;
+            if(lastPosition.current===segment) return;
+            const back = segment < lastPosition.current;
+            lastPosition.current = segment;
+            positionWrites.current = positionWrites.current.then(async () => {
+                const next = await invoke<string|null>('remember_reading_position', {fileId:material.id,contentHash:material.content_hash,
+                    segment,back,legacy:false,parent:positionRevision.current ?? null});
+                if (next) positionRevision.current = next;
+            }).catch(() => { /* Local scroll recovery is still available. */ });
+        };
+        const markIntent = () => { progressIntent.current = true; };
+        const markKey = (event:KeyboardEvent) => { if (['ArrowUp','ArrowDown','PageUp','PageDown','Home','End',' '].includes(event.key)) markIntent(); };
         const persist = () => {
             const item = [...positions.entries()].sort((a, b) => a[0] - b[0])[0];
             if (!example && item && node.isConnected) {
                 const offset = node.getBoundingClientRect().top - item[1].getBoundingClientRect().top;
-                try { localStorage.setItem(positionKey, JSON.stringify({segment:item[0],offset,hash:material.content_hash})); } catch { /* Best-effort local reading position. */ }
+                try { localStorage.setItem(positionKey, JSON.stringify({segment:item[0],offset,hash:material.content_hash,revision:positionRevision.current})); } catch { /* Best-effort local reading position. */ }
             }
         };
-        const remember = () => {cancelAnimationFrame(frame);frame=requestAnimationFrame(persist);};
+        const remember = () => {
+            cancelAnimationFrame(frame); frame=requestAnimationFrame(persist);
+            clearTimeout(idle); idle=setTimeout(write,300);
+        };
         const observer = new IntersectionObserver(entries => { for (const entry of entries) {
             const id = Number((entry.target as HTMLElement).dataset.sentence);
             if (entry.isIntersecting)
@@ -281,8 +309,14 @@ export default function ReadingPage({ data, scope }: {
         if (bottom)
             nextObserver.observe(bottom);
         node.addEventListener('scroll', remember, { passive: true });
-        return () => { persist();observer.disconnect(); nextObserver.disconnect(); cancelAnimationFrame(frame); node.removeEventListener('scroll', remember); };
-    }, [first, last, positionKey, segments.length, example, material.content_hash]);
+        node.addEventListener('wheel',markIntent,{passive:true});
+        node.addEventListener('touchmove',markIntent,{passive:true});
+        node.addEventListener('keydown',markKey);
+        return () => {
+            clearTimeout(idle); write(); persist();
+            node.removeEventListener('wheel',markIntent); node.removeEventListener('touchmove',markIntent); node.removeEventListener('keydown',markKey);
+            observer.disconnect(); nextObserver.disconnect(); cancelAnimationFrame(frame); node.removeEventListener('scroll', remember); };
+    }, [first, last, positionKey, segments.length, example, material.content_hash, material.id]);
     const choose = (segment: Segment, start: number, end: number) => {
         followAllowed.current=false;
         pauseForLookup('lookup');

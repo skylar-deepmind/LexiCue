@@ -124,3 +124,12 @@ body:has(.materials-page) .tag-dialog .tag-manager__list .ui-button--danger:hove
 .theme-choice:active .theme-preview { border-color: var(--accent-700); }
 @media (max-width: 500px) { .system-settings .theme-choices { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 18px 12px; } }
 @media (prefers-reduced-motion: reduce) { .theme-preview, .materials-page .tag-chip, .system-settings .settings-quiet-action { transition: none; } }
+
+.device-sync .device-sync-qr { display: block; width: min(100%, 260px); height: auto; image-rendering: pixelated; }
+.device-sync .device-sync-code { display: block; font-size: 1.6rem; font-variant-numeric: tabular-nums; letter-spacing: .14em; color: var(--text-strong); }
+.device-sync .device-sync-option { display: flex; align-items: center; gap: .6rem; min-height: 44px; }
+.device-sync :is(summary, button) { min-height: 44px; }
+.device-sync summary { cursor: pointer; align-content: center; }
+.device-sync :is(summary, button, input):focus-visible { outline: 2px solid var(--accent-700); outline-offset: 2px; }
+.device-sync-candidate { display: flex; align-items: baseline; gap: .6rem; padding-block: .65rem; min-height: 44px; }
+.device-sync-candidate span { white-space: pre-wrap; overflow-wrap: anywhere; }

@@ -15,7 +15,9 @@ import { useYoutubeStore } from '../stores/youtubeStore';
 import { useUpdateStore } from '../stores/updateStore';
 import { useFeedbackStore } from '../stores/feedbackStore';
 import PageTransition from './PageTransition';
-import { syncCoordinator } from '../lib/syncCoordinator';
+import { listen } from '@tauri-apps/api/event';
+import { isTauri } from '@tauri-apps/api/core';
+import { invalidateCaches } from '../lib/cacheInvalidation';
 import { prepareSpeechVoices } from '../lib/tts';
 import { useOnboardingStore } from '../stores/onboardingStore';
 import { readingReturnPath, retainImportedReading } from '../lib/readingEntry';
@@ -113,9 +115,24 @@ export default function Layout() {
             }
         })();
     }, [checkUpdate, showFeedback, t]);
-    // Sync is opportunistic: a failed background attempt remains non-blocking,
-    // while the settings page exposes the detailed error on a manual retry.
-    useEffect(() => { if (import.meta.env.VITE_SLICE_PREVIEW !== '1') return syncCoordinator.start(); }, []);
+    useEffect(() => {
+        if (import.meta.env.VITE_SLICE_PREVIEW === '1' || !isTauri()) return;
+        let timer: number | undefined;
+        let alive = true;
+        const subscription = listen('device-sync-applied', () => {
+            if (!alive || timer !== undefined) return;
+            timer = window.setTimeout(() => {
+                timer = undefined;
+                invalidateCaches('files', 'storage');
+                window.dispatchEvent(new Event('lexicue-sync-applied'));
+            }, 350);
+        });
+        return () => {
+            alive = false;
+            window.clearTimeout(timer);
+            void subscription.then(stop => stop()).catch(() => {});
+        };
+    }, []);
     return (<div className="app-layout b-shell" data-context-open={panels.length > 0}>
       <WorkspaceHeader />
       <Sidebar />

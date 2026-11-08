@@ -35,7 +35,7 @@ export default function TagFilterBar({ onManage }: { onManage: () => void }) {
       <button type="button" className="tag-chip" aria-pressed={untagged} onClick={() => filter([], !untagged)}>{t('tags.untagged')}</button>
         {tags.map(tag => <button type="button" key={tag.id} className="tag-chip" aria-pressed={selected.includes(tag.id)}
           onClick={() => filter(selected.includes(tag.id) ? selected.filter(id => id !== tag.id) : [...selected, tag.id])}>
-          {selected.includes(tag.id) && <Check size={15} aria-hidden="true" />}<span>{tag.name}</span>
+          {selected.includes(tag.id) && <Check size={15} aria-hidden="true" />}<span className="tag-tone-dot" data-tone={tag.tone} aria-hidden="true"/><span>{tag.name}</span>
         </button>)}
       </div>
       {edges.overflow && <button type="button" className="ui-button ui-button--icon tag-scroll" aria-label={t('tags.scrollRight')} disabled={edges.end} onClick={() => move(1)}><ChevronRight size={18} aria-hidden="true" /></button>}

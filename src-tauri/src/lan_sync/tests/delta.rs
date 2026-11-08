@@ -240,7 +240,7 @@ fn bad_payload_or_receipt_cannot_advance_durable_progress() {
 #[test]
 fn nonportable_or_unknown_saved_metadata_never_leaves_the_sender() {
     for (field, value) in [
-        ("$.source.file_name", "file:///private/example.txt"),
+        ("$.source.content_hash", "file:///private/example.txt"),
         ("$.future_private_key", "sentinel"),
     ] {
         let dir = tempdir().unwrap();
@@ -258,11 +258,101 @@ fn nonportable_or_unknown_saved_metadata_never_leaves_the_sender() {
             .unwrap();
         journal::install(&mut pre_db, &route).unwrap();
         assert!(catch_up(&mut pre_db, &route, &ReaderSaves, |req| {
-            assert!(matches!(req.operation, Operation::Hello));
+            assert!(matches!(req.operation, Operation::Hello(_)));
             respond(&mut b, &route.reverse(), req, &ReaderSaves)
         })
         .is_err());
         assert_eq!(journal::progress(&pre_db, &route).unwrap().offered, 0);
         assert_eq!(rows(&b, "SELECT COUNT(*) FROM saved_records"), 0);
     }
+}
+
+#[test]
+fn resolving_concurrent_notes_preserves_both_heads_and_records_a_shared_choice() {
+    let dir = tempdir().unwrap();
+    let r = pair();
+    let (_, mut a) = twin(&dir.path().join("mac"), &r);
+    let (_, mut b) = twin(&dir.path().join("phone"), &r.reverse());
+    let base = seed(&a, "Take off later.", "初始解释");
+    round(&mut a, &mut b, &r).unwrap();
+    edit(&a, &base, "甲方解释");
+    let chosen = edit(&b, &base, "乙方解释");
+    round(&mut a, &mut b, &r).unwrap();
+    let c = journal::conflicts(&a).unwrap().remove(0);
+    journal::resolve(
+        &mut a,
+        &c.entity,
+        &c.field,
+        c.versions.into_iter().map(|v| v.revision).collect(),
+        &chosen.revision,
+        &ReaderSaves,
+    )
+    .unwrap();
+    round(&mut a, &mut b, &r).unwrap();
+    for db in [&a, &b] {
+        assert!(journal::conflicts(db).unwrap().is_empty());
+        assert_eq!(
+            saved::get(db, &base.record_id)
+                .unwrap()
+                .unwrap()
+                .explanation
+                .as_deref(),
+            Some("乙方解释")
+        );
+        assert_eq!(rows(db,"SELECT count(*) FROM lan_saved_versions WHERE json_extract(snapshot,'$.explanation')='甲方解释'"),1);
+    }
+}
+
+#[test]
+fn english_historical_notes_are_portable_without_old_private_tables_or_other_languages() {
+    let dir = tempdir().unwrap();
+    let r = pair();
+    let (_, mut a) = twin(&dir.path().join("mac"), &r);
+    let (_, mut b) = twin(&dir.path().join("phone"), &r.reverse());
+    seed(&a, "Take off safely.", "安全起飞");
+    a.execute_batch("DELETE FROM product_migrations;
+        INSERT INTO words(language,lemma,status,definition) VALUES ('en','note','known','孤立的手写注释'),('ja','飛ぶ','learning','保留在本机');
+        INSERT INTO phrases(id,text,source) VALUES (1,'take off','manual');
+        INSERT INTO phrase_occurrences(phrase_id,segment_id,position,meaning_zh,meaning_edited,meaning_en,meaning_en_edited,token_positions_json)
+        VALUES(1,1,0,'旧个人中文',1,'my older meaning',1,'/private/canary');").unwrap();
+    saved::migrate_legacy(&a).unwrap();
+    let archive: String = a
+        .query_row("SELECT group_concat(snapshot) FROM lan_history", [], |r| {
+            r.get(0)
+        })
+        .unwrap();
+    assert!(!archive.contains("/private/canary"));
+    assert!(!archive.contains("保留在本机"));
+    assert!(archive.contains("my older meaning"));
+    round(&mut a, &mut b, &r).unwrap();
+    let remote: Vec<_> = saved::list(&b, "", 50, 0)
+        .unwrap()
+        .into_iter()
+        .filter(|s| s.origin == "legacy")
+        .collect();
+    assert_eq!(remote.len(), 2);
+    let source_less = remote.iter().find(|s| s.expression == "note").unwrap();
+    assert!(source_less.source.is_none());
+    assert_eq!(source_less.explanation.as_deref(), Some("孤立的手写注释"));
+    let phrase = remote.iter().find(|s| s.expression == "take off").unwrap();
+    assert_eq!(
+        phrase.legacy.as_ref().unwrap(),
+        &serde_json::json!({"kind":"phrase","notes":["my older meaning","旧个人中文"]})
+    );
+    edit(&b, phrase, "重写释义");
+    round(&mut a, &mut b, &r).unwrap();
+    let kept = saved::get(&a, &phrase.record_id).unwrap().unwrap();
+    assert_eq!(kept.explanation.as_deref(), Some("重写释义"));
+    assert_eq!(
+        kept.legacy.unwrap()["occurrence"]["token_positions_json"],
+        "/private/canary"
+    );
+    assert_eq!(
+        rows(&a, "SELECT count(*) FROM words WHERE language='ja'"),
+        1
+    );
+    assert_eq!(
+        rows(&b, "SELECT count(*) FROM words WHERE language='ja'"),
+        0
+    );
 }

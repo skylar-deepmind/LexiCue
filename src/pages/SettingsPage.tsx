@@ -11,7 +11,7 @@ import { usePreferencesStore } from '../stores/preferencesStore';
 import { useFileStore } from '../stores/fileStore';
 import LongmanStatus from '../components/LongmanStatus';
 import { useUpdateStore } from '../stores/updateStore';
-import CloudSyncSettings from '../components/CloudSyncSettings';
+import DeviceSyncSettings from '../components/DeviceSyncSettings';
 import YouTubeDownloadSettings from '../components/YouTubeDownloadSettings';
 import SpeechSettings from '../components/SpeechSettings';
 import './materials-settings.css';
@@ -61,7 +61,7 @@ export default function SettingsPage() {
     <SpeechSettings/>
     <section><h2>{t('onboarding.replayTitle')}</h2><p>{t('onboarding.privacy')}</p><Link className="ui-button" to="/example">{t('onboarding.replay')}</Link></section>
     <section><h2>{t('materials.backups')}</h2><p>{t('fileStore.backupScope')}</p><div className="settings-options"><button className="ui-button settings-quiet-action" disabled={busy} onClick={() => void backup()}>{t('history.export')}</button><button ref={restoreButton} className="ui-button settings-quiet-action" disabled={busy} onClick={() => void backup(true)}>{t('history.restore')}</button><Link className="ui-button" to="/legacy">{t('materials.history')}</Link></div></section>
-    {import.meta.env.VITE_SLICE_PREVIEW !== '1' && <CloudSyncSettings />}
+    {import.meta.env.VITE_SLICE_PREVIEW !== '1' && <DeviceSyncSettings />}
     <LongmanStatus/>
     <details><summary>{t('settings.youtube.title')}</summary><YouTubeDownloadSettings /></details>
     {import.meta.env.VITE_SLICE_PREVIEW !== '1' && <details><summary>{t('settings.updates.title')}</summary><p>{t('settings.updates.currentVersion', { version: version || '—' })}</p><button className="ui-button settings-quiet-action" disabled={updates.status === 'checking' || updates.status === 'downloading'} onClick={() => void updates.check()}>{t('settings.updates.check')}</button>{updates.status === 'upToDate' && <p>{t('settings.updates.upToDate')}</p>}{updates.status === 'available' && <><p>{t('settings.updates.available', { version: updates.version })}</p><button className="ui-button" onClick={() => void (updates.downloadUrl ? openUrl(updates.downloadUrl) : updates.install())}>{t(updates.downloadUrl ? 'settings.updates.downloadPage' : 'settings.updates.install')}</button></>}{updates.status === 'downloading' && <progress max={100} value={updates.progress}/>} {updates.error && <p role="alert">{updates.error}</p>}</details>}

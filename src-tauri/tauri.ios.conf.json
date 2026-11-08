@@ -1,0 +1,3 @@
+{
+  "bundle": { "iOS": { "minimumSystemVersion": "15.0" } }
+}

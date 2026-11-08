@@ -2,6 +2,7 @@
 // No imports from the application's store initializers, no account or disk access.
 import {screenshotCommand} from './capture-adapter';
 import { copy } from './catalogue.mjs';
+export const isTauri = () => false;
 let locale = 'en';
 export function setDemoLocale(value: string) { locale = value; }
 export function usePreferencesStore(selector: (state: any) => any) {

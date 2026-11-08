@@ -80,7 +80,7 @@ fn db() -> (tempfile::TempDir, Connection) {
     let c = crate::db::init_db(&d.path().join("source.db")).unwrap();
     (d, c)
 }
-fn save(c: &Connection, segment: i64, expression: &str, op: &str) -> saved::SavedRecord {
+pub(crate) fn save(c: &Connection, segment: i64, expression: &str, op: &str) -> saved::SavedRecord {
     let sentence: String = c
         .query_row("SELECT en_text FROM segments WHERE id=?1", [segment], |r| {
             r.get(0)
@@ -665,7 +665,7 @@ fn clipboard_webpage_provenance_survives_backup_receipts_and_saved_context() {
         data.document.as_ref().unwrap().origin
     );
     let mut future = backup;
-    future.schema_version = 13;
+    future.schema_version = 14;
     assert!(export::restore_backup(&restored, &future).is_err());
     let mut web = input("web-op", "webpage");
     let doc = web.document.as_mut().unwrap();

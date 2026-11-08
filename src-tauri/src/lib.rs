@@ -1,7 +1,8 @@
 mod commands;
 mod db;
+mod device_sync;
 
-#[cfg(any(test, feature = "lan-sync"))]
+#[cfg(any(test, target_vendor = "apple", feature = "lan-sync"))]
 pub mod lan_sync;
 
 use db::{init_db, DbState, DictionaryStatus};
@@ -80,6 +81,12 @@ pub fn run() {
             };
             commands::files::resume_pending_delete_jobs(db_state.conn.clone());
             app.manage(db_state);
+            #[cfg(target_vendor = "apple")]
+            if !slice_preview {
+                if let Err(error) = device_sync::initialize(&app_dir, app.handle().clone()) {
+                    log::warn!("Device sync is unavailable: {error}");
+                }
+            }
 
             let status = DictionaryStatus::default();
             app.manage(status.clone());
@@ -123,9 +130,24 @@ pub fn run() {
 
             Ok(())
         })
+        .on_window_event(|window, event| {
+            #[cfg(target_os = "macos")]
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                if window.label() == "main"
+                    && device_sync::receive_with_window_closed()
+                    && window.hide().is_ok()
+                {
+                    api.prevent_close();
+                }
+            }
+            #[cfg(not(target_os = "macos"))]
+            let _ = (window, event);
+        })
         .manage(commands::example::ExampleState::default())
         .manage(commands::webpage::WebpageState::default())
         .invoke_handler(tauri::generate_handler![
+            device_sync::device_sync,
+            device_sync::restore_device_merge_backup,
             commands::webpage::fetch_import_webpage,
             commands::webpage::cancel_import_webpage,
             commands::example::begin_example_session,
@@ -217,6 +239,10 @@ pub fn run() {
             commands::files::delete_file_start,
             commands::files::delete_file_status,
             commands::files::get_file_segments,
+            commands::tags::set_tag_tone,
+            commands::materials::remember_reading_position,
+            commands::materials::list_device_conflicts,
+            commands::materials::resolve_device_conflict,
             commands::tags::list_tags,
             commands::tags::create_tag,
             commands::tags::rename_tag,
@@ -283,6 +309,23 @@ pub fn run() {
             commands::dictionary_init::retry_dictionary_init,
             commands::updater::check_github_release,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error building tauri application")
+        .run(|handle, event| {
+            #[cfg(target_os = "macos")]
+            if matches!(
+                event,
+                tauri::RunEvent::Reopen {
+                    has_visible_windows: false,
+                    ..
+                }
+            ) {
+                if let Some(window) = handle.get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
+            }
+            #[cfg(not(target_os = "macos"))]
+            let _ = (handle, event);
+        });
 }

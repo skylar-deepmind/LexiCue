@@ -46,7 +46,7 @@ pub mod tts;
 
 pub mod document_source;
 #[cfg(test)]
-mod document_source_tests;
+pub(crate) mod document_source_tests;
 
 #[cfg(test)]
 mod slice3_fixture_test;

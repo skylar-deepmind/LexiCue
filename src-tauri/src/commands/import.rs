@@ -555,7 +555,7 @@ pub fn import_payload(conn: &rusqlite::Connection, payload: ImportPayload) -> Re
             if tracked {
                 conn.execute(
                     "INSERT INTO lan_material_capture(local_id) SELECT ? WHERE EXISTS(
-                        SELECT 1 FROM lan_saved_peer WHERE active=1 AND applying=0)",
+                        SELECT 1 FROM lan_saved_peer WHERE applying=0)",
                     [file_id],
                 )
                 .map_err(|e| e.to_string())?;

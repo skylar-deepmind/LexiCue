@@ -8,11 +8,15 @@ pub(crate) mod transfer;
 pub const SENTENCE_SCHEMA: &str = include_str!("sentences.sql");
 pub(crate) const MAX_BLOB: usize = 256 * 1024 * 1024;
 
-pub(crate) fn install(tx: &Connection) -> Result<()> {
+pub(crate) fn schema(tx: &Connection) -> Result<()> {
     tx.execute_batch(SENTENCE_SCHEMA).map_err(err)?;
     tx.execute_batch(include_str!("schema.sql")).map_err(err)?;
+    Ok(())
+}
+pub(crate) fn install(tx: &Connection) -> Result<()> {
+    schema(tx)?;
     tx.execute("INSERT INTO lan_material_capture(local_id) SELECT f.id FROM files f WHERE f.language='en' AND f.type IN ('txt','srt') AND NOT EXISTS(SELECT 1 FROM lan_material_files m WHERE m.local_id=f.id)
-        AND NOT EXISTS(SELECT 1 FROM sync_delete_jobs j WHERE j.file_id=f.id AND j.phase NOT IN ('done','failed')) ORDER BY f.id",[]).map_err(err)?;
+        AND NOT EXISTS(SELECT 1 FROM lan_quarantine q WHERE q.kind IN('files','files-local') AND q.local_id=f.id) AND NOT EXISTS(SELECT 1 FROM sync_delete_jobs j WHERE j.file_id=f.id AND j.phase NOT IN ('done','failed')) ORDER BY f.id",[]).map_err(err)?;
     Ok(())
 }
 
@@ -23,6 +27,10 @@ pub(crate) enum Change {
         file: String,
         bytes: usize,
         sha256: String,
+    },
+    Attach {
+        file: String,
+        source: Source,
     },
     Large {
         file: String,
@@ -37,9 +45,33 @@ pub(crate) enum Change {
         value: Option<String>,
         basis: String,
         automatic: i64,
+        #[serde(default)]
+        parents: Vec<String>,
+    },
+    Metadata {
+        file: String,
+        field: String,
+        value: Option<String>,
+        parents: Vec<String>,
+        generation: i64,
+    },
+    Resolution {
+        file: String,
+        field: String,
+        parents: Vec<String>,
+        picked: String,
+    },
+    Recovery {
+        file: String,
+        revision: String,
+        done: bool,
     },
     Delete {
         file: String,
+        #[serde(default)]
+        seen: i64,
+        #[serde(default)]
+        epoch: Option<String>,
     },
 }
 pub(crate) fn parse(text: &str) -> Result<Option<Change>> {
@@ -49,7 +81,7 @@ pub(crate) fn parse(text: &str) -> Result<Option<Change>> {
         Ok(None)
     }
 }
-fn id(s: &str) -> bool {
+pub(crate) fn id(s: &str) -> bool {
     s.len() == 32 && s.bytes().all(|b| b.is_ascii_hexdigit())
 }
 fn title_ok(s: &str) -> bool {
@@ -76,9 +108,13 @@ impl Change {
     fn file(&self) -> &str {
         match self {
             Self::Create { file, .. }
+            | Self::Attach { file, .. }
             | Self::Large { file, .. }
             | Self::Field { file, .. }
-            | Self::Delete { file } => file,
+            | Self::Resolution { file, .. }
+            | Self::Metadata { file, .. }
+            | Self::Recovery { file, .. }
+            | Self::Delete { file, .. } => file,
         }
     }
     pub(crate) fn validate(&self) -> Result<()> {
@@ -98,6 +134,37 @@ impl Change {
             {
                 return Err("invalid material manifest".into());
             }
+        }
+        if let Self::Recovery { revision, .. } = self {
+            if !id(revision) {
+                return Err("invalid recoverable revision".into());
+            }
+        }
+        if let Self::Resolution {
+            parents,
+            picked,
+            field,
+            ..
+        } = self
+        {
+            if parents.len() < 2
+                || parents.len() > 128
+                || !parents.contains(picked)
+                || field.len() > 160
+                || parents.iter().any(|s| s.is_empty() || s.len() > 128)
+            {
+                return Err("invalid conflict resolution".into());
+            }
+        }
+        if let Self::Metadata {
+            field,
+            value,
+            parents,
+            generation,
+            ..
+        } = self
+        {
+            super::metadata::validate(field, value.as_deref(), *generation, parents)?;
         }
         if let Self::Field {
             field,
@@ -137,7 +204,7 @@ impl Change {
 
 type Cue = (i64, String, Option<String>, Option<String>);
 // Snapshot arrays follow this field order to avoid repeating keys for every cue.
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 struct Sentence {
     id: String,
     index: i64,
@@ -146,9 +213,11 @@ struct Sentence {
     start: Option<String>,
     end: Option<String>,
 }
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Snapshot {
+    #[serde(default)]
+    source: Option<Source>,
     title: String,
     kind: String,
     body: String,
@@ -156,6 +225,101 @@ struct Snapshot {
     sentences: Vec<Sentence>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Source {
+    pub media_source: Option<String>,
+    pub media_identity: Option<String>,
+    pub document_source: Option<String>,
+    pub document_identity: Option<String>,
+}
+
+pub(crate) fn check_outgoing_source(
+    db: &Connection,
+    eid: &str,
+    store: &impl session::SavedStore,
+) -> Result<()> {
+    type Origin = (String, String, usize, String);
+    let origin: Option<Origin> = db
+        .query_row(
+            "SELECT json_extract(CAST(data AS TEXT),'$.body'),json_extract(CAST(data AS TEXT),'$.kind'),
+       json_array_length(CAST(data AS TEXT),'$.sentences'),json_extract(CAST(data AS TEXT),'$.source') FROM lan_material_blobs
+       WHERE event=? AND json_type(CAST(data AS TEXT),'$.source')='object'",
+            [eid],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+        )
+        .optional()
+        .map_err(err)?;
+    if let Some((body, kind, n, source)) = origin {
+        store.validate_source(
+            &serde_json::from_str(&source).map_err(err)?,
+            &body,
+            &kind,
+            n,
+        )?;
+    }
+    Ok(())
+}
+
+// Delayed attachments carry no readable body. Their exact original subtitle
+// hash and portable source DTO must still validate before bytes leave this host.
+fn validate_attachment(source: &Source, store: &impl session::SavedStore) -> Result<String> {
+    if source.document_source.is_some()
+        || source.document_identity.is_some()
+        || source.media_identity.is_none()
+    {
+        return Err("invalid attached media source".into());
+    }
+    store.validate_source(source, "", "srt", 0)?;
+    let raw: serde_json::Value = serde_json::from_str(
+        source
+            .media_source
+            .as_deref()
+            .ok_or("missing attached media source")?,
+    )
+    .map_err(err)?;
+    let hash = raw["subtitle_sha256"]
+        .as_str()
+        .filter(|h| h.len() == 64 && h.bytes().all(|b| b.is_ascii_hexdigit()))
+        .ok_or("invalid attached subtitle hash")?;
+    Ok(hash.into())
+}
+pub(crate) fn check_outgoing_attachment(
+    db: &Connection,
+    eid: &str,
+    store: &impl session::SavedStore,
+) -> Result<()> {
+    let raw:Option<Vec<u8>>=db.query_row("SELECT data FROM lan_material_blobs WHERE event=? AND json_extract(CAST(data AS TEXT),'$.material_op')='attach'",[eid],|r|r.get(0)).optional().map_err(err)?;
+    if let Some(raw) = raw {
+        let Change::Attach { source, .. } = serde_json::from_slice(&raw).map_err(err)? else {
+            return Err("invalid attachment".into());
+        };
+        validate_attachment(&source, store)?;
+    }
+    Ok(())
+}
+fn apply_attachment(
+    db: &Connection,
+    file: &str,
+    source: &Source,
+    store: &impl session::SavedStore,
+) -> Result<()> {
+    let subtitle_hash = validate_attachment(source, store)?;
+    if let Some(local) = local_file(db, file)? {
+        let body: String = db
+            .query_row("SELECT content FROM files WHERE id=?", [local], |r| {
+                r.get(0)
+            })
+            .map_err(err)?;
+        if format!("{:x}", Sha256::digest(body.as_bytes())) == subtitle_hash {
+            // Competing verified sources remain in history. Pick the same
+            // descriptor on both replicas without replacing document identity.
+            db.execute("UPDATE files SET media_source=?,media_identity=? WHERE id=? AND type='srt' AND document_identity IS NULL AND (media_identity IS NULL OR media_identity>?)",
+                params![source.media_source,source.media_identity,local,source.media_identity]).map_err(err)?;
+        }
+    }
+    Ok(())
+}
 fn local_file(db: &Connection, file: &str) -> Result<Option<i64>> {
     db.query_row(
         "SELECT local_id FROM lan_material_files WHERE file=?",
@@ -168,7 +332,15 @@ fn hash_body(body: &str) -> String {
     format!("{:x}", Sha256::digest(body.as_bytes()))[..16].to_string()
 }
 
-fn publish(db: &Connection, file: &str, s: Snapshot) -> Result<()> {
+fn publish(
+    db: &Connection,
+    file: &str,
+    s: Snapshot,
+    store: &impl session::SavedStore,
+) -> Result<()> {
+    if let Some(source) = &s.source {
+        store.validate_source(source, &s.body, &s.kind, s.sentences.len())?;
+    }
     if !title_ok(&s.title)
         || !matches!(s.kind.as_str(), "srt" | "txt")
         || s.body.len() > 32 * 1024 * 1024
@@ -198,6 +370,9 @@ fn publish(db: &Connection, file: &str, s: Snapshot) -> Result<()> {
     }
     db.execute("INSERT INTO files(name,type,content,content_hash,imported_at,language) VALUES(?,?,?,?,?,'en')",params![s.title,s.kind,s.body,hash_body(&s.body),s.imported_at]).map_err(err)?;
     let local = db.last_insert_rowid();
+    if let Some(origin) = &s.source {
+        db.execute("UPDATE files SET media_source=?,media_identity=?,document_source=?,document_identity=? WHERE id=?",params![origin.media_source,origin.media_identity,origin.document_source,origin.document_identity,local]).map_err(err)?;
+    }
     db.execute("INSERT INTO sync_entity_state(table_name,local_id,sync_id,updated_at) VALUES('files',?,?,?)",params![local,file,s.imported_at]).map_err(err)?;
     db.execute(
         "INSERT INTO lan_material_files(file,local_id) VALUES(?,?)",
@@ -232,13 +407,38 @@ fn publish(db: &Connection, file: &str, s: Snapshot) -> Result<()> {
 // Both copies may predate sentence-ID assignment. Alias only if the stable
 // file ID, original body and every source position/text/time prove the match.
 fn join_existing(db: &Connection, file: &str, local: i64, incoming: &Snapshot) -> Result<()> {
-    let original:Vec<u8>=db.query_row("SELECT b.data FROM lan_material_capture c JOIN lan_material_blobs b ON b.event=c.event WHERE c.local_id=?",[local],|r|r.get(0)).map_err(err)?;
+    let original:Vec<u8>=db.query_row("SELECT b.data FROM lan_material_blobs b JOIN lan_history h ON b.event=h.eid WHERE json_extract(h.snapshot,'$.file')=?1 AND json_extract(h.snapshot,'$.material_op')='create' ORDER BY h.ordinal LIMIT 1",[file],|r|r.get(0)).map_err(err)?;
     let baseline: Snapshot = serde_json::from_slice(&original).map_err(err)?;
     if baseline.body != incoming.body
         || baseline.kind != incoming.kind
         || baseline.sentences.len() != incoming.sentences.len()
     {
         return Err("material baseline diverged; reconciliation required".into());
+    }
+    if let Some(source) = &incoming.source {
+        let same: bool = db
+            .query_row(
+                "SELECT (media_identity IS NULL OR media_identity IS ?2)
+             AND (document_identity IS NULL OR document_identity IS ?3) FROM files WHERE id=?1",
+                params![local, source.media_identity, source.document_identity],
+                |r| r.get(0),
+            )
+            .map_err(err)?;
+        if !same {
+            return Err("material source identity diverged; reconciliation required".into());
+        }
+        db.execute(
+            "UPDATE files SET media_source=?,media_identity=?,document_source=?,document_identity=?
+           WHERE id=? AND media_identity IS NULL AND document_identity IS NULL",
+            params![
+                source.media_source,
+                source.media_identity,
+                source.document_source,
+                source.document_identity,
+                local
+            ],
+        )
+        .map_err(err)?;
     }
     for (ours, theirs) in baseline.sentences.iter().zip(&incoming.sentences) {
         if ours.index != theirs.index
@@ -311,7 +511,7 @@ fn merge_baseline(
     Ok(())
 }
 
-fn apply_field(db: &Connection, change: &Change, eid: &str) -> Result<()> {
+pub(crate) fn apply_field(db: &Connection, change: &Change, eid: &str) -> Result<()> {
     let Change::Field {
         file,
         field,
@@ -320,6 +520,7 @@ fn apply_field(db: &Connection, change: &Change, eid: &str) -> Result<()> {
         value,
         automatic,
         basis,
+        parents,
     } = change
     else {
         return Err("expected material field".into());
@@ -341,8 +542,25 @@ fn apply_field(db: &Connection, change: &Change, eid: &str) -> Result<()> {
         Some(s) => s,
         None => field.clone(),
     };
+    if parents.len() > 128 {
+        return Err("too many material parent revisions".into());
+    }
+    for parent in parents {
+        let known:bool=db.query_row("SELECT EXISTS(SELECT 1 FROM lan_material_values WHERE file=? AND field=? AND basis=? AND revision=? AND generation<?)",params![file,field,basis,parent,generation],|r|r.get(0)).map_err(err)?;
+        if !known {
+            return Err("missing material parent".into());
+        }
+        db.execute(
+            "INSERT OR IGNORE INTO lan_field_edges(parent,child) VALUES(?,?)",
+            params![parent, revision],
+        )
+        .map_err(err)?;
+    }
     db.execute("INSERT INTO lan_material_values(file,field,revision,generation,value,automatic,basis) VALUES(?,?,?,?,?,?,?)",params![file,field,revision,generation,value,automatic,basis]).map_err(err)?;
     let Some(local) = local_file(db, file)? else {
+        if *automatic == 0 {
+            record_recovery(db, file, revision, false)?;
+        }
         return Ok(());
     };
     // Competing cue revisions can have different English bases; a translation
@@ -423,7 +641,12 @@ fn current_basis(db: &Connection, row: i64) -> Result<String> {
         .map_err(err)?
         .unwrap_or_default())
 }
-pub(crate) fn apply(db: &Connection, event: &Event, change: Change) -> Result<()> {
+pub(crate) fn apply(
+    db: &Connection,
+    event: &Event,
+    change: Change,
+    store: &impl session::SavedStore,
+) -> Result<()> {
     change.validate()?;
     let old: Option<Value> = db
         .query_row(
@@ -450,19 +673,63 @@ pub(crate) fn apply(db: &Connection, event: &Event, change: Change) -> Result<()
             sha256,
         } => {
             if matches!(change, Change::Create { .. }) {
-                publish(db, file, transfer::decode(db, &event.id, *bytes, sha256)?)?
+                publish(
+                    db,
+                    file,
+                    transfer::decode(db, &event.id, *bytes, sha256)?,
+                    store,
+                )?
             } else {
                 let field: Change = transfer::decode(db, &event.id, *bytes, sha256)?;
                 if field.file() != file {
                     return Err("misdirected field payload".into());
                 }
-                apply_field(db, &field, &event.id)?;
+                match &field {
+                    Change::Attach { source, .. } => apply_attachment(db, file, source, store)?,
+                    _ => apply_field(db, &field, &event.id)?,
+                }
             }
             db.execute("DELETE FROM lan_material_stage WHERE id=1", [])
                 .map_err(err)?;
         }
+        Change::Attach { .. } => return Err("expected chunked source".into()),
         Change::Field { .. } => apply_field(db, &change, &event.id)?,
-        Change::Delete { file } => {
+        Change::Resolution { .. } => return Err("resolution must use saved store".into()),
+        Change::Metadata {
+            file,
+            field,
+            value,
+            generation,
+            parents,
+        } => super::metadata::apply(
+            db,
+            file,
+            field,
+            value.as_deref(),
+            &event.id,
+            parents,
+            *generation,
+        )?,
+        Change::Recovery {
+            file,
+            revision,
+            done,
+        } => {
+            db.execute("INSERT INTO lan_recoverable_edits(file,revision,done) VALUES(?,?,?)
+                ON CONFLICT(revision) DO UPDATE SET done=max(done,excluded.done) WHERE file=excluded.file",params![file,revision,done]).map_err(err)?;
+        }
+        Change::Delete { file, seen, epoch } => {
+            let mut edits=db.prepare("SELECT v.revision FROM lan_material_values v JOIN lan_saved_outbox o ON o.eid=v.revision
+                JOIN lan_saved_peer p WHERE v.file=? AND v.automatic=0 AND p.pair=? AND o.seq>?").map_err(err)?;
+            let revisions = edits
+                .query_map(params![file, epoch, seen], |r| r.get::<_, String>(0))
+                .map_err(err)?
+                .collect::<rusqlite::Result<Vec<_>>>()
+                .map_err(err)?;
+            for rev in revisions {
+                record_recovery(db, file, &rev, false)?;
+            }
+            db.execute("INSERT INTO lan_material_files(file,local_id) VALUES(?,NULL) ON CONFLICT(file) DO NOTHING",[file]).map_err(err)?;
             if let Some(local) = local_file(db, file)? {
                 db.execute("DELETE FROM files WHERE id=?", [local])
                     .map_err(err)?;
@@ -475,6 +742,120 @@ pub(crate) fn apply(db: &Connection, event: &Event, change: Change) -> Result<()
     } else {
         db.execute("DELETE FROM sync_runtime WHERE key='applying'", [])
     }
+    .map_err(err)?;
+    Ok(())
+}
+
+pub(crate) fn record_recovery(
+    db: &Connection,
+    file: &str,
+    revision: &str,
+    done: bool,
+) -> Result<()> {
+    let n=db.execute("INSERT INTO lan_recoverable_edits(file,revision,done) VALUES(?,?,?)
+       ON CONFLICT(revision) DO UPDATE SET done=excluded.done WHERE file=excluded.file AND done<excluded.done",params![file,revision,done]).map_err(err)?;
+    if n == 1 {
+        let event = Change::Recovery {
+            file: file.to_string(),
+            revision: revision.to_string(),
+            done,
+        };
+        db.execute(
+            "INSERT INTO lan_saved_outbox(snapshot) VALUES(?)",
+            [serde_json::to_string(&event).map_err(err)?],
+        )
+        .map_err(err)?;
+    }
+    Ok(())
+}
+
+/// An explicit recovery creates a new material from the archived baseline and
+/// visible edits. The deleted stable ID remains retired on every replica.
+pub(crate) fn recover_copy(
+    db: &Connection,
+    file: &str,
+    picked: &str,
+    store: &impl session::SavedStore,
+) -> Result<()> {
+    let original:Vec<u8>=db.query_row("SELECT b.data FROM lan_material_blobs b JOIN lan_history h ON h.eid=b.event
+        WHERE json_extract(h.snapshot,'$.material_op')='create' AND json_extract(h.snapshot,'$.file')=? ORDER BY h.ordinal LIMIT 1",[file],|r|r.get(0)).map_err(err)?;
+    let mut s: Snapshot = serde_json::from_slice(&original).map_err(err)?;
+    let field = |name: &str, basis: Option<&str>| -> Result<Option<(Option<String>, String)>> {
+        db.query_row("SELECT value,basis FROM lan_material_values WHERE file=?1 AND field=?2 AND (?3 IS NULL OR basis=?3)
+            ORDER BY revision=?4 DESC,automatic,generation DESC,revision DESC LIMIT 1",params![file,name,basis,picked],|r|Ok((r.get(0)?,r.get(1)?))).optional().map_err(err)
+    };
+    if let Some((Some(title), _)) = field("title", None)? {
+        s.title = title;
+    }
+    if let Some((Some(body), _)) = field("body", None)? {
+        s.body = body;
+    }
+    for sentence in &mut s.sentences {
+        let canonical:String=db.query_row("SELECT coalesce((SELECT sentence FROM lan_material_aliases WHERE file=? AND alias=?2),?2)",params![file,sentence.id],|r|r.get(0)).map_err(err)?;
+        let mut basis = String::new();
+        if let Some((Some(value), v)) = field(&format!("cue:{canonical}"), None)? {
+            let (index, en, start, end): Cue = serde_json::from_str(&value).map_err(err)?;
+            sentence.index = index;
+            sentence.english = en;
+            sentence.start = start;
+            sentence.end = end;
+            basis = v;
+        }
+        if let Some((value, _)) = field(&canonical, Some(&basis))? {
+            sentence.chinese = value;
+        }
+        sentence.id = Uuid::new_v4().simple().to_string();
+    }
+    // A user is recovering readable text. Source manifests may refer to an
+    // older body; retain them only while their original content still validates.
+    if s.source.as_ref().is_some_and(|source| {
+        store
+            .validate_source(source, &s.body, &s.kind, s.sentences.len())
+            .is_err()
+    }) {
+        s.source = None;
+    }
+    let new_id = Uuid::new_v4().simple().to_string();
+    let event = Uuid::new_v4().simple().to_string();
+    let bytes = serde_json::to_vec(&s).map_err(err)?;
+    let n = bytes.len();
+    let old: Option<String> = db
+        .query_row(
+            "SELECT value FROM sync_runtime WHERE key='applying'",
+            [],
+            |r| r.get(0),
+        )
+        .optional()
+        .map_err(err)?;
+    db.execute(
+        "INSERT OR REPLACE INTO sync_runtime(key,value) VALUES('applying','1')",
+        [],
+    )
+    .map_err(err)?;
+    publish(db, &new_id, s, store)?;
+    if let Some(value) = old {
+        db.execute(
+            "UPDATE sync_runtime SET value=? WHERE key='applying'",
+            [value],
+        )
+    } else {
+        db.execute("DELETE FROM sync_runtime WHERE key='applying'", [])
+    }
+    .map_err(err)?;
+    db.execute(
+        "INSERT INTO lan_material_blobs(event,data) VALUES(?,?)",
+        params![event, bytes],
+    )
+    .map_err(err)?;
+    let change = Change::Create {
+        file: new_id,
+        bytes: n,
+        sha256: String::new(),
+    };
+    db.execute(
+        "INSERT INTO lan_saved_outbox(eid,snapshot) VALUES(?,?)",
+        params![event, serde_json::to_string(&change).map_err(err)?],
+    )
     .map_err(err)?;
     Ok(())
 }

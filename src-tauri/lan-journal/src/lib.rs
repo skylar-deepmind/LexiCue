@@ -5,7 +5,12 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
+pub mod checkpoint;
+mod conflicts;
 pub mod material;
+mod metadata;
+pub mod portable;
+pub use conflicts::{conflicts, resolve, Conflict};
 pub mod session;
 pub type Result<T> = std::result::Result<T, String>;
 pub const VERSION: u8 = 1;
@@ -62,18 +67,105 @@ fn install_streams(db: &mut Connection, route: &Route, materials: bool) -> Resul
     tx.execute_batch(include_str!("schema.sql")).map_err(err)?;
     let first=tx.execute("INSERT INTO lan_saved_peer(singleton,pair,local_replica,peer_replica) VALUES(1,?1,?2,?3) ON CONFLICT(singleton) DO NOTHING",
         params![route.pair.to_string(),route.from.to_string(),route.to.to_string()]).map_err(err)?;
+    if first == 0 && route.check(&tx).is_err() {
+        rotate_pair(&tx, route)?;
+    }
     route.check(&tx)?;
     if first == 1 {
         tx.execute(
-            "INSERT INTO lan_saved_outbox(snapshot) SELECT snapshot_json FROM saved_records
-            WHERE json_extract(snapshot_json,'$.origin')='reader' ORDER BY id",
+            "INSERT INTO lan_saved_outbox(snapshot) SELECT snapshot FROM lan_portable_saves ORDER BY id",
             [],
         )
         .map_err(err)?;
     }
     if materials {
         material::install(&tx)?;
+        metadata::install(&tx)?;
+        portable::enforce_graves(&tx)?;
     }
+    tx.commit().map_err(err)
+}
+
+/// Upgrade the local capture rules before the reader can make offline changes.
+/// Never enables LAN tracking, trusts a route or resets an existing watermark.
+pub fn upgrade_tracked_library(db: &Connection) -> Result<()> {
+    let needed:bool=db.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name='lan_material_files') AND NOT EXISTS(SELECT 1 FROM sqlite_schema WHERE name='lan_capture_media_attachment')",[],|r|r.get(0)).map_err(err)?;
+    if !needed {
+        return Ok(());
+    }
+    let tx = db.unchecked_transaction().map_err(err)?;
+    tx.execute_batch(include_str!("schema.sql")).map_err(err)?;
+    tx.execute_batch("DROP TRIGGER IF EXISTS lan_material_snapshot")
+        .map_err(err)?;
+    material::schema(&tx)?;
+    metadata::install(&tx)?;
+    // Capture an attachment made by the previous app while offline, unless its
+    // create manifest already included this exact media identity.
+    tx.execute_batch("UPDATE files SET media_source=media_source WHERE media_source IS NOT NULL AND media_identity IS NOT NULL
+        AND EXISTS(SELECT 1 FROM lan_material_files m WHERE m.local_id=files.id)
+        AND NOT EXISTS(SELECT 1 FROM lan_history h JOIN lan_material_blobs b ON b.event=h.eid
+          JOIN lan_material_files m ON m.file=json_extract(h.snapshot,'$.file')
+          WHERE m.local_id=files.id AND json_extract(h.snapshot,'$.material_op')='create' AND
+          json_extract(CAST(b.data AS TEXT),'$.source.media_identity')=files.media_identity);").map_err(err)?;
+    tx.commit().map_err(err)
+}
+
+// This is reachable only through the user-confirmed, backed-up preparation path.
+// A revoked route can never resume by presenting old credentials or old ACKs.
+fn rotate_pair(tx: &Connection, route: &Route) -> Result<()> {
+    let (previous, active): (String, bool) = tx
+        .query_row("SELECT pair,active FROM lan_saved_peer", [], |r| {
+            Ok((r.get(0)?, r.get(1)?))
+        })
+        .map_err(err)?;
+    let reused: bool = tx
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM lan_retired_pairs WHERE pair=?)",
+            [route.pair.to_string()],
+            |r| r.get(0),
+        )
+        .map_err(err)?;
+    if active || reused || previous == route.pair.to_string() {
+        return Err("inactive or different LAN pair/replica epoch".into());
+    }
+    tx.execute("INSERT INTO lan_retired_pairs VALUES(?)", [&previous])
+        .map_err(err)?;
+    tx.execute_batch("DELETE FROM lan_saved_inbox; DELETE FROM lan_saved_outbox; DELETE FROM sqlite_sequence WHERE name='lan_saved_outbox';").map_err(err)?;
+    tx.execute("UPDATE lan_saved_peer SET pair=?,local_replica=?,peer_replica=?,received=0,offered=0,acked=0,applying=1,active=1",
+        params![route.pair.to_string(),route.from.to_string(),route.to.to_string()]).map_err(err)?;
+    tx.execute("INSERT INTO lan_saved_outbox(eid,parent,snapshot) SELECT eid,parent,snapshot FROM lan_history ORDER BY ordinal",[]).map_err(err)?;
+    if tx
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name='lan_material_stage')",
+            [],
+            |r| r.get::<_, bool>(0),
+        )
+        .map_err(err)?
+    {
+        tx.execute("DELETE FROM lan_material_stage", [])
+            .map_err(err)?;
+    }
+    tx.execute("UPDATE lan_saved_peer SET applying=0", [])
+        .map_err(err)?;
+    Ok(())
+}
+
+/// Retain enough proof to validate retries. Logical checkpoints/tombstones stay
+/// available to a newly paired epoch even after old delivery rows are removed.
+pub fn compact(db: &mut Connection, local: &Route, peer_acked: i64) -> Result<()> {
+    let tx = db
+        .transaction_with_behavior(TransactionBehavior::Immediate)
+        .map_err(err)?;
+    let p = progress(&tx, local)?;
+    if peer_acked < 0 || peer_acked > p.received {
+        return Err("invalid peer checkpoint".into());
+    }
+    tx.execute(
+        "DELETE FROM lan_saved_inbox WHERE seq<=?",
+        [peer_acked.saturating_sub(MAX_EVENTS as i64)],
+    )
+    .map_err(err)?;
+    tx.execute("DELETE FROM lan_saved_outbox WHERE seq<=? AND EXISTS(SELECT 1 FROM lan_history h WHERE h.eid=lan_saved_outbox.eid)",[p.acked.saturating_sub(MAX_EVENTS as i64)]).map_err(err)?;
     tx.commit().map_err(err)
 }
 
@@ -146,7 +238,7 @@ fn pending(
     db: &mut Connection,
     local: &Route,
     through: i64,
-    validate: impl Fn(&str) -> Result<()>,
+    store: &impl session::SavedStore,
 ) -> Result<Option<Batch>> {
     let tx = db
         .transaction_with_behavior(TransactionBehavior::Immediate)
@@ -180,12 +272,17 @@ fn pending(
             let mut single = false;
             if let Some(mut change) = material::parse(&event.snapshot)? {
                 single = change.blob().is_some();
+                if matches!(change, material::Change::Create { .. }) {
+                    material::check_outgoing_source(&tx, &event.id, store)?;
+                } else if matches!(change, material::Change::Large { .. }) {
+                    material::check_outgoing_attachment(&tx, &event.id, store)?;
+                }
                 if single && !events.is_empty() {
                     break;
                 }
                 material::transfer::seal(&tx, &mut event, &mut change)?;
             } else {
-                validate(&event.snapshot)?;
+                store.validate(&event.snapshot)?;
             }
             event.digest = event.checksum(local)?;
             events.push(event);
@@ -221,8 +318,7 @@ pub fn receive(
     db: &mut Connection,
     local: &Route,
     batch: &Batch,
-    validate: impl Fn(&str) -> Result<()>,
-    apply: impl Fn(&Connection, &str) -> Result<()>,
+    store: &impl session::SavedStore,
 ) -> Result<Ack> {
     if batch.version != VERSION
         || batch.route != local.reverse()
@@ -263,15 +359,60 @@ pub fn receive(
         if received.checked_add(1) != Some(event.seq) {
             return Err("saved sequence gap".into());
         }
-        if let Some(change) = material::parse(&event.snapshot)? {
+        let archived: Option<(String, Option<String>)> = tx
+            .query_row(
+                "SELECT snapshot,parent FROM lan_history WHERE eid=?",
+                [&event.id],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .optional()
+            .map_err(err)?;
+        if let Some((snapshot, parent)) = archived {
+            let mut old = Event {
+                snapshot,
+                ..event.clone()
+            };
+            if let Some(mut change) = material::parse(&old.snapshot)? {
+                material::transfer::seal(&tx, &mut old, &mut change)?;
+            }
+            if old.snapshot != event.snapshot || parent != event.parent {
+                return Err("checkpoint event fork".into());
+            }
+            if material::transfer::blob_size(event)?.is_some() {
+                tx.execute("DELETE FROM lan_material_stage WHERE event=?", [&event.id])
+                    .map_err(err)?;
+            }
+        } else if let Some(change) = material::parse(&event.snapshot)? {
             if event.parent.is_some() {
                 return Err("unexpected material parent".into());
             }
-            material::apply(&tx, event, change)?;
+            if change.blob().is_some() {
+                tx.execute("INSERT INTO lan_material_blobs(event,data,digest) SELECT event,data,digest FROM lan_material_stage WHERE event=? AND filled=bytes",[&event.id]).map_err(err)?;
+            }
+            if let material::Change::Resolution {
+                file,
+                field,
+                parents,
+                picked,
+            } = change
+            {
+                conflicts::apply_choice(
+                    &tx,
+                    &file,
+                    &field,
+                    &parents,
+                    &picked,
+                    &event.id,
+                    &|db, s| store.write(db, s),
+                )?;
+            } else {
+                material::apply(&tx, event, change, store)?;
+            }
         } else {
-            validate(&event.snapshot)?;
-            merge(&tx, event, &apply)?;
+            store.validate(&event.snapshot)?;
+            merge(&tx, event, &|db, s| store.write(db, s))?;
         }
+        tx.execute("INSERT INTO lan_history(eid,parent,snapshot) VALUES(?,?,?) ON CONFLICT(eid) DO NOTHING",params![event.id,event.parent,event.snapshot]).map_err(err)?;
         tx.execute(
             "INSERT INTO lan_saved_inbox(seq,eid,digest) VALUES(?1,?2,?3)",
             params![event.seq, event.id, event.digest],
@@ -300,7 +441,7 @@ fn merge(
     apply: &impl Fn(&Connection, &str) -> Result<()>,
 ) -> Result<()> {
     let h: Header = serde_json::from_str(&event.snapshot).map_err(err)?;
-    if h.origin != "reader"
+    if !matches!(h.origin.as_str(), "reader" | "legacy")
         || h.record_id.is_empty()
         || h.revision.is_empty()
         || h.revision.len() > 128
@@ -341,8 +482,7 @@ fn merge(
     .map_err(err)?;
     // Independent edits remain retrievable as heads. Within a generation,
     // delete wins. Never use either wall clock to discard an edit.
-    let winner:String=db.query_row("SELECT v.snapshot FROM lan_saved_versions v WHERE v.entity=?1
-        AND NOT EXISTS(SELECT 1 FROM lan_saved_versions child WHERE child.entity=v.entity AND child.parent=v.rev)
+    let winner:String=db.query_row("SELECT v.snapshot FROM lan_saved_heads v WHERE v.entity=?1
         ORDER BY json_extract(v.snapshot,'$.generation') DESC,(json_extract(v.snapshot,'$.deleted_at') IS NOT NULL) DESC,
         (json_extract(v.snapshot,'$.explanation_source')='personal') DESC,v.depth DESC,v.rev DESC LIMIT 1",
         [&h.record_id],|r|r.get(0)).map_err(err)?;

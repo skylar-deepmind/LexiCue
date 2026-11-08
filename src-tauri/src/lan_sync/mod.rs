@@ -1,4 +1,4 @@
-//! Local first-merge preparation. No LAN operation is exposed over IPC yet.
+//! Local recovery points and first-merge preparation.
 pub mod saved_delta;
 mod sentences;
 pub use sentences::prepare_sentence_ids;
@@ -15,15 +15,20 @@ pub struct MergeBackup {
 }
 
 impl MergeBackup {
+    pub(crate) fn existing(database: &Path, operation: Uuid) -> Self {
+        Self {
+            path: database
+                .with_file_name("backups")
+                .join(format!("lexicue-pre-merge-{operation}.db")),
+        }
+    }
     /// Call on a blocking worker with the trusted local app database path.
     /// Persist the operation ID before calling. A retry reopens the original
     /// point in time even after new local edits or a process restart.
     pub fn prepare(database: &Path, operation: Uuid) -> Result<Self, String> {
         let parent = database.parent().ok_or("invalid local database path")?;
         let directory = parent.join("backups");
-        let backup = Self {
-            path: directory.join(format!("lexicue-pre-merge-{operation}.db")),
-        };
+        let backup = Self::existing(database, operation);
         let mut verified = false;
         if !backup.path.try_exists().map_err(|e| e.to_string())? {
             // Separate read connection: do not hold the shared app mutex while

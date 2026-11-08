@@ -28,9 +28,14 @@ fn body() -> String {
 }
 pub fn seed(db: &mut Connection, local: &Route, mac: bool) -> Result<()> {
     db.execute_batch("PRAGMA journal_mode=WAL;
-    CREATE TABLE files(id INTEGER PRIMARY KEY,name TEXT NOT NULL,type TEXT NOT NULL,content TEXT NOT NULL,content_hash TEXT NOT NULL,imported_at INTEGER NOT NULL,language TEXT NOT NULL);
+    CREATE TABLE files(id INTEGER PRIMARY KEY,name TEXT NOT NULL,type TEXT NOT NULL,content TEXT NOT NULL,content_hash TEXT NOT NULL,imported_at INTEGER NOT NULL,language TEXT NOT NULL,media_source TEXT,media_identity TEXT,document_source TEXT,document_identity TEXT);
     CREATE TABLE segments(id INTEGER PRIMARY KEY,file_id INTEGER REFERENCES files(id) ON DELETE CASCADE,index_num INTEGER,en_text TEXT,zh_text TEXT,start_time TEXT,end_time TEXT);
+    CREATE TABLE tags(id INTEGER PRIMARY KEY,name TEXT,name_key TEXT UNIQUE,tone TEXT,created_at INTEGER);
+    CREATE TABLE file_tags(id INTEGER PRIMARY KEY,file_id INTEGER,tag_id INTEGER,UNIQUE(file_id,tag_id));
+    CREATE TABLE reader_positions(file_id INTEGER PRIMARY KEY,segment_id INTEGER,content_hash TEXT,revision TEXT,parent TEXT,back INTEGER);
     CREATE TABLE sync_entity_state(table_name TEXT,local_id INTEGER,sync_id TEXT,updated_at INTEGER,deleted_at INTEGER,PRIMARY KEY(table_name,local_id),UNIQUE(table_name,sync_id));
+    CREATE TABLE restored_material_ids(file_id INTEGER PRIMARY KEY,stable TEXT NOT NULL UNIQUE);
+    CREATE VIEW reader_material_ids AS SELECT f.id AS file_id,coalesce(b.stable,s.sync_id) AS stable FROM files f JOIN sync_entity_state s ON s.table_name='files' AND s.local_id=f.id LEFT JOIN restored_material_ids b ON b.file_id=f.id;
     CREATE TABLE sync_runtime(key TEXT PRIMARY KEY,value TEXT);
     CREATE TABLE sync_delete_jobs(file_id INTEGER,phase TEXT);
     CREATE TABLE material_import_actions(file_id INTEGER);
@@ -39,7 +44,7 @@ pub fn seed(db: &mut Connection, local: &Route, mac: bool) -> Result<()> {
     if mac {
         let tx = db.transaction().map_err(|e| e.to_string())?;
         tx.execute(
-            "INSERT INTO files VALUES(1,?,'srt',?,'local',1,'en')",
+            "INSERT INTO files(id,name,type,content,content_hash,imported_at,language) VALUES(1,?,'srt',?,'local',1,'en')",
             params![TITLE, body()],
         )
         .map_err(|e| e.to_string())?;

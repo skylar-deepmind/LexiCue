@@ -185,11 +185,32 @@ fn route(
             )?;
             Ok(Value::Null)
         }
+        "remember_reading_position" => {
+            let revision = materials::write_position(
+                c,
+                id("fileId"),
+                id("segment"),
+                text("contentHash"),
+                a["parent"].as_str(),
+                a["back"].as_bool().unwrap_or(false),
+                a["legacy"].as_bool().unwrap_or(false),
+            )?;
+            Ok(json!(revision))
+        }
+        "set_tag_tone" => {
+            tags::write_tag_tone(
+                c,
+                id("tagId"),
+                text("tone"),
+                a["onlyIfUnset"].as_bool().unwrap_or(false),
+            )?;
+            Ok(Value::Null)
+        }
         "list_tags" => {
             let mut s = c
-                .prepare("SELECT id,name,created_at FROM tags ORDER BY name")
+                .prepare("SELECT id,name,created_at,tone FROM tags ORDER BY name")
                 .map_err(|e| e.to_string())?;
-            let v=s.query_map([],|r|Ok(json!({"id":r.get::<_,i64>(0)?,"name":r.get::<_,String>(1)?,"created_at":r.get::<_,i64>(2)?}))).map_err(|e|e.to_string())?.collect::<rusqlite::Result<Vec<_>>>().map_err(|e|e.to_string())?;
+            let v=s.query_map([],|r|Ok(json!({"id":r.get::<_,i64>(0)?,"name":r.get::<_,String>(1)?,"created_at":r.get::<_,i64>(2)?,"tone":r.get::<_,Option<String>>(3)?}))).map_err(|e|e.to_string())?.collect::<rusqlite::Result<Vec<_>>>().map_err(|e|e.to_string())?;
             Ok(json!(v))
         }
         "create_tag" => Ok(json!(tags::ensure_tag(c, text("name"))?)),

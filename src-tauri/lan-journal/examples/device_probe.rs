@@ -98,7 +98,7 @@ fn run(
                 if cmd == "material-patch"
                     && !matches!(
                         req.operation,
-                        Operation::Hello | Operation::Pull { .. } | Operation::Confirm(_)
+                        Operation::Hello(_) | Operation::Pull { .. } | Operation::Confirm(_)
                     )
                 {
                     return Err("unexpected extra edit transfer".into());

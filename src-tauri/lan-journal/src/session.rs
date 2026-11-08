@@ -1,8 +1,9 @@
 //! One bounded catch-up round on a trusted duplex link. The caller invokes
 //! this on connection/reconnection. All restart state lives in SQLite.
 use super::*;
+use crate::checkpoint::Hello;
 use crate::material::transfer::{self, Chunk, Cursor};
-const SESSION_VERSION: u8 = 2;
+pub const SESSION_VERSION: u8 = 5;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Request {
@@ -12,7 +13,7 @@ pub struct Request {
 }
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Operation {
-    Hello,
+    Hello(Hello),
     Offer(Batch),
     ReadChunk(Cursor),
     PutChunk(Chunk),
@@ -22,7 +23,7 @@ pub enum Operation {
 }
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Reply {
-    Hello(Progress),
+    Hello(Hello),
     Need(Option<Cursor>),
     Chunk(Chunk),
     Staged(usize),
@@ -32,6 +33,15 @@ pub enum Reply {
 }
 
 pub trait SavedStore {
+    fn validate_source(
+        &self,
+        _source: &material::Source,
+        _body: &str,
+        _kind: &str,
+        _segments: usize,
+    ) -> Result<()> {
+        Err("unsupported material source".into())
+    }
     fn validate(&self, snapshot: &str) -> Result<()>;
     fn write(&self, tx: &Connection, snapshot: &str) -> Result<()>;
 }
@@ -49,17 +59,14 @@ pub fn respond(
         Operation::Offer(batch) => Ok(Reply::Need(transfer::need(db, local, &batch)?)),
         Operation::ReadChunk(cursor) => Ok(Reply::Chunk(transfer::read(db, local, cursor)?)),
         Operation::PutChunk(chunk) => Ok(Reply::Staged(transfer::stage(db, local, chunk)?)),
-        Operation::Hello => Ok(Reply::Hello(progress(db, local)?)),
-        Operation::Deliver(batch) => Ok(Reply::Applied(receive(
-            db,
-            local,
-            &batch,
-            |s| store.validate(s),
-            |tx, s| store.write(tx, s),
-        )?)),
-        Operation::Pull { through } => Ok(Reply::Pending(pending(db, local, through, |s| {
-            store.validate(s)
-        })?)),
+        Operation::Hello(peer) => {
+            let here = Hello::read(db, local)?;
+            peer.verify(db, local, &here.progress)?;
+            compact(db, local, peer.progress.acked)?;
+            Ok(Reply::Hello(here))
+        }
+        Operation::Deliver(batch) => Ok(Reply::Applied(receive(db, local, &batch, store)?)),
+        Operation::Pull { through } => Ok(Reply::Pending(pending(db, local, through, store)?)),
         Operation::Confirm(ack) => {
             confirm(db, local, &ack)?;
             Ok(Reply::Confirmed)
@@ -80,29 +87,19 @@ pub fn catch_up(
             operation,
         })
     };
-    let p = progress(db, local)?;
-    let Reply::Hello(peer) = call(Operation::Hello)? else {
+    let here = Hello::read(db, local)?;
+    let p = here.progress.clone();
+    let Reply::Hello(proof) = call(Operation::Hello(here))? else {
         return Err("expected saved peer progress".into());
     };
-    if peer.materials != p.materials {
-        return Err("incompatible material capability; update or prepare peer".into());
-    }
-    if peer.received < p.acked
-        || peer.received > p.offered
-        || p.received < peer.acked
-        || p.received > peer.offered
-        || peer.acked < 0
-        || peer.acked > peer.offered
-        || peer.offered > peer.head
-    {
-        return Err("saved replica progress diverged; reconcile before continuing".into());
-    }
+    proof.verify(db, local, &p)?;
+    let peer = proof.progress;
+    compact(db, local, peer.acked)?;
     let mut pushed = p.acked;
     let mut pulled = peer.acked;
     while pushed < p.head || pulled < peer.head {
         if pushed < p.head {
-            let batch = pending(db, local, p.head, |s| store.validate(s))?
-                .ok_or("missing local saved changes")?;
+            let batch = pending(db, local, p.head, store)?.ok_or("missing local saved changes")?;
             let end = batch.events.last().unwrap().seq;
             if let Some(size) = transfer::blob_size(&batch.events[0])? {
                 let Reply::Need(need) = call(Operation::Offer(batch.clone()))? else {
@@ -156,13 +153,7 @@ pub fn catch_up(
                     }
                 }
             }
-            let ack = receive(
-                db,
-                local,
-                &batch,
-                |s| store.validate(s),
-                |tx, s| store.write(tx, s),
-            )?;
+            let ack = receive(db, local, &batch, store)?;
             pulled = ack.seq;
             if !matches!(call(Operation::Confirm(ack))?, Reply::Confirmed) {
                 return Err("peer did not persist ACK".into());

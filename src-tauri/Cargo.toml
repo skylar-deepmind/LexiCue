@@ -18,13 +18,13 @@ name = "app_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [features]
-lan-sync = ["dep:lexicue-lan-journal"]
+lan-sync = []
 
 [build-dependencies]
 tauri-build = { version = "2.6.3", features = [] }
 
 [dependencies]
-lexicue-lan-journal = { path = "lan-journal", optional = true }
+lexicue-lan-journal = { path = "lan-journal" }
 tauri = { version = "2.11.3", features = ["protocol-asset"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
@@ -64,8 +64,14 @@ keyring-core = "1.0"
 [target.'cfg(target_os = "android")'.dependencies]
 android-native-keyring-store = "1.0"
 
+[target.'cfg(target_os = "ios")'.dependencies]
+apple-native-keyring-store = { version = "1.0", features = ["protected"] }
+
+[target.'cfg(target_vendor = "apple")'.dependencies]
+rcgen = { version = "0.13.2", default-features = false, features = ["crypto", "ring"] }
+p12 = "0.6.3"
+
 [dev-dependencies]
-lexicue-lan-journal = { path = "lan-journal" }
 tempfile = "3"
 
 # Large model checksums must not block debug builds for minutes.

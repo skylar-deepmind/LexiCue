@@ -84,6 +84,7 @@ export function positionMatchesMaterial(saved: { hash?: unknown } | null, materi
 
 /** Local segment metadata, never an inferred completion percentage or an N+1 document fetch. */
 export function readingPosition(material: Material): number | null {
+    if (material.position) return material.position.segment;
     try {
         const key = material.source?.key ?? material.document?.identity ?? material.content_hash;
         const saved = JSON.parse(localStorage.getItem(`lexicue-reader-state:${key}`) ?? 'null');

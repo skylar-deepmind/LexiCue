@@ -66,9 +66,31 @@ final class PairingWindow {
     return true
   }
 
+  var canBeClaimed: Bool {
+    lock.lock()
+    defer { lock.unlock() }
+    return available && uptime() < expires
+  }
+
   func invalidate() {
     lock.lock()
     defer { lock.unlock() }
     available = false
+  }
+}
+
+extension PairingOffer {
+  func pngURI() throws -> String {
+    let qr = try qrImage()
+    // A white four-module quiet zone keeps camera recognition reliable against
+    // either app theme, including displays scaled by accessibility settings.
+    let white = CIImage(color: CIColor(red: 1, green: 1, blue: 1))
+      .cropped(to: qr.extent.insetBy(dx: -4, dy: -4))
+    let image = qr.composited(over: white).transformed(by: CGAffineTransform(scaleX: 6, y: 6))
+    guard
+      let bytes = CIContext().pngRepresentation(
+        of: image, format: .RGBA8, colorSpace: CGColorSpaceCreateDeviceRGB())
+    else { throw Failure.unavailable }
+    return "data:image/png;base64," + bytes.base64EncodedString()
   }
 }

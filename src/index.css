@@ -1463,3 +1463,12 @@ button:disabled:is([class*='bg-blue-'], [class*='bg-purple-'], [class*='bg-gray-
 
 .status-badge-control:hover { background:var(--interactive-hover); color:var(--text-strong); }
 .status-badge-control:active { background:var(--interactive-pressed); }
+
+.tag-tone-dot[data-tone] { width: .64em; height: .64em; flex: none; border-radius: 50%; border: 1px solid currentColor; }
+.tag-tone-dot[data-tone="blue"] { background: #639ddd; }
+.tag-tone-dot[data-tone="green"] { background: #78aa79; }
+.tag-tone-dot[data-tone="pink"] { background: #d68fa9; }
+.tag-tone-dot[data-tone="purple"] { background: #a58acb; }
+.tag-tone-dot[data-tone="amber"] { background: #cfa858; }
+.tag-tone-dot[data-tone="slate"] { background: #8e98a7; }
+.tag-manager__list select { color: var(--text-body); background: var(--surface); border: 1px solid var(--border); border-radius: 6px; min-height: 44px; }

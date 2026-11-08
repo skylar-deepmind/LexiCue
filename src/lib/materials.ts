@@ -8,6 +8,7 @@ export interface Material {
     segment_count: number;
     preview: string;
     tags: TagInfo[];
+    position?: { segment: number; revision: string } | null;
     /** Read-only native provenance; absent only for older callers/fixtures. */
     source_kind?: 'youtube' | 'webpage' | 'clipboard' | 'file';
     original_format?: string;

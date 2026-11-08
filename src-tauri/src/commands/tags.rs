@@ -10,6 +10,7 @@ pub struct TagInfo {
     pub id: i64,
     pub name: String,
     pub created_at: i64,
+    pub tone: Option<String>,
 }
 
 pub fn name_key(name: &str) -> Result<String, String> {
@@ -42,7 +43,40 @@ pub fn create_tables(conn: &Connection) -> rusqlite::Result<()> {
     CREATE TABLE IF NOT EXISTS file_tag_state (
         file_id INTEGER PRIMARY KEY REFERENCES files(id) ON DELETE CASCADE
     ) STRICT;",
+    )?;
+    if !conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM pragma_table_info('tags') WHERE name='tone')",
+        [],
+        |r| r.get::<_, bool>(0),
+    )? {
+        conn.execute_batch("ALTER TABLE tags ADD COLUMN tone TEXT CHECK(tone IN ('blue','green','pink','purple','amber','slate'));")?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn set_tag_tone(
+    state: State<DbState>,
+    tag_id: i64,
+    tone: String,
+    only_if_unset: Option<bool>,
+) -> Result<(), String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    write_tag_tone(&conn, tag_id, &tone, only_if_unset.unwrap_or(false))
+}
+
+pub(super) fn write_tag_tone(
+    conn: &Connection,
+    tag_id: i64,
+    tone: &str,
+    only_if_unset: bool,
+) -> Result<(), String> {
+    conn.execute(
+        "UPDATE tags SET tone=? WHERE id=? AND (tone IS NULL OR NOT ?)",
+        params![tone, tag_id, only_if_unset],
     )
+    .map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 fn now_ms() -> i64 {
@@ -64,12 +98,13 @@ pub fn ensure_tag(conn: &Connection, name: &str) -> Result<i64, String> {
 }
 
 pub fn file_tags(conn: &Connection, file_id: i64) -> rusqlite::Result<Vec<TagInfo>> {
-    let mut stmt = conn.prepare("SELECT t.id,t.name,t.created_at FROM tags t JOIN file_tags ft ON ft.tag_id=t.id WHERE ft.file_id=?1 ORDER BY t.name_key,t.id")?;
+    let mut stmt = conn.prepare("SELECT t.id,t.name,t.created_at,t.tone FROM tags t JOIN file_tags ft ON ft.tag_id=t.id WHERE ft.file_id=?1 ORDER BY t.name_key,t.id")?;
     let rows = stmt.query_map([file_id], |r| {
         Ok(TagInfo {
             id: r.get(0)?,
             name: r.get(1)?,
             created_at: r.get(2)?,
+            tone: r.get(3)?,
         })
     })?;
     rows.collect()
@@ -213,7 +248,7 @@ pub fn migrate_legacy(conn: &Connection) -> Result<(), String> {
 pub fn list_tags(state: State<DbState>) -> Result<Vec<TagInfo>, String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
     let mut stmt = conn
-        .prepare("SELECT id,name,created_at FROM tags ORDER BY name_key,id")
+        .prepare("SELECT id,name,created_at,tone FROM tags ORDER BY name_key,id")
         .map_err(|e| e.to_string())?;
     let rows = stmt
         .query_map([], |r| {
@@ -221,6 +256,7 @@ pub fn list_tags(state: State<DbState>) -> Result<Vec<TagInfo>, String> {
                 id: r.get(0)?,
                 name: r.get(1)?,
                 created_at: r.get(2)?,
+                tone: r.get(3)?,
             })
         })
         .map_err(|e| e.to_string())?;

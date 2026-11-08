@@ -3612,13 +3612,12 @@ async fn pull_apply_events(
     Ok(applied)
 }
 
-// Local slice candidates must never access production credentials or endpoints,
-// including command calls outside the settings UI.
+// The retired account service is unavailable even to direct WebView calls.
 fn ensure_sync_available() -> Result<(), String> {
     if option_env!("LEXICUE_SLICE_PREVIEW") == Some("1") {
         return Err("preview_sync_disabled".into());
     }
-    Ok(())
+    Err("sync_service_not_configured".into())
 }
 
 #[tauri::command]
