@@ -140,3 +140,18 @@ npm --prefix marketing run deliver:video-final
 成品写入 `output/marketing/video-final/`，不会覆盖官网、README 或之前的 90／30 秒视频。两个画幅各有中文字幕版、去除底部讲解字幕版、SRT 和封面；`masters/` 保存本地高质量原始渲染与混合音轨。正式视频入口为该目录的 `index.html`，投稿文案、章节时间与配乐署名见 `PUBLISHING.md`，验证报告见 `qa/verification.json`。
 
 `video-final.mjs` 从当前分镜计算音效时间，将合成点击音按实际操作点对齐并重新混音。所有视频为 30 fps、H.264、yuv420p、AAC 48 kHz 双声道；验证包括精确帧数、音画时长、完整解码与全片联系表。旧 `render.mjs` 仍导出原分镜，请使用上述新版入口。
+
+## 合并后的宣发审核
+
+本机 Codex 的「LexiCue 合并后宣发」自动化每小时检查一次 GitHub 的 `main`，沿用本机 Codex 和 GitHub 登录。项目角色定义在 `.codex/agents/lexicue-marketing.toml`。首次检查从角色合入主线的提交起算，电脑休眠期间的合并会在恢复运行后一起处理。
+
+在任一项目 worktree 中先运行 `git fetch origin main:refs/remotes/origin/main`，再运行 `node scripts/marketing-queue.mjs plan`。结果中的 `pulls` 是本批已合入主线的 PR；支持普通、squash 和 rebase 合并。自动化使用独立目录，调用 `lexicue_marketing` 对照这些 PR 与当前宣发资料，有用户可见的差异才更新。已有待审宣发 PR 时，在保留审核意见和人工修改的前提下续写该 PR。
+
+另一次独立 AI 复核检查功能依据、公开版本、四语一致性和生成物，并记录实际测试与预览。修复发现后，将验证结果和复核意见写入宣发 PR，再由维护者决定是否合并。若功能已准确覆盖，则记录理由。仅在交付成功、确认无需更新或仅有宣发 PR 合入后，运行 `node scripts/marketing-queue.mjs ack BASE TARGET`，将检查点保存在本机 Git 引用 `refs/lexicue/marketing-reviewed`。失败时保留原检查点供下轮重试。
+
+每次本机任务按以下顺序执行：
+
+1. 在项目主目录 fetch。若当前 checkout 落后或带有本地改动，从已抓取的 `origin/main` 读取本节与队列脚本（例如 `git show origin/main:scripts/marketing-queue.mjs | node --input-type=module - plan`），保留用户的工作目录。角色尚未合入时等待下一轮；`idle` 直接结束，`self-only` 只确认检查点。
+2. 对 `pending`，先取得 `pulls` 中各 PR 和公开 Release 的事实，使用项目的独立 worktree 流程。没有待审宣发 PR 时，从 `target` 的已提交版本建立分支，名称为 `codex/marketing-update-` 加本批第一个功能 PR 合并 SHA 的前 12 位。先查同名分支、已交付 PR 和在途任务；重试时复用成果，避免重复提交。已有待审宣发 PR 时先读取该分支、人工修改和审核意见，同时核对这批目标版本的新代码。出现冲突或并发写入时保留现场，下一轮继续，避免强推或重置。若成果已交付后才发生检查点失败，核对覆盖的 SHA 和已记录的审核结果再补记。
+3. 明确调用 `lexicue_marketing`，传入独立目录、base、target、PR 编号、公开版本和待保留的改动。若当前会话未加载新角色，在含该角色的任务 worktree 启动普通的 `codex exec` 并让它调用同名角色、等待返回。交付前另开只读 AI 复核本次完整 diff、事实依据和生成结果，修复实质性问题后再复核。遇到角色调用、验证、身份凭据或推送失败时，报告具体原因，保持检查点供重试。
+4. 只提交本任务文件，推送宣发分支，向 `main` 创建或更新 PR。在 PR 中用中文列出源 PR、覆盖到的完整 SHA、可见变化、AI 复核结论、实际验证与预览入口。保留现有 PR 正文中的人工内容。检查 GitHub 上的目标、分支和 head SHA，成功后标记本批已处理。AI 复核作为 PR 意见供维护者决策；保留人工合并权和全部分支。
