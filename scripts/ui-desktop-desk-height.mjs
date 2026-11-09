@@ -14,11 +14,11 @@ async function fixture(page, state, theme) {
     const long = state === 'long';
     const files = state === 'empty' ? [] : Array.from({length:2}, (_, index) => ({
       id: index + 1,
-      name: long ? 'Observing the park on a quiet morning '.repeat(6) + 'UnbrokenWord'.repeat(8) : 'The Art of Noticing',
+      name: long ? 'Observing the park on a quiet morning '.repeat(6) + 'UnbrokenWord'.repeat(8) : ['Quiet Afternoon.pdf', 'How To Learn To Code In 2026.srt'][index],
       content_hash: 'sample-' + index,
       segment_count: 3,
       imported_at: 1,
-      preview: 'On a walk through the park, I noticed the birds singing in the trees.',
+      preview: 'A Quiet Afternoon We opened the window and listened to the birds.',
       tags: Array.from({length: long ? 19 : 2}, (_, id) => ({
         id, name: long && id === 0 ? 'UnbrokenTag'.repeat(14) : 'Tag ' + id, tone:'blue',
       })),
@@ -52,6 +52,16 @@ try {
         const label = theme + '/' + state + '/' + width + '×' + height;
         check(metrics.overflowX <= 1, label + ' horizontal overflow');
         if (state !== 'long') check(metrics.overflowY <= 1, label + ' extra vertical scroll: ' + metrics.overflowY);
+        if (state === 'simple') {
+          const geometry = await page.evaluate(() => {
+            const card = document.querySelector('.desk-paper[data-desk-active="true"]').getBoundingClientRect();
+            const pager = document.querySelector('.desk-pager').getBoundingClientRect();
+            const shelf = document.querySelector('.desk-library-dock').getBoundingClientRect();
+            return { height: card.height, gap: shelf.top - pager.bottom };
+          });
+          check(geometry.gap >= 0 && geometry.gap <= 32, label + ' shelf follows pagination');
+          if (height >= 720) check(geometry.height >= 320, label + ' full-size card');
+        }
         if (state === 'long') {
           const clipping = await page.locator(active + ' :is(h2,.file-tag)').evaluateAll(nodes =>
             nodes.some(el => el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1));

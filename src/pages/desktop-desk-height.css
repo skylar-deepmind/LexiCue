@@ -12,8 +12,10 @@
   .reading-stage-content > .desk-dock-wrap {
     position: static;
     transform: none;
-    margin: auto auto 0;
+    margin: clamp(.75rem, 4.5vh, 2rem) auto 0;
   }
+
+  .reading-stage-content .desk-feedback:has(> [role='status']:only-child:empty) { min-height: 0; }
 
   .reading-stage-content .desk-card-tags { min-width: 0; }
   .reading-stage-content .desk-card-tags .file-tag {
@@ -23,8 +25,15 @@
   }
 }
 
-/* Retain the roomy desktop proportions where the whole scene already fits. */
-@media (min-width: 768px) and (max-height: 800px) {
+/* Keep the original card typography and proportions at typical laptop heights. */
+@media (min-width: 768px) and (min-height: 711px) and (max-height: 800px) {
+  .reading-stage-page > .materials-scroll { padding-block: 16px 12px; }
+  .reading-stage-content > .materials-heading { margin-bottom: 12px; }
+  .reading-stage-content .desk-stack { padding-block: 10px 16px; }
+  .reading-stage-content > .desk-dock-wrap { margin-top: 24px; }
+}
+
+@media (min-width: 768px) and (max-height: 710px) {
   .reading-stage-page > .materials-scroll {
     padding-block: clamp(.5rem, 2.5vh, 1.5rem);
   }
@@ -61,16 +70,15 @@
     display: grid;
     align-items: center;
   }
-  .reading-stage-content > .desk-dock-wrap { padding-top: .5rem; }
-
-  /* Keep the live region mounted; reserve height only when it has feedback. */
-  .reading-stage-content .desk-feedback:has(> [role='status']:only-child:empty) { min-height: 0; }
+  .reading-stage-content > .desk-dock-wrap { margin-top: .5rem; }
 }
 
 @media (min-width: 768px) and (max-height: 520px) {
   .reading-stage-page > .materials-scroll { padding-block: .375rem; }
   .reading-stage-content > .materials-heading h1 { font-size: 1.5rem; line-height: 1.35; }
   .reading-stage-content .desk-empty { padding-block: .625rem; }
+  .reading-stage-content .desk-stack { padding-block: 0; }
+  .reading-stage-content > .desk-dock-wrap { margin-top: .25rem; }
 
   .reading-stage-content .desk-paper {
     display: grid;
