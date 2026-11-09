@@ -23,8 +23,9 @@ async function fixture(page, state, theme) {
         id, name: long && id === 0 ? 'UnbrokenTag'.repeat(14) : 'Tag ' + id, tone:'blue',
       })),
     }));
-    const items = state === 'stored' ? [] : files.map(f => ({id:f.id, hash:f.content_hash, identity:'content:' + f.content_hash}));
-    localStorage.setItem('lexicue-reading-desk:v2', JSON.stringify({version:2, initialized:true, items, opened:[], selected:items[0] ?? null}));
+    const items = state === 'stored' ? [] : files.map(f => ({id:f.id, identity:'content:' + f.content_hash, hash:f.content_hash}));
+    // Use the store's canonical serialization, rather than its recovery state.
+    localStorage.setItem('lexicue-reading-desk:v2', JSON.stringify({version:2, initialized:true, items, selected:items[0] ?? null, opened:[]}));
     localStorage.setItem('lexicue-onboarding-v1', JSON.stringify({version:1, status:'skipped'}));
     localStorage.setItem('lexicue-theme', theme);
     window.__TAURI_EVENT_PLUGIN_INTERNALS__ = {unregisterListener() {}};
@@ -64,7 +65,8 @@ try {
               bottomBlank: content.bottom - dock.bottom,
               above: card.top - heading.bottom, below: pager.top - card.bottom };
           });
-          check(geometry.gap >= 0 && geometry.gap <= 32, label + ' shelf follows pagination');
+          // Fractional browser scaling can round a 32px margin just above 32.
+          check(geometry.gap >= -.5 && geometry.gap <= 32.5, label + ' shelf follows pagination');
           check(geometry.bottomBlank <= 32, label + ' shelf uses the bottom of the workspace');
           check(Math.abs(geometry.above - geometry.below) <= 48, label + ' card has balanced vertical space');
           if (height >= 720) check(geometry.height >= 320, label + ' full-size card');
