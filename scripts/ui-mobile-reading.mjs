@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import {writeFile,mkdir} from 'node:fs/promises';
 import {randomUUID} from 'node:crypto';
+import {checkMobileLibrarySheet} from './ui-mobile-library-sheet.mjs';
 import {createReadingHarness} from './ui-reading-support.mjs';
 const output=process.env.LEXICUE_MOBILE_OUTPUT||'/tmp/lexicue-mobile-ui';
 await mkdir(output,{recursive:true});
@@ -218,5 +219,6 @@ try {
   await page.locator('.reading-word').first().waitFor();ok(true,`${theme}: text import opens reading`);
   await context.close();
  }
+ await checkMobileLibrarySheet(h);
  await writeFile(`${output}/evidence.json`,JSON.stringify({checks:evidence,errors:h.errors},null,2));console.log(`PASS: ${evidence.length} mobile checks (${output})`);
 } catch(error) {if(page&&!page.isClosed()){await page.screenshot({path:`${output}/failure.png`});await writeFile(`${output}/failure.json`,JSON.stringify(await page.evaluate(async()=>({text:document.body.innerText,calls:window.__uiCalls,store:(await window.__uiStoreModule('importStore')).useImportStore.getState()})),null,2));}throw error;} finally {await h.dispose();}

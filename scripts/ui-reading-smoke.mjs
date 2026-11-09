@@ -43,7 +43,17 @@ try{
   await page.getByRole('button',{name:'新建标签',exact:true}).click();const prompt=page.getByRole('dialog',{name:'新建标签',exact:true});
   await prompt.getByRole('textbox').fill('Keep this tag name');await page.evaluate(()=>window.__uiFailure={command:'create_tag',afterCommit:false,remaining:1});
   await prompt.getByRole('button',{name:'新建标签',exact:true}).click();await prompt.getByRole('alert').waitFor();eq(await prompt.getByRole('textbox').inputValue(),'Keep this tag name','failed tag create retains draft');
-  await page.setViewportSize({width:390,height:320});ok(await prompt.getByRole('button',{name:'新建标签',exact:true}).evaluate(node=>node.getBoundingClientRect().bottom<=innerHeight),'short screen primary action reachable');await page.setViewportSize({width:1440,height:900});
+  await page.setViewportSize({width:390,height:320});
+  const createTag = prompt.getByRole('button',{name:'新建标签',exact:true});
+  ok(await createTag.evaluate(node=>node.getBoundingClientRect().bottom<=innerHeight),'short screen primary action reachable');
+  ok(await createTag.evaluate(node=>{
+    // A resize can precede the visualViewport listener by one frame.
+    const root=document.documentElement, previous=root.style.getPropertyValue('--visual-height');
+    root.style.setProperty('--visual-height','900px');
+    try { return node.getBoundingClientRect().bottom<=innerHeight; }
+    finally { root.style.setProperty('--visual-height',previous); }
+  }),'tag action remains visible before the visual viewport catches up');
+  await page.setViewportSize({width:1440,height:900});
   await prompt.getByRole('button',{name:'新建标签',exact:true}).click();await prompt.waitFor({state:'detached'});await page.keyboard.press('Escape');await page.getByRole('dialog',{name:'管理标签',exact:true}).waitFor({state:'detached'});ok(await page.getByRole('button',{name:'管理标签',exact:true}).evaluate(node=>node===document.activeElement),'tag manager restores focus');await page.keyboard.press('Escape');await page.locator('.library-overlay-layer').waitFor({state:'detached'});eq(await page.locator('#root').evaluate(node=>node.inert),false,'inert released');
   await page.locator('.b-dock [data-guide=import]').click();await page.locator('.lc-import-sources').waitFor();
   eq(await page.locator('.lc-import-modal select').count(),0,'no mandatory language form');

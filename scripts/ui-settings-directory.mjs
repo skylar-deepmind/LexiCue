@@ -13,7 +13,7 @@ try {
       reducedMotion:'reduce', ...(phone ? {userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Mobile',isMobile:true,hasTouch:true} : {}),
     });
     await page.addInitScript(phone => {
-      localStorage.setItem('lexicue-preferences', JSON.stringify({state:{uiLanguage:'zh'},version:0}));
+      localStorage.setItem('lexicue-preferences', JSON.stringify({state:{uiLanguage:'zh',youtube:{browserSession:{enabled:true,browser:'chrome',profile:'Default'}}},version:0}));
       localStorage.setItem('lexicue-onboarding-v1', JSON.stringify({version:1,status:'skipped'}));
       window.isTauri = true;
       window.calls = [];
@@ -23,6 +23,8 @@ try {
         invoke:async command => {
           window.calls.push(command);
           if (window.requestGates.has(command)) await window.requestGates.get(command).promise;
+          if (command === 'youtube_ytdlp_status') return {available:false,path:null,version:null,ejs:'unknown'};
+          if (command === 'list_legacy_records') return {rows:[],more:false};
           if (command === 'longman_dictionary_status') return {state:'ready',audio_available:true};
           if (command === 'device_sync') return {role:phone?'iphone':'mac',state:'waiting',paired:true,peerName:'Test'};
           if (command === 'plugin:app|version') return '0.4.6';
@@ -63,6 +65,42 @@ try {
       const clearSpeech=page.getByRole('button', {name:'清除朗读缓存', exact:true});
       await checkPending('clear_tts_cache', () => clearSpeech.click(), page.locator('button[aria-busy=true] .busy-ring'));
       await page.getByRole('button',{name:'返回',exact:true}).click();
+      await page.locator('[data-entry=youtube]').click();
+      if (phone) {
+        await page.getByText(/公开的英语字幕/).waitFor();
+        assert.equal(await page.getByRole('switch').count(), 0);
+        assert.ok(!(await page.evaluate(()=>window.calls)).includes('youtube_ytdlp_status'));
+        const enabled = await page.evaluate(async () => {
+          const {usePreferencesStore} = await import('/src/stores/preferencesStore.ts');
+          return usePreferencesStore.getState().youtube.browserSession.enabled;
+        });
+        assert.equal(enabled, false, 'a historical desktop session cannot block public iOS tracks');
+      } else {
+        const toggle = page.getByRole('switch');
+        await toggle.click();
+        assert.equal(await page.locator('#youtube-browser-profile').isDisabled(), true);
+        await toggle.click();
+        await page.locator('#youtube-browser-profile').fill('wrong:profile');
+        assert.equal(await page.locator('#youtube-browser-profile').getAttribute('aria-invalid'), 'true');
+        await page.locator('#youtube-browser-profile').fill('Default');
+        await page.getByText(/未找到 yt-dlp/).waitFor();
+      }
+      await page.getByRole('button',{name:'清除字幕缓存'}).click();
+      await page.getByRole('status').filter({hasText:'字幕缓存已清除'}).waitFor();
+      await page.getByRole('button',{name:'返回',exact:true}).click();
+
+      await page.locator('[data-entry=backup]').click();
+      await page.getByRole('button',{name:/^导出/}).click();
+      await page.getByRole('button',{name:'恢复备份',exact:true}).click();
+      const calls = await page.evaluate(()=>window.calls);
+      assert.ok(calls.includes('plugin:dialog|save') && calls.includes('plugin:dialog|open'));
+      assert.ok(!calls.includes('restore_all') && !calls.includes('plugin:fs|write_text_file'), 'cancel is side-effect free');
+      await page.locator('a[href="/legacy"]').click();
+      await page.locator('.legacy-kind select').selectOption('words');
+      await page.locator('.legacy-search').fill('example');
+      await page.goBack();
+      await page.getByRole('button',{name:'返回',exact:true}).click();
+
       const updates=page.locator('[data-entry=updates]');
       await updates.focus();
       await page.keyboard.press('Enter');

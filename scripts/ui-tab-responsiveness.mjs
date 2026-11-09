@@ -24,7 +24,7 @@ try{
   });
   await page.locator(`${nav} a[href="/saved"]`).click();await page.locator('.saved-page').waitFor();
   ok(await page.evaluate(()=>window.__slowTabReads>0),'Saved page commits while native reply is pending');
-  ok(await page.locator('.saved-status').isVisible(),'visible loading feedback while first index is read');
+  ok(await page.locator('.saved-page .loading-skeleton--list .loading-skeleton__shape').isVisible(),'visible loading feedback while first index is read');
   await page.locator('.saved-record-list li').first().waitFor();
   ok(await page.evaluate(()=>window.__savedListAnimations.length===0),'first index never starts a zero-height list animation');
   ok(await page.locator('.saved-record-list').evaluate(n=>{const r=n.getBoundingClientRect();return r.height>40&&!n.closest('[data-motion-moving]');}),'first populated list appears at full height without an empty snapshot animation');

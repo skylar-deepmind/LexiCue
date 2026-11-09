@@ -20,7 +20,7 @@ try{
  const segments=Array.from({length:180},(_,index)=>({index,en_text:text,zh_text:'好奇心邀请我们仔细观察身边的世界，留意容易错过的细节，并给自己足够的时间去倾听和理解。',start_time:clock(index*5),end_time:clock(index*5+4)}));
  const imported=await h.call('import_reading_material',{input:{operation_id:randomUUID(),name:'Adaptive reading — isolated fixture.srt',content:segments.map(s=>`${s.index+1}\n${s.start_time} --> ${s.end_time}\n${s.en_text}\n${s.zh_text}`).join("\n\n"),segments}});
  for(const theme of ['ocean','midnight']){
-  const context=await h.browser.newContext({viewport:{width:1440,height:900}});page=await context.newPage();await page.routeWebSocket('**',s=>s.close());await h.fixture(page,theme);
+  const context=await h.browser.newContext({viewport:{width:1440,height:900}});page=await context.newPage();page.setDefaultTimeout(15000);await page.routeWebSocket('**',s=>s.close());await h.fixture(page,theme);
   await page.goto(`${h.url}/files/${imported.file_id}`);await page.locator('.reading-word').first().waitFor();
   for(const [width,height] of (focused?[]:[[800,600],[1024,768],[1100,750],[1280,800],[1440,900],[1920,1080],[2560,1440]])){
    await page.setViewportSize({width,height});await settle();
@@ -39,6 +39,7 @@ try{
    const offset=()=>anchor.evaluate(n=>n.getBoundingClientRect().top-document.querySelector('.reader-scroll').getBoundingClientRect().top);
    const initialOffset=await offset();await anchor.click();await page.locator('.lookup-stage[data-lookup-state="ready"]').waitFor();await settle();
    ok(Math.abs(await offset()-initialOffset)<=46,`${theme} middle query opening anchor`);
+   await page.locator('.soft-refresh-current .lookup-secondary > summary').click();
    await page.getByRole('button',{name:'补充个人解释',exact:true}).click();await page.locator('#reader-meaning').fill('保留跨布局的草稿');
    await page.evaluate(()=>{window.__adaptivePanel=document.querySelector('.context-panel');window.__adaptiveCalls=window.__uiCalls.filter(c=>c.command.startsWith('lookup_')).length;});
    const resizeOffsets=[];
