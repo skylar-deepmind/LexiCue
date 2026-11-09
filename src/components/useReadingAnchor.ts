@@ -7,6 +7,7 @@ type Anchor = { node: HTMLElement; offset: number; sentence?: string; word?: str
 export default function useReadingAnchor(scroll: RefObject<HTMLDivElement | null>) {
     const refresh = useRef<() => void>(() => {});
     const preserve = useRef<() => void>(() => {});
+    const capturePosition = useRef<() => void>(() => {});
     useLayoutEffect(() => {
         const viewport = scroll.current;
         const paper = viewport?.querySelector<HTMLElement>('.reading-paper');
@@ -82,6 +83,7 @@ export default function useReadingAnchor(scroll: RefObject<HTMLDivElement | null
             capture();
         };
         refresh.current = () => { if (transaction) transaction.committed = true; restore(); };
+        capturePosition.current = capture;
         capture();
         const observer = new ResizeObserver(restore);
         observer.observe(viewport); observer.observe(paper);
@@ -102,12 +104,14 @@ export default function useReadingAnchor(scroll: RefObject<HTMLDivElement | null
         viewport.addEventListener('keydown', keys);
         document.addEventListener('keydown', tab);
         return () => {
-            preserve.current = () => {}; refresh.current = () => {};
+            preserve.current = () => {}; refresh.current = () => {}; capturePosition.current = () => {};
             transaction = null; cancelAnimationFrame(frame); delete viewport.dataset.readingAnchoring;
             observer.disconnect(); viewport.removeEventListener('scroll', onScroll); viewport.removeEventListener('pointerdown', pointer, true);
             viewport.removeEventListener('wheel', manual); viewport.removeEventListener('touchmove', manual); viewport.removeEventListener('keydown', keys); document.removeEventListener('keydown', tab);
         };
     }, [scroll]);
     useLayoutEffect(() => { refresh.current(); });
-    return useCallback(() => preserve.current(), []);
+    const preservePosition = useCallback(() => preserve.current(), []);
+    const rememberViewport = useCallback(() => capturePosition.current(), []);
+    return { preservePosition, rememberViewport };
 }

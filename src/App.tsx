@@ -1,4 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import MobileStartup from './components/MobileStartup';
+import { isMobilePlatform } from './lib/platform';
 import Layout from './components/Layout';
 import FilesPage from './pages/FilesPage';
 import FileDetailPage from './pages/FileDetailPage';
@@ -16,13 +18,14 @@ function LegacyReadingRedirect() {
 }
 function FirstLaunch() {
   const outcome = useOnboardingStore(state => state.outcome);
-  return <Navigate to={outcome === 'unseen' ? '/example' : '/files'} replace/>;
+  return <Navigate to={outcome === 'unseen' ? '/files?guide=1' : '/files'} replace/>;
 }
 
 export default function App() {
   return (
     <ThemeProvider>
-      <BrowserRouter>
+      <MobileStartup>
+      <BrowserRouter useTransitions={!isMobilePlatform()}>
         <Routes>
           <Route element={<Layout />}>
             <Route path="/" element={<FirstLaunch />} />
@@ -40,6 +43,7 @@ export default function App() {
           </Route>
         </Routes>
       </BrowserRouter>
+      </MobileStartup>
     </ThemeProvider>
   );
 }

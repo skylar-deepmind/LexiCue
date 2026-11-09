@@ -13,6 +13,12 @@ pub struct BackupPayload {
 
 #[derive(Serialize, Deserialize)]
 pub struct BackupData {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub file_identities: Vec<serde_json::Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lan_checkpoint: Option<lexicue_lan_journal::portable::Checkpoint>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub reader_positions: Vec<serde_json::Value>,
     // Retired settings remain portable and inspectable; never re-enable learning tasks.
     #[serde(default)]
     pub frequency_baseline_profiles: Vec<serde_json::Value>,
@@ -112,6 +118,9 @@ fn query_all(conn: &rusqlite::Connection, table: &str) -> Result<Vec<serde_json:
                     );
                 }
             }
+        }
+        if table == "tags" && row["tone"].is_null() {
+            row.as_object_mut().unwrap().remove("tone");
         }
         result.push(row);
     }
@@ -238,6 +247,17 @@ pub fn export_all(state: State<DbState>) -> Result<BackupPayload, String> {
 /// encrypted sync transport. Built-in dictionary tables are deliberately not
 /// included because each app installation owns those resources.
 pub fn backup_payload(conn: &rusqlite::Connection) -> Result<BackupPayload, String> {
+    if !conn.is_autocommit() {
+        return read_backup_payload(conn);
+    }
+    let tx = rusqlite::Transaction::new_unchecked(conn, rusqlite::TransactionBehavior::Deferred)
+        .map_err(|e| e.to_string())?;
+    let result = read_backup_payload(&tx)?;
+    tx.commit().map_err(|e| e.to_string())?;
+    Ok(result)
+}
+
+fn read_backup_payload(conn: &rusqlite::Connection) -> Result<BackupPayload, String> {
     let files = query_all(conn, "files")?;
     let folders = query_all(conn, "folders")?;
     let segments = query_all(conn, "segments")?;
@@ -255,7 +275,34 @@ pub fn backup_payload(conn: &rusqlite::Connection) -> Result<BackupPayload, Stri
     let phrase_dictionary_entries = query_all(conn, "phrase_dictionary_entries")?;
     let file_phrase_analysis = query_all(conn, "file_phrase_analysis")?;
 
+    let positions = if conn
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name='reader_positions')",
+            [],
+            |r| r.get::<_, bool>(0),
+        )
+        .map_err(|e| e.to_string())?
+    {
+        query_all(conn, "reader_positions")?
+    } else {
+        vec![]
+    };
+    let file_identities = if conn
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name='reader_material_ids')",
+            [],
+            |r| r.get::<_, bool>(0),
+        )
+        .map_err(|e| e.to_string())?
+    {
+        query_all(conn, "reader_material_ids")?
+    } else {
+        vec![]
+    };
     let data = BackupData {
+        file_identities,
+        reader_positions: positions,
+        lan_checkpoint: lexicue_lan_journal::portable::export(conn)?,
         frequency_baseline_profiles: query_all(conn, "frequency_baseline_profiles")?,
         frequency_baseline_marks: query_all(conn, "frequency_baseline_marks")?,
         frequency_baseline_daily_checks: query_all(conn, "frequency_baseline_daily_checks")?,
@@ -295,7 +342,12 @@ pub fn backup_payload(conn: &rusqlite::Connection) -> Result<BackupPayload, Stri
         phrase_dictionary_entries,
         file_phrase_analysis,
     };
-    let schema_version = if super::document_source::contains_content_origin(
+    let schema_version = if data.lan_checkpoint.is_some()
+        || !data.reader_positions.is_empty()
+        || data.tags.iter().any(|t| !t["tone"].is_null())
+    {
+        13
+    } else if super::document_source::contains_content_origin(
         &serde_json::to_value(&data).map_err(|e| e.to_string())?,
     ) {
         12
@@ -343,11 +395,21 @@ pub struct RestoreResult {
 
 /// Manual recovery keeps a full local SQLite safety copy. This deliberately
 /// leaves the portable export format and the cloud recovery protocol unchanged.
-fn restore_with_safety_backup(
+pub(crate) fn restore_with_safety_backup(
     conn: &rusqlite::Connection,
     backup: &BackupPayload,
 ) -> Result<RestoreResult, String> {
     validate_backup_version(backup)?;
+    #[cfg(target_vendor = "apple")]
+    return crate::device_sync::with_restore_paused(|| replace_after_backup(conn, backup));
+    #[cfg(not(target_vendor = "apple"))]
+    replace_after_backup(conn, backup)
+}
+
+fn replace_after_backup(
+    conn: &rusqlite::Connection,
+    backup: &BackupPayload,
+) -> Result<RestoreResult, String> {
     let path = conn.path().filter(|path| !path.is_empty()).ok_or(
         "restore_safety_backup_failed: database has no persistent path; restore was not started",
     )?;
@@ -374,7 +436,12 @@ pub fn restore_backup(conn: &rusqlite::Connection, backup: &BackupPayload) -> Re
         rusqlite::Transaction::new_unchecked(conn, rusqlite::TransactionBehavior::Immediate)
             .map_err(|e| e.to_string())?;
 
+    // A whole-library restore must never continue an older LAN sequence or
+    // publish replacement rows as local edits. Older builds can also open
+    // a database where the optional LAN feature was previously enabled.
+    lexicue_lan_journal::portable::guard_before_restore(&transaction)?;
     restore_rows(conn, backup)?;
+    lexicue_lan_journal::portable::restore(&transaction, backup.data.lan_checkpoint.as_ref())?;
     transaction.commit().map_err(|e| e.to_string())
 }
 
@@ -391,6 +458,7 @@ fn validate_backup_version(backup: &BackupPayload) -> Result<(), String> {
         && backup.schema_version != 10
         && backup.schema_version != 11
         && backup.schema_version != 12
+        && backup.schema_version != 13
     {
         return Err(format!(
             "Unsupported backup schema version: {}",
@@ -453,6 +521,17 @@ fn restore_rows(conn: &rusqlite::Connection, backup: &BackupPayload) -> Result<(
         .map_err(|e| e.to_string())?;
 
     insert_from_json(conn, "files", &backup.data.files)?;
+    for id in &backup.data.file_identities {
+        if !id["stable"].as_str().is_some_and(|s| {
+            !s.is_empty()
+                && s.len() <= 160
+                && s.bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b"-_:".contains(&b))
+        }) {
+            return Err("invalid material identity".into());
+        }
+    }
+    insert_from_json(conn, "restored_material_ids", &backup.data.file_identities)?;
     insert_from_json(
         conn,
         "material_import_actions",
@@ -522,6 +601,7 @@ fn restore_rows(conn: &rusqlite::Connection, backup: &BackupPayload) -> Result<(
             serde_json::from_str(raw).map_err(|e| e.to_string())?;
         super::saved::write_record(conn, &record)?;
     }
+    insert_from_json(conn, "reader_positions", &backup.data.reader_positions)?;
     insert_from_json(conn, "saved_actions", &backup.data.saved_actions)?;
     if backup
         .data
@@ -830,7 +910,7 @@ mod restore_safety_tests {
         assert_eq!(files.len(), 1);
         let copy = Connection::open(files[0].as_ref().unwrap().path()).unwrap();
         assert_eq!(data(&copy), before);
-        invalid.schema_version = 13;
+        invalid.schema_version = 14;
         assert!(restore_with_safety_backup(&conn, &invalid)
             .unwrap_err()
             .starts_with("Unsupported backup schema version:"));

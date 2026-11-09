@@ -5,6 +5,7 @@ import type { FileRecord, TagSelection } from '../lib/types';
 import Overlay from './Overlay';
 import TagPicker from './TagPicker';
 import { tagErrorMessage } from '../lib/tags';
+import {includeTagQuery,tagNameKey,type TagColors} from '../lib/tagAppearance';
 
 export default function TagEditDialog({ file, onClose }: { file: Pick<FileRecord, 'id'|'name'|'tags'>; onClose: () => void }) {
   const { t } = useTranslation();
@@ -13,6 +14,8 @@ export default function TagEditDialog({ file, onClose }: { file: Pick<FileRecord
   const tagsError = useFileStore(state => state.tagsError);
   const loadTags = useFileStore(state => state.loadTags);
   const [value, setValue] = useState<TagSelection>({ tagIds: file.tags.map(tag => tag.id), newTagNames: [] });
+  const [query,setQuery]=useState('');
+  const [colors,setColors]=useState<TagColors>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const pending = useRef(false);
@@ -21,14 +24,15 @@ export default function TagEditDialog({ file, onClose }: { file: Pick<FileRecord
     if (pending.current) return;
     pending.current = true; setSaving(true); setError('');
     try {
-      await useFileStore.getState().setFileTags(file.id, value);
+      await useFileStore.getState().setFileTags(file.id, includeTagQuery(value,query,tags), colors);
       onClose();
     } catch (error) { setError(t(tagErrorMessage(error, 'tags.saveFailed'))); }
     finally { pending.current = false; setSaving(false); }
   };
   return <Overlay label={t('tags.edit')} onClose={close} className="tag-dialog">
-    <header className="tag-dialog__header"><h2>{t('tags.edit')}</h2><p title={file.name}>{file.name}</p></header>
-    <div className="tag-dialog__body"><TagPicker tags={tags} value={value} onChange={setValue} disabled={saving}
+    <header className="tag-dialog__header"><h2>{t('tags.edit')}</h2></header>
+    <div className="tag-dialog__body"><TagPicker compact tags={tags} value={value} onChange={setValue} disabled={saving}
+      query={query} onQueryChange={setQuery} colors={colors} onColorChange={(name,tone)=>setColors(previous=>({...previous,[tagNameKey(name)]:tone}))}
       loading={loading} error={tagsError} onRetry={() => void loadTags(true)} />
       {error && <p className="tag-error" role="alert">{error}</p>}
     </div>

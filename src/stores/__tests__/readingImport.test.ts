@@ -11,6 +11,8 @@ vi.mock('../materialStore', () => ({ useMaterialStore: { getState: () => ({ chan
 import { prepareImportQueue, commitImportQueue, useImportStore, type ImportItem } from '../importStore';
 import { parseEnglishSrt } from '../../lib/englishSrt';
 import { parseEnglishText } from '../../lib/englishText';
+import {buildDocument} from '../../lib/documentCore';
+import {plainDocument} from '../../lib/documentMarkup';
 const srt = (text = 'We fly.') => `1\n00:00:01,000 --> 00:00:02,000\n${text}\n`;
 const item = (id: string): ImportItem => ({ id, name: id + '.srt', stage: 'queued', read: async () => srt() });
 const store = () => useImportStore.getState();
@@ -22,7 +24,7 @@ beforeEach(() => {
     store().changeSource(); store().hide(); vi.clearAllMocks();
     vi.stubGlobal('navigator', { userAgent: 'test' });
     mocks.parse.mockImplementation(async (text, _, name) => name?.endsWith('.txt') ? parseEnglishText(text) : parseEnglishSrt(text));
-    mocks.translate.mockImplementation(async segments => ({ segments, failed: false }));
+    mocks.translate.mockImplementation(async segments => ({ segments: segments.map((row: {zh_text: string|null; index: number}) => ({...row, zh_text: row.zh_text || `译文 ${row.index}`})), failed: false }));
     mocks.invoke.mockResolvedValue(receipt); mocks.cancel.mockResolvedValue(undefined);
 });
 
@@ -54,12 +56,12 @@ describe('preview and transaction boundaries', () => {
         expect(store().items.every(item => !item.draft)).toBe(true);
         await store().confirm(); expect(mocks.invoke).not.toHaveBeenCalled();
     });
-    it('prepares English TXT without waiting for translation and preserves existing bilingual text', async () => {
+    it('fully translates English TXT during preparation and keeps the original content', async () => {
         const text = 'She bought a book. She read it yesterday.';
         await store().start([{name: 'book.txt', read: async () => text}]);
-        expect(store().items[0].draft?.segments.map(s => [s.en_text,s.zh_text])).toEqual([['She bought a book.',null],['She read it yesterday.',null]]);
+        expect(store().items[0].draft?.segments.map(s => [s.en_text,s.zh_text])).toEqual([['She bought a book.','译文 0'],['She read it yesterday.','译文 1']]);
         expect(store().items[0].draft?.content).toBe(text);
-        expect(mocks.translate).not.toHaveBeenCalled();
+        expect(mocks.translate).toHaveBeenCalledOnce();
         expect(mocks.invoke).not.toHaveBeenCalled();
     });
     it('retries only missing YouTube translation using retained sentences without downloading again', async () => {
@@ -73,6 +75,18 @@ describe('preview and transaction boundaries', () => {
         expect(read).toHaveBeenCalledTimes(1);expect(mocks.parse).toHaveBeenCalledTimes(1);
         expect(store().items[0].draft?.segments.map(s=>s.zh_text)).toEqual(['第一句。','另一句。']);
         expect(mocks.invoke).not.toHaveBeenCalled();
+    });
+    it('reuses extracted binary-document metadata and partial translations on retry and range selection', async () => {
+        const extraction=await buildDocument(plainDocument('One sentence. Another sentence.'),'pdf','book.pdf','a'.repeat(64));
+        const retained=extraction.segments.map((row,index)=>({...row,zh_text:index===0?'已有译文':null}));
+        const retry:ImportItem={...item('binary-retry'),name:'book.pdf',kind:'file',preparedSegments:retained,extraction,read:async()=>extraction.content};
+        await store().start([retry]);
+        expect(store().items[0].stage).toBe('ready');expect(mocks.parse).not.toHaveBeenCalled();
+        expect(store().items[0].draft?.segments.map(row=>row.zh_text)).toEqual(['已有译文','译文 1']);
+        expect(store().items[0].extraction?.document.identity).toBe(extraction.document.identity);
+        await store().selectRange(store().items[0].id,{kind:'all'});
+        expect(store().items[0].draft?.segments.map(row=>row.zh_text)).toEqual(['已有译文','译文 1']);
+        expect(mocks.translate).toHaveBeenCalledOnce();expect(mocks.invoke).not.toHaveBeenCalled();
     });
     it('continues with completed YouTube translations after failure and cancels a late translation on close', async () => {
         mocks.translate.mockImplementationOnce(async segments => ({segments,failed:true}));
@@ -148,6 +162,16 @@ describe('preview and transaction boundaries', () => {
         await store().start([item('locked')]); const pending = deferred<typeof receipt>(); mocks.invoke.mockReturnValueOnce(pending.promise);
         const committing = store().confirm(); await store().start([item('drop')]); store().changeSource('youtube');
         expect(store().items[0].name).toBe('locked.srt'); pending.resolve(receipt); await committing;
+    });
+    it('completes YouTube translation before preview without committing material', async () => {
+        mocks.prepare.mockResolvedValueOnce({ status: 'complete', subtitle: { name: 'English.srt', content: srt() } });
+        await store().fromYouTube({ ...youtube, secondary: null });
+        expect(store().items[0]).toMatchObject({ stage: 'ready' });
+        expect(store().items[0].skipTranslation).not.toBe(true);
+        expect(store().items[0].draft?.segments[0].zh_text).toBe('译文 0');
+        expect(store().items[0].draft?.segments[0].en_text).toBe('We fly.');
+        expect(mocks.translate).toHaveBeenCalledOnce();
+        expect(mocks.invoke).not.toHaveBeenCalled();
     });
     it('keeps English after a translation failure, previews it without redownloading, and records only committed preferences', async () => {
         mocks.prepare.mockResolvedValueOnce({ status: 'partial', primary: { content: srt(), name: 'English.srt' } });

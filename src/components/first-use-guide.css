@@ -1,0 +1,25 @@
+@font-face { font-family:'Guide Comic';src:url('/fonts/GuideComic.woff2') format('woff2');font-weight:400;font-display:swap; }
+.app-guide { position:fixed;inset:0;z-index:230;pointer-events:none;color:var(--guide-ink); }
+.app-guide__shade { position:absolute;inset:0;overflow:visible;pointer-events:none; }
+.app-guide__bubble { position:absolute;pointer-events:auto;padding:12px 20px 16px;background:var(--surface);border:2px solid var(--guide-ink);border-radius:22px 20px 23px 17px;box-shadow:4px 5px 0 var(--guide-shadow);max-height:calc(100dvh - 32px);overflow-y:auto;overflow-x:hidden;animation:guide-note-in 240ms cubic-bezier(.22,1,.36,1); }
+.app-guide__tail { position:absolute;width:14px;height:14px;background:var(--surface);border:solid var(--guide-ink);border-width:2px 0 0 2px;pointer-events:none; }
+.app-guide__tail[data-side=top] { transform:rotate(45deg); }
+.app-guide__tail[data-side=bottom] { transform:rotate(225deg); }
+.app-guide__tail[data-side=left] { transform:rotate(-45deg); }
+.app-guide__tail[data-side=right] { transform:rotate(135deg); }
+.app-guide__top { display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px; }
+.app-guide__top small { font-size:12px;line-height:1.5;color:var(--text-muted); }
+.app-guide__bubble h2 { margin:0;font-family:'Guide Comic',sans-serif;font-weight:400;font-size:24px;line-height:1.4;text-wrap:balance;color:var(--text-strong); }
+.app-guide__bubble p { margin:10px 0 14px;font-family:'Guide Comic',sans-serif;font-size:19px;line-height:1.6;color:var(--text-body); }
+.app-guide__skip { display:grid;place-items:center;flex:none;width:44px;height:44px;margin:-4px -12px -4px 0;border-radius:12px;background:transparent;color:var(--text-body);cursor:pointer; }
+.app-guide__bubble footer { display:flex;justify-content:flex-end;min-height:28px;align-items:center; }
+.app-guide__bubble footer>span { font-size:12px;color:var(--text-muted); }
+.app-guide__next { display:flex;align-items:center;gap:8px;padding:10px 14px;min-height:44px;border-radius:11px;background:var(--accent-600);color:var(--on-accent);font-size:13px;font-weight:600;cursor:pointer; }
+.app-guide__next:hover { background:var(--accent-700); }
+.app-guide__next:active { transform:translateY(1px); }
+.app-guide__skip:hover { background:var(--interactive-hover);color:var(--text-strong); }
+.app-guide button:focus-visible { outline:2px solid var(--focus-ring,var(--accent-600));outline-offset:3px; }
+.app-guide button:disabled { background:var(--interactive-disabled);color:var(--text-muted);cursor:default; }
+@keyframes guide-note-in { from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)} }
+@media(max-width:767px) { .app-guide__bubble { padding:10px 18px 14px; }.app-guide__bubble h2{font-size:22px}.app-guide__bubble p{font-size:18px;line-height:1.5;margin:8px 0 12px} }
+@media(prefers-reduced-motion:reduce) { .app-guide__bubble { animation:none; }.app-guide__next:active{transform:none} }

@@ -26,7 +26,7 @@ async function fixture(page,theme){
   localStorage.setItem('lexicue-theme',theme);const previous=JSON.parse(localStorage.getItem('lexicue-preferences')||'{"state":{},"version":0}');localStorage.setItem('lexicue-preferences',JSON.stringify({...previous,state:{...previous.state,uiLanguage:'zh'}}));
   window.__uiCalls=[];window.__uiFiles={};window.__uiReadHandles=new Map();window.__uiNextReadHandle=1000;window.__uiClosedFiles=[];window.__uiFailure=null;window.__uiDelayLookup=false;window.__uiDelayContexts=false;
   window.__uiStoreModule=name=>{const path=`/src/stores/${name}.ts`;const resource=performance.getEntriesByType('resource').findLast(entry=>new URL(entry.name).pathname===path);return import(resource?.name||path);};
-  const core=new Set(['begin_example_session','end_example_session','example_saved_for_selection','mutate_example_saved_record','undo_example_saved_mutation','saved_recall_index','saved_recall_catalog','saved_recall_contexts','import_reading_material','fill_reading_translations','list_materials','open_reading_material','lookup_reading_expression','lookup_longman_expression','lookup_cambridge_expression','lookup_free_dictionary_expression','longman_dictionary_status','saved_for_selection','mutate_saved_record','undo_saved_mutation','list_saved_records','list_saved_groups','saved_group_contexts','saved_record_source','saved_migration_report','saved_record_conflicts','export_all','restore_all','list_tags','create_tag','rename_tag','delete_tag','set_file_tags','list_legacy_records','legacy_record_detail']);
+  const core=new Set(['begin_example_session','end_example_session','example_saved_for_selection','mutate_example_saved_record','undo_example_saved_mutation','saved_recall_index','saved_recall_catalog','saved_recall_contexts','import_reading_material','fill_reading_translations','list_materials','open_reading_material','lookup_reading_expression','lookup_longman_expression','lookup_cambridge_expression','lookup_free_dictionary_expression','longman_dictionary_status','saved_for_selection','mutate_saved_record','undo_saved_mutation','list_saved_records','list_saved_groups','saved_group_contexts','saved_record_source','saved_migration_report','saved_record_conflicts','export_all','restore_all','remember_reading_position','set_tag_tone','list_tags','create_tag','rename_tag','delete_tag','set_file_tags','list_legacy_records','legacy_record_detail']);
   extraCommands.forEach(command=>core.add(command));
   window.__TAURI_EVENT_PLUGIN_INTERNALS__={unregisterListener(){}};
   window.__TAURI_INTERNALS__={transformCallback:()=>1,unregisterCallback(){},convertFileSrc:path=>path,invoke:async(command,args={})=>{
@@ -69,6 +69,10 @@ async function fixture(page,theme){
    if(command==='plugin:fs|read_text_file')return Array.from(new TextEncoder().encode(window.__uiFiles[args.path]));
    if(command==='plugin:fs|write_text_file')return null;
    if(command==='youtube_ytdlp_status')return {available:false,path:'',version:null};
+   // External translation is controlled; imports and reading writeback still
+   // pass through the production preparation logic and real SQLite cores.
+   if(command==='translate_import_sentences')return {translations:args.sentences.map(row=>({index:row.index,translation:`测试译文 ${row.index+1}。`})),error:null};
+   if(command==='cancel_import_translation')return;
    if(command==='plugin:updater|check')return null;
    if(command==='list_files')return [];
    if(command.startsWith('plugin:')||command.startsWith('sync_'))return null;

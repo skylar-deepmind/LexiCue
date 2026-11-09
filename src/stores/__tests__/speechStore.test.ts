@@ -3,9 +3,10 @@ const mocks = vi.hoisted(() => {
   const values = new Map<string, string>();
   vi.stubGlobal('localStorage', { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => values.set(key, value), removeItem: (key: string) => values.delete(key) });
   vi.stubGlobal('navigator', { language: 'en-US' });
-  return { invoke: vi.fn(), storage: values };
+  return { invoke: vi.fn(), storage: values, nativeEvent: { handler: null as null | ((event: {payload: {id:string,index:number,status:string}}) => void) } };
 });
 vi.mock('@tauri-apps/api/core', () => ({ invoke: mocks.invoke }));
+vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn((_event, handler) => { mocks.nativeEvent.handler = handler; return Promise.resolve(() => {}); }) }));
 import { useSpeechStore } from '../speechStore';
 import { usePreferencesStore } from '../preferencesStore';
 import { normalizeSpeechPreferences } from '../../lib/speechPreferences';
@@ -682,6 +683,38 @@ describe('retained reading session', () => {
     expect(speech().reading).toMatchObject({ status: 'paused', pauseReason: 'hidden', index: 0 });
     lifecycle.visibilityState = 'visible'; listeners.get('visibilitychange')!();
     expect(speech().reading?.status).toBe('paused');
+  });
+
+  it('owns an iOS queue across background, ignores stale events, and retains user pause/resume', async () => {
+    vi.stubGlobal('navigator', { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X)', maxTouchPoints: 5 });
+    const listeners = new Map<string, () => void>();
+    const lifecycle = { visibilityState: 'visible', addEventListener: (name: string, listener: () => void) => listeners.set(name, listener) };
+    vi.stubGlobal('document', lifecycle);
+    mocks.invoke.mockImplementation((command: string, args: {id?:string}) => command === 'ios_reading_control' ? Promise.resolve({id:args.id,index:0,status:'playing'}) : Promise.resolve());
+    await speech().startQueue(items);
+    const request = mocks.invoke.mock.calls.find(([name]) => name === 'ios_reading_start')![1].request;
+    expect(request.texts).toEqual(items.map(item => item.text));
+    expect(request).toMatchObject({voice:'en-US-JennyNeural',onlineEnabled:true,allowDeviceFallback:true});
+    expect(speech().reading).toMatchObject({status:'playing',index:0});
+    lifecycle.visibilityState = 'hidden'; listeners.get('visibilitychange')!();
+    expect(speech().reading?.status).toBe('playing');
+    expect(TestAudio.played).toHaveLength(0);
+    mocks.nativeEvent.handler!({payload:{id:'old-session',index:1,status:'playing'}});
+    expect(speech().reading?.index).toBe(0);
+    mocks.nativeEvent.handler!({payload:{id:request.id,index:1,status:'playing'}});
+    expect(speech().reading?.index).toBe(1);
+    speech().pause();
+    expect(mocks.invoke).toHaveBeenCalledWith('ios_reading_control',{id:request.id,action:'pause'});
+    expect(speech().reading).toMatchObject({status:'paused',pauseReason:'user'});
+    await speech().resume();
+    expect(mocks.invoke).toHaveBeenCalledWith('ios_reading_control',{id:request.id,action:'resume'});
+    speech().setRate(1.25);
+    await vi.waitFor(()=>expect(mocks.invoke).toHaveBeenCalledWith('ios_reading_start',{request:expect.objectContaining({rate:1.25,voice:'en-US-JennyNeural'})}));
+    const latest = mocks.invoke.mock.calls.filter(([name])=>name==='ios_reading_start').at(-1)![1].request;
+    speech().stop();
+    expect(mocks.invoke).toHaveBeenCalledWith('ios_reading_control',{id:latest.id,action:'stop'});
+    mocks.nativeEvent.handler!({payload:{id:request.id,index:1,status:'playing'}});
+    expect(speech().reading).toBeNull();
   });
 
   it('backgrounding stops an active word while retaining its paused reading session', async () => {

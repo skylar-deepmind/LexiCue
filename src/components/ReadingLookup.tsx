@@ -1,10 +1,10 @@
+import { LoadingSkeleton, BusyRing } from './LoadingFeedback';
 import { dictionarySourceLabelKey, dictionaryOnlineSourceNumber } from '../lib/dictionaryPresentation';
 import { documentLocationLabel } from '../lib/documentTypes';
 import useContentFontScaleStyle from './useContentFontScaleStyle';
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { SpeechOwnerContext } from './speechOwner';
 import { createPortal } from 'react-dom';
-import { invoke } from '@tauri-apps/api/core';
 import { recoverLookupUndo, startLookupUndo, type LookupUndoSession } from './lookupUndoSession';
 import { useTranslation } from 'react-i18next';
 import { Check, Pencil, Undo2 } from 'lucide-react';
@@ -21,7 +21,7 @@ import { dictionaryReference, hasSubstantiveTargetContent, lookupLongman, should
 import { runOnlineDictionary, type OnlineIssue, type OnlineProvider } from '../lib/onlineDictionary';
 import type { Segment } from '../lib/types';
 import { savedErrorKey, type SavedRecord, type SavedMutation, type SavedMutationResult } from '../lib/savedRecords';
-import { selectionInScope, mutateInScope, undoInScope, type ReadingScope } from '../lib/readingScope';
+import { LIBRARY_SCOPE, contextsInScope, selectionInScope, mutateInScope, undoInScope, type ReadingScope } from '../lib/readingScope';
 import { useOnboardingStore } from '../stores/onboardingStore';
 import { usePreferencesStore } from '../stores/preferencesStore';
 import { useSpeechStore } from '../stores/speechStore';
@@ -67,6 +67,8 @@ export default function ReadingLookup(props: LookupProps) {
     const [tab, setTab] = useState<'meaning' | 'records'>(props.initialTab ?? 'meaning');
     const [recordsReady, setRecordsReady] = useState(false);
     const onRecordsReady = useCallback(() => setRecordsReady(true), []);
+    const recallSessionId=props.scope.kind==='example'?props.scope.sessionId:null;
+    const exampleSavedVersion=useOnboardingStore(state=>state.saved);
     const [count, setCount] = useState(0);
     const key = queryKey(props.query);
     const currentKey = useRef(key);
@@ -80,10 +82,9 @@ export default function ReadingLookup(props: LookupProps) {
     }, []);
     useEffect(() => {
       let active = true;
-      if (props.scope.kind === 'example') { setCount(0); return; }
-      void invoke<{total:number}>('saved_recall_contexts', { expression: props.query.expression, offset:0, limit:1 }).then(page => { if (active && currentKey.current === key) setCount(page.total); }).catch(() => { if (active && currentKey.current === key) setCount(0); });
+      void contextsInScope(recallSessionId?{kind:'example',sessionId:recallSessionId}:LIBRARY_SCOPE, props.query.expression, 0, 1).then(page => { if (active && currentKey.current === key) setCount(page.total); }).catch(() => { if (active && currentKey.current === key) setCount(0); });
       return () => { active = false; };
-    }, [key, props.query.expression, props.scope.kind, savedVersion]);
+    }, [key, props.query.expression, recallSessionId, savedVersion, exampleSavedVersion]);
     const previousKey = useRef(key);
     useLayoutEffect(() => { if (previousKey.current !== key) { previousKey.current = key; setTab('meaning'); setCount(0); setRecordsReady(false); } }, [key]);
     const providerRef = useRef(props.initialProvider);
@@ -99,7 +100,7 @@ export default function ReadingLookup(props: LookupProps) {
       <div className="lookup-stage" style={fontScaleStyle} data-lookup-state={ready ? 'ready' : 'loading'}>
         <SoftContentRefresh className="lookup-content" contentKey={`${key}:${effectiveTab}`} resizeContainer=".context-panel" ready={effectiveTab === 'meaning' ? ready : recordsReady} label={props.query.expression} pendingLabel={t('common.loading')}>
           <header className="lookup-heading"><div><h2 lang="en">{props.query.expression}</h2><SpeechButton text={props.query.expression} speechKey="lookup:term" kind={/\s/.test(props.query.expression.trim()) ? 'phrase' : 'word'} label={t('reader.listenExpression')}/></div></header>
-          {count > 0 && <div className="lookup-tabs" data-tab={effectiveTab} role="tablist"><span className="lookup-tab-indicator" aria-hidden="true"/><button data-testid="lookup-meaning-tab" role="tab" aria-selected={effectiveTab==='meaning'} className={effectiveTab==='meaning'?'active':''} onClick={()=>setTab('meaning')}>{t('annotation.meaning')}</button><button data-testid="lookup-records-tab" role="tab" aria-selected={effectiveTab==='records'} className={effectiveTab==='records'?'active':''} onClick={()=>{setRecordsReady(false);setTab('records');}}>{t('reader.myRecords')} <span>{count}</span></button></div>}
+          {count > 0 && <div className="lookup-tabs" data-tab={effectiveTab} role="tablist"><span className="lookup-tab-indicator" aria-hidden="true"/><button data-testid="lookup-meaning-tab" role="tab" aria-selected={effectiveTab==='meaning'} className={effectiveTab==='meaning'?'active':''} onClick={()=>setTab('meaning')}>{t('annotation.meaning')}</button><button data-testid="lookup-records-tab" role="tab" aria-selected={effectiveTab==='records'} className={effectiveTab==='records'?'active':''} onClick={()=>{if (effectiveTab !== 'records') {setRecordsReady(false);setTab('records');}}}>{t('reader.myRecords')} <span>{count}</span></button></div>}
           <LookupContent key={key} {...props} tab={effectiveTab} onProvider={onProvider} onRecordsReady={onRecordsReady} onReady={onReady} footerHost={footerHost}/>
         </SoftContentRefresh>
         <div className="lookup-action-slot" ref={setFooterHost}/>
@@ -111,6 +112,7 @@ function LookupContent({ query, material, scope, onSkip, drafts, session, onRead
     const { t } = useTranslation();
     const example = scope.kind === 'example';
     const guideActive = useOnboardingStore(state => state.active);
+    const guidedTour = useOnboardingStore(state => state.tour);
     const guideStep = useOnboardingStore(state => state.step);
     const key = queryKey(query);
     const existingDraft = drafts.get(key);
@@ -279,7 +281,7 @@ function LookupContent({ query, material, scope, onSkip, drafts, session, onRead
         try {
             const next = await request;
             if (session.actions.get(key)?.id === pendingAction.id) session.actions.delete(key);
-            if (next.changed && pendingAction.mutation.kind === 'save') {
+            if (next.changed) {
                 session.receipts.delete(key); session.receipts.set(key, next.operation_id);
                 if (session.receipts.size > 100) session.receipts.delete(session.receipts.keys().next().value!);
             }
@@ -320,11 +322,11 @@ function LookupContent({ query, material, scope, onSkip, drafts, session, onRead
     }, [key]);
     return <>
     <div className="lookup-body" data-definition-font={definitionFont} data-aux-font={auxiliaryFont} data-active-dictionary={activeProvider} data-online-state={onlineState}>
-      {tab === 'records' ? <RecallSection expression={query.expression} expanded onLoaded={onRecordsReady} onSource={onSource} sourceBusy={sourceBusy}/> : <>
-      {example && guideActive && <div className="example-card-hint"><small role="status">{t(guideStep === 3 ? 'onboarding.step3' : 'onboarding.step2')}</small><button className="ui-button" onClick={onSkip}>{t('onboarding.skip')}</button></div>}
-      {loading && <p role="status">{t('common.loading')}</p>}
-      {!loading && result && <LongmanResult result={result} onInteract={touch} compact/>}
-      <details className="lookup-secondary"><summary>{t('dictionary.sources')}</summary>
+      {tab === 'records' ? <RecallSection scope={scope} expression={query.expression} expanded onLoaded={onRecordsReady} onSource={onSource} sourceBusy={sourceBusy}/> : <>
+      {example && guideActive && !guidedTour && <div className="example-card-hint"><small role="status">{t(guideStep === 3 ? 'onboarding.step3' : 'onboarding.step2')}</small><button className="ui-button" onClick={onSkip}>{t('onboarding.skip')}</button></div>}
+      {loading && !result?.entries.length && <LoadingSkeleton kind="text" label={t('common.loading')}/>}
+      {result && (!loading || !!result.entries.length) && <LongmanResult result={result} onInteract={touch} compact/>}
+      <details className="lookup-secondary"><summary>{t('dictionary.sources')}{onlineState === 'loading' && <span role="status"><BusyRing/><span className="sr-only">{t('dictionary.onlineLoading')}</span></span>}</summary>
       {!loading && <div className="dictionary-controls" aria-label={t('dictionary.sources')}>
         {([['longman', localResult], ['cambridge', onlineResults.cambridge], ['wiktionary', onlineResults.wiktionary]] as const).filter(([, value]) => !!value?.entries.length).map(([next], _index, available) => {
           const label = t(dictionarySourceLabelKey(next));
@@ -333,7 +335,6 @@ function LookupContent({ query, material, scope, onSkip, drafts, session, onRead
         })}
         {(!attempted.current.has('wiktionary') || onlineState === 'failed') && <button className="ui-button" onClick={continueOnline} disabled={onlineState === 'loading'}>{t(onlineState === 'failed' ? 'dictionary.retryOnline' : attempted.current.has('cambridge') ? 'dictionary.continueOnline' : 'dictionary.lookupOnline')}</button>}
       </div>}
-      {onlineState === 'loading' && <p className="lookup-note" role="status">{t('dictionary.onlineLoading')}</p>}
       {onlineState === 'failed' && <p className="longman-notice" role="status">{t(`dictionary.issues.${onlineError ?? 'unavailable'}`)}</p>}
       {activeProvider === 'longman' && hasOnlineContent && <p className="lookup-note" role="status">{t('dictionary.onlineAvailable')}</p>}
       {!loading && !localResult?.entries.length && !hasOnlineContent && onlineState === 'idle' && <p className="longman-notice" role="status">{t('dictionary.cannotConfirm')}</p>}

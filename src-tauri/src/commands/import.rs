@@ -545,6 +545,22 @@ pub fn import_payload(conn: &rusqlite::Connection, payload: ImportPayload) -> Re
             }
         }
 
+        // This compatibility entry point predates material_import_actions.
+        // Capture only complete English imports, at the same commit boundary.
+        if payload.language == "en" {
+            let tracked = conn.query_row(
+                "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE type='table' AND name='lan_material_capture')",
+                [], |row| row.get::<_, bool>(0),
+            ).map_err(|e| e.to_string())?;
+            if tracked {
+                conn.execute(
+                    "INSERT INTO lan_material_capture(local_id) SELECT ? WHERE EXISTS(
+                        SELECT 1 FROM lan_saved_peer WHERE applying=0)",
+                    [file_id],
+                )
+                .map_err(|e| e.to_string())?;
+            }
+        }
         Ok(file_id)
     })();
 

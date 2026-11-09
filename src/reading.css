@@ -330,9 +330,9 @@
 @media (hover: none) { .sentence-listen .sentence-number { opacity: 0; } .sentence-listen .sentence-play { opacity: 1; } }
 @media (max-height: 610px) and (min-width: 768px) { .b-dock { top: 80px; max-height: calc(100dvh - 92px); overflow-y: auto; scrollbar-width: thin; } .b-dock .b-dock-control { min-height: 44px; height: 44px; } .b-dock nav, .dock-reading-tools { gap: 2px; } }
 @media (max-width: 767px) {
-  .mobile-reading-tools { display: block; flex: none; background: var(--surface); }
-  .mobile-reading-tools .dock-reading-tools { flex-direction: row; justify-content: flex-end; border-top: 1px solid var(--border-soft); padding: 3px 12px; }
-  .mobile-reading-tools .b-dock-divider { display: none; }
+  .mobile-reading-tools { display: block; flex: none; background: var(--app-bg); }
+  .mobile-reading-bar { display: flex; align-items: center; justify-content: space-between; height: 64px; padding: 8px; margin: 8px 24px 16px; border-radius: 14px; background: var(--surface-muted); }
+
   .mobile-reading-tools .b-dock-control { min-width: 48px; min-height: 44px; padding: 6px; }
   .sentence-number-static, .sentence-side .sentence-listen { width: 36px; }
 }
@@ -471,7 +471,7 @@
 .context-panel[data-reading-layout='columns'] .lookup-footer > .saved-primary:not(:disabled) { width:100%; background:var(--accent-700); color:var(--on-accent); }
 .context-panel[data-reading-layout='columns'] .lookup-footer > .saved-primary:hover:not(:disabled) { background:var(--accent-600); color:var(--on-accent); }
 .lookup-tabs button { flex:1; }
-.page-transition,.page-live { position:relative; height:100%; min-height:0; }
+.page-transition,.page-live,.page-snapshot { position:relative; height:100%; min-height:0; }
 .page-ghost { position:absolute; inset:0; pointer-events:none; overflow:hidden; }
 .page-ghost:empty { display:none; }
 /* Match the approved quiet shell while leaving native window controls to the OS. */
@@ -577,3 +577,8 @@ body:has(.context-panel[data-refresh-transition]) .reader-scroll::-webkit-scroll
 .dictionary-prototype-heading { display:flex; align-items:baseline; gap:10px; margin-bottom:10px; color:var(--text-strong); }
 .dictionary-prototype-heading small { color:var(--text-muted); font-size:.8125rem; }
 .dictionary-prototype-heading strong { font-weight:550; font-size:1rem; }
+
+.overlay-panel.translation-dialog { width:min(420px,100%); padding:24px; color:var(--text-body); }
+.translation-dialog h2 { font-size:1.25rem; font-weight:600; color:var(--text-strong); margin:0; }
+.translation-dialog p { margin:16px 0 24px; line-height:1.7; }
+.translation-dialog footer { display:flex; justify-content:flex-end; gap:12px; }

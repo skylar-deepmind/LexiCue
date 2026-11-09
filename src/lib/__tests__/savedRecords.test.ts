@@ -8,6 +8,10 @@ describe('readable legacy copies', () => {
       dictionary: { other_senses_json: '[{"meaning_zh":"学会","example_en":"She picked it up."}]' } });
     expect(notes.map(note => note.text)).toEqual(['个人注释', '用法', 'My correction', '学会', 'She picked it up.', '另一个个人解释']);
   });
+  it('displays portable historical notes without duplicating the local original', () => {
+    expect(legacyContent({ kind: 'word', notes: ['one', 'two'] }).map(n => n.text)).toEqual(['one', 'two']);
+    expect(legacyContent({ definition: 'one', lan_notes: ['one', 'two'] }).map(n => n.text)).toEqual(['one', 'two']);
+  });
   it('reads missing or older metadata without throwing away remaining valid content', () => {
     expect(legacyContent(null)).toEqual([]);
     expect(legacyContent({ definition: 'still here', dictionary: { other_senses_json: 'legacy invalid JSON' } })).toEqual([{ label: 'savedRecords.legacyNote', text: 'still here' }]);

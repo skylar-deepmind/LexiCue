@@ -28,7 +28,7 @@ try{
    const play=HTMLMediaElement.prototype.play;
    HTMLMediaElement.prototype.play=function(){window.__speechMedia.push({event:'play',mime:this.src.slice(0,25)});for(const event of ['playing','loadedmetadata','ended','error'])this.addEventListener(event,()=>window.__speechMedia.push({event,duration:this.duration,readyState:this.readyState,error:this.error?.code}));return play.call(this);};
   });
-  await page.goto(`${h.url}/settings`);await page.locator('.speech-settings').waitFor();
+  await page.goto(`${h.url}/settings`);await page.locator('[data-entry=speech]').click();await page.locator('.speech-settings').waitFor();
   await setPrefs(page,{accent:'us',speed:'normal',onlineEnabled:true,allowDeviceFallback:false,voices:{us:'en-US-JennyNeural',gb:'en-GB-SoniaNeural'}});
   const preview=page.locator('[data-speech-key="settings:speech-preview"]');
   check((await page.locator('#speech-voice').innerText()).includes('Jenny'),`${theme}: initial Jenny`);
@@ -69,7 +69,7 @@ try{
   check(calls.every(c=>!c.text.includes('不应该')&&!c.text.includes('翻译')),`${theme}: only requested English sent`);
   const media=await page.evaluate(()=>window.__speechMedia);check(media.some(e=>e.event==='playing')&&!media.some(e=>e.event==='error'),`${theme}: actual MP3 decoding/playback events`);
   observations.push({theme,calls:calls.map(({text,...params})=>({...params,textLength:text.length})),media});
-  await page.locator('.b-dock a[href="/settings"]').click();await page.locator('.speech-settings').waitFor();check((await speech(page)).status==='idle',`${theme}: navigation stops`);await context.close();
+  await page.locator('.b-dock a[href="/settings"]').click();await page.locator('[data-entry=speech]').click();await page.locator('.speech-settings').waitFor();check((await speech(page)).status==='idle',`${theme}: navigation stops`);await context.close();
  }
  check(h.errors.length===0,'no browser exceptions');
  const sourceHashes=Object.fromEntries(await Promise.all(['src-tauri/src/commands/tts.rs','src/stores/speechStore.ts','src/components/SpeechButton.tsx','src/components/SpeechSettings.tsx'].map(async path=>[path,createHash('sha256').update(await readFile(`${root}/${path}`)).digest('hex')])));

@@ -1,13 +1,16 @@
+import { LoadingSkeleton, BusyRing } from './LoadingFeedback';
 import { useEffect, useRef, useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { contextsInScope, LIBRARY_SCOPE, type ReadingScope } from '../lib/readingScope';
 import { useTranslation } from 'react-i18next';
 import type { SavedRecord } from '../lib/savedRecords';
 import { useRecallStore } from '../stores/recallStore';
 import SourceAudioControls from './SourceAudioControls';
+import RecallNote from './RecallNote';
 
 interface Page { records: SavedRecord[]; total: number }
 
-export default function RecallSection({ expression, expanded = false, onLoaded, onSource, sourceBusy }: { expression: string; expanded?: boolean; onLoaded?: () => void; onSource?: (record: SavedRecord) => Promise<void>; sourceBusy?: boolean }) {
+export default function RecallSection({ expression, expanded = false, onLoaded, onSource, sourceBusy, scope=LIBRARY_SCOPE }: { scope?:ReadingScope; expression: string; expanded?: boolean; onLoaded?: () => void; onSource?: (record: SavedRecord) => Promise<void>; sourceBusy?: boolean }) {
+  const sessionId=scope.kind==='example'?scope.sessionId:null;
   const { t, i18n } = useTranslation();
   const revision = useRecallStore(state => state.revision);
   const [page, setPage] = useState<Page>({ records: [], total: 0 });
@@ -35,7 +38,7 @@ export default function RecallSection({ expression, expanded = false, onLoaded, 
       if (!live || pending.current) return;
       pending.current = true; setLoading(true); setError(false);
       try {
-        const next = await invoke<Page>('saved_recall_contexts', { expression, offset, limit: 10 });
+        const next = await contextsInScope(sessionId?{kind:'example',sessionId}:LIBRARY_SCOPE, expression, offset);
         if (live && current === generation.current) { setPage(previous => ({ records: offset ? [...previous.records, ...next.records] : next.records, total: next.total })); }
       } catch { if (live && current === generation.current) setError(true); }
       finally { if (live && current === generation.current) { pending.current = false; setLoading(false); onLoaded?.(); } }
@@ -43,8 +46,9 @@ export default function RecallSection({ expression, expanded = false, onLoaded, 
     pending.current = false;
     loadRef.current = load; void load();
     return () => { live = false; };
-  }, [expression, revision, retry, changed, onLoaded]);
+  }, [expression, revision, retry, changed, onLoaded, sessionId]);
   if (!loading && !error && !page.records.length) return null;
+  if (loading && !page.records.length) return <LoadingSkeleton kind="list" label={t('common.loading')}/>;
   if (!page.total) return error ? <div className="recall-error" role="alert"><p>{t('recall.loadFailed')}</p><button className="ui-button" onClick={() => setRetry(value => value + 1)}>{t('common.retry')}</button></div> : null;
   return <div className="recall-section recall-history" aria-label={t('recall.previous')} aria-busy={loading}>
     {!expanded && <p>{t('dictionaryFlow.historySummary', { count: page.total })}</p>}
@@ -55,8 +59,10 @@ export default function RecallSection({ expression, expanded = false, onLoaded, 
       {value.sentence_translation && <p className="recall-translation">{value.sentence_translation}</p>}
       <small>{value.source ? t('savedRecords.source', { name: value.source.file_name, index: value.source.segment_index + 1 }) : t('savedRecords.legacyMissingSource')} · {value.saved_at === null ? t('savedRecords.unknownTime') : new Date(value.saved_at).toLocaleString(i18n.language)}</small>
       {value.explanation && <><small className="saved-history-label">{value.explanation_source === 'personal' ? t('dictionaryFlow.personalMeaning') : `${t('dictionaryFlow.savedMeaning')} · ${t(`savedRecords.sources.${value.explanation_source}`)}`}</small><p className="recall-meaning">{value.explanation}</p></>}
+      <RecallNote scope={scope} record={value} onChange={next=>setPage(previous=>({...previous,records:previous.records.map(record=>record.record_id===next.record_id?next:record)}))}/>
       {onSource && <button className="ui-button recall-source" data-testid="recall-source" disabled={sourceBusy || !value.source} onClick={() => void onSource(value)}>{t('savedRecords.returnToSource')}</button>}
     </article>)}
+    {loading && <span role="status"><BusyRing/><span className="sr-only">{t('common.loading')}</span></span>}
     {page.records.length < page.total && <button className="ui-button" disabled={loading} onClick={() => void loadRef.current(page.records.length)}>{t('savedRecords.loadMore')}</button>}
     {error && <div className="recall-error" role="alert"><p>{t('recall.loadFailed')}</p><button className="ui-button" disabled={loading} onClick={() => setRetry(value => value + 1)}>{t('common.retry')}</button></div>}
   </div>;

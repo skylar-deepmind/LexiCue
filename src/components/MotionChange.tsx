@@ -1,6 +1,6 @@
 import { Component, createRef, type ReactNode } from 'react';
 
-type Props = { changeKey: string; children: ReactNode; className?: string; resizeContainer?: string; interruptKey?: string };
+type Props = { changeKey: string; children: ReactNode; className?: string; resizeContainer?: string; interruptKey?: string; enabled?:boolean };
 type Snapshot = { panel: HTMLElement; rect: DOMRect; clone: HTMLElement } | null;
 /** Animate explicit content changes, never ordinary input keystrokes. */
 export default class MotionChange extends Component<Props> {
@@ -8,7 +8,7 @@ export default class MotionChange extends Component<Props> {
   animations: Animation[] = []; generation = 0; timer?: ReturnType<typeof setTimeout>; media?: MediaQueryList;
   componentDidMount() { this.media = matchMedia('(prefers-reduced-motion: reduce)'); this.media.addEventListener('change', this.finish); window.addEventListener('resize', this.finish); }
   getSnapshotBeforeUpdate(previous: Props): Snapshot {
-    if (previous.changeKey === this.props.changeKey || this.media?.matches) return null;
+    if (this.props.enabled===false || previous.enabled===false || previous.changeKey === this.props.changeKey || this.media?.matches) return null;
     const live = this.live.current!, root = this.root.current!;
     const panel = this.props.resizeContainer ? root.closest<HTMLElement>(this.props.resizeContainer) ?? root : root;
     const clone = live.cloneNode(true) as HTMLElement;
@@ -18,6 +18,7 @@ export default class MotionChange extends Component<Props> {
     return { panel, rect: panel.getBoundingClientRect(), clone };
   }
   componentDidUpdate(previous: Props, _state: unknown, snapshot: Snapshot) {
+    if(this.props.enabled===false){this.finish();return;}
     if (previous.changeKey === this.props.changeKey) { if (previous.interruptKey !== this.props.interruptKey) this.finish(); return; }
     this.finish(); if (!snapshot) return;
     const {panel, rect, clone} = snapshot, root = this.root.current!, live = this.live.current!, ghost = this.ghost.current!;

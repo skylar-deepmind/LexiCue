@@ -12,6 +12,15 @@ pub fn create_tables(conn: &Connection) -> rusqlite::Result<()> {
         "CREATE TABLE IF NOT EXISTS material_import_actions (
         operation_id TEXT PRIMARY KEY, request_hash TEXT NOT NULL, file_id INTEGER NOT NULL,
         outcome TEXT NOT NULL, readable INTEGER NOT NULL
+    ) STRICT;
+    CREATE TABLE IF NOT EXISTS restored_material_ids(file_id INTEGER PRIMARY KEY REFERENCES files(id) ON DELETE CASCADE,stable TEXT NOT NULL UNIQUE) STRICT;
+    CREATE VIEW IF NOT EXISTS reader_material_ids AS
+      SELECT f.id AS file_id,coalesce(b.stable,s.sync_id) AS stable FROM files f JOIN sync_entity_state s ON s.table_name='files' AND s.local_id=f.id
+      LEFT JOIN restored_material_ids b ON b.file_id=f.id;
+    CREATE TABLE IF NOT EXISTS reader_positions (
+        file_id INTEGER PRIMARY KEY REFERENCES files(id) ON DELETE CASCADE,
+        segment_id INTEGER NOT NULL REFERENCES segments(id) ON DELETE CASCADE,
+        content_hash TEXT NOT NULL, revision TEXT NOT NULL UNIQUE, parent TEXT, back INTEGER NOT NULL CHECK(back IN (0,1))
     ) STRICT;",
     )
 }
@@ -301,9 +310,27 @@ pub fn fill_translations(
     }
     let tx = Transaction::new_unchecked(conn, TransactionBehavior::Immediate)
         .map_err(|e| e.to_string())?;
-    let current:bool=tx.query_row("SELECT EXISTS(SELECT 1 FROM files WHERE id=?1 AND content_hash=?2 AND language='en' AND media_source IS NULL)",params![file_id,content_hash],|r|r.get(0)).map_err(|e|e.to_string())?;
+    // Translations are supplemental to the original subtitles. YouTube source
+    // identity and cue timing remain unchanged, just as for local materials.
+    let current: bool = tx
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM files WHERE id=?1 AND content_hash=?2 AND language='en')",
+            params![file_id, content_hash],
+            |r| r.get(0),
+        )
+        .map_err(|e| e.to_string())?;
     if !current {
         return Err("material_source_removed".into());
+    }
+    // Make automatic fill distinguishable from a personal edit in the same
+    // transaction, including on a library reopened after LAN was enabled.
+    let tracked:bool=tx.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name='lan_material_values' AND type='table')",[],|r|r.get(0)).map_err(|e|e.to_string())?;
+    if tracked {
+        tx.execute(
+            "INSERT INTO sync_runtime(key,value) VALUES('lan_auto_translation','1')",
+            [],
+        )
+        .map_err(|e| e.to_string())?;
     }
     let mut updated = Vec::new();
     for segment in segments {
@@ -326,6 +353,13 @@ pub fn fill_translations(
             }
         }
     }
+    if tracked {
+        tx.execute(
+            "DELETE FROM sync_runtime WHERE key='lan_auto_translation'",
+            [],
+        )
+        .map_err(|e| e.to_string())?;
+    }
     tx.commit().map_err(|e| e.to_string())?;
     Ok(updated)
 }
@@ -345,8 +379,96 @@ pub async fn fill_reading_translations(
     .map_err(|e| e.to_string())?
 }
 
+#[tauri::command]
+pub fn list_device_conflicts(state: State<DbState>) -> Result<serde_json::Value, String> {
+    #[cfg(any(test, feature = "lan-sync", target_vendor = "apple"))]
+    {
+        let conn = state.conn.lock().map_err(|e| e.to_string())?;
+        return serde_json::to_value(lexicue_lan_journal::conflicts(&conn)?)
+            .map_err(|e| e.to_string());
+    }
+    #[allow(unreachable_code)]
+    {
+        let _ = state;
+        Ok(serde_json::json!([]))
+    }
+}
+
+#[tauri::command]
+pub fn resolve_device_conflict(
+    state: State<DbState>,
+    entity: String,
+    field: String,
+    revisions: Vec<String>,
+    selected: String,
+) -> Result<(), String> {
+    #[cfg(any(test, feature = "lan-sync", target_vendor = "apple"))]
+    {
+        let mut conn = state.conn.lock().map_err(|e| e.to_string())?;
+        return lexicue_lan_journal::resolve(
+            &mut conn,
+            &entity,
+            &field,
+            revisions,
+            &selected,
+            &crate::lan_sync::saved_delta::ReaderSaves,
+        );
+    }
+    #[allow(unreachable_code)]
+    {
+        let _ = (state, entity, field, revisions, selected);
+        Err("unavailable".into())
+    }
+}
+
+#[derive(Serialize)]
+pub struct ReadingPosition {
+    pub segment: i64,
+    pub revision: String,
+}
+
+pub fn write_position(
+    conn: &Connection,
+    file_id: i64,
+    segment: i64,
+    content_hash: &str,
+    parent: Option<&str>,
+    back: bool,
+    legacy: bool,
+) -> Result<Option<String>, String> {
+    let revision = uuid::Uuid::new_v4().simple().to_string();
+    let written=conn.execute("INSERT OR REPLACE INTO reader_positions(file_id,segment_id,content_hash,revision,parent,back)
+        SELECT f.id,s.id,f.content_hash,?4,?5,?6 FROM files f JOIN segments s ON s.file_id=f.id
+        WHERE f.id=?1 AND f.language='en' AND f.content_hash=?2 AND s.index_num=?3
+        AND (?7=0 OR NOT EXISTS(SELECT 1 FROM reader_positions WHERE file_id=?1))",
+        params![file_id,content_hash,segment,revision,parent,back,legacy]).map_err(|e|e.to_string())?;
+    Ok((written == 1).then_some(revision))
+}
+
+#[tauri::command]
+pub fn remember_reading_position(
+    state: State<DbState>,
+    file_id: i64,
+    segment: i64,
+    content_hash: String,
+    parent: Option<String>,
+    back: bool,
+    legacy: bool,
+) -> Result<Option<String>, String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    write_position(
+        &conn,
+        file_id,
+        segment,
+        &content_hash,
+        parent.as_deref(),
+        back,
+        legacy,
+    )
+}
 #[derive(Serialize)]
 pub struct Material {
+    pub position: Option<ReadingPosition>,
     pub id: i64,
     pub name: String,
     pub content_hash: String,
@@ -361,9 +483,11 @@ pub struct Material {
 }
 pub fn list(conn: &Connection, tag_ids: &[i64], untagged: bool) -> Result<Vec<Material>, String> {
     let ids = serde_json::to_string(tag_ids).unwrap();
-    let mut stmt=conn.prepare("SELECT f.id,f.name,f.content_hash,f.imported_at,(SELECT COUNT(*) FROM segments s WHERE s.file_id=f.id),COALESCE((SELECT en_text FROM segments s WHERE s.file_id=f.id ORDER BY index_num LIMIT 1),''), f.media_source,f.document_source,f.type FROM files f
+    let mut stmt=conn.prepare("SELECT f.id,f.name,f.content_hash,f.imported_at,(SELECT COUNT(*) FROM segments s WHERE s.file_id=f.id),COALESCE((SELECT en_text FROM segments s WHERE s.file_id=f.id ORDER BY index_num LIMIT 1),''), f.media_source,f.document_source,f.type,s.index_num,p.revision FROM files f
+        LEFT JOIN reader_positions p ON p.file_id=f.id AND p.content_hash=f.content_hash
+        LEFT JOIN segments s ON s.id=p.segment_id AND s.file_id=f.id
         WHERE f.language='en' AND f.type IN ('srt','txt') AND (?2=0 OR NOT EXISTS(SELECT 1 FROM file_tags ft WHERE ft.file_id=f.id))
-        AND NOT EXISTS(SELECT 1 FROM json_each(?1) selected WHERE NOT EXISTS(SELECT 1 FROM file_tags ft WHERE ft.file_id=f.id AND ft.tag_id=selected.value)) ORDER BY imported_at DESC,id DESC").map_err(|e|e.to_string())?;
+        AND NOT EXISTS(SELECT 1 FROM json_each(?1) selected WHERE NOT EXISTS(SELECT 1 FROM file_tags ft WHERE ft.file_id=f.id AND ft.tag_id=selected.value)) ORDER BY f.imported_at DESC,f.id DESC").map_err(|e|e.to_string())?;
     let rows = stmt
         .query_map(params![ids, untagged], |r| {
             let source: Option<super::source_media::SourceSummary> = r
@@ -387,6 +511,13 @@ pub fn list(conn: &Connection, tag_ids: &[i64], untagged: bool) -> Result<Vec<Ma
                 .map(|d| d.original_format.clone())
                 .unwrap_or(r.get::<_, String>(8)?);
             Ok(Material {
+                position: match r.get::<_, Option<i64>>(9)? {
+                    Some(segment) => Some(ReadingPosition {
+                        segment,
+                        revision: r.get(10)?,
+                    }),
+                    None => None,
+                },
                 id: r.get(0)?,
                 name: r.get(1)?,
                 content_hash: r.get(2)?,
@@ -405,17 +536,20 @@ pub fn list(conn: &Connection, tag_ids: &[i64], untagged: bool) -> Result<Vec<Ma
         .map_err(|e| e.to_string())
 }
 #[tauri::command]
-pub fn list_materials(
-    state: State<DbState>,
+pub async fn list_materials(
+    state: State<'_, DbState>,
     tag_ids: Option<Vec<i64>>,
     untagged: Option<bool>,
 ) -> Result<Vec<Material>, String> {
-    let conn = state.conn.lock().map_err(|e| e.to_string())?;
-    list(
-        &conn,
-        &tag_ids.unwrap_or_default(),
-        untagged.unwrap_or(false),
-    )
+    state
+        .read("list_materials", move |conn| {
+            list(
+                conn,
+                &tag_ids.unwrap_or_default(),
+                untagged.unwrap_or(false),
+            )
+        })
+        .await
 }
 #[derive(Serialize)]
 pub struct ReadingMaterial {
@@ -791,6 +925,76 @@ mod tests {
         assert_eq!(original, data.content);
         data.operation_id = "text-duplicate".into();
         assert_eq!(import_material(&c, &data).unwrap().outcome, "duplicate");
+    }
+    #[test]
+    fn youtube_reading_translation_fills_only_missing_chinese_without_retargeting_source() {
+        let dir = tempfile::tempdir().unwrap();
+        let conn = crate::db::init_db(&dir.path().join("youtube-translation.db")).unwrap();
+        let mut data = input("translate-youtube", "The blue notebook is on the table.");
+        let track = super::super::youtube::SubtitleTrack {
+            lang: "en".into(),
+            language: "en".into(),
+            is_auto: false,
+            source: super::super::youtube::downloads::SubtitleSource::Manual,
+            source_language: Some("en".into()),
+        };
+        data.source = super::super::source_media::source_from_subtitles(
+            "abcdefghijk",
+            &track,
+            &data.content,
+            &serde_json::json!({"title":"Translation regression","duration":8}),
+        );
+        assert!(data.source.is_some());
+        let imported = import_material(&conn, &data).unwrap();
+        let before = open(&conn, imported.file_id).unwrap();
+        assert!(before.material.source.is_some());
+        let patch = |en: &str, zh: &str| {
+            vec![ReadingTranslationPatch {
+                id: before.segments[0].id,
+                en_text: en.into(),
+                zh_text: zh.into(),
+            }]
+        };
+        let original = &before.segments[0].en_text;
+        let hash = &before.material.content_hash;
+        assert_eq!(
+            fill_translations(
+                &conn,
+                imported.file_id,
+                "stale-hash",
+                &patch(original, "错误")
+            )
+            .err()
+            .as_deref(),
+            Some("material_source_removed")
+        );
+        assert!(fill_translations(
+            &conn,
+            imported.file_id,
+            hash,
+            &patch("A changed sentence.", "错误")
+        )
+        .unwrap()
+        .is_empty());
+        let translated = "蓝色笔记本在桌子上。";
+        let result =
+            fill_translations(&conn, imported.file_id, hash, &patch(original, translated)).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].zh_text, translated);
+        // A retry cannot overwrite an already stored translation.
+        let retry =
+            fill_translations(&conn, imported.file_id, hash, &patch(original, "不得覆盖")).unwrap();
+        assert_eq!(retry[0].zh_text, translated);
+        let mut expected = serde_json::to_value(&before).unwrap();
+        expected["segments"][0]["zh_text"] = serde_json::json!(translated);
+        assert_eq!(
+            serde_json::to_value(open(&conn, imported.file_id).unwrap()).unwrap(),
+            expected
+        );
+        assert_eq!(
+            import_material(&conn, &data).unwrap().file_id,
+            imported.file_id
+        );
     }
     fn input(op: &str, text: &str) -> MaterialInput {
         MaterialInput {

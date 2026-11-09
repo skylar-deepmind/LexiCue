@@ -1,10 +1,15 @@
 import type { SubtitleResult, SubtitleSource } from '../stores/youtubeStore';
 
+import { isIOSPlatform } from './platform';
+
 export interface BrowserSession { enabled: boolean; browser: string; profile: string }
 export const EMPTY_BROWSER_SESSION: BrowserSession = { enabled: false, browser: 'chrome', profile: '' };
 export const YOUTUBE_BROWSERS = ['chrome', 'chromium', 'edge', 'firefox', 'safari', 'brave', 'opera', 'vivaldi'] as const;
 
 export function normalizeBrowserSession(value: unknown): BrowserSession {
+  // Older iOS installs could save a desktop browser profile. The HTTP importer
+  // can only request public tracks, including after restoring those preferences.
+  if (typeof navigator !== 'undefined' && isIOSPlatform()) return { ...EMPTY_BROWSER_SESSION };
   const saved = value && typeof value === 'object' ? value as Partial<BrowserSession> : {};
   const validBrowser = typeof saved.browser === 'string' && YOUTUBE_BROWSERS.some(browser => browser === saved.browser);
   return { enabled: saved.enabled === true && validBrowser, browser: validBrowser ? saved.browser! : 'chrome',

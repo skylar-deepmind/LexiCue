@@ -86,6 +86,7 @@ pub fn configure_session(
     Ok(())
 }
 
+#[cfg(any(test, not(target_os = "ios")))]
 pub fn player_track(lang: &str, automatic: bool) -> SubtitleTrack {
     SubtitleTrack {
         lang: lang.into(),
@@ -575,10 +576,70 @@ pub(in crate::commands) async fn native_track(
     role: &str,
     timeout: Duration,
 ) -> Result<SubtitleResult, DownloadError> {
+    if cfg!(target_os = "ios") && ytdlp_path().is_none() {
+        return http_track(job, video, track, session, role, timeout).await;
+    }
     let path = ytdlp_path().ok_or_else(|| {
         DownloadError::from_message("missing_tool", role, &track.language, track.source)
     })?;
     native_track_at(job, video, track, session, role, timeout, &path).await
+}
+
+async fn http_track(
+    job: &DownloadJob,
+    video: &str,
+    track: &SubtitleTrack,
+    session: &BrowserSession,
+    role: &str,
+    timeout: Duration,
+) -> Result<SubtitleResult, DownloadError> {
+    let fail =
+        |message: &str| DownloadError::from_message(message, role, &track.language, track.source);
+    let metadata = get_cached_metadata(&format!("{video}:{}", session.cache_identity()))
+        .ok_or_else(|| fail("download_failed"))?;
+    let group = if track.is_auto {
+        "automatic_captions"
+    } else {
+        "subtitles"
+    };
+    let url = metadata[group][&track.lang][0]["url"]
+        .as_str()
+        .ok_or_else(|| fail("no subtitles"))?;
+    progress(job, "downloading", role, track, None);
+    let fetch = async {
+        let client = youtube_client().map_err(|_| fail("network"))?;
+        let mut response = client
+            .get(url)
+            .header("User-Agent", UA)
+            .send()
+            .await
+            .map_err(|_| fail("network"))?;
+        if !response.status().is_success() {
+            return Err(fail(&format!("HTTP error {}", response.status().as_u16())));
+        }
+        let mut bytes = Vec::new();
+        while let Some(chunk) = response.chunk().await.map_err(|_| fail("network"))? {
+            if bytes.len().saturating_add(chunk.len()) > 16 * 1024 * 1024 {
+                return Err(fail("download_failed"));
+            }
+            bytes.extend_from_slice(&chunk);
+        }
+        let json = String::from_utf8(bytes).map_err(|_| fail("download_failed"))?;
+        let content = json3_to_srt(&json).map_err(|_| fail("no subtitles"))?;
+        if !valid_subtitle(&content) {
+            return Err(fail("no subtitles"));
+        }
+        Ok(SubtitleResult {
+            name: format!("{video}.{}.srt", track.lang),
+            content,
+            source: None,
+            source_issue: None,
+        })
+    };
+    tokio::select! {
+        _ = job.cancel_signal() => Err(fail(CANCELLED_MESSAGE)),
+        result = tokio::time::timeout(timeout, fetch) => result.map_err(|_| fail("timeout"))?,
+    }
 }
 
 fn retry_allowed(error: &DownloadError, attempt: usize, remaining: Duration) -> bool {
@@ -741,7 +802,7 @@ pub async fn youtube_prepare_subtitles(
     };
     session.validate().map_err(|message| fail(&message))?;
     let video = extract_video_id(&url).ok_or_else(|| fail("invalid_url"))?;
-    if ytdlp_path().is_none() {
+    if !cfg!(target_os = "ios") && ytdlp_path().is_none() {
         return Err(fail("missing_tool"));
     }
     let dir = cache_dir(&app).map_err(|_| fail("download_failed"))?;
@@ -898,6 +959,62 @@ pub(super) async fn test_download(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test]
+    #[ignore = "live public YouTube HTTP acceptance; no desktop extractor or fixtures"]
+    async fn portable_youtube_public_subtitle_smoke() {
+        let video = "5MgBikgcWnY";
+        let metadata = fetch_http_metadata(video).await.unwrap();
+        let entries = &metadata["subtitles"]["en"];
+        assert!(entries.as_array().is_some_and(|items| !items.is_empty()));
+        let track = metadata_track("en", false, entries);
+        cache_metadata(&format!("{video}:anonymous"), &metadata);
+        let result = http_track(
+            &job(),
+            video,
+            &track,
+            &BrowserSession::default(),
+            "primary",
+            Duration::from_secs(30),
+        )
+        .await
+        .unwrap();
+        let cues = parse_srt(&result.content);
+        assert!(cues.len() > 20);
+        let source = super::super::super::source_media::checked_source_from_subtitles(
+            video,
+            &track,
+            &result.content,
+            &metadata,
+        )
+        .unwrap();
+        source.validate().unwrap();
+        println!(
+            "Live portable subtitle acceptance: {} cues, English provenance valid",
+            cues.len()
+        );
+    }
+
+    #[test]
+    fn portable_metadata_rejects_foreign_caption_hosts_and_keeps_manual_origin() {
+        let metadata = http_player_metadata(&serde_json::json!({
+            "videoDetails": {"title":"Test", "lengthSeconds":"20"},
+            "captions": {"playerCaptionsTracklistRenderer":{"captionTracks":[
+                {"languageCode":"en","baseUrl":"https://www.youtube.com/api/timedtext?lang=en&signature=test"},
+                {"languageCode":"fr","baseUrl":"https://example.com/api/timedtext?lang=fr"},
+                {"languageCode":"de","baseUrl":"http://www.youtube.com/api/timedtext?lang=de"}
+            ]}}
+        }));
+        let tracks = metadata["subtitles"].as_object().unwrap();
+        assert_eq!(tracks.len(), 1);
+        assert_eq!(
+            metadata_track("en", false, &tracks["en"]).source,
+            SubtitleSource::Manual
+        );
+        assert!(tracks["en"][0]["url"]
+            .as_str()
+            .unwrap()
+            .contains("fmt=json3"));
+    }
     const SRT: &str = "1\n00:00:00,000 --> 00:00:02,000\nHello.\n\n";
     fn job() -> DownloadJob {
         DownloadJob {

@@ -1,3 +1,4 @@
+import { BusyRing } from './LoadingFeedback';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -112,18 +113,18 @@ export default function ImportPanel() {
         </header>
         <MotionChange changeKey={`${phase}:${source}`} resizeContainer=".lc-import-modal"><div className="lc-import-body">
             {phase === 'source' && (source === 'choose' ? <>
-                <div className="lc-import-sources">
-                    <button type="button" className="lc-import-source lc-import-source--clipboard" disabled={readingClipboard || state.picking || running} onClick={() => void pasteLink()}>
-                        <ClipboardPaste aria-hidden="true" size={17} /><strong>{t(readingClipboard ? 'materials.importDialog.readingClipboard' : 'materials.importDialog.pasteLink')}</strong>
+                <div data-guide="import-sources" className="lc-import-sources">
+                    <button type="button" className="lc-import-source lc-import-source--clipboard" aria-busy={readingClipboard} disabled={readingClipboard || state.picking || running} onClick={() => void pasteLink()}>
+                        {readingClipboard ? <BusyRing /> : <ClipboardPaste aria-hidden="true" size={17} />}<strong>{t(readingClipboard ? 'materials.importDialog.readingClipboard' : 'materials.importDialog.pasteLink')}</strong>
                     </button>
-                    <button type="button" className="lc-import-source" disabled={readingClipboard || state.picking || running} onClick={() => { setInputError(null); setManualInput(null); void state.choose(); }}>
-                        <FileText aria-hidden="true" size={17} /><strong>{t(state.picking ? 'common.loading' : 'materials.importDialog.file')}</strong>
+                    <button type="button" className="lc-import-source" aria-busy={state.picking} disabled={readingClipboard || state.picking || running} onClick={() => { setInputError(null); setManualInput(null); void state.choose(); }}>
+                        {state.picking ? <BusyRing /> : <FileText aria-hidden="true" size={17} />}<strong>{t('materials.importDialog.file')}</strong>
                     </button>
                 </div>
                 <p className="lc-import-summary">{t('materials.importDialog.contentHint')}</p>
             </> : <>
                 <button className="ui-button ui-button--icon lc-import-back" aria-label={t('common.back')} title={t('common.back')} onClick={() => state.changeSource()}><ArrowLeft size={20} aria-hidden="true" /></button>
-                {source === 'youtube' ? <YouTubeImport key={linkDraft?.id ?? 'manual'} initialUrl={linkDraft?.url} autoSearch={linkDraft?.autoSearch} active={open} /> : <div className="lc-import-drop"><Upload size={32} aria-hidden="true" /><h3>{t('materials.drop')}</h3><p>{t('materials.srtOnly')}</p><button className="ui-button lc-import-primary" disabled={state.picking} onClick={() => void state.choose()}>{t(state.picking ? 'common.loading' : 'materials.choose')}</button><small>{t('materials.importDialog.fileLimit')}</small></div>}
+                {source === 'youtube' ? <YouTubeImport key={linkDraft?.id ?? 'manual'} initialUrl={linkDraft?.url} autoSearch={linkDraft?.autoSearch} active={open} /> : <div className="lc-import-drop"><Upload size={32} aria-hidden="true" /><h3>{t('materials.drop')}</h3><p>{t('materials.srtOnly')}</p><button className="ui-button lc-import-primary" disabled={state.picking} aria-busy={state.picking} onClick={() => void state.choose()}>{state.picking && <BusyRing />}<span>{t('materials.choose')}</span></button><small>{t('materials.importDialog.fileLimit')}</small></div>}
             </>)}
             {(inputError || manualInput !== null) && (phase === 'source' || preview && !selected) && <div className="lc-content-input">
                 {inputError && <p className="lc-import-error" role="alert">{t(`materials.importDialog.${inputError}`)}</p>}

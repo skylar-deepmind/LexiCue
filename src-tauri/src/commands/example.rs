@@ -50,7 +50,14 @@ impl ExampleState {
                 .map(|(index, text)| SegmentInput {
                     index: index as i32,
                     en_text: (*text).into(),
-                    zh_text: None,
+                    zh_text: Some(
+                        [
+                            "好奇心帮助我们留意细微的变化。",
+                            "一个小习惯就能带来很大的不同。",
+                            "我们每天都能学到新东西。",
+                        ][index]
+                            .into(),
+                    ),
                     start_time: Some(format!("00:00:{:02}.000", index * 4 + 1)),
                     end_time: Some(format!("00:00:{:02}.000", index * 4 + 4)),
                 })
@@ -195,6 +202,27 @@ pub async fn undo_example_saved_mutation(
     .map_err(|e| e.to_string())?
 }
 
+/// Uses the same history query as the reader, confined to this window's example DB.
+#[tauri::command]
+pub async fn example_recall_contexts(
+    state: State<'_, ExampleState>,
+    window: tauri::Window,
+    session_id: String,
+    expression: String,
+    offset: Option<i64>,
+    limit: Option<i64>,
+) -> Result<super::recall::ContextPage, String> {
+    let shared = state.inner().clone();
+    let owner = window.label().to_string();
+    tauri::async_runtime::spawn_blocking(move || {
+        shared.with(&owner, &session_id, |c| {
+            super::recall::contexts(c, &expression, offset.unwrap_or(0), limit.unwrap_or(10))
+        })
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -230,6 +258,33 @@ mod tests {
                 saved::mutate(c, "first", &saved::Mutation::Save { input: input() })
             })
             .unwrap();
+
+        let page = state
+            .with("main", &id, |c| {
+                super::super::recall::contexts(c, "Curiosity", 0, 10)
+            })
+            .unwrap();
+        assert_eq!(page.total, 1);
+        assert_eq!(page.records[0].record_id, first.record.record_id);
+        assert!(page.records[0]
+            .sentence
+            .as_deref()
+            .unwrap()
+            .contains("Curiosity"));
+        assert!(state
+            .with("other", &id, |c| super::super::recall::contexts(
+                c,
+                "Curiosity",
+                0,
+                10
+            ))
+            .is_err());
+        assert_eq!(
+            super::super::recall::contexts(&real, "Curiosity", 0, 10)
+                .unwrap()
+                .total,
+            0
+        );
         for i in 0..10 {
             assert!(
                 !state

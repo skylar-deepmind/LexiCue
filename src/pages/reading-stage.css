@@ -50,8 +50,8 @@
 .desk-empty h2 { font-size:clamp(1.75rem,3vw,2.375rem); font-weight:500; letter-spacing:-.03em; color:var(--desk-ink); }
 .desk-empty p { font-size:.875rem; line-height:1.8; color:var(--desk-muted); margin-top:16px; }
 .reading-library { background:var(--desk-paper); padding:28px clamp(20px,3vw,44px) 36px; border:1px solid var(--desk-border); border-radius:10px; animation:desk-appear 260ms ease-out; }
-.library-heading { display:flex; justify-content:space-between; align-items:flex-start; gap:20px; margin-bottom:28px; }
-.library-heading h2 { color:var(--desk-ink); font-size:2rem; font-weight:500; margin-top:5px; }
+.library-heading { display:flex; justify-content:space-between; align-items:center; gap:20px; margin-bottom:16px; }
+.library-heading h2 { color:var(--desk-ink); font-size:1.125rem; line-height:28px; font-weight:500; margin-top:0; }
 .library-tools { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
 .library-ranges { display:flex; gap:4px; }
 .library-ranges span { font-variant-numeric:tabular-nums; }
@@ -95,7 +95,7 @@
  .desk-other { padding:12px; gap:10px; }
  .reading-library { padding:22px 18px; }
  .library-heading { gap:10px; }
- .library-heading h2 { font-size:1.625rem; }
+ .library-heading h2 { font-size:1.125rem; }
  .library-tools { gap:6px; }
  .library-search { order:3; flex-basis:100%; max-width:none; margin:4px 0 0; }
  .library-tag-toggle { margin-left:auto; }
@@ -142,12 +142,12 @@
 /* Every desk member reserves its intrinsic height, including hidden distant
    papers. The neighbours move within this stable stage, not the page layout. */
 .desk-paper { grid-area:1 / 1; justify-self:center; width:78%; max-width:824px; min-width:0; z-index:2; min-height:320px; padding:26px 31px 32px 27px; border:1px solid var(--desk-border); border-radius:18px; box-shadow:var(--desk-card-shadow,var(--desk-shadow)); animation:none; transform-origin:50% 60%; transition:background-color 350ms ease,box-shadow 350ms ease; }
-.desk-stack > .desk-paper[data-desk-active='true'] { z-index:4; }
-.desk-stack > .desk-paper[data-desk-active='false'] { pointer-events:none; background:var(--desk-underlay); box-shadow:none; }
-.desk-stack > .desk-paper:not([data-desk-position='0']):not([data-desk-position='1']):not([data-desk-position='-1']) { visibility:hidden; }
-.desk-stack > .desk-paper[data-desk-active='false'] .desk-card-menu,
-.desk-stack > .desk-paper[data-desk-active='false'] .desk-card-tags .desk-text-button,
-.desk-stack > .desk-paper[data-desk-active='false'] .desk-primary { visibility:hidden; }
+.desk-card-viewport > .desk-paper[data-desk-active='true'] { z-index:4; }
+.desk-card-viewport > .desk-paper[data-desk-active='false'] { pointer-events:none; background:var(--desk-underlay); box-shadow:none; }
+.desk-card-viewport > .desk-paper:not([data-desk-position='0']):not([data-desk-position='1']):not([data-desk-position='-1']) { visibility:hidden; }
+.desk-card-viewport > .desk-paper[data-desk-active='false'] .desk-card-menu,
+.desk-card-viewport > .desk-paper[data-desk-active='false'] .desk-card-tags .desk-text-button,
+.desk-card-viewport > .desk-paper[data-desk-active='false'] .desk-primary { visibility:hidden; }
 .desk-stack[data-turning='true'] { pointer-events:none; }
 .desk-paper-top { margin:0; }
 .desk-paper-top > span { background:var(--surface-muted); border-radius:6px; padding:3px 8px; }
@@ -199,3 +199,5 @@
 .motion-change.library-menu-open[data-motion-moving] { overflow:visible; }
 
 .desk-text-button.desk-icon-button { width:44px; min-width:44px; padding:0; flex:none; text-decoration:none; }
+.desk-card-viewport { display:contents; }
+.desk-swipe-cue { display:none; }

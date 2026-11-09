@@ -85,42 +85,13 @@ body:has(.materials-page) .tag-dialog :is(.tag-create, .tag-manager__list .ui-bu
 body:has(.materials-page) .tag-dialog .tag-manager__list .ui-button--danger { color: var(--sync-error-text); }
 body:has(.materials-page) .tag-dialog .tag-manager__list .ui-button--danger:hover:not(:disabled) { color: var(--sync-error-text); background: var(--sync-error-bg); }
 
-.system-settings .theme-choices { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 16px; max-width: 640px; }
-.system-settings .theme-choice { position: relative; min-width: 0; padding: 0; border: 0; border-radius: 10px; text-align: left; color: var(--text-body); cursor: pointer; background: transparent; }
-.system-settings .theme-choice:focus-visible { outline:none; box-shadow:inset 0 -2px 0 currentColor; }
-.theme-preview {
-  --preview-surface: #ffffff;
-  --preview-tint: #eaf1f4;
-  --preview-ink: #263b32;
-  --preview-muted: #626e65;
-  --preview-accent: #416d84;
-  position: relative;
-  display: flex;
-  height: 74px;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--preview-surface);
-  transition: border-color 140ms;
-}
-.theme-preview--sage, .theme-preview--twilight, .theme-preview--amber { --preview-ink: #111827; --preview-muted: #6b7280; }
-.theme-preview--sage { --preview-tint: #eff8f3; --preview-accent: #4f7663; }
-.theme-preview--twilight { --preview-tint: #f5f1fb; --preview-accent: #7657a8; }
-.theme-preview--amber { --preview-tint: #fff8eb; --preview-accent: #b7791f; }
-.theme-preview--midnight { --preview-surface: #2c3035; --preview-tint: #35444d; --preview-ink: #edf0f2; --preview-muted: #adb7bf; --preview-accent: #b5ccd7; }
-.theme-preview-rail { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; flex: none; width: 20px; background: var(--preview-tint); }
-.theme-preview-rail i { width: 5px; height: 5px; border-radius: 2px; background: var(--preview-muted); }
-.theme-preview-rail i:first-child { height: 12px; background: var(--preview-accent); }
-.theme-preview-copy { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 5px; min-width: 0; padding: 10px; }
-.theme-preview-copy > span { color: var(--preview-ink); font-family: Georgia, 'Times New Roman', serif; font-size: 23px; line-height: 1; }
-.theme-preview-copy i { width: 41px; max-width: 100%; height: 3px; border-radius: 2px; background: var(--preview-muted); }
-.theme-preview-copy i:last-child { width: 27px; background: var(--preview-accent); }
-.theme-choice-check { position: absolute; top: 5px; right: 5px; display: grid; place-items: center; width: 19px; height: 19px; border-radius: 50%; background: var(--accent-700); color: var(--on-accent); opacity: 0; }
-.theme-choice-tooltip.ui-tooltip { right: auto; left: 50%; transform: translateX(-50%); }
-.theme-choice:hover .theme-choice-tooltip, .theme-choice:focus-visible .theme-choice-tooltip { display: block; }
-.theme-choice:hover .theme-preview { border-color: var(--text-muted); }
-.theme-choice[aria-pressed='true'] .theme-preview { border-color: var(--accent-600); }
-.theme-choice[aria-pressed='true'] .theme-choice-check { opacity: 1; }
-.theme-choice:active .theme-preview { border-color: var(--accent-700); }
-@media (max-width: 500px) { .system-settings .theme-choices { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 18px 12px; } }
-@media (prefers-reduced-motion: reduce) { .theme-preview, .materials-page .tag-chip, .system-settings .settings-quiet-action { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .materials-page .tag-chip, .system-settings .settings-quiet-action { transition: none; } }
+
+.device-sync .device-sync-qr { display: block; width: min(100%, 260px); height: auto; image-rendering: pixelated; }
+.device-sync .device-sync-code { display: block; font-size: 1.6rem; font-variant-numeric: tabular-nums; letter-spacing: .14em; color: var(--text-strong); }
+.device-sync .device-sync-option { display: flex; align-items: center; gap: .6rem; min-height: 44px; }
+.device-sync :is(summary, button) { min-height: 44px; }
+.device-sync summary { cursor: pointer; align-content: center; }
+.device-sync :is(summary, button, input):focus-visible { outline: 2px solid var(--accent-700); outline-offset: 2px; }
+.device-sync-candidate { display: flex; align-items: baseline; gap: .6rem; padding-block: .65rem; min-height: 44px; }
+.device-sync-candidate span { white-space: pre-wrap; overflow-wrap: anywhere; }

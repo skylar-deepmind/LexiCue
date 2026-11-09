@@ -5,6 +5,7 @@ import { LoaderCircle, RotateCcw, Square, Volume2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { SpeechKind } from '../lib/speechPreferences';
 import { useSpeechStore } from '../stores/speechStore';
+import InlineProgress from './InlineProgress';
 
 /** Every reading action shares one player, including the settings preview. */
 let ownerSequence=0;
@@ -26,7 +27,7 @@ export default function SpeechButton({ text, speechKey, kind, label, displayLabe
     disabled={disabled || language !== 'en' || !text.trim()} aria-label={action} title={action}
     aria-pressed={active} aria-busy={loading} data-speech-key={speechKey} data-speech-state={active ? speech.status : failed ? 'error' : 'idle'}
     onClick={event => { event.stopPropagation(); if (active) speech.stopOwned(owner); else void speech.speak(text, speechKey, { kind, media, owner, ownerScope }); }}>
-    {loading ? <LoaderCircle className="speech-spinner" size={18} aria-hidden="true"/> : active ? <Square size={18} aria-hidden="true"/> : failed ? <RotateCcw size={18} aria-hidden="true"/> : idleIcon ?? <Volume2 size={18} aria-hidden="true"/>}
+    {loading ? media ? <InlineProgress label={t('sourceAudio.preparing')}/> : <LoaderCircle className="speech-spinner" size={18} aria-hidden="true"/> : active ? <Square size={18} aria-hidden="true"/> : failed ? <RotateCcw size={18} aria-hidden="true"/> : idleIcon ?? <Volume2 size={18} aria-hidden="true"/>}
     {showLabel && <span>{displayLabel ?? action}</span>}
   </button>;
 }

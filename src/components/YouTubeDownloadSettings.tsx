@@ -1,38 +1,35 @@
+import { BusyRing } from './LoadingFeedback';
 import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useTranslation } from 'react-i18next';
+import { isIOSPlatform } from '../lib/platform';
 import AppSelect from './AppSelect';
 import { usePreferencesStore } from '../stores/preferencesStore';
 import { useYoutubeStore, type YtDlpStatus } from '../stores/youtubeStore';
 import { EMPTY_BROWSER_SESSION, YOUTUBE_BROWSERS } from '../lib/youtubeDownload';
 
-export default function YouTubeDownloadSettings({ status }: { status?: YtDlpStatus | null }) {
+function DesktopSubtitleTools({ status }: { status?: YtDlpStatus | null }) {
   const { t } = useTranslation();
   const session = usePreferencesStore(state => state.youtube.browserSession) ?? EMPTY_BROWSER_SESSION;
   const setSession = usePreferencesStore(state => state.setYouTubeBrowserSession);
   const [checkedStatus, setDiagnostics] = useState<YtDlpStatus | null>(null);
   const diagnostics = status ?? checkedStatus;
   const [checking, setChecking] = useState(status === undefined);
-  const [clearing, setClearing] = useState(false);
-  const [notice, setNotice] = useState('');
+  const [checkFailed, setCheckFailed] = useState(false);
   const [profileDraft, setProfile] = useState<string | null>(null);
   const profile = profileDraft ?? session.profile;
   const invalidProfile = /[\n\r\0:]/.test(profile) || profile.length > 1024;
   useEffect(() => {
     if (status !== undefined) return;
     let active = true;
+    setCheckFailed(false);
+    setChecking(true);
     void useYoutubeStore.getState().ytdlpStatus().then(result => { if (active) setDiagnostics(result); })
-      .catch(() => { if (active) setNotice(t('youtube.downloadSettings.checkFailed')); })
+      .catch(() => { if (active) setCheckFailed(true); })
       .finally(() => { if (active) setChecking(false); });
     return () => { active = false; };
-  }, [status, t]);
-  const clearCache = async () => {
-    setClearing(true); setNotice('');
-    try { await invoke('youtube_clear_subtitle_cache'); setNotice(t('youtube.downloadSettings.cacheCleared')); }
-    catch { setNotice(t('youtube.downloadSettings.cacheFailed')); }
-    finally { setClearing(false); }
-  };
-  return <div className="youtube-download-settings">
+  }, [status]);
+  return <>
     <h4>{t('youtube.downloadSettings.browserTitle')}</h4>
     <button type="button" className="youtube-ai" role="switch" aria-checked={session.enabled}
       onClick={() => setSession({ ...session, enabled: !session.enabled })}>
@@ -48,16 +45,34 @@ export default function YouTubeDownloadSettings({ status }: { status?: YtDlpStat
       placeholder={t('youtube.downloadSettings.defaultProfile')} onChange={event => { const value = event.target.value; setProfile(value); if (!/[\n\r\0:]/.test(value) && value.length <= 1024) setSession({ ...session, profile: value }); }} />
     <p className="youtube-muted">{t('youtube.downloadSettings.profileHint')}</p>
     {invalidProfile && <p role="alert" className="youtube-warning">{t('youtube.downloadSettings.invalidProfile')}</p>}
-    {checking && <p role="status" className="youtube-muted">{t('youtube.downloadSettings.checking')}</p>}
+    {checking && <p role="status" className="youtube-muted"><BusyRing /><span>{t('youtube.downloadSettings.checking')}</span></p>}
     {diagnostics && <dl className="youtube-diagnostics">
       <dt>yt-dlp</dt><dd>{diagnostics.version ?? t('youtube.downloadSettings.missing')}<br />{diagnostics.path}</dd>
       <dt>{t('youtube.downloadSettings.javascript')}</dt><dd>{diagnostics.javascript ?? t('youtube.downloadSettings.missing')}</dd>
       <dt>EJS</dt><dd>{t(`youtube.downloadSettings.${diagnostics.ejs ?? 'unknown'}`)}</dd>
       <dt>ffmpeg</dt><dd>{diagnostics.ffmpeg ?? t('youtube.downloadSettings.missing')}</dd>
     </dl>}
-    {diagnostics?.available === false && <p className="youtube-warning">{t('youtube.ytdlpErrorHint')}<br /><code>brew install yt-dlp deno</code></p>}
+    {checkFailed && <p role="status">{t('youtube.downloadSettings.checkFailed')}</p>}
+    {diagnostics?.available === false && <p className="youtube-warning">{t('youtube.downloadSettings.installTool')}
+      {/Macintosh|Mac OS X/.test(navigator.userAgent) && <><br /><code>brew install yt-dlp deno</code></>}
+    </p>}
+  </>;
+}
+
+export default function YouTubeDownloadSettings({ status }: { status?: YtDlpStatus | null }) {
+  const { t } = useTranslation();
+  const [clearing, setClearing] = useState(false);
+  const [notice, setNotice] = useState('');
+  const clearCache = async () => {
+    setClearing(true); setNotice('');
+    try { await invoke('youtube_clear_subtitle_cache'); setNotice(t('youtube.downloadSettings.cacheCleared')); }
+    catch { setNotice(t('youtube.downloadSettings.cacheFailed')); }
+    finally { setClearing(false); }
+  };
+  return <div className="youtube-download-settings">
+    {isIOSPlatform() ? <p>{t('youtube.downloadSettings.publicTracks')}</p> : <DesktopSubtitleTools status={status} />}
     <p className="youtube-muted">{t('youtube.downloadSettings.cacheHint')}</p>
-    <button type="button" className="ui-button" disabled={clearing} onClick={() => void clearCache()}>{t('youtube.downloadSettings.clearCache')}</button>
+    <button type="button" className="ui-button" disabled={clearing} aria-busy={clearing} onClick={() => void clearCache()}>{clearing && <BusyRing />}<span>{t('youtube.downloadSettings.clearCache')}</span></button>
     {notice && <p className="youtube-notice" role="status">{notice}</p>}
   </div>;
 }

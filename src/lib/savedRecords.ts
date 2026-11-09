@@ -159,5 +159,10 @@ export function legacyContent(value: unknown): { label: string; text: string }[]
   if (Array.isArray(row.same_position_records)) {
     for (const item of row.same_position_records) result.push(...legacyContent(item));
   }
+  for (const notes of [row.notes, row.lan_notes]) {
+    if (Array.isArray(notes)) for (const note of notes) {
+      if (!result.some(previous => previous.text === note)) add('legacyNote', note);
+    }
+  }
   return result;
 }

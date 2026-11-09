@@ -1,0 +1,67 @@
+/** Figma A: real material cores, isolated SQLite, live geometry through interrupted turns. */
+import assert from 'node:assert/strict';
+import {mkdir,writeFile} from 'node:fs/promises';
+import {randomUUID} from 'node:crypto';
+import {createReadingHarness} from './ui-reading-support.mjs';
+const output=process.env.LEXICUE_BOOKMARK_OUTPUT||'/tmp/lexicue-bookmark-shelf';await mkdir(output,{recursive:true});
+const h=await createReadingHarness(output),checks=[],motion=[];
+const ok=(v,label)=>{assert.ok(v,label);checks.push(label);};
+const settle=async page=>{await page.evaluate(()=>document.fonts.ready);await page.evaluate(()=>new Promise(done=>requestAnimationFrame(()=>requestAnimationFrame(done))));await page.evaluate(()=>Promise.all(document.getAnimations().filter(a=>a.effect?.getComputedTiming().iterations!==Infinity).map(a=>a.finished.catch(()=>{}))));};
+let page;
+try{
+ for(const theme of ['ocean','midnight']){
+  await h.call('test_reset');const ids=[];
+  const samples=[['Morning Walk.txt','Small steps matter.'],['The first 20 hours — how to learn anything.txt','Explaining an idea in our own words showed us which parts we understood. On the way home, the sky grew darker.'],['Station English.txt','The next train will arrive in five minutes. Please wait behind the yellow line.'],['Quiet Afternoon.txt','A quiet afternoon is a good time to read.'],['Library Notes.txt','A small library opened beside the river.'],['Try something new.txt','Try something new for thirty days.'],['A different morning.txt','A different morning brought a new idea.']];
+  for(const [name,content] of samples)ids.push((await h.call('import_reading_material',{input:{operation_id:randomUUID(),name,normalized_kind:'txt',content,segments:[{index:0,en_text:content,zh_text:null,start_time:null,end_time:null}]}})).file_id);
+  const context=await h.browser.newContext({viewport:{width:375,height:812},isMobile:true,hasTouch:true});page=await context.newPage();await page.routeWebSocket('**',s=>s.close());await h.fixture(page,theme);await page.goto(h.url+'/files');
+  await page.evaluate(async ids=>{const {useMaterialStore:m}=await window.__uiStoreModule('materialStore');await m.getState().load();const {useReadingDeskStore:d}=await window.__uiStoreModule('readingDeskStore');for(const id of [...ids.slice(0,3)].reverse())d.getState().keepAndOpen(m.getState().files.find(f=>f.id===id));d.getState().clearNotice();document.documentElement.style.setProperty('--safe-top','51px');document.documentElement.style.setProperty('--safe-bottom','34px');},ids);
+  await settle(page);
+  const geometry=()=>page.evaluate(()=>{const paper=document.querySelector('.desk-paper[data-desk-active="true"]'),stack=document.querySelector('.desk-stack'),shelf=document.querySelector('.desk-dock-wrap'),content=document.querySelector('.reading-stage-content'),scroll=document.querySelector('.materials-scroll');const p=paper.getBoundingClientRect(),s=shelf.getBoundingClientRect(),c=content.getBoundingClientRect(),st=stack.getBoundingClientRect();return {paper:[p.x,p.y,p.width,p.height],stack:[st.y,st.height],shelf:[s.x,s.y,s.width,s.height],content:[c.y,c.height],rows:document.querySelectorAll('.desk-shelf-row[data-visible="true"]').length,scroll:scroll.scrollHeight-scroll.clientHeight,opacity:getComputedStyle(shelf).opacity,ready:content.dataset.bookmarkReady};});
+  const short=await geometry();
+  ok(short.ready==='true',`${theme}: StrictMode enables geometry transitions`);
+  ok(short.paper[2]===327&&Math.abs(short.paper[3]-208)<=2,`${theme}: one real sentence hugs Figma's 208pt card ${JSON.stringify(short)}`);
+  ok(Math.abs(short.paper[1]-short.content[0])<1&&short.rows===4,`${theme}: short bookmark starts at the content top and exposes four shelf rows`);
+  ok(short.scroll<=1&&short.shelf[1]+short.shelf[3]<=778,`${theme}: all shelf content fits above the home safe area`);
+  await page.screenshot({path:`${output}/${theme}-short.png`});
+  ok(await page.getByTestId('desk-swipe-prev').count()===0&&await page.getByTestId('desk-swipe-next').count()===1,`${theme}: first material only offers the possible direction`);
+  const cue=await page.getByTestId('desk-swipe-next').evaluate(n=>{const s=getComputedStyle(n),r=n.getBoundingClientRect(),icon=n.querySelector('svg').getBoundingClientRect();return {width:r.width,height:r.height,background:s.backgroundColor,icon:icon.width};});
+  ok(cue.width===44&&cue.height===44&&cue.icon===12&&cue.background==='rgba(0, 0, 0, 0)',`${theme}: bare 12pt chevron has a transparent 44pt touch target ${JSON.stringify(cue)}`);
+  ok(await page.locator('.desk-card-viewport').evaluate(n=>getComputedStyle(n).clipPath!=='none'),`${theme}: neighbouring papers are clipped to the current bookmark width`);
+  await page.evaluate(()=>{window.__shelfRoot=document.querySelector('.desk-shelf-previews');window.__shelfRows=[...document.querySelectorAll('.desk-shelf-row')];});
+  const stack=page.locator('.desk-stack');await stack.focus();await page.keyboard.press('ArrowRight');
+  const frames=await page.evaluate(()=>new Promise(resolve=>{const samples=[],start=performance.now();function sample(){const st=document.querySelector('.desk-stack').getBoundingClientRect(),sh=document.querySelector('.desk-dock-wrap').getBoundingClientRect();samples.push({time:performance.now()-start,stack:st.height,shelfY:sh.y,shelfHeight:sh.height,opacity:getComputedStyle(document.querySelector('.desk-dock-wrap')).opacity});if(performance.now()-start<520)requestAnimationFrame(sample);else resolve(samples);}sample();}));motion.push({theme,frames});await settle(page);const long=await geometry();
+  ok(Math.abs(long.paper[3]-362)<=2&&long.rows===2,`${theme}: long content grows naturally and fits two compact shelf rows ${JSON.stringify(long)}`);
+  ok(frames.length>10&&new Set(frames.map(f=>Math.round(f.stack))).size>5&&new Set(frames.map(f=>Math.round(f.shelfHeight))).size>5,`${theme}: card and shelf height change over multiple visible frames`);
+  ok(frames.every(f=>f.opacity==='1')&&frames.every((f,i)=>i===0||Math.abs(f.stack-frames[i-1].stack)<80),`${theme}: shelf never flashes or jumps between sizes`);
+  ok(await page.evaluate(()=>window.__shelfRoot===document.querySelector('.desk-shelf-previews')&&window.__shelfRows.every(n=>n.isConnected)),`${theme}: shelf and all material rows retain DOM identity`);
+  ok(long.scroll<=1&&long.shelf[1]+long.shelf[3]<=778,`${theme}: long bookmark also fits the entire phone`);
+  ok(await page.getByTestId('desk-swipe-prev').count()===1&&await page.getByTestId('desk-swipe-next').count()===1,`${theme}: middle material has both direction cues`);
+  await page.screenshot({path:`${output}/${theme}-long.png`});
+  await page.getByTestId('desk-swipe-next').click();await settle(page);
+  ok(await page.getByTestId('desk-swipe-next').count()===0&&await page.getByTestId('desk-swipe-prev').count()===1,`${theme}: last material only offers the previous direction`);
+  await page.getByTestId('desk-swipe-prev').click();await settle(page);
+  await page.keyboard.press('ArrowLeft');await page.waitForTimeout(85);await page.keyboard.press('ArrowRight');await page.waitForTimeout(75);await page.keyboard.press('ArrowLeft');await settle(page);
+  ok((await geometry()).paper[3]===short.paper[3]&&(await geometry()).rows===4,`${theme}: interrupted turns finish at the right short-card geometry`);
+  const box=await stack.boundingBox();await page.mouse.move(box.x+box.width*.8,box.y+90);await page.mouse.down();await page.mouse.move(box.x+box.width*.2,box.y+92,{steps:10});await page.mouse.up();await settle(page);
+  ok(await page.locator('.desk-paper[data-desk-active="true"] .desk-mobile-title').innerText()==='The first 20 hours — how to learn anything',`${theme}: real swipe still selects the next material`);
+  ok(await page.evaluate(()=>!getSelection()?.toString()),`${theme}: dragging does not select blue text`);
+  const actions=await page.locator('.desk-paper[data-desk-active="true"]').evaluate(n=>['.desk-card-tags > button','.desk-card-menu > button'].map(s=>{const r=n.querySelector(s).getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height};}));
+  ok(actions.every(n=>n.w===44&&n.h===44)&&actions[0].y===actions[1].y&&actions[1].x-actions[0].x===52,`${theme}: edit and more match the shared Figma baseline and target`);
+  const preview=page.locator('.desk-shelf-row[data-visible="true"] .desk-shelf-open').first();await preview.click();await page.locator('.page-live .reading-word').first().waitFor();await page.locator('.page-live .reading-breadcrumb a').click();await page.locator('.desk-stack').waitFor();await settle(page);
+  const returned=await geometry();ok(returned.scroll<=1,`${theme}: shelf material opens and returns to a fitted home ${JSON.stringify(returned)}`);
+  await page.locator('.desk-library-dock').click();await page.locator('.library-overlay-panel').waitFor();await settle(page);await page.locator('.library-open').first().click();await page.locator('.page-live .reading-word').first().waitFor();await page.getByRole('link',{name:'返回材料库',exact:true}).click();await page.locator('.library-overlay-panel').waitFor();await settle(page);
+  ok(await page.locator('.library-overlay-panel').evaluate(n=>{const r=n.getBoundingClientRect(),d=document.querySelector('.desk-dock-wrap').getBoundingClientRect();return r.bottom>=d.bottom-1&&r.top>=51;}),`${theme}: expanded library return covers the underlying shelf`);
+  await page.locator('.library-heading').getByRole('button',{name:'返回桌面',exact:true}).click();await page.locator('.library-overlay-panel').waitFor({state:'detached'});await page.emulateMedia({reducedMotion:'reduce'});await stack.focus();await page.keyboard.press('ArrowLeft');await settle(page);
+  ok(await page.locator('.desk-stack').evaluate(n=>getComputedStyle(n).transitionDuration==='0s'),`${theme}: reduced motion removes geometry transitions`);
+  await page.setViewportSize({width:1440,height:1000});
+  await page.evaluate(async id=>{const {useMaterialStore:m}=await window.__uiStoreModule('materialStore');const {useReadingDeskStore:d}=await window.__uiStoreModule('readingDeskStore');d.getState().select(m.getState().files.find(f=>f.id===id));},ids[0]);await settle(page);
+  const desktopBefore=await geometry();
+  ok(desktopBefore.paper[2]>=600&&!(await page.getByTestId('desk-swipe-next').isVisible())&&await page.locator('.desk-pager').isVisible(),`${theme}: desktop keeps its wide paper and existing pagination`);
+  await page.getByTestId('desk-next').click();await settle(page);
+  const desktopAfter=await geometry();
+  ok(Math.abs(desktopBefore.stack[0]-desktopAfter.stack[0])<1&&Math.abs(desktopBefore.stack[1]-desktopAfter.stack[1])<1&&await page.locator('.desk-paper[data-desk-active="true"] .desk-desktop-title').innerText()===samples[1][0],`${theme}: display-contents wrapper preserves desktop grid geometry and card navigation`);
+  await page.screenshot({path:`${output}/${theme}-desktop.png`});
+  await context.close();page=null;
+ }
+ ok(h.errors.length===0,`no browser runtime errors ${JSON.stringify(h.errors)}`);await writeFile(`${output}/evidence.json`,JSON.stringify({checks,motion,errors:h.errors},null,2));console.log(`PASS: ${checks.length} bookmark shelf checks (${output})`);
+}catch(error){if(page&&!page.isClosed())await page.screenshot({path:`${output}/failure.png`});throw error;}finally{await h.dispose();}

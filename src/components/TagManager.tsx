@@ -1,3 +1,4 @@
+import { LoadingSkeleton } from './LoadingFeedback';
 import { useRef, useState } from 'react';
 import { Pencil, Plus, Trash2, X } from 'lucide-react';
 import { ask } from '@tauri-apps/plugin-dialog';
@@ -36,7 +37,7 @@ export default function TagManager({ onClose }: { onClose: () => void }) {
         <button type="button" className="ui-button tag-create" disabled={busy} onClick={() => setPrompt({})}><Plus size={16} aria-hidden="true" />{t('tags.create')}</button>
         {tagsError && <p className="tag-error" role="alert">{t('tags.loadFailed')} <button className="ui-button" onClick={() => void useFileStore.getState().loadTags(true)} disabled={loading}>{t('common.retry')}</button></p>}
         {error && <p className="tag-error" role="alert">{error}</p>}
-        {loading && <p role="status" className="tag-hint">{t('common.loading')}</p>}
+        {loading && !tags.length && <LoadingSkeleton kind="tags" label={t('common.loading')} />}
         <ul className="tag-manager__list">
           {tags.filter(tag => tag.name.toLowerCase().includes(query.trim().toLowerCase())).map(tag => <li key={tag.id}>
             <span>{tag.name}</span><button type="button" className="ui-button ui-button--icon" disabled={busy} onClick={() => setPrompt({ tag })} aria-label={t('tags.renameNamed', { name: tag.name })}><Pencil size={18} aria-hidden="true" /></button>

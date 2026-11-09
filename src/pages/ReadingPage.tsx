@@ -1,3 +1,4 @@
+import { invoke } from '@tauri-apps/api/core';
 import { positionMatchesMaterial } from '../lib/readingDesk';
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type PointerEvent as ReactPointerEvent } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
@@ -8,10 +9,11 @@ import './source-return.css';
 import { readingReturnPath } from '../lib/readingEntry';
 import { useTranslation } from 'react-i18next';
 import { SpeechFeedback } from '../components/SpeechButton';
+import DisplaySettingsMenu from '../components/DisplaySettingsMenu';
 import SourceAudioControls from '../components/SourceAudioControls';
 import ReadingPlaybackControls from '../components/ReadingPlaybackControls';
 import { useSourceMediaStore } from '../stores/sourceMediaStore';
-import { Play, ArrowDownToLine } from 'lucide-react';
+import { Play, ChevronLeft } from 'lucide-react';
 import { useReadingToolsStore } from '../stores/readingToolsStore';
 import type { ReadingMaterial } from '../lib/materials';
 import type { Segment } from '../lib/types';
@@ -30,7 +32,9 @@ import useContentFontScaleStyle from '../components/useContentFontScaleStyle';
 import type { ReadingScope } from '../lib/readingScope';
 import { useOnboardingStore } from '../stores/onboardingStore';
 import useReadingTranslation from '../components/useReadingTranslation';
+import ReadingTranslationDialog from '../components/ReadingTranslationDialog';
 import { documentLocationLabel } from '../lib/documentTypes';
+import { compileRecall } from '../lib/recallMatcher';
 import type { RecallMatch } from '../lib/recallMatcher';
 const returnLookupMemory = new Map<string, { drafts: Map<string, LookupDraft>; session: LookupSession }>();
 if (typeof window !== 'undefined') window.addEventListener('lexicue-data-restored', () => returnLookupMemory.clear());
@@ -64,7 +68,7 @@ export default function ReadingPage({ data, scope }: {
     }, [navigate, visit, visitToken]);
     useEffect(() => visit ? backNavigation.setPage(() => { returnToOrigin(); return true; }, 20) : undefined, [visit, returnToOrigin]);
     const preserveTranslationPosition = useRef<() => void>(() => {});
-    const translationState = useReadingTranslation({ materialId: material.id, contentHash: material.content_hash, segments: data.segments, allowGenerate: !example && !material.source }, () => preserveTranslationPosition.current());
+    const translationState = useReadingTranslation({ materialId: material.id, contentHash: material.content_hash, segments: data.segments, allowGenerate: !example }, () => preserveTranslationPosition.current());
     const { generated: generatedTranslations, enabled: translation, status: translationStatus } = translationState;
     const segments = useMemo(() => data.segments.map(segment => segment.zh_text?.trim() || !generatedTranslations[segment.id] ? segment : {...segment, zh_text: generatedTranslations[segment.id]}), [data.segments, generatedTranslations]);
     const mediaIdentity = material.source?.key ?? material.document?.identity ?? material.content_hash;
@@ -83,16 +87,27 @@ export default function ReadingPage({ data, scope }: {
             return { segment: Number(requested), offset: 0 };
         try {
             const stored = JSON.parse(localStorage.getItem(positionKey) ?? 'null');
+            if (material.position) return {segment: material.position.segment, offset:
+                stored?.revision === material.position.revision && stored.segment === material.position.segment ? stored.offset : 0};
             if (positionMatchesMaterial(stored, material, mediaIdentity) && segments.some(segment => segment.index_num === stored.segment))
                 return stored;
         }
         catch { /* Ignore invalid local scroll metadata. */ }
-        return { segment: segments[0]?.index_num ?? 0, offset: 0 };
+        return { segment: material.position?.segment ?? segments[0]?.index_num ?? 0, offset: 0 };
     });
+    const progressIntent = useRef(false);
+    const lastPosition = useRef(initial.segment);
+    const positionRevision = useRef(material.position?.revision);
+    const positionWrites = useRef(Promise.resolve());
     const initialIndex = Math.max(0, segments.findIndex(segment => segment.index_num === initial.segment));
     const [first, setFirst] = useState(Math.max(0, initialIndex - 20));
     const [last, setLast] = useState(Math.min(segments.length, Math.max(0, initialIndex - 20) + 80));
-    const recall=useRecallMatches(segments,first,last,!example);
+    const libraryRecall=useRecallMatches(segments,first,last,!example);
+    const exampleMatches=useMemo(()=>{
+      const matcher=compileRecall(guide.saved.map(record=>record.expression),[],true);
+      return new Map(segments.map(segment=>[segment.index_num,matcher.match(segment.en_text)]));
+    },[guide.saved,segments]);
+    const recall=example?{matches:exampleMatches,status:'ready'}:libraryRecall;
     const [query, setQuery] = useState<ReadingQuery | null>(() => {
         const q = returnView?.query, segment = q && segments.find(item => item.id === q.segmentId);
         return q && segment && segment.en_text.slice(q.start, q.end).trim() === q.expression.trim() ? { segment, start: q.start, end: q.end, expression: q.expression } : null;
@@ -123,12 +138,8 @@ export default function ReadingPage({ data, scope }: {
     const auxiliaryFont=usePreferencesStore(state=>state.auxiliaryFontSize);
     const definitionFont=usePreferencesStore(state=>state.definitionFontSize);
     const lineHeight = usePreferencesStore(s => s.readingLineHeight);
-    const visibleSegments = () => {
-        const indices = [...visible.current.keys()].sort((a, b) => a - b);
-        return indices.length ? indices.map(index => data.segments.find(segment => segment.index_num === index)!).filter(Boolean) : data.segments.slice(first, first + 8);
-    };
-    const requestTranslations = () => translationState.request(visibleSegments());
-    const toggleTranslation = () => translationState.toggle(visibleSegments());
+    const requestTranslations = () => translationState.request();
+    const toggleTranslation = () => translationState.toggle();
     const readingStartIndex = () => {
         const firstVisible = [...visible.current.keys()].sort((a, b) => a - b)[0];
         const index = segments.findIndex(segment => segment.index_num === firstVisible);
@@ -136,6 +147,7 @@ export default function ReadingPage({ data, scope }: {
     };
     const [documentJump, setDocumentJump] = useState<number | null>(null);
     const jumpDocument = (index: number) => {
+        progressIntent.current = true;
         followAllowed.current = false;
         setQuery(null);
         setFirst(Math.max(0, index));
@@ -153,8 +165,8 @@ export default function ReadingPage({ data, scope }: {
     const currentReadingIndex = reading?.mode === 'source-continuous' && reading.status === 'playing' ? speech.queueIndex : reading?.index;
     const fontScaleStyle = useContentFontScaleStyle();
     const readingLayout = useReadingLayout(scroll);
-    const preserveReadingPosition = useReadingAnchor(scroll);
-    preserveTranslationPosition.current = preserveReadingPosition;
+    const { preservePosition, rememberViewport } = useReadingAnchor(scroll);
+    preserveTranslationPosition.current = preservePosition;
     const mediaEntries = useSourceMediaStore(state => state.entries);
     const speechItems = useMemo(() => segments.map(segment => ({text:segment.en_text,key:`reader:${mediaIdentity}:${segment.index_num}`})), [segments,mediaIdentity]);
     const pendingListen = useRef<number | null>(null);
@@ -180,13 +192,14 @@ export default function ReadingPage({ data, scope }: {
             }
             // A paused or interrupted session may need its original source resolved again.
         }
-        if (material.source) {
+        if (material.source?.audio) {
             if (!ref) { setSourceError(t('sourceAudio.noTiming')); return; }
             setSourceError('');
             void state.startSourceContinuous({fileId:material.id,segmentId:segment.id,sourceKey:ref.source.key,key:`reader:${mediaIdentity}:continuous`,index});
         } else void state.startQueue(speechItems.map(({text,key})=>({text,key})),index);
     },[segments,data.media_refs,material.id,material.source,speechItems,mediaIdentity,t,followAllowed]);
     const listenFrom = (index: number) => {
+        progressIntent.current = true;
         followAllowed.current=true;
         setListening(true);
         pointerRange.current = null; keyRange.current = null; setKeyboardRange(null);
@@ -216,6 +229,10 @@ export default function ReadingPage({ data, scope }: {
     };
     useLayoutEffect(() => {
         useReadingToolsStore.setState({ available: true, listening, translation, hasTranslation: translationState.available, showRecall: !example,
+            translationProgress: translationStatus === 'loading' ? translationState.progress : null,
+            playing:reading?.status==='playing'||reading?.status==='loading',loading:reading?.status==='loading',disabled:!segments.length,rate:reading?.rate??speech.rate,
+            onPlay:()=>playbackAction('resume'),onPause:()=>{followAllowed.current=false;useSpeechStore.getState().pause('user');},
+            onRate:()=>{const rates=[1,1.25,1.5,.75] as const;useSpeechStore.getState().setRate(rates[(rates.indexOf(reading?.rate??speech.rate)+1)%rates.length]);},
             onListen: () => { if (listening) { pendingListen.current = null; pendingPlayback.current = null; useSpeechStore.getState().exitReading(); setListening(false); } else if (segments.length) listenFrom(readingStartIndex()); else setListening(true); },
             onTranslation: toggleTranslation,
         });
@@ -245,13 +262,17 @@ export default function ReadingPage({ data, scope }: {
             if (cancelled) return;
             const target = node.querySelector<HTMLElement>(`[data-sentence="${initial.segment}"]`);
             if (!target) return;
-            node.scrollTop += target.getBoundingClientRect().top - node.getBoundingClientRect().top + initial.offset;
+            if (initial.segment === segments[0]?.index_num && initial.offset === 0 && !visit && !returnView) node.scrollTop = 0;
+            else node.scrollTop += target.getBoundingClientRect().top - node.getBoundingClientRect().top + initial.offset;
+            // A resize can arrive before the scroll event for this move. Preserve
+            // the restored passage through that reflow, starting in this frame.
+            rememberViewport();
             restored.current = true;
             if (returnView) { readerNavigation.complete(location.state?.restoreVisitToken); returnLookupMemory.delete(location.state?.restoreVisitToken); }
         }); };
         void document.fonts.ready.then(restore);
         return () => { cancelled = true; cancelAnimationFrame(frame); };
-    }, [initial, returnView, location.state?.restoreVisitToken]);
+    }, [initial, returnView, location.state?.restoreVisitToken, segments, visit, rememberViewport]);
     useLayoutEffect(() => {
         const node = scroll.current;
         if (!node)
@@ -259,14 +280,33 @@ export default function ReadingPage({ data, scope }: {
         visible.current.clear();
         const positions = visible.current;
         let frame = 0;
+        let idle: ReturnType<typeof setTimeout> | undefined;
+        const write = () => {
+            const segment = [...positions.keys()].sort((a,b)=>a-b)[0];
+            if (example || !progressIntent.current || !restored.current || segment === undefined) return;
+            progressIntent.current=false;
+            if(lastPosition.current===segment) return;
+            const back = segment < lastPosition.current;
+            lastPosition.current = segment;
+            positionWrites.current = positionWrites.current.then(async () => {
+                const next = await invoke<string|null>('remember_reading_position', {fileId:material.id,contentHash:material.content_hash,
+                    segment,back,legacy:false,parent:positionRevision.current ?? null});
+                if (next) positionRevision.current = next;
+            }).catch(() => { /* Local scroll recovery is still available. */ });
+        };
+        const markIntent = () => { progressIntent.current = true; };
+        const markKey = (event:KeyboardEvent) => { if (['ArrowUp','ArrowDown','PageUp','PageDown','Home','End',' '].includes(event.key)) markIntent(); };
         const persist = () => {
             const item = [...positions.entries()].sort((a, b) => a[0] - b[0])[0];
-            if (!example && item && node.isConnected) {
+            if (!example && restored.current && item && node.isConnected) {
                 const offset = node.getBoundingClientRect().top - item[1].getBoundingClientRect().top;
-                try { localStorage.setItem(positionKey, JSON.stringify({segment:item[0],offset,hash:material.content_hash})); } catch { /* Best-effort local reading position. */ }
+                try { localStorage.setItem(positionKey, JSON.stringify({segment:item[0],offset,hash:material.content_hash,revision:positionRevision.current})); } catch { /* Best-effort local reading position. */ }
             }
         };
-        const remember = () => {cancelAnimationFrame(frame);frame=requestAnimationFrame(persist);};
+        const remember = () => {
+            cancelAnimationFrame(frame); frame=requestAnimationFrame(persist);
+            clearTimeout(idle); idle=setTimeout(write,300);
+        };
         const observer = new IntersectionObserver(entries => { for (const entry of entries) {
             const id = Number((entry.target as HTMLElement).dataset.sentence);
             if (entry.isIntersecting)
@@ -281,8 +321,14 @@ export default function ReadingPage({ data, scope }: {
         if (bottom)
             nextObserver.observe(bottom);
         node.addEventListener('scroll', remember, { passive: true });
-        return () => { persist();observer.disconnect(); nextObserver.disconnect(); cancelAnimationFrame(frame); node.removeEventListener('scroll', remember); };
-    }, [first, last, positionKey, segments.length, example, material.content_hash]);
+        node.addEventListener('wheel',markIntent,{passive:true});
+        node.addEventListener('touchmove',markIntent,{passive:true});
+        node.addEventListener('keydown',markKey);
+        return () => {
+            clearTimeout(idle); write(); persist();
+            node.removeEventListener('wheel',markIntent); node.removeEventListener('touchmove',markIntent); node.removeEventListener('keydown',markKey);
+            observer.disconnect(); nextObserver.disconnect(); cancelAnimationFrame(frame); node.removeEventListener('scroll', remember); };
+    }, [first, last, positionKey, segments.length, example, material.content_hash, material.id]);
     const choose = (segment: Segment, start: number, end: number) => {
         followAllowed.current=false;
         pauseForLookup('lookup');
@@ -437,27 +483,25 @@ export default function ReadingPage({ data, scope }: {
     };
     const previous = () => { const node = scroll.current; if (!node)
         return; const height = node.scrollHeight; setFirst(value => Math.max(0, value - 60)); requestAnimationFrame(() => { node.scrollTop += node.scrollHeight - height; }); };
-    return <div className="reading-page" style={fontScaleStyle} data-listening={listening}><nav className="reading-breadcrumb" aria-label={t('materials.path')}>{visit ? <button className="reader-return-origin" data-testid="source-return" onClick={returnToOrigin}>{t('common.back')} · {t(visit.origin.kind === 'saved' ? 'savedRecords.title' : 'reader.title', { defaultValue: '阅读' })}</button> : <Link to={readingReturnPath(location.state)} state={{restoreLibrary:true}}>{t(location.state?.readingOrigin === 'library' ? 'readingDesk.library' : 'materials.title')}</Link>}<span aria-hidden="true">/</span><span>{material.name}</span></nav><div className="reader-scroll" ref={scroll}><div className="reading-layout" ref={readingLayout.layout} data-query-open={!!query}><div className="workspace-paper reading-paper" data-recall-state={recall.status} data-font={size} data-lines={lineHeight} data-aux-font={auxiliaryFont} data-definition-font={definitionFont}><h1 className="reading-title" lang="en">{material.name}</h1>{sourceError && <p className="saved-error" role="status">{sourceError}</p>}
+    return <div className="reading-page" style={fontScaleStyle} data-listening={listening}><nav className="reading-breadcrumb" aria-label={t('materials.path')}>{visit ? <button className="reader-return-origin" aria-label={`${t('common.back')} · ${t(visit.origin.kind === 'saved' ? 'savedRecords.title' : 'reader.title', { defaultValue: '阅读' })}`} data-testid="source-return" onClick={returnToOrigin}><ChevronLeft className="mobile-reader-back" size={22} aria-hidden="true"/><span className="reading-return-label">{t('common.back')} · {t(visit.origin.kind === 'saved' ? 'savedRecords.title' : 'reader.title', { defaultValue: '阅读' })}</span></button> : <Link to={readingReturnPath(location.state)} state={{restoreLibrary:true}} aria-label={t(location.state?.readingOrigin === 'library' ? 'readingDesk.backLibrary' : 'readingDesk.backMaterials')}><ChevronLeft className="mobile-reader-back" size={22} aria-hidden="true"/><span className="reading-return-label">{t(location.state?.readingOrigin === 'library' ? 'readingDesk.library' : 'materials.title')}</span></Link>}<span aria-hidden="true">/</span><span>{material.name}</span><span className="mobile-reading-path">{t(location.state?.readingOrigin === 'library' ? 'readingDesk.library' : 'materials.title')}</span><DisplaySettingsMenu dock className="mobile-reader-display" showRecall={!example}/></nav><div className="reader-scroll" ref={scroll}><div className="reading-layout" ref={readingLayout.layout} data-query-open={!!query}><div className="workspace-paper reading-paper" data-recall-state={recall.status} data-font={size} data-lines={lineHeight} data-aux-font={auxiliaryFont} data-definition-font={definitionFont}><h1 className="reading-title" lang="en">{material.name}</h1>{sourceError && <p className="saved-error" role="status">{sourceError}</p>}
     {example && <section className="example-intro" aria-label={t('onboarding.sample')}>
-      <div><h1>{t('onboarding.sample')}</h1>{guide.active && !query && <button className="ui-button" onClick={skip}>{t('onboarding.skip')}</button>}</div>
+      <div><h1>{t('onboarding.sample')}</h1>{guide.active && !guide.tour && !query && <button className="ui-button" onClick={skip}>{t('onboarding.skip')}</button>}</div>
       <p>{t('onboarding.privacy')}</p>
-      <p className="example-instruction" role="status">{guide.active ? t(`onboarding.step${guide.step}`) : ''}</p>
+      <p className="example-instruction" role="status">{guide.active && !guide.tour ? t(`onboarding.step${guide.step}`) : ''}</p>
     </section>}
     {Object.entries(data.media_refs ?? {}).slice(0,1).map(([id, ref]) => <SourceAudioControls key={ref.source.key} reference={ref} target={{segment_id:Number(id)}} text={segments[0]?.en_text ?? ''} speechKey="reader:source" statusOnly/>)}
-    {material.source && !material.source.audio && <p className="lookup-note" role="status">{t('sourceAudio.sourceUnavailable')}</p>}
     {material.document && <div className="reading-document-nav">
-        <span>{material.document.origin?.kind === 'clipboard' ? t('materials.importDialog.clipboardText') : material.document.origin?.kind === 'webpage' ? material.document.origin.final_url : material.document.original_format.toUpperCase()} · {material.name}</span>
+        <span><span>{material.document.origin?.kind === 'clipboard' ? t('materials.importDialog.clipboardText') : material.document.origin?.kind === 'webpage' ? material.document.origin.final_url : material.document.original_format.toUpperCase()}</span><span className="reading-document-name"> · {material.name}</span></span>
         {material.document.sections.length > 1 && <label>{t('documents.jump')}<select aria-label={t('documents.jump')} value={sourceBlocks.get(segments[first]?.index_num)?.section_id ?? ''} onChange={event => {
             const block = material.document?.blocks.find(block => block.section_id === event.target.value && block.segment_indices.length);
             if (block) jumpDocument(segments.findIndex(segment => segment.index_num === block.segment_indices[0]));
         }}>{material.document.sections.filter(section => material.document!.blocks.some(block => block.section_id === section.id && block.segment_indices.length)).map(section => <option key={section.id} value={section.id}>{section.title}</option>)}</select></label>}
-        <button className="ui-button ui-button--icon" aria-label={t('documents.last')} title={t('documents.last')} onClick={() => jumpDocument(segments.length - 1)}><ArrowDownToLine size={20} aria-hidden="true" /></button>
         {material.document.origin && <details className="reading-document-code"><summary>{t('documents.fullPreview')}</summary>{material.document.blocks.map(block => <p key={block.id} style={{whiteSpace:'pre-wrap'}}>{block.text}</p>)}</details>}
         {material.document.blocks.some(block => block.kind === 'code') && <details className="reading-document-code"><summary>{t('documents.codeBlocks')}</summary>{material.document.blocks.filter(block => block.kind === 'code').map(block => <pre key={block.id}>{block.text}</pre>)}</details>}
     </div>}
-    {translation && !example && !material.source && (translationStatus === 'loading' || segments.some(segment => !!segment.en_text.trim() && !segment.zh_text?.trim())) && <div className="reading-translation-status" role="status">
-        <span>{t(translationStatus === 'loading' ? 'documents.translating' : translationStatus === 'error' ? 'reader.translationError' : translationStatus === 'partial' ? 'documents.translationFailed' : 'documents.translationOnDemand')}</span>
-        <button className="ui-button" disabled={translationStatus === 'loading'} onClick={() => void requestTranslations()}>{t(translationStatus === 'error' || translationStatus === 'partial' ? 'common.retry' : 'documents.translateVisible')}</button>
+    {!example && (translationStatus === 'loading' || translationStatus === 'error' || translationStatus === 'partial') && <div className="reading-translation-status" role="status">
+        <span>{t(translationStatus === 'loading' ? 'reader.translationProgress' : translationStatus === 'error' ? 'reader.translationError' : 'documents.translationFailed', translationState.progress ?? {})}</span>
+        <button className="ui-button" onClick={() => translationStatus === 'loading' ? translationState.cancel() : void requestTranslations()}>{t(translationStatus === 'loading' ? 'common.cancel' : 'common.retry')}</button>
     </div>}
     {!segments.length && <p className="lookup-note" role="status">{t('reader.emptyContent')}</p>}
     {first > 0 && <button className="ui-button" onClick={previous}>{t('reader.previousSentences')}</button>}
@@ -479,5 +523,6 @@ export default function ReadingPage({ data, scope }: {
   </div><div className="reading-query-slot" ref={readingLayout.slot} aria-hidden="true"/></div></div>
     <ReadingPlaybackControls visible={listening} playing={reading?.status === 'playing' || reading?.status === 'loading'} loading={reading?.status === 'loading'} paused={reading?.status === 'paused'} restartSentence={reading?.status === 'paused' && reading.resumeMode === 'restart-sentence'} disabled={!segments.length} rate={reading?.rate ?? speech.rate} onPlay={() => playbackAction('resume')} onPause={() => { followAllowed.current = false; useSpeechStore.getState().pause('user'); }} onReplay={() => playbackAction('replay')} onRate={() => { const rates = [1, 1.25, 1.5, .75] as const; useSpeechStore.getState().setRate(rates[(rates.indexOf(reading?.rate ?? speech.rate) + 1) % rates.length]); }} onExit={() => { pendingListen.current = null; pendingPlayback.current = null; useSpeechStore.getState().exitReading(); setListening(false); }}/>
     {queryWithMedia && <ReadingLookup layoutSlot={readingLayout.slot} query={queryWithMedia} material={material} scope={scope} onClose={closeLookup} onSkip={skip} drafts={drafts.current} session={lookupSession.current} initialTab={returnView?.query?.tab} initialProvider={returnView?.query?.provider} onViewChange={view => { lookupView.current = {tab:view.tab,provider:view.provider}; }} onSource={example ? undefined : visitSource} sourceBusy={sourceBusy}/>}
+    {translationState.confirming && <ReadingTranslationDialog count={translationState.missingCount} onConfirm={translationState.confirm} onCancel={translationState.dismissConfirmation}/>}
   </div>;
 }

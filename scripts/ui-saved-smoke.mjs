@@ -9,6 +9,7 @@ const output = process.env.LEXICUE_SAVED_UI_OUTPUT || process.env.LEXICUE_UI_OUT
 await mkdir(output, { recursive: true });
 const errors = [];
 let checks = 0;
+let currentPage;
 async function fixture(page, theme) {
   page.on('pageerror', error => errors.push(error.message));
   await page.addInitScript(theme => {
@@ -32,7 +33,7 @@ async function fixture(page, theme) {
         window.__uiCalls.push({ command, args: structuredClone(args) });
         const activeGroups = () => [...new Set(records.filter(record => record.deleted_at === null).map(record => record.expression))].map(expression => {
           const contexts = records.filter(record => record.deleted_at === null && record.expression === expression).sort((a, b) => (b.saved_at ?? -1) - (a.saved_at ?? -1) || a.record_id.localeCompare(b.record_id));
-          return { group_id: `group:${expression}`, expression, context_count: contexts.length, latest_saved_at: contexts[0].saved_at, preview: contexts[0], records: contexts };
+          return { group_id: `group:${expression}`, expression, context_count: contexts.length, latest_saved_at: contexts[0].saved_at, preview: contexts[0], summary: contexts[0].explanation_source==='dictionary' ? contexts[0].explanation : null, records: contexts };
         }).sort((a, b) => (b.latest_saved_at ?? -1) - (a.latest_saved_at ?? -1) || a.expression.localeCompare(b.expression));
         if (command === 'list_saved_groups') {
           const query = (args.query || '').toLowerCase();
@@ -78,10 +79,12 @@ async function fixture(page, theme) {
     };
   }, theme);
 }
-const settle = page => page.locator('.context-panel').evaluate(node => Promise.all(node.getAnimations().map(animation => animation.finished)));
+const details = page => page.locator('.saved-disclosure[data-open=true]');
+const settle = async page => { await details(page).locator('.saved-context-entry').first().waitFor(); await details(page).evaluate(node => Promise.allSettled(node.getAnimations().map(animation => animation.finished))); };
+const collapse = async page => { const control = page.locator('.saved-record-open[aria-expanded=true]'); await control.click(); await page.waitForFunction(()=> document.querySelectorAll('.saved-disclosure[data-open=true]').length===0 && [...document.querySelectorAll('.saved-disclosure')].every(node=>node.getBoundingClientRect().height<1)); };
 async function noOverflow(page, label) {
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), label);
-  const outside = await page.locator('.saved-workspace,.context-panel').evaluateAll(nodes => nodes.filter(node => {
+  const outside = await page.locator('.saved-workspace,.saved-disclosure[data-open=true]').evaluateAll(nodes => nodes.filter(node => {
     const r = node.getBoundingClientRect(); return r.left < -1 || r.right > innerWidth + 1;
   }).map(node => node.className));
   assert.deepEqual(outside, [], label); checks += 2;
@@ -98,7 +101,7 @@ async function contrast(locator) {
 try {
   for (const theme of ['ocean', 'midnight']) {
     const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
-    const page = await context.newPage(); await fixture(page, theme); await page.goto(`${url}/saved`);
+    const page = await context.newPage(); currentPage=page; await fixture(page, theme); await page.goto(`${url}/saved`);
     await page.waitForFunction(() => document.querySelectorAll('.saved-record-row').length === 3);
     const search = page.getByRole('searchbox');
     await search.fill('take'); await page.waitForFunction(() => document.querySelectorAll('.saved-record-row').length === 1);
@@ -108,31 +111,30 @@ try {
     await search.fill(''); await page.waitForFunction(() => document.querySelectorAll('.saved-record-row').length === 3);
     const first = page.locator('.saved-record-open').first();
     const closedBox = await first.boundingBox();
-    await first.focus(); await page.keyboard.press('Enter'); await page.getByRole('dialog').waitFor(); await settle(page);
+    await first.focus(); await page.keyboard.press('Enter'); await details(page).waitFor(); await settle(page);
     const openBox = await first.boundingBox(); assert.equal(Math.round(closedBox.width), Math.round(openBox.width)); checks++;
-    assert.equal(await page.getByRole('dialog').getByLabel(/^(关闭|Close)$/).count(), 0); checks++;
-    assert.ok(await page.getByRole('dialog').getByText('The plane will take off soon.', { exact: true }).isVisible()); checks++;
+    assert.equal(await details(page).getByLabel(/^(关闭|Close)$/).count(), 0); checks++;
+    assert.ok(await details(page).getByText('The plane will take off soon.', { exact: true }).isVisible()); checks++;
     assert.ok(await contrast(first) >= 4.5); checks++;
-    await page.keyboard.press('Escape'); await page.getByRole('dialog').waitFor({ state: 'detached' });
+    await collapse(page);
     assert.ok(await first.evaluate(node => node === document.activeElement)); checks++;
     // A failed edit keeps the draft; the retry uses the same operation receipt.
-    await first.click(); await settle(page); await page.getByRole('dialog').locator('.saved-context-entry').first().getByRole('button', { name: 'take off 的更多操作', exact: true }).click(); await page.getByRole('button', { name: '补充个人解释', exact: true }).click();
+    await first.click(); await settle(page); await details(page).locator('.saved-context-entry').first().getByRole('button', { name: '补充个人解释', exact: true }).click();
     await page.getByRole('textbox', { name: '个人解释' }).fill('我的个人修正');
     await page.evaluate(() => { window.__uiFailSave = true; }); await page.getByRole('button', { name: '保存修改' }).click();
-    await page.getByRole('dialog').getByRole('alert').waitFor(); assert.equal(await page.getByRole('textbox', { name: '个人解释' }).inputValue(), '我的个人修正'); checks++;
-    await page.keyboard.press('Escape'); await page.getByRole('dialog').waitFor({ state: 'detached' });
-    await first.click(); await settle(page); assert.equal(await page.getByRole('textbox', { name: '个人解释' }).inputValue(), '我的个人修正'); checks++;
+    await details(page).getByRole('alert').waitFor(); assert.equal(await page.getByRole('textbox', { name: '个人解释' }).inputValue(), '我的个人修正'); checks++;
+    await collapse(page);
+    await first.click(); await settle(page); await details(page).locator('.saved-context-entry').first().getByRole('button', { name: '补充个人解释', exact: true }).click(); assert.equal(await page.getByRole('textbox', { name: '个人解释' }).inputValue(), '我的个人修正'); checks++;
     await page.evaluate(() => { window.__uiFailSave = false; }); await page.getByRole('button', { name: '保存修改' }).click();
-    await page.getByRole('dialog').getByText('我的个人修正', { exact: true }).waitFor();
+    await details(page).getByText('我的个人修正', { exact: true }).waitFor();
     assert.ok(await page.evaluate(() => { const calls = window.__uiCalls.filter(call => call.command === 'mutate_saved_record' && call.args.mutation.kind === 'edit'); return calls.at(-1).args.operationId === calls.at(-2).args.operationId; })); checks++;
-    await page.evaluate(() => window.__lexicueBack()); await page.getByRole('dialog').waitFor({ state: 'detached' });
+    await collapse(page);
     // One word card contains two independent contexts; removing one leaves its sibling.
     assert.match(await first.innerText(), /2 处原句/); checks++;
-    await first.click(); await settle(page); await page.getByRole('dialog').locator('.saved-context-entry').nth(1).waitFor();
-    assert.equal(await page.getByRole('dialog').locator('.saved-context-entry').count(), 2); checks++;
-    assert.ok(await page.getByRole('dialog').getByText('Please take off your coat.', { exact: true }).isVisible()); checks++;
-    await page.getByRole('dialog').locator('.saved-context-entry').first().getByRole('button', { name: 'take off 的更多操作', exact: true }).click();
-    const removeButton = page.getByRole('button', { name: '移除这句', exact: true });
+    await first.click(); await settle(page); await details(page).locator('.saved-context-entry').nth(1).waitFor();
+    assert.equal(await details(page).locator('.saved-context-entry').count(), 2); checks++;
+    assert.ok(await details(page).getByText('Please take off your coat.', { exact: true }).isVisible()); checks++;
+    const removeButton = details(page).locator('.saved-context-entry').first().getByRole('button', { name: '移除这句', exact: true });
     for (const state of ['default', 'hover', 'focus']) {
       if (state === 'hover') await removeButton.hover();
       if (state === 'focus') await removeButton.focus();
@@ -142,40 +144,39 @@ try {
     await page.waitForFunction(() => document.querySelectorAll('.saved-context-entry').length === 1); checks++;
     assert.equal(await page.locator('.saved-record-row').count(), 3); checks++;
     assert.match(await first.innerText(), /1 处原句/); checks++;
-    assert.ok(await page.getByRole('dialog').getByText('Please take off your coat.', { exact: true }).isVisible()); checks++;
+    assert.ok(await details(page).getByText('Please take off your coat.', { exact: true }).isVisible()); checks++;
     assert.ok(await page.getByRole('button', { name: '撤销', exact: true }).evaluate(node => node === document.activeElement)); checks++;
     assert.ok(await contrast(page.locator('.saved-undo > span')) >= 4.5); checks++;
     await page.getByRole('button', { name: '撤销', exact: true }).click(); await page.waitForFunction(() => document.querySelectorAll('.saved-context-entry').length === 2);
-    assert.match(await first.innerText(), /我的个人修正/); checks++;
+    assert.equal(await details(page).locator('.saved-detail-meaning').first().innerText(), '我的个人修正'); checks++;
     assert.match(await first.innerText(), /2 处原句/); checks++;
-    await page.keyboard.press('Escape'); await page.getByRole('dialog').waitFor({ state: 'detached' });
+    await collapse(page);
     await page.locator('.saved-record-open').filter({ has: page.locator('.saved-record-term', { hasText: /^curiosity$/ }) }).click(); await settle(page); await page.getByRole('button', { name: '返回原文', exact: true }).click();
     await page.getByText('原材料已不存在或已变更，仍可阅读此副本。', { exact: true }).waitFor();
-    assert.ok(await page.getByRole('dialog').getByText('Curiosity helps us learn.', { exact: true }).isVisible()); checks++;
+    assert.ok(await details(page).getByText('Curiosity helps us learn.', { exact: true }).isVisible()); checks++;
     assert.ok(await page.getByRole('button', { name: '返回原文', exact: true }).isDisabled()); checks++;
     const disabledButton = page.getByRole('button', { name: '返回原文', exact: true });
     const disabledContrast = await contrast(disabledButton);
     assert.ok(disabledContrast >= 4.5, JSON.stringify({ theme, disabledContrast, colors: await disabledButton.evaluate(node => { const s = getComputedStyle(node); return { fg: s.color, bg: s.backgroundColor, opacity: s.opacity }; }) })); checks++;
-    await page.keyboard.press('Escape'); await page.getByRole('dialog').waitFor({ state: 'detached' });
+    await collapse(page);
     for (const width of [360, 390, 430, 768, 1024, 1280, 1440]) {
       await page.setViewportSize({ width, height: 900 }); await first.click(); await settle(page);
       await noOverflow(page, `${theme} ${width}`);
-      assert.ok(await contrast(first.locator('small')) >= 4.5, `${theme} selected source contrast`); checks++;
-      const primary = page.getByRole('dialog').getByRole('button', { name: '返回原文', exact: true }).first();
+      assert.ok(await contrast(first.locator('.saved-context-count')) >= 4.5, `${theme} selected source contrast`); checks++;
+      const primary = details(page).getByRole('button', { name: '返回原文', exact: true }).first();
       for (const state of ['default', 'hover', 'focus']) {
         if (state === 'hover') await primary.hover();
         if (state === 'focus') await primary.focus();
         assert.ok(await contrast(primary) >= 4.5, `${theme} ${state} primary contrast`); checks++;
       }
       if (width === 1440 || width === 390) await page.screenshot({ animations: 'disabled', path: `${output}/${theme}-${width}-saved.png` });
-      if (width >= 1024) await page.mouse.click(110,200);
-      else await page.getByRole('button', { name: '收起，继续', exact: true }).last().click();
-      await page.getByRole('dialog').waitFor({ state: 'detached' });
+      await collapse(page);
     }
     await page.emulateMedia({ reducedMotion: 'reduce' }); await first.click();
-    assert.equal(await page.locator('.context-panel').evaluate(node => getComputedStyle(node).animationName), 'none'); checks++;
+    const animations = await details(page).evaluate(node => node.getAnimations().map(animation => ({type:animation.constructor.name,duration:animation.effect.getTiming().duration,frames:animation.effect.getKeyframes(),reduced:matchMedia('(prefers-reduced-motion: reduce)').matches})));
+    assert.ok(animations.every(animation=>Number(animation.duration)<=1), JSON.stringify(animations)); checks++;
     await page.evaluate(() => { document.documentElement.style.fontSize = '20px'; }); await noOverflow(page, `${theme} enlarged text`);
-    await page.keyboard.press('Escape'); await page.getByRole('dialog').waitFor({ state: 'detached' });
+    await collapse(page);
     assert.ok(await page.evaluate(() => !window.__uiCalls.some(call => ['update_word_status', 'create_review_card', 'create_phrase_review_card', 'delete_file'].includes(call.command)))); checks++;
     await context.close();
   }
@@ -183,4 +184,7 @@ try {
   const report = { checks, errors, themes: ['ocean', 'midnight'], widths: [360, 390, 430, 768, 1024, 1280, 1440], data: 'isolated in-memory UI fixture with native archive API shape; real persistence is covered by separate Rust bridge tests' };
   await writeFile(`${output}/report.json`, JSON.stringify(report, null, 2));
   console.log(`PASS: ${checks} saved-context UI checks; screenshots: ${output}`);
+} catch (error) {
+  if(currentPage && !currentPage.isClosed()) await writeFile(`${output}/failure.json`,JSON.stringify(await currentPage.evaluate(()=>({url:location.href,width:innerWidth,expanded:[...document.querySelectorAll('.saved-record-open')].map(button=>[button.innerText,button.getAttribute('aria-expanded')]),text:document.body.innerText,calls:window.__uiCalls.slice(-8)})),null,2));
+  throw error;
 } finally { await browser.close(); }

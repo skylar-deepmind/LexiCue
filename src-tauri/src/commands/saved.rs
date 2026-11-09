@@ -477,7 +477,7 @@ pub fn get(conn: &Connection, id: &str) -> Result<Option<SavedRecord>, String> {
 }
 
 /// Used by backup and the encrypted record protocol; no local FK crosses devices.
-pub fn write_record(conn: &Connection, record: &SavedRecord) -> Result<i64, String> {
+pub(crate) fn validate_record(record: &SavedRecord) -> Result<(), String> {
     if let Some(snapshot) = &record.dictionary_snapshot {
         validate_dictionary_snapshot(snapshot)?;
     }
@@ -506,6 +506,11 @@ pub fn write_record(conn: &Connection, record: &SavedRecord) -> Result<i64, Stri
     {
         return Err("invalid_saved_record".into());
     }
+    Ok(())
+}
+
+pub fn write_record(conn: &Connection, record: &SavedRecord) -> Result<i64, String> {
+    validate_record(record)?;
     conn.execute(
         "INSERT INTO saved_records(record_id,normalized_expression,source_key,snapshot_json,saved_at,updated_at,revision,generation,deleted_at)
          VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9)
@@ -631,12 +636,27 @@ fn from_input(conn: &Connection, input: &SaveInput) -> Result<SavedRecord, Strin
         .as_deref()
         .and_then(|j| serde_json::from_str::<super::source_media::YoutubeSource>(j).ok())
         .map(|s| super::source_media::SourceIdentity::from(&s));
-    let source_key = if let Some(doc) = &document {
+    let legacy_key = if let Some(doc) = &document {
         serde_json::to_string(&(&hash, index, start_offset, &doc.identity)).unwrap()
     } else if let Some(key) = &provenance {
         serde_json::to_string(&(&hash, index, start_offset, key)).unwrap()
     } else {
         serde_json::to_string(&(&hash, index, start_offset)).unwrap()
+    };
+    let file_identity:String=conn.query_row("SELECT m.stable FROM segments s JOIN reader_material_ids m ON m.file_id=s.file_id WHERE s.id=?",[input.segment_id],|r|r.get(0)).map_err(|_|"saved_source_missing")?;
+    // Preserve an already saved selection when its legacy identity and context
+    // agree. Newly saved independent imports get distinct stable source domains.
+    let old = get(conn, &identity(&input.expression, &legacy_key))?;
+    let source_key = if old.as_ref().is_some_and(|r| {
+        r.sentence.as_ref() == Some(&sentence)
+            && r.source
+                .as_ref()
+                .is_some_and(|s| s.file_name == name && s.content_hash == hash)
+    }) {
+        legacy_key
+    } else {
+        serde_json::to_string(&("material", file_identity, index, start_offset, end_offset))
+            .map_err(|e| e.to_string())?
     };
     Ok(SavedRecord {
         record_id: identity(&input.expression, &source_key),
@@ -1023,6 +1043,7 @@ pub fn migrate_legacy(conn: &Connection) -> Result<MigrationReport, String> {
                             existing.explanation = record.explanation;
                             existing.explanation_source = record.explanation_source;
                         }
+                        existing.revision = Uuid::new_v4().to_string();
                         write_record(conn, &existing)?;
                     }
                     report.merged_duplicate_positions += 1;
@@ -1620,29 +1641,35 @@ pub fn context_page(
     })
 }
 #[tauri::command]
-pub fn list_saved_groups(
-    state: State<DbState>,
+pub async fn list_saved_groups(
+    state: State<'_, DbState>,
     query: Option<String>,
     limit: Option<i64>,
     offset: Option<i64>,
 ) -> Result<SavedGroupPage, String> {
-    let conn = state.conn.lock().map_err(|e| e.to_string())?;
-    groups(
-        &conn,
-        &query.unwrap_or_default(),
-        limit.unwrap_or(50),
-        offset.unwrap_or(0),
-    )
+    state
+        .read("list_saved_groups", move |conn| {
+            groups(
+                conn,
+                &query.unwrap_or_default(),
+                limit.unwrap_or(50),
+                offset.unwrap_or(0),
+            )
+        })
+        .await
 }
 #[tauri::command]
-pub fn saved_group_contexts(
-    state: State<DbState>,
+pub async fn saved_group_contexts(
+    state: State<'_, DbState>,
     group_id: String,
     limit: Option<i64>,
     offset: Option<i64>,
 ) -> Result<SavedContextPage, String> {
-    let conn = state.conn.lock().map_err(|e| e.to_string())?;
-    group_contexts(&conn, &group_id, limit.unwrap_or(10), offset.unwrap_or(0))
+    state
+        .read("saved_group_contexts", move |conn| {
+            group_contexts(conn, &group_id, limit.unwrap_or(10), offset.unwrap_or(0))
+        })
+        .await
 }
 
 #[tauri::command]
@@ -1703,7 +1730,25 @@ pub fn resolve_source(
     let Some(source) = record.source else {
         return Ok(None);
     };
-    conn.query_row("SELECT f.id,s.index_num FROM files f JOIN segments s ON s.file_id=f.id WHERE f.language='en' AND f.content_hash=?1 AND s.index_num=?2 AND s.en_text=?3 AND f.media_identity IS ?4 AND f.document_identity IS ?5 ORDER BY f.id LIMIT 1",params![source.content_hash,source.segment_index,record.sentence,source.media_identity.as_ref().or_else(||source.media.as_ref().map(|m|&m.source.key)),source.document.as_ref().map(|d|&d.identity)],|r|Ok(SourceLocation{file_id:r.get(0)?,segment_index:r.get(1)?})).optional().map_err(|e|e.to_string())
+    if let Ok((domain, file, _, _, _)) =
+        serde_json::from_str::<(String, String, i64, usize, usize)>(&record.source_key)
+    {
+        if domain == "material" {
+            let direct=conn.query_row("SELECT f.id,s.index_num FROM files f JOIN segments s ON s.file_id=f.id JOIN reader_material_ids m
+                ON m.file_id=f.id WHERE m.stable=? AND f.content_hash=? AND s.index_num=? AND s.en_text=?",
+                params![file,source.content_hash,source.segment_index,record.sentence],|r|Ok(SourceLocation{file_id:r.get(0)?,segment_index:r.get(1)?})).optional().map_err(|e|e.to_string())?;
+            if direct.is_some()
+                || (source.document.is_none()
+                    && source.media_identity.is_none()
+                    && source.media.is_none())
+            {
+                return Ok(direct);
+            }
+            // Old cloud imports can use a different file ID. Only the immutable
+            // document/caption identity and an unambiguous exact passage may bridge it.
+        }
+    }
+    conn.query_row("SELECT MIN(f.id),MIN(s.index_num) FROM files f JOIN segments s ON s.file_id=f.id WHERE f.language='en' AND f.content_hash=?1 AND s.index_num=?2 AND s.en_text=?3 AND f.media_identity IS ?4 AND f.document_identity IS ?5 HAVING count(*)=1",params![source.content_hash,source.segment_index,record.sentence,source.media_identity.as_ref().or_else(||source.media.as_ref().map(|m|&m.source.key)),source.document.as_ref().map(|d|&d.identity)],|r|Ok(SourceLocation{file_id:r.get(0)?,segment_index:r.get(1)?})).optional().map_err(|e|e.to_string())
 }
 #[tauri::command]
 pub fn saved_record_source(
@@ -1714,16 +1759,19 @@ pub fn saved_record_source(
     resolve_source(&conn, &record_id)
 }
 #[tauri::command]
-pub fn saved_migration_report(state: State<DbState>) -> Result<MigrationReport, String> {
-    let conn = state.conn.lock().map_err(|e| e.to_string())?;
-    let raw: String = conn
-        .query_row(
-            "SELECT report_json FROM product_migrations WHERE migration_key=?1",
-            [MIGRATION],
-            |r| r.get(0),
-        )
-        .map_err(|e| e.to_string())?;
-    serde_json::from_str(&raw).map_err(|e| e.to_string())
+pub async fn saved_migration_report(state: State<'_, DbState>) -> Result<MigrationReport, String> {
+    state
+        .read("saved_migration_report", move |conn| {
+            let raw: String = conn
+                .query_row(
+                    "SELECT report_json FROM product_migrations WHERE migration_key=?1",
+                    [MIGRATION],
+                    |r| r.get(0),
+                )
+                .map_err(|e| e.to_string())?;
+            serde_json::from_str(&raw).map_err(|e| e.to_string())
+        })
+        .await
 }
 
 #[derive(Serialize)]
@@ -1734,8 +1782,11 @@ pub struct SavedConflict {
     pub remote: SavedRecord,
 }
 #[tauri::command]
-pub fn saved_record_conflicts(state: State<DbState>) -> Result<Vec<SavedConflict>, String> {
-    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+pub async fn saved_record_conflicts(
+    state: State<'_, DbState>,
+) -> Result<Vec<SavedConflict>, String> {
+    state.read("saved_record_conflicts", move |conn| {
+
     let mut stmt=conn.prepare("SELECT id,sync_id,local_value,remote_value FROM sync_conflicts WHERE table_name='saved_records' AND resolved_at IS NULL ORDER BY created_at DESC,id DESC").map_err(|e|e.to_string())?;
     let rows = stmt
         .query_map([], |r| {
@@ -1757,6 +1808,8 @@ pub fn saved_record_conflicts(state: State<DbState>) -> Result<Vec<SavedConflict
         })
     })
     .collect()
+
+    }).await
 }
 
 /// Synthetic source data through the production adapter, shared by isolated

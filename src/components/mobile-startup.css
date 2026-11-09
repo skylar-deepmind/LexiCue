@@ -1,0 +1,5 @@
+.app-startup-content { height:100%;min-height:0; }
+.mobile-startup { position:fixed;inset:0;z-index:1000;background:var(--surface);animation:mobile-startup-exit 180ms var(--startup-hold,2471ms) ease-out both; }
+.mobile-startup .desktop-launch { min-height:0; }
+@keyframes mobile-startup-exit { from{opacity:1}to{opacity:0} }
+@media(prefers-reduced-motion:reduce) { .mobile-startup { animation:none; } }

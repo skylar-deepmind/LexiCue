@@ -1,9 +1,11 @@
+import { LoadingSkeleton, BusyRing } from '../components/LoadingFeedback';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Bookmark, ChevronRight, ExternalLink, Pencil, Search, Trash2, Undo2 } from 'lucide-react';
 import MotionChange from '../components/MotionChange';
+import SmoothDisclosure from '../components/SmoothDisclosure';
 import { readPaged } from '../components/readPaged';
 import { updateSavedNoteDraft } from '../components/savedNoteDraft';
 import SourceAudioControls from '../components/SourceAudioControls';
@@ -26,7 +28,6 @@ function SavedContext({ record, drafts, removing, displayReady, onRemove, onChan
   const { t, i18n } = useTranslation();
   const initial = useRef(drafts.get(record.record_id));
   const editor = useRef<HTMLTextAreaElement>(null);
-  const restoredDraftFocus = useRef(false);
   const [editing, setEditing] = useState(!!initial.current?.editing);
   const [draft, setDraft] = useState(initial.current?.text ?? (record.explanation_source === 'personal' ? record.explanation ?? '' : ''));
   const expectedRevision = useRef(initial.current?.revision ?? record.revision);
@@ -36,10 +37,10 @@ function SavedContext({ record, drafts, removing, displayReady, onRemove, onChan
   const pending = useRef<{ value: string; operationId: string } | null>(initial.current?.operationId ? { value: initial.current.text, operationId: initial.current.operationId } : null);
   const editorId = `saved-explanation-${record.record_id}`;
   useLayoutEffect(() => {
-    // A restored editor can mount while its incoming content is still inert.
-    // Apply its existing autofocus intent once the selected detail is available.
-    if (displayReady && editing && initial.current && !restoredDraftFocus.current) {
-      restoredDraftFocus.current = true; editor.current?.focus({preventScroll:true});
+    // Focus only after the live, expanded editor has mounted. Native autofocus
+    // during a height animation can pan WKWebView outside the app shell.
+    if (displayReady && editing) {
+      editor.current?.focus({preventScroll:true});
     }
   }, [displayReady, editing]);
   const save = async () => {
@@ -82,16 +83,15 @@ function SavedContext({ record, drafts, removing, displayReady, onRemove, onChan
       <small>{record.source?.document && [record.source.document.origin?.kind === 'clipboard' ? t('materials.importDialog.clipboardText') : record.source.document.origin?.kind === 'webpage' ? record.source.document.origin.final_url : record.source.document.original_format.toUpperCase(), record.source.document.section_title, documentLocationLabel(record.source.document.locations[0])].filter(Boolean).join(' · ')}</small>
       <small className="saved-time">{record.saved_at === null ? t('savedRecords.unknownTime') : new Date(record.saved_at).toLocaleString(i18n.language)}</small>
     </section>
-    <MotionChange changeKey={editing ? 'editing' : 'view'}>{editing ? <form onSubmit={event => { event.preventDefault(); void save(); }}>
+    {editing ? <form onSubmit={event => { event.preventDefault(); void save(); }}>
       <label htmlFor={editorId}>{t('dictionaryFlow.personalMeaning')}</label>
-      <textarea ref={editor} id={editorId} value={draft} onChange={event => { setDraft(event.target.value); drafts.set(record.record_id, updateSavedNoteDraft(drafts.get(record.record_id), event.target.value, expectedRevision.current, true)); }} autoFocus disabled={busy || removing} />
+      <textarea ref={editor} id={editorId} value={draft} onChange={event => { setDraft(event.target.value); drafts.set(record.record_id, updateSavedNoteDraft(drafts.get(record.record_id), event.target.value, expectedRevision.current, true)); }} disabled={busy || removing} />
       <div className="saved-detail-actions"><button className="ui-button saved-primary" type="submit" disabled={busy || removing}>{t('savedRecords.saveChanges')}</button>
         <button className="ui-button" type="button" disabled={busy || removing} onClick={() => { setEditing(false); drafts.delete(record.record_id); setDraft(record.explanation_source === 'personal' ? record.explanation ?? '' : ''); pending.current = null; setError(''); }}>{t('common.cancel')}</button></div>
     </form> : record.explanation ? <section className="saved-context-meaning">
       <small className="saved-history-label">{record.explanation_source === 'personal' ? t('dictionaryFlow.personalMeaning') : `${t('dictionaryFlow.savedMeaning')} · ${t(`savedRecords.sources.${record.explanation_source}`)}`}</small>
       <p className="saved-detail-meaning">{record.explanation}</p>
     </section> : null}
-    </MotionChange>
     {sourceMissing && <p className="saved-status" role="status">{t('savedRecords.sourceMissing')}</p>}
     {error && <p className="saved-error" role="alert">{error}</p>}
   </article>;
@@ -136,9 +136,10 @@ function SavedGroupContent({ group, revision, drafts, pendingRemove, onRemove, o
 
   return <>
     <div className="saved-detail-body saved-group-contexts" aria-busy={loading}>
-      {loading && !page.records.length && <p className="saved-status" role="status">{t('common.loading')}</p>}
+      {loading && !page.records.length && <LoadingSkeleton kind="list" label={t('common.loading')}/>}
       {page.records.map(record => <SavedContext key={record.record_id} record={record} drafts={drafts} removing={pendingRemove !== null} displayReady={active} onRemove={onRemove} onReturn={onReturn} onChange={next => setPage(previous => ({ ...previous, records: previous.records.map(value => value.record_id === next.record_id ? next : value) }))} />)}
       {error && <div className="saved-error" role="alert"><p>{error}</p><button className="ui-button" onClick={() => setRetry(value => value + 1)} disabled={loading}>{t('common.retry')}</button></div>}
+      {loading && page.records.length > 0 && <div className="saved-status" role="status"><BusyRing/><span className="sr-only">{t('common.loading')}</span></div>}
       {page.records.length < page.total && <button className="ui-button" disabled={loading} onClick={() => void load(page.records.length)}>{t('savedRecords.loadMore')}</button>}
     </div>
 
@@ -154,7 +155,7 @@ export function SavedGroupCard({ group, selected, onOpen, children }: { group: S
       <span className="saved-record-term" lang="en">{group.expression}</span><span className="saved-context-count">{t('dictionaryFlow.contextCount', { count: group.context_count })}</span>
       {summary && <span className="saved-record-meaning">{summary}</span>}<ChevronRight className="saved-chevron" size={18} aria-hidden="true" />
     </button>
-    <div id={id} className="saved-accordion" inert={!selected} aria-hidden={!selected}><div className="saved-accordion-clip">{children}</div></div>
+    <SmoothDisclosure id={id} open={selected}>{children}</SmoothDisclosure>
   </li>;
 }
 
@@ -313,16 +314,19 @@ export default function SavedPage() {
   };
   return <div className="saved-page">
     <div className="saved-scroll" ref={savedScroll} onPointerDown={event => { if (event.target === event.currentTarget || event.target === event.currentTarget.firstElementChild) setSelected(null); }}><div className="saved-workspace workspace-paper">
-      <div className="saved-heading"><h1>{t('savedRecords.title')}</h1><span role="status">{t('dictionaryFlow.groupCount', { count: page.total_groups, contexts: page.total_records })}</span></div>
+      <div className="sr-only"><h1>{t('savedRecords.title')}</h1><span role="status">{t('dictionaryFlow.groupCount', { count: page.total_groups, contexts: page.total_records })}</span></div>
       <label className="saved-search"><Search size={18} aria-hidden="true" /><span className="sr-only">{t('savedRecords.search')}</span><input type="search" value={query} onChange={event => { loadedGroups.current = PAGE_SIZE; setQuery(event.target.value); }} placeholder={t('savedRecords.search')} /></label>
       {error && <div className="saved-error" role="alert"><p>{error}</p><button className="ui-button" onClick={() => void load()}>{t('common.retry')}</button></div>}
-      {loading && <p className="saved-status" role="status">{t('common.loading')}</p>}
+      {loading && !page.groups.length && <LoadingSkeleton kind="list" label={t('common.loading')}/>}
       {!loading && !error && !page.groups.length && <div className="saved-empty"><Bookmark size={30} aria-hidden="true" /><p>{t(query ? 'savedRecords.noResults' : 'savedRecords.empty')}</p></div>}
-      <MotionChange interruptKey={selected?.group_id ?? ''} changeKey={`${query}:${page.groups.map(group => `${group.group_id}:${group.context_count}`).join(',')}`}><ul className="saved-record-list" aria-label={t('savedRecords.title')}>
+      {/* Loading results must paint at full height, including on desktop where
+          a route transition may still be running when the first reply arrives. */}
+      <MotionChange enabled={!loading} interruptKey={selected?.group_id ?? ''} changeKey={`${query}:${page.groups.map(group => `${group.group_id}:${group.context_count}`).join(',')}`}><ul className="saved-record-list" aria-label={t('savedRecords.title')}>
         {page.groups.map(group => <SavedGroupCard key={group.group_id} group={group} selected={selected?.group_id === group.group_id} onOpen={() => { selectionIntent.current++; setSelected(current => current?.group_id === group.group_id ? null : group); setOpened(current => current.includes(group.group_id) ? current : [...current, group.group_id]); }}>
           {opened.includes(group.group_id) && <SavedGroupContent active={selected?.group_id === group.group_id} group={group} revision={contextRevision} drafts={editDrafts.current} pendingRemove={pendingRemove} undo={undo} undoBusy={undoBusy} undoButton={undoButton} onUndo={restore} onClose={() => setSelected(null)} onRemove={remove} onReturn={returnToSource} initialCount={snapshot?.loadedContexts[group.group_id] ?? CONTEXT_PAGE_SIZE} onCount={count => contextCount(group.group_id, count)} />}
         </SavedGroupCard>)}
       </ul></MotionChange>
+      {loading && page.groups.length > 0 && <div className="saved-status" role="status"><BusyRing/><span className="sr-only">{t('common.loading')}</span></div>}
       {page.groups.length < page.total_groups && <button className="ui-button" disabled={loading} onClick={() => void load(page.groups.length)}>{t('savedRecords.loadMore')}</button>}
       {report && report.saved_contexts > 0 && <details className="saved-migration"><summary>{t('savedRecords.migrationTitle')}</summary><p>{t('savedRecords.migrationReport', { count: report.saved_contexts, missing: report.missing_sources })}</p></details>}
       {conflicts.length > 0 && <details className="saved-conflicts"><summary>{t('savedRecords.conflicts', { count: conflicts.length })}</summary><p>{t('savedRecords.conflictsHint')}</p>{conflicts.map(conflict => <section key={conflict.id}><h2>{conflict.local.expression}</h2><p>{t('savedRecords.localVersion')}：{conflict.local.explanation || t('savedRecords.noExplanation')}</p><p>{t('savedRecords.remoteVersion')}：{conflict.remote.explanation || t('savedRecords.noExplanation')}</p><p lang="en">{conflict.local.sentence}</p></section>)}</details>}

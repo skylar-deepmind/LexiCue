@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, type RefObject } from 'react';
+import { associatedGuide } from '../lib/guideFocus';
 import { backNavigation, type CloseAction } from '../lib/backNavigation';
 
 const layers: { element: HTMLElement; modal: boolean }[] = [];
@@ -12,16 +13,17 @@ function updateInert() {
   // A portalled child selector may live inside the dialog or in its own body layer.
   const active = layers.slice(layers.indexOf(modal)).map(layer => layer.element);
   for (const child of Array.from(document.body.children)) {
-    if (!(child instanceof HTMLElement) || active.some(element => child.contains(element))) continue;
+    if (!(child instanceof HTMLElement) || active.some(element => child.contains(element)) || child.hasAttribute('data-app-guide')) continue;
     inertBefore.set(child, child.inert);
     child.inert = true;
   }
 }
 
-export function useOverlay(ref: RefObject<HTMLElement | null>, onClose: CloseAction, modal = true, enabled = true, returnFocus?: () => HTMLElement | null) {
+export function useOverlay(ref: RefObject<HTMLElement | null>, onClose: CloseAction, modal = true, enabled = true, returnFocus?: () => HTMLElement | null, initialFocus?:()=>HTMLElement|null) {
   const close = useRef(onClose);
   const focusReturn = useRef(returnFocus);
-  useLayoutEffect(() => { close.current = onClose; focusReturn.current = returnFocus; });
+  const focusStart=useRef(initialFocus);
+  useLayoutEffect(() => { close.current = onClose; focusReturn.current = returnFocus; focusStart.current=initialFocus; });
   useLayoutEffect(() => {
     const element = ref.current;
     if (!element || !enabled) return;
@@ -32,10 +34,14 @@ export function useOverlay(ref: RefObject<HTMLElement | null>, onClose: CloseAct
     element.closest<HTMLElement>('[data-overlay-layer]')?.style.setProperty('--overlay-order', String(layers.length));
     const unregister = backNavigation.register(() => close.current());
     updateInert();
-    const controls = () => Array.from(element.querySelectorAll<HTMLElement>(
+    const controls = () => [element,associatedGuide(element)].filter((root):root is HTMLElement=>!!root).flatMap(root=>Array.from(root.querySelectorAll<HTMLElement>(
       'button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), a[href], [tabindex]',
-    )).filter(node => node.tabIndex >= 0 && !node.closest('[inert]') && node.getClientRects().length > 0);
-    if (!element.contains(document.activeElement)) (controls()[0] ?? element).focus();
+    ))).filter(node => node.tabIndex >= 0 && !node.closest('[inert]') && node.getClientRects().length > 0);
+    if (!element.contains(document.activeElement)) {
+      const initial=focusStart.current?.();
+      if(initial&&element.contains(initial))initial.focus({preventScroll:true});
+      else (controls()[0] ?? element).focus();
+    }
     const keys = (event: KeyboardEvent) => {
       if (layers.at(-1) !== layer || event.defaultPrevented) return;
       if (event.key === 'Tab' && !modal) {
@@ -48,9 +54,9 @@ export function useOverlay(ref: RefObject<HTMLElement | null>, onClose: CloseAct
         const items = controls();
         if (!items.length) { event.preventDefault(); element.focus(); return; }
         const first = items[0], last = items.at(-1)!;
-        if (event.shiftKey && (document.activeElement === first || !element.contains(document.activeElement))) {
+        if (event.shiftKey && (document.activeElement === first || document.activeElement === element || !element.contains(document.activeElement)&&!associatedGuide(element)?.contains(document.activeElement))) {
           event.preventDefault(); last.focus();
-        } else if (!event.shiftKey && (document.activeElement === last || !element.contains(document.activeElement))) {
+        } else if (!event.shiftKey && (document.activeElement === last || !element.contains(document.activeElement)&&!associatedGuide(element)?.contains(document.activeElement))) {
           event.preventDefault(); first.focus();
         }
       }

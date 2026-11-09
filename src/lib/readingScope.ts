@@ -12,3 +12,7 @@ export function mutateInScope(scope:ReadingScope,mutation:SavedMutation,operatio
 export function undoInScope(scope:ReadingScope,operationId:string):Promise<SavedRecord> {
   return scope.kind==='example'?invoke('undo_example_saved_mutation',{sessionId:scope.sessionId,operationId}):undoSaved(operationId);
 }
+
+export function contextsInScope(scope:ReadingScope, expression:string, offset=0, limit=10):Promise<{records:SavedRecord[];total:number}> {
+  return invoke(scope.kind==='example'?'example_recall_contexts':'saved_recall_contexts', {expression,offset,limit,...(scope.kind==='example'?{sessionId:scope.sessionId}:{})});
+}

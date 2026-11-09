@@ -34,9 +34,9 @@ export async function checkReadingInteractions({page,theme,take,call,ok,eq,settl
  // A broad set of blanks, including the header and gaps inside the paper.
  for(const point of [()=>({x:12,y:110}),()=>({x:110,y:400}),()=>({x:900,y:35}),()=>page.locator('.reading-sentence').first().evaluate(n=>{const r=n.getBoundingClientRect();return{x:r.left+70,y:r.bottom+10};}),()=>page.locator('.sentence-side small').first().evaluate(n=>{const r=n.getBoundingClientRect();return{x:r.left+r.width/2,y:r.top+r.height/2};})])await blank(point);
  await take.click();await ready('take');await settle(page);
- await page.locator('.b-dock button[aria-label="隐藏中文译文"]').click();eq(await page.locator('.context-panel').count(),1,`${theme}: translation control is not treated as blank`);await page.locator('.b-dock button[aria-label="显示中文译文"]').click();
+ const translations=page.locator('.b-dock button[aria-label*="中文译文"]');const originalLabel=await translations.getAttribute('aria-label');await translations.click();eq(await page.locator('.context-panel').count(),1,`${theme}: translation control is not treated as blank`);ok(await translations.getAttribute('aria-label')!==originalLabel,'translation visibility changes');await translations.click();
  await page.locator('.b-dock').getByRole('button',{name:'调整学习内容显示',exact:true}).click();await page.locator('.display-font-popover:visible p').last().click();eq(await page.locator('.context-panel').count(),1,`${theme}: explanatory space inside a functional menu keeps the card open`);await page.keyboard.press('Escape');
- await page.locator('.soft-refresh-current .lookup-heading > small').click();eq(await page.locator('.context-panel').count(),1,`${theme}: internal card whitespace does not dismiss`);
+ await page.locator('.soft-refresh-current .lookup-heading h2').click();eq(await page.locator('.context-panel').count(),1,`${theme}: internal card whitespace does not dismiss`);
  // Keep the frame while a new selection becomes usable immediately.
  await term('noon').click();await ready('noon');
  await page.evaluate(()=>{window.__readingFrame=document.querySelector('.context-panel');window.__readingFrameStarts=0;window.__readingFrame.addEventListener('animationstart',event=>{if(event.target===window.__readingFrame)window.__readingFrameStarts++;});});
@@ -44,21 +44,21 @@ export async function checkReadingInteractions({page,theme,take,call,ok,eq,settl
  const beforeSave=(await call('list_saved_records',{query:'',limit:100,offset:0})).length;
  await page.evaluate(()=>{window.__uiDelayLookup=true;window.__uiLookupDelayMs=1800;});await take.click();
  // Read the short-lived snapshot atomically before its normal reveal cleanup.
- const outgoing=await page.locator('.soft-refresh-ghost > .soft-refresh-snapshot').evaluate(node=>{const style=getComputedStyle(node);return{currentCount:document.querySelectorAll('.soft-refresh-current').length,ghostCurrentCount:document.querySelectorAll('.soft-refresh-ghost .soft-refresh-current').length,heading:node.querySelector('.lookup-heading h2')?.textContent,inert:node.inert&&node.getAttribute('aria-hidden')==='true',layout:[style.display,style.flexDirection,style.position]};});
+ const outgoing=await page.locator('.soft-refresh-ghost .soft-refresh-snapshot').last().evaluate(node=>{const style=getComputedStyle(node);return{currentCount:document.querySelectorAll('.soft-refresh-current').length,ghostCurrentCount:document.querySelectorAll('.soft-refresh-ghost .soft-refresh-current').length,heading:node.querySelector('.lookup-heading h2')?.textContent,inert:node.inert&&node.getAttribute('aria-hidden')==='true',layout:[style.display,style.flexDirection,style.position]};});
  eq(outgoing.currentCount,1,`${theme}: only the live lookup region advertises current ownership`);
  eq(outgoing.ghostCurrentCount,0,`${theme}: outgoing visual snapshots never masquerade as current content`);
  eq(outgoing.heading,'noon',`${theme}: previous lookup remains available as an outgoing visual snapshot`);
  ok(outgoing.inert,`${theme}: outgoing snapshot is inert and hidden from accessibility`);
- eq(outgoing.layout,['flex','column','relative'],`${theme}: snapshot retains the current region's layout geometry`);
- eq(await page.locator('.soft-refresh-current .lookup-heading h2').innerText(),'take',`${theme}: new word labels the card immediately`);
- eq(await page.locator('.lookup-content').evaluate(n=>n.inert),false,`${theme}: new selection stays interactive during lookup`);
- await page.locator('.lookup-footer').getByRole('button',{name:'记下',exact:true}).click();await page.locator('.lookup-saved').waitFor();
+ eq(outgoing.layout,['flex','column','absolute'],`${theme}: snapshot retains the current region's layout geometry`);
+ eq(await page.locator('.soft-refresh-current .lookup-heading h2').textContent(),'take',`${theme}: new word labels the card immediately`);
+ ok(await page.getByTestId('lookup-save').isEnabled(),`${theme}: save remains interactive during lookup`);
+ await page.locator('.lookup-footer').getByRole('button',{name:'保存本句',exact:true}).click();await page.locator('.lookup-saved').waitFor();
  eq((await call('list_saved_records',{query:'',limit:100,offset:0})).length,beforeSave+1,`${theme}: pending query can save the current original`);
  await page.getByRole('button',{name:'撤销',exact:true}).click();
  await term('plane').click();await ready('plane');await page.waitForTimeout(1900);
  eq(await page.locator('.soft-refresh-current .lookup-heading h2').innerText(),'plane',`${theme}: late slow result never replaces the latest word`);
  ok(await page.locator('.context-panel').evaluate(n=>n===window.__readingFrame),`${theme}: consecutive words reuse the same card frame`);
- eq(await page.locator('.context-panel').boundingBox(),bounds,`${theme}: switching words preserves card geometry`);
+ eq((await page.locator('.context-panel').boundingBox()).width,bounds.width,`${theme}: switching words preserves card width while height fits the definition`);
  eq(await page.evaluate(()=>window.__readingFrameStarts),0,`${theme}: switching words never replays frame entry`);
  await take.click();await ready('take');eq(await page.locator('.lookup-content').evaluate(n=>n.inert),false,`${theme}: ready page becomes interactive`);
  await page.evaluate(()=>window.__uiDelayLookup=false);

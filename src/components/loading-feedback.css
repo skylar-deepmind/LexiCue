@@ -1,0 +1,36 @@
+.busy-ring {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  flex: none;
+  vertical-align: -.12em;
+  border: 2px solid currentColor;
+  border-inline-end-color: transparent;
+  border-radius: 50%;
+  animation: loading-ring-turn .85s linear infinite;
+}
+.busy-ring + span, .busy-ring + strong { margin-inline-start: .4em; }
+.activity-track.inline-progress { display: block; width: min(7.25rem, 100%); height: 4px; }
+.activity-track.inline-progress > span { width: 33%; animation: loading-track-travel .82s ease-in-out infinite alternate; }
+.loading-skeleton { max-width: 100%; padding-block: .65rem; }
+.loading-skeleton__shape { display: grid; gap: 1rem; animation: loading-appear .18s ease-out .12s backwards; }
+.loading-skeleton i { display: block; max-width: 100%; height: .55rem; border-radius: .4rem; background: var(--border); }
+.loading-skeleton--text i { width: min(88%, 40rem); }
+.loading-skeleton--text i:nth-child(2) { width: min(96%, 44rem); }
+.loading-skeleton--text i:last-child { width: min(66%, 30rem); }
+.loading-skeleton--list i:nth-child(odd) { width: 31%; height: .65rem; background: color-mix(in srgb, var(--border) 78%, var(--text-muted)); }
+.loading-skeleton--list i:nth-child(even) { width: 73%; }
+.loading-skeleton--list i:nth-child(3) { margin-top: .85rem; width: 38%; }
+.loading-skeleton--list i:last-child { width: 61%; }
+.loading-skeleton--tags .loading-skeleton__shape { display: flex; flex-wrap: wrap; gap: .5rem; }
+.loading-skeleton--tags i { width: 4rem; height: 1.55rem; border-radius: 99px; }
+.loading-skeleton--tags i:nth-child(2) { width: 5.75rem; }
+.loading-skeleton--tags i:last-child { width: 3rem; }
+.restore-progress .activity-track { margin: .85rem auto 0; }
+@keyframes loading-ring-turn { to { transform: rotate(1turn); } }
+@keyframes loading-track-travel { to { transform: translateX(203%); } }
+@keyframes loading-appear { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .busy-ring, .activity-track.inline-progress > span, .loading-skeleton__shape { animation: none; }
+  .activity-track.inline-progress > span { transform: translateX(100%); }
+}

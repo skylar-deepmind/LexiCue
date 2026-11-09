@@ -54,7 +54,14 @@ pub fn init_secret_store() -> Result<(), String> {
                 keyring_core::set_default_store(store);
                 Ok(())
             }
-            #[cfg(not(target_os = "android"))]
+            #[cfg(target_os = "ios")]
+            {
+                let store = apple_native_keyring_store::protected::Store::new()
+                    .map_err(|_| "credential_store_unavailable".to_string())?;
+                keyring_core::set_default_store(store);
+                Ok(())
+            }
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             {
                 keyring::Entry::store_status()
                     .as_ref()
@@ -3612,13 +3619,12 @@ async fn pull_apply_events(
     Ok(applied)
 }
 
-// Local slice candidates must never access production credentials or endpoints,
-// including command calls outside the settings UI.
+// The retired account service is unavailable even to direct WebView calls.
 fn ensure_sync_available() -> Result<(), String> {
     if option_env!("LEXICUE_SLICE_PREVIEW") == Some("1") {
         return Err("preview_sync_disabled".into());
     }
-    Ok(())
+    Err("sync_service_not_configured".into())
 }
 
 #[tauri::command]

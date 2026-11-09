@@ -1,0 +1,17 @@
+[package]
+name = "lexicue-lan-journal"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+base64 = "0.22"
+rusqlite = { version = "0.31", features = ["bundled","blob"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+uuid = { version = "1", features = ["serde", "v4"] }
+
+[[example]]
+name = "device_probe"
+crate-type = ["staticlib"]

@@ -72,6 +72,90 @@
     "switch": "Wechseln"
   },
   "settings": {
+    "directory": {
+      "preferences": "Einstellungen",
+      "data": "Daten und Geräte",
+      "tools": "Werkzeuge",
+      "app": "App",
+      "captions": "YouTube-Untertitel",
+      "updates": "Softwareupdate",
+      "versionInfo": "Versionsinformationen",
+      "version": "Aktuelle Version",
+      "method": "Installationsart",
+      "local": "Lokale Installation",
+      "localHint": "Diese Version wurde über einen Mac installiert. Installiere auch die neue Version über deinen Mac.",
+      "channelHint": "Aktualisiere die App über den ursprünglichen Installationsweg."
+    },
+    "deviceSync": {
+      "unsupported": "Die Gerätesynchronisierung ist in LexiCue für Mac und iPhone verfügbar.",
+      "pairedDevices": "Gekoppelte Geräte",
+      "receiveSettings": "Empfang",
+      "receiveTitle": "Bei geschlossenem Fenster weiter empfangen",
+      "receiveHint": "Der Empfang endet, wenn du LexiCue beendest.",
+      "deviceManagement": "Geräteverwaltung",
+      "recoverCopy": "Diese Bearbeitung in einem neuen synchronisierten Material behalten",
+      "keepLocal": "Auf diesem Gerät behalten",
+      "includeRestored": "Als neuen Eintrag synchronisieren",
+      "review": "Versionen prüfen ({{count}})",
+      "deleted": "Gelöscht lassen",
+      "useVersion": "Gewählte Version auf beiden Geräten verwenden",
+      "conflictRead": "Die aktuellen Versionen konnten nicht gelesen oder übernommen werden. Öffne die Gerätesynchronisierung erneut.",
+      "title": "Gerätesynchronisierung",
+      "macIntro": "Öffne LexiCue auf dem iPhone im selben lokalen Netzwerk und scanne den Kopplungscode.",
+      "iphoneIntro": "Öffne auf dem Mac Einstellungen → Gerätesynchronisierung. Erlaube zum Scannen den Kamera- und lokalen Netzwerkzugriff.",
+      "show": "Kopplungscode anzeigen",
+      "scan": "Mac-Code scannen",
+      "qr": "Einmalcode zum Scannen mit LexiCue auf dem iPhone",
+      "compare": "Prüfe Gerätenamen und sechsstelligen Code auf beiden Bildschirmen.",
+      "merge": "Nach beidseitiger Bestätigung sichern und vereinen beide Geräte Materialien und gespeicherte Einträge. Spätere Änderungen und Löschungen werden synchronisiert.",
+      "confirm": "Codes stimmen überein · Koppeln",
+      "otherConfirm": "Warte auf die andere Bestätigung",
+      "reachability": "Öffne LexiCue auf dem iPhone und lasse es auf dem Mac laufen. Gast-WLAN kann Geräte isolieren.",
+      "receiveClosed": "Bei geschlossenem Mac-Fenster bis zum Beenden von LexiCue weiter empfangen",
+      "manage": "Gekoppeltes Gerät verwalten",
+      "remove": "Gerät entfernen",
+      "removeEffect": "Nach dem Entfernen bleiben beide Bibliotheken erhalten. Zum erneuten Synchronisieren ist eine neue Kopplung nötig.",
+      "confirmRemove": "Entfernen bestätigen",
+      "backups": "Sicherungen vor der Zusammenführung",
+      "noBackup": "Auf diesem Gerät gibt es noch keine Sicherung vor einer Zusammenführung.",
+      "restoreEffect": "Die Wiederherstellung ersetzt diese Bibliothek und hebt die Kopplung auf. Die Daten des anderen Geräts bleiben erhalten. Zuerst wird der aktuelle Stand gesichert.",
+      "restore": "Diese Sicherung wiederherstellen",
+      "backupLoading": "Sicherungsliste wird geladen",
+      "backupReadError": "Die Sicherungen auf diesem Gerät konnten nicht gelesen werden.",
+      "phase": {
+        "preparing": "Zusammenführung wird vorbereitet",
+        "exchanging": "Änderungen werden ausgetauscht",
+        "awaitingAck": "Bestätigung wird erwartet"
+      },
+      "state": {
+        "unpaired": "Kein Gerät gekoppelt",
+        "offering": "Warte auf den Scan vom iPhone. Der Code gilt zwei Minuten.",
+        "scanning": "Verbindung zum Mac wird hergestellt",
+        "confirming": "Kopplung prüfen",
+        "waiting": "Warte auf Gerät",
+        "syncing": "Synchronisierung läuft",
+        "synced": "Synchronisiert",
+        "permission": "Berechtigung erforderlich",
+        "update": "Anderes Gerät aktualisieren",
+        "pending": "Änderungen ausstehend",
+        "error": "Synchronisierung angehalten"
+      },
+      "issue": {
+        "cameraDenied": "Erlaube LexiCue in den Einstellungen den Kamerazugriff und scanne erneut.",
+        "cameraUnavailable": "Kamera nicht verfügbar. Öffne LexiCue im Vordergrund und versuche es erneut.",
+        "invalidQR": "Code nicht erkannt. Scanne einen neuen Code vom Mac.",
+        "expired": "Der Code ist abgelaufen. Erstelle auf dem Mac einen neuen.",
+        "localNetwork": "Erlaube LexiCue in den Systemeinstellungen den Zugriff auf das lokale Netzwerk.",
+        "identity": "Geräteidentität konnte nicht geprüft werden. Prüfe die Geräte und kopple sie erneut.",
+        "storage": "Sicherer Speicher nicht verfügbar. Entsperre das Gerät und versuche es erneut.",
+        "unavailable": "Gerätesynchronisierung nicht verfügbar. Öffne LexiCue erneut.",
+        "connection": "Keine Verbindung. Öffne beide Apps und prüfe, ob das Netzwerk Geräte miteinander verbinden lässt.",
+        "backup": "Die Sicherung konnte nicht vorbereitet werden. Prüfe den freien Speicherplatz auf beiden Geräten.",
+        "merge": "Zusammenführung unvollständig. Prüfe den Speicher auf beiden Geräten und versuche es erneut.",
+        "reconcile": "Diese Bibliothek weicht vom bestätigten Synchronisierungsverlauf ab. Entferne die Kopplung auf beiden Geräten und kopple sie erneut, um die Inhalte zusammenzuführen.",
+        "revoking": "Gerät noch nicht vollständig entfernt. Versuche es erneut."
+      }
+    },
     "title": "Einstellungen",
     "navAria": "Einstellungsabschnitte",
     "expand": "Ausklappen",
@@ -818,6 +902,8 @@
     "openDownloadSettings": "Untertitelwerkzeuge und Browserhilfe",
     "returnToImport": "Zurück zum YouTube-Import",
     "downloadSettings": {
+      "publicTracks": "Auf iPhone und iPad lassen sich über Videolinks öffentliche englische Untertitel suchen.",
+      "installTool": "yt-dlp wurde nicht gefunden. Installiere es und öffne diese Seite erneut.",
       "browserTitle": "Browsersitzung als Hilfe",
       "browserEnable": "Angemeldete Browsersitzung verwenden",
       "browserHint": "Standardmäßig aus. Wenn aktiviert, liest yt-dlp die gewählte Browsersitzung lokal für YouTube-Anfragen. Cookies werden nicht exportiert oder synchronisiert. Zuerst das Video im Browser öffnen und die gewünschte Autoübersetzung anzeigen.",
@@ -871,7 +957,7 @@
   },
   "layout": {
     "dictInit": "Wörterbuch wird initialisiert…",
-    "updateAvailable": "Neue Version v{{version}} verfügbar – unter Einstellungen → Über & Updates installieren"
+    "updateAvailable": "Neue Version v{{version}} verfügbar – unter Einstellungen → Softwareupdate installieren"
   },
   "themes": {
     "oceanLabel": "Ozeanblau",
@@ -915,7 +1001,7 @@
     "backupExportFailed": "Export der Sicherung fehlgeschlagen",
     "backupVersionError": "Nicht unterstützte Sicherungsversion: {{version}}",
     "backupVersionTitle": "Wiederherstellung fehlgeschlagen",
-    "backupScope": "Die Sicherung enthält Datenbankdaten, aber keine Designs, Lesetische, Lesefortschritte oder heruntergeladenen Audiodateien.",
+    "backupScope": "Die Sicherung enthält Lerninhalte und gespeicherte Lesepositionen. Design, Lesetisch und heruntergeladene Audiodateien verbleiben auf diesem Gerät.",
     "restoredWithBackup": "Wiederhergestellt. Sicherheitssicherung: {{path}}",
     "restoreSafetyFailed": "Die Sicherheitssicherung konnte nicht erstellt werden. Die aktuellen Daten wurden nicht geändert.",
     "restoreFailedWithBackup": "Wiederherstellung fehlgeschlagen. Sicherheitssicherung: {{path}}",
@@ -924,7 +1010,7 @@
     "restoring": "Daten werden wiederhergestellt…",
     "restoreInProgress": "Bitte warten, bis die Wiederherstellung abgeschlossen ist, bevor Sie importieren.",
     "restoreStatusUnknown": "Das Ergebnis der Wiederherstellung kann nicht bestätigt werden. Starten Sie LexiCue neu und prüfen Sie Ihre Daten und die Sicherheitssicherung, bevor Sie fortfahren.",
-    "restoreAsk": "Die Wiederherstellung ersetzt die aktuellen Datenbankdaten. Zuvor wird eine lokale Sicherheitssicherung erstellt. Fortfahren?",
+    "restoreAsk": "Die Wiederherstellung ersetzt die Lerndaten auf diesem Gerät und hebt seine Kopplung auf. Vor dem Ersetzen wird eine lokale Sicherung erstellt. Fortfahren?",
     "restoreTitle": "Daten wiederherstellen",
     "restored": "Daten erfolgreich wiederhergestellt",
     "restoreFailed": "Wiederherstellung fehlgeschlagen. Bitte Sicherungsdatei prüfen.",
@@ -1177,6 +1263,17 @@
     "options": "Anzeigeoptionen"
   },
   "tags": {
+    "colorFor": "Tag-Farbe · {{name}}",
+    "colorTarget": "Tag zum Einfärben wählen",
+    "colorNamed": "{{name}}: {{color}}",
+    "colors": {
+      "blue": "Nebelblau",
+      "green": "Salbei",
+      "pink": "Rosé",
+      "purple": "Lavendel",
+      "amber": "Aprikose",
+      "slate": "Stein"
+    },
     "filesTitle": "Dateien",
     "all": "Alle",
     "allFiles": "Alle Dateien",
@@ -1221,7 +1318,16 @@
     "saving": "Wird gespeichert…",
     "sharedHint": "Diese Tags werden für alle Lernsprachen verwendet.",
     "search": "Tags suchen",
-    "namePlaceholder": "Tag-Namen eingeben"
+    "namePlaceholder": "Tag-Namen eingeben",
+    "color": "Farbe",
+    "tones": {
+      "blue": "Blau",
+      "green": "Grün",
+      "pink": "Rosa",
+      "purple": "Lila",
+      "amber": "Bernstein",
+      "slate": "Schiefergrau"
+    }
   },
   "expressionTags": {
     "label": "Sprachregister und Verwendung",
@@ -1395,7 +1501,7 @@
       "finding": "Verfügbare englische Untertitel werden gesucht…",
       "generatePreview": "Vorschau erstellen",
       "preview": "Originalvorschau",
-      "previewTitle": "Zuerst ansehen",
+      "previewTitle": "Vorschau",
       "preparingTitle": "Vorschau wird vorbereitet",
       "writingTitle": "Material wird hinzugefügt",
       "resultTitle": "Importergebnisse",
@@ -1411,7 +1517,6 @@
       "backgroundHint": "Du kannst dieses Fenster schließen. Der Import läuft weiter.",
       "minimize": "Schließen und im Hintergrund fortsetzen",
       "importMore": "Weitere importieren",
-      "translationHint": "Automatische Satzteilung. Fehlendes Chinesisch wird mit Google Translate ergänzt. Englischer Text wird an Google gesendet; keine Registrierung nötig.",
       "translationProgress": "{{done}} / {{total}} Sätze übersetzt",
       "pasteLink": "Zwischenablage lesen",
       "readingClipboard": "Wird gelesen…",
@@ -1473,7 +1578,13 @@
     "paused": "Paused",
     "restartSentence": "Restart current sentence",
     "emptyContent": "This material has no readable content.",
-    "translationError": "Translation is unavailable. Retry; reading and saving remain available."
+    "translationError": "Translation is unavailable. Retry; reading and saving remain available.",
+    "translateFullTitle": "Das ganze Material übersetzen?",
+    "translateFullPrompt": "Für {{count}} Sätze fehlt Chinesisch. Die vollständige Übersetzung mit Google ergänzen?",
+    "translateFullConfirm": "Übersetzung starten",
+    "translationProgress": "Ganzes Material wird übersetzt ({{done}} / {{total}} Sätze)",
+    "fullSheet": "Vollbild öffnen",
+    "halfSheet": "Halbbild anzeigen"
   },
   "history": {
     "export": "Datensicherung exportieren",

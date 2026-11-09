@@ -1,0 +1,117 @@
+.desktop-launch--mobile {
+  --launch-mobile-safe-top: var(--launch-preview-safe-top, var(--safe-top, env(safe-area-inset-top, 0px)));
+  --launch-mobile-safe-bottom: var(--launch-preview-safe-bottom, var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
+  /* The same golden-ratio center, measured within the usable screen. */
+  --launch-focus: calc(38.2% + var(--launch-mobile-safe-top) * .618 - var(--launch-mobile-safe-bottom) * .382);
+  --launch-road-scale-x: 3;
+  --launch-road-scale-y: 4.3;
+}
+
+/* A: correct the portrait aspect first, while uniform contraction continues. */
+.desktop-launch--mobile[data-contraction='vertical'] .desktop-launch__backdrop {
+  background: transparent;
+  border-radius: 0;
+  contain: none;
+  animation-name: launch-mobile-backdrop-position;
+}
+.mobile-launch__backdrop-aspect, .mobile-launch__backdrop-fill {
+  position: absolute;
+  inset: 0;
+  will-change: transform;
+  backface-visibility: hidden;
+}
+.mobile-launch__backdrop-aspect {
+  animation: launch-mobile-backdrop-aspect calc(var(--launch-merge-duration) * .64) var(--launch-merge-start) cubic-bezier(.25, 0, .25, 1) both;
+}
+.mobile-launch__backdrop-fill {
+  border-radius: 26px;
+  background: var(--launch-badge);
+  animation: launch-mobile-backdrop-uniform var(--launch-merge-duration) var(--launch-merge-start) var(--launch-merge-ease) both;
+}
+
+/* B: animate four insets, keeping the visible radius at 26px throughout. */
+.desktop-launch--mobile[data-contraction='inset'] .desktop-launch__backdrop {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  transform: translateZ(0);
+  will-change: clip-path;
+  animation-name: launch-mobile-backdrop-inset;
+}
+
+/* C: one true circle centered on the logo; only round its final small tile. */
+.desktop-launch--mobile[data-contraction='circle'] .desktop-launch__backdrop {
+  border-radius: 49px;
+  animation: launch-mobile-backdrop-circle var(--launch-merge-duration) var(--launch-merge-start) var(--launch-merge-ease) both,
+    launch-mobile-circle-corners 180ms var(--launch-merge-end) linear forwards;
+}
+
+@keyframes launch-mobile-backdrop-position {
+  from { transform: translate3d(0, var(--launch-backdrop-shift-y, 0px), 0); }
+  to { transform: translate3d(0, 0, 0); }
+}
+@keyframes launch-mobile-backdrop-aspect {
+  from { transform: scaleY(var(--launch-backdrop-aspect, 1)); }
+  to { transform: scaleY(1); }
+}
+@keyframes launch-mobile-backdrop-uniform {
+  from { transform: scale(var(--launch-backdrop-scale-x, 1)); }
+  to { transform: scale(1); }
+}
+@keyframes launch-mobile-backdrop-inset {
+  from { clip-path: inset(0 round 26px); }
+  to { clip-path: inset(var(--launch-backdrop-top) calc(50% - 49px) calc(100% - var(--launch-backdrop-top) - 98px) calc(50% - 49px) round 26px); }
+}
+@keyframes launch-mobile-backdrop-circle {
+  from { transform: translate3d(0, 0, 0) scale(var(--launch-backdrop-circle-scale, 1)); }
+  to { transform: translate3d(0, 0, 0) scale(1); }
+}
+@keyframes launch-mobile-circle-corners { from { border-radius: 49px; } to { border-radius: 26px; } }
+
+.desktop-launch--mobile .desktop-launch__lockup {
+  width: min(100%, 360px);
+  height: auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: 104px auto auto;
+  row-gap: 12px;
+}
+.desktop-launch--mobile .desktop-launch__logo {
+  position: relative;
+  top: auto;
+  left: auto;
+  grid-row: 1;
+  justify-self: center;
+}
+.desktop-launch--mobile .desktop-launch__encounters {
+  position: absolute;
+  inset: 0;
+}
+.desktop-launch--mobile .desktop-launch__name {
+  position: relative;
+  top: auto;
+  left: auto;
+  grid-row: 2;
+  font-size: 1.75rem;
+  line-height: 1.2;
+  letter-spacing: -.8px;
+}
+.desktop-launch--mobile .desktop-launch__slogan {
+  position: relative;
+  top: auto;
+  left: auto;
+  grid-row: 3;
+  padding-inline: 20px;
+  font-size: 1rem;
+  line-height: 1.8;
+  letter-spacing: 1.1px;
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  .desktop-launch--mobile { --launch-focus: calc(50% + var(--launch-mobile-safe-top) * .5 - var(--launch-mobile-safe-bottom) * .5); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-launch__backdrop-aspect, .mobile-launch__backdrop-fill { animation: none; will-change: auto; }
+}

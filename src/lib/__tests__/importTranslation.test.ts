@@ -27,3 +27,13 @@ it('sends cancellation and discards late results',async()=>{
   resolve({translations:[{index:1,translation:'late'}],error:null});await rejection;
   expect(mocks.invoke).toHaveBeenCalledWith('cancel_import_translation',{jobId:expect.any(Number)});expect(mocks.unlisten).toHaveBeenCalledOnce();
 });
+it('translates long/multiline sentences in bounded transport parts while preserving original text and counting sentences',async()=>{
+  const original='A long English passage about the notebook. '.repeat(100)+'\nThe final line.';
+  mocks.invoke.mockImplementation(async(command,args)=>command==='translate_import_sentences'?{translations:args.sentences.map((row:{index:number})=>({index:row.index,translation:`部分 ${row.index}`})),error:null}:undefined);
+  const progress=vi.fn();const result=await translateImportSegments([{...rows[1],en_text:original}],new AbortController().signal,progress);
+  const sent=mocks.invoke.mock.calls[0][1].sentences;
+  expect(sent.length).toBeGreaterThan(1);expect(sent.every((row:{text:string})=>Array.from(row.text).length<=1200&&!/[\r\n]/.test(row.text))).toBe(true);
+  expect(new Set(sent.map((row:{index:number})=>row.index)).size).toBe(sent.length);
+  expect(result.failed).toBe(false);expect(result.segments[0].en_text).toBe(original);
+  expect(result.segments[0].zh_text).toContain('部分');expect(progress).toHaveBeenLastCalledWith({done:1,total:1});
+});

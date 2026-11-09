@@ -3,6 +3,9 @@ import { invalidateCaches } from './cacheInvalidation';
 
 type Status = { configured: boolean; auto_sync_enabled: boolean; pending_uploads: number };
 const now = () => Date.now();
+// Temporarily retired on every platform. Keep existing credentials/outbox for
+// recovery and export; no UI, timer or manual caller may start an upload.
+export const CLOUD_SYNC_ENABLED: boolean = false;
 
 /**
  * A foreground-only, single-flight scheduler. Keeping it outside React means
@@ -18,7 +21,7 @@ class SyncCoordinator {
   private hadPending = false;
 
   async runNow(force = false): Promise<void> {
-    if (import.meta.env.VITE_SLICE_PREVIEW === '1') return;
+    if (!CLOUD_SYNC_ENABLED || import.meta.env.VITE_SLICE_PREVIEW === '1') return;
     if (this.active) return this.active;
     this.clearTimers();
     this.active = this.run(force).finally(() => { this.active = null; });
@@ -56,7 +59,7 @@ class SyncCoordinator {
   }
 
   markChanged(): void {
-    if (import.meta.env.VITE_SLICE_PREVIEW === '1') return;
+    if (!CLOUD_SYNC_ENABLED || import.meta.env.VITE_SLICE_PREVIEW === '1') return;
     if (this.dirtyTimer !== null) window.clearTimeout(this.dirtyTimer);
     this.dirtyTimer = window.setTimeout(() => {
       this.dirtyTimer = null;
@@ -65,7 +68,7 @@ class SyncCoordinator {
   }
 
   start(): () => void {
-    if (import.meta.env.VITE_SLICE_PREVIEW === '1') return () => {};
+    if (!CLOUD_SYNC_ENABLED || import.meta.env.VITE_SLICE_PREVIEW === '1') return () => {};
     if (this.started) return () => this.stop();
     this.started = true;
     const resume = () => { if (document.visibilityState === 'visible') void this.runNow().catch(() => undefined); };

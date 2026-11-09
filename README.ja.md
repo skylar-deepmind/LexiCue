@@ -59,7 +59,7 @@
 - **[知っている単語から始める](https://skylar-deepmind.github.io/LexiCue/ja/#feature-baseline)** — 英語・中国語の頻出上位1,000〜10,000語を既知語に設定し、復習で少しずつ確認。
 - **[4言語、自分らしい読み方](https://skylar-deepmind.github.io/LexiCue/ja/#feature-languages)** — 英語、日本語、ドイツ語、中国語。かな、ピンイン、語形処理に対応し、明るいテーマとmidnightを選べます。
 - **[学習データは自分の手元に](https://skylar-deepmind.github.io/LexiCue/ja/#feature-privacy)** — 記録は端末内に保存。バックアップの書き出しと復元ができ、ローカル学習にアカウントは不要です。
-- **[別のデバイスでも続きを](https://skylar-deepmind.github.io/LexiCue/ja/#feature-sync)** — 任意のエンドツーエンド暗号化同期でPCとスマートフォンを接続。アニメーションは仕組みの説明です。
+- **[別のデバイスでも続きを](https://skylar-deepmind.github.io/LexiCue/ja/#feature-sync)** — 設定の「デバイス同期」で Mac と iPhone をペアリングします。両方のアプリが接続できる間、編集と削除をローカルネットワークで同期します。
 
 ## ダウンロードとインストール
 
@@ -73,11 +73,11 @@ Gemma: [E2B / E4B](docs/embedded-gemma.md).
 
 ## プライバシーと任意の接続
 
-読書・辞書・復習はローカルで動作。YouTube字幕やAIモデルの取得には通信が必要です。任意のクラウドAIは選択した文章を設定済みAPIへ送り、同期では暗号化した記録をアップロードします。
+読書・辞書・復習はローカルで動作します。YouTube 字幕や AI モデルの取得には通信が必要です。オプションのクラウド AI は選択した文章を設定済み API に送信します。ペアリングした端末間ではローカルネットワークで資料を交換します。
 
 ## プロジェクトを支援
 
-[作者を支援 — Patreon](https://www.patreon.com/16942122/join) · [爱发电 / Aifadian](https://www.ifdian.net/a/skylar-lexicue) · [GitHub Star](https://github.com/skylar-deepmind/LexiCue)
+[作者を支援 — 爱发电 / Aifadian](https://www.ifdian.net/a/skylar-lexicue) · [GitHub Star](https://github.com/skylar-deepmind/LexiCue)
 
 ## 開発
 

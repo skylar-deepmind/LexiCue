@@ -1,10 +1,14 @@
-import { READING_TRANSLATION_BATCH, translateReadingBatch } from './readingTranslation';
+import { translateReadingBatch, type ReadingTranslationUpdate } from './readingTranslation';
+import type { TranslationProgress } from './importTranslation';
 import type { Segment } from './types';
 
 export type ReadingTranslationStatus = 'idle' | 'loading' | 'ready' | 'partial' | 'error';
 export interface ReadingTranslationSnapshot {
   enabled: boolean;
+  confirming: boolean;
+  missingCount: number;
   status: ReadingTranslationStatus;
+  progress: TranslationProgress | null;
   generated: Record<number, string>;
 }
 export interface ReadingTranslationOptions {
@@ -14,63 +18,71 @@ export interface ReadingTranslationOptions {
   allowGenerate: boolean;
 }
 
-/** One immutable material version owns each request and its visible result. */
+/** Confirmation authorizes one material version, never a viewport or another file. */
 export function createReadingTranslationSession(options: ReadingTranslationOptions) {
-  let state: ReadingTranslationSnapshot = { enabled: false, status: 'idle', generated: {} };
-  let generation = 0;
+  const originals = new Map(options.segments.map(segment => [segment.id, { ...segment }]));
+  let state: ReadingTranslationSnapshot = { enabled: false, confirming: false,
+    missingCount: options.segments.filter(row => !!row.en_text.trim() && !row.zh_text?.trim()).length,
+    status: 'idle', progress: null, generated: {} };
+  let generation = 0, authorized = false;
   let request: AbortController | null = null;
   const listeners = new Set<() => void>();
-  const originals = new Map(options.segments.map(segment => [segment.id, { ...segment }]));
+  const missing = () => [...originals.values()].filter(row => !!row.en_text.trim() && !row.zh_text?.trim() && !state.generated[row.id]);
   const publish = (next: Partial<ReadingTranslationSnapshot>) => {
     state = { ...state, ...next };
+    state = { ...state, missingCount: missing().length };
     listeners.forEach(listener => listener());
   };
   const cancel = () => {
     generation++;
-    request?.abort();
-    request = null;
+    request?.abort(); request = null;
+    publish({ status: Object.keys(state.generated).length ? 'partial' : 'idle', progress: null });
   };
   const available = options.segments.some(segment => !!segment.zh_text?.trim())
     || options.allowGenerate && options.segments.some(segment => !!segment.en_text.trim());
-  const load = async (visible: readonly Segment[]) => {
-    if (!state.enabled || request || !options.allowGenerate) return;
-    // Do not trust a caller's stale merged rows after a route/version change.
-    const seen = new Set<number>();
-    const rows = visible.flatMap(row => {
-      const original = originals.get(row.id);
-      if (!original || seen.has(row.id) || original.en_text !== row.en_text || original.index_num !== row.index_num) return [];
-      seen.add(row.id);
-      return original.zh_text?.trim() || state.generated[row.id] ? [] : [original];
-    });
+  const load = async () => {
+    if (!authorized || request || !options.allowGenerate) return;
+    const rows = missing();
     if (!rows.length) { publish({ status: 'ready' }); return; }
-    const controller = new AbortController();
-    request = controller;
+    const controller = new AbortController(); request = controller;
     const current = ++generation;
-    publish({ status: 'loading' });
+    publish({ status: 'loading', progress: {done: 0, total: rows.length} });
+    const validIds = new Set(rows.map(row => row.id));
+    const accept = (updates: ReadingTranslationUpdate[]) => Object.fromEntries(updates
+      .filter(row => validIds.has(row.id) && !!row.zh_text.trim()).map(row => [row.id, row.zh_text]));
     try {
-      const result = await translateReadingBatch(options.materialId, options.contentHash, rows, controller.signal);
-      if (current !== generation || controller.signal.aborted || !state.enabled) return;
-      const validIds = new Set(rows.slice(0, READING_TRANSLATION_BATCH).map(row => row.id));
-      const additions = Object.fromEntries(result.translations
-        .filter(row => validIds.has(row.id) && !!row.zh_text.trim())
-        .map(row => [row.id, row.zh_text]));
-      const failed = result.failed || Object.keys(additions).length < Math.min(READING_TRANSLATION_BATCH, rows.length);
-      publish({ generated: { ...state.generated, ...additions }, status: failed ? Object.keys(additions).length ? 'partial' : 'error' : 'ready' });
+      const result = await translateReadingBatch(options.materialId, options.contentHash, rows, controller.signal, (updates, progress) => {
+        if (current !== generation || controller.signal.aborted) return;
+        publish({ generated: {...state.generated, ...accept(updates)}, progress });
+      });
+      if (current !== generation || controller.signal.aborted) return;
+      const additions = accept(result.translations);
+      const failed = result.failed || Object.keys(additions).length < rows.length;
+      publish({ generated: {...state.generated, ...additions}, status: failed ? Object.keys(state.generated).length || Object.keys(additions).length ? 'partial' : 'error' : 'ready' });
     } catch {
-      if (current === generation && !controller.signal.aborted && state.enabled) publish({ status: 'error' });
-    } finally {
-      if (request === controller) request = null;
-    }
+      if (current === generation && !controller.signal.aborted) publish({ status: Object.keys(state.generated).length ? 'partial' : 'error' });
+    } finally { if (request === controller) request = null; }
   };
   return {
     available,
     getSnapshot: () => state,
     subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
     request: load,
-    toggle(visible: readonly Segment[]) {
-      if (state.enabled) { cancel(); publish({ enabled: false, status: 'idle' }); }
-      else if (available) { publish({ enabled: true, status: 'ready' }); void load(visible); }
+    cancel,
+    dismissConfirmation: () => publish({confirming: false}),
+    confirm() {
+      if (!state.confirming) return;
+      authorized = true;
+      publish({confirming: false, enabled: true});
+      void load();
     },
-    close() { cancel(); publish({ enabled: false, status: 'idle' }); },
+    toggle() {
+      if (state.enabled) publish({ enabled: false, confirming: false });
+      else if (available) {
+        if (options.allowGenerate && missing().length && !request) publish({confirming: true});
+        else publish({enabled: true, confirming: false, status: request ? 'loading' : 'ready'});
+      }
+    },
+    close() { cancel(); authorized = false; publish({ enabled: false, confirming: false, status: 'idle' }); },
   };
 }

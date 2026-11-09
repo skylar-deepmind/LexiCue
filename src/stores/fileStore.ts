@@ -1,7 +1,9 @@
+import { migrateTagColors } from '../lib/portableReading';
 import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
 import { ask, message, open, save } from '@tauri-apps/plugin-dialog';
 import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
+import type {TagColors} from '../lib/tagAppearance';
 import type { FileRecord, BackupPayload, TagInfo, TagSelection } from '../lib/types';
 import { computeHash } from '../lib/hash';
 import { parseFile, type ParsedResult } from '../lib/parser';
@@ -103,7 +105,7 @@ interface FileStore {
   createTag: (name: string) => Promise<void>;
   renameTag: (tagId: number, name: string) => Promise<void>;
   deleteTag: (tagId: number) => Promise<void>;
-  setFileTags: (fileId: number, selection: TagSelection) => Promise<void>;
+  setFileTags: (fileId: number, selection: TagSelection, tones?: TagColors) => Promise<void>;
   setImportTags: (selection: TagSelection) => void;
   importFile: () => Promise<void>;
   setImportLanguage: (language: Language) => Promise<void>;
@@ -113,7 +115,7 @@ interface FileStore {
   cancelImport: () => void;
   deleteFile: (id: number) => Promise<void>;
   exportAll: () => Promise<void>;
-  restoreAll: () => Promise<void>;
+  restoreAll: (mergeBackupId?: string) => Promise<void>;
   importFromYouTube: (input: YouTubeImportInput) => Promise<boolean>;
 }
 
@@ -327,7 +329,11 @@ export const useFileStore = create<FileStore>((set, get) => ({
     const request = ++tagRequest;
     set({ loadingTags: true, tagsError: false });
     try {
-      const tags = await tagCache.fetch('all', () => invoke<TagInfo[]>('list_tags'), force);
+      const tags = await tagCache.fetch('all', async () => {
+        const values = await invoke<TagInfo[]>('list_tags');
+        await migrateTagColors(values);
+        return values;
+      }, force);
       if (request !== tagRequest) return;
       const selectedTagIds = get().selectedTagIds.filter(id => tags.some(tag => tag.id === id));
       const changed = selectedTagIds.length !== get().selectedTagIds.length;
@@ -354,22 +360,29 @@ export const useFileStore = create<FileStore>((set, get) => ({
     await get().loadTags(true);
   },
   renameTag: async (tagId, name) => {
+    const previousName=get().tags.find(tag=>tag.id===tagId)?.name;
     await invoke('rename_tag', { tagId, name });
+    const appearance=usePreferencesStore.getState();
+    const tone=previousName&&appearance.tagColors[previousName.trim().toLowerCase()];
+    if(tone)appearance.setTagColors({[name.trim().toLowerCase()]:tone});
     invalidateCaches('files', 'storage');
     await get().loadTags(true);
     await get().loadFiles(true);
+    await useMaterialStore.getState().load();
   },
   deleteTag: async tagId => {
     await invoke('delete_tag', { tagId });
     invalidateCaches('files', 'storage');
     await get().loadTags(true);
     await get().loadFiles(true);
+    await useMaterialStore.getState().load();
   },
-  setFileTags: async (fileId, selection) => {
-    await invoke('set_file_tags', { fileId, tagIds: selection.tagIds, newTagNames: selection.newTagNames });
+  setFileTags: async (fileId, selection, tones) => {
+    await invoke('set_file_tags', { fileId, tagIds: selection.tagIds, newTagNames: selection.newTagNames, tones });
     invalidateCaches('files', 'storage');
     await get().loadTags(true);
     await get().loadFiles(true);
+    await useMaterialStore.getState().load();
   },
   setImportTags: tags => {
     const pendingImport = get().pendingImport;
@@ -690,7 +703,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
     }
   },
 
-  restoreAll: async () => {
+  restoreAll: async (mergeBackupId) => {
     if (useRestoreGuard.getState().active) return;
     let ownsGuard = false;
     let committed: { safety_backup_path: string } | undefined;
@@ -711,34 +724,37 @@ export const useFileStore = create<FileStore>((set, get) => ({
       set({ files: [], tags: [], selectedTagIds: [], untaggedOnly: false, pendingImport: null });
     };
     try {
-      const selected = await open({
-        filters: [{ name: i18n.t('fileStore.dialogFilterBackup'), extensions: ['json'] }],
-        multiple: false,
-      });
-      if (!selected) return;
+      let backup: BackupPayload | undefined;
+      if (!mergeBackupId) {
+        const selected = await open({
+          filters: [{ name: i18n.t('fileStore.dialogFilterBackup'), extensions: ['json'] }],
+          multiple: false,
+        });
+        if (!selected) return;
 
-      const json = await readTextFile(selected as string);
-      const backup: BackupPayload = JSON.parse(json);
+        const json = await readTextFile(selected as string);
+        backup = JSON.parse(json) as BackupPayload;
 
-      if (!Number.isInteger(backup.schema_version) || backup.schema_version < 1 || backup.schema_version > 12) {
-        await message(i18n.t('fileStore.backupVersionError', { version: backup.schema_version }), { title: i18n.t('fileStore.backupVersionTitle'), kind: 'error' });
-        return;
+        if (!Number.isInteger(backup.schema_version) || backup.schema_version < 1 || backup.schema_version > 13) {
+          await message(i18n.t('fileStore.backupVersionError', { version: backup.schema_version }), { title: i18n.t('fileStore.backupVersionTitle'), kind: 'error' });
+          return;
+        }
+
+        const confirmed = await ask(i18n.t('fileStore.restoreAsk'), {
+          title: i18n.t('fileStore.restoreTitle'),
+          kind: 'warning',
+          okLabel: i18n.t('fileStore.restoreTitle'),
+          cancelLabel: i18n.t('common.cancel'),
+        });
+        if (!confirmed) return;
       }
-
-      const confirmed = await ask(i18n.t('fileStore.restoreAsk'), {
-        title: i18n.t('fileStore.restoreTitle'),
-        kind: 'warning',
-        okLabel: i18n.t('fileStore.restoreTitle'),
-        cancelLabel: i18n.t('common.cancel'),
-      });
-      if (!confirmed) return;
 
       if (useRestoreGuard.getState().active || useImportStore.getState().phase === 'committing' || get().confirming || get().importingYouTube) {
         useFeedbackStore.getState().show(i18n.t('fileStore.restoreImportBusy'), 'error');
         return;
       }
       useRestoreGuard.getState().setActive(true); ownsGuard = true;
-      const result = await invoke<{ safety_backup_path: string }>('restore_all', { backup });
+      const result = await invoke<{ safety_backup_path: string }>(mergeBackupId ? 'restore_device_merge_backup' : 'restore_all', mergeBackupId ? {id: mergeBackupId} : {backup});
       committed = result;
       discardRestoreState();
       await Promise.all([get().loadFiles(true, true), get().loadTags(true, true)]);

@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, X } from 'lucide-react';
+import { ChevronDown, Maximize2, Minimize2, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { associatedGuide } from '../lib/guideFocus';
 import { backNavigation } from '../lib/backNavigation';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 import { useQuietScrollbars } from './useQuietScrollbars';
+import { createLookupScrollMotion } from '../lib/lookupMotion';
 
 /** Modeless: unused space dismisses the card without covering reading or controls.
  * Dragging, selection, scrolling and other dialogs retain their normal behavior. */
@@ -21,6 +23,30 @@ export default function ContextPanel({ label, children, onClose, canClose = true
   const callbacks = useRef({ onClose, canClose, onClosing });
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [closing, setClosing] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  // Only move the original when the half sheet would cover the selected sentence.
+  useLayoutEffect(() => {
+    if (!layoutSlot || expanded || closing || !matchMedia('(max-width: 767px)').matches) return;
+    const scroll=layoutSlot.current?.closest<HTMLElement>('.reader-scroll');
+    if(!scroll)return;
+    const motion=createLookupScrollMotion(scroll);
+    const frame = requestAnimationFrame(() => {
+      const word=scroll.querySelector<HTMLElement>('.reading-word[aria-pressed="true"]');
+      const sentence = word?.closest<HTMLElement>('.reading-sentence');
+      const panel = panelRef.current;
+      if (!sentence || !word || !panel || !layerRef.current) return;
+      const top = scroll.getBoundingClientRect().top + 12;
+      // Measure the final sheet edge, independently of its entering transform.
+      const bottom = Math.min(scroll.getBoundingClientRect().bottom,layerRef.current.getBoundingClientRect().bottom-panel.offsetHeight)-16;
+      const sentenceRect=sentence.getBoundingClientRect();
+      const rect=sentenceRect.height<=bottom-top ? sentenceRect : word.getBoundingClientRect();
+      const delta=rect.top<top ? rect.top-top : rect.bottom>bottom ? rect.bottom-bottom : 0;
+      if(delta)motion.move(scroll.scrollTop+delta,matchMedia('(prefers-reduced-motion: reduce)').matches);
+    });
+    const cancel=()=>motion.cancel();
+    scroll.addEventListener('touchmove',cancel,{passive:true});scroll.addEventListener('wheel',cancel,{passive:true});
+    return () => {cancelAnimationFrame(frame);motion.cancel();scroll.removeEventListener('touchmove',cancel);scroll.removeEventListener('wheel',cancel);};
+  }, [interactionKey, expanded, closing, layoutSlot]);
   const lastInteraction = useRef(interactionKey);
   const markReadingClosing = useCallback((value: boolean) => {
     const layout = layoutSlot?.current?.closest<HTMLElement>('.reading-layout');
@@ -56,14 +82,15 @@ export default function ContextPanel({ label, children, onClose, canClose = true
     const initial = !panel.dataset.motionStarted;
     panel.dataset.motionStarted = 'true';
     const fromPaper = initial ? `translateX(${desktop ? shift : '0px'})` : getComputedStyle(paper).transform;
-    const fromCard = initial ? `translateX(${desktop ? shift : '16px'})` : getComputedStyle(panel).transform;
-    const opacity = initial ? '0' : getComputedStyle(panel).opacity;
-    const target = closing ? `translateX(${desktop ? shift : '16px'})` : 'translateX(0)';
-    const finish = () => { paper.style.transform = desktop ? target : 'none'; panel.style.transform = target; panel.style.opacity = closing ? '0' : '1'; delete layout.dataset.lookupMoving; };
+    const fromCard = initial ? desktop ? `translateX(${shift})` : 'translateY(100%)' : getComputedStyle(panel).transform;
+    const opacity = desktop ? initial ? '0' : getComputedStyle(panel).opacity : '1';
+    const target = closing ? desktop ? `translateX(${shift})` : 'translateY(100%)' : desktop ? 'translateX(0)' : 'translateY(0)';
+    const targetOpacity=desktop&&closing?'0':'1';
+    const finish = () => { paper.style.transform = desktop ? target : 'none'; panel.style.transform = target; panel.style.opacity = targetOpacity; delete layout.dataset.lookupMoving; };
     if (reduced.matches) { finish(); return; }
     layout.dataset.lookupMoving = 'true';
-    const options: KeyframeAnimationOptions = { duration: desktop ? (closing ? 340 : 420) : (closing ? 160 : 300), easing:'cubic-bezier(.16,1,.3,1)', fill:'both' };
-    const animations = [panel.animate([{transform:fromCard,opacity},{transform:target,opacity:closing?'0':'1'}], options)];
+    const options: KeyframeAnimationOptions = { duration: desktop ? (closing ? 340 : 420) : (closing ? 300 : 360), easing:'cubic-bezier(.22,1,.36,1)', fill:'both' };
+    const animations = [panel.animate([{transform:fromCard,opacity},{transform:target,opacity:targetOpacity}], options)];
     if (desktop) animations.push(paper.animate([{transform:fromPaper},{transform:target}],options));
     const start = document.timeline.currentTime; if (typeof start === 'number') animations.forEach(a => { a.startTime = start; });
     void Promise.all(animations.map(a => a.finished)).then(finish, () => {});
@@ -84,7 +111,7 @@ export default function ContextPanel({ label, children, onClose, canClose = true
     setClosing(true);
     useWorkspaceStore.getState().remove(identity.current);
     callbacks.current.onClosing?.();
-    const duration = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 340;
+    const duration = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : innerWidth<768 ? 300 : 340;
     timer.current = setTimeout(() => callbacks.current.onClose(), duration);
     return true;
   };
@@ -103,8 +130,8 @@ export default function ContextPanel({ label, children, onClose, canClose = true
     const unregister = backNavigation.register(() => closeRef.current());
     panelRef.current?.focus({ preventScroll: true });
     const keys = (event: KeyboardEvent) => {
-      if (event.key !== 'Tab' || !layerRef.current?.contains(document.activeElement)) return;
-      const items = Array.from(layerRef.current.querySelectorAll<HTMLElement>('button:not(:disabled),input,textarea,summary,a[href]'))
+      if (event.key !== 'Tab' || !layerRef.current || !layerRef.current.contains(document.activeElement)&&!associatedGuide(layerRef.current)?.contains(document.activeElement)) return;
+      const items = [layerRef.current,associatedGuide(layerRef.current)].filter((root):root is HTMLElement=>!!root).flatMap(root=>Array.from(root.querySelectorAll<HTMLElement>('button:not(:disabled),input,textarea,summary,a[href]')))
         .filter(item => item.getClientRects().length > 0 && !item.closest('[inert],[aria-hidden="true"]') && getComputedStyle(item).visibility !== 'hidden');
       if (!items.length) return;
       if (event.shiftKey && (document.activeElement === items[0] || document.activeElement === panelRef.current)) {
@@ -127,7 +154,7 @@ export default function ContextPanel({ label, children, onClose, canClose = true
       // React can replace an icon during this click (play → stop). The original
       // SVG target is then detached, while the gesture's composed path still
       // identifies the panel that received it.
-      if (event.composedPath().includes(layerRef.current as EventTarget) || layerRef.current?.contains(target) || document.querySelector('[aria-modal="true"]') || [...document.querySelectorAll('.context-layer')].at(-1) !== layerRef.current) return;
+      if (target.closest('[data-app-guide]') || event.composedPath().includes(layerRef.current as EventTarget) || layerRef.current?.contains(target) || document.querySelector('[aria-modal="true"]') || [...document.querySelectorAll('.context-layer')].at(-1) !== layerRef.current) return;
       if (target.closest('button,a[href],input,textarea,select,label,summary,audio,video,[role="button"],[role="tab"],[role="menuitem"],[data-overlay-layer],[contenteditable]:not([contenteditable="false"])')) return;
       // A native scrollbar is a control even though it has no DOM button.
       for (let node: Element | null = target; node; node = node.parentElement) {
@@ -150,8 +177,11 @@ export default function ContextPanel({ label, children, onClose, canClose = true
     };
   }, []);
   return createPortal(<div className={`context-layer${closing ? ' context-layer--closing' : ''}`} ref={layerRef}>
-    <aside className="context-panel" role="dialog" aria-label={label} tabIndex={-1} ref={panelRef} data-closing={closing || undefined} inert={closing} aria-hidden={closing || undefined}>
-      <button className="context-mobile-return" onClick={requestClose} disabled={!canClose}><ChevronDown size={18} aria-hidden="true" />{t('savedRecords.collapse')}</button>{layoutSlot && <button data-testid="lookup-close" className="lookup-close" onClick={requestClose} disabled={!canClose} aria-label={t('common.close')}><X size={20}/></button>}
+    <aside className="context-panel" role="dialog" aria-label={label} tabIndex={-1} ref={panelRef} data-expanded={expanded} data-closing={closing || undefined} inert={closing} aria-hidden={closing || undefined}>
+      <div className="context-sheet-controls">
+        <button className="context-mobile-return" onClick={requestClose} disabled={!canClose}><ChevronDown size={18} aria-hidden="true" />{t('savedRecords.collapse')}</button>
+        {layoutSlot && <button className="context-sheet-expand" onClick={() => setExpanded(value => !value)} aria-expanded={expanded} aria-label={t(expanded ? 'reader.halfSheet' : 'reader.fullSheet')}>{expanded ? <Minimize2 size={18} aria-hidden="true"/> : <Maximize2 size={18} aria-hidden="true"/>}</button>}
+      </div>{layoutSlot && <button data-testid="lookup-close" className="lookup-close" onClick={requestClose} disabled={!canClose} aria-label={t('common.close')}><X size={20}/></button>}
       {children}
     </aside>
   </div>, document.body);

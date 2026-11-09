@@ -1,8 +1,8 @@
 /** Real application regression for viewport-centered navigation and import route ownership. */
 import assert from 'node:assert/strict';
 import { writeFile } from 'node:fs/promises';
-import { createReadingHarness, root } from './ui-reading-support.mjs';
-const output = `${root}/docs/implementation/evidence/ui-refinement-v2-20261027/navigation`;
+import { createReadingHarness } from './ui-reading-support.mjs';
+const output = process.env.LEXICUE_NAVIGATION_OUTPUT || '/tmp/lexicue-navigation-refinement';
 const h = await createReadingHarness(output);
 const checks = [], observations = [];
 const check = (condition, label) => { assert.ok(condition, label); checks.push(label); };
@@ -29,15 +29,14 @@ try {
     await h.fixture(page,theme);
     await page.goto(`${h.url}/files`);await page.locator('.materials-paper').waitFor();
     const first=await centered(page,`${theme}/files`,4);
-    check(!first.controls[0].href&&first.controls[1].href==='/files'&&first.controls[2].href==='/saved'&&first.controls[3].href==='/settings',`${theme}: import then files/saved/settings order`);
+    check(first.controls[0].href==='/files'&&first.controls[1].href==='/saved'&&!first.controls[2].href&&first.controls[3].href==='/settings',`${theme}: files, saved, import and settings order`);
     const importButton=page.locator('.b-dock .dock-import-slot button');
     await importButton.click();await page.locator('.lc-import-modal').waitFor();
     await page.keyboard.press('Escape');await settle(250);
     const fileLink=page.locator('.b-dock a[href="/files"]');
     await fileLink.focus();await page.keyboard.press('Tab');
     check(await page.locator('.b-dock a[href="/saved"]').evaluate(el=>document.activeElement===el),`${theme}: sidebar keyboard order preserved`);
-    const selectedStyle=await fileLink.evaluate(el=>({bg:getComputedStyle(el).backgroundColor,color:getComputedStyle(el).color,accent:getComputedStyle(document.documentElement).getPropertyValue('--accent-700').trim()}));
-    check(selectedStyle.bg==='rgba(0, 0, 0, 0)',`${theme}: selected icon has no persistent block`);
+    check(await fileLink.getAttribute('aria-current')==='page',`${theme}: active materials is identified`);
     await page.locator('.b-dock a[href="/saved"]').click();
     await settle(90);const during=await metrics(page);await settle(400);const after=await metrics(page);
     check(during.height<first.height&&during.height>after.height,`${theme}: removal folds smoothly before settling`);
@@ -59,10 +58,11 @@ try {
     check(panel.x>anchor.x+anchor.width&&panel.y>=0&&panel.y+panel.height<=650,`${theme}: existing Aa popover remains beside the moving dock`);
     await settle(240);await page.screenshot({path:`${output}/${theme}-reading-centered.png`});
     await page.mouse.move(1000,100);await settle(350);
-    const disabled=page.locator('.b-dock .dock-reading-tools button:disabled');
-    check(await disabled.count()===1,`${theme}: translation disabled state preserved`);
-    await disabled.evaluate(el=>el.focus());
-    check(!await disabled.evaluate(el=>document.activeElement===el),`${theme}: disabled tool remains outside keyboard focus`);
+    const translation=page.locator('.dock-reading-tools button').filter({has:page.locator('svg.lucide-languages')});
+    const available=await page.evaluate(async()=> (await window.__uiStoreModule('readingToolsStore')).useReadingToolsStore.getState().hasTranslation);
+    check(await translation.isEnabled()===available,`${theme}: translation tool reflects the current reader's availability`);
+    await translation.evaluate(button=>button.focus());
+    check(await translation.evaluate(button=>document.activeElement===button)===available,`${theme}: only an available translation action can take keyboard focus`);
     for(const path of ['/saved','/files','/settings','/files','/saved','/files']){
       await page.evaluate(path=>{const a=document.querySelector(`.b-dock a[href="${path}"]`);a.click();},path);await settle(40);
     }
@@ -75,11 +75,22 @@ try {
     await context.close();
     const mobile=await h.browser.newContext({viewport:{width:375,height:812},isMobile:true,hasTouch:true}),touch=await mobile.newPage();await h.fixture(touch,theme);
     for(const path of ['/files','/files/','/saved','/settings','/legacy',`/files/${imported.file_id}`,'/example']){
-      await touch.goto(`${h.url}${path}`);await touch.locator('.b-mobile-nav').waitFor();await settle(420);
-      const m=await touch.locator('.b-mobile-nav').evaluate(nav=>[...nav.children].map(el=>({tag:el.tagName,href:el.getAttribute('href')})));
-      const summary=path==='/files'||path==='/files/';
-      check(m.length===(summary?4:3),`${theme}: mobile ${path} exact visible count`);
-      check(summary?m[0].tag==='BUTTON'&&m[1].href==='/files':m.every(item=>item.tag==='A'),`${theme}: mobile ${path} import first or fully absent`);
+      await touch.goto(`${h.url}${path}`);await touch.locator('.mobile-startup').waitFor({state:'detached'});
+      const tabs=touch.locator('.b-mobile-nav a');
+      if(path==='/settings') {
+        await touch.locator('.mobile-settings-header').waitFor();
+        check(await tabs.count()===0,`${theme}: settings owns its back navigation`);
+      } else if(path==='/example' || path===`/files/${imported.file_id}`) {
+        await touch.locator('.reading-breadcrumb').waitFor();
+        await touch.locator('.mobile-reading-tools').waitFor();
+        check(await tabs.first().isHidden(),`${theme}: reader owns its return control and reading tools`);
+      } else {
+        await tabs.first().waitFor();
+        check((await tabs.evaluateAll(nodes=>nodes.map(a=>a.getAttribute('href')))).join(',')==='/files,/saved',`${theme}: mobile ${path} materials and saved tabs`);
+        check(await touch.locator('.mobile-workspace-header .mobile-settings-link').isVisible(),`${theme}: mobile ${path} settings entry`);
+      }
+      const ownsImport=path==='/files'||path==='/files/';
+      check((await touch.locator('.mobile-workspace-header button[data-guide=import]:visible').count())===Number(ownsImport),`${theme}: header import follows route ownership`);
       check(await touch.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${theme}: mobile ${path} no horizontal overflow`);
     }
     await touch.screenshot({path:`${output}/${theme}-mobile-reading.png`});await mobile.close();

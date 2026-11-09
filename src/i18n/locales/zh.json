@@ -72,6 +72,90 @@
     "switch": "切换"
   },
   "settings": {
+    "directory": {
+      "preferences": "偏好",
+      "data": "资料与设备",
+      "tools": "工具",
+      "app": "应用",
+      "captions": "YouTube 字幕",
+      "updates": "软件更新",
+      "versionInfo": "版本信息",
+      "version": "当前版本",
+      "method": "安装方式",
+      "local": "本地安装",
+      "localHint": "此版本由 Mac 安装。更新时，请在 Mac 上安装新版。",
+      "channelHint": "请通过安装此应用的渠道更新。"
+    },
+    "deviceSync": {
+      "unsupported": "设备同步适用于 Mac 和 iPhone 版 LexiCue。",
+      "pairedDevices": "已配对设备",
+      "receiveSettings": "接收设置",
+      "receiveTitle": "关闭窗口后继续接收",
+      "receiveHint": "退出 LexiCue 后停止接收。",
+      "deviceManagement": "设备管理",
+      "recoverCopy": "将这次编辑保存为新材料并同步",
+      "keepLocal": "仅保留在本机",
+      "includeRestored": "作为新资料加入同步",
+      "review": "查看待处理版本（{{count}}）",
+      "deleted": "保持删除",
+      "useVersion": "两端采用所选版本",
+      "conflictRead": "无法读取或采用最新版本，请重新打开设备同步并核对。",
+      "title": "设备同步",
+      "macIntro": "在同一局域网内，打开 iPhone 上的 LexiCue 并扫描配对码。",
+      "iphoneIntro": "打开 Mac 上的“设置 → 设备同步”。扫码时需要允许相机和本地网络访问。",
+      "show": "显示配对码",
+      "scan": "扫描 Mac 配对码",
+      "qr": "用 iPhone 上的 LexiCue 扫描此一次性配对码",
+      "compare": "请核对两台设备上显示的设备名称和六位验证码。",
+      "merge": "确认后，两端将先备份，再合并已有材料与收藏。之后的修改和删除都会同步。",
+      "confirm": "验证码一致，配对",
+      "otherConfirm": "等待另一端确认",
+      "reachability": "请在 iPhone 上打开 LexiCue，并让 Mac 保持运行。访客 Wi-Fi 可能隔离设备。",
+      "receiveClosed": "关闭 Mac 窗口后继续接收，退出 LexiCue 时停止",
+      "manage": "管理已配对设备",
+      "remove": "移除设备",
+      "removeEffect": "移除后停止交换资料，双方已有内容都会保留。再次同步需要重新配对。",
+      "confirmRemove": "确认移除",
+      "backups": "合并前的本机备份",
+      "noBackup": "本机尚未创建合并前备份。",
+      "restoreEffect": "恢复会替换本机学习资料并停止配对。另一端保留现有资料。本机会先备份当前资料。",
+      "restore": "恢复此备份",
+      "backupLoading": "正在读取备份列表",
+      "backupReadError": "无法读取本机备份列表。",
+      "phase": {
+        "preparing": "准备合并",
+        "exchanging": "交换更改",
+        "awaitingAck": "等待对方确认"
+      },
+      "state": {
+        "unpaired": "尚未配对",
+        "offering": "等待 iPhone 扫码；配对码两分钟内有效",
+        "scanning": "正在连接 Mac",
+        "confirming": "核对配对信息",
+        "waiting": "等待设备上线",
+        "syncing": "同步中",
+        "synced": "已同步",
+        "permission": "需要访问权限",
+        "update": "需要更新另一台设备",
+        "pending": "有更改待处理",
+        "error": "同步暂停"
+      },
+      "issue": {
+        "cameraDenied": "请在系统设置中允许 LexiCue 使用相机，再重新扫码。",
+        "cameraUnavailable": "暂时无法使用相机。请返回前台后重试。",
+        "invalidQR": "无法识别这个配对码。请扫描 Mac 上新生成的码。",
+        "expired": "配对码已失效，请在 Mac 上重新生成。",
+        "localNetwork": "需要允许局域网访问。请在系统设置中为 LexiCue 打开“本地网络”。",
+        "identity": "设备身份校验失败。请核对设备并重新配对。",
+        "storage": "无法使用安全存储。请解锁设备后重试。",
+        "unavailable": "暂时无法读取设备同步状态。请重新打开 LexiCue。",
+        "connection": "暂时无法连接。请确认两端应用已打开，且网络允许设备互通。",
+        "backup": "无法准备合并前备份。请检查两端的剩余空间后重试。",
+        "merge": "资料合并尚未完成。请检查两端存储空间后重试。",
+        "reconcile": "此资料库与已确认的同步历史不一致。请在两端移除设备，再重新配对合并。",
+        "revoking": "设备移除尚未完成，请重试。"
+      }
+    },
     "title": "设置",
     "navAria": "设置分类",
     "expand": "展开",
@@ -804,6 +888,8 @@
     "openDownloadSettings": "字幕工具与浏览器辅助",
     "returnToImport": "返回 YouTube 导入",
     "downloadSettings": {
+      "publicTracks": "iPhone 和 iPad 可通过视频链接查找公开的英语字幕。",
+      "installTool": "未找到 yt-dlp。安装后请重新打开此页检查。",
       "browserTitle": "浏览器会话辅助",
       "browserEnable": "使用浏览器登录会话",
       "browserHint": "默认关闭。启用后 yt-dlp 在本机读取所选浏览器会话，用于请求 YouTube；不导出或同步 Cookie。请先在浏览器打开该视频并显示需要的自动翻译字幕。",
@@ -855,7 +941,7 @@
   },
   "layout": {
     "dictInit": "词典初始化中…",
-    "updateAvailable": "发现新版本 v{{version}}，可在「设置 → 关于与更新」中安装"
+    "updateAvailable": "发现新版本 v{{version}}，可在「设置 → 软件更新」中安装"
   },
   "themes": {
     "oceanLabel": "海湾蓝",
@@ -898,7 +984,7 @@
     "backupExportFailed": "备份导出失败",
     "backupVersionError": "不支持的备份版本: {{version}}",
     "backupVersionTitle": "恢复失败",
-    "backupScope": "备份包含数据库资料，不包含主题、桌面、阅读进度和下载的音频。",
+    "backupScope": "备份包含学习资料与已保存的阅读位置。主题、桌面排列和下载的音频仅保留在本机。",
     "restoredWithBackup": "恢复完成。安全副本：{{path}}",
     "restoreSafetyFailed": "无法创建安全副本，当前数据未更改。",
     "restoreFailedWithBackup": "恢复失败；安全副本位于 {{path}}。",
@@ -907,7 +993,7 @@
     "restoring": "正在恢复资料…",
     "restoreInProgress": "请等待资料恢复完成后再导入。",
     "restoreStatusUnknown": "恢复结果暂无法确认。请重启检查资料与安全副本后再操作。",
-    "restoreAsk": "恢复将覆盖当前数据库资料，并先创建本地安全副本。继续吗？",
+    "restoreAsk": "恢复会替换本机学习资料并解除配对。替换前会创建本地安全副本。继续吗？",
     "restoreTitle": "恢复数据",
     "restored": "数据恢复成功",
     "restoreFailed": "恢复失败，请检查备份文件",
@@ -1160,6 +1246,17 @@
     "options": "显示选项"
   },
   "tags": {
+    "colorFor": "标签颜色 · {{name}}",
+    "colorTarget": "选择要调整颜色的标签",
+    "colorNamed": "{{name}}：{{color}}",
+    "colors": {
+      "blue": "雾蓝",
+      "green": "鼠尾草绿",
+      "pink": "柔粉",
+      "purple": "浅紫",
+      "amber": "暖杏",
+      "slate": "石灰"
+    },
     "filesTitle": "文件",
     "all": "全部",
     "allFiles": "全部文件",
@@ -1204,7 +1301,16 @@
     "saving": "保存中…",
     "sharedHint": "所有学习语言共用这些标签。",
     "search": "搜索标签",
-    "namePlaceholder": "输入标签名称"
+    "namePlaceholder": "输入标签名称",
+    "color": "颜色",
+    "tones": {
+      "blue": "蓝色",
+      "green": "绿色",
+      "pink": "粉色",
+      "purple": "紫色",
+      "amber": "琥珀色",
+      "slate": "灰蓝色"
+    }
   },
   "expressionTags": {
     "label": "语域与使用提示",
@@ -1378,7 +1484,7 @@
       "finding": "正在查找可用的英语字幕…",
       "generatePreview": "生成预览",
       "preview": "原文预览",
-      "previewTitle": "先看看这份内容",
+      "previewTitle": "预览",
       "preparingTitle": "正在准备你的预览",
       "writingTitle": "正在加入材料",
       "resultTitle": "导入结果",
@@ -1394,7 +1500,6 @@
       "backgroundHint": "可关闭窗口，已确认的导入会在后台继续。",
       "minimize": "收起并在后台继续",
       "importMore": "继续导入",
-      "translationHint": "自动分句，缺失的中文由 Google 翻译补充；英文原文会发送至 Google，无需注册。",
       "translationProgress": "已翻译 {{done}} / {{total}} 句",
       "pasteLink": "读取剪贴板",
       "readingClipboard": "读取中…",
@@ -1456,7 +1561,13 @@
     "paused": "已暂停",
     "restartSentence": "从本句重新播放",
     "emptyContent": "这份材料还没有可阅读的内容。",
-    "translationError": "译文暂时无法生成，请重试。英文阅读与保存不受影响。"
+    "translationError": "译文暂时无法生成，请重试。英文阅读与保存不受影响。",
+    "translateFullTitle": "翻译全文？",
+    "translateFullPrompt": "还有 {{count}} 句缺少中文，是否使用 Google 补齐全文翻译？",
+    "translateFullConfirm": "开始翻译",
+    "translationProgress": "全文翻译中（{{done}} / {{total}} 句）",
+    "fullSheet": "全屏展开",
+    "halfSheet": "切换半屏"
   },
   "history": {
     "export": "导出资料备份",

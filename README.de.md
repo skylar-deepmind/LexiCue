@@ -13,7 +13,7 @@
 
 <p align="center"><a href="https://github.com/skylar-deepmind/LexiCue/releases/latest"><strong>Kostenlos herunterladen</strong></a> · <a href="https://skylar-deepmind.github.io/LexiCue/de/">In Aktion sehen</a> · <a href="DISTRIBUTION.md">Installationsanleitung</a></p>
 
-[![Lernen mit eigenen Inhalten](docs/media/demo/hero.gif)](https://skylar-deepmind.github.io/LexiCue/de/#feature-import)
+[![Lerne mit deinen eigenen Inhalten](docs/media/demo/hero.gif)](https://skylar-deepmind.github.io/LexiCue/de/#feature-import)
 
 ## Sprachen mit eigenen Inhalten lernen
 
@@ -59,7 +59,7 @@ Wiederhole Wörter und Wendungen mit ihren Originalsätzen. Deine Antworten best
 - **[Mit bekannten Wörtern beginnen](https://skylar-deepmind.github.io/LexiCue/de/#feature-baseline)** — Markiere optional die häufigsten 1.000–10.000 englischen oder chinesischen Wörter als bekannt und prüfe sie in Wiederholungen.
 - **[Vier Sprachen. Deine Art zu lesen.](https://skylar-deepmind.github.io/LexiCue/de/#feature-languages)** — Englisch, Japanisch, Deutsch und Chinesisch. Kana, Pinyin und Wortformen unterstützen das Lesen; helle und midnight-Ansicht stehen bereit.
 - **[Deine Lerndaten bleiben bei dir](https://skylar-deepmind.github.io/LexiCue/de/#feature-privacy)** — Lernaufzeichnungen bleiben lokal. Exportiere und stelle Backups wieder her. Lokales Lernen braucht kein Konto.
-- **[Auf anderen Geräten weitermachen](https://skylar-deepmind.github.io/LexiCue/de/#feature-sync)** — Optionale Ende-zu-Ende-verschlüsselte Synchronisierung verbindet PC und Handy. Die Animation erklärt den Ablauf.
+- **[Auf anderen Geräten weitermachen](https://skylar-deepmind.github.io/LexiCue/de/#feature-sync)** — Kopple einen Mac und ein iPhone unter Einstellungen → Gerätesynchronisierung. Sind beide Apps erreichbar, werden Änderungen und Löschungen im lokalen Netzwerk synchronisiert.
 
 ## Download und Installation
 
@@ -73,11 +73,11 @@ Gemma: [E2B / E4B](docs/embedded-gemma.md).
 
 ## Datenschutz und optionale Verbindungen
 
-Lesen, Wörterbücher und Wiederholungen laufen lokal. YouTube-Untertitel und KI-Modelle benötigen zum Download Internet. Optionale Cloud-KI sendet ausgewählten Text an deine API; die Synchronisierung überträgt verschlüsselte Lernaufzeichnungen.
+Lesen, Wörterbücher und Wiederholungen laufen lokal. YouTube-Untertitel und KI-Modelle benötigen zum Download Internet. Optionale Cloud-KI sendet ausgewählten Text an deine API. Gekoppelte Geräte tauschen Lerndaten direkt im lokalen Netzwerk aus.
 
 ## Projekt unterstützen
 
-[Autor unterstützen — Patreon](https://www.patreon.com/16942122/join) · [爱发电 / Aifadian](https://www.ifdian.net/a/skylar-lexicue) · [GitHub Star](https://github.com/skylar-deepmind/LexiCue)
+[Autor unterstützen — 爱发电 / Aifadian](https://www.ifdian.net/a/skylar-lexicue) · [GitHub Star](https://github.com/skylar-deepmind/LexiCue)
 
 ## Entwicklung
 

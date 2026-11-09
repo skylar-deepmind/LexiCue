@@ -1,3 +1,4 @@
+import { BusyRing } from './LoadingFeedback';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
@@ -19,8 +20,7 @@ export default function SpeechSettings() {
     catch { setCacheState('error'); }
     finally { setClearing(false); }
   };
-  return <section className="speech-settings" aria-labelledby="speech-settings-title">
-    <h2 id="speech-settings-title">{t('speech.title')}</h2>
+  return <section className="speech-settings" aria-label={t('speech.title')}>
     <p>{t('speech.description')}</p>
     <div className="speech-settings__fields">
       <div><label htmlFor="speech-accent">{t('speech.accent')}</label><AppSelect id="speech-accent" value={speech.accent}
@@ -41,7 +41,7 @@ export default function SpeechSettings() {
       <p>{t('speech.privacy')}</p>
       <label className="speech-settings__toggle"><input type="checkbox" checked={speech.allowDeviceFallback} onChange={event => setSpeech({ allowDeviceFallback: event.target.checked })}/><span>{t('speech.allowDeviceFallback')}</span></label>
       <p>{t('speech.fallbackDescription')}</p>
-      <button type="button" className="ui-button" disabled={clearing} aria-busy={clearing} onClick={() => void clearCache()}>{t(clearing ? 'speech.clearingCache' : 'speech.clearCache')}</button>
+      <button type="button" className="ui-button" disabled={clearing} aria-busy={clearing} onClick={() => void clearCache()}>{clearing && <BusyRing />}<span>{t(clearing ? 'speech.clearingCache' : 'speech.clearCache')}</span></button>
       {cacheState !== 'idle' && <p role="status">{t(cacheState === 'cleared' ? 'speech.cacheCleared' : 'speech.cacheFailed')}</p>}
     </details>
   </section>;

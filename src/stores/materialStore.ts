@@ -1,3 +1,4 @@
+import { migrateLocalReading } from '../lib/portableReading';
 import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
 import type { Material } from '../lib/materials';
@@ -26,6 +27,7 @@ export const useMaterialStore = create<{
         set({ loading: true, error: false });
         try {
             const files = await invoke<Material[]>('list_materials', { tagIds, untagged });
+            if (!tagIds.length && !untagged) await migrateLocalReading(files);
             if (id === request) {
                 set({ files, hasLoaded: true });
                 if (!tagIds.length && !untagged) useReadingDeskStore.getState().reconcile(files);

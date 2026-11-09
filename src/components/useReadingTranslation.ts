@@ -13,5 +13,6 @@ export default function useReadingTranslation(options: ReadingTranslationOptions
   }), [session]);
   const state = useSyncExternalStore(subscribe, session.getSnapshot);
   useEffect(() => () => session.close(), [session]);
-  return { ...state, available: session.available, toggle: session.toggle, request: session.request, close: session.close };
+  return { ...state, available: session.available, toggle: session.toggle, request: session.request, close: session.close,
+    confirm: session.confirm, dismissConfirmation: session.dismissConfirmation, cancel: session.cancel };
 }

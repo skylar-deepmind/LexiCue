@@ -1,3 +1,4 @@
+import { LoadingSkeleton } from '../components/LoadingFeedback';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -13,7 +14,7 @@ export default function ExamplePage(){
   const [id]=useState(()=>crypto.randomUUID());const [example,setExample]=useState<Example|null>(null);const [error,setError]=useState(false);const [retry,setRetry]=useState(0);const generation=useRef(0);
   const importOpen=useImportStore(state=>state.open);
   useEffect(()=>{
-    const current=++generation.current;let live=true;setError(false);useOnboardingStore.getState().begin();
+    const current=++generation.current;let live=true;setError(false);useOnboardingStore.getState().begin('lookup');
     void invoke<Example>('begin_example_session',{sessionId:id}).then(value=>{if(live)setExample(value);}).catch(()=>{if(live)setError(true);});
     const leave=()=>{if(useOnboardingStore.getState().active)useOnboardingStore.getState().finish('skipped');void invoke('end_example_session',{sessionId:id}).catch(()=>{});};
     window.addEventListener('pagehide',leave);
@@ -25,6 +26,6 @@ export default function ExamplePage(){
   useEffect(()=>backNavigation.setPage(()=>{if(useOnboardingStore.getState().active)useOnboardingStore.getState().finish('skipped');navigate('/files',{replace:true});return true;},1),[navigate]);
   const skip=()=>{useOnboardingStore.getState().finish('skipped');navigate('/files',{replace:true});};
   if(error)return <section className="workspace-paper example-load"><h1>{t('onboarding.sample')}</h1><p role="alert">{t('onboarding.loadFailed')}</p><button className="ui-button" onClick={()=>setRetry(retry+1)}>{t('common.retry')}</button><button className="ui-button" onClick={skip}>{t('onboarding.skip')}</button></section>;
-  if(!example)return <section className="workspace-paper example-load"><h1>{t('onboarding.sample')}</h1><p role="status">{t('common.loading')}</p><button className="ui-button" onClick={skip}>{t('onboarding.skip')}</button></section>;
+  if(!example)return <section className="workspace-paper example-load"><h1>{t('onboarding.sample')}</h1><LoadingSkeleton kind="text" label={t('common.loading')}/><button className="ui-button" onClick={skip}>{t('onboarding.skip')}</button></section>;
   return <ReadingPage data={example.data} scope={{kind:'example',sessionId:id}}/>;
 }

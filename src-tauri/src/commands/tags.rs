@@ -10,6 +10,7 @@ pub struct TagInfo {
     pub id: i64,
     pub name: String,
     pub created_at: i64,
+    pub tone: Option<String>,
 }
 
 pub fn name_key(name: &str) -> Result<String, String> {
@@ -42,7 +43,40 @@ pub fn create_tables(conn: &Connection) -> rusqlite::Result<()> {
     CREATE TABLE IF NOT EXISTS file_tag_state (
         file_id INTEGER PRIMARY KEY REFERENCES files(id) ON DELETE CASCADE
     ) STRICT;",
+    )?;
+    if !conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM pragma_table_info('tags') WHERE name='tone')",
+        [],
+        |r| r.get::<_, bool>(0),
+    )? {
+        conn.execute_batch("ALTER TABLE tags ADD COLUMN tone TEXT CHECK(tone IN ('blue','green','pink','purple','amber','slate'));")?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn set_tag_tone(
+    state: State<DbState>,
+    tag_id: i64,
+    tone: String,
+    only_if_unset: Option<bool>,
+) -> Result<(), String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    write_tag_tone(&conn, tag_id, &tone, only_if_unset.unwrap_or(false))
+}
+
+pub(super) fn write_tag_tone(
+    conn: &Connection,
+    tag_id: i64,
+    tone: &str,
+    only_if_unset: bool,
+) -> Result<(), String> {
+    conn.execute(
+        "UPDATE tags SET tone=? WHERE id=? AND (tone IS NULL OR NOT ?)",
+        params![tone, tag_id, only_if_unset],
     )
+    .map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 fn now_ms() -> i64 {
@@ -64,12 +98,13 @@ pub fn ensure_tag(conn: &Connection, name: &str) -> Result<i64, String> {
 }
 
 pub fn file_tags(conn: &Connection, file_id: i64) -> rusqlite::Result<Vec<TagInfo>> {
-    let mut stmt = conn.prepare("SELECT t.id,t.name,t.created_at FROM tags t JOIN file_tags ft ON ft.tag_id=t.id WHERE ft.file_id=?1 ORDER BY t.name_key,t.id")?;
+    let mut stmt = conn.prepare("SELECT t.id,t.name,t.created_at,t.tone FROM tags t JOIN file_tags ft ON ft.tag_id=t.id WHERE ft.file_id=?1 ORDER BY t.name_key,t.id")?;
     let rows = stmt.query_map([file_id], |r| {
         Ok(TagInfo {
             id: r.get(0)?,
             name: r.get(1)?,
             created_at: r.get(2)?,
+            tone: r.get(3)?,
         })
     })?;
     rows.collect()
@@ -210,22 +245,26 @@ pub fn migrate_legacy(conn: &Connection) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn list_tags(state: State<DbState>) -> Result<Vec<TagInfo>, String> {
-    let conn = state.conn.lock().map_err(|e| e.to_string())?;
-    let mut stmt = conn
-        .prepare("SELECT id,name,created_at FROM tags ORDER BY name_key,id")
-        .map_err(|e| e.to_string())?;
-    let rows = stmt
-        .query_map([], |r| {
-            Ok(TagInfo {
-                id: r.get(0)?,
-                name: r.get(1)?,
-                created_at: r.get(2)?,
-            })
+pub async fn list_tags(state: State<'_, DbState>) -> Result<Vec<TagInfo>, String> {
+    state
+        .read("list_tags", move |conn| {
+            let mut stmt = conn
+                .prepare("SELECT id,name,created_at,tone FROM tags ORDER BY name_key,id")
+                .map_err(|e| e.to_string())?;
+            let rows = stmt
+                .query_map([], |r| {
+                    Ok(TagInfo {
+                        id: r.get(0)?,
+                        name: r.get(1)?,
+                        created_at: r.get(2)?,
+                        tone: r.get(3)?,
+                    })
+                })
+                .map_err(|e| e.to_string())?;
+            rows.collect::<rusqlite::Result<_>>()
+                .map_err(|e| e.to_string())
         })
-        .map_err(|e| e.to_string())?;
-    rows.collect::<rusqlite::Result<_>>()
-        .map_err(|e| e.to_string())
+        .await
 }
 
 #[tauri::command]
@@ -282,10 +321,31 @@ pub fn set_file_tags(
     file_id: i64,
     tag_ids: Vec<i64>,
     new_tag_names: Vec<String>,
+    tones: Option<HashMap<String, String>>,
 ) -> Result<(), String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
-    transaction(&conn, || {
-        replace_file_tags(&conn, file_id, &tag_ids, &new_tag_names)
+    save_file_tags(&conn, file_id, &tag_ids, &new_tag_names, tones.as_ref())
+}
+
+pub(super) fn save_file_tags(
+    conn: &Connection,
+    file_id: i64,
+    tag_ids: &[i64],
+    new_tag_names: &[String],
+    tones: Option<&HashMap<String, String>>,
+) -> Result<(), String> {
+    transaction(conn, || {
+        replace_file_tags(conn, file_id, tag_ids, new_tag_names)?;
+        if let Some(tones) = tones.filter(|tones| !tones.is_empty()) {
+            for tag in file_tags(conn, file_id).map_err(|e| e.to_string())? {
+                if let Some(tone) = tones.get(&name_key(&tag.name)?) {
+                    if tag.tone.as_ref() != Some(tone) {
+                        write_tag_tone(conn, tag.id, tone, false)?;
+                    }
+                }
+            }
+        }
+        Ok(())
     })
 }
 
@@ -309,6 +369,29 @@ mod tests {
             "segments":[{"index":0,"en_text":"Hello world","zh_text":null,"start_time":null,"end_time":null}],
             "lemmas":[],"occurrences":[],"replace_file_id":replace,"tag_ids":ids,"new_tag_names":names
         })).unwrap()
+    }
+
+    #[test]
+    fn selection_and_staged_swatches_save_or_roll_back_together() {
+        let (_dir, conn) = db();
+        let id = file(&conn, "en", None);
+        let tag = ensure_tag(&conn, "Existing").unwrap();
+        let tones = HashMap::from([
+            ("created".into(), "pink".into()),
+            ("existing".into(), "slate".into()),
+        ]);
+        save_file_tags(&conn, id, &[tag], &["Created".into()], Some(&tones)).unwrap();
+        let selected = file_tags(&conn, id).unwrap();
+        assert_eq!(selected[0].tone.as_deref(), Some("pink"));
+        assert_eq!(selected[1].tone.as_deref(), Some("slate"));
+        let invalid = HashMap::from([("broken".into(), "invalid".into())]);
+        assert!(save_file_tags(&conn, id, &[], &["Broken".into()], Some(&invalid)).is_err());
+        assert_eq!(file_tags(&conn, id).unwrap().len(), 2);
+        assert_eq!(
+            conn.query_row("SELECT COUNT(*) FROM tags", [], |row| row.get::<_, i64>(0))
+                .unwrap(),
+            2
+        );
     }
 
     #[test]
