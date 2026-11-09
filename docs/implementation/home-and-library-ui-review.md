@@ -15,7 +15,7 @@ iPhone 材料库面板对齐可见视口的下方安全区。列表在面板内�
 | 材料首页与书架 | 无资料、只有已收起材料、阅读卡、分页、菜单、标签、撤销反馈；长标题与大字号的最后一个操作可达 | ui-desktop-desk-height.mjs、ui-bookmark-shelf.mjs |
 | 材料库 | 展开与关闭、筛选与搜索、列表内滚动、打开正文并返回、空库及导入返回的焦点、横屏与键盘、安全区、减少动态效果 | ui-mobile-reading.mjs（包括 ui-mobile-library-sheet.mjs）、ui-reading-smoke.mjs |
 | 导入 | 文件、文本、链接、预览、批量和取消；拒绝剪贴板或部分导入失败时可继续操作 | ui-import-smoke.mjs、ui-mobile-reading.mjs |
-| 正文与查阅 | 原句、译文、选词与短语、上下文释义、个人解释、保存、失败重试、撤销、跨设备阅读位置 | ui-reading-smoke.mjs、ui-device-reading.mjs |
+| 正文与查阅 | 原句、译文、选词与短语、上下文释义、个人解释、保存、失败重试、撤销、跨设备阅读位置 | ui-reading-smoke.mjs、ui-adaptive-reading-layout.mjs、ui-font-popover.mjs、ui-device-reading.mjs |
 | 已保存与回顾 | 收藏列表、上下文详情、编辑、返回原句、再次遇到时的匹配与提示、空状态和加载态 | ui-saved-smoke.mjs、ui-recall-smoke.mjs、ui-tab-responsiveness.mjs |
 | 实操引导 | 从设置进入、操作示例材料、保存和再次遇到、退出及回到原入口 | ui-onboarding-smoke.mjs |
 | 设置首页、偏好、应用 | 双端四个分组八个入口；主题、语言、朗读设置、软件更新；键盘返回、按钮触区和平台特有操作 | ui-settings-directory.mjs |
@@ -28,3 +28,7 @@ iPhone 材料库面板对齐可见视口的下方安全区。列表在面板内�
 - 手机 390×844，书架按钮下缘约为 395。修复前短材料的面板也在约 395 处结束。修复后 WebKit 中面板下缘位于 828，距底部 16 像素。另用 34 像素底部安全区和模拟键盘视口验证相对边距。普通动画和减少动态效果分别运行。
 
 自动验收区分布局与系统交互。模拟键盘可验证尺寸变化时的布局；系统键盘、扫码授权、局域网会话与签名安装的结果需要在真机上观察。恢复覆盖、在线供应商响应和软件更新安装不对个人资料库做破坏性演练。
+
+阅读布局按当前版本的自适应查阅卡验收。历史脚本 ui-reading-drawer.mjs 仍要求在 800 像素宽时从右侧滑入，运行它会在旧动画断言处失败；当前 ui-adaptive-reading-layout.mjs 覆盖实际卡片布局、查词、键盘焦点、阅读锚点与窗口缩放，本轮通过 279 项。
+
+ui-reading-stage-library.mjs 也保留了早期阅读工具栏和纯文本加载态的断言。当前材料首页、初次加载与导入返回分别由上表中的桌面高度、移动端和导入专项覆盖。

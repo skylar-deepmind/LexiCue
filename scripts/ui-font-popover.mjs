@@ -1,8 +1,8 @@
 /** Actual reading UI regression for the stable Aa popover and native range input. */
 import assert from 'node:assert/strict';
 import { writeFile } from 'node:fs/promises';
-import { createReadingHarness, root } from './ui-reading-support.mjs';
-const output = `${root}/docs/implementation/evidence/ui-approved-20261027/fonts`;
+import { createReadingHarness } from './ui-reading-support.mjs';
+const output = process.env.LEXICUE_FONT_OUTPUT || '/tmp/lexicue-font-popover';
 const h = await createReadingHarness(output);
 const checks = [];
 const observations = [];
@@ -108,7 +108,7 @@ try {
     const mobile = await h.browser.newContext({ viewport: { width: 375, height: 812 }, hasTouch: true, isMobile: true });
     const touch = await mobile.newPage(); await h.fixture(touch, theme);
     await touch.goto(`${h.url}/files/${imported.file_id}`); await touch.locator('.reading-word').first().waitFor();
-    const mobileTrigger = touch.locator('.mobile-reading-tools .display-settings-trigger');
+    const mobileTrigger = touch.locator('.mobile-reader-display .display-settings-trigger');
     await mobileTrigger.tap(); await popover(touch).waitFor();
     const mobileRect = await popover(touch).boundingBox();
     check(mobileRect.x >= 0 && mobileRect.x + mobileRect.width <= 375 && mobileRect.y >= 0 && mobileRect.y + mobileRect.height <= 812, `${theme}: touch panel fits narrow viewport`);
@@ -116,7 +116,15 @@ try {
     const inputBounds = await mobileInput.boundingBox(); await touch.touchscreen.tap(inputBounds.x + inputBounds.width * .8, inputBounds.y + inputBounds.height / 2);
     await settle(450); check(await popover(touch).count() === 1, `${theme}: touch range adjustment leaves panel open`);
     await touch.screenshot({ path: `${output}/${theme}-touch-375.png` });
-    await touch.touchscreen.tap(360, 100); await settle(80);
+    const outside = await popover(touch).evaluate(panel => {
+      const r=panel.getBoundingClientRect();
+      for (const y of [r.bottom+12,r.top-12]) {
+        if(y>0 && y<innerHeight) return {x:innerWidth/2,y};
+      }
+      throw Error('No point above or below the displayed font popover');
+    });
+    await touch.touchscreen.tap(outside.x,outside.y);
+    await popover(touch).waitFor({state:'hidden'});
     check(await popover(touch).count() === 0, `${theme}: outside touch dismisses panel`);
     await mobile.close();
   }
