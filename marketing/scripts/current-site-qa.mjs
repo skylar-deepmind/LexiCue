@@ -31,7 +31,7 @@ for(const locale of cfg.locales)for(const theme of cfg.themes)for(const width of
   // Restore only the demo namespace through its real outer reset control.
   mark('workspace/reset');await page.waitForFunction(()=>!document.querySelector('.demo-reset').disabled);
   await page.evaluate(()=>{window.__qaBeforeResetDocument=document.querySelector('.live-app-frame').contentDocument;const reset=document.querySelector('.demo-reset');if(reset.getBoundingClientRect().bottom>innerHeight)reset.scrollIntoView({block:'center',behavior:'instant'});});
-  await page.click('.demo-reset');await page.acceptDialog();
+  await page.focus('.demo-reset');await page.keyboard.press('Enter');await page.acceptDialog();
   await page.waitForFunction(()=>{const doc=document.querySelector('.live-app-frame')?.contentDocument;return doc&&doc!==window.__qaBeforeResetDocument&&doc.querySelector('.materials-page .desk-paper')&&!document.querySelector('.demo-reset').disabled;});
   await page.waitForFunction(({locale,theme})=>{const doc=document.querySelector('.live-app-frame').contentDocument;return doc.documentElement.lang===locale&&doc.documentElement.dataset.theme===theme;},{locale,theme});
   mark('workspace/geometry');await page.evaluate(()=>window.scrollTo({top:0,behavior:'instant'}));
