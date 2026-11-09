@@ -18,6 +18,7 @@ import TagManager from '../components/TagManager';
 import TagEditDialog from '../components/TagEditDialog';
 import TagBadge from '../components/TagBadge';
 import DeskFeedback from '../components/DeskFeedback';
+import { useMediaQuery } from '../components/useMediaQuery';
 import useSheetDrag from '../components/useSheetDrag';
 import Overlay from '../components/Overlay';
 import { rememberImportFocus } from '../components/importFocus';
@@ -28,6 +29,7 @@ import useBookmarkDesk from '../components/useBookmarkDesk';
 import {bookmarkExcerpt,bookmarkTitle} from '../lib/bookmarkDesk';
 import './materials-settings.css';
 import './reading-stage.css';
+import './desktop-desk-height.css';
 
 // Keep the rendered prefix when returning from a material in this session.
 let sessionLibraryCount = 30;
@@ -37,6 +39,8 @@ export default function FilesPage() {
     const navigate = useNavigate();
     const location = useLocation();
     const [params, setParams] = useSearchParams();
+    const compact = useMediaQuery('(max-width: 767px)');
+    const mobileSheet = compact || isMobilePlatform();
     const importOpen = useImportStore(s => s.open);
     const library = params.get('view') === 'library' && !importOpen;
     const materials = useMaterialStore();
@@ -46,7 +50,6 @@ export default function FilesPage() {
     const loadTags = useFileStore(s => s.loadTags);
     const deleting = useFileStore(s => s.deletingFiles);
     const [saved] = useState(readLibraryView);
-    const placement=useRef(saved.placement??null);
     const [query, setQuery] = useState(saved.query);
     const [range, setRange] = useState(saved.range);
     const [tagsOpen, setTagsOpen] = useState(saved.tagsOpen);
@@ -61,9 +64,9 @@ export default function FilesPage() {
     useQuietScrollbars(scroll, libraryPresent && (!materials.loading || materials.hasLoaded));
     useEffect(() => {
         if (library) { setLibraryPresent(true); return; }
-        const timer = window.setTimeout(() => setLibraryPresent(false), matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : innerWidth < 768 ? 300 : 420);
+        const timer = window.setTimeout(() => setLibraryPresent(false), matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : mobileSheet ? 300 : 420);
         return () => clearTimeout(timer);
-    }, [library]);
+    }, [library, mobileSheet]);
     useEffect(() => {
         const next = `${query}:${range}:${selectedTags.join(',')}:${untagged}`;
         if (filterKey.current === next) return;
@@ -71,6 +74,14 @@ export default function FilesPage() {
     }, [query, range, selectedTags, untagged]);
     const dock = useRef<HTMLButtonElement>(null);
     const shelf = useRef<HTMLDivElement>(null);
+    const emptyImport = useRef<HTMLButtonElement>(null);
+    const libraryReturnTarget = () => {
+        if (dock.current) return dock.current;
+        if (emptyImport.current?.getClientRects().length) return emptyImport.current;
+        // Compact layouts expose the header's import action instead of the desktop empty-state button.
+        return Array.from(document.querySelectorAll<HTMLButtonElement>('button[data-guide="import"]'))
+            .find(button => button.getClientRects().length > 0) ?? null;
+    };
     const libraryPanel = useRef<HTMLDivElement>(null);
     const wasLibraryPresent = useRef(libraryPresent);
     useEffect(() => {
@@ -78,44 +89,42 @@ export default function FilesPage() {
         wasLibraryPresent.current = libraryPresent;
         if (!closed || library) return;
         // Wait until the exit overlay is removed and the dock is visible again.
-        const frame = requestAnimationFrame(() => dock.current?.focus({ preventScroll: true }));
+        const frame = requestAnimationFrame(() => {
+            const target = libraryReturnTarget();
+            if (target && !target.closest('[inert]')) target.focus({ preventScroll: true });
+        });
         return () => cancelAnimationFrame(frame);
     }, [libraryPresent, library]);
     useLayoutEffect(() => {
         const panel = libraryPanel.current, anchor = dock.current;
         const layer = panel?.closest<HTMLElement>('.library-overlay-layer');
         if (!libraryPresent || !panel || !anchor || !layer) return;
-        let disposed=false, settled=!location.state?.restoreLibrary;
         const align = () => {
-            // Use the actual content-local dock, not the viewport centre/sidebar width.
-            const rect = (innerWidth<768?shelf.current??anchor:anchor).getBoundingClientRect();
+            // The desktop panel shares the dock's centre and baseline. A phone
+            // sheet is positioned entirely by its visual viewport and safe area.
+            if (mobileSheet) {
+                for (const property of ['padding-left', 'padding-right', 'padding-bottom', '--library-bottom-gap']) {
+                    layer.style.removeProperty(property);
+                }
+                return;
+            }
+            const rect = anchor.getBoundingClientRect();
             const width = document.documentElement.clientWidth, height = window.innerHeight;
-            // The phone's compact dock shares a row with pagination; its
-            // off-centre position must not squeeze the library sheet.
-            const center = width < 768 ? width / 2 : Math.max(16, Math.min(width - 16, rect.left + rect.width / 2));
+            const center = Math.max(16, Math.min(width - 16, rect.left + rect.width / 2));
             layer.style.paddingLeft = `${Math.max(16, 2 * center - width + 16)}px`;
             layer.style.paddingRight = `${Math.max(16, width - 2 * center + 16)}px`;
-            // A short/scrolled window may put the dock outside the visible viewport.
-            // Incoming reader controls can still affect the dock at this layout
-            // phase. Reuse the pre-reading phone placement for the same viewport.
-            const retained=width<768&&placement.current?.width===width&&placement.current.height===height;
-            const gap = retained ? placement.current!.bottomGap : rect.bottom > 0 && rect.top < height ? Math.min(Math.max(16, height - rect.bottom), Math.max(16, height - 320)) : 16;
+            const gap = rect.bottom > 0 && rect.top < height
+                ? Math.min(Math.max(16, height - rect.bottom), Math.max(16, height - 320)) : 16;
             layer.style.paddingBottom = `${gap}px`;
             layer.style.setProperty('--library-bottom-gap', `${gap}px`);
-            if(width<768&&(settled||retained)&&document.documentElement.dataset.keyboardOpen!=='true')placement.current={width,height,bottomGap:gap};
         };
         align();
         const observer = new ResizeObserver(align);
         observer.observe(anchor);
-        if(anchor.parentElement?.parentElement)observer.observe(anchor.parentElement.parentElement);
+        if (anchor.parentElement?.parentElement) observer.observe(anchor.parentElement.parentElement);
         window.addEventListener('resize', align);
-        // A changed viewport needs a new placement, after navigation has settled.
-        const frame=requestAnimationFrame(()=>{
-            const animations=anchor.closest('.page-live')?.getAnimations()??[];
-            void Promise.all(animations.map(animation=>animation.finished.catch(()=>{}))).then(()=>{if(!disposed){settled=true;align();}});
-        });
-        return () => { disposed=true;cancelAnimationFrame(frame);observer.disconnect(); window.removeEventListener('resize', align); };
-    }, [libraryPresent, materials.hasLoaded, materials.error,location.state?.restoreLibrary]);
+        return () => { observer.disconnect(); window.removeEventListener('resize', align); };
+    }, [libraryPresent, materials.hasLoaded, materials.error, mobileSheet]);
     const paper = useRef<HTMLElement>(null);
     const search = useRef<HTMLInputElement>(null);
     const scrollTop = useRef(saved.scroll);
@@ -140,7 +149,7 @@ export default function FilesPage() {
         }
     }, [library,saved.tagIds,saved.untagged]);
     useEffect(() => {
-        saveLibraryView({query,range,tagsOpen,tagIds:selectedTags,untagged,scroll:scrollTop.current,focusId:focusId.current,expandedId:expanded,placement:placement.current});
+        saveLibraryView({query,range,tagsOpen,tagIds:selectedTags,untagged,scroll:scrollTop.current,focusId:focusId.current,expandedId:expanded});
     }, [query,range,tagsOpen,selectedTags,untagged,expanded]);
     useEffect(() => backNavigation.setPage(() => {
         if (!library) return false;
@@ -222,7 +231,7 @@ export default function FilesPage() {
     const matches = materials.files.filter(file => (range === 'all' || !onDesk(file)) &&
         (!untagged || !file.tags.length) && selectedTags.every(id => file.tags.some(tag => tag.id === id)) &&
         (!term || `${file.name} ${source(file)} ${format(file)}`.toLocaleLowerCase().includes(term)));
-    const remember = () => saveLibraryView({query,range,tagsOpen,tagIds:selectedTags,untagged,scroll:scrollTop.current,focusId:focusId.current,expandedId:expanded,placement:placement.current});
+    const remember = () => saveLibraryView({query,range,tagsOpen,tagIds:selectedTags,untagged,scroll:scrollTop.current,focusId:focusId.current,expandedId:expanded});
     const closeMenu = (id: number) => {
         setMenu(null);
         scroll.current?.querySelector<HTMLButtonElement>(`[data-material="${id}"] .library-menu > button`)?.focus({preventScroll:true});
@@ -255,7 +264,7 @@ export default function FilesPage() {
     };
     const showLibrary = () => { cancelMotion(); setParams({view:'library'}); };
     const closeLibrary = () => { remember(); setParams({}, {replace:true}); };
-    useSheetDrag(libraryPanel,library && libraryPresent,closeLibrary);
+    useSheetDrag(libraryPanel,mobileSheet && library && libraryPresent,closeLibrary);
     // Refresh metadata in place so dialog return targets and library controls stay mounted.
     const ready = materials.hasLoaded || (!materials.loading && !materials.error);
     const initialLoad = materials.loading && !materials.hasLoaded;
@@ -288,14 +297,14 @@ export default function FilesPage() {
                 {cardIndex>0&&<button type="button" className="desk-swipe-cue desk-swipe-cue-left" data-testid="desk-swipe-prev" aria-label={t('history.previous')} onClick={()=>cardTurn.turn(-1)}><ChevronLeft size={12} strokeWidth={1.75} aria-hidden="true"/></button>}
                 {cardIndex<desktop.length-1&&<button type="button" className="desk-swipe-cue desk-swipe-cue-right" data-testid="desk-swipe-next" aria-label={t('history.next')} onClick={()=>cardTurn.turn(1)}><ChevronRight size={12} strokeWidth={1.75} aria-hidden="true"/></button>}
               </div><div className="desk-pager"><button className="desk-text-button" aria-label={t('history.previous')} data-testid="desk-prev" disabled={cardIndex===0} onClick={()=>cardTurn.turn(-1)}><ChevronLeft size={20}/></button><span>{cardIndex+1} / {desktop.length}</span><button className="desk-text-button" aria-label={t('history.next')} data-testid="desk-next" disabled={cardIndex>=desktop.length-1} onClick={()=>cardTurn.turn(1)}><ChevronRight size={20}/></button></div>
-            </> : <div className="desk-empty"><span className="desk-empty-symbol" aria-hidden="true">{materials.files.length?<Check size={24}/>:<FileText size={26}/>}</span><h2>{t(materials.files.length?'readingDesk.clear':'readingDesk.noMaterials')}</h2><p>{t(materials.files.length?'readingDesk.clearHint':'readingDesk.importHint')}</p><button className="desk-primary" onClick={event=>{rememberImportFocus(event.currentTarget);useImportStore.getState().show();}}>{t('materials.import')}</button></div>}
+            </> : <div className="desk-empty"><span className="desk-empty-symbol" aria-hidden="true">{materials.files.length?<Check size={24}/>:<FileText size={26}/>}</span><h2>{t(materials.files.length?'readingDesk.clear':'readingDesk.noMaterials')}</h2><p>{t(materials.files.length?'readingDesk.clearHint':'readingDesk.importHint')}</p><button ref={emptyImport} className="desk-primary" onClick={event=>{rememberImportFocus(event.currentTarget);useImportStore.getState().show();}}>{t('materials.import')}</button></div>}
         </section>}
         {ready && materials.files.length>0 && <div ref={shelf} className={`desk-dock-wrap${library || libraryPresent ? ' library-dock-hidden' : ''}`}><button className="desk-library-dock" ref={dock} onClick={showLibrary} aria-expanded={library} aria-label={`${t('readingDesk.library')} ${t('readingDesk.materialCount',{count:materials.files.length})}`}><span className="desk-dock-art" aria-hidden="true"><Archive size={20} strokeWidth={1.75}/></span><span><strong>{t('readingDesk.library')}</strong><small>{t('readingDesk.materialCount',{count:materials.files.length})}</small></span><ChevronsUp size={20} strokeWidth={1.75} aria-hidden="true"/></button><div className="desk-shelf-previews" aria-label={t('readingDesk.library')}>
             {materials.files.slice(0,5).map((file,index)=>{const othersBefore=materials.files.slice(0,index).filter(item=>item.id!==main?.id).length;const visible=file.id!==main?.id&&othersBefore<shelfFit.count;return <div className="desk-shelf-row" key={file.id} data-visible={visible} inert={!visible} aria-hidden={!visible||undefined}><div><button className="desk-shelf-open" disabled={!!deleting[file.id]} onClick={()=>open(file,'desk')} aria-label={t('readingDesk.openNamed',{name:file.name})}><span><strong lang="en">{bookmarkTitle(file.name)}</strong><small lang="en">{file.preview}</small></span><BookOpen size={20} strokeWidth={1.75} aria-hidden="true"/></button></div></div>;})}
         </div><DeskFeedback beforeUndo={()=>{cancelMotion();lastArchive.current=-Infinity;}}/></div>}
         {ready && !materials.files.length && <DeskFeedback/>}
     </div></div>
-        {libraryPresent && <Overlay panelRef={libraryPanel} returnFocus={() => dock.current} initialFocus={()=>{const target=location.state?.restoreLibrary&&focusId.current?scroll.current?.querySelector<HTMLButtonElement>(`[data-open="${focusId.current}"]`):null;return target??(isMobilePlatform()||innerWidth<768?libraryPanel.current:null);}} label={t('readingDesk.library')} onClose={closeLibrary} className="library-overlay-panel" layerClassName={`library-overlay-layer${library ? '' : ' is-closing'}${location.state?.restoreLibrary ? ' is-restoring' : ''}`}><div className="library-sheet-grab" aria-hidden="true"><span/></div><div ref={scroll} className="library-overlay-scroll" inert={!library} onScroll={() => { scrollTop.current=scroll.current?.scrollTop ?? 0; remember(); }}><section className="reading-library" aria-label={t('readingDesk.library')}>
+        {libraryPresent && <Overlay panelRef={libraryPanel} returnFocus={libraryReturnTarget} initialFocus={()=>{const target=location.state?.restoreLibrary&&focusId.current?scroll.current?.querySelector<HTMLButtonElement>(`[data-open="${focusId.current}"]`):null;return target??(mobileSheet?libraryPanel.current:null);}} label={t('readingDesk.library')} onClose={closeLibrary} className="library-overlay-panel" layerClassName={`library-overlay-layer${mobileSheet ? ' is-mobile-sheet' : ''}${library ? '' : ' is-closing'}${location.state?.restoreLibrary ? ' is-restoring' : ''}`}><div className="library-sheet-grab" aria-hidden="true"><span/></div><div ref={scroll} className="library-overlay-scroll" inert={!library} onScroll={() => { scrollTop.current=scroll.current?.scrollTop ?? 0; remember(); }}><section className="reading-library" aria-label={t('readingDesk.library')}>
             <DeskFeedback/>
             <div className="library-heading"><h2>{t('readingDesk.library')}</h2>{refreshIndicator}<button className="desk-text-button desk-icon-button" onClick={closeLibrary} aria-label={t('readingDesk.backDesk')} title={t('readingDesk.backDesk')}><X size={20} aria-hidden="true"/></button></div>
             {initialLoad && <LoadingSkeleton kind="list" label={t('common.loading')}/>}

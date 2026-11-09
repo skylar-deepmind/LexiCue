@@ -902,6 +902,8 @@
     "openDownloadSettings": "Subtitle tools and browser assistance",
     "returnToImport": "Return to YouTube import",
     "downloadSettings": {
+      "publicTracks": "On iPhone and iPad, video links can be used to find public English subtitles.",
+      "installTool": "yt-dlp was not found. Install it, then reopen this page to check again.",
       "browserTitle": "Browser session assistance",
       "browserEnable": "Use a signed-in browser session",
       "browserHint": "Off by default. When enabled, yt-dlp reads the selected browser session locally to request YouTube; cookies are not exported or synced. First open the video in that browser and display the desired auto-translated captions.",

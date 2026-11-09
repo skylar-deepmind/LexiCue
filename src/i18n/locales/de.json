@@ -902,6 +902,8 @@
     "openDownloadSettings": "Untertitelwerkzeuge und Browserhilfe",
     "returnToImport": "Zurück zum YouTube-Import",
     "downloadSettings": {
+      "publicTracks": "Auf iPhone und iPad lassen sich über Videolinks öffentliche englische Untertitel suchen.",
+      "installTool": "yt-dlp wurde nicht gefunden. Installiere es und öffne diese Seite erneut.",
       "browserTitle": "Browsersitzung als Hilfe",
       "browserEnable": "Angemeldete Browsersitzung verwenden",
       "browserHint": "Standardmäßig aus. Wenn aktiviert, liest yt-dlp die gewählte Browsersitzung lokal für YouTube-Anfragen. Cookies werden nicht exportiert oder synchronisiert. Zuerst das Video im Browser öffnen und die gewünschte Autoübersetzung anzeigen.",

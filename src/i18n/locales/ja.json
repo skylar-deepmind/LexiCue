@@ -888,6 +888,8 @@
     "openDownloadSettings": "字幕ツールとブラウザー支援",
     "returnToImport": "YouTube インポートに戻る",
     "downloadSettings": {
+      "publicTracks": "iPhone と iPad では、動画リンクから公開されている英語字幕を検索できます。",
+      "installTool": "yt-dlp が見つかりません。インストール後にこのページを開き直してください。",
       "browserTitle": "ブラウザーセッション支援",
       "browserEnable": "ログイン済みブラウザーセッションを使用",
       "browserHint": "初期設定はオフです。有効にすると yt-dlp が選択したブラウザーセッションを端末内で読み、YouTube へのリクエストに使用します。Cookie は書き出し・同期されません。まずそのブラウザーで動画を開き、必要な自動翻訳字幕を表示してください。",

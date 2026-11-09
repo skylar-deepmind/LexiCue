@@ -7,7 +7,7 @@ export default function useSheetDrag(ref:RefObject<HTMLDivElement|null>,open:boo
     const panel=ref.current;if(!panel||!open)return;
     let drag:{id:number;y:number;dy:number;start:number}|null=null;
     const down=(event:PointerEvent)=>{
-      if(innerWidth>=768||event.button!==0||!(event.target as Element).closest('.library-sheet-grab,.library-heading')||(event.target as Element).closest('button'))return;
+      if(event.button!==0||!(event.target as Element).closest('.library-sheet-grab,.library-heading')||(event.target as Element).closest('button'))return;
       panel.getAnimations().forEach(a=>a.finish());panel.style.animation='none';
       drag={id:event.pointerId,y:event.clientY,dy:0,start:performance.now()};panel.setPointerCapture(event.pointerId);
     };

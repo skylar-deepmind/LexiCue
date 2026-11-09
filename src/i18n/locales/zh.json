@@ -888,6 +888,8 @@
     "openDownloadSettings": "字幕工具与浏览器辅助",
     "returnToImport": "返回 YouTube 导入",
     "downloadSettings": {
+      "publicTracks": "iPhone 和 iPad 可通过视频链接查找公开的英语字幕。",
+      "installTool": "未找到 yt-dlp。安装后请重新打开此页检查。",
       "browserTitle": "浏览器会话辅助",
       "browserEnable": "使用浏览器登录会话",
       "browserHint": "默认关闭。启用后 yt-dlp 在本机读取所选浏览器会话，用于请求 YouTube；不导出或同步 Cookie。请先在浏览器打开该视频并显示需要的自动翻译字幕。",

@@ -21,7 +21,7 @@
   /* Inline prose keeps natural word spacing; each line remains a tall touch row. */
   .b-shell .reading-word { min-width: 0; min-height: 0; }
   .b-shell input, .b-shell textarea, .context-panel input, .context-panel textarea, .lc-import-modal input, .lc-import-modal textarea { font-size: max(16px, 1em); }
-  .lexicue-b .context-layer, .lexicue-b .overlay-layer { top: var(--visual-top, 0px); height: var(--visual-height, 100dvh); bottom: auto; }
+  .lexicue-b .context-layer, .lexicue-b .overlay-layer { top: var(--visual-top, 0px); height: min(100dvh, var(--visual-height, 100dvh)); bottom: auto; }
   :root[data-keyboard-open='true'] .lexicue-b .overlay-panel { max-height: 100%; }
   .lexicue-b .context-panel[data-reading-layout] { inset: auto 0 0; width: 100%; height: 52%; max-height: 100%; padding-bottom: var(--safe-bottom); border-radius: 18px 18px 0 0; }
   .lexicue-b .context-panel[data-reading-layout][data-expanded='true'] { height: calc(100% - var(--safe-top)); }
@@ -173,14 +173,6 @@
   .b-shell .desk-library-dock > span:nth-child(2) { flex:1; }
   .b-shell .library-dock-hidden { visibility:visible; }
   .b-shell .desk-dock-wrap:not(.library-dock-hidden) .desk-library-dock { animation:none; }
-  .lexicue-b .overlay-panel.library-overlay-panel { height:min(60dvh,520px); animation-duration:360ms; }
-  .lexicue-b .library-overlay-scroll { flex:1; max-height:100%; }
-  .library-sheet-grab { display:grid; flex:none; place-items:center; height:28px; touch-action:none; }
-  .library-sheet-grab span { width:36px; height:4px; border-radius:4px; background:var(--text-muted); opacity:.55; }
-  .library-heading { touch-action:none; }
-  .library-overlay-layer.is-closing .library-overlay-panel { animation:mobile-library-close 300ms cubic-bezier(.22,1,.36,1) both; }
-  .library-overlay-layer.is-closing .overlay-scrim { transition:opacity 300ms; }
-  .library-overlay-layer.is-restoring:not(.is-closing) .library-overlay-panel { animation:none; }
   .b-shell .mobile-settings-header { display:grid; grid-template-columns:44px minmax(0,1fr) 44px; padding-inline:12px; }
   .mobile-settings-header h1 { text-align:center; font-size:16px; font-weight:500; color:var(--text-strong); }
   .b-shell .system-settings { padding:12px 24px 32px; }
@@ -195,10 +187,24 @@
   .mobile-playback-mode { color:var(--accent-700); }
   .playback-gauge-needle { transform-origin:12px 13px; transition:transform 380ms cubic-bezier(.22,1,.36,1); }
 }
+/* Compact windows and touch Apple devices keep the same sheet through rotation. */
+.lexicue-b .library-overlay-layer.is-mobile-sheet {
+  --library-bottom-gap:max(16px,var(--safe-bottom));
+  align-items:flex-end; top:var(--visual-top,0px); bottom:auto; height:min(100dvh,var(--visual-height,100dvh));
+  padding:max(16px,var(--safe-top)) max(16px,env(safe-area-inset-right,0px)) var(--library-bottom-gap) max(16px,env(safe-area-inset-left,0px));
+}
+.is-mobile-sheet .overlay-panel.library-overlay-panel { height:min(60dvh,520px); max-height:100%; animation-duration:360ms; }
+.is-mobile-sheet .library-overlay-scroll { flex:1; max-height:100%; }
+.is-mobile-sheet .library-sheet-grab { display:grid; flex:none; place-items:center; height:28px; touch-action:none; }
+.is-mobile-sheet .library-sheet-grab span { width:36px; height:4px; border-radius:4px; background:var(--text-muted); opacity:.55; }
+.is-mobile-sheet .library-heading { touch-action:none; }
+.is-mobile-sheet.is-closing .library-overlay-panel { animation:mobile-library-close 300ms cubic-bezier(.22,1,.36,1) both; }
+.is-mobile-sheet.is-closing .overlay-scrim { transition:opacity 300ms; }
+.is-mobile-sheet.is-restoring:not(.is-closing) .library-overlay-panel { animation:none; }
 @keyframes mobile-library-close { from { transform:translateY(var(--sheet-drag,0px)); } to { transform:translateY(calc(100% + var(--library-bottom-gap,16px))); } }
 @media (prefers-reduced-motion:reduce) {
   .mobile-tool-mode,.playback-gauge-needle { transition:none; }
-  .library-overlay-layer.is-closing .library-overlay-panel { animation-duration:1ms; }
+  .is-mobile-sheet .overlay-panel.library-overlay-panel, .is-mobile-sheet.is-closing .library-overlay-panel { animation:none; }
 }
 
 @media (max-width:767px) {
