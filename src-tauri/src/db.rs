@@ -65,7 +65,9 @@ pub fn init_db(db_path: &Path) -> Result<Connection, rusqlite::Error> {
     migrate_legacy_constraints(&conn)?;
     backfill_phrase_provider(&conn)?;
     migrate_file_folder(&conn)?;
-    crate::commands::tags::migrate_legacy(&conn).map_err(rusqlite::Error::InvalidParameterName)?;
+    crate::commands::tags::migrate_legacy(&conn).map_err(|error| {
+        rusqlite::Error::InvalidParameterName(format!("tags::migrate_legacy: {error}"))
+    })?;
     migrate_occurrence_hidden(&conn)?;
     migrate_review_log_schedule(&conn)?;
     migrate_english_learning(&conn)?;
@@ -74,9 +76,13 @@ pub fn init_db(db_path: &Path) -> Result<Connection, rusqlite::Error> {
     crate::commands::materials::create_tables(&conn)?;
     crate::commands::source_media::migrate(&conn)?;
     crate::commands::document_source::migrate(&conn)?;
-    lexicue_lan_journal::upgrade_tracked_library(&conn)
-        .map_err(rusqlite::Error::InvalidParameterName)?;
-    crate::commands::saved::init(&conn).map_err(rusqlite::Error::InvalidParameterName)?;
+    lexicue_lan_journal::upgrade_tracked_library(&conn).map_err(|error| {
+        rusqlite::Error::InvalidParameterName(format!(
+            "lan_journal::upgrade_tracked_library: {error}"
+        ))
+    })?;
+    crate::commands::saved::init(&conn)
+        .map_err(|error| rusqlite::Error::InvalidParameterName(format!("saved::init: {error}")))?;
     Ok(conn)
 }
 

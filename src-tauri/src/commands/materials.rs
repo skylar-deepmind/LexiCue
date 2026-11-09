@@ -1207,7 +1207,7 @@ mod acceptance {
         // Synchronize reopening the database, not only the imports: setup
         // replaces sync triggers and must remain atomic across connections.
         // Repeat with the same operation IDs to exercise receipt retries too.
-        for _ in 0..8 {
+        for _ in 0..32 {
             let start = std::sync::Arc::new(std::sync::Barrier::new(2));
             let a = path.clone();
             let b = path.clone();
