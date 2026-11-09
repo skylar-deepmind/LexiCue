@@ -1,13 +1,16 @@
-import {useEffect,useState} from 'react';
-import {currentCopy,screenshotScenes,screenshotPath} from './current-copy.mjs';
+import {useEffect,useRef,useState} from 'react';
+import {currentCopy} from './current-copy.mjs';
 import {assetUrl} from './routes';
-export function CurrentWorkspace({locale,theme}:{locale:string;theme:string}){
- const [mobile,setMobile]=useState(()=>matchMedia('(max-width:650px)').matches);
- useEffect(()=>{const query=matchMedia('(max-width:650px)'),update=()=>setMobile(query.matches);query.addEventListener('change',update);return()=>query.removeEventListener('change',update);},[]);
- const [scene,setScene]=useState('materials'),c=currentCopy[locale],index=screenshotScenes.indexOf(scene);
- return <section className="current-workspace" aria-label={String(c.gallery)}>
-  <div className="current-scenes" role="group" aria-label={String(c.gallery)}>{screenshotScenes.map(id=><button key={id} type="button" aria-pressed={scene===id} onClick={()=>setScene(id)}>{c[id]}</button>)}</div>
-  <figure><a href={assetUrl(screenshotPath(locale,scene,theme,mobile?'mobile':'desktop'))} target="_blank" rel="noopener noreferrer" aria-label={`${c.enlarge} · ${c[scene]}`}><picture><source media="(max-width:650px)" srcSet={assetUrl(screenshotPath(locale,scene,theme,'mobile'))} width="390" height="844"/><img src={assetUrl(screenshotPath(locale,scene,theme))} width="1280" height="850" alt={`${c[scene]} — ${c.screenshots}`}/></picture></a><figcaption>{c.captions[index]}</figcaption></figure>
-  <p className="current-provenance">{c.screenshots}</p>
+export function CurrentWorkspace({locale,theme,resetRevision=0,onReady}:{locale:string;theme:string;resetRevision?:number;onReady?:(ready:boolean)=>void}){
+ const frame=useRef<HTMLIFrameElement>(null);
+ const preferences=useRef({locale,theme});preferences.current={locale,theme};
+ // Keep the iframe and its temporary app data when outer language/theme changes.
+ const [source]=useState(()=>{const url=new URL(assetUrl('_demo/index.html'),location.href);url.searchParams.set('locale',locale);url.searchParams.set('theme',theme);return url.href;});
+ const send=()=>frame.current?.contentWindow?.postMessage({type:'lexicue-demo-preferences',...preferences.current},location.origin);
+ useEffect(()=>{send();},[locale,theme]);
+ useEffect(()=>{if(resetRevision)frame.current?.contentWindow?.postMessage({type:'lexicue-demo-reset'},location.origin);},[resetRevision]);
+ useEffect(()=>{const ready=(event:MessageEvent)=>{if(event.origin===location.origin&&event.source===frame.current?.contentWindow&&event.data?.type==='lexicue-demo-ready'){onReady?.(true);send();}};addEventListener('message',ready);return()=>removeEventListener('message',ready);},[]);
+ return <section className="live-workspace" id="experience" aria-label={String(currentCopy[locale].workspace)}>
+  <iframe ref={frame} className="live-app-frame" src={source} title={String(currentCopy[locale].onlineApp)} allow="clipboard-read; clipboard-write" onLoad={()=>{onReady?.(false);send();}}/>
  </section>;
 }

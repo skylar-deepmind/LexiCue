@@ -19,7 +19,7 @@ for(const locale of locales){const c=copy[locale],r=c.readme;
 
 <p align="center"><a href="${repoUrl}/releases/latest"><strong>${c.download}</strong></a> · <a href="${siteUrl}${locale==='en'?'':locale+'/'}">${c.features}</a> · <a href="DISTRIBUTION.md">${c.installGuide}</a></p>
 
-[![${c.titles[0]}](docs/media/current/${locale}/materials-ocean-desktop.webp)](${siteUrl}${locale==='en'?'':locale+'/'}#feature-import)
+[![${c.titles[0]}](docs/media/current/${locale}/materials-ocean-desktop.webp)](${siteUrl}${locale==='en'?'':locale+'/'})
 
 ## ${r.heading}
 
@@ -39,7 +39,7 @@ ${['lookup','saved','recall'].map((scene,i)=>`### ${r.demoLinks[i]}\n\n[![${r.de
 
 ## ${r.all}
 
-${features.map(f=>`- **[${c.titles[f.index]}](${siteUrl}${locale==='en'?'':locale+'/'}#feature-${f.id})** — ${c.descriptions[f.index]}`).join('\n')}
+${features.map(f=>`- **[${c.titles[f.index]}](${siteUrl}${locale==='en'?'':locale+'/'}guide/${({import:'files',lookup:'reading',phrases:'reading',collect:'vocabulary',review:'review',progress:'insights',baseline:'files',languages:'settings',privacy:'faq',sync:'settings'})[f.id]}/)** — ${c.descriptions[f.index]}`).join('\n')}
 
 ## ${r.install}
 

@@ -14,7 +14,7 @@ export const copy={
     "eyebrow": "FREE · OPEN SOURCE · LOCAL FIRST",
     "download": "Download free",
     "github": "View on GitHub",
-    "features": "See it in action",
+    "features": "Open the workspace",
     "workflow": "Import → understand → save → encounter again.",
     "workflowSub": "A reading workspace for English, with your original sentences always close by.",
     "extra": "Small details. A better learning habit.",
@@ -115,7 +115,7 @@ export const copy={
     "privacyTitle": "Local first. Connected when you choose.",
     "privacyBody": "Materials, saved contexts and local dictionary data stay on your device. Webpage and YouTube imports, online dictionaries, translation and speech may make network requests. Optional cloud services receive the text needed for that action. Mac–iPhone sync transfers learning records directly over the local network; original media and device preferences stay on each device.",
     "installTitle": "A reading habit starts with one file.",
-    "installBody": "Public downloads: v0.4.5 for macOS, Windows and Android. The features shown above are in main and will require a newer release or a source build.",
+    "installBody": "Public v0.4.5 downloads are available for macOS, Windows and Android. The newer reading workspace is available online and in current source; installing it requires a newer release or a source build.",
     "installNote": "Check the release notes and platform installation guide before installing. No public iPhone package is offered.",
     "installGuide": "Installation guide",
     "support": "Support the author",
@@ -136,7 +136,7 @@ export const copy={
         "Save with context",
         "Recall on re-encounter"
       ],
-      "limitations": "Screenshots show the current main-branch interface with sample data. They do not access your library or demonstrate live device sync."
+      "limitations": "README screenshots use sample data. The online workspace reuses the current desktop and mobile views with temporary demo data. Real device pairing and native update services are not connected; files, clipboard and speech use browser capabilities and applicable permissions."
     },
     "releaseNote": "Current main-branch features are described here. The latest public download is v0.4.5 (12 October 2026), which predates this reading workspace and Mac–iPhone sync. iPhone has been tested with a locally signed build; no public iPhone installer is available."
   },
@@ -150,7 +150,7 @@ export const copy={
     "eyebrow": "免费 · 开源 · 本地优先",
     "download": "免费下载",
     "github": "查看 GitHub",
-    "features": "看看怎么用",
+    "features": "打开工作区",
     "workflow": "导入材料 → 按需理解 → 保存语境 → 重遇回顾。",
     "workflowSub": "围绕英文阅读展开，原句、释义与自己的理解始终相连。",
     "extra": "细节到位，学习更顺手。",
@@ -251,7 +251,7 @@ export const copy={
     "privacyTitle": "默认本地，需要时再连接。",
     "privacyBody": "材料、语境收藏与本地词典数据保存在设备上。网页与 YouTube 导入、在线词典、翻译和朗读可能发起联网请求；可选云服务会接收本次操作所需的文本。Mac–iPhone 同步通过局域网直接交换学习资料，媒体原件与设备偏好各自留机。",
     "installTitle": "一份喜欢的内容，就是起点。",
-    "installBody": "公开下载为 v0.4.5，提供 macOS、Windows 与 Android 安装包。上方展示的功能已合入 main，需要后续版本或自行从源码构建。",
+    "installBody": "公开 v0.4.5 提供 macOS、Windows 与 Android 安装包。较新的阅读工作区可在线体验，也已包含在当前源码中；本地安装需要后续版本或自行构建。",
     "installNote": "安装前请查看版本说明和对应平台的安装指南。暂不提供公开 iPhone 安装包。",
     "installGuide": "安装指南",
     "support": "支持作者",
@@ -272,7 +272,7 @@ export const copy={
         "保存语境",
         "重遇回顾"
       ],
-      "limitations": "截图来自当前主分支界面，使用样例数据，不访问个人资料库，也不演示真实设备同步。"
+      "limitations": "README 截图使用样例数据。在线工作区复用当前桌面与手机版界面，使用临时演示数据。不连接真实设备配对与原生更新服务；文件、剪贴板和朗读使用浏览器能力及相应授权。"
     },
     "releaseNote": "本文介绍当前 main 分支的功能。最新公开下载仍为 v0.4.5（2026 年 10 月 12 日），早于本次阅读工作区和 Mac–iPhone 同步。iPhone 已通过本地签名构建实测，尚无公开安装包。"
   },
@@ -286,7 +286,7 @@ export const copy={
     "eyebrow": "無料 · オープンソース · ローカル優先",
     "download": "無料でダウンロード",
     "github": "GitHub で見る",
-    "features": "使い方を見る",
+    "features": "ワークスペースを開く",
     "workflow": "取り込む → 必要なときに調べる → 文脈を保存 → 再会して思い出す。",
     "workflowSub": "英語を読みながら、原文・意味・自分の理解をつなげます。",
     "extra": "小さな工夫で、続けやすく。",
@@ -387,7 +387,7 @@ export const copy={
     "privacyTitle": "基本はローカル。接続は自分で選ぶ。",
     "privacyBody": "素材、保存した文脈、ローカル辞書は端末に残ります。WebページやYouTubeの取得、オンライン辞書、翻訳、読み上げは通信する場合があります。任意のクラウドサービスには、その操作に必要な文章が送られます。Mac–iPhone 同期はローカルネットワークで資料を直接交換し、元のメディアと端末設定は各端末に残ります。",
     "installTitle": "読みたい素材が、はじまり。",
-    "installBody": "公開版 v0.4.5 は macOS・Windows・Android向けです。上記機能は main に統合済みで、今後のリリースまたはソースからのビルドが必要です。",
+    "installBody": "公開 v0.4.5 は macOS・Windows・Android 向けです。新しい読書ワークスペースはオンラインと現在のソースで利用でき、インストールには今後のリリースまたはソースビルドが必要です。",
     "installNote": "導入前にリリースノートと環境別のインストール案内を確認してください。公開 iPhone パッケージはありません。",
     "installGuide": "インストールガイド",
     "support": "作者を支援",
@@ -408,7 +408,7 @@ export const copy={
         "文脈を保存",
         "再会して思い出す"
       ],
-      "limitations": "画面は現在の main ブランチとサンプルデータです。個人のライブラリや実際の端末同期には接続しません。"
+      "limitations": "README の画面はサンプルデータです。オンラインは現在のデスクトップ・モバイル画面と一時的なデモデータを使います。実際の端末ペアリングやネイティブ更新サービスには接続せず、ファイル・クリップボード・読み上げはブラウザの機能と必要な許可を使います。"
     },
     "releaseNote": "ここでは現在の main ブランチの機能を紹介しています。公開ダウンロードは v0.4.5（2026年10月12日）で、この読書ワークスペースと Mac–iPhone 同期は含まれません。iPhone はローカル署名ビルドで実機確認済みですが、公開インストーラーはありません。"
   },
@@ -422,7 +422,7 @@ export const copy={
     "eyebrow": "KOSTENLOS · OPEN SOURCE · LOKAL",
     "download": "Kostenlos herunterladen",
     "github": "Auf GitHub ansehen",
-    "features": "In Aktion sehen",
+    "features": "Arbeitsbereich öffnen",
     "workflow": "Importieren → verstehen → im Kontext speichern → wiederbegegnen.",
     "workflowSub": "Ein englischer Lesearbeitsplatz, der Originalsatz, Bedeutung und eigene Gedanken verbindet.",
     "extra": "Kleine Details. Besser lernen.",
@@ -523,7 +523,7 @@ export const copy={
     "privacyTitle": "Lokal zuerst. Verbunden, wenn du willst.",
     "privacyBody": "Materialien, gespeicherte Kontexte und lokale Wörterbücher bleiben auf deinem Gerät. Webseiten- und YouTube-Import, Online-Wörterbücher, Übersetzung und Sprachausgabe können Netzwerkzugriffe auslösen. Optionale Cloud-Dienste erhalten den für die Aktion benötigten Text. Die Mac–iPhone-Synchronisierung überträgt Lerndaten direkt im lokalen Netzwerk; Originalmedien und Geräteeinstellungen bleiben jeweils vor Ort.",
     "installTitle": "Eine interessante Datei ist der Anfang.",
-    "installBody": "Öffentlicher Download: v0.4.5 für macOS, Windows und Android. Die oben gezeigten Funktionen sind in main und benötigen einen neueren Release oder einen Build aus dem Quellcode.",
+    "installBody": "Öffentliche v0.4.5-Pakete gibt es für macOS, Windows und Android. Der neuere Lesearbeitsbereich steht online und im aktuellen Quellcode bereit; zur Installation ist ein neuerer Release oder eigener Build nötig.",
     "installNote": "Lies vor der Installation die Release-Hinweise und die Plattformanleitung. Ein öffentliches iPhone-Paket wird noch nicht angeboten.",
     "installGuide": "Installationsanleitung",
     "support": "Autor unterstützen",
@@ -544,7 +544,7 @@ export const copy={
         "Mit Kontext speichern",
         "Beim Wiedersehen erinnern"
       ],
-      "limitations": "Die Screenshots zeigen die aktuelle main-Oberfläche mit Beispieldaten. Sie greifen weder auf deine Bibliothek noch auf echte Gerätesynchronisierung zu."
+      "limitations": "README-Screenshots verwenden Beispieldaten. Online werden die aktuellen Desktop- und Mobilansichten mit temporären Demodaten genutzt. Echte Gerätekopplung und native Update-Dienste sind nicht verbunden. Dateien, Zwischenablage und Sprachausgabe nutzen Browserfunktionen und erforderliche Berechtigungen."
     },
     "releaseNote": "Beschrieben ist der aktuelle main-Zweig. Der öffentliche Download v0.4.5 (12. Oktober 2026) enthält diesen Lesearbeitsplatz und die Mac–iPhone-Synchronisierung noch nicht. Das iPhone wurde mit einem lokal signierten Build geprüft; ein öffentlicher iPhone-Installer fehlt."
   }

@@ -11,9 +11,9 @@
   <a href="https://skylar-deepmind.github.io/LexiCue/zh/#feature-languages"><img alt="Interface: English, Japanese, German, Chinese" src="https://img.shields.io/badge/interface-EN%20%7C%20JA%20%7C%20DE%20%7C%20ZH-526177?style=flat-square"></a>
 </p>
 
-<p align="center"><a href="https://github.com/skylar-deepmind/LexiCue/releases/latest"><strong>免费下载</strong></a> · <a href="https://skylar-deepmind.github.io/LexiCue/zh/">看看怎么用</a> · <a href="DISTRIBUTION.md">安装指南</a></p>
+<p align="center"><a href="https://github.com/skylar-deepmind/LexiCue/releases/latest"><strong>免费下载</strong></a> · <a href="https://skylar-deepmind.github.io/LexiCue/zh/">打开工作区</a> · <a href="DISTRIBUTION.md">安装指南</a></p>
 
-[![带来自己的英文材料](docs/media/current/zh/materials-ocean-desktop.webp)](https://skylar-deepmind.github.io/LexiCue/zh/#feature-import)
+[![带来自己的英文材料](docs/media/current/zh/materials-ocean-desktop.webp)](https://skylar-deepmind.github.io/LexiCue/zh/)
 
 ## 用自己的材料读英语
 
@@ -48,24 +48,24 @@
 
 收藏过的表达会在后续阅读中高亮。打开过去的原句和注释，随时返回当时的材料。
 
-> 截图来自当前主分支界面，使用样例数据，不访问个人资料库，也不演示真实设备同步。
+> README 截图使用样例数据。在线工作区复用当前桌面与手机版界面，使用临时演示数据。不连接真实设备配对与原生更新服务；文件、剪贴板和朗读使用浏览器能力及相应授权。
 
 ## 特色功能
 
-- **[带来自己的英文材料](https://skylar-deepmind.github.io/LexiCue/zh/#feature-import)** — 支持 PDF、DOCX、EPUB、Markdown、TXT、SRT、VTT，也可粘贴英文正文、网页链接或 YouTube 链接，检查提取的内容后导入。
-- **[读到不懂的词，随手查](https://skylar-deepmind.github.io/LexiCue/zh/#feature-lookup)** — 点选单词查词，或选择一段表达查看含义；释义与原文同时可见。
-- **[需要时再翻译与听读](https://skylar-deepmind.github.io/LexiCue/zh/#feature-phrases)** — 按需显示或隐藏中文译文，进入听读模式；有来源音频时可播放来源。朗读和翻译需相应服务可用。
-- **[把理解连同语境一起保存](https://skylar-deepmind.github.io/LexiCue/zh/#feature-collect)** — 保存单词或一段表达，同时保留原句、句子译文与可用的词典参考。可填写自己的解释或注释；词典参考不等于确认本句含义。
-- **[下次遇见，想起上一次](https://skylar-deepmind.github.io/LexiCue/zh/#feature-review)** — 收藏过的表达会在后续阅读中高亮。打开过去的原句和注释，随时返回当时的材料。
-- **[从上次读到的地方继续](https://skylar-deepmind.github.io/LexiCue/zh/#feature-progress)** — 再次打开材料时回到已保存的阅读位置。从收藏跳到来源后，也能返回此前的位置。
-- **[整理自己的阅读桌面](https://skylar-deepmind.github.io/LexiCue/zh/#feature-baseline)** — 在桌面摆放材料卡，将暂时不读的材料收进材料库，按标题或彩色标签寻找。
-- **[四种界面语言，五种主题](https://skylar-deepmind.github.io/LexiCue/zh/#feature-languages)** — 学习目标为英语；界面可选中文、英语、日语、德语，支持海湾蓝、鼠尾草绿、琥珀暖光、暮光紫、深夜墨色五种主题，阅读中可调字号。
-- **[学习资料留在自己手里](https://skylar-deepmind.github.io/LexiCue/zh/#feature-privacy)** — 材料与语境收藏保存在本地，可在设置中导出与恢复备份；旧学习记录保留在“历史记录”中。
-- **[在 Mac 与 iPhone 之间接续](https://skylar-deepmind.github.io/LexiCue/zh/#feature-sync)** — 在“设置 → 设备同步”中配对一台 Mac 和一台 iPhone：扫描临时二维码，在两端核对验证码。连接可达时，材料、语境收藏、注释、标签和阅读位置通过局域网交换。
+- **[带来自己的英文材料](https://skylar-deepmind.github.io/LexiCue/zh/guide/files/)** — 支持 PDF、DOCX、EPUB、Markdown、TXT、SRT、VTT，也可粘贴英文正文、网页链接或 YouTube 链接，检查提取的内容后导入。
+- **[读到不懂的词，随手查](https://skylar-deepmind.github.io/LexiCue/zh/guide/reading/)** — 点选单词查词，或选择一段表达查看含义；释义与原文同时可见。
+- **[需要时再翻译与听读](https://skylar-deepmind.github.io/LexiCue/zh/guide/reading/)** — 按需显示或隐藏中文译文，进入听读模式；有来源音频时可播放来源。朗读和翻译需相应服务可用。
+- **[把理解连同语境一起保存](https://skylar-deepmind.github.io/LexiCue/zh/guide/vocabulary/)** — 保存单词或一段表达，同时保留原句、句子译文与可用的词典参考。可填写自己的解释或注释；词典参考不等于确认本句含义。
+- **[下次遇见，想起上一次](https://skylar-deepmind.github.io/LexiCue/zh/guide/review/)** — 收藏过的表达会在后续阅读中高亮。打开过去的原句和注释，随时返回当时的材料。
+- **[从上次读到的地方继续](https://skylar-deepmind.github.io/LexiCue/zh/guide/insights/)** — 再次打开材料时回到已保存的阅读位置。从收藏跳到来源后，也能返回此前的位置。
+- **[整理自己的阅读桌面](https://skylar-deepmind.github.io/LexiCue/zh/guide/files/)** — 在桌面摆放材料卡，将暂时不读的材料收进材料库，按标题或彩色标签寻找。
+- **[四种界面语言，五种主题](https://skylar-deepmind.github.io/LexiCue/zh/guide/settings/)** — 学习目标为英语；界面可选中文、英语、日语、德语，支持海湾蓝、鼠尾草绿、琥珀暖光、暮光紫、深夜墨色五种主题，阅读中可调字号。
+- **[学习资料留在自己手里](https://skylar-deepmind.github.io/LexiCue/zh/guide/faq/)** — 材料与语境收藏保存在本地，可在设置中导出与恢复备份；旧学习记录保留在“历史记录”中。
+- **[在 Mac 与 iPhone 之间接续](https://skylar-deepmind.github.io/LexiCue/zh/guide/settings/)** — 在“设置 → 设备同步”中配对一台 Mac 和一台 iPhone：扫描临时二维码，在两端核对验证码。连接可达时，材料、语境收藏、注释、标签和阅读位置通过局域网交换。
 
 ## 下载与安装
 
-公开下载为 v0.4.5，提供 macOS、Windows 与 Android 安装包。上方展示的功能已合入 main，需要后续版本或自行从源码构建。
+公开 v0.4.5 提供 macOS、Windows 与 Android 安装包。较新的阅读工作区可在线体验，也已包含在当前源码中；本地安装需要后续版本或自行构建。
 
 [**免费下载 — macOS / Windows / Android**](https://github.com/skylar-deepmind/LexiCue/releases/latest)
 

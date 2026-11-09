@@ -11,9 +11,9 @@
   <a href="https://skylar-deepmind.github.io/LexiCue/de/#feature-languages"><img alt="Interface: English, Japanese, German, Chinese" src="https://img.shields.io/badge/interface-EN%20%7C%20JA%20%7C%20DE%20%7C%20ZH-526177?style=flat-square"></a>
 </p>
 
-<p align="center"><a href="https://github.com/skylar-deepmind/LexiCue/releases/latest"><strong>Kostenlos herunterladen</strong></a> · <a href="https://skylar-deepmind.github.io/LexiCue/de/">In Aktion sehen</a> · <a href="DISTRIBUTION.md">Installationsanleitung</a></p>
+<p align="center"><a href="https://github.com/skylar-deepmind/LexiCue/releases/latest"><strong>Kostenlos herunterladen</strong></a> · <a href="https://skylar-deepmind.github.io/LexiCue/de/">Arbeitsbereich öffnen</a> · <a href="DISTRIBUTION.md">Installationsanleitung</a></p>
 
-[![Deine englischen Materialien importieren](docs/media/current/de/materials-ocean-desktop.webp)](https://skylar-deepmind.github.io/LexiCue/de/#feature-import)
+[![Deine englischen Materialien importieren](docs/media/current/de/materials-ocean-desktop.webp)](https://skylar-deepmind.github.io/LexiCue/de/)
 
 ## Englisch mit eigenen Materialien lesen
 
@@ -48,24 +48,24 @@ Speichere Wörter oder Passagen mit Originalsatz, Satzübersetzung und verfügba
 
 Gespeicherte Ausdrücke werden beim späteren Lesen hervorgehoben. Öffne frühere Sätze und Notizen und kehre zu ihrer Quelle zurück.
 
-> Die Screenshots zeigen die aktuelle main-Oberfläche mit Beispieldaten. Sie greifen weder auf deine Bibliothek noch auf echte Gerätesynchronisierung zu.
+> README-Screenshots verwenden Beispieldaten. Online werden die aktuellen Desktop- und Mobilansichten mit temporären Demodaten genutzt. Echte Gerätekopplung und native Update-Dienste sind nicht verbunden. Dateien, Zwischenablage und Sprachausgabe nutzen Browserfunktionen und erforderliche Berechtigungen.
 
 ## Funktionen
 
-- **[Deine englischen Materialien importieren](https://skylar-deepmind.github.io/LexiCue/de/#feature-import)** — Importiere PDF, DOCX, EPUB, Markdown, TXT, SRT oder VTT. Füge englischen Text, einen Webseiten- oder YouTube-Link ein und prüfe den extrahierten Inhalt vor dem Import.
-- **[Beim Lesen Wörter nachschlagen](https://skylar-deepmind.github.io/LexiCue/de/#feature-lookup)** — Wähle ein Wort für die Wörterbuchsuche oder eine Passage für ihre Bedeutung. Der Originaltext bleibt sichtbar.
-- **[Bei Bedarf übersetzen und zuhören](https://skylar-deepmind.github.io/LexiCue/de/#feature-phrases)** — Blende chinesische Übersetzungen ein oder aus und starte den Hörmodus. Quellaudio wird verwendet, wenn verfügbar; Sprachausgabe und Übersetzung benötigen die jeweiligen Dienste.
-- **[Bedeutung und Kontext zusammen speichern](https://skylar-deepmind.github.io/LexiCue/de/#feature-collect)** — Speichere Wörter oder Passagen mit Originalsatz, Satzübersetzung und verfügbarer Wörterbuchreferenz. Ergänze eine eigene Erklärung oder Notiz; die Referenz bestätigt keine Bedeutung für diesen Satz.
-- **[Beim Wiedersehen erinnern](https://skylar-deepmind.github.io/LexiCue/de/#feature-review)** — Gespeicherte Ausdrücke werden beim späteren Lesen hervorgehoben. Öffne frühere Sätze und Notizen und kehre zu ihrer Quelle zurück.
-- **[An der letzten Stelle weiterlesen](https://skylar-deepmind.github.io/LexiCue/de/#feature-progress)** — Öffne ein Material an der gespeicherten Leseposition. Von einer gespeicherten Quelle kannst du zur vorherigen Stelle zurückkehren.
-- **[Deinen Lesetisch ordnen](https://skylar-deepmind.github.io/LexiCue/de/#feature-baseline)** — Ordne Materialkarten auf dem Lesetisch, lege andere Materialien in der Bibliothek ab und suche nach Titel oder farbigen Tags.
-- **[Vier Oberflächensprachen, fünf Themen](https://skylar-deepmind.github.io/LexiCue/de/#feature-languages)** — Die Lernsprache ist Englisch. Die Oberfläche bietet Englisch, Chinesisch, Japanisch und Deutsch, fünf Themen und einstellbare Schriftgrößen im Lesebereich.
-- **[Die Kontrolle über deine Daten behalten](https://skylar-deepmind.github.io/LexiCue/de/#feature-privacy)** — Materialien und gespeicherte Kontexte liegen lokal. Exportiere oder stelle Backups in den Einstellungen wieder her; frühere Lernaufzeichnungen bleiben im Verlauf verfügbar.
-- **[Zwischen Mac und iPhone weiterlesen](https://skylar-deepmind.github.io/LexiCue/de/#feature-sync)** — Kopple einen Mac und ein iPhone unter Einstellungen → Gerätesynchronisierung. Scanne den zeitlich begrenzten QR-Code und vergleiche den Code auf beiden Geräten. Erreichbare Apps tauschen Materialien, Kontexte, Notizen, Tags und Lesepositionen im lokalen Netzwerk aus.
+- **[Deine englischen Materialien importieren](https://skylar-deepmind.github.io/LexiCue/de/guide/files/)** — Importiere PDF, DOCX, EPUB, Markdown, TXT, SRT oder VTT. Füge englischen Text, einen Webseiten- oder YouTube-Link ein und prüfe den extrahierten Inhalt vor dem Import.
+- **[Beim Lesen Wörter nachschlagen](https://skylar-deepmind.github.io/LexiCue/de/guide/reading/)** — Wähle ein Wort für die Wörterbuchsuche oder eine Passage für ihre Bedeutung. Der Originaltext bleibt sichtbar.
+- **[Bei Bedarf übersetzen und zuhören](https://skylar-deepmind.github.io/LexiCue/de/guide/reading/)** — Blende chinesische Übersetzungen ein oder aus und starte den Hörmodus. Quellaudio wird verwendet, wenn verfügbar; Sprachausgabe und Übersetzung benötigen die jeweiligen Dienste.
+- **[Bedeutung und Kontext zusammen speichern](https://skylar-deepmind.github.io/LexiCue/de/guide/vocabulary/)** — Speichere Wörter oder Passagen mit Originalsatz, Satzübersetzung und verfügbarer Wörterbuchreferenz. Ergänze eine eigene Erklärung oder Notiz; die Referenz bestätigt keine Bedeutung für diesen Satz.
+- **[Beim Wiedersehen erinnern](https://skylar-deepmind.github.io/LexiCue/de/guide/review/)** — Gespeicherte Ausdrücke werden beim späteren Lesen hervorgehoben. Öffne frühere Sätze und Notizen und kehre zu ihrer Quelle zurück.
+- **[An der letzten Stelle weiterlesen](https://skylar-deepmind.github.io/LexiCue/de/guide/insights/)** — Öffne ein Material an der gespeicherten Leseposition. Von einer gespeicherten Quelle kannst du zur vorherigen Stelle zurückkehren.
+- **[Deinen Lesetisch ordnen](https://skylar-deepmind.github.io/LexiCue/de/guide/files/)** — Ordne Materialkarten auf dem Lesetisch, lege andere Materialien in der Bibliothek ab und suche nach Titel oder farbigen Tags.
+- **[Vier Oberflächensprachen, fünf Themen](https://skylar-deepmind.github.io/LexiCue/de/guide/settings/)** — Die Lernsprache ist Englisch. Die Oberfläche bietet Englisch, Chinesisch, Japanisch und Deutsch, fünf Themen und einstellbare Schriftgrößen im Lesebereich.
+- **[Die Kontrolle über deine Daten behalten](https://skylar-deepmind.github.io/LexiCue/de/guide/faq/)** — Materialien und gespeicherte Kontexte liegen lokal. Exportiere oder stelle Backups in den Einstellungen wieder her; frühere Lernaufzeichnungen bleiben im Verlauf verfügbar.
+- **[Zwischen Mac und iPhone weiterlesen](https://skylar-deepmind.github.io/LexiCue/de/guide/settings/)** — Kopple einen Mac und ein iPhone unter Einstellungen → Gerätesynchronisierung. Scanne den zeitlich begrenzten QR-Code und vergleiche den Code auf beiden Geräten. Erreichbare Apps tauschen Materialien, Kontexte, Notizen, Tags und Lesepositionen im lokalen Netzwerk aus.
 
 ## Download und Installation
 
-Öffentlicher Download: v0.4.5 für macOS, Windows und Android. Die oben gezeigten Funktionen sind in main und benötigen einen neueren Release oder einen Build aus dem Quellcode.
+Öffentliche v0.4.5-Pakete gibt es für macOS, Windows und Android. Der neuere Lesearbeitsbereich steht online und im aktuellen Quellcode bereit; zur Installation ist ein neuerer Release oder eigener Build nötig.
 
 [**Kostenlos herunterladen — macOS / Windows / Android**](https://github.com/skylar-deepmind/LexiCue/releases/latest)
 

@@ -7,7 +7,7 @@ import {readFile,stat,access} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {prepareVideoFixture} from './video-fixture.mjs';
-import {screenshotPath,screenshotScenes} from '../src/current-copy.mjs';
+import {screenshotPath,screenshotScenes,currentCopy} from '../src/current-copy.mjs';
 import {copy,locales,features,horizontalTimeline,verticalTimeline} from '../src/catalogue.mjs';
 const root=resolve(import.meta.dirname,'../..');let checks=0;
 const check=(condition,label)=>{assert.ok(condition,label);checks++;};
@@ -22,7 +22,7 @@ for(const locale of locales){
  check(JSON.stringify(keys(experienceCopy[locale]).sort())===JSON.stringify(keys(experienceCopy.en).sort()),`experience translations ${locale}`);
  for(const chapter of guides[locale]){
   const manual=await readFile(resolve(root,`docs/${locale==='en'?'':locale+'/'}guide/${chapter.id}/index.html`),'utf8');check(manual.includes(`<h1>${chapter.title}</h1>`),`static manual ${locale}/${chapter.id}`);check(manual.includes(manualCopy[locale].descriptions[chapter.id]),'chapter intro');
-  check(manual.includes('#experience')&&manual.includes('https://www.ifdian.net/a/skylar-lexicue'),'public navigation');check(!manual.includes('manual-animation')&&!manual.includes('?demo='),'standard docs without demo CTA');
+  check(manual.includes('download/')&&manual.includes('support/')&&manual.includes('guide/quick-start/'),'public navigation has separate destinations');check(!manual.includes('manual-animation')&&!manual.includes('?demo='),'standard docs without demo CTA');
   const content=manualContent[locale][chapter.id];check(JSON.stringify(content.sections.map(s=>s.id))===JSON.stringify(manualContent.en[chapter.id].sections.map(s=>s.id)),'shared translated section IDs');
   for(const section of content.sections){check(section.title.trim()&&manual.includes(`id="${section.id}"`),'translated static section');check(section.body.every(p=>p.trim())&&section.steps.every(p=>p.trim()),'nonempty translated text');if(section.image){const scene={files:'materials',reading:'lookup',vocabulary:'saved',review:'recall',settings:'settings'}[section.image];for(const theme of ['ocean','midnight'])for(const device of ['desktop','mobile']){await access(resolve(root,'docs',screenshotPath(locale,scene,theme,device)));checks++;}}for(const target of section.related||[]){const [id,anchor]=target.split('#');check(manualContent[locale][id]&&(!anchor||manualContent[locale][id].sections.some(s=>s.id===anchor)),'related chapter/section exists');}}
   check(!manual.includes('sync recovery code')&&!manual.includes('同步恢复码'),'no obsolete sync recovery-code instructions');
@@ -38,10 +38,18 @@ for(const locale of locales){
  const html=await readFile(resolve(root,locale==='en'?'docs/index.html':`docs/${locale}/index.html`),'utf8');
  const schema=JSON.parse(html.match(/<script type="application\/ld\+json">(.*?)<\/script>/s)[1]);
  check(schema.softwareVersion===JSON.parse(await readFile(resolve(root,'package.json'),'utf8')).version+' (main, unreleased)',`source version distinct from public release ${locale}`);
- check(html.includes(copy[locale].releaseNote)&&readme.includes(copy[locale].releaseNote),'release distinction on README and static site');
+ const download=await readFile(resolve(root,`docs/${locale==='en'?'':locale+'/'}download/index.html`),'utf8');
+ const support=await readFile(resolve(root,`docs/${locale==='en'?'':locale+'/'}support/index.html`),'utf8');
+ check(download.includes(copy[locale].releaseNote)&&readme.includes(copy[locale].releaseNote),'release distinction in README and dedicated download page');
+ check(html.includes(currentCopy[locale].downloadSummary),'concise download status below the app');
+ check(html.includes('<iframe')&&html.includes('_demo/index.html?locale='+locale),'workspace embeds the live app');
+ check(!html.includes('current-scenes')&&!html.includes('current-feature-grid')&&!html.includes('class="hero"'),'no screenshot gallery, feature list or advertising hero');
+ check(!download.includes('<iframe')&&!support.includes('<iframe'),'download and support pages have their own purpose');
+ check(support.includes('https://www.ifdian.net/a/skylar-lexicue')&&(locale==='zh'||support.includes('https://www.patreon.com/16942122/join')),'support destinations retained');
+ for(const [name,page] of [['workspace',html],['download',download],['support',support]])for(const match of page.matchAll(/(?:src|href)="([^"]+)"/g)){if(/^(?:https?:|#|data:)/.test(match[1]))continue;const file=match[1].split(/[?#]/)[0];await access(resolve(root,`docs/${locale==='en'?'':locale+'/'}${name==='workspace'?'':name+'/'}`,file));checks++;}
  check(!readme.includes('docs/media/demo/'),'no obsolete README GIF');
  check(html.includes(screenshotPath(locale,'reading','ocean')),'current product in social preview');
- for(const f of features){check(html.includes(copy[locale].titles[f.index]),`static SEO text ${locale}/${f.id}`);checks++;}
+ check(JSON.stringify(schema.featureList)===JSON.stringify(copy[locale].titles),'source capability metadata remains localized');
  for(const scene of screenshotScenes)for(const theme of ['ocean','midnight'])for(const device of ['desktop','mobile']){await access(resolve(root,'docs',screenshotPath(locale,scene,theme,device)));checks++;}
  if(locale!=='zh')check(readme.includes('https://www.patreon.com/16942122/join'),'localized membership link retained');
  check(!html.includes('Ollama')&&!readme.includes('无需安装'),`no obsolete claims ${locale}`);
