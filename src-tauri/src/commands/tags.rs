@@ -170,12 +170,27 @@ pub fn transaction<T>(
     conn: &Connection,
     action: impl FnOnce() -> Result<T, String>,
 ) -> Result<T, String> {
+    // A top-level SAVEPOINT is deferred. Reserve the writer before action()
+    // can read, otherwise another WAL writer can invalidate that snapshot and
+    // the later write fails with SQLITE_BUSY_SNAPSHOT without waiting.
+    // Existing caller transactions keep their ownership and savepoint nesting.
+    let transaction = if conn.is_autocommit() {
+        Some(
+            rusqlite::Transaction::new_unchecked(conn, rusqlite::TransactionBehavior::Immediate)
+                .map_err(|e| e.to_string())?,
+        )
+    } else {
+        None
+    };
     conn.execute_batch("SAVEPOINT tag_operation")
         .map_err(|e| e.to_string())?;
     match action() {
         Ok(value) => {
             conn.execute_batch("RELEASE tag_operation")
                 .map_err(|e| e.to_string())?;
+            if let Some(transaction) = transaction {
+                transaction.commit().map_err(|e| e.to_string())?;
+            }
             Ok(value)
         }
         Err(error) => {
@@ -369,6 +384,96 @@ mod tests {
             "segments":[{"index":0,"en_text":"Hello world","zh_text":null,"start_time":null,"end_time":null}],
             "lemmas":[],"occurrences":[],"replace_file_id":replace,"tag_ids":ids,"new_tag_names":names
         })).unwrap()
+    }
+
+    #[test]
+    fn top_level_transaction_reserves_writer_before_action_reads() {
+        let (dir, conn) = db();
+        let other = Connection::open(dir.path().join("test.db")).unwrap();
+        other.busy_timeout(std::time::Duration::ZERO).unwrap();
+
+        transaction(&conn, || {
+            let error = other.execute_batch("BEGIN IMMEDIATE").unwrap_err();
+            assert_eq!(
+                error.sqlite_error_code(),
+                Some(rusqlite::ErrorCode::DatabaseBusy)
+            );
+            // The action can now safely read before writing, as migrate_legacy does.
+            let _: i64 = conn
+                .query_row("SELECT COUNT(*) FROM folders", [], |row| row.get(0))
+                .unwrap();
+            ensure_tag(&conn, "Committed")?;
+            Ok(())
+        })
+        .unwrap();
+
+        assert!(conn.is_autocommit());
+        other.execute_batch("BEGIN IMMEDIATE; ROLLBACK").unwrap();
+        assert_eq!(
+            other
+                .query_row("SELECT name FROM tags", [], |row| row.get::<_, String>(0))
+                .unwrap(),
+            "Committed"
+        );
+    }
+
+    #[test]
+    fn failed_top_level_transaction_rolls_back_and_releases_writer() {
+        let (dir, conn) = db();
+        let error = transaction(&conn, || {
+            ensure_tag(&conn, "Rolled back")?;
+            Err::<(), _>("action failed".to_string())
+        })
+        .unwrap_err();
+
+        assert_eq!(error, "action failed");
+        assert!(conn.is_autocommit());
+        assert_eq!(
+            conn.query_row("SELECT COUNT(*) FROM tags", [], |row| row.get::<_, i64>(0))
+                .unwrap(),
+            0
+        );
+        let other = Connection::open(dir.path().join("test.db")).unwrap();
+        other.busy_timeout(std::time::Duration::ZERO).unwrap();
+        other.execute_batch("BEGIN IMMEDIATE; ROLLBACK").unwrap();
+    }
+
+    #[test]
+    fn nested_transactions_preserve_outer_work_and_outer_rollback_ownership() {
+        let (_dir, conn) = db();
+        let outer =
+            rusqlite::Transaction::new_unchecked(&conn, rusqlite::TransactionBehavior::Immediate)
+                .unwrap();
+        transaction(&conn, || {
+            ensure_tag(&conn, "Outer")?;
+            let error = transaction(&conn, || {
+                ensure_tag(&conn, "Failed inner")?;
+                Err::<(), _>("inner failed".to_string())
+            })
+            .unwrap_err();
+            assert_eq!(error, "inner failed");
+            transaction(&conn, || ensure_tag(&conn, "Successful inner"))?;
+            Ok(())
+        })
+        .unwrap();
+
+        assert!(!conn.is_autocommit());
+        assert_eq!(
+            conn.query_row(
+                "SELECT group_concat(name, ',') FROM (SELECT name FROM tags ORDER BY id)",
+                [],
+                |row| row.get::<_, String>(0)
+            )
+            .unwrap(),
+            "Outer,Successful inner"
+        );
+        outer.rollback().unwrap();
+        assert!(conn.is_autocommit());
+        assert_eq!(
+            conn.query_row("SELECT COUNT(*) FROM tags", [], |row| row.get::<_, i64>(0))
+                .unwrap(),
+            0
+        );
     }
 
     #[test]

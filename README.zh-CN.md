@@ -8,83 +8,84 @@
   <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-2563eb?style=flat-square"></a>
   <a href="https://github.com/skylar-deepmind/LexiCue/actions/workflows/ci.yml"><img alt="CI status" src="https://github.com/skylar-deepmind/LexiCue/actions/workflows/ci.yml/badge.svg"></a>
   <a href="https://github.com/skylar-deepmind/LexiCue/releases/latest"><img alt="macOS, Windows, Android" src="https://img.shields.io/badge/platforms-macOS%20%7C%20Windows%20%7C%20Android-526177?style=flat-square"></a>
-  <a href="https://skylar-deepmind.github.io/LexiCue/zh/#feature-languages"><img alt="English, Japanese, German, Chinese" src="https://img.shields.io/badge/languages-EN%20%7C%20JA%20%7C%20DE%20%7C%20ZH-526177?style=flat-square"></a>
+  <a href="https://skylar-deepmind.github.io/LexiCue/zh/#feature-languages"><img alt="Interface: English, Japanese, German, Chinese" src="https://img.shields.io/badge/interface-EN%20%7C%20JA%20%7C%20DE%20%7C%20ZH-526177?style=flat-square"></a>
 </p>
 
-<p align="center"><a href="https://github.com/skylar-deepmind/LexiCue/releases/latest"><strong>免费下载</strong></a> · <a href="https://skylar-deepmind.github.io/LexiCue/zh/">看看怎么用</a> · <a href="DISTRIBUTION.md">安装指南</a></p>
+<p align="center"><a href="https://github.com/skylar-deepmind/LexiCue/releases/latest"><strong>免费下载</strong></a> · <a href="https://skylar-deepmind.github.io/LexiCue/zh/">打开工作区</a> · <a href="DISTRIBUTION.md">安装指南</a></p>
 
-[![学你真正喜欢的内容](docs/media/demo/hero.gif)](https://skylar-deepmind.github.io/LexiCue/zh/#feature-import)
+[![带来自己的英文材料](docs/media/current/zh/materials-ocean-desktop.webp)](https://skylar-deepmind.github.io/LexiCue/zh/)
 
-## 用自己的内容学语言
+## 用自己的材料读英语
 
-导入你喜欢的 SRT 字幕。读到生词随手查，在原句里理解、积累，再通过复习真正记住。
+带来想读的英文文章、书籍或字幕。遇到不懂的词句再查，连同原句与理解一起保存，在下次遇见时唤回记忆。
+
+> 本文介绍当前 main 分支的功能。最新公开下载仍为 v0.4.5（2026 年 10 月 12 日），早于本次阅读工作区和 Mac–iPhone 同步。iPhone 已通过本地签名构建实测，尚无公开安装包。
 
 ## 简单的学习闭环
 
-1. **导入** — 带来你喜欢的内容。
-2. **阅读与理解** — 在原句里查词、理解。
-3. **积累** — 整理自己的单词与短语。
-4. **复习** — 按间隔重复安排复习。
+1. **导入材料** — 带来自己想读的英文内容。
+2. **按需理解** — 需要时查词、看译文或听读。
+3. **保存语境** — 留下原句、释义和自己的注释。
+4. **重遇回顾** — 让今天的阅读唤起过去的相遇。
 
 ## 看看实际学习流程
 
-### 阅读与点词查词
+### 阅读与理解
 
-[![阅读与点词查词](docs/media/demo/lookup.gif)](https://skylar-deepmind.github.io/LexiCue/zh/#feature-lookup)
+[![阅读与理解](docs/media/current/zh/lookup-ocean-desktop.webp)](https://skylar-deepmind.github.io/LexiCue/zh/guide/reading/)
 
-点击原句中的单词，随手查看释义。内置离线词典，让阅读顺畅继续。
+点选单词查词，或选择一段表达查看含义；释义与原文同时可见。
 
-### 语境与短语
+### 保存语境
 
-[![语境与短语](docs/media/demo/phrases.gif)](https://skylar-deepmind.github.io/LexiCue/zh/#feature-phrases)
+[![保存语境](docs/media/current/zh/saved-ocean-desktop.webp)](https://skylar-deepmind.github.io/LexiCue/zh/guide/vocabulary/)
 
-可选 AI 识别英语表达，解释它在原句中的用法。Gemma 模型单独下载后可在本地运行。
+保存单词或一段表达，同时保留原句、句子译文与可用的词典参考。可填写自己的解释或注释；词典参考不等于确认本句含义。
 
-### 带着原句复习
+### 重遇回顾
 
-[![带着原句复习](docs/media/demo/review.gif)](https://skylar-deepmind.github.io/LexiCue/zh/#feature-review)
+[![重遇回顾](docs/media/current/zh/recall-ocean-desktop.webp)](https://skylar-deepmind.github.io/LexiCue/zh/guide/review/)
 
-带着原句复习单词和词组。你的作答决定后续的间隔重复安排。
+收藏过的表达会在后续阅读中高亮。打开过去的原句和注释，随时返回当时的材料。
 
-> 演示复用真实产品组件，使用原创样本数据。AI 结果为固定示例；同步为原理示意。
+> README 截图使用样例数据。在线工作区复用当前桌面与手机版界面，使用临时演示数据。不连接真实设备配对与原生更新服务；文件、剪贴板和朗读使用浏览器能力及相应授权。
 
 ## 特色功能
 
-- **[学你真正喜欢的内容](https://skylar-deepmind.github.io/LexiCue/zh/#feature-import)** — 导入 SRT 字幕，预览内容并确认学习语言。也可以通过 YouTube 入口获取字幕。
-- **[不打断阅读，点词即查](https://skylar-deepmind.github.io/LexiCue/zh/#feature-lookup)** — 点击原句中的单词，随手查看释义。内置离线词典，让阅读顺畅继续。
-- **[在原句里理解地道表达](https://skylar-deepmind.github.io/LexiCue/zh/#feature-phrases)** — 可选 AI 识别英语表达，解释它在原句中的用法。Gemma 模型单独下载后可在本地运行。
-- **[词汇积累，有迹可循](https://skylar-deepmind.github.io/LexiCue/zh/#feature-collect)** — 筛选、标签与学习状态，让单词和词组井然有序。批量或逐项标注，随时回到原文。
-- **[在合适的时候，再遇见它](https://skylar-deepmind.github.io/LexiCue/zh/#feature-review)** — 带着原句复习单词和词组。你的作答决定后续的间隔重复安排。
-- **[每一点进步，都看得见](https://skylar-deepmind.github.io/LexiCue/zh/#feature-progress)** — 查看词汇状态、七日复习和每份材料的学习指数，知道自己走到了哪里。
-- **[从你已经会的词开始](https://skylar-deepmind.github.io/LexiCue/zh/#feature-baseline)** — 可选将英语或中文最高频的 1,000–10,000 个词标为已掌握，再通过复习抽查。
-- **[四种语言，自己的阅读方式](https://skylar-deepmind.github.io/LexiCue/zh/#feature-languages)** — 英、日、德、中四种语言。假名、拼音与词形处理辅助阅读，也可切换明亮或午夜主题。
-- **[学习数据，留在自己手里](https://skylar-deepmind.github.io/LexiCue/zh/#feature-privacy)** — 学习记录保存在本地，可以导出与恢复备份。本地学习无需注册账号。
-- **[让学习接续到另一台设备](https://skylar-deepmind.github.io/LexiCue/zh/#feature-sync)** — 在“设置 → 设备同步”中配对一台 Mac 和一台 iPhone。两端可连接时，修改和删除会通过局域网自动同步。
+- **[带来自己的英文材料](https://skylar-deepmind.github.io/LexiCue/zh/guide/files/)** — 支持 PDF、DOCX、EPUB、Markdown、TXT、SRT、VTT，也可粘贴英文正文、网页链接或 YouTube 链接，检查提取的内容后导入。
+- **[读到不懂的词，随手查](https://skylar-deepmind.github.io/LexiCue/zh/guide/reading/)** — 点选单词查词，或选择一段表达查看含义；释义与原文同时可见。
+- **[需要时再翻译与听读](https://skylar-deepmind.github.io/LexiCue/zh/guide/reading/)** — 按需显示或隐藏中文译文，进入听读模式；有来源音频时可播放来源。朗读和翻译需相应服务可用。
+- **[把理解连同语境一起保存](https://skylar-deepmind.github.io/LexiCue/zh/guide/vocabulary/)** — 保存单词或一段表达，同时保留原句、句子译文与可用的词典参考。可填写自己的解释或注释；词典参考不等于确认本句含义。
+- **[下次遇见，想起上一次](https://skylar-deepmind.github.io/LexiCue/zh/guide/review/)** — 收藏过的表达会在后续阅读中高亮。打开过去的原句和注释，随时返回当时的材料。
+- **[从上次读到的地方继续](https://skylar-deepmind.github.io/LexiCue/zh/guide/insights/)** — 再次打开材料时回到已保存的阅读位置。从收藏跳到来源后，也能返回此前的位置。
+- **[整理自己的阅读桌面](https://skylar-deepmind.github.io/LexiCue/zh/guide/files/)** — 在桌面摆放材料卡，将暂时不读的材料收进材料库，按标题或彩色标签寻找。
+- **[四种界面语言，五种主题](https://skylar-deepmind.github.io/LexiCue/zh/guide/settings/)** — 学习目标为英语；界面可选中文、英语、日语、德语，支持海湾蓝、鼠尾草绿、琥珀暖光、暮光紫、深夜墨色五种主题，阅读中可调字号。
+- **[学习资料留在自己手里](https://skylar-deepmind.github.io/LexiCue/zh/guide/faq/)** — 材料与语境收藏保存在本地，可在设置中导出与恢复备份；旧学习记录保留在“历史记录”中。
+- **[在 Mac 与 iPhone 之间接续](https://skylar-deepmind.github.io/LexiCue/zh/guide/settings/)** — 在“设置 → 设备同步”中配对一台 Mac 和一台 iPhone：扫描临时二维码，在两端核对验证码。连接可达时，材料、语境收藏、注释、标签和阅读位置通过局域网交换。
 
 ## 下载与安装
 
-支持 macOS、Windows 与 Android。安装应用，带来一份想读的材料，就可以开始。
+公开 v0.4.5 提供 macOS、Windows 与 Android 安装包。较新的阅读工作区可在线体验，也已包含在当前源码中；本地安装需要后续版本或自行构建。
 
 [**免费下载 — macOS / Windows / Android**](https://github.com/skylar-deepmind/LexiCue/releases/latest)
 
-安装包目前未签名，首次启动请参考安装指南。本地 Gemma 模型需要单独下载。 [安装指南](DISTRIBUTION.md).
+安装前请查看版本说明和对应平台的安装指南。暂不提供公开 iPhone 安装包。 [安装指南](DISTRIBUTION.md).
 
-Gemma: [E2B / E4B](docs/embedded-gemma.md).
 
 ## 隐私与可选联网
 
-阅读、词典与复习在本地运行。获取 YouTube 字幕或下载 AI 模型需要联网。可选云端 AI 将所选文本发送到你配置的 API。已配对的设备在局域网内直接交换学习资料。
+材料、语境收藏与本地词典数据保存在设备上。网页与 YouTube 导入、在线词典、翻译和朗读可能发起联网请求；可选云服务会接收本次操作所需的文本。Mac–iPhone 同步通过局域网直接交换学习资料，媒体原件与设备偏好各自留机。
 
 ## 支持项目
 
-[支持作者 — 爱发电 / Aifadian](https://www.ifdian.net/a/skylar-lexicue) · [GitHub Star](https://github.com/skylar-deepmind/LexiCue)
+[爱发电 / Aifadian](https://www.ifdian.net/a/skylar-lexicue) · [GitHub Star](https://github.com/skylar-deepmind/LexiCue)
 
 ## 开发
 
-Node.js 22.12+ · Rust · CMake 3.22+ · C++17. [Gemma](docs/embedded-gemma.md).
+Node.js 22.12+ · Rust · CMake 3.22+ · C++17.
 
 ```sh
-npm install
+npm ci
 npm run tauri dev
 npm run build
 npm test

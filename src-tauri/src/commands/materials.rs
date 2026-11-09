@@ -1204,28 +1204,59 @@ mod acceptance {
                 end_time: Some("00:00:03.000".into()),
             }],
         };
-        let a = path.clone();
-        let b = path.clone();
-        let first = make("a");
-        let second = make("b");
-        let one = std::thread::spawn(move || {
-            let c = crate::db::init_db(&a).unwrap();
-            import_material(&c, &first).unwrap()
-        });
-        let two = std::thread::spawn(move || {
-            let c = crate::db::init_db(&b).unwrap();
-            import_material(&c, &second).unwrap()
-        });
-        assert_eq!(one.join().unwrap().file_id, two.join().unwrap().file_id);
+        // Synchronize reopening the database, not only the imports: setup
+        // replaces sync triggers and must remain atomic across connections.
+        // Repeat with the same operation IDs to exercise receipt retries too.
+        for _ in 0..32 {
+            let start = std::sync::Arc::new(std::sync::Barrier::new(2));
+            let a = path.clone();
+            let b = path.clone();
+            let first = make("a");
+            let second = make("b");
+            let first_start = start.clone();
+            let one = std::thread::spawn(move || {
+                first_start.wait();
+                let c = crate::db::init_db(&a).unwrap();
+                import_material(&c, &first).unwrap()
+            });
+            let two = std::thread::spawn(move || {
+                start.wait();
+                let c = crate::db::init_db(&b).unwrap();
+                import_material(&c, &second).unwrap()
+            });
+            let one = one.join();
+            let two = two.join();
+            assert_eq!(one.unwrap().file_id, two.unwrap().file_id);
+        }
         drop(c);
         let c = crate::db::init_db(&path).unwrap();
         assert_eq!(list(&c, &[], false).unwrap().len(), 1);
+        let (file_id, sync_id): (i64, String) = c
+            .query_row(
+                "SELECT local_id,sync_id FROM sync_entity_state WHERE table_name='files'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        // Imports racing setup must still get their file identity and compact
+        // library event; an unprotected DROP/CREATE window can lose these.
+        let snapshots: i64 = c
+            .query_row(
+                "SELECT COUNT(*) FROM sync_changes WHERE table_name='library_item' AND sync_id=?1 AND uploaded_at IS NULL",
+                [&sync_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(snapshots, 1);
         assert!(import_material(&c, &make("a")).is_ok());
         let backup = super::super::export::backup_payload(&c).unwrap();
         assert_eq!(backup.data.material_import_actions.len(), 2);
         let target = crate::db::init_db(&dir.path().join("restored.db")).unwrap();
         super::super::export::restore_backup(&target, &backup).unwrap();
-        assert!(import_material(&target, &make("a")).is_ok());
+        assert_eq!(
+            import_material(&target, &make("a")).unwrap().file_id,
+            file_id
+        );
     }
 }
 

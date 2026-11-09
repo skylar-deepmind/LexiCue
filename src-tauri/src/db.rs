@@ -65,7 +65,9 @@ pub fn init_db(db_path: &Path) -> Result<Connection, rusqlite::Error> {
     migrate_legacy_constraints(&conn)?;
     backfill_phrase_provider(&conn)?;
     migrate_file_folder(&conn)?;
-    crate::commands::tags::migrate_legacy(&conn).map_err(rusqlite::Error::InvalidParameterName)?;
+    crate::commands::tags::migrate_legacy(&conn).map_err(|error| {
+        rusqlite::Error::InvalidParameterName(format!("tags::migrate_legacy: {error}"))
+    })?;
     migrate_occurrence_hidden(&conn)?;
     migrate_review_log_schedule(&conn)?;
     migrate_english_learning(&conn)?;
@@ -74,9 +76,13 @@ pub fn init_db(db_path: &Path) -> Result<Connection, rusqlite::Error> {
     crate::commands::materials::create_tables(&conn)?;
     crate::commands::source_media::migrate(&conn)?;
     crate::commands::document_source::migrate(&conn)?;
-    lexicue_lan_journal::upgrade_tracked_library(&conn)
-        .map_err(rusqlite::Error::InvalidParameterName)?;
-    crate::commands::saved::init(&conn).map_err(rusqlite::Error::InvalidParameterName)?;
+    lexicue_lan_journal::upgrade_tracked_library(&conn).map_err(|error| {
+        rusqlite::Error::InvalidParameterName(format!(
+            "lan_journal::upgrade_tracked_library: {error}"
+        ))
+    })?;
+    crate::commands::saved::init(&conn)
+        .map_err(|error| rusqlite::Error::InvalidParameterName(format!("saved::init: {error}")))?;
     Ok(conn)
 }
 
@@ -155,6 +161,13 @@ pub(crate) fn consistent_backup(
 /// keeps existing SQL and foreign keys intact while providing a portable ID,
 /// timestamp and deletion tombstone for the encrypted record sync engine.
 fn create_sync_tracking(conn: &Connection) -> Result<(), rusqlite::Error> {
+    // Reopening connections can initialize the same library concurrently.
+    // Serialize the whole trigger replacement before reading its schema, so
+    // another initializer cannot interleave DROP/CREATE statements and user
+    // writes never observe a partially replaced set of sync triggers.
+    let transaction =
+        rusqlite::Transaction::new_unchecked(conn, rusqlite::TransactionBehavior::Immediate)?;
+    let conn = &transaction;
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS sync_entity_state (
             table_name TEXT NOT NULL,
@@ -518,7 +531,7 @@ fn create_sync_tracking(conn: &Connection) -> Result<(), rusqlite::Error> {
             [],
         )?;
     }
-    Ok(())
+    transaction.commit()
 }
 
 fn now_ms_for_sync_tracking() -> i64 {
@@ -1199,7 +1212,11 @@ fn migrate_english_learning(conn: &Connection) -> Result<(), rusqlite::Error> {
 }
 
 fn create_study_phrase_view(conn: &Connection) -> Result<(), rusqlite::Error> {
-    conn.execute_batch(
+    // This replacement runs on every open too; keep concurrent initializers
+    // and readers from observing the gap between DROP and CREATE.
+    let transaction =
+        rusqlite::Transaction::new_unchecked(conn, rusqlite::TransactionBehavior::Immediate)?;
+    transaction.execute_batch(
         "DROP VIEW IF EXISTS study_phrase_occurrences;
          CREATE VIEW study_phrase_occurrences AS
          SELECT po.* FROM phrase_occurrences po
@@ -1212,7 +1229,8 @@ fn create_study_phrase_view(conn: &Connection) -> Result<(), rusqlite::Error> {
            OR COALESCE(a.pipeline_version,1)>=5 OR COALESCE(a.pipeline_version,1)<3 OR COALESCE(a.collins_evidence_available,0)=0
            OR po.collins_sense_id IS NOT NULL
          );",
-    )
+    )?;
+    transaction.commit()
 }
 
 #[cfg(test)]
@@ -1319,6 +1337,46 @@ mod tests {
             )
             .unwrap();
         assert_eq!(old, ("learning".into(), "common".into()));
+    }
+
+    #[test]
+    fn failed_sync_tracking_setup_restores_the_previous_triggers() {
+        let dir = tempfile::tempdir().unwrap();
+        let conn = init_db(&dir.path().join("sync.db")).unwrap();
+        conn.execute(
+            "INSERT INTO words(language,lemma) VALUES ('en','rollback')",
+            [],
+        )
+        .unwrap();
+        conn.execute_batch(
+            "DROP TRIGGER sync_tags_insert;
+             CREATE TRIGGER sync_tags_insert AFTER INSERT ON tags BEGIN SELECT 1; END;
+             CREATE TRIGGER reject_sync_backfill BEFORE INSERT ON sync_entity_state
+               WHEN NEW.table_name='words' BEGIN
+                 SELECT RAISE(ABORT, 'test sync setup failure');
+               END;",
+        )
+        .unwrap();
+        let triggers = || {
+            conn.prepare("SELECT name,sql FROM sqlite_master WHERE type='trigger' ORDER BY name")
+                .unwrap()
+                .query_map([], |row| {
+                    Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+                })
+                .unwrap()
+                .collect::<rusqlite::Result<Vec<_>>>()
+                .unwrap()
+        };
+        let before = triggers();
+
+        let error = create_sync_tracking(&conn).unwrap_err();
+
+        assert!(error.to_string().contains("test sync setup failure"));
+        assert!(conn.is_autocommit());
+        assert_eq!(triggers(), before);
+        conn.execute_batch("DROP TRIGGER reject_sync_backfill")
+            .unwrap();
+        create_sync_tracking(&conn).unwrap();
     }
 
     #[test]

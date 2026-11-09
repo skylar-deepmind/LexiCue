@@ -8,83 +8,84 @@
   <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-2563eb?style=flat-square"></a>
   <a href="https://github.com/skylar-deepmind/LexiCue/actions/workflows/ci.yml"><img alt="CI status" src="https://github.com/skylar-deepmind/LexiCue/actions/workflows/ci.yml/badge.svg"></a>
   <a href="https://github.com/skylar-deepmind/LexiCue/releases/latest"><img alt="macOS, Windows, Android" src="https://img.shields.io/badge/platforms-macOS%20%7C%20Windows%20%7C%20Android-526177?style=flat-square"></a>
-  <a href="https://skylar-deepmind.github.io/LexiCue/de/#feature-languages"><img alt="English, Japanese, German, Chinese" src="https://img.shields.io/badge/languages-EN%20%7C%20JA%20%7C%20DE%20%7C%20ZH-526177?style=flat-square"></a>
+  <a href="https://skylar-deepmind.github.io/LexiCue/de/#feature-languages"><img alt="Interface: English, Japanese, German, Chinese" src="https://img.shields.io/badge/interface-EN%20%7C%20JA%20%7C%20DE%20%7C%20ZH-526177?style=flat-square"></a>
 </p>
 
-<p align="center"><a href="https://github.com/skylar-deepmind/LexiCue/releases/latest"><strong>Kostenlos herunterladen</strong></a> · <a href="https://skylar-deepmind.github.io/LexiCue/de/">In Aktion sehen</a> · <a href="DISTRIBUTION.md">Installationsanleitung</a></p>
+<p align="center"><a href="https://github.com/skylar-deepmind/LexiCue/releases/latest"><strong>Kostenlos herunterladen</strong></a> · <a href="https://skylar-deepmind.github.io/LexiCue/de/">Arbeitsbereich öffnen</a> · <a href="DISTRIBUTION.md">Installationsanleitung</a></p>
 
-[![Lerne mit deinen eigenen Inhalten](docs/media/demo/hero.gif)](https://skylar-deepmind.github.io/LexiCue/de/#feature-import)
+[![Deine englischen Materialien importieren](docs/media/current/de/materials-ocean-desktop.webp)](https://skylar-deepmind.github.io/LexiCue/de/)
 
-## Sprachen mit eigenen Inhalten lernen
+## Englisch mit eigenen Materialien lesen
 
-Importiere SRT-Untertitel, die dich interessieren. Schlage Wörter im Originalsatz nach, sammle Wortschatz und festige ihn durch Wiederholung.
+Bringe englische Artikel, Bücher oder Untertitel mit. Schlage nur nach, wenn du es brauchst, speichere die Bedeutung mit dem Originalsatz und erinnere dich beim nächsten Auftauchen.
+
+> Beschrieben ist der aktuelle main-Zweig. Der öffentliche Download v0.4.5 (12. Oktober 2026) enthält diesen Lesearbeitsplatz und die Mac–iPhone-Synchronisierung noch nicht. Das iPhone wurde mit einem lokal signierten Build geprüft; ein öffentlicher iPhone-Installer fehlt.
 
 ## Ein einfacher Lernkreislauf
 
-1. **Importieren** — Bringe interessante Inhalte mit.
-2. **Lesen & verstehen** — Verstehe Wörter im Kontext.
-3. **Sammeln** — Ordne Wörter und Wendungen.
-4. **Wiederholen** — Lerne mit verteilten Wiederholungen.
+1. **Importieren** — Wähle englische Inhalte, die dich interessieren.
+2. **Verstehen** — Schlage nach, übersetze oder höre bei Bedarf.
+3. **Mit Kontext speichern** — Behalte Satz, Bedeutung und eigene Notiz.
+4. **Beim Wiedersehen erinnern** — Verbinde neues Lesen mit früheren Begegnungen.
 
 ## Den Lernweg ansehen
 
-### Lesen und Nachschlagen
+### Lesen und verstehen
 
-[![Lesen und Nachschlagen](docs/media/demo/lookup.gif)](https://skylar-deepmind.github.io/LexiCue/de/#feature-lookup)
+[![Lesen und verstehen](docs/media/current/de/lookup-ocean-desktop.webp)](https://skylar-deepmind.github.io/LexiCue/de/guide/reading/)
 
-Tippe ein Wort im Satz an. Integrierte Offline-Wörterbücher lassen dich weiterlesen.
+Wähle ein Wort für die Wörterbuchsuche oder eine Passage für ihre Bedeutung. Der Originaltext bleibt sichtbar.
 
-### Kontext und Wendungen
+### Mit Kontext speichern
 
-[![Kontext und Wendungen](docs/media/demo/phrases.gif)](https://skylar-deepmind.github.io/LexiCue/de/#feature-phrases)
+[![Mit Kontext speichern](docs/media/current/de/saved-ocean-desktop.webp)](https://skylar-deepmind.github.io/LexiCue/de/guide/vocabulary/)
 
-Optionale KI analysiert englische Wendungen im Originalsatz. Gemma läuft nach separatem Modelldownload lokal.
+Speichere Wörter oder Passagen mit Originalsatz, Satzübersetzung und verfügbarer Wörterbuchreferenz. Ergänze eine eigene Erklärung oder Notiz; die Referenz bestätigt keine Bedeutung für diesen Satz.
 
-### Mit Originalsätzen wiederholen
+### Beim Wiedersehen erinnern
 
-[![Mit Originalsätzen wiederholen](docs/media/demo/review.gif)](https://skylar-deepmind.github.io/LexiCue/de/#feature-review)
+[![Beim Wiedersehen erinnern](docs/media/current/de/recall-ocean-desktop.webp)](https://skylar-deepmind.github.io/LexiCue/de/guide/review/)
 
-Wiederhole Wörter und Wendungen mit ihren Originalsätzen. Deine Antworten bestimmen den weiteren Lernplan.
+Gespeicherte Ausdrücke werden beim späteren Lesen hervorgehoben. Öffne frühere Sätze und Notizen und kehre zu ihrer Quelle zurück.
 
-> Demos nutzen echte Produktkomponenten und eigene Beispieldaten. KI-Ergebnisse sind feste Beispiele; die Synchronisierung wird schematisch dargestellt.
+> README-Screenshots verwenden Beispieldaten. Online werden die aktuellen Desktop- und Mobilansichten mit temporären Demodaten genutzt. Echte Gerätekopplung und native Update-Dienste sind nicht verbunden. Dateien, Zwischenablage und Sprachausgabe nutzen Browserfunktionen und erforderliche Berechtigungen.
 
 ## Funktionen
 
-- **[Lerne mit deinen eigenen Inhalten](https://skylar-deepmind.github.io/LexiCue/de/#feature-import)** — Importiere SRT-Untertitel, prüfe die Vorschau und wähle die Lernsprache. YouTube-Untertitel lassen sich über einen eigenen Zugang abrufen.
-- **[Nachschlagen, ohne den Faden zu verlieren](https://skylar-deepmind.github.io/LexiCue/de/#feature-lookup)** — Tippe ein Wort im Satz an. Integrierte Offline-Wörterbücher lassen dich weiterlesen.
-- **[Wendungen im Kontext verstehen](https://skylar-deepmind.github.io/LexiCue/de/#feature-phrases)** — Optionale KI analysiert englische Wendungen im Originalsatz. Gemma läuft nach separatem Modelldownload lokal.
-- **[Wortschatz mit Verbindung zum Original](https://skylar-deepmind.github.io/LexiCue/de/#feature-collect)** — Filter, Tags und Lernstatus ordnen Wörter und Wendungen. Bearbeite sie einzeln oder gesammelt und kehre zum Original zurück.
-- **[Wörter zur passenden Zeit wiedersehen](https://skylar-deepmind.github.io/LexiCue/de/#feature-review)** — Wiederhole Wörter und Wendungen mit ihren Originalsätzen. Deine Antworten bestimmen den weiteren Lernplan.
-- **[Deinen Fortschritt erkennen](https://skylar-deepmind.github.io/LexiCue/de/#feature-progress)** — Sieh Lernzustände, Wiederholungen der letzten sieben Tage und den Lernindex jeder Datei.
-- **[Mit bekannten Wörtern beginnen](https://skylar-deepmind.github.io/LexiCue/de/#feature-baseline)** — Markiere optional die häufigsten 1.000–10.000 englischen oder chinesischen Wörter als bekannt und prüfe sie in Wiederholungen.
-- **[Vier Sprachen. Deine Art zu lesen.](https://skylar-deepmind.github.io/LexiCue/de/#feature-languages)** — Englisch, Japanisch, Deutsch und Chinesisch. Kana, Pinyin und Wortformen unterstützen das Lesen; helle und midnight-Ansicht stehen bereit.
-- **[Deine Lerndaten bleiben bei dir](https://skylar-deepmind.github.io/LexiCue/de/#feature-privacy)** — Lernaufzeichnungen bleiben lokal. Exportiere und stelle Backups wieder her. Lokales Lernen braucht kein Konto.
-- **[Auf anderen Geräten weitermachen](https://skylar-deepmind.github.io/LexiCue/de/#feature-sync)** — Kopple einen Mac und ein iPhone unter Einstellungen → Gerätesynchronisierung. Sind beide Apps erreichbar, werden Änderungen und Löschungen im lokalen Netzwerk synchronisiert.
+- **[Deine englischen Materialien importieren](https://skylar-deepmind.github.io/LexiCue/de/guide/files/)** — Importiere PDF, DOCX, EPUB, Markdown, TXT, SRT oder VTT. Füge englischen Text, einen Webseiten- oder YouTube-Link ein und prüfe den extrahierten Inhalt vor dem Import.
+- **[Beim Lesen Wörter nachschlagen](https://skylar-deepmind.github.io/LexiCue/de/guide/reading/)** — Wähle ein Wort für die Wörterbuchsuche oder eine Passage für ihre Bedeutung. Der Originaltext bleibt sichtbar.
+- **[Bei Bedarf übersetzen und zuhören](https://skylar-deepmind.github.io/LexiCue/de/guide/reading/)** — Blende chinesische Übersetzungen ein oder aus und starte den Hörmodus. Quellaudio wird verwendet, wenn verfügbar; Sprachausgabe und Übersetzung benötigen die jeweiligen Dienste.
+- **[Bedeutung und Kontext zusammen speichern](https://skylar-deepmind.github.io/LexiCue/de/guide/vocabulary/)** — Speichere Wörter oder Passagen mit Originalsatz, Satzübersetzung und verfügbarer Wörterbuchreferenz. Ergänze eine eigene Erklärung oder Notiz; die Referenz bestätigt keine Bedeutung für diesen Satz.
+- **[Beim Wiedersehen erinnern](https://skylar-deepmind.github.io/LexiCue/de/guide/review/)** — Gespeicherte Ausdrücke werden beim späteren Lesen hervorgehoben. Öffne frühere Sätze und Notizen und kehre zu ihrer Quelle zurück.
+- **[An der letzten Stelle weiterlesen](https://skylar-deepmind.github.io/LexiCue/de/guide/insights/)** — Öffne ein Material an der gespeicherten Leseposition. Von einer gespeicherten Quelle kannst du zur vorherigen Stelle zurückkehren.
+- **[Deinen Lesetisch ordnen](https://skylar-deepmind.github.io/LexiCue/de/guide/files/)** — Ordne Materialkarten auf dem Lesetisch, lege andere Materialien in der Bibliothek ab und suche nach Titel oder farbigen Tags.
+- **[Vier Oberflächensprachen, fünf Themen](https://skylar-deepmind.github.io/LexiCue/de/guide/settings/)** — Die Lernsprache ist Englisch. Die Oberfläche bietet Englisch, Chinesisch, Japanisch und Deutsch, fünf Themen und einstellbare Schriftgrößen im Lesebereich.
+- **[Die Kontrolle über deine Daten behalten](https://skylar-deepmind.github.io/LexiCue/de/guide/faq/)** — Materialien und gespeicherte Kontexte liegen lokal. Exportiere oder stelle Backups in den Einstellungen wieder her; frühere Lernaufzeichnungen bleiben im Verlauf verfügbar.
+- **[Zwischen Mac und iPhone weiterlesen](https://skylar-deepmind.github.io/LexiCue/de/guide/settings/)** — Kopple einen Mac und ein iPhone unter Einstellungen → Gerätesynchronisierung. Scanne den zeitlich begrenzten QR-Code und vergleiche den Code auf beiden Geräten. Erreichbare Apps tauschen Materialien, Kontexte, Notizen, Tags und Lesepositionen im lokalen Netzwerk aus.
 
 ## Download und Installation
 
-Für macOS, Windows und Android. Installiere die App und beginne mit etwas, das du lesen möchtest.
+Öffentliche v0.4.5-Pakete gibt es für macOS, Windows und Android. Der neuere Lesearbeitsbereich steht online und im aktuellen Quellcode bereit; zur Installation ist ein neuerer Release oder eigener Build nötig.
 
 [**Kostenlos herunterladen — macOS / Windows / Android**](https://github.com/skylar-deepmind/LexiCue/releases/latest)
 
-Installationspakete sind nicht signiert. Hinweise zum ersten Start stehen in der Anleitung. Gemma-Modelle werden separat heruntergeladen. [Installationsanleitung](DISTRIBUTION.md).
+Lies vor der Installation die Release-Hinweise und die Plattformanleitung. Ein öffentliches iPhone-Paket wird noch nicht angeboten. [Installationsanleitung](DISTRIBUTION.md).
 
-Gemma: [E2B / E4B](docs/embedded-gemma.md).
 
 ## Datenschutz und optionale Verbindungen
 
-Lesen, Wörterbücher und Wiederholungen laufen lokal. YouTube-Untertitel und KI-Modelle benötigen zum Download Internet. Optionale Cloud-KI sendet ausgewählten Text an deine API. Gekoppelte Geräte tauschen Lerndaten direkt im lokalen Netzwerk aus.
+Materialien, gespeicherte Kontexte und lokale Wörterbücher bleiben auf deinem Gerät. Webseiten- und YouTube-Import, Online-Wörterbücher, Übersetzung und Sprachausgabe können Netzwerkzugriffe auslösen. Optionale Cloud-Dienste erhalten den für die Aktion benötigten Text. Die Mac–iPhone-Synchronisierung überträgt Lerndaten direkt im lokalen Netzwerk; Originalmedien und Geräteeinstellungen bleiben jeweils vor Ort.
 
 ## Projekt unterstützen
 
-[Autor unterstützen — 爱发电 / Aifadian](https://www.ifdian.net/a/skylar-lexicue) · [GitHub Star](https://github.com/skylar-deepmind/LexiCue)
+[Autor unterstützen — Patreon](https://www.patreon.com/16942122/join) · [爱发电 / Aifadian](https://www.ifdian.net/a/skylar-lexicue) · [GitHub Star](https://github.com/skylar-deepmind/LexiCue)
 
 ## Entwicklung
 
-Node.js 22.12+ · Rust · CMake 3.22+ · C++17. [Gemma](docs/embedded-gemma.md).
+Node.js 22.12+ · Rust · CMake 3.22+ · C++17.
 
 ```sh
-npm install
+npm ci
 npm run tauri dev
 npm run build
 npm test

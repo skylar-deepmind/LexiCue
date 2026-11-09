@@ -19,10 +19,10 @@ const chapterRows=[
  ],
  [
   [
-   "Files and tags",
-   "文件与标签",
-   "ファイルとタグ",
-   "Dateien und Tags"
+   "Materials and tags",
+   "材料与标签",
+   "素材とタグ",
+   "Materialien und Tags"
   ],
   "files",
   "import"
@@ -39,30 +39,30 @@ const chapterRows=[
  ],
  [
   [
-   "Vocabulary and phrases",
-   "词汇与词组",
-   "単語とフレーズ",
-   "Wörter und Wendungen"
+   "Saved contexts",
+   "已保存的语境",
+   "保存した文脈",
+   "Gespeicherte Kontexte"
   ],
   "vocabulary",
   "collect"
  ],
  [
   [
-   "Review",
-   "复习",
-   "復習",
-   "Wiederholen"
+   "Recall on re-encounter",
+   "重遇回顾",
+   "再会して振り返る",
+   "Beim Wiedersehen erinnern"
   ],
   "review",
   "review"
  ],
  [
   [
-   "Insights",
-   "统计",
-   "学習記録",
-   "Statistik"
+   "Reading position and history",
+   "阅读位置与历史",
+   "読書位置と履歴",
+   "Leseposition und Verlauf"
   ],
   "insights",
   "progress"
@@ -91,3 +91,6 @@ const chapterRows=[
 export const guides=Object.fromEntries(languages.map((locale,index)=>[locale,chapterRows.map((row,n)=>({id:chapterIds[n],title:row[0][index],intro:manualCopy[locale].descriptions[chapterIds[n]],module:row[1],scene:row[2],imageSize:imageSizes[locale]?.[chapterIds[n]]||{width:1100,height:653}}))]));
 const hints={files:[['Filter a library with tags, then open a file.','用标签快速筛选，然后打开文件。','タグで絞り込んでから、ファイルを開きましょう。','Filtere die Bibliothek mit Tags und öffne eine Datei.'],'filter'],reading:[['Select a highlighted word and change its learning status.','点击高亮单词，试着修改学习状态。','ハイライトした単語を選び、学習状態を変えてみましょう。','Wähle ein markiertes Wort und ändere seinen Lernstatus.'],'term'],words:[['Search a word, filter its status, or return to its source.','搜索单词、筛选状态，或返回原文。','単語を検索・絞り込み、原文に戻ってみましょう。','Suche ein Wort, filtere den Status oder öffne die Fundstelle.'],'search'],phrases:[['Explore expressions and the sentences they came from.','查看词组及它们出现的原句。','フレーズと、その元の文を見てみましょう。','Erkunde Wendungen und ihre Originalssätze.'],'search'],review:[['Recall the meaning, reveal the answer, then rate yourself.','回忆含义，揭示答案，再为记忆评分。','意味を思い出し、答えを見て評価しましょう。','Erinnere dich, zeige die Antwort und bewerte dich.'],'answer'],insights:[['Your sample actions update the learning record here.','你的样例操作会更新这里的学习记录。','サンプルの操作が、ここに反映されます。','Deine Beispielaktionen aktualisieren die Lernaufzeichnung hier.'],'stat'],settings:[['Try another product theme; the website stays unchanged.','试试另一个产品主题，外层网页保持原样。','製品テーマを変えてみましょう。サイトの外観は変わりません。','Probiere ein Produktthema. Die Website bleibt unverändert.'],'theme']};
 export const guidance=Object.fromEntries(languages.map((l,i)=>[l,Object.fromEntries(Object.entries(hints).map(([k,v])=>[k,{text:v[0][i],target:v[1]}]))]));
+
+// Public navigation now opens current product screenshots, not the retired sample app.
+for(const [i,l] of languages.entries()){experienceCopy[l].experience=["Explore the workspace","查看工作区","ワークスペースを見る","Arbeitsplatz ansehen"][i];experienceCopy[l].websiteVsApp=["Current main interface with original sample data.","当前 main 界面，使用原创样例数据。","現在の main の画面。オリジナルのサンプルを使用。","Aktuelle main-Oberfläche mit eigenen Beispieldaten."][i];}

@@ -14,16 +14,18 @@ for(const locale of locales){const c=copy[locale],r=c.readme;
   <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-2563eb?style=flat-square"></a>
   <a href="${repoUrl}/actions/workflows/ci.yml"><img alt="CI status" src="${repoUrl}/actions/workflows/ci.yml/badge.svg"></a>
   <a href="${repoUrl}/releases/latest"><img alt="macOS, Windows, Android" src="https://img.shields.io/badge/platforms-macOS%20%7C%20Windows%20%7C%20Android-526177?style=flat-square"></a>
-  <a href="${siteUrl}${locale==='en'?'':locale+'/'}#feature-languages"><img alt="English, Japanese, German, Chinese" src="https://img.shields.io/badge/languages-EN%20%7C%20JA%20%7C%20DE%20%7C%20ZH-526177?style=flat-square"></a>
+  <a href="${siteUrl}${locale==='en'?'':locale+'/'}#feature-languages"><img alt="Interface: English, Japanese, German, Chinese" src="https://img.shields.io/badge/interface-EN%20%7C%20JA%20%7C%20DE%20%7C%20ZH-526177?style=flat-square"></a>
 </p>
 
 <p align="center"><a href="${repoUrl}/releases/latest"><strong>${c.download}</strong></a> · <a href="${siteUrl}${locale==='en'?'':locale+'/'}">${c.features}</a> · <a href="DISTRIBUTION.md">${c.installGuide}</a></p>
 
-[![${c.titles[0]}](docs/media/demo/hero.gif)](${siteUrl}${locale==='en'?'':locale+'/'}#feature-import)
+[![${c.titles[0]}](docs/media/current/${locale}/materials-ocean-desktop.webp)](${siteUrl}${locale==='en'?'':locale+'/'})
 
 ## ${r.heading}
 
 ${c.intro}
+
+> ${c.releaseNote}
 
 ## ${r.quick}
 
@@ -31,13 +33,13 @@ ${c.steps.map((s,i)=>`${i+1}. **${s}** — ${c.stepDescriptions[i]}`).join('\n')
 
 ## ${r.demos}
 
-${['lookup','phrases','review'].map((id,i)=>`### ${r.demoLinks[i]}\n\n[![${r.demoLinks[i]}](docs/media/demo/${id}.gif)](${siteUrl}${locale==='en'?'':locale+'/'}#feature-${id})\n\n${c.descriptions[features.findIndex(f=>f.id===id)]}`).join('\n\n')}
+${['lookup','saved','recall'].map((scene,i)=>`### ${r.demoLinks[i]}\n\n[![${r.demoLinks[i]}](docs/media/current/${locale}/${scene}-ocean-desktop.webp)](${siteUrl}${locale==='en'?'':locale+'/'}guide/${['reading','vocabulary','review'][i]}/)\n\n${c.descriptions[[1,3,4][i]]}`).join('\n\n')}
 
 > ${r.limitations}
 
 ## ${r.all}
 
-${features.map(f=>`- **[${c.titles[f.index]}](${siteUrl}${locale==='en'?'':locale+'/'}#feature-${f.id})** — ${c.descriptions[f.index]}`).join('\n')}
+${features.map(f=>`- **[${c.titles[f.index]}](${siteUrl}${locale==='en'?'':locale+'/'}guide/${({import:'files',lookup:'reading',phrases:'reading',collect:'vocabulary',review:'review',progress:'insights',baseline:'files',languages:'settings',privacy:'faq',sync:'settings'})[f.id]}/)** — ${c.descriptions[f.index]}`).join('\n')}
 
 ## ${r.install}
 
@@ -47,7 +49,6 @@ ${c.installBody}
 
 ${c.installNote} [${c.installGuide}](DISTRIBUTION.md).
 
-Gemma: [E2B / E4B](docs/embedded-gemma.md).
 
 ## ${r.privacy}
 
@@ -55,14 +56,14 @@ ${c.privacyBody}
 
 ## ${r.support}
 
-[${c.support} — 爱发电 / Aifadian](https://www.ifdian.net/a/skylar-lexicue) · [GitHub Star](${repoUrl})
+${locale==='zh'?'':`[${c.support} — Patreon](https://www.patreon.com/16942122/join) · `}[爱发电 / Aifadian](https://www.ifdian.net/a/skylar-lexicue) · [GitHub Star](${repoUrl})
 
 ## ${r.development}
 
-Node.js 22.12+ · Rust · CMake 3.22+ · C++17. [Gemma](docs/embedded-gemma.md).
+Node.js 22.12+ · Rust · CMake 3.22+ · C++17.
 
 \`\`\`sh
-npm install
+npm ci
 npm run tauri dev
 npm run build
 npm test
