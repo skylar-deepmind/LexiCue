@@ -93,7 +93,15 @@ if (platform.startsWith('macos')) {
     run('install_name_tool', ['-change', '@rpath/liblitert-lm.so', '@loader_path/liblitert-lm.dylib', join(output, 'liblexicue_gemma.dylib')]);
     run('install_name_tool', ['-id', '@loader_path/liblitert-lm.dylib', join(output, 'liblitert-lm.dylib')]);
   }
-  for (const file of readdirSync(output).filter(name => name.endsWith('.dylib'))) run('codesign', ['--force', '--sign', '-', join(output, file)]);
+  // Hardened Runtime validates the Team ID when the app loads these libraries.
+  // Sign before hashing so runtime.json describes the bundled bytes.
+  const identity = process.env.APPLE_SIGNING_IDENTITY || '-';
+  const signingArgs = ['--force', '--sign', identity];
+  if (identity !== '-') signingArgs.push('--options', 'runtime');
+  if (identity.startsWith('Developer ID Application:')) signingArgs.push('--timestamp');
+  for (const file of readdirSync(output).filter(name => name.endsWith('.dylib'))) {
+    run('codesign', [...signingArgs, join(output, file)]);
+  }
 }
 if (platform === 'android_arm64') {
   copyFileSync(process.env.LEXICUE_ANDROID_CXX, join(output, 'libc++_shared.so'));
