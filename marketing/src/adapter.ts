@@ -1,12 +1,13 @@
 // These aliases replace native I/O and persisted stores ONLY in marketing builds.
 // No imports from the application's store initializers, no account or disk access.
+import {DEFAULT_SPEECH_PREFERENCES} from '../../src/lib/speechPreferences';
 import {screenshotCommand} from './capture-adapter';
 import { copy } from './catalogue.mjs';
 export const isTauri = () => false;
 let locale = 'en';
 export function setDemoLocale(value: string) { locale = value; }
-export function usePreferencesStore(selector: (state: any) => any) {
-  return selector({learningTextFontSize:'lg',definitionFontSize:'md',auxiliaryFontSize:'md',readingLineHeight:'normal',uiLanguage:locale,setUiLanguage:()=>{},youtube:{browserSession:{enabled:false,browser:'chrome',profile:''}},setYouTubeBrowserSession:()=>{}});
+export function usePreferencesStore(selector: (state: any) => any = state => state) {
+  return selector({speech:DEFAULT_SPEECH_PREFERENCES,learningTextFontSize:'lg',definitionFontSize:'md',auxiliaryFontSize:'md',readingLineHeight:'normal',uiLanguage:locale,setUiLanguage:()=>{},youtube:{browserSession:{enabled:false,browser:'chrome',profile:''}},setYouTubeBrowserSession:()=>{}});
 }
 export function useDictionaryStore(selector: (state: any) => any) { return selector({}); }
 export function dictionaryLanguageState() { return 'demo-ready'; }

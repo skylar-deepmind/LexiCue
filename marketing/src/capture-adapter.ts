@@ -5,6 +5,7 @@ import {version} from './version.mjs';
 const blocked=()=>{throw new Error('Product screenshot adapter blocks writes and native I/O');};
 const noop=()=>{};
 export const getVersion=async()=>version;
+export const getIdentifier=async()=>'lexicue.marketing.preview';
 export const ask=async()=>false,open=async()=>null,save=async()=>null;
 export const openUrl=blocked,writeTextFile=blocked;
 export const listen=async()=>noop;
