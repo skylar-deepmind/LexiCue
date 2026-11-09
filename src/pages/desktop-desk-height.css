@@ -9,6 +9,19 @@
 
   .reading-stage-content > * { flex: none; }
 
+  /* Let the card stage use spare height. Keep the pager and shelf near the
+     bottom while the cards sit between the heading and those controls. */
+  .reading-stage-content > .reading-desktop:has(.desk-stack) {
+    flex: 1 0 auto;
+    display: flex;
+    flex-direction: column;
+  }
+  .reading-stage-content > .reading-desktop > .desk-stack {
+    flex: none;
+    margin-block: auto;
+  }
+  .reading-stage-content > .reading-desktop > .desk-pager { flex: none; }
+
   .reading-stage-content > .desk-dock-wrap {
     position: static;
     transform: none;

@@ -57,9 +57,16 @@ try {
             const card = document.querySelector('.desk-paper[data-desk-active="true"]').getBoundingClientRect();
             const pager = document.querySelector('.desk-pager').getBoundingClientRect();
             const shelf = document.querySelector('.desk-library-dock').getBoundingClientRect();
-            return { height: card.height, gap: shelf.top - pager.bottom };
+            const heading = document.querySelector('.materials-heading').getBoundingClientRect();
+            const content = document.querySelector('.reading-stage-content').getBoundingClientRect();
+            const dock = document.querySelector('.desk-dock-wrap').getBoundingClientRect();
+            return { height: card.height, gap: shelf.top - pager.bottom,
+              bottomBlank: content.bottom - dock.bottom,
+              above: card.top - heading.bottom, below: pager.top - card.bottom };
           });
           check(geometry.gap >= 0 && geometry.gap <= 32, label + ' shelf follows pagination');
+          check(geometry.bottomBlank <= 32, label + ' shelf uses the bottom of the workspace');
+          check(Math.abs(geometry.above - geometry.below) <= 48, label + ' card has balanced vertical space');
           if (height >= 720) check(geometry.height >= 320, label + ' full-size card');
         }
         if (state === 'long') {

@@ -1,6 +1,6 @@
 # Current product browser demo
 
-`entry.tsx` loads the actual `src/App.tsx`, pages, stores, translations and CSS. `vite.demo.config.mjs` replaces only the native I/O boundary, changes the router to `HashRouter`, inserts a theme message bridge, and makes font/PDF support URLs relative to the built demo. Product source files are untouched.
+`entry.tsx` loads the actual `src/App.tsx`, pages, stores, translations and CSS. `vite.demo.config.mjs` replaces only the native I/O boundary, changes the router to `HashRouter`, inserts a theme message bridge, and makes font/PDF support URLs relative to the built demo. The desktop material stage shares its height distribution with the installed app: cards use the available vertical space and the pager/library remain below them.
 
 ```sh
 node marketing/scripts/build-demo.mjs
