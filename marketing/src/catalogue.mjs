@@ -1,62 +1,688 @@
-export const locales = ['en', 'zh', 'ja', 'de'];
-export const featureIds = ['import', 'lookup', 'phrases', 'collect', 'review', 'progress', 'baseline', 'languages', 'privacy', 'sync'];
-export const siteUrl = 'https://skylar-deepmind.github.io/LexiCue/';
-export const repoUrl = 'https://github.com/skylar-deepmind/LexiCue';
-export const sourceText = 'Small habits make a meaningful difference. When a new word comes up, I look it up and keep reading. Little by little, the story starts to make sense.';
-export const copy = {
- en: {
-  tag:'Read what you love. Remember the words.', hero:['Your content.', 'Your growing vocabulary.'], intro:'Import SRT subtitles you enjoy. Look up words in their original sentences, collect vocabulary and remember it through review.', eyebrow:'FREE · OPEN SOURCE · LOCAL FIRST', download:'Download free', github:'View on GitHub', features:'See it in action', workflow:'From a good story to words that stick.', workflowSub:'One original subtitle excerpt. One connected learning journey.', extra:'Small details. A better learning habit.', extraSub:'Start from what you know. Learn in your language. Keep control of your data.', play:'Play', pause:'Pause', replay:'Replay', theme:'Switch theme', sample:'Interactive illustration · original sample data', next:'Next scene', reset:'Reset', steps:['Import','Read & understand','Collect','Review'], stepDescriptions:['Bring content you enjoy.','Look up words in context.','Organize words and phrases.','Let spaced repetition guide you.'],
-  titles:['Bring your own content','A word away from understanding','Understand phrases in context','Build a vocabulary you can trace','Meet words again, at the right time','See how far you have come','Start from what you already know','Four languages. Your way to read.','Your learning stays with you','Continue across your devices'],
-  descriptions:['Import SRT subtitles, preview their content and choose the learning language. YouTube subtitles can also be fetched from their source.','Tap a word without leaving the sentence. Built-in offline dictionaries keep reading flowing.','Optional AI identifies English expressions and explains their use in the original sentence. Gemma runs locally after a separate download.','Filter, tag and mark words or phrases. Batch or one-at-a-time annotation keeps the original context within reach.','Review words and phrases with their original sentences. Your answers shape the spaced-repetition schedule.','Track vocabulary states, seven-day reviews and each imported file’s learning index.','Optionally mark the top 1,000–10,000 English or Chinese words as known, then check a few in review.','English, Japanese, German and Chinese. Kana, pinyin and word-form handling support reading; choose a light or midnight theme.','Study records live locally. Export and restore backups. No account is needed for local learning.','Pair a Mac and an iPhone in Settings → Device sync. While both apps are reachable, edits and deletions sync over the local network.'],
-  ui:{files:'Files', words:'Words', phrases:'Phrases', review:'Review', progress:'Insights', settings:'Settings', preview:'Import preview', confirm:'Add to library', imported:'Ready to read', local:'Offline dictionary', explain:'Analyze phrases', optional:'AI optional · sample result', found:'Expression found', meaning:'Meaning', usage:'In this sentence', definition:'Having real importance or value.', phraseMeaning:'appear or be mentioned', phraseUsage:'“comes up” describes meeting a word while reading.', original:'Return to original', learning:'Learning', known:'Known', unprocessed:'New', ignored:'Ignored', filter:'Filter', tags:'Daily reading', reveal:'Reveal answer', reviewed:'Review recorded', due:'Next review is scheduled', mastered:'Mastered', week:'Reviews · last 7 days', index:'File learning index', baseline:'Known frequency words', baselineHint:'English / Chinese · optional', baselineCheck:'Check a few known words during review', languages:'Learning languages', device:'On your device', backup:'Export a backup', restore:'Restore locally', encrypted:'Encrypted transfer', phone:'Phone', syncNote:'Mac and iPhone · local network', offline:'Local AI · offline after model download', learn:'Reading habit.srt', originalText:'Original sample text', model:'Gemma 4 E4B', processing:'Analysis in progress', complete:'Your vocabulary, in context.', timeNote:'Illustration · not a speed benchmark'},
-  privacyTitle:'Local first. Connected when you choose.', privacyBody:'Reading, dictionaries and reviews work locally. Downloading YouTube subtitles or AI models requires a connection. Optional cloud AI sends selected text to your configured API. Paired devices exchange learning records directly on the local network.', installTitle:'A reading habit starts with one file.', installBody:'Available for macOS, Windows and Android. Install the app, bring something you want to read, and begin.', installNote:'Installers are unsigned. See the installation guide for first-launch instructions. Local Gemma models are downloaded separately.', installGuide:'Installation guide', support:'Support the author', license:'MIT license', footer:'Made for real content. Built in the open.', readme:{heading:'Learn from your own content', quick:'A simple learning loop', demos:'Watch the workflow', all:'Features', install:'Download & install', privacy:'Privacy & optional connections', support:'Support the project', development:'Development', license:'License', demoLinks:['Reading & lookup','Context & phrases','Review with original sentences'], limitations:'Demo scenes reuse product components with original sample data. AI results are fixed examples; sync is a process illustration.'}
- },
- zh: {
-  tag:'读你喜欢的内容，记住真正会用的词。', hero:['你喜欢的内容，','你记得住的词汇。'], intro:'导入你喜欢的 SRT 字幕。读到生词随手查，在原句里理解、积累，再通过复习真正记住。', eyebrow:'免费 · 开源 · 本地优先', download:'免费下载', github:'查看 GitHub', features:'看看怎么用', workflow:'从一段好故事，到真正记住。', workflowSub:'一段原创字幕，串起完整的学习流程。', extra:'细节到位，学习更顺手。', extraSub:'从你会的词开始，用熟悉的语言，掌握自己的数据。', play:'播放', pause:'暂停', replay:'重播', theme:'切换主题', sample:'交互示意 · 原创演示数据', next:'下个场景', reset:'重置', steps:['导入','阅读与理解','积累','复习'], stepDescriptions:['带来你喜欢的内容。','在原句里查词、理解。','整理自己的单词与短语。','按间隔重复安排复习。'],
-  titles:['学你真正喜欢的内容','不打断阅读，点词即查','在原句里理解地道表达','词汇积累，有迹可循','在合适的时候，再遇见它','每一点进步，都看得见','从你已经会的词开始','四种语言，自己的阅读方式','学习数据，留在自己手里','让学习接续到另一台设备'],
-  descriptions:['导入 SRT 字幕，预览内容并确认学习语言。也可以通过 YouTube 入口获取字幕。','点击原句中的单词，随手查看释义。内置离线词典，让阅读顺畅继续。','可选 AI 识别英语表达，解释它在原句中的用法。Gemma 模型单独下载后可在本地运行。','筛选、标签与学习状态，让单词和词组井然有序。批量或逐项标注，随时回到原文。','带着原句复习单词和词组。你的作答决定后续的间隔重复安排。','查看词汇状态、七日复习和每份材料的学习指数，知道自己走到了哪里。','可选将英语或中文最高频的 1,000–10,000 个词标为已掌握，再通过复习抽查。','英、日、德、中四种语言。假名、拼音与词形处理辅助阅读，也可切换明亮或午夜主题。','学习记录保存在本地，可以导出与恢复备份。本地学习无需注册账号。','在“设置 → 设备同步”中配对一台 Mac 和一台 iPhone。两端可连接时，修改和删除会通过局域网自动同步。'],
-  ui:{files:'文件',words:'单词',phrases:'词组',review:'复习',progress:'统计',settings:'设置',preview:'导入预览',confirm:'加入资料库',imported:'开始阅读',local:'离线词典',explain:'分析短语',optional:'AI 可选 · 示例结果',found:'发现短语',meaning:'释义',usage:'原句用法',definition:'有意义的；重要的；有价值的。',phraseMeaning:'出现；被提及',phraseUsage:'这里的 comes up 指阅读中遇到一个新词。',original:'回到原文',learning:'学习中',known:'已掌握',unprocessed:'未处理',ignored:'已忽略',filter:'筛选',tags:'日常阅读',reveal:'显示答案',reviewed:'已记录这次复习',due:'已安排下一次复习',mastered:'已掌握',week:'近七日复习',index:'文件学习指数',baseline:'高频已知词',baselineHint:'英语 / 中文 · 可选',baselineCheck:'复习时抽查少量已知词',languages:'学习语言',device:'你的设备',backup:'导出备份',restore:'本地恢复',encrypted:'加密传输',phone:'手机',syncNote:'Mac 与 iPhone · 局域网',offline:'本地 AI · 模型下载后离线运行',learn:'阅读习惯.srt',originalText:'原创演示文本',model:'Gemma 4 E4B',processing:'正在分析',complete:'在语境里，积累自己的词汇。',timeNote:'流程示意 · 不代表实际推理速度'},
-  privacyTitle:'默认本地，需要时再连接。',privacyBody:'阅读、词典与复习在本地运行。获取 YouTube 字幕或下载 AI 模型需要联网。可选云端 AI 将所选文本发送到你配置的 API。已配对的设备在局域网内直接交换学习资料。',installTitle:'一份喜欢的内容，就是起点。',installBody:'支持 macOS、Windows 与 Android。安装应用，带来一份想读的材料，就可以开始。',installNote:'安装包目前未签名，首次启动请参考安装指南。本地 Gemma 模型需要单独下载。',installGuide:'安装指南',support:'支持作者',license:'MIT 许可证',footer:'从真实内容出发，公开构建。',readme:{heading:'用自己的内容学语言',quick:'简单的学习闭环',demos:'看看实际学习流程',all:'特色功能',install:'下载与安装',privacy:'隐私与可选联网',support:'支持项目',development:'开发',license:'许可证',demoLinks:['阅读与点词查词','语境与短语','带着原句复习'],limitations:'演示复用真实产品组件，使用原创样本数据。AI 结果为固定示例；同步为原理示意。'}
- },
- ja: {
-  tag:'好きなものを読んで、使える言葉を覚える。',hero:['好きなコンテンツを、','自分の語彙に。'],intro:'好きなSRT字幕を取り込みましょう。元の文で単語を調べて蓄積し、復習で記憶に残します。',eyebrow:'無料 · オープンソース · ローカル優先',download:'無料でダウンロード',github:'GitHub で見る',features:'使い方を見る',workflow:'物語から、覚えた言葉へ。',workflowSub:'オリジナルの字幕で、学習の流れを体験。',extra:'小さな工夫で、続けやすく。',extraSub:'知っている言葉から始めて、自分の言語とデータを大切に。',play:'再生',pause:'一時停止',replay:'最初から',theme:'テーマ切替',sample:'操作イメージ · オリジナルのサンプル',next:'次の場面',reset:'リセット',steps:['取り込む','読んで理解','蓄積','復習'],stepDescriptions:['好きな素材を取り込む。','文脈で単語を調べる。','単語とフレーズを整理。','間隔反復で復習する。'],
-  titles:['好きな素材から学ぶ','読む流れを止めずに調べる','表現を文脈で理解する','元の文章につながる語彙','ちょうどよい時に、もう一度','学びの進み具合が見える','知っている単語から始める','4言語、自分らしい読み方','学習データは自分の手元に','別のデバイスでも続きを'],
-  descriptions:['SRT字幕を取り込み、内容と学習言語を確認できます。YouTubeから字幕を取得する入口もあります。','文中の単語をタップして意味を確認。内蔵のオフライン辞書で読書を続けられます。','任意のAIで英語の表現と文中の用法を分析。Gemmaはモデルを別途取得してローカルで動作します。','絞り込み、タグ、学習状態で整理。一括または一つずつ注釈し、元の文に戻れます。','元の文と一緒に単語やフレーズを復習。回答に応じて次の復習が決まります。','語彙の状態、7日間の復習、ファイルの学習指数を確認できます。','英語・中国語の頻出上位1,000〜10,000語を既知語に設定し、復習で少しずつ確認。','英語、日本語、ドイツ語、中国語。かな、ピンイン、語形処理に対応し、明るいテーマとmidnightを選べます。','記録は端末内に保存。バックアップの書き出しと復元ができ、ローカル学習にアカウントは不要です。','設定の「デバイス同期」で Mac と iPhone をペアリングします。両方のアプリが接続できる間、編集と削除をローカルネットワークで同期します。'],
-  ui:{files:'ファイル',words:'単語',phrases:'フレーズ',review:'復習',progress:'統計',settings:'設定',preview:'取り込みの確認',confirm:'追加する',imported:'読書を開始',local:'オフライン辞書',explain:'フレーズ分析',optional:'AIは任意 · サンプル結果',found:'表現を検出',meaning:'意味',usage:'文中の用法',definition:'意味のある、価値のある。',phraseMeaning:'現れる・話題に上がる',phraseUsage:'ここでは読書中に新しい単語に出会うことを表します。',original:'原文に戻る',learning:'学習中',known:'習得済み',unprocessed:'未処理',ignored:'除外',filter:'絞り込み',tags:'日々の読書',reveal:'答えを見る',reviewed:'復習を記録しました',due:'次回の復習を設定',mastered:'習得済み',week:'過去7日間の復習',index:'ファイルの学習指数',baseline:'頻出の既知語',baselineHint:'英語 / 中国語 · 任意',baselineCheck:'復習で既知語を少しずつ確認',languages:'学習言語',device:'自分のデバイス',backup:'バックアップを書き出す',restore:'ローカルで復元',encrypted:'暗号化して転送',phone:'スマートフォン',syncNote:'Mac と iPhone · ローカルネットワーク',offline:'ローカルAI · モデル取得後はオフライン',learn:'読書習慣.srt',originalText:'オリジナルのサンプル',model:'Gemma 4 E4B',processing:'分析中',complete:'文脈の中で、自分の語彙を。',timeNote:'説明用 · 推論速度の実測ではありません'},
-  privacyTitle:'基本はローカル。接続は自分で選ぶ。',privacyBody:'読書・辞書・復習はローカルで動作します。YouTube 字幕や AI モデルの取得には通信が必要です。オプションのクラウド AI は選択した文章を設定済み API に送信します。ペアリングした端末間ではローカルネットワークで資料を交換します。',installTitle:'読みたい素材が、はじまり。',installBody:'macOS、Windows、Android対応。アプリをインストールして、好きな素材から始めましょう。',installNote:'インストーラーは未署名です。初回起動はインストールガイドを参照。Gemmaモデルは別途取得します。',installGuide:'インストールガイド',support:'作者を支援',license:'MITライセンス',footer:'本物のコンテンツから。オープンに開発。',readme:{heading:'自分の素材で言語を学ぶ',quick:'シンプルな学習の流れ',demos:'学習の流れを見る',all:'主な機能',install:'ダウンロードとインストール',privacy:'プライバシーと任意の接続',support:'プロジェクトを支援',development:'開発',license:'ライセンス',demoLinks:['読書と単語検索','文脈とフレーズ','元の文で復習'],limitations:'実際のコンポーネントとオリジナルのサンプルを使用。AI結果は固定例で、同期は仕組みの説明です。'}
- },
- de: {
-  tag:'Lies, was du liebst. Behalte die Wörter.',hero:['Deine Inhalte.','Dein wachsender Wortschatz.'],intro:'Importiere SRT-Untertitel, die dich interessieren. Schlage Wörter im Originalsatz nach, sammle Wortschatz und festige ihn durch Wiederholung.',eyebrow:'KOSTENLOS · OPEN SOURCE · LOKAL',download:'Kostenlos herunterladen',github:'Auf GitHub ansehen',features:'In Aktion sehen',workflow:'Von einer guten Geschichte zu bleibenden Wörtern.',workflowSub:'Ein eigener Untertitelausschnitt. Ein zusammenhängender Lernweg.',extra:'Kleine Details. Besser lernen.',extraSub:'Beginne mit Bekanntem. Lerne in deiner Sprache. Behalte deine Daten.',play:'Abspielen',pause:'Pause',replay:'Neu starten',theme:'Design wechseln',sample:'Interaktive Darstellung · eigene Beispieldaten',next:'Nächste Szene',reset:'Zurücksetzen',steps:['Importieren','Lesen & verstehen','Sammeln','Wiederholen'],stepDescriptions:['Bringe interessante Inhalte mit.','Verstehe Wörter im Kontext.','Ordne Wörter und Wendungen.','Lerne mit verteilten Wiederholungen.'],
-  titles:['Lerne mit deinen eigenen Inhalten','Nachschlagen, ohne den Faden zu verlieren','Wendungen im Kontext verstehen','Wortschatz mit Verbindung zum Original','Wörter zur passenden Zeit wiedersehen','Deinen Fortschritt erkennen','Mit bekannten Wörtern beginnen','Vier Sprachen. Deine Art zu lesen.','Deine Lerndaten bleiben bei dir','Auf anderen Geräten weitermachen'],
-  descriptions:['Importiere SRT-Untertitel, prüfe die Vorschau und wähle die Lernsprache. YouTube-Untertitel lassen sich über einen eigenen Zugang abrufen.','Tippe ein Wort im Satz an. Integrierte Offline-Wörterbücher lassen dich weiterlesen.','Optionale KI analysiert englische Wendungen im Originalsatz. Gemma läuft nach separatem Modelldownload lokal.','Filter, Tags und Lernstatus ordnen Wörter und Wendungen. Bearbeite sie einzeln oder gesammelt und kehre zum Original zurück.','Wiederhole Wörter und Wendungen mit ihren Originalsätzen. Deine Antworten bestimmen den weiteren Lernplan.','Sieh Lernzustände, Wiederholungen der letzten sieben Tage und den Lernindex jeder Datei.','Markiere optional die häufigsten 1.000–10.000 englischen oder chinesischen Wörter als bekannt und prüfe sie in Wiederholungen.','Englisch, Japanisch, Deutsch und Chinesisch. Kana, Pinyin und Wortformen unterstützen das Lesen; helle und midnight-Ansicht stehen bereit.','Lernaufzeichnungen bleiben lokal. Exportiere und stelle Backups wieder her. Lokales Lernen braucht kein Konto.','Kopple einen Mac und ein iPhone unter Einstellungen → Gerätesynchronisierung. Sind beide Apps erreichbar, werden Änderungen und Löschungen im lokalen Netzwerk synchronisiert.'],
-  ui:{files:'Dateien',words:'Wörter',phrases:'Wendungen',review:'Wiederholen',progress:'Statistik',settings:'Einstellungen',preview:'Importvorschau',confirm:'Zur Bibliothek',imported:'Bereit zum Lesen',local:'Offline-Wörterbuch',explain:'Wendungen analysieren',optional:'KI optional · Beispielergebnis',found:'Wendung erkannt',meaning:'Bedeutung',usage:'In diesem Satz',definition:'Bedeutsam; sinnvoll; von echtem Wert.',phraseMeaning:'auftauchen oder erwähnt werden',phraseUsage:'Hier beschreibt „comes up“ ein neues Wort beim Lesen.',original:'Zum Original',learning:'In Bearbeitung',known:'Beherrscht',unprocessed:'Neu',ignored:'Ignoriert',filter:'Filtern',tags:'Tägliches Lesen',reveal:'Antwort zeigen',reviewed:'Wiederholung gespeichert',due:'Nächste Wiederholung geplant',mastered:'Beherrscht',week:'Letzte 7 Tage',index:'Lernindex der Datei',baseline:'Häufige bekannte Wörter',baselineHint:'Englisch / Chinesisch · optional',baselineCheck:'Bekannte Wörter bei der Wiederholung prüfen',languages:'Lernsprachen',device:'Dein Gerät',backup:'Backup exportieren',restore:'Lokal wiederherstellen',encrypted:'Verschlüsselte Übertragung',phone:'Handy',syncNote:'Mac und iPhone · Lokales Netzwerk',offline:'Lokale KI · offline nach Modelldownload',learn:'Lesegewohnheit.srt',originalText:'Eigener Beispieltext',model:'Gemma 4 E4B',processing:'Analyse läuft',complete:'Dein Wortschatz, im Kontext.',timeNote:'Darstellung · kein Geschwindigkeitstest'},
-  privacyTitle:'Lokal zuerst. Verbunden, wenn du willst.',privacyBody:'Lesen, Wörterbücher und Wiederholungen laufen lokal. YouTube-Untertitel und KI-Modelle benötigen zum Download Internet. Optionale Cloud-KI sendet ausgewählten Text an deine API. Gekoppelte Geräte tauschen Lerndaten direkt im lokalen Netzwerk aus.',installTitle:'Eine interessante Datei ist der Anfang.',installBody:'Für macOS, Windows und Android. Installiere die App und beginne mit etwas, das du lesen möchtest.',installNote:'Installationspakete sind nicht signiert. Hinweise zum ersten Start stehen in der Anleitung. Gemma-Modelle werden separat heruntergeladen.',installGuide:'Installationsanleitung',support:'Autor unterstützen',license:'MIT-Lizenz',footer:'Echte Inhalte. Offen entwickelt.',readme:{heading:'Sprachen mit eigenen Inhalten lernen',quick:'Ein einfacher Lernkreislauf',demos:'Den Lernweg ansehen',all:'Funktionen',install:'Download und Installation',privacy:'Datenschutz und optionale Verbindungen',support:'Projekt unterstützen',development:'Entwicklung',license:'Lizenz',demoLinks:['Lesen und Nachschlagen','Kontext und Wendungen','Mit Originalsätzen wiederholen'],limitations:'Demos nutzen echte Produktkomponenten und eigene Beispieldaten. KI-Ergebnisse sind feste Beispiele; die Synchronisierung wird schematisch dargestellt.'}
- }
+// Shared four-language product copy. Feature IDs retain stable incoming links.
+export const locales=["en","zh","ja","de"];
+export const siteUrl="https://skylar-deepmind.github.io/LexiCue/";
+export const repoUrl="https://github.com/skylar-deepmind/LexiCue";
+export const featureIds=["import","lookup","phrases","collect","review","progress","baseline","languages","privacy","sync"];
+export const copy={
+  "en": {
+    "tag": "Read what you love. Remember the words.",
+    "hero": [
+      "Read what interests you.",
+      "Keep what you discover."
+    ],
+    "intro": "Bring English articles, books or subtitles. Understand a word or passage when you need it, save it with its original context, and recall it when it appears again.",
+    "eyebrow": "FREE · OPEN SOURCE · LOCAL FIRST",
+    "download": "Download free",
+    "github": "View on GitHub",
+    "features": "See it in action",
+    "workflow": "Import → understand → save → encounter again.",
+    "workflowSub": "A reading workspace for English, with your original sentences always close by.",
+    "extra": "Small details. A better learning habit.",
+    "extraSub": "Start from what you know. Learn in your language. Keep control of your data.",
+    "play": "Play",
+    "pause": "Pause",
+    "replay": "Replay",
+    "theme": "Switch theme",
+    "sample": "Interactive illustration · original sample data",
+    "next": "Next scene",
+    "reset": "Reset",
+    "steps": [
+      "Import",
+      "Understand",
+      "Save with context",
+      "Recall on re-encounter"
+    ],
+    "stepDescriptions": [
+      "Choose English material you want to read.",
+      "Look up or translate only when needed.",
+      "Keep the sentence, meaning and your note.",
+      "Reconnect today’s reading with earlier encounters."
+    ],
+    "titles": [
+      "Bring your English materials",
+      "Look up words as you read",
+      "Understand a passage when you need it",
+      "Save the meaning and its context",
+      "Recall it when you meet it again",
+      "Pick up where you left off",
+      "Keep your reading desk in order",
+      "Four interface languages, five themes",
+      "Keep control of your data",
+      "Continue between Mac and iPhone"
+    ],
+    "descriptions": [
+      "Import PDF, DOCX, EPUB, Markdown, TXT, SRT or VTT. Paste English text, a webpage link or a YouTube link, then check the extracted content before importing.",
+      "Select a word for dictionary lookup, or select a passage for its meaning. Read the definition beside the original text.",
+      "Show or hide Chinese translations and enter listening mode. Source playback is used when available; speech and missing translations need their online services.",
+      "Save words or passages with their original sentence, its translation and the available dictionary reference. Add your own explanation or note; a dictionary reference does not confirm the meaning in this sentence.",
+      "Previously saved expressions are highlighted in later reading. Open the earlier sentences and notes, then return to their sources.",
+      "Reopen a material at its saved reading position. Open a saved source and return to the place you came from.",
+      "Arrange material cards on your desk, put materials away in the library, and find them by title or colored tags.",
+      "Learn English with an English, Chinese, Japanese or German interface. Choose ocean, sage, amber, twilight or midnight, and adjust text size in the reader.",
+      "Materials and saved contexts live locally. Export or restore a backup in Settings; older learning records remain available in History.",
+      "Pair one Mac and one iPhone in Settings → Device sync. Scan the temporary QR code and compare the code on both devices. Reachable paired apps exchange materials, saved contexts, notes, tags and reading positions on the local network."
+    ],
+    "ui": {
+      "files": "Files",
+      "words": "Words",
+      "phrases": "Phrases",
+      "review": "Review",
+      "progress": "Insights",
+      "settings": "Settings",
+      "preview": "Import preview",
+      "confirm": "Add to library",
+      "imported": "Ready to read",
+      "local": "Offline dictionary",
+      "explain": "Analyze phrases",
+      "optional": "AI optional · sample result",
+      "found": "Expression found",
+      "meaning": "Meaning",
+      "usage": "In this sentence",
+      "definition": "Having real importance or value.",
+      "phraseMeaning": "appear or be mentioned",
+      "phraseUsage": "“comes up” describes meeting a word while reading.",
+      "original": "Return to original",
+      "learning": "Learning",
+      "known": "Known",
+      "unprocessed": "New",
+      "ignored": "Ignored",
+      "filter": "Filter",
+      "tags": "Daily reading",
+      "reveal": "Reveal answer",
+      "reviewed": "Review recorded",
+      "due": "Next review is scheduled",
+      "mastered": "Mastered",
+      "week": "Reviews · last 7 days",
+      "index": "File learning index",
+      "baseline": "Known frequency words",
+      "baselineHint": "English",
+      "baselineCheck": "Check a few known words during review",
+      "languages": "Interface languages",
+      "device": "On your device",
+      "backup": "Export a backup",
+      "restore": "Restore locally",
+      "encrypted": "Encrypted transfer",
+      "phone": "Phone",
+      "syncNote": "Mac and iPhone · local network",
+      "offline": "Local AI · offline after model download",
+      "learn": "Reading habit.srt",
+      "originalText": "Original sample text",
+      "model": "Gemma 4 E4B",
+      "processing": "Analysis in progress",
+      "complete": "Your vocabulary, in context.",
+      "timeNote": "Illustration · not a speed benchmark"
+    },
+    "privacyTitle": "Local first. Connected when you choose.",
+    "privacyBody": "Materials, saved contexts and local dictionary data stay on your device. Webpage and YouTube imports, online dictionaries, translation and speech may make network requests. Optional cloud services receive the text needed for that action. Mac–iPhone sync transfers learning records directly over the local network; original media and device preferences stay on each device.",
+    "installTitle": "A reading habit starts with one file.",
+    "installBody": "Public downloads: v0.4.5 for macOS, Windows and Android. The features shown above are in main and will require a newer release or a source build.",
+    "installNote": "Check the release notes and platform installation guide before installing. No public iPhone package is offered.",
+    "installGuide": "Installation guide",
+    "support": "Support the author",
+    "license": "MIT license",
+    "footer": "Made for real content. Built in the open.",
+    "readme": {
+      "heading": "Learn English from your own materials",
+      "quick": "A simple learning loop",
+      "demos": "See the workflow",
+      "all": "Features",
+      "install": "Download & install",
+      "privacy": "Privacy & optional connections",
+      "support": "Support the project",
+      "development": "Development",
+      "license": "License",
+      "demoLinks": [
+        "Read and understand",
+        "Save with context",
+        "Recall on re-encounter"
+      ],
+      "limitations": "Screenshots show the current main-branch interface with sample data. They do not access your library or demonstrate live device sync."
+    },
+    "releaseNote": "Current main-branch features are described here. The latest public download is v0.4.5 (12 October 2026), which predates this reading workspace and Mac–iPhone sync. iPhone has been tested with a locally signed build; no public iPhone installer is available."
+  },
+  "zh": {
+    "tag": "读你喜欢的内容，记住真正会用的词。",
+    "hero": [
+      "读你想读的英文，",
+      "留下每一次理解。"
+    ],
+    "intro": "带来想读的英文文章、书籍或字幕。遇到不懂的词句再查，连同原句与理解一起保存，在下次遇见时唤回记忆。",
+    "eyebrow": "免费 · 开源 · 本地优先",
+    "download": "免费下载",
+    "github": "查看 GitHub",
+    "features": "看看怎么用",
+    "workflow": "导入材料 → 按需理解 → 保存语境 → 重遇回顾。",
+    "workflowSub": "围绕英文阅读展开，原句、释义与自己的理解始终相连。",
+    "extra": "细节到位，学习更顺手。",
+    "extraSub": "从你会的词开始，用熟悉的语言，掌握自己的数据。",
+    "play": "播放",
+    "pause": "暂停",
+    "replay": "重播",
+    "theme": "切换主题",
+    "sample": "交互示意 · 原创演示数据",
+    "next": "下个场景",
+    "reset": "重置",
+    "steps": [
+      "导入材料",
+      "按需理解",
+      "保存语境",
+      "重遇回顾"
+    ],
+    "stepDescriptions": [
+      "带来自己想读的英文内容。",
+      "需要时查词、看译文或听读。",
+      "留下原句、释义和自己的注释。",
+      "让今天的阅读唤起过去的相遇。"
+    ],
+    "titles": [
+      "带来自己的英文材料",
+      "读到不懂的词，随手查",
+      "需要时再翻译与听读",
+      "把理解连同语境一起保存",
+      "下次遇见，想起上一次",
+      "从上次读到的地方继续",
+      "整理自己的阅读桌面",
+      "四种界面语言，五种主题",
+      "学习资料留在自己手里",
+      "在 Mac 与 iPhone 之间接续"
+    ],
+    "descriptions": [
+      "支持 PDF、DOCX、EPUB、Markdown、TXT、SRT、VTT，也可粘贴英文正文、网页链接或 YouTube 链接，检查提取的内容后导入。",
+      "点选单词查词，或选择一段表达查看含义；释义与原文同时可见。",
+      "按需显示或隐藏中文译文，进入听读模式；有来源音频时可播放来源。朗读和翻译需相应服务可用。",
+      "保存单词或一段表达，同时保留原句、句子译文与可用的词典参考。可填写自己的解释或注释；词典参考不等于确认本句含义。",
+      "收藏过的表达会在后续阅读中高亮。打开过去的原句和注释，随时返回当时的材料。",
+      "再次打开材料时回到已保存的阅读位置。从收藏跳到来源后，也能返回此前的位置。",
+      "在桌面摆放材料卡，将暂时不读的材料收进材料库，按标题或彩色标签寻找。",
+      "学习目标为英语；界面可选中文、英语、日语、德语，支持海湾蓝、鼠尾草绿、琥珀暖光、暮光紫、深夜墨色五种主题，阅读中可调字号。",
+      "材料与语境收藏保存在本地，可在设置中导出与恢复备份；旧学习记录保留在“历史记录”中。",
+      "在“设置 → 设备同步”中配对一台 Mac 和一台 iPhone：扫描临时二维码，在两端核对验证码。连接可达时，材料、语境收藏、注释、标签和阅读位置通过局域网交换。"
+    ],
+    "ui": {
+      "files": "文件",
+      "words": "单词",
+      "phrases": "词组",
+      "review": "复习",
+      "progress": "统计",
+      "settings": "设置",
+      "preview": "导入预览",
+      "confirm": "加入资料库",
+      "imported": "开始阅读",
+      "local": "离线词典",
+      "explain": "分析短语",
+      "optional": "AI 可选 · 示例结果",
+      "found": "发现短语",
+      "meaning": "释义",
+      "usage": "原句用法",
+      "definition": "有意义的；重要的；有价值的。",
+      "phraseMeaning": "出现；被提及",
+      "phraseUsage": "这里的 comes up 指阅读中遇到一个新词。",
+      "original": "回到原文",
+      "learning": "学习中",
+      "known": "已掌握",
+      "unprocessed": "未处理",
+      "ignored": "已忽略",
+      "filter": "筛选",
+      "tags": "日常阅读",
+      "reveal": "显示答案",
+      "reviewed": "已记录这次复习",
+      "due": "已安排下一次复习",
+      "mastered": "已掌握",
+      "week": "近七日复习",
+      "index": "文件学习指数",
+      "baseline": "高频已知词",
+      "baselineHint": "English",
+      "baselineCheck": "复习时抽查少量已知词",
+      "languages": "界面语言",
+      "device": "你的设备",
+      "backup": "导出备份",
+      "restore": "本地恢复",
+      "encrypted": "加密传输",
+      "phone": "手机",
+      "syncNote": "Mac 与 iPhone · 局域网",
+      "offline": "本地 AI · 模型下载后离线运行",
+      "learn": "阅读习惯.srt",
+      "originalText": "原创演示文本",
+      "model": "Gemma 4 E4B",
+      "processing": "正在分析",
+      "complete": "在语境里，积累自己的词汇。",
+      "timeNote": "流程示意 · 不代表实际推理速度"
+    },
+    "privacyTitle": "默认本地，需要时再连接。",
+    "privacyBody": "材料、语境收藏与本地词典数据保存在设备上。网页与 YouTube 导入、在线词典、翻译和朗读可能发起联网请求；可选云服务会接收本次操作所需的文本。Mac–iPhone 同步通过局域网直接交换学习资料，媒体原件与设备偏好各自留机。",
+    "installTitle": "一份喜欢的内容，就是起点。",
+    "installBody": "公开下载为 v0.4.5，提供 macOS、Windows 与 Android 安装包。上方展示的功能已合入 main，需要后续版本或自行从源码构建。",
+    "installNote": "安装前请查看版本说明和对应平台的安装指南。暂不提供公开 iPhone 安装包。",
+    "installGuide": "安装指南",
+    "support": "支持作者",
+    "license": "MIT 许可证",
+    "footer": "从真实内容出发，公开构建。",
+    "readme": {
+      "heading": "用自己的材料读英语",
+      "quick": "简单的学习闭环",
+      "demos": "看看实际学习流程",
+      "all": "特色功能",
+      "install": "下载与安装",
+      "privacy": "隐私与可选联网",
+      "support": "支持项目",
+      "development": "开发",
+      "license": "许可证",
+      "demoLinks": [
+        "阅读与理解",
+        "保存语境",
+        "重遇回顾"
+      ],
+      "limitations": "截图来自当前主分支界面，使用样例数据，不访问个人资料库，也不演示真实设备同步。"
+    },
+    "releaseNote": "本文介绍当前 main 分支的功能。最新公开下载仍为 v0.4.5（2026 年 10 月 12 日），早于本次阅读工作区和 Mac–iPhone 同步。iPhone 已通过本地签名构建实测，尚无公开安装包。"
+  },
+  "ja": {
+    "tag": "好きなものを読んで、使える言葉を覚える。",
+    "hero": [
+      "読みたい英語を、",
+      "理解の積み重ねに。"
+    ],
+    "intro": "読みたい英語の記事、本、字幕を取り込みます。分からない語句だけを調べ、元の文と一緒に保存。次に出会ったときに、前の文脈を思い出せます。",
+    "eyebrow": "無料 · オープンソース · ローカル優先",
+    "download": "無料でダウンロード",
+    "github": "GitHub で見る",
+    "features": "使い方を見る",
+    "workflow": "取り込む → 必要なときに調べる → 文脈を保存 → 再会して思い出す。",
+    "workflowSub": "英語を読みながら、原文・意味・自分の理解をつなげます。",
+    "extra": "小さな工夫で、続けやすく。",
+    "extraSub": "知っている言葉から始めて、自分の言語とデータを大切に。",
+    "play": "再生",
+    "pause": "一時停止",
+    "replay": "最初から",
+    "theme": "テーマ切替",
+    "sample": "操作イメージ · オリジナルのサンプル",
+    "next": "次の場面",
+    "reset": "リセット",
+    "steps": [
+      "取り込む",
+      "必要なときに調べる",
+      "文脈を保存",
+      "再会して思い出す"
+    ],
+    "stepDescriptions": [
+      "読みたい英語の素材を用意。",
+      "単語検索・翻訳・聴読を必要に応じて。",
+      "元の文、意味、自分のメモを残す。",
+      "新しい読書から、以前の出会いへ。"
+    ],
+    "titles": [
+      "自分の英語素材を取り込む",
+      "読みながら単語を調べる",
+      "必要なときに翻訳・聴読する",
+      "意味を文脈と一緒に保存する",
+      "また出会ったときに思い出す",
+      "前回の位置から読み続ける",
+      "読む素材を整理する",
+      "4つの表示言語と5つのテーマ",
+      "データを自分の手元に",
+      "Mac と iPhone で続きを"
+    ],
+    "descriptions": [
+      "PDF、DOCX、EPUB、Markdown、TXT、SRT、VTTに対応。英語の本文、WebページやYouTubeのリンクも貼り付け、抽出内容を確認して取り込めます。",
+      "単語を選んで辞書を引くか、文章の一部を選んで意味を確認。原文を見ながら読めます。",
+      "中国語訳の表示を切り替え、聴読モードに入れます。元の音声があれば再生でき、読み上げと翻訳には対応サービスが必要です。",
+      "単語や表現とともに、元の文、文の訳、利用可能な辞書の参照を保存します。自分の説明やメモを添えられます。辞書の参照は、この文の意味を確定するものではありません。",
+      "保存済みの表現が後の読書で強調表示されます。以前の文とメモを開き、元の素材に戻れます。",
+      "素材を開き直すと、保存した読書位置に戻ります。保存した出典から元の画面へも戻れます。",
+      "デスクに素材カードを置き、後で読む素材はライブラリへ。タイトルや色付きタグで探せます。",
+      "学習対象は英語です。表示言語は英語・中国語・日本語・ドイツ語。5つのテーマと読書画面の文字サイズを選べます。",
+      "素材と保存した文脈は端末内に保管。設定からバックアップを入出力でき、以前の学習記録は履歴に残ります。",
+      "設定の「デバイス同期」で Mac 1台と iPhone 1台をペアリング。期限付きQRコードを読み取り、両端末でコードを照合します。接続可能な間、素材・文脈・メモ・タグ・読書位置をローカルネットワークで交換します。"
+    ],
+    "ui": {
+      "files": "ファイル",
+      "words": "単語",
+      "phrases": "フレーズ",
+      "review": "復習",
+      "progress": "統計",
+      "settings": "設定",
+      "preview": "取り込みの確認",
+      "confirm": "追加する",
+      "imported": "読書を開始",
+      "local": "オフライン辞書",
+      "explain": "フレーズ分析",
+      "optional": "AIは任意 · サンプル結果",
+      "found": "表現を検出",
+      "meaning": "意味",
+      "usage": "文中の用法",
+      "definition": "意味のある、価値のある。",
+      "phraseMeaning": "現れる・話題に上がる",
+      "phraseUsage": "ここでは読書中に新しい単語に出会うことを表します。",
+      "original": "原文に戻る",
+      "learning": "学習中",
+      "known": "習得済み",
+      "unprocessed": "未処理",
+      "ignored": "除外",
+      "filter": "絞り込み",
+      "tags": "日々の読書",
+      "reveal": "答えを見る",
+      "reviewed": "復習を記録しました",
+      "due": "次回の復習を設定",
+      "mastered": "習得済み",
+      "week": "過去7日間の復習",
+      "index": "ファイルの学習指数",
+      "baseline": "頻出の既知語",
+      "baselineHint": "English",
+      "baselineCheck": "復習で既知語を少しずつ確認",
+      "languages": "表示言語",
+      "device": "自分のデバイス",
+      "backup": "バックアップを書き出す",
+      "restore": "ローカルで復元",
+      "encrypted": "暗号化して転送",
+      "phone": "スマートフォン",
+      "syncNote": "Mac と iPhone · ローカルネットワーク",
+      "offline": "ローカルAI · モデル取得後はオフライン",
+      "learn": "読書習慣.srt",
+      "originalText": "オリジナルのサンプル",
+      "model": "Gemma 4 E4B",
+      "processing": "分析中",
+      "complete": "文脈の中で、自分の語彙を。",
+      "timeNote": "説明用 · 推論速度の実測ではありません"
+    },
+    "privacyTitle": "基本はローカル。接続は自分で選ぶ。",
+    "privacyBody": "素材、保存した文脈、ローカル辞書は端末に残ります。WebページやYouTubeの取得、オンライン辞書、翻訳、読み上げは通信する場合があります。任意のクラウドサービスには、その操作に必要な文章が送られます。Mac–iPhone 同期はローカルネットワークで資料を直接交換し、元のメディアと端末設定は各端末に残ります。",
+    "installTitle": "読みたい素材が、はじまり。",
+    "installBody": "公開版 v0.4.5 は macOS・Windows・Android向けです。上記機能は main に統合済みで、今後のリリースまたはソースからのビルドが必要です。",
+    "installNote": "導入前にリリースノートと環境別のインストール案内を確認してください。公開 iPhone パッケージはありません。",
+    "installGuide": "インストールガイド",
+    "support": "作者を支援",
+    "license": "MITライセンス",
+    "footer": "本物のコンテンツから。オープンに開発。",
+    "readme": {
+      "heading": "自分の素材で英語を読む",
+      "quick": "シンプルな学習の流れ",
+      "demos": "学習の流れを見る",
+      "all": "主な機能",
+      "install": "ダウンロードとインストール",
+      "privacy": "プライバシーと任意の接続",
+      "support": "プロジェクトを支援",
+      "development": "開発",
+      "license": "ライセンス",
+      "demoLinks": [
+        "読書と理解",
+        "文脈を保存",
+        "再会して思い出す"
+      ],
+      "limitations": "画面は現在の main ブランチとサンプルデータです。個人のライブラリや実際の端末同期には接続しません。"
+    },
+    "releaseNote": "ここでは現在の main ブランチの機能を紹介しています。公開ダウンロードは v0.4.5（2026年10月12日）で、この読書ワークスペースと Mac–iPhone 同期は含まれません。iPhone はローカル署名ビルドで実機確認済みですが、公開インストーラーはありません。"
+  },
+  "de": {
+    "tag": "Lies, was du liebst. Behalte die Wörter.",
+    "hero": [
+      "Lies Englisch, das dich interessiert.",
+      "Behalte, was du entdeckst."
+    ],
+    "intro": "Bringe englische Artikel, Bücher oder Untertitel mit. Schlage nur nach, wenn du es brauchst, speichere die Bedeutung mit dem Originalsatz und erinnere dich beim nächsten Auftauchen.",
+    "eyebrow": "KOSTENLOS · OPEN SOURCE · LOKAL",
+    "download": "Kostenlos herunterladen",
+    "github": "Auf GitHub ansehen",
+    "features": "In Aktion sehen",
+    "workflow": "Importieren → verstehen → im Kontext speichern → wiederbegegnen.",
+    "workflowSub": "Ein englischer Lesearbeitsplatz, der Originalsatz, Bedeutung und eigene Gedanken verbindet.",
+    "extra": "Kleine Details. Besser lernen.",
+    "extraSub": "Beginne mit Bekanntem. Lerne in deiner Sprache. Behalte deine Daten.",
+    "play": "Abspielen",
+    "pause": "Pause",
+    "replay": "Neu starten",
+    "theme": "Design wechseln",
+    "sample": "Interaktive Darstellung · eigene Beispieldaten",
+    "next": "Nächste Szene",
+    "reset": "Zurücksetzen",
+    "steps": [
+      "Importieren",
+      "Verstehen",
+      "Mit Kontext speichern",
+      "Beim Wiedersehen erinnern"
+    ],
+    "stepDescriptions": [
+      "Wähle englische Inhalte, die dich interessieren.",
+      "Schlage nach, übersetze oder höre bei Bedarf.",
+      "Behalte Satz, Bedeutung und eigene Notiz.",
+      "Verbinde neues Lesen mit früheren Begegnungen."
+    ],
+    "titles": [
+      "Deine englischen Materialien importieren",
+      "Beim Lesen Wörter nachschlagen",
+      "Bei Bedarf übersetzen und zuhören",
+      "Bedeutung und Kontext zusammen speichern",
+      "Beim Wiedersehen erinnern",
+      "An der letzten Stelle weiterlesen",
+      "Deinen Lesetisch ordnen",
+      "Vier Oberflächensprachen, fünf Themen",
+      "Die Kontrolle über deine Daten behalten",
+      "Zwischen Mac und iPhone weiterlesen"
+    ],
+    "descriptions": [
+      "Importiere PDF, DOCX, EPUB, Markdown, TXT, SRT oder VTT. Füge englischen Text, einen Webseiten- oder YouTube-Link ein und prüfe den extrahierten Inhalt vor dem Import.",
+      "Wähle ein Wort für die Wörterbuchsuche oder eine Passage für ihre Bedeutung. Der Originaltext bleibt sichtbar.",
+      "Blende chinesische Übersetzungen ein oder aus und starte den Hörmodus. Quellaudio wird verwendet, wenn verfügbar; Sprachausgabe und Übersetzung benötigen die jeweiligen Dienste.",
+      "Speichere Wörter oder Passagen mit Originalsatz, Satzübersetzung und verfügbarer Wörterbuchreferenz. Ergänze eine eigene Erklärung oder Notiz; die Referenz bestätigt keine Bedeutung für diesen Satz.",
+      "Gespeicherte Ausdrücke werden beim späteren Lesen hervorgehoben. Öffne frühere Sätze und Notizen und kehre zu ihrer Quelle zurück.",
+      "Öffne ein Material an der gespeicherten Leseposition. Von einer gespeicherten Quelle kannst du zur vorherigen Stelle zurückkehren.",
+      "Ordne Materialkarten auf dem Lesetisch, lege andere Materialien in der Bibliothek ab und suche nach Titel oder farbigen Tags.",
+      "Die Lernsprache ist Englisch. Die Oberfläche bietet Englisch, Chinesisch, Japanisch und Deutsch, fünf Themen und einstellbare Schriftgrößen im Lesebereich.",
+      "Materialien und gespeicherte Kontexte liegen lokal. Exportiere oder stelle Backups in den Einstellungen wieder her; frühere Lernaufzeichnungen bleiben im Verlauf verfügbar.",
+      "Kopple einen Mac und ein iPhone unter Einstellungen → Gerätesynchronisierung. Scanne den zeitlich begrenzten QR-Code und vergleiche den Code auf beiden Geräten. Erreichbare Apps tauschen Materialien, Kontexte, Notizen, Tags und Lesepositionen im lokalen Netzwerk aus."
+    ],
+    "ui": {
+      "files": "Dateien",
+      "words": "Wörter",
+      "phrases": "Wendungen",
+      "review": "Wiederholen",
+      "progress": "Statistik",
+      "settings": "Einstellungen",
+      "preview": "Importvorschau",
+      "confirm": "Zur Bibliothek",
+      "imported": "Bereit zum Lesen",
+      "local": "Offline-Wörterbuch",
+      "explain": "Wendungen analysieren",
+      "optional": "KI optional · Beispielergebnis",
+      "found": "Wendung erkannt",
+      "meaning": "Bedeutung",
+      "usage": "In diesem Satz",
+      "definition": "Bedeutsam; sinnvoll; von echtem Wert.",
+      "phraseMeaning": "auftauchen oder erwähnt werden",
+      "phraseUsage": "Hier beschreibt „comes up“ ein neues Wort beim Lesen.",
+      "original": "Zum Original",
+      "learning": "In Bearbeitung",
+      "known": "Beherrscht",
+      "unprocessed": "Neu",
+      "ignored": "Ignoriert",
+      "filter": "Filtern",
+      "tags": "Tägliches Lesen",
+      "reveal": "Antwort zeigen",
+      "reviewed": "Wiederholung gespeichert",
+      "due": "Nächste Wiederholung geplant",
+      "mastered": "Beherrscht",
+      "week": "Letzte 7 Tage",
+      "index": "Lernindex der Datei",
+      "baseline": "Häufige bekannte Wörter",
+      "baselineHint": "English",
+      "baselineCheck": "Bekannte Wörter bei der Wiederholung prüfen",
+      "languages": "Oberflächensprachen",
+      "device": "Dein Gerät",
+      "backup": "Backup exportieren",
+      "restore": "Lokal wiederherstellen",
+      "encrypted": "Verschlüsselte Übertragung",
+      "phone": "Handy",
+      "syncNote": "Mac und iPhone · Lokales Netzwerk",
+      "offline": "Lokale KI · offline nach Modelldownload",
+      "learn": "Lesegewohnheit.srt",
+      "originalText": "Eigener Beispieltext",
+      "model": "Gemma 4 E4B",
+      "processing": "Analyse läuft",
+      "complete": "Dein Wortschatz, im Kontext.",
+      "timeNote": "Darstellung · kein Geschwindigkeitstest"
+    },
+    "privacyTitle": "Lokal zuerst. Verbunden, wenn du willst.",
+    "privacyBody": "Materialien, gespeicherte Kontexte und lokale Wörterbücher bleiben auf deinem Gerät. Webseiten- und YouTube-Import, Online-Wörterbücher, Übersetzung und Sprachausgabe können Netzwerkzugriffe auslösen. Optionale Cloud-Dienste erhalten den für die Aktion benötigten Text. Die Mac–iPhone-Synchronisierung überträgt Lerndaten direkt im lokalen Netzwerk; Originalmedien und Geräteeinstellungen bleiben jeweils vor Ort.",
+    "installTitle": "Eine interessante Datei ist der Anfang.",
+    "installBody": "Öffentlicher Download: v0.4.5 für macOS, Windows und Android. Die oben gezeigten Funktionen sind in main und benötigen einen neueren Release oder einen Build aus dem Quellcode.",
+    "installNote": "Lies vor der Installation die Release-Hinweise und die Plattformanleitung. Ein öffentliches iPhone-Paket wird noch nicht angeboten.",
+    "installGuide": "Installationsanleitung",
+    "support": "Autor unterstützen",
+    "license": "MIT-Lizenz",
+    "footer": "Echte Inhalte. Offen entwickelt.",
+    "readme": {
+      "heading": "Englisch mit eigenen Materialien lesen",
+      "quick": "Ein einfacher Lernkreislauf",
+      "demos": "Den Lernweg ansehen",
+      "all": "Funktionen",
+      "install": "Download und Installation",
+      "privacy": "Datenschutz und optionale Verbindungen",
+      "support": "Projekt unterstützen",
+      "development": "Entwicklung",
+      "license": "Lizenz",
+      "demoLinks": [
+        "Lesen und verstehen",
+        "Mit Kontext speichern",
+        "Beim Wiedersehen erinnern"
+      ],
+      "limitations": "Die Screenshots zeigen die aktuelle main-Oberfläche mit Beispieldaten. Sie greifen weder auf deine Bibliothek noch auf echte Gerätesynchronisierung zu."
+    },
+    "releaseNote": "Beschrieben ist der aktuelle main-Zweig. Der öffentliche Download v0.4.5 (12. Oktober 2026) enthält diesen Lesearbeitsplatz und die Mac–iPhone-Synchronisierung noch nicht. Das iPhone wurde mit einem lokal signierten Build geprüft; ein öffentlicher iPhone-Installer fehlt."
+  }
 };
-export const features = featureIds.map((id, index) => ({id,index,seconds:8,core:index<6,limitations:id==='phrases'?'Fixed sample output; not a benchmark':id==='sync'?'Process illustration; no live sync':null}));
-export const horizontalTimeline = [
- {start:0,end:6,id:'intro',subtitle:'喜欢的内容，也能成为你的词汇库。'},
- {start:6,end:16,id:'import',subtitle:'导入一份字幕，从你真正感兴趣的内容开始。'},
- {start:16,end:31,id:'lookup',subtitle:'读到生词，点一下就能查。在原句里理解，继续往下读。'},
- {start:31,end:46,id:'phrases',subtitle:'可选 AI 帮你发现短语，理解它在这句话里的用法。'},
- {start:46,end:58,id:'collect',subtitle:'标注、筛选、整理。每个词都能回到你遇见它的地方。'},
- {start:58,end:70,id:'review',subtitle:'带着原句复习，让下一次相遇更有把握。'},
- {start:70,end:74,id:'progress',subtitle:'学习进度看得见。'},
- {start:74,end:77,id:'baseline',subtitle:'从已知的高频词起步。'},
- {start:77,end:80,id:'languages',subtitle:'四种语言，明亮与午夜主题。'},
- {start:80,end:83,id:'privacy',subtitle:'默认本地，数据由你掌握。'},
- {start:83,end:86,id:'sync',subtitle:'可选加密同步，让学习接续。'},
- {start:86,end:90,id:'outro',subtitle:'LexiCue，免费开源。带来一份喜欢的内容，就从这里开始。'}
+export const features=featureIds.map((id,index)=>({id,index,seconds:8,core:index<6,limitations:id==='sync'?'Current main; Mac and iPhone only':null}));
+export const horizontalTimeline=[
+  {
+    "start": 0,
+    "end": 6,
+    "id": "intro",
+    "subtitle": "喜欢的内容，也能成为你的词汇库。"
+  },
+  {
+    "start": 6,
+    "end": 16,
+    "id": "import",
+    "subtitle": "导入一份字幕，从你真正感兴趣的内容开始。"
+  },
+  {
+    "start": 16,
+    "end": 31,
+    "id": "lookup",
+    "subtitle": "读到生词，点一下就能查。在原句里理解，继续往下读。"
+  },
+  {
+    "start": 31,
+    "end": 46,
+    "id": "phrases",
+    "subtitle": "可选 AI 帮你发现短语，理解它在这句话里的用法。"
+  },
+  {
+    "start": 46,
+    "end": 58,
+    "id": "collect",
+    "subtitle": "标注、筛选、整理。每个词都能回到你遇见它的地方。"
+  },
+  {
+    "start": 58,
+    "end": 70,
+    "id": "review",
+    "subtitle": "带着原句复习，让下一次相遇更有把握。"
+  },
+  {
+    "start": 70,
+    "end": 74,
+    "id": "progress",
+    "subtitle": "学习进度看得见。"
+  },
+  {
+    "start": 74,
+    "end": 77,
+    "id": "baseline",
+    "subtitle": "从已知的高频词起步。"
+  },
+  {
+    "start": 77,
+    "end": 80,
+    "id": "languages",
+    "subtitle": "四种语言，明亮与午夜主题。"
+  },
+  {
+    "start": 80,
+    "end": 83,
+    "id": "privacy",
+    "subtitle": "默认本地，数据由你掌握。"
+  },
+  {
+    "start": 83,
+    "end": 86,
+    "id": "sync",
+    "subtitle": "可选加密同步，让学习接续。"
+  },
+  {
+    "start": 86,
+    "end": 90,
+    "id": "outro",
+    "subtitle": "LexiCue，免费开源。带来一份喜欢的内容，就从这里开始。"
+  }
 ];
-export const verticalTimeline = [
- {start:0,end:3,id:'intro',subtitle:'喜欢的内容，就是你的词汇库。'},
- {start:3,end:6,id:'import',subtitle:'导入一段你想读的字幕。'},
- {start:6,end:10,id:'lookup',subtitle:'点词即查，继续阅读。'},
- {start:10,end:17,id:'phrases',subtitle:'在原句里，理解短语。AI 可选。'},
- {start:17,end:20,id:'collect',subtitle:'把遇到的词积累下来。'},
- {start:20,end:23,id:'review',subtitle:'带着原句，再复习一次。'},
- {start:23,end:24,id:'progress',subtitle:'进步看得见。'},
- {start:24,end:26,id:'privacy',subtitle:'本地优先，免费开源。'},
- {start:26,end:27,id:'sync',subtitle:'可选加密同步。'},
- {start:27,end:30,id:'outro',subtitle:'LexiCue，从喜欢的内容开始。'}
+export const verticalTimeline=[
+  {
+    "start": 0,
+    "end": 3,
+    "id": "intro",
+    "subtitle": "喜欢的内容，就是你的词汇库。"
+  },
+  {
+    "start": 3,
+    "end": 6,
+    "id": "import",
+    "subtitle": "导入一段你想读的字幕。"
+  },
+  {
+    "start": 6,
+    "end": 10,
+    "id": "lookup",
+    "subtitle": "点词即查，继续阅读。"
+  },
+  {
+    "start": 10,
+    "end": 17,
+    "id": "phrases",
+    "subtitle": "在原句里，理解短语。AI 可选。"
+  },
+  {
+    "start": 17,
+    "end": 20,
+    "id": "collect",
+    "subtitle": "把遇到的词积累下来。"
+  },
+  {
+    "start": 20,
+    "end": 23,
+    "id": "review",
+    "subtitle": "带着原句，再复习一次。"
+  },
+  {
+    "start": 23,
+    "end": 24,
+    "id": "progress",
+    "subtitle": "进步看得见。"
+  },
+  {
+    "start": 24,
+    "end": 26,
+    "id": "privacy",
+    "subtitle": "本地优先，免费开源。"
+  },
+  {
+    "start": 26,
+    "end": 27,
+    "id": "sync",
+    "subtitle": "可选加密同步。"
+  },
+  {
+    "start": 27,
+    "end": 30,
+    "id": "outro",
+    "subtitle": "LexiCue，从喜欢的内容开始。"
+  }
 ];

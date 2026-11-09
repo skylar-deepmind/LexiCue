@@ -1,0 +1,684 @@
+{
+  "latestCapture": {
+    "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+    "capturedAt": "2026-11-09",
+    "recaptured": [
+      "zh/saved-midnight-mobile.webp"
+    ]
+  },
+  "scope": "Current application React components rendered in Chromium desktop/mobile emulation. Original English sample materials and existing Chinese translations; personal note in Chinese. Native I/O uses ui-reading-support and a dedicated disposable SQLite test bridge. Speech is silent; dictionary fallback may fetch online. No personal library, pairing or physical-device acceptance.",
+  "images": [
+    {
+      "path": "en/lookup-midnight-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "en/lookup-midnight-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "en/lookup-ocean-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "en/lookup-ocean-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "en/materials-midnight-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "en/materials-midnight-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "en/materials-ocean-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "en/materials-ocean-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "en/reading-midnight-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "en/reading-midnight-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "en/reading-ocean-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "en/reading-ocean-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "en/recall-midnight-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "en/recall-midnight-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "en/recall-ocean-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "en/recall-ocean-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "en/saved-midnight-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "en/saved-midnight-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "en/saved-ocean-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "en/saved-ocean-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "en/settings-midnight-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "en/settings-midnight-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "en/settings-ocean-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "en/settings-ocean-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "zh/lookup-midnight-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "zh/lookup-midnight-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "zh/lookup-ocean-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "zh/lookup-ocean-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "zh/materials-midnight-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "zh/materials-midnight-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "zh/materials-ocean-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "zh/materials-ocean-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "zh/reading-midnight-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "zh/reading-midnight-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "zh/reading-ocean-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "zh/reading-ocean-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "zh/recall-midnight-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "zh/recall-midnight-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "zh/recall-ocean-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "zh/recall-ocean-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "zh/saved-midnight-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "zh/saved-midnight-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "zh/saved-ocean-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "zh/saved-ocean-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "zh/settings-midnight-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "zh/settings-midnight-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "zh/settings-ocean-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "zh/settings-ocean-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "ja/lookup-midnight-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "ja/lookup-midnight-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "ja/lookup-ocean-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "ja/lookup-ocean-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "ja/materials-midnight-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "ja/materials-midnight-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "ja/materials-ocean-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "ja/materials-ocean-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "ja/reading-midnight-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "ja/reading-midnight-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "ja/reading-ocean-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "ja/reading-ocean-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "ja/recall-midnight-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "ja/recall-midnight-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "ja/recall-ocean-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "ja/recall-ocean-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "ja/saved-midnight-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "ja/saved-midnight-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "ja/saved-ocean-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "ja/saved-ocean-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "ja/settings-midnight-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "ja/settings-midnight-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "ja/settings-ocean-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "ja/settings-ocean-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "de/lookup-midnight-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "de/lookup-midnight-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "de/lookup-ocean-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "de/lookup-ocean-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "de/materials-midnight-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "de/materials-midnight-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "de/materials-ocean-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "de/materials-ocean-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "de/reading-midnight-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "de/reading-midnight-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "de/reading-ocean-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "de/reading-ocean-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "de/recall-midnight-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "de/recall-midnight-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "de/recall-ocean-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "de/recall-ocean-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "de/saved-midnight-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "de/saved-midnight-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "de/saved-ocean-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "de/saved-ocean-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "de/settings-midnight-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "de/settings-midnight-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "de/settings-ocean-desktop.webp",
+      "width": 1280,
+      "height": 850,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    },
+    {
+      "path": "de/settings-ocean-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "source": "605ca6fa1f5c6a530de3c6e5f1e48bce5bfe3714",
+      "capturedAt": "2026-11-09"
+    }
+  ]
+}

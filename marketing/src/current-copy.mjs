@@ -1,0 +1,13 @@
+const rows={
+ gallery:['Current reading workspace','当前阅读工作区','現在の読書ワークスペース','Aktueller Lesearbeitsplatz'],
+ materials:['Materials','材料','素材','Materialien'],reading:['Reading','阅读','読書','Lesen'],lookup:['Lookup','查词','辞書検索','Nachschlagen'],saved:['Saved','已保存','保存済み','Gespeichert'],recall:['Re-encounter','重遇回顾','再会して振り返る','Wiederbegegnung'],settings:['Settings','设置','設定','Einstellungen'],
+ screenshots:['Current main interface · original sample data','当前 main 界面 · 原创样例数据','現在の main の画面 · オリジナルのサンプル','Aktuelle main-Oberfläche · eigene Beispieldaten'],
+ enlarge:['Open full-size screenshot','打开完整截图','画面を原寸で開く','Screenshot in voller Größe öffnen'],
+ features:['What you can do now in main','当前主分支可以做什么','現在の main でできること','Was aktuell in main möglich ist'],
+ source:['View source and build instructions','查看源码与构建说明','ソースとビルド手順','Quellcode und Build-Anleitung'],
+ current:['Current main · public release status below','当前 main · 公开版本状态见下方','現在の main · 公開版の状況は下記','Aktuelles main · öffentlicher Release unten'],
+ captions:[['Your current reading on the desk; other materials stay in the library.','正在读的材料放在桌面，其他材料收进材料库。','今読む素材はデスクに、ほかの素材はライブラリに。','Aktuelle Lektüre auf dem Lesetisch, weitere Materialien in der Bibliothek.'],['Read English with optional Chinese text and listening controls.','阅读英文，按需显示中文与使用听读控件。','英語を読み、必要に応じて中国語訳と聴読を利用。','Lies Englisch mit optionaler chinesischer Übersetzung und Hörsteuerung.'],["Read a dictionary result and save a reference with the original sentence.","查看词典结果，将参考连同原句一起保存。","辞書の結果を読み、参照を元の文と一緒に保存。","Lies das Wörterbuchergebnis und speichere eine Referenz mit dem Originalsatz."],['Search saved expressions and edit each context’s own note.','搜索已保存的表达，为每条语境编辑自己的注释。','保存した表現を探し、文脈ごとのメモを編集。','Suche gespeicherte Ausdrücke und bearbeite die Notiz jedes Kontexts.'],['An expression in new reading reconnects you with its earlier context.','新的阅读里遇见旧表达，回顾上一次的语境。','新しい読書で以前の表現に出会い、過去の文脈へ。','Ein Ausdruck in neuer Lektüre führt zu seinem früheren Kontext.'],['Shared settings groups on Mac and iPhone, with platform-specific actions.','Mac 与 iPhone 共用设置分组，具体操作随平台调整。','Mac と iPhone で共通の設定グループ。操作は環境に対応。','Gemeinsame Einstellungsgruppen für Mac und iPhone mit passenden Plattformaktionen.']]
+};
+export const currentCopy=Object.fromEntries(['en','zh','ja','de'].map((l,i)=>[l,Object.fromEntries(Object.entries(rows).map(([k,v])=>[k,k==='captions'?v.map(row=>row[i]):v[i]]))]));
+export const screenshotScenes=['materials','reading','lookup','saved','recall','settings'];
+export const screenshotPath=(locale,scene,theme,device='desktop')=>`media/current/${locale}/${scene}-${theme}-${device}.webp`;

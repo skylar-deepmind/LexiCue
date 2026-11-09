@@ -1,142 +1,67 @@
-# LexiCue marketing studio
+# LexiCue marketing sources
 
-An interactive product experience, a four-language illustrated manual, real product components, and the existing README/video studio. Production app behavior, native commands and persisted stores are not changed.
+The four README files, homepage and eight guide chapters describe the current English reading workspace in `main`: import material, understand on demand, save context and recall on re-encounter. The published download version is stated separately; a successful site build does not publish an installer or deploy GitHub Pages.
 
-## Local preview
+## Content and generated files
+
+- `src/catalogue.mjs` contains the shared English, Simplified Chinese, Japanese and German product copy. English is the learning language; these four choices are interface languages.
+- `scripts/readmes.mjs` generates the four root README files. Their illustrations use current screenshots rather than the old vocabulary/review GIFs.
+- `src/main.tsx`, `src/CurrentWorkspace.tsx` and `src/current-copy.mjs` render the homepage and its six-scene screenshot gallery. It shows Materials, Reading, Lookup, Saved, Re-encounter and Settings. It does not run the retired interactive sample or connect to native services.
+- `src/manual-content.mjs` is the four-language guide source. `manual-render.mjs` renders the same sections for React and static HTML. Existing chapter URLs remain valid; the old vocabulary/review/insights URLs now explain saved contexts, re-encounters, reading position and history.
+- `npm run build` generates `../docs/` homepage and guide entry points, `_marketing/` assets and the sitemap. Technical Markdown documents are preserved. Static HTML includes the current feature descriptions and public-release distinction before JavaScript loads.
+
+Current screenshots live at:
+
+```text
+docs/media/current/{en,zh,ja,de}/{scene}-{ocean,midnight}-{desktop,mobile}.webp
+```
+
+Scenes are `materials`, `reading`, `lookup`, `saved`, `recall` and `settings`. Desktop images are 1280×850; mobile images are 390×844. The website selects the matching interface language, theme and viewport, and opens that same image when enlarged. Social previews use the current reading screenshot.
+
+The images were captured from the current product frontend using original English sample materials. Native IPC uses the existing `scripts/ui-reading-support.mjs` fixtures and a temporary SQLite test bridge; no personal learning database is read. Chinese translations and personal notes are sample learning content and remain Chinese when the interface language changes. This is browser emulation of desktop and mobile layouts, not a physical-device or live-sync acceptance test.
+
+## Capture current screenshots
+
+Start a dedicated product frontend and the disposable reading test bridge used by `scripts/ui-reading-support.mjs`. Set `LEXICUE_READING_BRIDGE_INFO` to its info JSON (it must declare `temporary: true`) and `LEXICUE_UI_URL` to that frontend’s local URL, then run:
 
 ```sh
-npm ci # repository root: dependencies of the reused product components
-cd marketing
+node marketing/scripts/current-assets.mjs
+```
+
+The generator uses original sample materials and writes compressed screenshots plus a manifest recording the source revision, dimensions and isolation scope. It requires Ego Browser, the product test bridge, root dependencies and marketing dependencies. It refuses a non-disposable bridge or remote frontend. `LEXICUE_ASSET_LOCALES`, `LEXICUE_ASSET_THEMES`, `LEXICUE_ASSET_DEVICES` and `LEXICUE_ASSET_SCENES` can select a refresh subset. `LEXICUE_EGO_SPACE` and `LEXICUE_EGO_PAGE` reuse an existing browser task; serialize capture and QA.
+
+## Regenerate and verify
+
+Install the root and marketing dependencies from their respective lockfiles when missing:
+
+```sh
 npm ci
-npm run dev
+npm --prefix marketing ci
+node marketing/scripts/readmes.mjs
+npm --prefix marketing run build
+npm --prefix marketing run check
+npm --prefix marketing test
 ```
 
-Open http://127.0.0.1:4180/?lang=zh (`en`, `ja`, `de` also work). The homepage uses six original sample files, an additional sample import and an isolated stateful experience. The frame-based video scenes retain their original three-sentence excerpt. `adapter.ts` replaces native I/O, dictionary requests, preferences, and speech only in this build. Unknown native calls fail closed. No model inference, download, sync, account or personal database access occurs.
-
-## Build and regenerate
-
-Requires Node.js 22.12+ (Node 24 used for this delivery), Chrome and FFmpeg with H.264/AAC/GIF encoders.
+Serve the repository in a separate terminal and check the built site:
 
 ```sh
-npm run build
-# Serve the repository on 127.0.0.1:4190 in a separate terminal.
-npm run assets:guide
-npm run build # incorporates the captured image dimensions
-npm run check
-npm test
-npm run test:ui
-npm run test:states
-npm run test:home
-npm run test:contrast
+python3 -m http.server 4190 --bind 127.0.0.1
+npm --prefix marketing run test:ui
 ```
 
-`build` writes only the website entry points, localized `guide/<chapter>/` pages, `_marketing`, icon and sitemap in `../docs`. Existing technical Markdown documents remain intact. GitHub Pages can continue serving the repository's `docs/` directory. The language-independent static HTML is present before JavaScript loads, with real language-specific metadata and alternate URLs.
+`test:ui` uses Ego Browser for homepage and guide acceptance. It checks all four interface languages, ocean/midnight, 390/768/1440px widths, keyboard scene switching, matching image links, focus, contrast, direct feature links, guide image enlargement and static content without JavaScript. Reports and desktop/mobile screenshots are written to `output/marketing/qa/current-site/`. `test:home` and `test:manual` limit the run to the corresponding surface. `LEXICUE_STATIC_URL` overrides the default `http://127.0.0.1:4190/docs/`.
 
-`assets:guide` captures 32 clean fallback posters from the isolated manual demo and records intrinsic image dimensions. It adds no numbered annotations. `assets` produces the original WebP screenshots and social images. To refresh the four looping README GIFs, first export the final horizontal video, then run `npm run assets:readme-gifs`. It crops the file/tag overview, lookup, phrase and review actions from the clean horizontal MP4, omits video captions and saves the shared clips under `docs/media/demo/`, referenced by all four README locales. Each GIF stays under 3 MiB. `copy` in `src/catalogue.mjs` is the shared source of truth for the README, static page, website and Chinese video scripts. Run the generator after changing it. App UI translations continue to come from the product locale files.
+When a browser task already owns an Ego TaskSpace, pass `LEXICUE_EGO_SPACE` and `LEXICUE_EGO_PAGE` to reuse it; serialize browser runs. `LEXICUE_QA_LOCALES`, `LEXICUE_QA_THEMES` and `LEXICUE_QA_WIDTHS` can limit a diagnostic run. The default command automatically divides the matrix into short locale/theme/width rounds in one task space. A standalone run creates that space once and closes it after all rounds pass. Native permissions, speech, file dialogs and device sync require their separate product acceptance checks.
 
-## Video exports
+The content check validates translated structure, current-format claims, release wording, screenshot paths, generated links and TypeScript. Existing demo-model tests remain regression coverage for the archived renderer; they are not evidence for current native product behavior.
 
-Download the attribution-required official track, then render locally:
+## Archived videos and scenes
 
-```sh
-mkdir -p public/audio
-curl -fL 'https://incompetech.com/music/royalty-free/mp3-royaltyfree/Carefree.mp3' -o public/audio/carefree.mp3
-python3 scripts/audio.py
-npm run build
-node scripts/stills.mjs
-npm run render
-```
+`Sandbox.tsx`, `Scene.tsx`, `DocumentPlayer.tsx`, the demo model and existing video/asset scripts are retained for older film projects. Their vocabulary status, scheduled review, statistics and baseline flows describe an earlier product. They are not mounted by the current homepage, and the old `capture`/`doc-capture` query routes are no longer public page modes.
 
-Outputs are in `../output/marketing/`: 90-second 1920×1080 and 30-second 1080×1920 MP4s, clean MP4s, SRTs, covers and audio mixes. All video variants are 30 fps, H.264 yuv420p and AAC. `LEXICUE_RENDER_ONLY=Horizontal` or `Vertical` limits export to one layout. `LEXICUE_CHROME` can override the browser executable path; on macOS the default is Google Chrome. Preview and screenshot tests use the installed `chrome` channel. `LEXICUE_MARKETING_URL` overrides the preview URL for checks/assets.
+Do not regenerate current guide or README illustrations with the archived `assets:guide`, `assets`, or README GIF commands. Capture current product components with isolated sample data instead. Video exports and old media remain untouched by this documentation update. Archived rendering commands and asset provenance are documented in the corresponding script sources and [asset licenses](ASSET-LICENSES.md).
 
-Scene timing depends on the frame, not wall time. Capturing `?capture=1&scene=lookup&lang=zh&theme=midnight&frame=165&portrait=1` renders a fixed state. Video/README scenes retain their frame-based renderer. The manual now animates the current `Sandbox` through real sample actions using its own in-memory state and external play/pause/replay controls. Neither changes real learning records. The sample insights animate example data; they are not a claim about measured learning outcomes. AI samples are not speed benchmarks; sync is explicitly a process illustration.
+## Publication
 
-`node scripts/refresh-scenes.mjs` can update selected scenes without rendering unchanged scenes, when both timelines and the layout are unchanged. Set `LEXICUE_REFRESH_SCENES=lookup,review` to choose scene IDs. It checks the delivery manifest's timelines before updating all four final videos and their raw picture masters. Use full `render` after changing timing or layout. After sound edits, run `python3 scripts/audio.py` and `node scripts/remix.mjs`. Sound is normalized to a -20 LUFS target, with fades and peak control. Final export converts the renderer's full-range pictures to standard limited-range yuv420p for broad player compatibility.
-
-For final static-path checks, serve the repository locally and run `node scripts/production.mjs` (`LEXICUE_STATIC_URL` overrides the default `http://127.0.0.1:4190/docs/`). The compatibility entries `scripts/qa.mjs` and `scripts/production.mjs` both run the current experience/manual checks; one `npm run test:ui` run is enough. Run `node scripts/verify-videos.mjs` to check all final MP4s and generate full-duration contact sheets. `node scripts/delivery.mjs` generates the local delivery index, publishing copy, original SRT and provenance manifest.
-
-## Publishing
-
-This workflow never pushes Git commits, deploys, or uploads a video. Publish the changed `docs/` and README files yourself. Use the chapter list and attribution in the local delivery's `PUBLISHING.md` for Bilibili or other platforms. See [asset licenses](ASSET-LICENSES.md) before publishing.
-
-Large videos, audio mixes and frame intermediates are ignored by Git. `public/audio`, renderer caches, generated CSS and dependency folders are also ignored. Lightweight website/README assets and source remain tracked.
-
-Current renders use macOS system fonts (PingFang SC and Hiragino among others). To match them exactly, use the same installed fonts. Other platforms will use their system sans-serif fallback.
-
-## Interactive experience
-
-The homepage keeps five product modules in a fixed 695px window. `HomePosition.ts` restores current-tab page and inner scroll positions. Navbar language changes update both the website and sample; the sample’s own language/theme settings remain independent until the next navbar language selection. Homepage tips, lookup drawers, review records, backups and reset are managed separately from documentation.
-
-`DemoSession` uses current-tab storage. `migrateSession` upgrades the earlier sample filenames to SRT while retaining file IDs, tags, status, selected module and review position. Corrupt snapshots reset safely. Builds write the seven original, timed SRT files into `samples/` and `docs/media/samples/`. All current sample files use SRT; old extensions occur only in compatibility code and tests.
-
-Run `test:ui`, `test:home`, `test:contrast`, `test:states`, `test:drawers` and `test:locales` for affected homepage behavior. `Scene` retains the existing video/GIF composition defaults; the homepage does not mount it.
-
-## Standard product documentation
-
-`src/manual-content.mjs` is the shared four-language source for the installed-product guide. Stable chapter and section IDs power translated routes and links. `manual-render.mjs` renders the same complete text, steps and figures for React and static no-JavaScript pages. `ManualPage` adds a native, keyboard-accessible screenshot lightbox. Guide pages have no sample app, automatic animation or sample-session writes.
-
-English routes use `/guide/<chapter>/`; other languages use `/<locale>/guide/<chapter>/`. A repository preview prefixes them with `/docs/`. Navbar language links retain the chapter and section. Public navigation includes online experience, user guide, download and author support on every page.
-
-The guide covers all nine installed settings; the online sample keeps its four selected settings. `ManualCapture.tsx` and `capture-adapter.ts` provide an isolated screenshot route. Installed settings and file/tag screenshots use actual product components; lookup/review/statistics screenshots use the existing component adapter. Native writes and connections are blocked. The capture renders both ocean and midnight with fixed sample data, without numbered overlays. No user library is accessed.
-
-```sh
-npm run build
-npm run assets:guide
-npm run build
-npm run check
-npm test
-npm run test:manual
-```
-
-The screenshot generator uses Chrome and Sharp and updates `src/guide-image-sizes.json`. Set `LEXICUE_GUIDE_CHAPTERS=settings` for a limited refresh. `test:manual` checks all four languages at 390/768/1440px in ocean/midnight, static content, anchors, image enlargement, support/navigation links and sample-state preservation. Its report is saved to `../output/marketing/qa/manual/report.json`.
-
-## SRT-only publicity updates
-
-All import claims use SRT. YouTube is a separate subtitle source, not a file format. Keep `catalogue.mjs`, README generation, documentation, sample filenames, published images and video descriptions consistent.
-
-```sh
-node scripts/readmes.mjs
-npm run build
-npm run assets:import
-LEXICUE_REFRESH_SCENES=import node scripts/refresh-scenes.mjs
-node scripts/verify-videos.mjs
-node scripts/delivery.mjs
-```
-
-`assets:import` changes only the four import illustrations. The scene refresh replaces the affected sequence in all four horizontal/vertical MP4 variants while retaining audio, durations and other scenes. Do not run the full assets command for this correction: the lookup/phrase/review GIFs and video covers do not need changes. Full renders remain available when the timeline or layout changes.
-
-## 宣传视频改版预览（独立于官网）
-
-运行 `npm --prefix marketing run preview:video`，然后通过现有静态服务器打开 `/output/marketing/video-preview/`。预览提供 76 秒横版与 28 秒竖版、播放／暂停／重播、分镜跳转和配乐试听。它不会更新 `docs/` 或覆盖既有 MP4。
-
-- `src/video-revision.mjs`：独立分镜、中文字幕和作者介绍。横版作者片尾为 68–76 秒，竖版为 24–28 秒。
-- `src/video-snapshot.mjs`：按帧确定样例状态，查词、标签和评分结果均可重播。
-- `scripts/video-fixture.mjs`：从已确认的 `Sandbox.tsx` 生成只读的 `generated/VideoSandbox.tsx`，阻止存储与原视图效果；不要直接编辑生成文件。源码结构变化时，适配器会报错提示更新。
-- `src/RevisedVideo.tsx`：新版横竖构图、按实际控件位置计算的点击光标、查词抽屉／底部弹层及作者片尾。
-- `src/video-revision-entry.tsx`：正式 Remotion 合成入口（RevisedHorizontal / RevisedVertical）；当前正式视频的合成入口。旧 `video.tsx` 及其导出流程保持原样。
-- `public/author/skylar-github.png`：作者明确要求加入的公开 GitHub 头像；来源 https://avatars.githubusercontent.com/u/173658591?s=512&v=4，主页 https://github.com/skylar-deepmind。作者介绍使用已确认的「Skylar · LexiCue 作者｜欢迎关注我的 GitHub，发现更多开源项目」。不使用关注数或其他项目的宣传数据。
-
-浏览器检查：`npm --prefix marketing run test:video-preview`，通过 Chrome 验证两个画幅、所有分镜、SRT 口径、五项导航、抽屉方向、点击目标、头像链接和不同尺寸的预览控制；截图和报告写入 `output/marketing/video-preview/`。构建预览会重建该目录，请在构建之后运行检查。
-
-预览配乐沿用现有的 Carefree（Kevin MacLeod，CC BY 4.0），来源与署名见既有 `output/marketing/ASSET-LICENSES.md`。预览音轨仅含配乐，不沿用旧时间轴的点击音效。正式导出时需按新点击时点重建轻音效、更新字幕与发布说明，再做完整音画检查。
-
-本轮视频视觉调整：语言与主题位于倒数第二段（横版 60–68 秒，竖版 20–24 秒），按 ocean → sage → amber → twilight → midnight 展示；此前所有分镜保持 ocean。彩色切换使用按帧插值，语义主题变量直接从产品与宣传样式生成到 `generated/video-theme-tokens.mjs`。
-
-片尾使用白色与 midnight 两层相同内容，由 `closingBoundary()` 按帧计算遮罩：从全白进入半白半黑，约 1.5 秒后分界线缓慢波动，直到结束。横版左右分色，竖版上下分色；两个遮罩层使文字在两种背景下均保持对应的主题颜色。预览已确认并导出新版成片；原成片与网站保持现状。
-
-## 新版正式视频交付
-
-最终节奏为横版 76 秒、竖版 28 秒。主要缩短开场、文件整理和统计的停留，保留横版 8 秒主题展示／8 秒作者片尾，以及竖版 4 秒主题展示／4 秒作者片尾。
-
-在仓库执行以下命令重新导出（需 Chrome、FFmpeg 与 Python 3）：
-
-```sh
-npm --prefix marketing run preview:video
-npm --prefix marketing run render:video-final
-npm --prefix marketing run check:video-final
-npm --prefix marketing run deliver:video-final
-```
-
-成品写入 `output/marketing/video-final/`，不会覆盖官网、README 或之前的 90／30 秒视频。两个画幅各有中文字幕版、去除底部讲解字幕版、SRT 和封面；`masters/` 保存本地高质量原始渲染与混合音轨。正式视频入口为该目录的 `index.html`，投稿文案、章节时间与配乐署名见 `PUBLISHING.md`，验证报告见 `qa/verification.json`。
-
-`video-final.mjs` 从当前分镜计算音效时间，将合成点击音按实际操作点对齐并重新混音。所有视频为 30 fps、H.264、yuv420p、AAC 48 kHz 双声道；验证包括精确帧数、音画时长、完整解码与全片联系表。旧 `render.mjs` 仍导出原分镜，请使用上述新版入口。
+Commit the generated README files, current screenshots, website sources and `docs/` output together. GitHub Pages serves `docs/`; pushing a review branch or passing local checks does not establish that the public website has changed. Deploy and installer-release status must be verified separately.
