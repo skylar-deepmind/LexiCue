@@ -15,6 +15,7 @@ async function start(){
  const {useOnboardingStore}=await import('../../src/stores/onboardingStore');if(firstSession)useOnboardingStore.getState().finish('skipped');
  initI18n();
  const {default:i18n}=await import('../../src/i18n');
+ for(const [l,label]of Object.entries({en:'particle',zh:'小品词',ja:'不変化詞',de:'Partikel'}))i18n.addResource(l,'translation','dictionaryFlow.pos.particle',label);
  for(const [l,label]of Object.entries({en:'Original sample dictionary',zh:'原创样例词典',ja:'オリジナルの例示辞書',de:'Eigenes Beispielwörterbuch'})){i18n.addResource(l,'translation','longman.source',label);i18n.addResource(l,'translation','dictionary.sourceKinds.local',label);}
  const boundaries={
   en:{sync:'Device pairing is available in the installed Mac and iPhone apps. This browser demo stays separate.',online:'Online dictionaries are unavailable in this demo. You can save your own explanation.',translation:'New translations are unavailable in this demo. Continue in English or import existing bilingual text.'},

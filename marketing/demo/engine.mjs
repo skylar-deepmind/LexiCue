@@ -1,4 +1,6 @@
 // Browser-only, ephemeral data. No database, native command, account or network client.
+import {demoDictionary,demoLemma} from './demo-dictionary.mjs';
+export {demoDictionary} from './demo-dictionary.mjs';
 import {englishTokenSpans} from '../../src/lib/englishTokenSpans.ts';
 const clone=x=>structuredClone(x);
 const normalize=x=>String(x??'').trim().replace(/\s+/g,' ').toLowerCase();
@@ -14,33 +16,6 @@ export const STORIES=[
  {name:'The next journey.txt',lines:[['The plane will take off before dawn.','飞机将在黎明前起飞。'],['We leave a little space for things we have not planned.','我们为计划之外的事留出一点余地。'],['Reading a new story brings familiar words back to us.','阅读新故事，让我们再次遇见熟悉的词。']]},
  {name:'Small steps.txt',lines:[['Small steps can lead to meaningful changes.','小小的行动可以带来有意义的变化。'],['We return to the page and try again.','我们回到这一页，再试一次。']]},
 ];
-const DEFINITIONS={
- curiosity:[['A wish to discover or understand something.','想要发现或理解事物的愿望。']],
- 'take off':[['To remove something worn on the body.','脱下穿戴的物品。'],['To leave the ground and begin flying.','离开地面，开始飞行。']],
- quiet:[['With little sound or activity.','声音或活动很少的；安静的。']],
- morning:[['The first part of the day.','一天开始的时段；早晨。']],
- plane:[['A vehicle that flies using wings.','使用机翼飞行的交通工具；飞机。']],
- meaningful:[['Worth thinking about because it matters.','有意义的；值得思考的。']],
- familiar:[['Recognized because you have met it before.','因以前遇见过而熟悉的。']],
- phrase:[['A group of words used together.','一起使用的一组词；表达。']],
- read:[['To understand written words.','阅读文字并理解其含义。']],
- reading:[['The activity of understanding written words.','阅读并理解文字的活动。']],
- journey:[['Travel from one place to another.','从一处到另一处的旅程。']],
- dawn:[['The time when daylight first appears.','天光初现的时刻；黎明。']],
- small:[['Limited in size or amount.','体积或数量小的。']],
- steps:[['Actions that help move toward a result.','逐步接近结果的行动。']],
- changes:[['Ways in which something becomes different.','事物变得不同的变化。']],
-};
-export function demoDictionary(expression,context=null){
- const word=normalize(expression),definitions=DEFINITIONS[word];
- const base={schema_version:1,query:{text:expression,language:'en',context},status:definitions?'found':'not_found',default_entry_id:definitions?'demo:entry:'+word:null,entries:[],notices:[]};
- if(!definitions)return base;
- const id='demo:entry:'+word;
- base.entries=[{id,headword:word,kind:word.includes(' ')?'expression':'word',expression_type:null,origin:'demo-original',parent_headword:null,
-  source:{provider:'longman',dataset:'LexiCue original demo definitions',edition:'Original sample · CC0',release:'demo-1',adapter_version:'lexicue-demo-v1',entry_key:id,locator:null,delivery:'local',entry_url:null,retrieved_at:null},
-  match:{type:'exact',pattern:null,note:null,sense_ids:[]},groups:[{id:id+':group',part_of_speech:null,source_part_of_speech:null,pronunciations:[],forms:[],labels:[],senses:definitions.map(([en,zh],i)=>({id:id+':sense:'+i,meaning:{en,zh},labels:[],patterns:[],examples:[],notes:[]})),notes:[]}],notes:[],related_expressions:[]}];
- return base;
-}
 export function memoryStorage(){const values=new Map();return {get length(){return values.size;},key:index=>[...values.keys()][index]??null,getItem:key=>values.get(String(key))??null,setItem:(key,value)=>values.set(String(key),String(value)),removeItem:key=>values.delete(String(key)),clear:()=>values.clear()};}
 export class DemoEngine {
  constructor(){this.next=1;this.tick=0;this.materials=[];this.records=[];this.tags=[{id:1,name:'Daily reading',tone:'blue',created_at:0},{id:2,name:'Travel',tone:'purple',created_at:0}];this.receipts=new Map();this.examples=new Map();this.operations=new Map();this.jobs=new Map();
@@ -54,7 +29,7 @@ export class DemoEngine {
   const data={content:input.content,material:{id,name:String(input.name||'English text'),content_hash:hash,imported_at:Date.now(),segment_count:input.segments.length,preview:input.segments[0].en_text,tags:[],position:null,source_kind:input.document?.origin?.kind||'file',original_format:input.document?.original_format||input.normalized_kind||'txt',document:input.document?clone(input.document):null},segments:input.segments.map((s,i)=>({id:this.next++,index_num:s.index??i,en_text:s.en_text,zh_text:s.zh_text??null,start_time:s.start_time??null,end_time:s.end_time??null})),tokens:[],media_refs:{}};
   this.materials.push(data);const result={file_id:id,outcome:'created',readable:true};this.operations.set(input.operation_id,result);return clone(result);
  }
- open(id){const data=this.materials.find(x=>x.material.id===Number(id));if(!data)throw Error('material_source_removed');return clone({material:data.material,segments:data.segments,tokens:data.segments.flatMap(segment=>englishTokenSpans(segment.en_text).map(span=>({segment_index:segment.index_num,language:'en',surface:segment.en_text.slice(span.start,span.end),lemma:segment.en_text.slice(span.start,span.end).toLowerCase(),start:span.start,end:span.end,legacy_position:span.position,builtin_position:span.position,word_id:null,status:null}))),media_refs:{}});}
+ open(id){const data=this.materials.find(x=>x.material.id===Number(id));if(!data)throw Error('material_source_removed');return clone({material:data.material,segments:data.segments,tokens:data.segments.flatMap(segment=>englishTokenSpans(segment.en_text).map(span=>({segment_index:segment.index_num,language:'en',surface:segment.en_text.slice(span.start,span.end),lemma:demoLemma(segment.en_text.slice(span.start,span.end)),start:span.start,end:span.end,legacy_position:span.position,builtin_position:span.position,word_id:null,status:null}))),media_refs:{}});}
  selection(input){return this.records.find(r=>r.deleted_at===null&&r.source?.segment_id===input.segment_id&&r.source.start_offset===input.start_offset&&r.source.end_offset===input.end_offset&&r.expression===input.expression)||null;}
  mutate(mutation,operationId){if(this.receipts.has(operationId))return clone(this.receipts.get(operationId).result);let before=null,record;
   if(mutation.kind==='save'){const input=mutation.input,data=this.materials.find(m=>m.segments.some(s=>s.id===input.segment_id)),segment=data?.segments.find(s=>s.id===input.segment_id);if(!segment||segment.en_text.slice(input.start_offset,input.end_offset).trim()!==input.expression.trim())throw Error('saved_invalid_selection');

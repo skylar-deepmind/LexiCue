@@ -39,3 +39,65 @@ test('restored revisions stay monotonic and reject stale edits',()=>{
   assert.throws(()=>restored.mutate({kind:'edit',record_id:record.record_id,expected_revision:stale,explanation:'A stale edit must fail.'},'stale-after-restore'),/saved_conflict/);
  }
 });
+
+// Exercise the real product dictionary validator/presentation helpers. Only its
+// native invoke import is replaced; no dictionary/network request is made.
+const {readFile}=await import('node:fs/promises');
+const {default:typescript}=await import('typescript');
+const dictionarySource=await readFile(new URL('../../src/lib/dictionaryResult.ts',import.meta.url),'utf8');
+const dictionaryJs=typescript.transpileModule(dictionarySource.replace("import { invoke } from '@tauri-apps/api/core';","const invoke=()=>{throw Error('No native dictionary access in this test');};"),{compilerOptions:{target:typescript.ScriptTarget.ES2023,module:typescript.ModuleKind.ESNext}}).outputText;
+const productDictionary=await import('data:text/javascript;base64,'+Buffer.from(dictionaryJs).toString('base64'));
+const {DEMO_WORDS,DEMO_FORMS,DEMO_PHRASES}=await import('./dictionary-data.mjs');
+
+test('every built-in clickable ReaderToken has a complete usable sample dictionary result',()=>{
+ const engine=new DemoEngine(),surfaces=new Set();let positions=0;
+ for(const material of engine.materials){const data=engine.open(material.material.id);for(const token of data.tokens){
+  const sentence=data.segments.find(segment=>segment.index_num===token.segment_index).en_text;
+  const result=demoDictionary(token.surface,sentence);positions++;surfaces.add(token.surface.toLowerCase());
+  assert.equal(result.status,'found',`${material.material.name}: ${token.surface}`);
+  assert.equal(productDictionary.validateDictionaryResult(result,token.surface,'longman'),result);
+  assert.equal(productDictionary.shouldLookupCambridge(result),false,`${token.surface}: no unnecessary online fallback`);
+  const overview=productDictionary.dictionaryOverview(result);assert.ok(overview.length>0);
+  for(const item of overview){assert.ok(item.group.part_of_speech);assert.ok(item.sense.meaning.en?.trim());assert.ok(item.sense.meaning.zh?.trim());assert.ok(productDictionary.accentPronunciations(item.group,'us').length>0,`${token.surface}: US surface IPA`);assert.ok(productDictionary.accentPronunciations(item.group,'gb').length>0,`${token.surface}: UK surface IPA`);}
+  const reference=productDictionary.dictionaryReference(result);assert.ok(reference?.senses.length,`${token.surface}: can freeze a real dictionary reference`);
+ }}
+ assert.equal(positions,85);assert.equal(surfaces.size,60);
+});
+test('sample inflections keep base meanings and pronounce the actual selected form',()=>{
+ for(const [surface,form]of Object.entries(DEMO_FORMS)){
+  const result=demoDictionary(surface);assert.equal(result.entries[0].headword,form.headword);assert.equal(result.entries[0].match.type,'inflection');
+  assert.ok(result.entries[0].groups.every(group=>group.forms.some(item=>item.text===surface)));
+  for(const group of result.entries[0].groups){assert.equal(productDictionary.accentPronunciations(group,'us')[0].ipa,form.us);assert.equal(productDictionary.accentPronunciations(group,'gb')[0].ipa,form.uk);}
+  assert.ok(result.notices.some(notice=>notice.text.includes(`${surface} → ${form.headword}`)));
+ }
+ assert.equal(demoDictionary('is').entries[0].groups[0].pronunciations[0].ipa,'ɪz');
+ assert.equal(demoDictionary('planned').entries[0].groups[0].pronunciations[0].ipa,'plænd');
+ const engine=new DemoEngine(),tokens=engine.materials.flatMap(m=>engine.open(m.material.id).tokens);
+ for(const token of tokens){const form=DEMO_FORMS[token.surface.toLowerCase()];if(form)assert.equal(token.lemma,form.headword);}
+});
+test('functional words and ambiguous words retain correct grammar and distinct senses',()=>{
+ const groups=word=>demoDictionary(word).entries[0].groups;
+ assert.deepEqual(groups('to').map(group=>group.part_of_speech),['preposition','particle']);
+ assert.ok(groups('a')[0].senses[0].meaning.en.includes('singular countable'));
+ assert.ok(groups('the')[0].senses[0].meaning.en.includes('already known'));
+ assert.ok(groups('us')[0].senses[0].meaning.en.includes('object'));
+ assert.ok(groups('our')[0].senses[0].meaning.zh.includes('我们的'));
+ assert.ok(groups('have').some(group=>group.part_of_speech==='auxiliary'&&group.senses[0].meaning.en.includes('past participle')));
+ assert.equal(groups('lead').find(group=>group.part_of_speech==='verb').pronunciations[0].ipa,'liːd');
+ assert.equal(groups('lead').find(group=>group.part_of_speech==='noun').pronunciations[0].ipa,'led');
+ assert.ok(groups('take off')[0].senses.some(sense=>sense.meaning.zh.includes('脱下')));
+ assert.ok(groups('take off')[0].senses.some(sense=>sense.meaning.zh.includes('起飞')));
+});
+test('all authored headwords and sample phrases obey the product dictionary contract',()=>{
+ for(const word of [...Object.keys(DEMO_WORDS),...Object.keys(DEMO_PHRASES)]){
+  const result=demoDictionary(word);productDictionary.validateDictionaryResult(result,word,'longman');assert.equal(productDictionary.shouldLookupCambridge(result),false);
+  for(const entry of result.entries){assert.equal(entry.source.dataset,'LexiCue original demo definitions');assert.equal(entry.source.edition,'Original sample · CC0');for(const group of entry.groups)for(const sense of group.senses)for(const example of sense.examples){assert.ok(example.english.trim());assert.ok(example.chinese.trim());}}
+ }
+ assert.equal(Object.keys(DEMO_WORDS).length,59);assert.equal(Object.keys(DEMO_PHRASES).length,8);
+});
+test('unknown imported words and arbitrary passages never receive a universal definition',()=>{
+ for(const expression of ['xylophone','unfamiliarity','A sentence outside the fixed glossary','take of','unlisted-demo-word','constructor','__proto__','prototype','toString','hasOwnProperty']){
+  const result=demoDictionary(expression);assert.equal(result.status,'not_found');assert.deepEqual(result.entries,[]);assert.equal(result.default_entry_id,null);assert.equal(productDictionary.dictionaryReference(result),null);
+ }
+ const first=demoDictionary('Curiosity');first.entries[0].groups[0].senses[0].meaning.zh='changed';assert.notEqual(demoDictionary('Curiosity').entries[0].groups[0].senses[0].meaning.zh,'changed');
+});

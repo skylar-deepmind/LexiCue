@@ -29,13 +29,13 @@ for(const locale of cfg.locales)for(const theme of cfg.themes)for(const width of
   check(await page.evaluate(()=>document.querySelectorAll('.live-app-frame').length===1),'one live app window');
   // Restore only the demo namespace through its real outer reset control.
   mark('workspace/reset');await page.waitForFunction(()=>!document.querySelector('.demo-reset').disabled);
-  await page.evaluate(()=>{window.__qaBeforeResetDocument=document.querySelector('.live-app-frame').contentDocument;});
+  await page.evaluate(()=>{window.__qaBeforeResetDocument=document.querySelector('.live-app-frame').contentDocument;const reset=document.querySelector('.demo-reset');if(reset.getBoundingClientRect().bottom>innerHeight)reset.scrollIntoView({block:'center',behavior:'instant'});});
   await page.click('.demo-reset');await page.acceptDialog();
   await page.waitForFunction(()=>{const doc=document.querySelector('.live-app-frame')?.contentDocument;return doc&&doc!==window.__qaBeforeResetDocument&&doc.querySelector('.materials-page .desk-paper')&&!document.querySelector('.demo-reset').disabled;});
   await page.waitForFunction(({locale,theme})=>{const doc=document.querySelector('.live-app-frame').contentDocument;return doc.documentElement.lang===locale&&doc.documentElement.dataset.theme===theme;},{locale,theme});
   mark('workspace/geometry');await page.evaluate(()=>window.scrollTo({top:0,behavior:'instant'}));
   await page.waitForFunction(()=>{const frame=document.querySelector('.live-app-frame'),nav=document.querySelector('.site-nav');return scrollY===0&&frame.getBoundingClientRect().top>=nav.getBoundingClientRect().bottom;});
-  check(await page.evaluate(()=>{const frame=document.querySelector('.live-app-frame'),r=frame.getBoundingClientRect(),nav=document.querySelector('.site-nav').getBoundingClientRect();const minimum=parseFloat(getComputedStyle(frame.parentElement).minHeight)||0;const fits=r.bottom<=innerHeight+1||(r.height<=minimum+2&&r.bottom<=document.documentElement.scrollHeight);return Math.abs(frame.contentWindow.innerWidth-r.width)<=2&&r.height>=Math.min(240,innerHeight-124)&&fits&&r.top>=nav.bottom; }),'live app fits the available responsive viewport');
+  check(await page.evaluate(()=>{const frame=document.querySelector('.live-app-frame'),r=frame.getBoundingClientRect(),nav=document.querySelector('.site-nav').getBoundingClientRect();const minimum=parseFloat(getComputedStyle(frame.parentElement).minHeight)||0;const fits=r.bottom<=document.documentElement.scrollHeight+1;const proportional=innerWidth<=650?true:Math.abs(r.height-Math.max(minimum-2,frame.parentElement.clientWidth*10/16-2))<=3&&r.width<=1120&&r.left>=Math.min(48,(innerWidth-r.width)/2)-1;return Math.abs(frame.contentWindow.innerWidth-r.width)<=2&&r.height>=Math.min(240,innerHeight-124)&&fits&&proportional&&r.top>=nav.bottom; }),'live app fits the available responsive viewport');
   await page.evaluate(()=>{window.__qaDemoWindow=document.querySelector('.live-app-frame').contentWindow;});
   mark('workspace/open-material');const mobileButton=await page.evaluate(()=>{const child=document.querySelector('.live-app-frame').contentWindow,button=child.document.querySelector('.desk-paper[data-desk-active=true] .desk-mobile-summary'),rect=button?.getBoundingClientRect();return !!button&&child.getComputedStyle(button).display!=='none'&&rect.width>0&&rect.height>0;});
   await page.click(mobileButton?'.desk-paper[data-desk-active=true] .desk-mobile-summary':'.desk-paper[data-desk-active=true] [data-testid=desk-continue]');
@@ -57,7 +57,7 @@ for(const locale of cfg.locales)for(const theme of cfg.themes)for(const width of
    return style.display!=='none'&&style.visibility==='visible'&&r.width>0&&r.height>0&&r.left>=0&&r.top>=0&&r.right<=child.innerWidth+1&&r.bottom<=child.innerHeight+1&&x>=0&&y>=0&&x+r.width<=innerWidth+1&&y+r.height<=innerHeight+1&&(hit===button||button.contains(hit))&&outerHit===frame;
   });
   mark('workspace/save-click');await page.click('[data-testid=lookup-save]');await page.waitForFunction(()=>document.querySelector('.live-app-frame').contentDocument.querySelector('.lookup-saved'));
-  check(true,'real keyboard lookup and save update demo data');
+  check(await page.evaluate(()=>!!document.querySelector('.live-app-frame').contentDocument.querySelector('.longman-result[data-result-status=found] .dictionary-overview .longman-meaning')),'sample word renders real dictionary content and saves demo data');
   mark('workspace/theme');await page.click('.site-nav .theme-button');
   await page.waitForFunction(theme=>document.querySelector('.live-app-frame').contentDocument.documentElement.dataset.theme===(theme==='ocean'?'midnight':'ocean'),theme);
   await page.click('.site-nav .theme-button');await page.waitForFunction(theme=>document.querySelector('.live-app-frame').contentDocument.documentElement.dataset.theme===theme,theme);
