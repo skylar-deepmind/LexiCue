@@ -72,7 +72,27 @@
     "switch": "Wechseln"
   },
   "settings": {
+    "directory": {
+      "preferences": "Einstellungen",
+      "data": "Daten und Geräte",
+      "tools": "Werkzeuge",
+      "app": "App",
+      "captions": "YouTube-Untertitel",
+      "updates": "Softwareupdate",
+      "versionInfo": "Versionsinformationen",
+      "version": "Aktuelle Version",
+      "method": "Installationsart",
+      "local": "Lokale Installation",
+      "localHint": "Diese Version wurde über einen Mac installiert. Installiere auch die neue Version über deinen Mac.",
+      "channelHint": "Aktualisiere die App über den ursprünglichen Installationsweg."
+    },
     "deviceSync": {
+      "unsupported": "Die Gerätesynchronisierung ist in LexiCue für Mac und iPhone verfügbar.",
+      "pairedDevices": "Gekoppelte Geräte",
+      "receiveSettings": "Empfang",
+      "receiveTitle": "Bei geschlossenem Fenster weiter empfangen",
+      "receiveHint": "Der Empfang endet, wenn du LexiCue beendest.",
+      "deviceManagement": "Geräteverwaltung",
       "recoverCopy": "Diese Bearbeitung in einem neuen synchronisierten Material behalten",
       "keepLocal": "Auf diesem Gerät behalten",
       "includeRestored": "Als neuen Eintrag synchronisieren",
@@ -928,7 +948,7 @@
   },
   "layout": {
     "dictInit": "Wörterbuch wird initialisiert…",
-    "updateAvailable": "Neue Version v{{version}} verfügbar – unter Einstellungen → Über & Updates installieren"
+    "updateAvailable": "Neue Version v{{version}} verfügbar – unter Einstellungen → Softwareupdate installieren"
   },
   "themes": {
     "oceanLabel": "Ozeanblau",

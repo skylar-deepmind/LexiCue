@@ -61,13 +61,13 @@ try{
   eq((await call('export_all')).data,before,'sample saves and notes never change real backup tables');
   await page.getByRole('button',{name:'开始自己的阅读',exact:true}).click();await page.waitForURL(/\/files$/);eq((await state(page)).outcome,'completed','completion is remembered');
   eq(await page.locator('.app-guide').count(),0,'coach cleans up after completion');eq(await page.locator('[data-guide-anchor-active]').count(),0,'anchor accessibility additions are removed');
-  await page.goto(`${url}/settings`);await page.getByRole('link',{name:'重新体验',exact:true}).click();await page.locator('.app-guide[data-stage=import]').waitFor();
+  await page.goto(`${url}/settings`);await page.getByRole('link',{name:'实操引导',exact:true}).click();await page.locator('.app-guide[data-stage=import]').waitFor();
   await page.getByRole('button',{name:'跳过引导',exact:true}).click();eq((await state(page)).outcome,'skipped','skip works from import');
   await page.goto(`${url}/example`);await page.locator('.app-guide[data-stage=lookup]').waitFor();await page.emulateMedia({reducedMotion:'reduce'});eq(await page.locator('.app-guide__bubble').evaluate(n=>getComputedStyle(n).animationName),'none','reduced motion honored');
   await page.keyboard.press('Escape');await page.waitForURL(/\/files$/);eq((await state(page)).active,false,'Escape skips without trapping focus');
   if(width===1280){
     // Loading failures and late receipts must not trap the user or resurrect a skipped tour.
-    await page.goto(`${url}/settings`);await page.getByRole('link',{name:'重新体验',exact:true}).click();
+    await page.goto(`${url}/settings`);await page.getByRole('link',{name:'实操引导',exact:true}).click();
     await page.evaluate(()=>window.__uiFailure={command:'begin_example_session',afterCommit:false,remaining:100});
     await page.getByRole('button',{name:'先用体验材料',exact:true}).click();await page.locator('.example-load [role=alert]').waitFor();
     eq(await page.getByRole('button',{name:'跳过引导',exact:true}).count(),1,'one reachable skip on material load failure');

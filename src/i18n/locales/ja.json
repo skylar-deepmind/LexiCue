@@ -72,7 +72,27 @@
     "switch": "切り替え"
   },
   "settings": {
+    "directory": {
+      "preferences": "環境設定",
+      "data": "データとデバイス",
+      "tools": "ツール",
+      "app": "アプリ",
+      "captions": "YouTube 字幕",
+      "updates": "ソフトウェアアップデート",
+      "versionInfo": "バージョン情報",
+      "version": "現在のバージョン",
+      "method": "インストール方法",
+      "local": "ローカルインストール",
+      "localHint": "このバージョンは Mac からインストールされました。更新するには Mac から新しいバージョンをインストールしてください。",
+      "channelHint": "このアプリをインストールした経路から更新してください。"
+    },
     "deviceSync": {
+      "unsupported": "デバイス同期は Mac と iPhone 版の LexiCue で利用できます。",
+      "pairedDevices": "ペアリング済みのデバイス",
+      "receiveSettings": "受信設定",
+      "receiveTitle": "ウィンドウを閉じても受信を続ける",
+      "receiveHint": "LexiCue を終了すると受信も停止します。",
+      "deviceManagement": "デバイス管理",
       "recoverCopy": "編集内容を新しい教材として保存して同期",
       "keepLocal": "このデバイスにだけ保持",
       "includeRestored": "新規項目として同期",
@@ -912,7 +932,7 @@
   },
   "layout": {
     "dictInit": "辞書を初期化中…",
-    "updateAvailable": "新しいバージョン v{{version}} が利用可能です。設定 → バージョン情報と更新 からインストールできます"
+    "updateAvailable": "新しいバージョン v{{version}} が利用可能です。設定 → ソフトウェアアップデート からインストールできます"
   },
   "themes": {
     "oceanLabel": "オーシャンブルー",

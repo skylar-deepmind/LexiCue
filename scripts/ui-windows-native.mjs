@@ -82,7 +82,11 @@ let psSequence=0;
 async function native(request){const path=join(task,`ui-request-${++psSequence}.json`);await writeFile(path,JSON.stringify({appPath:app,...request}));const script=`& ([ScriptBlock]::Create([IO.File]::ReadAllText('${helper.replaceAll("'","''")}'))) -RequestPath '${path.replaceAll("'","''")}'`;return new Promise((resolve,reject)=>{const child=spawn('powershell.exe',['-NoProfile','-NonInteractive','-EncodedCommand',Buffer.from(script,'utf16le').toString('base64')],{windowsHide:true});let log='';child.stdout.on('data',d=>{log+=d;});child.stderr.on('data',d=>{log+=d;});child.on('error',reject);child.on('exit',code=>code===0?resolve(log):reject(Error(`Native dialog helper (${code}): ${log}`)));});}
 async function dialogClick(trigger,request){const pending=native({...request,evidence:join(output,`dialog-${psSequence+1}.json`)}).then(value=>({ok:true,value}),error=>({ok:false,error}));await trigger();const result=await pending;if(!result.ok)throw result.error;return result.value;}
 async function resize(width,height=900){await native({action:'resize',width,height});await wait(()=>exec((w,h)=>Math.abs(innerWidth-w)<=1&&Math.abs(innerHeight-h)<=1,width,height),`native viewport ${width}x${height}`);await settle();}
-async function theme(value){await go('/settings');await exists('.system-settings');const hasZh=await exec(()=>[...document.querySelectorAll('button')].some(b=>b.textContent==='中文'));if(hasZh)await button('中文');await button(value==='ocean'?'海湾蓝':'深夜墨色');await wait(()=>exec(v=>document.documentElement.dataset.theme===v,value),'theme');}
+async function theme(value){
+ await go('/settings');await click('[data-entry=language]');await button('中文');await go('/settings');
+ await click('.theme-choice',{aria:value==='ocean'?'海湾蓝':'深夜墨色'});
+ await wait(()=>exec(v=>document.documentElement.dataset.theme===v,value),'theme');
+}
 async function stage(name,fn){
  if(resume&&report.stages.includes(name)){console.log(`RESUME ${name}`);return;}
  const path=join(output,`before-${name}.json`);let before;
@@ -94,7 +98,7 @@ async function stage(name,fn){
 async function fingerprint(){return asyncExec(async()=>{const data=(await window.__TAURI_INTERNALS__.invoke('export_all')).data;const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(data)));return {hash:[...new Uint8Array(hash)].map(n=>n.toString(16).padStart(2,'0')).join(''),counts:Object.fromEntries(Object.entries(data).map(([k,v])=>[k,v.length]))};});}
 const canonicalSaved=rows=>rows.map(({id:_id,...record})=>record).sort((a,b)=>a.record_id.localeCompare(b.record_id));
 const records=()=>call('list_saved_records',{query:'',limit:200,offset:0});
-async function replay(){await go('/settings');await button('重新体验','a');await exists('.example-intro');}
+async function replay(){await go('/settings');await click('[data-entry=guide]');await exists('.example-intro');}
 async function lookup(css){
  const expected=await exec(node=>(node.dataset.recall||node.textContent).trim().replace(/\s+/g,' ').toLowerCase(),await element(css));
  await click(css);
@@ -207,7 +211,7 @@ try{
   const before=await fingerprint();await restart();await go('/saved');await exists('.saved-record-row');eq(await fingerprint(),before,'native app restart retains materials, saved snapshots and edits');
  });
  await stage('native-backup-restore',async()=>{
-  await go('/settings');await exists('.system-settings');const backupPath=join(task,`native-backup-${randomUUID()}.json`);
+  await go('/settings');await click('[data-entry=backup]');const backupPath=join(task,`native-backup-${randomUUID()}.json`);
   await dialogClick(()=>button('导出完整备份'),{action:'file',paths:[backupPath]});
   await wait(async()=>{try{return JSON.parse(await readFile(backupPath,'utf8')).schema_version===9;}catch{return false;}},'native backup file written');
   const backup=JSON.parse(await readFile(backupPath,'utf8'));ok(backup.data.saved_records.length>=40,'native backup contains actual saved snapshots');

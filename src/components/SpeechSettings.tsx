@@ -19,8 +19,7 @@ export default function SpeechSettings() {
     catch { setCacheState('error'); }
     finally { setClearing(false); }
   };
-  return <section className="speech-settings" aria-labelledby="speech-settings-title">
-    <h2 id="speech-settings-title">{t('speech.title')}</h2>
+  return <section className="speech-settings" aria-label={t('speech.title')}>
     <p>{t('speech.description')}</p>
     <div className="speech-settings__fields">
       <div><label htmlFor="speech-accent">{t('speech.accent')}</label><AppSelect id="speech-accent" value={speech.accent}

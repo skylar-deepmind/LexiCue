@@ -1,119 +1,129 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { useTranslation } from 'react-i18next';
 import DeviceSyncConflicts from './DeviceSyncConflicts';
 import { useFileStore } from '../stores/fileStore';
+import { useDeviceSyncStatus, type DeviceStatus } from './useDeviceSyncStatus';
+import './device-sync.css';
 
-type Phase = 'unpaired' | 'offering' | 'scanning' | 'confirming' | 'waiting' | 'syncing'
-  | 'synced' | 'permission' | 'update' | 'pending' | 'error' | 'unsupported';
-interface SyncStatus {
-  state: Phase;
-  role: 'mac' | 'iphone';
-  paired: boolean;
-  peerName?: string;
-  code?: string;
-  confirmationId?: string;
-  confirmed?: boolean;
-  qr?: string;
-  issue?: string;
-  receiveClosed?: boolean;
-}
 type Backup = { id: string; created: number };
+type IconName = 'smartphone' | 'devices' | 'laptop' | 'check-phone' | 'check-mac' | 'clock' | 'qr' | 'archive' | 'chevron' | 'window';
+function Icon({name}: {name: IconName}) {
+  return <i className={`sync-icon sync-icon--${name}`} aria-hidden="true" />;
+}
+
+export function DeviceSyncSummary() {
+  const { t } = useTranslation();
+  const {status, readError} = useDeviceSyncStatus();
+  if (readError) return <>{t('settings.deviceSync.state.error')}</>;
+  if (!status || status.state === 'unsupported') return null;
+  return <>{t(`settings.deviceSync.state.${status.state}`)}</>;
+}
 
 export default function DeviceSyncSettings() {
   const { t, i18n } = useTranslation();
-  const [status, setStatus] = useState<SyncStatus>();
+  const { status, readError, busy, perform } = useDeviceSyncStatus();
   const [error, setError] = useState(false);
-  const [busy, setBusy] = useState(false);
   const [hasConflicts, setHasConflicts] = useState(false);
   const [remove, setRemove] = useState(false);
   const [backups, setBackups] = useState<Backup[]>();
   const [selectedBackup, setSelectedBackup] = useState<Backup>();
-  const active = useRef(false);
-  const generation = useRef(0);
-  const summary = useRef<HTMLElement>(null);
-
-  useEffect(() => {
-    if (!isTauri()) return;
-    let alive = true;
-    let timer: number;
-    const poll = async () => {
-      const version = generation.current;
-      if (document.visibilityState === 'visible' && !active.current) {
-        try {
-          const next = await invoke<SyncStatus>('device_sync', {action: 'status'});
-          if (alive && version === generation.current) { setStatus(next); setError(false); }
-          if (next.state === 'unsupported') return;
-        } catch { if (alive && version === generation.current) setError(true); }
-      }
-      if (alive) timer = window.setTimeout(poll, 1000);
-    };
-    void poll();
-    return () => { alive = false; window.clearTimeout(timer); };
-  }, []);
-
-  const perform = async (job: () => Promise<void>) => {
-    if (active.current) return;
-    active.current = true;
-    generation.current++;
-    setBusy(true);
-    setError(false);
-    try { await job(); } catch { setError(true); }
-    finally { active.current = false; setBusy(false); }
-  };
-  const act = (action: string) => perform(async () => {
-    const next = await invoke<SyncStatus>('device_sync', { action, confirmationId: status?.confirmationId });
-    setStatus(next);
-    setRemove(false);
-    if (['confirm', 'cancel', 'revoke'].includes(action)) summary.current?.focus({preventScroll: true});
-  });
-  if ((!status && !error) || status?.state === 'unsupported') return null;
+  const heading = useRef<HTMLHeadingElement>(null);
   const key = (name: string) => t(`settings.deviceSync.${name}`);
-  const phase = status?.state;
+  const act = async (action: string) => {
+    setError(false);
+    try {
+      await perform(() => invoke<DeviceStatus>('device_sync', {action, confirmationId:status?.confirmationId}));
+      setRemove(false);
+      if (['confirm', 'cancel', 'revoke'].includes(action)) heading.current?.focus({preventScroll:true});
+    } catch { setError(true); }
+  };
+  const restore = async (backup: Backup) => {
+    setError(false);
+    try {
+      await perform(async () => {
+        await useFileStore.getState().restoreAll(backup.id);
+        return invoke<DeviceStatus>('device_sync', {action:'status'});
+      });
+      setSelectedBackup(undefined);
+    } catch { setError(true); }
+  };
+  if (!isTauri() || status?.state === 'unsupported') return <p>{key('unsupported')}</p>;
+  if (!status) return readError ? <p role="alert">{key('issue.unavailable')}</p> : <p role="status">{t('common.loading')}</p>;
+  const phase = status.state;
+  const mac = status.role === 'mac';
   const attempting = phase === 'offering' || phase === 'scanning' || phase === 'confirming';
-  const mac = status?.role === 'mac';
-  const pair = () => act(mac ? 'offer' : 'scan');
-  return <details className="device-sync">
-    <summary ref={summary}>{key('title')}</summary>
-    {status && <>
-      {phase !== 'unpaired' && <p role="status">{status.peerName && <><strong dir="auto">{status.peerName}</strong> · </>}{key(`state.${hasConflicts && phase === 'synced' ? 'pending' : phase}`)}</p>}
-      {!status.paired && !attempting && <p>{key(mac ? 'macIntro' : 'iphoneIntro')}</p>}
-      {status.issue && <p>{key(`issue.${status.issue}`)}</p>}
-      {phase === 'offering' && status.qr && <img className="device-sync-qr" alt={key('qr')} src={status.qr} />}
-      {phase === 'confirming' && <>
-        <p>{key('compare')}</p><strong className="device-sync-code" dir="ltr">{status.code}</strong>
-        <p>{key('merge')}</p>
-      </>}
-      <div className="settings-options">
-        {!status.paired && !attempting && <button className="ui-button" disabled={busy} onClick={() => void pair()}>{key(mac ? 'show' : 'scan')}</button>}
-        {phase === 'confirming' && <button className="ui-button" disabled={busy || status.confirmed || !status.confirmationId} onClick={() => void act('confirm')}>{key(status.confirmed ? 'otherConfirm' : 'confirm')}</button>}
-        {attempting && <button className="ui-button settings-quiet-action" disabled={busy} onClick={() => void act('cancel')}>{t('common.cancel')}</button>}
-        {status.paired && status.issue !== 'reconcile' && (phase === 'error' || phase === 'pending' || phase === 'permission') && <button className="ui-button" disabled={busy} onClick={() => void act('wake')}>{t('common.retry')}</button>}
+  const canPair = !status.paired && !attempting;
+  const label = key(`state.${readError ? 'error' : hasConflicts && phase === 'synced' ? 'pending' : phase}`);
+  const peerName = status.peerName || (mac ? 'iPhone' : 'Mac');
+  const statusLine = <span className="sync-state" role="status">
+    {phase === 'synced' && !hasConflicts && !readError && <Icon name={mac ? 'check-mac' : 'check-phone'}/>}
+    {phase === 'waiting' && !readError && <Icon name="clock"/>}{label}
+  </span>;
+  const pairButton = canPair && <button className="sync-primary" disabled={busy} onClick={()=>void act(mac?'offer':'scan')}><Icon name="qr"/>{key(mac?'show':'scan')}</button>;
+  return <div className="device-sync" data-role={status.role}>
+    <section className="sync-peers">
+      <div className="sync-peers-heading">
+        <h2 ref={heading} tabIndex={-1}>{key('pairedDevices')}</h2>
+        {mac && pairButton}
       </div>
-      {status.paired && <>
-        {phase === 'waiting' && <p>{key('reachability')}</p>}
-        {mac && <label className="device-sync-option"><input type="checkbox" checked={!!status.receiveClosed} disabled={busy} onChange={e => void act(e.target.checked ? 'receiveClosedOn' : 'receiveClosedOff')} />{key('receiveClosed')}</label>}
-        <details onToggle={e => { if (!e.currentTarget.open) setRemove(false); }}><summary>{key('manage')}</summary>
-          {remove && <p>{key('removeEffect')}</p>}
-          <button className="ui-button settings-quiet-action" disabled={busy} onClick={() => remove ? void act('revoke') : setRemove(true)}>{key(remove ? 'confirmRemove' : 'remove')}</button>
-          {remove && <button className="ui-button" disabled={busy} onClick={() => setRemove(false)}>{t('common.cancel')}</button>}
+      {status.paired ? mac ? <div className="sync-panel sync-peer-row">
+        <span className="sync-peer-icon"><Icon name="smartphone"/></span>
+        <strong dir="auto">{peerName}</strong>{statusLine}
+      </div> : <div className="sync-panel sync-peer-card">
+        <span className="sync-hero-icon"><Icon name="devices"/></span><strong dir="auto">{peerName}</strong>{statusLine}
+      </div> : <div className="sync-panel sync-pairing">
+        {!mac && <span className="sync-hero-icon"><Icon name="devices"/></span>}
+        {statusLine}
+        {canPair && <p>{key(mac ? 'macIntro' : 'iphoneIntro')}</p>}
+        {!mac && pairButton}
+        {phase==='offering' && status.qr && <img className="device-sync-qr" alt={key('qr')} src={status.qr}/>}
+        {phase==='confirming' && <>
+          <strong dir="auto">{peerName}</strong><p>{key('compare')}</p>
+          <strong className="device-sync-code" dir="ltr">{status.code}</strong><p>{key('merge')}</p>
+          <button className="sync-primary" disabled={busy || status.confirmed || !status.confirmationId} onClick={()=>void act('confirm')}>{key(status.confirmed?'otherConfirm':'confirm')}</button>
+        </>}
+        {attempting && <button className="sync-action" disabled={busy} onClick={()=>void act('cancel')}>{t('common.cancel')}</button>}
+      </div>}
+      {status.issue && <p className="sync-notice">{key(`issue.${status.issue}`)}</p>}
+      {status.paired && phase==='waiting' && <p className="sync-notice">{key('reachability')}</p>}
+      {status.paired && status.issue!=='reconcile' && ['error','pending','permission'].includes(phase) && <button className="sync-action" disabled={busy} onClick={()=>void act('wake')}>{t('common.retry')}</button>}
+    </section>
+    {mac && status.paired && <section className="sync-receive">
+      <h2>{key('receiveSettings')}</h2>
+      <label className="sync-panel sync-switch-row">
+        <Icon name="window"/>
+        <span>{key('receiveTitle')}<small>{key('receiveHint')}</small></span>
+        <input type="checkbox" role="switch" checked={!!status.receiveClosed} disabled={busy} onChange={e=>void act(e.target.checked?'receiveClosedOn':'receiveClosedOff')}/>
+      </label>
+    </section>}
+    <DeviceSyncConflicts onPending={setHasConflicts}/>
+    <section className="sync-management">
+      <h2>{key('deviceManagement')}</h2>
+      <div className="sync-panel sync-rows">
+        {status.paired && <details onToggle={e=>{if(!e.currentTarget.open)setRemove(false);}}>
+          <summary><Icon name="laptop"/><span>{key('manage')}</span><Icon name="chevron"/></summary>
+          <div className="sync-disclosed">
+            {remove && <p>{key('removeEffect')}</p>}
+            <button className="sync-action" disabled={busy} onClick={()=>remove?void act('revoke'):setRemove(true)}>{key(remove?'confirmRemove':'remove')}</button>
+            {remove && <button className="sync-action" disabled={busy} onClick={()=>setRemove(false)}>{t('common.cancel')}</button>}
+          </div>
+        </details>}
+        <details onToggle={e=>{
+          if(!e.currentTarget.open){setSelectedBackup(undefined);return;}
+          void invoke<Backup[]>('device_sync',{action:'backups'}).then(setBackups).catch(()=>setError(true));
+        }}>
+          <summary><Icon name="archive"/><span>{key('backups')}</span><Icon name="chevron"/></summary>
+          <div className="sync-disclosed">
+            {backups?.length===0 && <p>{key('noBackup')}</p>}
+            {!selectedBackup && backups?.map(b=><button className="sync-action" key={b.id} onClick={()=>setSelectedBackup(b)}>{new Date(b.created*1000).toLocaleString(i18n.language)}</button>)}
+            {selectedBackup && <><p>{new Date(selectedBackup.created*1000).toLocaleString(i18n.language)} · {key('restoreEffect')}</p>
+              <button className="sync-action" disabled={busy} onClick={()=>void restore(selectedBackup)}>{key('restore')}</button>
+              <button className="sync-action" disabled={busy} onClick={()=>setSelectedBackup(undefined)}>{t('common.cancel')}</button></>}
+          </div>
         </details>
-      </>}
-      <DeviceSyncConflicts onPending={setHasConflicts} />
-      <details onToggle={e => {
-        if (!e.currentTarget.open) { setSelectedBackup(undefined); return; }
-        void invoke<Backup[]>('device_sync', {action: 'backups'}).then(setBackups).catch(() => setError(true));
-      }}><summary>{key('backups')}</summary>
-        {backups?.length === 0 && <p>{key('noBackup')}</p>}
-        {backups && !selectedBackup && backups.map(b => <button key={b.id} className="ui-button settings-quiet-action" onClick={() => setSelectedBackup(b)}>{new Date(b.created * 1000).toLocaleString(i18n.language)}</button>)}
-        {selectedBackup && <><p>{new Date(selectedBackup.created * 1000).toLocaleString(i18n.language)} · {key('restoreEffect')}</p>
-          <button className="ui-button" disabled={busy} onClick={() => void perform(async () => {
-            await useFileStore.getState().restoreAll(selectedBackup.id); setSelectedBackup(undefined);
-            setStatus(await invoke<SyncStatus>('device_sync', {action: 'status'}));
-          })}>{key('restore')}</button>
-          <button className="ui-button settings-quiet-action" disabled={busy} onClick={() => setSelectedBackup(undefined)}>{t('common.cancel')}</button></>}
-      </details>
-    </>}
-    {error && <p role="alert">{key('issue.unavailable')}</p>}
-  </details>;
+      </div>
+    </section>
+    {(error || readError) && <p role="alert">{key('issue.unavailable')}</p>}
+  </div>;
 }

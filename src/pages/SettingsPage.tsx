@@ -1,70 +1,111 @@
-import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useLayoutEffect, useRef } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Check } from 'lucide-react';
-import { getVersion } from '@tauri-apps/api/app';
-import { openUrl } from '@tauri-apps/plugin-opener';
+import { Archive, AudioLines, BookOpen, Captions, Check, ChevronLeft, ChevronRight, Compass, Languages, MonitorSmartphone, RefreshCw } from 'lucide-react';
 import { useTheme } from '../components/useTheme';
 import { THEMES } from '../lib/themes';
-import { UI_LANGUAGES, SELF_NAMES } from '../lib/languages';
+import { SELF_NAMES, UI_LANGUAGES } from '../lib/languages';
+import { backNavigation } from '../lib/backNavigation';
+import { SETTINGS_LABELS, SETTINGS_GROUPS, useSettingsNavigation, type SettingsEntry } from '../lib/settingsNavigation';
 import { usePreferencesStore } from '../stores/preferencesStore';
-import { useFileStore } from '../stores/fileStore';
+import BackupSettings from '../components/BackupSettings';
 import LongmanStatus from '../components/LongmanStatus';
-import { useUpdateStore } from '../stores/updateStore';
-import DeviceSyncSettings from '../components/DeviceSyncSettings';
-import { isMobilePlatform } from '../lib/platform';
+import DeviceSyncSettings, { DeviceSyncSummary } from '../components/DeviceSyncSettings';
 import YouTubeDownloadSettings from '../components/YouTubeDownloadSettings';
 import SpeechSettings from '../components/SpeechSettings';
+import SoftwareUpdateSettings from '../components/SoftwareUpdateSettings';
 import './materials-settings.css';
+import './settings-directory.css';
+
+const icons = { language: Languages, speech: AudioLines, guide: Compass, sync: MonitorSmartphone, backup: Archive, dictionary: BookOpen, youtube: Captions, updates: RefreshCw };
+const preview = import.meta.env.VITE_SLICE_PREVIEW === '1';
+
+function ThemeChoices() {
+  const { t } = useTranslation();
+  const { theme, setTheme } = useTheme();
+  return <section className="settings-themes" aria-labelledby="themes-label">
+    <div className="settings-theme-heading"><h2 id="themes-label">{t('settings.theme.title')}</h2><span>{t(`themes.${theme}Label`)}</span></div>
+    <div className="theme-choices" role="group" aria-labelledby="themes-label">
+      {THEMES.map(({ id }) => <button key={id} aria-label={t(`themes.${id}Label`)} aria-pressed={id === theme} className={`theme-choice theme-preview--${id}`} onClick={() => setTheme(id)}>
+        <span className="settings-theme-sample" aria-hidden="true"><span className="settings-book"><em>Aa</em><i/><i/></span></span>
+        <span className="settings-theme-name">{t(`themes.${id}Label`)}</span>
+        {id === theme && <span className="settings-theme-tick"><Check size={12} aria-hidden="true"/></span>}
+      </button>)}
+    </div>
+  </section>;
+}
+
+function EntrySummary({entry}: {entry: SettingsEntry}) {
+  const { t } = useTranslation();
+  const { uiLanguage, speech } = usePreferencesStore();
+  switch (entry) {
+    case 'language': return SELF_NAMES[uiLanguage];
+    case 'speech': return t(`speech.accents.${speech.accent}`) + ' · ' + t(`speech.speeds.${speech.speed}`);
+    case 'sync': return <DeviceSyncSummary/>;
+    default: return null;
+  }
+}
+
+function SettingsDetail({ entry }: {entry: SettingsEntry}) {
+  const { t } = useTranslation();
+  const { uiLanguage, setUiLanguage } = usePreferencesStore();
+  switch (entry) {
+    case 'language': return <div className="settings-list">{UI_LANGUAGES.map(language => <button className="settings-row" key={language} aria-pressed={uiLanguage === language} onClick={() => setUiLanguage(language)}>{SELF_NAMES[language]}{uiLanguage === language && <Check size={18} aria-hidden="true"/>}</button>)}</div>;
+    case 'speech': return <SpeechSettings/>;
+    case 'sync': return <DeviceSyncSettings/>;
+    case 'backup': return <BackupSettings/>;
+    case 'dictionary': return <LongmanStatus/>;
+    case 'youtube': return <YouTubeDownloadSettings/>;
+    case 'updates': return <SoftwareUpdateSettings/>;
+    case 'guide': return <Link className="ui-button" to="/files?guide=1">{t('onboarding.replay')}</Link>;
+  }
+}
+
 export default function SettingsPage() {
-    const { t } = useTranslation();
-    const { theme, setTheme } = useTheme();
-    const prefs = usePreferencesStore();
-    const updates = useUpdateStore();
-    const [version, setVersion] = useState('');
-    const [busy, setBusy] = useState(false);
-    const restoreButton = useRef<HTMLButtonElement>(null);
-    const returnRestoreFocus = useRef(false);
-    useEffect(() => {
-        if (busy || !returnRestoreFocus.current) return;
-        returnRestoreFocus.current = false;
-        const frame = requestAnimationFrame(() => {
-            const button = restoreButton.current;
-            const active = document.activeElement;
-            // A native dialog or the busy overlay can leave focus on the body.
-            // Do not override a deliberate focus change made in the meantime.
-            if (button?.isConnected && !button.disabled && (active === document.body || active === document.documentElement || active === button)) button.focus({ preventScroll: true });
-        });
-        return () => cancelAnimationFrame(frame);
-    }, [busy]);
-    useEffect(() => { void getVersion().then(setVersion).catch(() => { }); }, []);
-    const backup = async (restore = false) => {
-        if (restore) returnRestoreFocus.current = true;
-        setBusy(true);
-        try {
-            if (restore) {
-                await useFileStore.getState().restoreAll();
-            }
-            else
-                await useFileStore.getState().exportAll();
-        }
-        finally {
-            setBusy(false);
-        }
-    };
-    return <div className="materials-scroll"><section className="workspace-paper system-settings">
-    <h1>{t('settings.title')}</h1>
-    <section><h2>{t('settings.uiLanguage.title')}</h2><p>{t('settings.uiLanguage.description')}</p><div className="settings-options">{UI_LANGUAGES.map(language => <button className="ui-button settings-quiet-action" key={language} aria-pressed={prefs.uiLanguage === language} onClick={() => prefs.setUiLanguage(language)}>{SELF_NAMES[language]}</button>)}</div></section>
-    <section><h2>{t('settings.theme.title')}</h2><div className="theme-choices" role="group" aria-label={t('settings.theme.title')}>{THEMES.map(item => <button className="theme-choice" key={item.id} aria-label={t(`themes.${item.id}Label`)} aria-pressed={theme === item.id} onClick={() => setTheme(item.id)}>
-      <span className={`theme-preview theme-preview--${item.id}`} aria-hidden="true"><span className="theme-preview-rail"><i/><i/><i/></span><span className="theme-preview-copy"><span>Aa</span><i/><i/></span><span className="theme-choice-check"><Check size={13}/></span></span>
-      <span className="ui-tooltip theme-choice-tooltip" role="tooltip" aria-hidden="true">{t(`themes.${item.id}Label`)}</span>
-    </button>)}</div></section>
-    <SpeechSettings/>
-    <section><h2>{t('onboarding.replayTitle')}</h2><p>{t('onboarding.privacy')}</p><Link className="ui-button" to="/files?guide=1">{t('onboarding.replay')}</Link></section>
-    <section><h2>{t('materials.backups')}</h2><p>{t('fileStore.backupScope')}</p><div className="settings-options"><button className="ui-button settings-quiet-action" disabled={busy} onClick={() => void backup()}>{t('history.export')}</button><button ref={restoreButton} className="ui-button settings-quiet-action" disabled={busy} onClick={() => void backup(true)}>{t('history.restore')}</button><Link className="ui-button" to="/legacy">{t('materials.history')}</Link></div></section>
-    {import.meta.env.VITE_SLICE_PREVIEW !== '1' && <DeviceSyncSettings />}
-    <LongmanStatus/>
-    <details><summary>{t('settings.youtube.title')}</summary><YouTubeDownloadSettings /></details>
-    {import.meta.env.VITE_SLICE_PREVIEW !== '1' && !isMobilePlatform() && <details><summary>{t('settings.updates.title')}</summary><p>{t('settings.updates.currentVersion', { version: version || '—' })}</p><button className="ui-button settings-quiet-action" disabled={updates.status === 'checking' || updates.status === 'downloading'} onClick={() => void updates.check()}>{t('settings.updates.check')}</button>{updates.status === 'upToDate' && <p>{t('settings.updates.upToDate')}</p>}{updates.status === 'available' && <><p>{t('settings.updates.available', { version: updates.version })}</p><button className="ui-button" onClick={() => void (updates.downloadUrl ? openUrl(updates.downloadUrl) : updates.install())}>{t(updates.downloadUrl ? 'settings.updates.downloadPage' : 'settings.updates.install')}</button></>}{updates.status === 'downloading' && <progress max={100} value={updates.progress}/>} {updates.error && <p role="alert">{updates.error}</p>}</details>}
-  </section></div>;
+  const { t } = useTranslation();
+  const { state } = useLocation();
+  const { section, back } = useSettingsNavigation();
+  const page = useRef<HTMLDivElement>(null);
+  const previous = useRef(section);
+  const heading = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (previous.current === section) return;
+    if (section) {
+      page.current?.scrollTo(0, 0);
+      heading.current?.focus({ preventScroll: true });
+    } else {
+      page.current?.querySelector<HTMLElement>(`[data-entry="${previous.current}"]`)?.focus();
+    }
+    previous.current = section;
+  }, [section]);
+  useEffect(() => backNavigation.setPage(() => { back(); return true; }, 1), [back]);
+  return <div className="materials-scroll settings-scroll" ref={page}>
+    <div className="system-settings settings-directory">
+      <div className="settings-heading" ref={heading} tabIndex={-1} aria-label={t(section ? SETTINGS_LABELS[section] : 'settings.title')}>
+        {section && <button className="settings-back" onClick={back} aria-label={t('common.back')}><ChevronLeft size={17} aria-hidden="true"/>{t('settings.title')}</button>}
+        <h1>{t(section ? SETTINGS_LABELS[section] : 'settings.title')}</h1>
+      </div>
+      {section ? <div className="settings-detail"><SettingsDetail entry={section}/></div> : <>
+        <ThemeChoices/>
+        <div className="settings-groups">
+          {SETTINGS_GROUPS.map(group => {
+            const entries = group.entries.filter(entry => !preview || (entry !== 'sync' && entry !== 'updates'));
+            return entries.length > 0 && <section key={group.key}>
+              <h2>{t(`settings.directory.${group.key}`)}</h2>
+              <div className="settings-list">{entries.map(entry => {
+                const Icon = icons[entry];
+                return <Link className="settings-row" key={entry} data-entry={entry}
+                  to={entry === 'guide' ? '/files?guide=1' : `/settings?section=${entry}`} state={{...state, fromSettingsHome: true}}>
+                  <Icon className="settings-row-icon" size={21} aria-hidden="true"/>
+                  <span className="settings-row-label">{t(SETTINGS_LABELS[entry])}</span>
+                  <span className="settings-value"><EntrySummary entry={entry}/></span>
+                  <ChevronRight className="settings-chevron" size={16} aria-hidden="true"/>
+                </Link>;
+              })}</div>
+            </section>;
+          })}
+        </div>
+      </>}
+    </div>
+  </div>;
 }

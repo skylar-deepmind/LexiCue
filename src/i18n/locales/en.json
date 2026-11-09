@@ -72,7 +72,27 @@
     "switch": "Switch"
   },
   "settings": {
+    "directory": {
+      "preferences": "Preferences",
+      "data": "Data & devices",
+      "tools": "Tools",
+      "app": "App",
+      "captions": "YouTube captions",
+      "updates": "Software update",
+      "versionInfo": "Version information",
+      "version": "Current version",
+      "method": "Installation method",
+      "local": "Local installation",
+      "localHint": "This build was installed from a Mac. Install the new version from your Mac to update.",
+      "channelHint": "Use the original installation channel to update this app."
+    },
     "deviceSync": {
+      "unsupported": "Device sync is available in LexiCue for Mac and iPhone.",
+      "pairedDevices": "Paired devices",
+      "receiveSettings": "Receiving",
+      "receiveTitle": "Keep receiving when the window is closed",
+      "receiveHint": "Receiving stops when you quit LexiCue.",
+      "deviceManagement": "Device management",
       "recoverCopy": "Keep this edit in a new synced material",
       "keepLocal": "Keep on this device",
       "includeRestored": "Sync as a new item",
@@ -928,7 +948,7 @@
   },
   "layout": {
     "dictInit": "Initializing dictionary…",
-    "updateAvailable": "New version v{{version}} available — install it in Settings → About & Updates"
+    "updateAvailable": "New version v{{version}} available — install it in Settings → Software update"
   },
   "themes": {
     "oceanLabel": "Ocean Blue",
