@@ -23,6 +23,9 @@ deploy/backups/
 
 # Local development artifacts
 assets
+# The published browser demo includes its generated JavaScript, CSS and workers.
+!docs/_demo/assets/
+!docs/_demo/assets/**
 scripts/cache
 __pycache__/
 
