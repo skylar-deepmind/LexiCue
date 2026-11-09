@@ -1,3 +1,4 @@
+import { LoadingSkeleton, BusyRing } from './LoadingFeedback';
 import { useEffect, useRef, useState } from 'react';
 import { contextsInScope, LIBRARY_SCOPE, type ReadingScope } from '../lib/readingScope';
 import { useTranslation } from 'react-i18next';
@@ -47,6 +48,7 @@ export default function RecallSection({ expression, expanded = false, onLoaded, 
     return () => { live = false; };
   }, [expression, revision, retry, changed, onLoaded, sessionId]);
   if (!loading && !error && !page.records.length) return null;
+  if (loading && !page.records.length) return <LoadingSkeleton kind="list" label={t('common.loading')}/>;
   if (!page.total) return error ? <div className="recall-error" role="alert"><p>{t('recall.loadFailed')}</p><button className="ui-button" onClick={() => setRetry(value => value + 1)}>{t('common.retry')}</button></div> : null;
   return <div className="recall-section recall-history" aria-label={t('recall.previous')} aria-busy={loading}>
     {!expanded && <p>{t('dictionaryFlow.historySummary', { count: page.total })}</p>}
@@ -60,6 +62,7 @@ export default function RecallSection({ expression, expanded = false, onLoaded, 
       <RecallNote scope={scope} record={value} onChange={next=>setPage(previous=>({...previous,records:previous.records.map(record=>record.record_id===next.record_id?next:record)}))}/>
       {onSource && <button className="ui-button recall-source" data-testid="recall-source" disabled={sourceBusy || !value.source} onClick={() => void onSource(value)}>{t('savedRecords.returnToSource')}</button>}
     </article>)}
+    {loading && <span role="status"><BusyRing/><span className="sr-only">{t('common.loading')}</span></span>}
     {page.records.length < page.total && <button className="ui-button" disabled={loading} onClick={() => void loadRef.current(page.records.length)}>{t('savedRecords.loadMore')}</button>}
     {error && <div className="recall-error" role="alert"><p>{t('recall.loadFailed')}</p><button className="ui-button" disabled={loading} onClick={() => setRetry(value => value + 1)}>{t('common.retry')}</button></div>}
   </div>;

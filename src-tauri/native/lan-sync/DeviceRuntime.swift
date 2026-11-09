@@ -37,6 +37,7 @@ final class DeviceRuntime {
   var code: String?
   var qr: String?
   var state = "unpaired"
+  var syncPhase: SyncPhase?
   var issue: String?
   var foreground = true
   var suspension = UUID()
@@ -159,6 +160,7 @@ final class DeviceRuntime {
         "paired": trust != nil && !provisional, "confirmed": confirmed || provisional,
         "restoring": restoring, "restoreReady": restoreReady,
       ]
+      if visibleState == "syncing" { value["phase"] = syncPhase?.rawValue }
       value["code"] = code ?? trust?.provisionalCode
       value["confirmationId"] = confirmationID?.uuidString
       value["qr"] = qr

@@ -32,12 +32,16 @@ try {
         window.isTauri = true;
         window.qaStatus = {role, state:'unpaired', paired:false};
         window.qaActions = [];
+        window.statusReads = 0;
         window.__TAURI_EVENT_PLUGIN_INTERNALS__ = {unregisterListener() {}};
         window.__TAURI_INTERNALS__ = {transformCallback:() => 1, unregisterCallback() {}, convertFileSrc: s => s,
           invoke: async (command, args) => {
             if (command === 'device_sync') {
               const s = window.qaStatus;
-              if (args.action === 'backups') return [];
+              if (args.action === 'status') window.statusReads++;
+              if (args.action === 'backups') return new Promise((resolve, reject) => {
+                window.finishBackupRead = ok => ok ? resolve([]) : reject(new Error('backup list unavailable'));
+              });
               if (args.action.startsWith('receiveClosed')) s.receiveClosed=args.action==='receiveClosedOn';
               if (args.action !== 'status') window.qaActions.push(args);
               if (args.action === 'offer') Object.assign(s,{state:'offering',qr:'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2280%22 height=%2280%22/%3E'});
@@ -63,6 +67,21 @@ try {
       const entry = page.locator('[data-entry=sync]');
       await entry.getByText('尚未配对').waitFor();
       assert.equal(await section.count(),0);
+      const summaryReads = await page.evaluate(() => window.statusReads);
+      await page.waitForTimeout(1150);
+      assert.equal(await page.evaluate(() => window.statusReads), summaryReads, 'summary only reads on demand');
+      await page.evaluate(() => {
+        Object.assign(window.qaStatus,{paired:true,state:'syncing',phase:'exchanging'});
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+      await entry.getByText('交换更改').waitFor();
+      await page.evaluate(() => Object.assign(window.qaStatus,{state:'synced'}));
+      await entry.getByText('已同步').waitFor();
+      await page.evaluate(() => {
+        Object.assign(window.qaStatus,{paired:false,state:'unpaired',phase:undefined});
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+      await entry.getByText('尚未配对').waitFor();
       await entry.focus();
       await page.keyboard.press('Enter');
       await start.waitFor();
@@ -93,6 +112,24 @@ try {
       for (const [state, label] of [['waiting','等待设备上线'], ['syncing','同步中'], ['synced','已同步'], ['update','需要更新另一台设备'], ['pending','有更改待处理'], ['permission','需要访问权限']]) {
         await page.evaluate(state => Object.assign(window.qaStatus,{state,paired:true,issue:state === 'permission' ? 'localNetwork' : undefined}),state);
         await section.getByRole('status').filter({hasText:label}).waitFor();
+        if (state === 'syncing') {
+          const status = section.locator('.sync-state');
+          const track = status.locator('.activity-track[aria-hidden=true]');
+          await track.waitFor();
+          for (const [phase, name] of [['preparing','准备合并'], ['exchanging','交换更改'], ['awaitingAck','等待对方确认']]) {
+            await page.evaluate(phase => { window.qaStatus.phase = phase; }, phase);
+            await status.getByText(name, {exact:true}).waitFor();
+            assert.equal(await status.getByText('已同步').count(),0);
+          }
+          await verifyContrast(status, `${theme} syncing text`);
+          await page.screenshot({path:`/tmp/lexicue-device-sync-${role}-${theme}-awaiting-ack.png`});
+          await page.emulateMedia({reducedMotion:'reduce'});
+          await track.waitFor({state:'hidden'});
+          await status.locator('.sync-static-activity[aria-hidden=true]').waitFor();
+          await page.emulateMedia({reducedMotion:'no-preference'});
+        } else {
+          assert.equal(await section.locator('.activity-track').count(),0);
+        }
         if (state==='synced') {
           const peer = section.locator(role==='mac'?'.sync-peer-row':'.sync-peer-card');
           assert.equal(await peer.locator('strong').innerText(),role==='mac'?'测试 iPhone':'测试 Mac');
@@ -108,7 +145,17 @@ try {
         assert.equal(await receiver.isChecked(),true);
       }
       const backups=section.locator('summary').filter({hasText:'合并前的本机备份'});
-      await backups.click();await section.getByText('本机尚未创建合并前备份。').waitFor();
+      await backups.click();
+      const listStatus = section.getByRole('status').filter({hasText:'正在读取备份列表'});
+      await listStatus.waitFor();
+      assert.equal(await section.getByText('本机尚未创建合并前备份。').count(),0);
+      await page.evaluate(() => window.finishBackupRead(false));
+      const disclosure = backups.locator('..');
+      await disclosure.getByRole('alert').filter({hasText:'无法读取本机备份列表。'}).waitFor();
+      await disclosure.getByRole('button', {name:'重试'}).click();
+      await listStatus.waitFor();
+      await page.evaluate(() => window.finishBackupRead(true));
+      await disclosure.getByText('本机尚未创建合并前备份。').waitFor();
       await section.locator('summary').filter({hasText:'管理已配对设备'}).click();
       await section.getByRole('button',{name:'移除设备',exact:true}).click();
       assert.ok(await section.getByText('移除后停止交换资料', {exact:false}).isVisible());

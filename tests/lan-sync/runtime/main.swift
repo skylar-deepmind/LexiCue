@@ -13,6 +13,7 @@ var work: URL!
 var prepared = false
 var sawRequest = false
 var verifiedUpgrade = false
+var observedRuntime: DeviceRuntime!
 var isMacRole = false
 var replica: UUID!
 var phase = ""
@@ -33,8 +34,17 @@ func engine(
   _ ctx: UnsafeMutableRawPointer?, _ call: LinkExchange?
 ) -> UnsafeMutablePointer<CChar>? {
   guard let action else { return nil }
+  let command = String(cString: action)
+  if ["prepare", "hello", "respond", "run"].contains(command) {
+    // Called inside real session operations; polling delays must not invent a phase.
+    let status = observedRuntime.command("status")
+    let expected = command == "prepare" ? "preparing" : "exchanging"
+    guard status["state"] as? String == "syncing", status["phase"] as? String == expected else {
+      done("FAIL phase during " + command, 1)
+    }
+  }
   var output: Any = NSNull()
-  switch String(cString: action) {
+  switch command {
   case "upgradeMode":
     output = phase == "resume" && !verifiedUpgrade ? "legacy" : (prepared ? "known" : "new")
   case "upgradeProof":
@@ -58,6 +68,9 @@ func engine(
     FileManager.default.createFile(
       atPath: work.appendingPathComponent("prepared").path, contents: Data())
   case "progress":
+    if observedRuntime.queue.sync(execute: { observedRuntime.syncPhase == .awaitingAck && observedRuntime.state == "syncing" }) {
+      flag("awaiting-ack-observed")
+    }
     guard prepared else { return strdup("{\"error\":\"new install\"}") }
     let head = isMacRole && phase == "pair" && has("edited-while-offline") ? 1 : 0
     output = [
@@ -156,6 +169,8 @@ func test() throws {
   prepared = FileManager.default.fileExists(atPath: prepFile.path)
   let rt = DeviceRuntime(
     replica: replica, journal: JournalBridge(call: engine, release: { free($0) }), isMac: isMacRole)
+  observedRuntime = rt
+  try? FileManager.default.removeItem(at: work.appendingPathComponent("awaiting-ack-observed"))
   if phase == "resume" {
     guard var old = try rt.storage.load(PeerTrust.self, "peer") else {
       done("FAIL missing legacy Keychain route", 1)
@@ -240,6 +255,9 @@ func test() throws {
       _ = rt.command("confirm", confirmation: id)
     }
     if state == "synced", sawRequest {
+      guard value["phase"] == nil, has("awaiting-ack-observed") else {
+        done("FAIL synced without a durable-progress check after exchange", 1)
+      }
       #if os(macOS)
         if phase == "pair", !isMacRole, ProcessInfo.processInfo.environment["QA_HOLD_SOCKET"] == "1" {
           flag("parked")

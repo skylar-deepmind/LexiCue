@@ -1,3 +1,4 @@
+import { ActivityTrack } from './LoadingFeedback';
 import { normalizeNavigationPath } from './NavigationItems';
 import { backNavigation } from '../lib/backNavigation';
 import { useEffect, useRef, useLayoutEffect } from 'react';
@@ -195,6 +196,6 @@ export default function Layout() {
       <ImportPanel />
       <ToastHost />
       <AppFirstUseGuide />
-      {restoring && <Overlay className="restore-progress" label={t('fileStore.restoring')} onClose={() => false}><p role="status">{t('fileStore.restoring')}</p></Overlay>}
+      {restoring && <Overlay className="restore-progress" label={t('fileStore.restoring')} onClose={() => false}><p role="status">{t('fileStore.restoring')}</p><ActivityTrack /></Overlay>}
     </div>);
 }

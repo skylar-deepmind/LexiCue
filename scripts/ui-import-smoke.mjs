@@ -24,7 +24,9 @@ const open=async()=>{
  await page.locator('.b-dock [data-guide="import"]').click();
 };
 const confirm=()=>page.getByRole('button',{name:/^确认导入/}).click();
-async function contrast(locator,label){const value=await locator.evaluate(node=>{
+async function contrast(locator,label){const value=await locator.evaluate(async node=>{
+ // Measure the requested interaction state after its finite color transition.
+ await Promise.all(node.getAnimations().filter(a=>a.effect.getComputedTiming().iterations!==Infinity).map(a=>a.finished.catch(()=>{})));
  const rgb=v=>v.match(/[\d.]+/g).map(Number),lum=c=>c.slice(0,3).map(n=>{n/=255;return n<=.04045?n/12.92:((n+.055)/1.055)**2.4;}).reduce((v,n,i)=>v+n*[.2126,.7152,.0722][i],0);
  let p=node,bg;do{bg=rgb(getComputedStyle(p).backgroundColor);p=p.parentElement;}while(p&&(bg[3]??1)===0);const a=lum(rgb(getComputedStyle(node).color)),b=lum(bg);return(Math.max(a,b)+.05)/(Math.min(a,b)+.05);
 });contrasts.push({label,ratio:value});ok(value>=4.5,`${label}: ${value.toFixed(2)}:1`);}

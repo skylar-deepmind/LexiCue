@@ -1,3 +1,4 @@
+import { LoadingSkeleton, BusyRing } from '../components/LoadingFeedback';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -135,9 +136,10 @@ function SavedGroupContent({ group, revision, drafts, pendingRemove, onRemove, o
 
   return <>
     <div className="saved-detail-body saved-group-contexts" aria-busy={loading}>
-      {loading && !page.records.length && <p className="saved-status" role="status">{t('common.loading')}</p>}
+      {loading && !page.records.length && <LoadingSkeleton kind="list" label={t('common.loading')}/>}
       {page.records.map(record => <SavedContext key={record.record_id} record={record} drafts={drafts} removing={pendingRemove !== null} displayReady={active} onRemove={onRemove} onReturn={onReturn} onChange={next => setPage(previous => ({ ...previous, records: previous.records.map(value => value.record_id === next.record_id ? next : value) }))} />)}
       {error && <div className="saved-error" role="alert"><p>{error}</p><button className="ui-button" onClick={() => setRetry(value => value + 1)} disabled={loading}>{t('common.retry')}</button></div>}
+      {loading && page.records.length > 0 && <div className="saved-status" role="status"><BusyRing/><span className="sr-only">{t('common.loading')}</span></div>}
       {page.records.length < page.total && <button className="ui-button" disabled={loading} onClick={() => void load(page.records.length)}>{t('savedRecords.loadMore')}</button>}
     </div>
 
@@ -315,7 +317,7 @@ export default function SavedPage() {
       <div className="sr-only"><h1>{t('savedRecords.title')}</h1><span role="status">{t('dictionaryFlow.groupCount', { count: page.total_groups, contexts: page.total_records })}</span></div>
       <label className="saved-search"><Search size={18} aria-hidden="true" /><span className="sr-only">{t('savedRecords.search')}</span><input type="search" value={query} onChange={event => { loadedGroups.current = PAGE_SIZE; setQuery(event.target.value); }} placeholder={t('savedRecords.search')} /></label>
       {error && <div className="saved-error" role="alert"><p>{error}</p><button className="ui-button" onClick={() => void load()}>{t('common.retry')}</button></div>}
-      {loading && <p className="saved-status" role="status">{t('common.loading')}</p>}
+      {loading && !page.groups.length && <LoadingSkeleton kind="list" label={t('common.loading')}/>}
       {!loading && !error && !page.groups.length && <div className="saved-empty"><Bookmark size={30} aria-hidden="true" /><p>{t(query ? 'savedRecords.noResults' : 'savedRecords.empty')}</p></div>}
       {/* Loading results must paint at full height, including on desktop where
           a route transition may still be running when the first reply arrives. */}
@@ -324,6 +326,7 @@ export default function SavedPage() {
           {opened.includes(group.group_id) && <SavedGroupContent active={selected?.group_id === group.group_id} group={group} revision={contextRevision} drafts={editDrafts.current} pendingRemove={pendingRemove} undo={undo} undoBusy={undoBusy} undoButton={undoButton} onUndo={restore} onClose={() => setSelected(null)} onRemove={remove} onReturn={returnToSource} initialCount={snapshot?.loadedContexts[group.group_id] ?? CONTEXT_PAGE_SIZE} onCount={count => contextCount(group.group_id, count)} />}
         </SavedGroupCard>)}
       </ul></MotionChange>
+      {loading && page.groups.length > 0 && <div className="saved-status" role="status"><BusyRing/><span className="sr-only">{t('common.loading')}</span></div>}
       {page.groups.length < page.total_groups && <button className="ui-button" disabled={loading} onClick={() => void load(page.groups.length)}>{t('savedRecords.loadMore')}</button>}
       {report && report.saved_contexts > 0 && <details className="saved-migration"><summary>{t('savedRecords.migrationTitle')}</summary><p>{t('savedRecords.migrationReport', { count: report.saved_contexts, missing: report.missing_sources })}</p></details>}
       {conflicts.length > 0 && <details className="saved-conflicts"><summary>{t('savedRecords.conflicts', { count: conflicts.length })}</summary><p>{t('savedRecords.conflictsHint')}</p>{conflicts.map(conflict => <section key={conflict.id}><h2>{conflict.local.expression}</h2><p>{t('savedRecords.localVersion')}：{conflict.local.explanation || t('savedRecords.noExplanation')}</p><p>{t('savedRecords.remoteVersion')}：{conflict.remote.explanation || t('savedRecords.noExplanation')}</p><p lang="en">{conflict.local.sentence}</p></section>)}</details>}

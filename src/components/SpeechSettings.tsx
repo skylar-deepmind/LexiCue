@@ -1,3 +1,4 @@
+import { BusyRing } from './LoadingFeedback';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
@@ -40,7 +41,7 @@ export default function SpeechSettings() {
       <p>{t('speech.privacy')}</p>
       <label className="speech-settings__toggle"><input type="checkbox" checked={speech.allowDeviceFallback} onChange={event => setSpeech({ allowDeviceFallback: event.target.checked })}/><span>{t('speech.allowDeviceFallback')}</span></label>
       <p>{t('speech.fallbackDescription')}</p>
-      <button type="button" className="ui-button" disabled={clearing} aria-busy={clearing} onClick={() => void clearCache()}>{t(clearing ? 'speech.clearingCache' : 'speech.clearCache')}</button>
+      <button type="button" className="ui-button" disabled={clearing} aria-busy={clearing} onClick={() => void clearCache()}>{clearing && <BusyRing />}<span>{t(clearing ? 'speech.clearingCache' : 'speech.clearCache')}</span></button>
       {cacheState !== 'idle' && <p role="status">{t(cacheState === 'cleared' ? 'speech.cacheCleared' : 'speech.cacheFailed')}</p>}
     </details>
   </section>;

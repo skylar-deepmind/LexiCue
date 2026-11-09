@@ -120,6 +120,13 @@
       "noBackup": "このデバイスには統合前のバックアップがありません。",
       "restoreEffect": "このデバイスの現在の資料をバックアップしてから、学習資料を置き換え、ペアリングを解除します。相手の資料は保持されます。",
       "restore": "このバックアップを復元",
+      "backupLoading": "バックアップを読み込み中",
+      "backupReadError": "この端末のバックアップを読み込めませんでした。",
+      "phase": {
+        "preparing": "統合の準備中",
+        "exchanging": "変更を交換中",
+        "awaitingAck": "相手の確認を待機中"
+      },
       "state": {
         "unpaired": "未ペアリング",
         "offering": "iPhone の読み取り待ち。コードは2分間有効です。",

@@ -17,10 +17,13 @@ try {
       localStorage.setItem('lexicue-onboarding-v1', JSON.stringify({version:1,status:'skipped'}));
       window.isTauri = true;
       window.calls = [];
+      window.requestGates = new Map();
       window.__TAURI_EVENT_PLUGIN_INTERNALS__ = {unregisterListener(){}};
       window.__TAURI_INTERNALS__ = {transformCallback:()=>1,unregisterCallback(){},convertFileSrc:s=>s,
         invoke:async command => {
           window.calls.push(command);
+          if (window.requestGates.has(command)) await window.requestGates.get(command).promise;
+          if (command === 'longman_dictionary_status') return {state:'ready',audio_available:true};
           if (command === 'device_sync') return {role:phone?'iphone':'mac',state:'waiting',paired:true,peerName:'Test'};
           if (command === 'plugin:app|version') return '0.4.6';
           if (command === 'plugin:app|identifier') return 'com.lexicue.dev.lansyncqa';
@@ -29,6 +32,17 @@ try {
           return null;
         }};
     },phone);
+    async function checkPending(command, action, indicator) {
+      await page.evaluate(cmd => { window.requestGates.set(cmd, Promise.withResolvers()); }, command);
+      await action();
+      await indicator.waitFor({state:'visible'});
+      assert.equal(await indicator.evaluate(n => getComputedStyle(n).animationName), 'none');
+      await page.evaluate(cmd => {
+        window.requestGates.get(cmd).resolve();
+        window.requestGates.delete(cmd);
+      }, command);
+      await indicator.waitFor({state:'detached'});
+    }
     await page.goto(new URL('/settings',url).href);
     await page.locator('.mobile-startup').waitFor({state:'detached'});
     for (const [theme,name] of [['ocean','海湾蓝'],['midnight','深夜墨色']]) {
@@ -42,6 +56,13 @@ try {
       assert.equal(await page.locator('.theme-choice').count(),5);
       assert.ok(await groups.locator('.settings-row').evaluateAll(rows=>rows.every(r=>r.clientHeight>=44 && r.scrollWidth<=r.clientWidth+1)));
       if(output) await page.screenshot({path:output+'/'+(phone?'iphone':'mac')+'-'+theme+'.png'});
+      await checkPending('longman_dictionary_status', () => page.locator('[data-entry=dictionary]').click(), page.locator('[role=status] .busy-ring'));
+      await page.getByRole('button',{name:'返回',exact:true}).click();
+      await page.locator('[data-entry=speech]').click();
+      await page.locator('.speech-settings details > summary').click();
+      const clearSpeech=page.getByRole('button', {name:'清除朗读缓存', exact:true});
+      await checkPending('clear_tts_cache', () => clearSpeech.click(), page.locator('button[aria-busy=true] .busy-ring'));
+      await page.getByRole('button',{name:'返回',exact:true}).click();
       const updates=page.locator('[data-entry=updates]');
       await updates.focus();
       await page.keyboard.press('Enter');

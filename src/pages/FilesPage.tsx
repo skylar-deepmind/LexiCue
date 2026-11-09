@@ -1,3 +1,4 @@
+import { LoadingSkeleton, BusyRing } from '../components/LoadingFeedback';
 import { isMobilePlatform } from '../lib/platform';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
@@ -256,11 +257,15 @@ export default function FilesPage() {
     const closeLibrary = () => { remember(); setParams({}, {replace:true}); };
     useSheetDrag(libraryPanel,library && libraryPresent,closeLibrary);
     // Refresh metadata in place so dialog return targets and library controls stay mounted.
-    const ready = !materials.error && (!materials.loading || materials.hasLoaded);
+    const ready = materials.hasLoaded || (!materials.loading && !materials.error);
+    const initialLoad = materials.loading && !materials.hasLoaded;
+    const refreshIndicator = materials.loading && materials.hasLoaded &&
+        <span role="status"><BusyRing/><span className="sr-only">{t('common.loading')}</span></span>;
+    const loadError = materials.error && <div className="saved-error" role="alert"><p>{t('materials.loadFailed')}</p><button className="ui-button" onClick={() => void materials.load()}>{t('common.retry')}</button></div>;
     return <div className="materials-page reading-stage-page" data-has-desk={!!main} data-library-open={library||undefined} data-library-restored={library&&location.state?.restoreLibrary||undefined}><div className="materials-scroll"><div className="materials-paper reading-stage-content">
-        <div className="materials-heading"><h1>{t('materials.title')}</h1></div>
-        {materials.loading && !materials.hasLoaded && <p className="material-status" role="status">{t('common.loading')}</p>}
-        {materials.error && <div className="saved-error" role="alert"><p>{t('materials.loadFailed')}</p><button className="ui-button" onClick={() => void materials.load()}>{t('common.retry')}</button></div>}
+        <div className="materials-heading"><h1>{t('materials.title')}</h1>{!libraryPresent && refreshIndicator}</div>
+        {initialLoad && !libraryPresent && <LoadingSkeleton kind="list" label={t('common.loading')}/>}
+        {!libraryPresent && loadError}
         {ready && <section className="reading-desktop" aria-label={t('readingDesk.desktop')}>
             {main ? <><div className="desk-stack" ref={cardTurn.stackRef} tabIndex={0} aria-label={t('readingDesk.desktop')}>
                 <div className="desk-card-viewport">{desktop.map((file, index) => {
@@ -290,10 +295,12 @@ export default function FilesPage() {
         </div><DeskFeedback beforeUndo={()=>{cancelMotion();lastArchive.current=-Infinity;}}/></div>}
         {ready && !materials.files.length && <DeskFeedback/>}
     </div></div>
-        {ready && libraryPresent && <Overlay panelRef={libraryPanel} returnFocus={() => dock.current} initialFocus={()=>{const target=location.state?.restoreLibrary&&focusId.current?scroll.current?.querySelector<HTMLButtonElement>(`[data-open="${focusId.current}"]`):null;return target??(isMobilePlatform()||innerWidth<768?libraryPanel.current:null);}} label={t('readingDesk.library')} onClose={closeLibrary} className="library-overlay-panel" layerClassName={`library-overlay-layer${library ? '' : ' is-closing'}${location.state?.restoreLibrary ? ' is-restoring' : ''}`}><div className="library-sheet-grab" aria-hidden="true"><span/></div><div ref={scroll} className="library-overlay-scroll" inert={!library} onScroll={() => { scrollTop.current=scroll.current?.scrollTop ?? 0; remember(); }}><section className="reading-library" aria-label={t('readingDesk.library')}>
+        {libraryPresent && <Overlay panelRef={libraryPanel} returnFocus={() => dock.current} initialFocus={()=>{const target=location.state?.restoreLibrary&&focusId.current?scroll.current?.querySelector<HTMLButtonElement>(`[data-open="${focusId.current}"]`):null;return target??(isMobilePlatform()||innerWidth<768?libraryPanel.current:null);}} label={t('readingDesk.library')} onClose={closeLibrary} className="library-overlay-panel" layerClassName={`library-overlay-layer${library ? '' : ' is-closing'}${location.state?.restoreLibrary ? ' is-restoring' : ''}`}><div className="library-sheet-grab" aria-hidden="true"><span/></div><div ref={scroll} className="library-overlay-scroll" inert={!library} onScroll={() => { scrollTop.current=scroll.current?.scrollTop ?? 0; remember(); }}><section className="reading-library" aria-label={t('readingDesk.library')}>
             <DeskFeedback/>
-            <div className="library-heading"><h2>{t('readingDesk.library')}</h2><button className="desk-text-button desk-icon-button" onClick={closeLibrary} aria-label={t('readingDesk.backDesk')} title={t('readingDesk.backDesk')}><X size={20} aria-hidden="true"/></button></div>
-            <div className="library-tools"><div className="library-ranges" role="group" aria-label={t('readingDesk.range')}>
+            <div className="library-heading"><h2>{t('readingDesk.library')}</h2>{refreshIndicator}<button className="desk-text-button desk-icon-button" onClick={closeLibrary} aria-label={t('readingDesk.backDesk')} title={t('readingDesk.backDesk')}><X size={20} aria-hidden="true"/></button></div>
+            {initialLoad && <LoadingSkeleton kind="list" label={t('common.loading')}/>}
+            {loadError}
+            {ready && <><div className="library-tools"><div className="library-ranges" role="group" aria-label={t('readingDesk.range')}>
                 {(['all','stored'] as const).map(value=><button key={value} className="desk-text-button" aria-pressed={range===value} onClick={()=>{setRange(value);scrollTop.current=0;}}>{t(value==='all'?'readingDesk.all':'readingDesk.stored')} <span>{value==='all'?materials.files.length:materials.files.filter(file=>!onDesk(file)).length}</span></button>)}
             </div><label className="library-search"><Search size={17} aria-hidden="true"/><input ref={search} type="search" aria-label={t('readingDesk.search')} placeholder={t('readingDesk.search')} value={query} onChange={event=>{setQuery(event.target.value);scrollTop.current=0;}}/></label><button className="desk-text-button library-tag-toggle" aria-label={t('materials.filterTags')} aria-expanded={tagsOpen} onClick={()=>setTagsOpen(!tagsOpen)}><Tags size={18} aria-hidden="true"/></button></div>
             {tagsOpen && <TagFilterBar onManage={()=>setManager(true)}/>}
@@ -306,7 +313,7 @@ export default function FilesPage() {
             </article>)}</div></MotionChange>
             {visibleCount < matches.length && <button className="ui-button" onClick={()=>setVisibleCount(value=>{sessionLibraryCount=value+30;return sessionLibraryCount;})}>{t('savedRecords.loadMore')}</button>}
             {!matches.length && <div className="library-no-results" role="status"><p>{t(materials.files.length?'materials.noMatches':'materials.empty')}</p>{materials.files.length > 0 && <button className="ui-button" onClick={()=>{setQuery('');setRange('all');useFileStore.getState().setTagFilter([],false);}}>{t('readingDesk.resetFilters')}</button>}</div>}
-        </section></div></Overlay>}
+        </>}</section></div></Overlay>}
         {manager && <TagManager onClose={()=>{setManager(false);materials.changed();}}/>}{edit && <TagEditDialog file={edit} onClose={()=>{setEdit(null);materials.changed();}}/>}
     </div>;
 }

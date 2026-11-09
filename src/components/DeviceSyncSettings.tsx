@@ -1,6 +1,8 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { invoke, isTauri } from '@tauri-apps/api/core';
+import { ArrowRightLeft } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { ActivityTrack, LoadingSkeleton } from './LoadingFeedback';
 import DeviceSyncConflicts from './DeviceSyncConflicts';
 import { useFileStore } from '../stores/fileStore';
 import { useDeviceSyncStatus, type DeviceStatus } from './useDeviceSyncStatus';
@@ -12,22 +14,51 @@ function Icon({name}: {name: IconName}) {
   return <i className={`sync-icon sync-icon--${name}`} aria-hidden="true" />;
 }
 
+function statusKey(status: DeviceStatus) {
+  return status.state === 'syncing' && status.phase ? `phase.${status.phase}` : `state.${status.state}`;
+}
+
+function BackupList({ busy, restore }: { busy: boolean; restore: (backup: Backup) => Promise<boolean> }) {
+  const { t, i18n } = useTranslation();
+  const [backups, setBackups] = useState<Backup[]>();
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const [selected, setSelected] = useState<Backup>();
+  useEffect(() => {
+    let alive = true;
+    void invoke<Backup[]>('device_sync', {action: 'backups'}).then(
+      entries => { if (alive) setBackups(entries); },
+      () => { if (alive) setFailed(true); }
+    );
+    return () => { alive = false; };
+  }, [attempt]);
+  const key = (name: string) => t(`settings.deviceSync.${name}`);
+  const date = (backup: Backup) => new Date(backup.created * 1000).toLocaleString(i18n.language);
+  if (failed) return <><p role="alert">{key('backupReadError')}</p>
+    <button className="sync-action" onClick={() => { setFailed(false); setAttempt(a => a + 1); }}>{t('common.retry')}</button></>;
+  if (!backups) return <LoadingSkeleton kind="list" label={key('backupLoading')}/>;
+  if (backups.length === 0) return <p>{key('noBackup')}</p>;
+  if (selected) return <><p>{date(selected)} · {key('restoreEffect')}</p>
+    <button className="sync-action" disabled={busy} onClick={async () => { if (await restore(selected)) setSelected(undefined); }}>{key('restore')}</button>
+    <button className="sync-action" disabled={busy} onClick={() => setSelected(undefined)}>{t('common.cancel')}</button></>;
+  return <>{backups.map(b => <button className="sync-action" key={b.id} onClick={() => setSelected(b)}>{date(b)}</button>)}</>;
+}
+
 export function DeviceSyncSummary() {
   const { t } = useTranslation();
-  const {status, readError} = useDeviceSyncStatus();
+  const {status, readError} = useDeviceSyncStatus('summary');
   if (readError) return <>{t('settings.deviceSync.state.error')}</>;
   if (!status || status.state === 'unsupported') return null;
-  return <>{t(`settings.deviceSync.state.${status.state}`)}</>;
+  return <>{t(`settings.deviceSync.${statusKey(status)}`)}</>;
 }
 
 export default function DeviceSyncSettings() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { status, readError, busy, perform } = useDeviceSyncStatus();
   const [error, setError] = useState(false);
   const [hasConflicts, setHasConflicts] = useState(false);
   const [remove, setRemove] = useState(false);
-  const [backups, setBackups] = useState<Backup[]>();
-  const [selectedBackup, setSelectedBackup] = useState<Backup>();
+  const [backupsOpen, setBackupsOpen] = useState(false);
   const heading = useRef<HTMLHeadingElement>(null);
   const key = (name: string) => t(`settings.deviceSync.${name}`);
   const act = async (action: string) => {
@@ -45,20 +76,22 @@ export default function DeviceSyncSettings() {
         await useFileStore.getState().restoreAll(backup.id);
         return invoke<DeviceStatus>('device_sync', {action:'status'});
       });
-      setSelectedBackup(undefined);
-    } catch { setError(true); }
+      return true;
+    } catch { setError(true); return false; }
   };
   if (!isTauri() || status?.state === 'unsupported') return <p>{key('unsupported')}</p>;
-  if (!status) return readError ? <p role="alert">{key('issue.unavailable')}</p> : <p role="status">{t('common.loading')}</p>;
+  if (!status) return readError ? <p role="alert">{key('issue.unavailable')}</p> : <LoadingSkeleton kind="list" label={t('common.loading')}/>;
   const phase = status.state;
   const mac = status.role === 'mac';
   const attempting = phase === 'offering' || phase === 'scanning' || phase === 'confirming';
   const canPair = !status.paired && !attempting;
-  const label = key(`state.${readError ? 'error' : hasConflicts && phase === 'synced' ? 'pending' : phase}`);
+  const active = !readError && phase === 'syncing';
+  const label = key(readError ? 'state.error' : hasConflicts && phase === 'synced' ? 'state.pending' : statusKey(status));
   const peerName = status.peerName || (mac ? 'iPhone' : 'Mac');
-  const statusLine = <span className="sync-state" role="status">
+  const statusLine = <span className="sync-state" data-active={active || undefined} role="status">
     {phase === 'synced' && !hasConflicts && !readError && <Icon name={mac ? 'check-mac' : 'check-phone'}/>}
     {phase === 'waiting' && !readError && <Icon name="clock"/>}{label}
+    {active && <><ArrowRightLeft className="sync-static-activity" size={17} aria-hidden="true"/><ActivityTrack/></>}
   </span>;
   const pairButton = canPair && <button className="sync-primary" disabled={busy} onClick={()=>void act(mac?'offer':'scan')}><Icon name="qr"/>{key(mac?'show':'scan')}</button>;
   return <div className="device-sync" data-role={status.role}>
@@ -109,18 +142,9 @@ export default function DeviceSyncSettings() {
             {remove && <button className="sync-action" disabled={busy} onClick={()=>setRemove(false)}>{t('common.cancel')}</button>}
           </div>
         </details>}
-        <details onToggle={e=>{
-          if(!e.currentTarget.open){setSelectedBackup(undefined);return;}
-          void invoke<Backup[]>('device_sync',{action:'backups'}).then(setBackups).catch(()=>setError(true));
-        }}>
+        <details onToggle={e=>setBackupsOpen(e.currentTarget.open)}>
           <summary><Icon name="archive"/><span>{key('backups')}</span><Icon name="chevron"/></summary>
-          <div className="sync-disclosed">
-            {backups?.length===0 && <p>{key('noBackup')}</p>}
-            {!selectedBackup && backups?.map(b=><button className="sync-action" key={b.id} onClick={()=>setSelectedBackup(b)}>{new Date(b.created*1000).toLocaleString(i18n.language)}</button>)}
-            {selectedBackup && <><p>{new Date(selectedBackup.created*1000).toLocaleString(i18n.language)} · {key('restoreEffect')}</p>
-              <button className="sync-action" disabled={busy} onClick={()=>void restore(selectedBackup)}>{key('restore')}</button>
-              <button className="sync-action" disabled={busy} onClick={()=>setSelectedBackup(undefined)}>{t('common.cancel')}</button></>}
-          </div>
+          {backupsOpen && <div className="sync-disclosed"><BackupList busy={busy} restore={restore}/></div>}
         </details>
       </div>
     </section>

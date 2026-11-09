@@ -120,6 +120,13 @@
       "noBackup": "本机尚未创建合并前备份。",
       "restoreEffect": "恢复会替换本机学习资料并停止配对。另一端保留现有资料。本机会先备份当前资料。",
       "restore": "恢复此备份",
+      "backupLoading": "正在读取备份列表",
+      "backupReadError": "无法读取本机备份列表。",
+      "phase": {
+        "preparing": "准备合并",
+        "exchanging": "交换更改",
+        "awaitingAck": "等待对方确认"
+      },
       "state": {
         "unpaired": "尚未配对",
         "offering": "等待 iPhone 扫码；配对码两分钟内有效",

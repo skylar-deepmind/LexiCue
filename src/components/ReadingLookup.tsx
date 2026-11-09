@@ -1,3 +1,4 @@
+import { LoadingSkeleton, BusyRing } from './LoadingFeedback';
 import { dictionarySourceLabelKey, dictionaryOnlineSourceNumber } from '../lib/dictionaryPresentation';
 import { documentLocationLabel } from '../lib/documentTypes';
 import useContentFontScaleStyle from './useContentFontScaleStyle';
@@ -99,7 +100,7 @@ export default function ReadingLookup(props: LookupProps) {
       <div className="lookup-stage" style={fontScaleStyle} data-lookup-state={ready ? 'ready' : 'loading'}>
         <SoftContentRefresh className="lookup-content" contentKey={`${key}:${effectiveTab}`} resizeContainer=".context-panel" ready={effectiveTab === 'meaning' ? ready : recordsReady} label={props.query.expression} pendingLabel={t('common.loading')}>
           <header className="lookup-heading"><div><h2 lang="en">{props.query.expression}</h2><SpeechButton text={props.query.expression} speechKey="lookup:term" kind={/\s/.test(props.query.expression.trim()) ? 'phrase' : 'word'} label={t('reader.listenExpression')}/></div></header>
-          {count > 0 && <div className="lookup-tabs" data-tab={effectiveTab} role="tablist"><span className="lookup-tab-indicator" aria-hidden="true"/><button data-testid="lookup-meaning-tab" role="tab" aria-selected={effectiveTab==='meaning'} className={effectiveTab==='meaning'?'active':''} onClick={()=>setTab('meaning')}>{t('annotation.meaning')}</button><button data-testid="lookup-records-tab" role="tab" aria-selected={effectiveTab==='records'} className={effectiveTab==='records'?'active':''} onClick={()=>{setRecordsReady(false);setTab('records');}}>{t('reader.myRecords')} <span>{count}</span></button></div>}
+          {count > 0 && <div className="lookup-tabs" data-tab={effectiveTab} role="tablist"><span className="lookup-tab-indicator" aria-hidden="true"/><button data-testid="lookup-meaning-tab" role="tab" aria-selected={effectiveTab==='meaning'} className={effectiveTab==='meaning'?'active':''} onClick={()=>setTab('meaning')}>{t('annotation.meaning')}</button><button data-testid="lookup-records-tab" role="tab" aria-selected={effectiveTab==='records'} className={effectiveTab==='records'?'active':''} onClick={()=>{if (effectiveTab !== 'records') {setRecordsReady(false);setTab('records');}}}>{t('reader.myRecords')} <span>{count}</span></button></div>}
           <LookupContent key={key} {...props} tab={effectiveTab} onProvider={onProvider} onRecordsReady={onRecordsReady} onReady={onReady} footerHost={footerHost}/>
         </SoftContentRefresh>
         <div className="lookup-action-slot" ref={setFooterHost}/>
@@ -323,9 +324,9 @@ function LookupContent({ query, material, scope, onSkip, drafts, session, onRead
     <div className="lookup-body" data-definition-font={definitionFont} data-aux-font={auxiliaryFont} data-active-dictionary={activeProvider} data-online-state={onlineState}>
       {tab === 'records' ? <RecallSection scope={scope} expression={query.expression} expanded onLoaded={onRecordsReady} onSource={onSource} sourceBusy={sourceBusy}/> : <>
       {example && guideActive && !guidedTour && <div className="example-card-hint"><small role="status">{t(guideStep === 3 ? 'onboarding.step3' : 'onboarding.step2')}</small><button className="ui-button" onClick={onSkip}>{t('onboarding.skip')}</button></div>}
-      {loading && <p role="status">{t('common.loading')}</p>}
-      {!loading && result && <LongmanResult result={result} onInteract={touch} compact/>}
-      <details className="lookup-secondary"><summary>{t('dictionary.sources')}</summary>
+      {loading && !result?.entries.length && <LoadingSkeleton kind="text" label={t('common.loading')}/>}
+      {result && (!loading || !!result.entries.length) && <LongmanResult result={result} onInteract={touch} compact/>}
+      <details className="lookup-secondary"><summary>{t('dictionary.sources')}{onlineState === 'loading' && <span role="status"><BusyRing/><span className="sr-only">{t('dictionary.onlineLoading')}</span></span>}</summary>
       {!loading && <div className="dictionary-controls" aria-label={t('dictionary.sources')}>
         {([['longman', localResult], ['cambridge', onlineResults.cambridge], ['wiktionary', onlineResults.wiktionary]] as const).filter(([, value]) => !!value?.entries.length).map(([next], _index, available) => {
           const label = t(dictionarySourceLabelKey(next));
@@ -334,7 +335,6 @@ function LookupContent({ query, material, scope, onSkip, drafts, session, onRead
         })}
         {(!attempted.current.has('wiktionary') || onlineState === 'failed') && <button className="ui-button" onClick={continueOnline} disabled={onlineState === 'loading'}>{t(onlineState === 'failed' ? 'dictionary.retryOnline' : attempted.current.has('cambridge') ? 'dictionary.continueOnline' : 'dictionary.lookupOnline')}</button>}
       </div>}
-      {onlineState === 'loading' && <p className="lookup-note" role="status">{t('dictionary.onlineLoading')}</p>}
       {onlineState === 'failed' && <p className="longman-notice" role="status">{t(`dictionary.issues.${onlineError ?? 'unavailable'}`)}</p>}
       {activeProvider === 'longman' && hasOnlineContent && <p className="lookup-note" role="status">{t('dictionary.onlineAvailable')}</p>}
       {!loading && !localResult?.entries.length && !hasOnlineContent && onlineState === 'idle' && <p className="longman-notice" role="status">{t('dictionary.cannotConfirm')}</p>}

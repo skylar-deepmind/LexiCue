@@ -1,3 +1,4 @@
+import { BusyRing } from './LoadingFeedback';
 import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useTranslation } from 'react-i18next';
@@ -48,7 +49,7 @@ export default function YouTubeDownloadSettings({ status }: { status?: YtDlpStat
       placeholder={t('youtube.downloadSettings.defaultProfile')} onChange={event => { const value = event.target.value; setProfile(value); if (!/[\n\r\0:]/.test(value) && value.length <= 1024) setSession({ ...session, profile: value }); }} />
     <p className="youtube-muted">{t('youtube.downloadSettings.profileHint')}</p>
     {invalidProfile && <p role="alert" className="youtube-warning">{t('youtube.downloadSettings.invalidProfile')}</p>}
-    {checking && <p role="status" className="youtube-muted">{t('youtube.downloadSettings.checking')}</p>}
+    {checking && <p role="status" className="youtube-muted"><BusyRing /><span>{t('youtube.downloadSettings.checking')}</span></p>}
     {diagnostics && <dl className="youtube-diagnostics">
       <dt>yt-dlp</dt><dd>{diagnostics.version ?? t('youtube.downloadSettings.missing')}<br />{diagnostics.path}</dd>
       <dt>{t('youtube.downloadSettings.javascript')}</dt><dd>{diagnostics.javascript ?? t('youtube.downloadSettings.missing')}</dd>
@@ -57,7 +58,7 @@ export default function YouTubeDownloadSettings({ status }: { status?: YtDlpStat
     </dl>}
     {diagnostics?.available === false && <p className="youtube-warning">{t('youtube.ytdlpErrorHint')}<br /><code>brew install yt-dlp deno</code></p>}
     <p className="youtube-muted">{t('youtube.downloadSettings.cacheHint')}</p>
-    <button type="button" className="ui-button" disabled={clearing} onClick={() => void clearCache()}>{t('youtube.downloadSettings.clearCache')}</button>
+    <button type="button" className="ui-button" disabled={clearing} aria-busy={clearing} onClick={() => void clearCache()}>{clearing && <BusyRing />}<span>{t('youtube.downloadSettings.clearCache')}</span></button>
     {notice && <p className="youtube-notice" role="status">{notice}</p>}
   </div>;
 }

@@ -120,6 +120,13 @@
       "noBackup": "This device has no pre-merge backup yet.",
       "restoreEffect": "Restoring replaces this library and removes its pairing. The other device keeps its data. This device first backs up the current library.",
       "restore": "Restore this backup",
+      "backupLoading": "Loading backup list",
+      "backupReadError": "Could not read the backups on this device.",
+      "phase": {
+        "preparing": "Preparing to merge",
+        "exchanging": "Exchanging changes",
+        "awaitingAck": "Waiting for confirmation"
+      },
       "state": {
         "unpaired": "No paired device",
         "offering": "Waiting for iPhone to scan. The code expires in two minutes.",

@@ -120,6 +120,13 @@
       "noBackup": "Auf diesem Gerät gibt es noch keine Sicherung vor einer Zusammenführung.",
       "restoreEffect": "Die Wiederherstellung ersetzt diese Bibliothek und hebt die Kopplung auf. Die Daten des anderen Geräts bleiben erhalten. Zuerst wird der aktuelle Stand gesichert.",
       "restore": "Diese Sicherung wiederherstellen",
+      "backupLoading": "Sicherungsliste wird geladen",
+      "backupReadError": "Die Sicherungen auf diesem Gerät konnten nicht gelesen werden.",
+      "phase": {
+        "preparing": "Zusammenführung wird vorbereitet",
+        "exchanging": "Änderungen werden ausgetauscht",
+        "awaitingAck": "Bestätigung wird erwartet"
+      },
       "state": {
         "unpaired": "Kein Gerät gekoppelt",
         "offering": "Warte auf den Scan vom iPhone. Der Code gilt zwei Minuten.",

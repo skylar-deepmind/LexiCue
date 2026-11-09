@@ -1,3 +1,4 @@
+import { ActivityTrack } from './LoadingFeedback';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useImportStore, type ImportItem } from '../stores/importStore';
@@ -62,7 +63,7 @@ export default function DocumentPreview({item}: {item: ImportItem}) {
                 <button className="ui-button" onClick={() => void useImportStore.getState().selectRange(item.id, {kind: 'all'})} disabled={busy || document?.selection.kind === 'all'}>{t('documents.all')}</button>
             </div>
             {end < start && <p role="alert">{t('documents.rangeError')}</p>}
-            {busy && <p role="status">{t('common.loading')}</p>}
+            {busy && <div className="document-range-progress" role="status"><span className="sr-only">{t('common.loading')}</span><ActivityTrack /></div>}
         </details>}
         {item.error && <p className="lc-import-error" role="alert">{t(`materials.errors.${item.error}`)}</p>}
         {document && document.sections.length > 1 && <label className="lc-document-jump">{t('documents.jump')}<select key={`${item.id}:${draft.operation_id}`} defaultValue={document.blocks[0]?.section_id ?? ''} onChange={event => {

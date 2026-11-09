@@ -5,6 +5,10 @@ import Foundation
   import UIKit
 #endif
 
+enum SyncPhase: String {
+  case preparing, exchanging, awaitingAck
+}
+
 @available(macOS 12, *)
 extension DeviceRuntime {
   private static let wireVersion = 2
@@ -221,6 +225,7 @@ extension DeviceRuntime {
       try? link.sendObject(["kind": "fault", "issue": "reconcile"])
       throw DeviceLinkError.reconcile
     }
+    mark(link, phase: .preparing)
     do {
       try prepare(link, peer)
     } catch {
@@ -262,10 +267,11 @@ extension DeviceRuntime {
     return h == a["acked"] && h == b["received"] && r == b["acked"] && r == a["received"]
   }
 
-  private func mark(_ link: LinkChannel, _ value: String) {
+  private func mark(_ link: LinkChannel, _ value: String = "syncing", phase: SyncPhase? = nil) {
     queue.sync {
       if active === link.connection {
         state = value
+        syncPhase = phase
         if value == "synced" { reconnectDelay = 1 }
         issue = nil
       }
@@ -284,10 +290,11 @@ extension DeviceRuntime {
         mark(link, "synced")
         Thread.sleep(forTimeInterval: 1.5)
       } else {
-        mark(link, "syncing")
+        mark(link, phase: .exchanging)
         do {
           _ = try journal.run("run", peer.route, link: link)
           completed = true
+          mark(link, phase: .awaitingAck)
         } catch DeviceLinkError.reconcile {
           try? link.sendObject(["kind": "fault", "issue": "reconcile"])
           throw DeviceLinkError.reconcile
@@ -314,10 +321,10 @@ extension DeviceRuntime {
         }
         let local = try progress(peer)
         let synced = exchanged && message["completed"] as? Bool == true && settled(local, remote)
-        mark(link, synced ? "synced" : "syncing")
+        mark(link, synced ? "synced" : "syncing", phase: synced ? nil : .exchanging)
         try link.sendObject(["kind": "pulse", "progress": local])
       } else {
-        mark(link, "syncing")
+        mark(link, phase: .exchanging)
         do {
           // A peer must prove both history boundaries before any data frame
           // in this round may enter the database, even on a trusted TLS link.
@@ -328,6 +335,11 @@ extension DeviceRuntime {
               decoding: JSONSerialization.data(withJSONObject: reply, options: .fragmentsAllowed),
               as: UTF8.self))
           exchanged = true
+          // Once a batch has a durable receipt, the peer must still report
+          // its progress. Only the subsequent mutual pulse can mark it synced.
+          if (reply as? [String: Any])?["Applied"] != nil || reply as? String == "Confirmed" {
+            mark(link, phase: .awaitingAck)
+          }
         } catch DeviceLinkError.incompatible {
           try? link.sendObject(["error": "incompatible protocol version"])
           throw DeviceLinkError.incompatible

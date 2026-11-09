@@ -1,3 +1,4 @@
+import { LoadingSkeleton } from './LoadingFeedback';
 import { useLayoutEffect, useRef, useState } from 'react';
 import { Check, ChevronLeft, ChevronRight, Tags } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -56,7 +57,7 @@ export default function TagFilterBar({ onManage }: { onManage: () => void }) {
       <button type="button" className="ui-button tag-manage" onClick={onManage} aria-label={t('tags.manage')}><Tags size={18} aria-hidden="true" /><span>{t('tags.manage')}</span></button>
     </div>
     {selected.length > 1 && <p className="tag-hint">{t('tags.matchAll')}</p>}
-    {loading && <p className="tag-hint" role="status">{t('common.loading')}</p>}
+    {loading && !tags.length && <LoadingSkeleton kind="tags" label={t('common.loading')} />}
     {error && <p className="tag-error" role="alert">{t('tags.loadFailed')} <button className="ui-button" onClick={() => void useFileStore.getState().loadTags(true)} disabled={loading}>{t('common.retry')}</button></p>}
   </div>;
 }

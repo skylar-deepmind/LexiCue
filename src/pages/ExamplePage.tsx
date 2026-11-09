@@ -1,3 +1,4 @@
+import { LoadingSkeleton } from '../components/LoadingFeedback';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -25,6 +26,6 @@ export default function ExamplePage(){
   useEffect(()=>backNavigation.setPage(()=>{if(useOnboardingStore.getState().active)useOnboardingStore.getState().finish('skipped');navigate('/files',{replace:true});return true;},1),[navigate]);
   const skip=()=>{useOnboardingStore.getState().finish('skipped');navigate('/files',{replace:true});};
   if(error)return <section className="workspace-paper example-load"><h1>{t('onboarding.sample')}</h1><p role="alert">{t('onboarding.loadFailed')}</p><button className="ui-button" onClick={()=>setRetry(retry+1)}>{t('common.retry')}</button><button className="ui-button" onClick={skip}>{t('onboarding.skip')}</button></section>;
-  if(!example)return <section className="workspace-paper example-load"><h1>{t('onboarding.sample')}</h1><p role="status">{t('common.loading')}</p><button className="ui-button" onClick={skip}>{t('onboarding.skip')}</button></section>;
+  if(!example)return <section className="workspace-paper example-load"><h1>{t('onboarding.sample')}</h1><LoadingSkeleton kind="text" label={t('common.loading')}/><button className="ui-button" onClick={skip}>{t('onboarding.skip')}</button></section>;
   return <ReadingPage data={example.data} scope={{kind:'example',sessionId:id}}/>;
 }

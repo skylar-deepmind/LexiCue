@@ -38,6 +38,17 @@
 .device-sync .sync-peer-icon { width:50px; height:50px; border-radius:13px; }
 .device-sync .sync-state { display:inline-flex; align-items:center; gap:7px; font-size:.9375rem; line-height:1.5; }
 .device-sync .sync-peer-row .sync-state { margin-left:auto; color:var(--text-body); font-size:.875rem; }
+.device-sync .sync-state[data-active] { flex-direction:column; gap:7px; color:var(--accent-700); }
+.device-sync .sync-peer-row .sync-state[data-active] { align-items:flex-end; text-align:end; }
+.device-sync .sync-peer-row .activity-track { width:5.75rem; }
+.device-sync .sync-peer-card .activity-track { width:7.25rem; }
+.device-sync .sync-static-activity { display:none; }
+.device-sync .sync-disclosed .loading-skeleton { width:100%; }
+@media (prefers-reduced-motion:reduce) {
+  .device-sync .sync-state[data-active] { flex-direction:row; align-items:center; }
+  .device-sync .sync-state .activity-track { display:none; }
+  .device-sync .sync-static-activity { display:block; order:-1; flex:none; }
+}
 .device-sync .sync-state .sync-icon { color:var(--accent-700); }
 .device-sync .sync-peer-card { display:flex; flex-direction:column; align-items:center; justify-content:flex-start; gap:10px; min-height:221px; padding:24px 18px 28px; text-align:center; }
 .device-sync .sync-hero-icon { width:100px; height:84px; border-radius:20px; }

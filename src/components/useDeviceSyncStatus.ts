@@ -7,6 +7,7 @@ export interface DeviceStatus {
   state: Phase;
   role: 'mac' | 'iphone';
   paired: boolean;
+  phase?: 'preparing' | 'exchanging' | 'awaitingAck';
   peerName?: string;
   code?: string;
   confirmationId?: string;
@@ -16,7 +17,7 @@ export interface DeviceStatus {
   receiveClosed?: boolean;
 }
 
-export function useDeviceSyncStatus() {
+export function useDeviceSyncStatus(view: 'detail' | 'summary' = 'detail') {
   const [status, setStatus] = useState<DeviceStatus>();
   const [readError, setReadError] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -26,21 +27,38 @@ export function useDeviceSyncStatus() {
   useEffect(() => {
     if (!isTauri()) return;
     let alive = true;
-    let timer: number;
-    const poll = async () => {
+    let timer: number | undefined;
+    let request = 0;
+    const read = async () => {
+      window.clearTimeout(timer);
+      const current = ++request;
+      if (document.visibilityState !== 'visible') return;
       const version = generation.current;
-      if (document.visibilityState === 'visible' && !busyRef.current) {
+      const valid = () => alive && current === request && version === generation.current;
+      let delay = 1000;
+      if (!busyRef.current) {
         try {
           const next = await invoke<DeviceStatus>('device_sync', {action: 'status'});
-          if (alive && version === generation.current) { setStatus(next); setReadError(false); }
+          if (valid()) { setStatus(next); setReadError(false); }
           if (next.state === 'unsupported') return;
-        } catch { if (alive && version === generation.current) setReadError(true); }
+          if (view === 'summary') {
+            if (next.state === 'unpaired') return;
+            // Keep an in-progress summary current. A paired device can reconnect
+            // without an app write, so also recheck quiet states less often.
+            if (next.state !== 'syncing') delay = 5000;
+          }
+        } catch { if (valid()) setReadError(true); }
       }
-      if (alive) timer = window.setTimeout(poll, 1000);
+      if (alive && current === request) timer = window.setTimeout(read, delay);
     };
-    void poll();
-    return () => { alive = false; window.clearTimeout(timer); };
-  }, []);
+    void read();
+    document.addEventListener('visibilitychange', read);
+    return () => {
+      alive = false;
+      window.clearTimeout(timer);
+      document.removeEventListener('visibilitychange', read);
+    };
+  }, [view]);
 
   const perform = useCallback(async (job: () => Promise<DeviceStatus>) => {
     if (busyRef.current) return;

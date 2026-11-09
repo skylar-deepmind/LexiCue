@@ -1,3 +1,4 @@
+import { LoadingSkeleton } from './LoadingFeedback';
 import { useId, useState } from 'react';
 import { Check, Plus, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -73,7 +74,7 @@ export default function TagPicker({ tags, value, onChange, disabled, loading, er
       <div>{TAG_TONES.map(tone=><button type="button" className={`tag-color-swatch tag-tone-${tone}`} key={tone} aria-label={t('tags.colorNamed',{name:colorTarget,color:t(`tags.colors.${tone}`)})} aria-pressed={tagTone(colorTarget,colors)===tone} onClick={()=>onColorChange(colorTarget,tone)}><span aria-hidden="true"/>{tagTone(colorTarget,colors)===tone&&<Check size={16} aria-hidden="true"/>}</button>)}</div>
     </fieldset>}
     {error && <p role="alert" className="tag-error">{t('tags.loadFailed')} <button type="button" className="ui-button" onClick={onRetry} disabled={disabled || loading}>{t('common.retry')}</button></p>}
-    {loading && <p role="status" className="tag-hint">{t('common.loading')}</p>}
+    {loading && !tags.length && <LoadingSkeleton kind="tags" label={t('common.loading')} />}
     <div className="tag-picker__options" aria-label={t('tags.existing')}>
       {visible.map(tag => <button type="button" key={tag.id} className={`tag-chip tag-colored tag-tone-${tagTone(tag.name,colors)}`} aria-pressed={selected(tag)} disabled={disabled}
         onClick={() => toggle(tag)}>{selected(tag) && <Check size={15} aria-hidden="true" />}<span>{tag.name}</span></button>)}

@@ -1,3 +1,4 @@
+import { BusyRing } from './LoadingFeedback';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useYoutubeStore, type TrackSelection, type VideoSubInfo } from '../stores/youtubeStore';
@@ -52,9 +53,9 @@ export default function YouTubeImport({ initialUrl = '', autoSearch = false, ini
             <input id="reading-youtube-url" type="url" value={url} onChange={event => {
                 request.current++; listing.current = false; setBusy(false); setUrl(event.target.value); setInfo(null); setPrimary(null); setError('');
             }} required placeholder="https://…" autoComplete="off" aria-describedby="lc-import-url-status" />
-            <button className={`ui-button${!info ? ' lc-import-primary' : ''}`} disabled={busy || !url.trim()}>{t(busy ? 'common.loading' : 'materials.findSubtitles')}</button>
+            <button className={`ui-button${!info ? ' lc-import-primary' : ''}`} aria-busy={busy} disabled={busy || !url.trim()}>{busy && <BusyRing />}<span>{t('materials.findSubtitles')}</span></button>
         </form>
-        <div id="lc-import-url-status" role="status">{busy && <p className="lc-import-hint">{t('materials.importDialog.finding')}</p>}</div>
+        <div id="lc-import-url-status" className="sr-only" role="status">{busy && t('materials.importDialog.finding')}</div>
         {error && <p className="lc-import-error" role="alert">{error}</p>}
         {info && <section className="lc-import-tracks"><h3>{info.title}</h3>
             {english.length > 1 && <><label htmlFor="lc-import-english-track">{t('materials.englishSubtitle')}</label><select id="lc-import-english-track" value={english.findIndex(track => track.lang === primary?.lang && track.is_auto === primary?.is_auto)} onChange={event => setPrimary(english[Number(event.target.value)])}>

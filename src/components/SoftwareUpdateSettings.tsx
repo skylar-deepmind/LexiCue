@@ -1,3 +1,4 @@
+import { BusyRing } from './LoadingFeedback';
 import { useEffect, useState } from 'react';
 import { getIdentifier, getVersion } from '@tauri-apps/api/app';
 import { openUrl } from '@tauri-apps/plugin-opener';
@@ -24,9 +25,9 @@ export default function SoftwareUpdateSettings() {
     {isMobilePlatform()
       ? <p>{t(localInstall ? 'settings.directory.localHint' : 'settings.directory.channelHint')}</p>
       : <>
-        <button className="ui-button" disabled={updates.status === 'checking' || updates.status === 'downloading'} onClick={() => void updates.check()}>{t('settings.updates.check')}</button>
+        <button className="ui-button" disabled={updates.status === 'checking' || updates.status === 'downloading'} onClick={() => void updates.check()} aria-busy={updates.status === 'checking'}>{updates.status === 'checking' && <BusyRing />}<span>{t('settings.updates.check')}</span></button>
         <div role="status">
-          {updates.status === 'checking' && t('common.loading')}
+          {updates.status === 'checking' && <span className="sr-only">{t('common.loading')}</span>}
           {updates.status === 'upToDate' && t('settings.updates.upToDate')}
           {updates.status === 'available' && <>
             <p>{t('settings.updates.available', { version: updates.version })}</p>
