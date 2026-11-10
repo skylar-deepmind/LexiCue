@@ -1,5 +1,7 @@
 # LexiCue local English Wiktionary package contract v1
 
+Historical **full audit schema v1**. The current compact runtime and multi-pack contract is [TIERS.md](TIERS.md), schema v2. This audit format remains available for provenance and reproducible source processing.
+
 Package ID `lexicue.wiktionary.en`; release `enwiktionary-20261001-lexicue-v1`;
 SQLite `user_version=1`, `application_id=1280857155` (hex `0x4c585443`).
 Provider **`wiktionary`**, dataset **`English Wiktionary`**, adapter identity

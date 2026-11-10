@@ -1,5 +1,7 @@
 # Build and review the English Wiktionary package
 
+Current distribution uses the compact v2 packages: **日常通识** (default), **进阶阅读**, and **专业参考**. See [TIERS.md](TIERS.md) and [TIER-VALIDATION.md](TIER-VALIDATION.md). The original builder below now creates the full **developer audit input**, not an application install dependency.
+
 Read POLICY.md and CONTRACT.md before redistribution or app integration.
 Python 3.10+ (standard library), curl and ~8–12 GiB task space suffice; preserve
 at least 10 GiB free disk. Inputs are ~5.1 GB compressed. Never unpack the full

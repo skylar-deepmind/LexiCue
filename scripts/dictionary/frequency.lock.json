@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "role": "Selection statistics only; all dictionary text remains English Wiktionary.",
+  "wordfreq_version": "3.1.1",
+  "url": "https://files.pythonhosted.org/packages/24/61/62835c475d69872d30689f284497853fe33fe1d6dd18f57346d13305861d/wordfreq-3.1.1-py3-none-any.whl",
+  "sha256": "4b1c6ecffc6198be3396d5cf871c4423ca71c907c231348d352dd54d62b97473",
+  "bytes": 56834549,
+  "english_member": "wordfreq/data/large_en.msgpack.gz",
+  "extraction": {
+    "sha256": "ea4756e67dcb2a53e927cf16652f0a842c6b66b94fdd06ea61a2750f2e1b44c9",
+    "bytes": 1488493,
+    "tokens": 321180,
+    "input_member_sha256": "dffae8066b78dce0a6667cf5f58e567054f902674667090a7ac8a8a44628b05c"
+  },
+  "extractor_dependency": "msgpack==1.1.2",
+  "notice_url": "https://raw.githubusercontent.com/rspeer/wordfreq/42233e6c36ce792031bcccfa17cdd0cec9af5fa7/NOTICE.md",
+  "notice_sha256": "d9b104dafe63886af55e7cea7484824e32e12d4e1f57f319923dd643b36d6b15",
+  "data_license": "CC-BY-SA-4.0; see full upstream NOTICE for constituent attributions including SUBTLEX/Marc Brysbaert et al.",
+  "data_era": "approximately through 2021; no modern-usage or native familiarity guarantee"
+}

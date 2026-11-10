@@ -1,0 +1,50 @@
+{
+  "release": "enwiktionary-20261001-lexicue-v2",
+  "sqlite_bit_identical": true,
+  "archives_bit_identical": {
+    "lexicue-daily-enwiktionary-20261001-lexicue-v2.zip": true,
+    "lexicue-specialist-enwiktionary-20261001-lexicue-v2.zip": true,
+    "lexicue-extended-enwiktionary-20261001-lexicue-v2.zip": true,
+    "lexicue-build-review-enwiktionary-20261001-lexicue-v2.zip": true
+  },
+  "method": "Two fresh SQLite builds from pinned audit/frequency/attestation inputs; full projection validated on the first, byte identity binds the second. Three installable ZIPs and the reviewer ZIP independently verified and byte-identical.",
+  "databases": {
+    "daily": {
+      "sha256": "9325b1238ba7b76c8fd8da10b1daeabe9e1e0a2fe9daabf3ab0dd616f28b879c",
+      "sha1": "09774c081da2b934dd0ba5bfac026ca672aa5108",
+      "bytes": 60694528
+    },
+    "extended": {
+      "sha256": "39d21e3a978b745030d8b2468fd2cfdb2ba0658679c23c67b3da3ae04ec39789",
+      "sha1": "9ce53b9ac414ebea40841fadf7e768eb22e938a5",
+      "bytes": 302448640
+    },
+    "specialist": {
+      "sha256": "faba609735bd4ad93d71c76f7c37bfaf45f3d042e37bf89fe5b1681daecb792b",
+      "sha1": "4c5f7371bb1e48231682b08e671ff635728c0c31",
+      "bytes": 78446592
+    }
+  },
+  "archive_hashes": {
+    "lexicue-daily-enwiktionary-20261001-lexicue-v2.zip": {
+      "sha256": "4bec1cac74ef5768529d50c2eb3da2788cd649ca8393735ea967230a6de28dff",
+      "sha1": "0ba0dc9686a43425d59d8a5368c23c86af6e9bd1",
+      "bytes": 41852225
+    },
+    "lexicue-specialist-enwiktionary-20261001-lexicue-v2.zip": {
+      "sha256": "41496c082f7b7cb3059abb195e114ab58154207a187a98746f75027e7110d1f7",
+      "sha1": "933337d8563ce00693126d6161a8b228ec51f4a2",
+      "bytes": 55155825
+    },
+    "lexicue-extended-enwiktionary-20261001-lexicue-v2.zip": {
+      "sha256": "4c62ff31617424fe70ffd481d4cd9185a52d872ad68ce9d35d683205a53078e9",
+      "sha1": "f6d967839313800c790fbc7eac5010a8401f4676",
+      "bytes": 203685585
+    },
+    "lexicue-build-review-enwiktionary-20261001-lexicue-v2.zip": {
+      "sha256": "16ea65f3c0a8dbb3144d7026a06c938086f36a0b2ad3b880e1e313aebeefce13",
+      "sha1": "512bfad1a003c42a549a6b35833ea2bed622f363",
+      "bytes": 9099156
+    }
+  }
+}

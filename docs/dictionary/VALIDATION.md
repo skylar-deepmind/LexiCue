@@ -1,5 +1,7 @@
 # 英文 Wiktionary 本地包 v1 验收报告
 
+Archived **v1 audit-only** measurement. Current default runtime sizing and tier coverage are in [TIER-VALIDATION.md](TIER-VALIDATION.md). The 1.13 GB audit database is not the default installable pack.
+
 日期：2026-11-10（Asia/Shanghai）。基线 `aae6c141`，开发分支 `codex/wiktionary-pack`。
 本次交付为数据包、构建工具和接入契约；未改变应用、未安装到手机/桌面、未发布安装包。
 

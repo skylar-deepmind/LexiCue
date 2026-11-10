@@ -1,5 +1,7 @@
 # LexiCue English Wiktionary v1 selection and rights policy
 
+This policy governs the full verified audit input. Runtime v2 additionally applies the narrower, per-sense selection in [TIERS.md](TIERS.md); it does not install the complete audit database.
+
 This is a data package for a future local adapter. It does not install into LexiCue, replace its online dictionaries, alter the Chinese interface, or ship an application installer.
 
 ## Source boundary

@@ -1,0 +1,88 @@
+Tiered runtime adaptation, v2
+
+Default bundled pack: 日常通识 / Everyday & General (daily).
+Optional downloads: 进阶阅读 / Extended Reading (extended),
+专业参考 / Specialist Reference (specialist).
+
+Additional modifications: source sense selection into disjoint tiers using
+fixed frequency signals and explicit general-familiarity vocabulary; bounded
+per-record zlib JSON bodies; shared numeric identities, surfaces and origin
+metadata. The full original audit evidence remains a separately hashed developer
+artifact. Tiering does not rewrite definitions, examples or ancestor context.
+
+Frequency selection signals: wordfreq 3.1.1, Copyright 2022 Robyn Speer.
+Frequency data is available under CC BY-SA 4.0 with constituent attributions.
+Credit also Marc Brysbaert et al., authors of the freely available SUBTLEX data,
+and the other sources listed in the accompanying WORDFREQ-NOTICE.md, retained
+in full. No dictionary definitions/examples are imported from wordfreq. Its
+software license is Apache 2.0; this distribution does not bundle that library's
+code. The independent preparation script only reads its documented data format.
+
+Phrase-attestation signals are aggregate counts/years from the pinned raw
+Wiktionary extraction. No external quotation/reference text is redistributed.
+Ordinary example admission still requires positive source-template evidence;
+counts used for coverage selection do not constitute rights clearance.
+
+LexiCue English Wiktionary tiered runtime dictionaries
+Release: enwiktionary-20261001-lexicue-v2
+
+Dictionary text: Copyright English Wiktionary contributors.
+Source: English sections of https://en.wiktionary.org/
+Wikimedia dump date: 2026-10-01.
+Extraction: Wiktextract, by Tatu Ylonen and contributors, via the Kaikki raw
+all-language extraction. https://kaikki.org/dictionary/rawdata.html
+
+Dictionary data and adaptations: Creative Commons Attribution-ShareAlike 4.0
+International (CC BY-SA 4.0).
+https://creativecommons.org/licenses/by-sa/4.0/
+The full legal code is supplied as CC-BY-SA-4.0.txt.
+
+Attribution: English Wiktionary contributors; extracted by Tatu Ylonen and
+Wiktextract via kaikki.org; selection and conversion by LexiCue contributors.
+No endorsement is implied. Every entry records its original page URL, revision
+ID and wikitext hash. Contributor histories are available at the linked page's
+History tab; revision URLs use https://en.wiktionary.org/w/index.php?oldid=ID .
+
+LexiCue modifications: English-only selection and structured SQLite conversion;
+omission of proper-name-only records except abbreviation/relationship targets;
+removal of translations, etymologies, media, quotations and semantic graphs;
+preservation of original gloss ancestry, labels and pronunciations; positive
+ordinary-example template verification against the same dump's source pages;
+resolution of explicit form/alternative/MediaWiki redirects into verified
+substantive targets; addition of lookup indexes and source/path identifiers.
+See POLICY.md, build-audit.json and the versioned source lock for exact rules.
+
+No Chinese definition layer, Wordnet, WikDict translation layer, Longman,
+Collins, audio, images, or external quotations are bundled. Ordinary example
+selection relies on contributor licensing and positive source-template evidence;
+it is not a claim of individual authorship clearance. See POLICY.md limitations.
+
+Redistribution must preserve attribution, license and modification notices and
+comply with CC BY-SA 4.0 for adapted dictionary content. Do not impose additional
+legal or technical restrictions on this data. Build scripts are separately
+licensed under the LexiCue repository license; the dictionary text remains
+CC BY-SA 4.0.
+
+Build scripts — full separate software license follows:
+
+MIT License
+
+Copyright (c) 2026 skylar-deepmind
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

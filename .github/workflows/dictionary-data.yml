@@ -27,5 +27,5 @@ jobs:
       - name: Check Python and offline dictionary semantics
         run: |
           python3 --version
-          python3 -m py_compile scripts/dictionary/build_pack.py scripts/dictionary/validate_pack.py
+          python3 -m py_compile scripts/dictionary/*.py
           python3 -m unittest discover -s tests/dictionary -v
