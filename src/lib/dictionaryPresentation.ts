@@ -1,7 +1,7 @@
 /** Labels describe where an explanation came from, independently of cache delivery.
  * Provider identities in results and saved snapshots remain unchanged. */
 export function dictionarySourceLabelKey(provider: string | null | undefined): string {
-  if (provider === 'longman') return 'dictionary.sourceKinds.local';
+  if (provider === 'longman' || provider === 'local') return 'dictionary.sourceKinds.local';
   if (provider === 'cambridge' || provider === 'wiktionary') return 'dictionary.sourceKinds.online';
   return 'dictionary.sourceKinds.unknown';
 }

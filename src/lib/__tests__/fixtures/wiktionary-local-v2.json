@@ -1,0 +1,204 @@
+{
+  "default_entry_id": "wiktionary:enwiktionary-20261001-lexicue-v2:r295299",
+  "entries": [
+    {
+      "expression_type": null,
+      "groups": [
+        {
+          "forms": [
+            {
+              "label": "plural",
+              "text": "soliloquies"
+            }
+          ],
+          "id": "wiktionary:enwiktionary-20261001-lexicue-v2:r295299:g",
+          "labels": [],
+          "notes": [],
+          "part_of_speech": "noun",
+          "pronunciations": [
+            {
+              "audio": null,
+              "form_label": null,
+              "ipa": "/səˈlɪləkwi/",
+              "region": "unspecified"
+            }
+          ],
+          "senses": [
+            {
+              "ancestors": [],
+              "content_kind": "definition",
+              "examples": [
+                {
+                  "audio": null,
+                  "chinese": null,
+                  "english": "At the end of the second act the main villain gave a soliloquy detailing his plans to attack the protagonist.",
+                  "id": "wiktionary:enwiktionary-20261001-lexicue-v2:r295299:s0:x0"
+                }
+              ],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v2:r295299:s0",
+              "labels": [
+                {
+                  "kind": "source_tag",
+                  "text": "countable"
+                },
+                {
+                  "kind": "source_tag",
+                  "text": "uncountable"
+                },
+                {
+                  "kind": "source_topic",
+                  "text": "broadcasting"
+                },
+                {
+                  "kind": "source_topic",
+                  "text": "drama"
+                },
+                {
+                  "kind": "source_topic",
+                  "text": "dramaturgy"
+                },
+                {
+                  "kind": "source_topic",
+                  "text": "entertainment"
+                },
+                {
+                  "kind": "source_topic",
+                  "text": "film"
+                },
+                {
+                  "kind": "source_topic",
+                  "text": "lifestyle"
+                },
+                {
+                  "kind": "source_topic",
+                  "text": "media"
+                },
+                {
+                  "kind": "source_topic",
+                  "text": "television"
+                },
+                {
+                  "kind": "source_topic",
+                  "text": "theater"
+                }
+              ],
+              "meaning": {
+                "en": "The act of a character speaking to themselves so as to reveal their thoughts to the audience.",
+                "zh": null
+              },
+              "notes": [],
+              "patterns": [],
+              "source_path": "/records/295299/senses/0"
+            },
+            {
+              "ancestors": [],
+              "content_kind": "definition",
+              "examples": [],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v2:r295299:s1",
+              "labels": [
+                {
+                  "kind": "source_tag",
+                  "text": "countable"
+                },
+                {
+                  "kind": "source_tag",
+                  "text": "uncountable"
+                },
+                {
+                  "kind": "source_topic",
+                  "text": "authorship"
+                },
+                {
+                  "kind": "source_topic",
+                  "text": "broadcasting"
+                },
+                {
+                  "kind": "source_topic",
+                  "text": "communications"
+                },
+                {
+                  "kind": "source_topic",
+                  "text": "film"
+                },
+                {
+                  "kind": "source_topic",
+                  "text": "journalism"
+                },
+                {
+                  "kind": "source_topic",
+                  "text": "literature"
+                },
+                {
+                  "kind": "source_topic",
+                  "text": "media"
+                },
+                {
+                  "kind": "source_topic",
+                  "text": "publishing"
+                },
+                {
+                  "kind": "source_topic",
+                  "text": "television"
+                },
+                {
+                  "kind": "source_topic",
+                  "text": "writing"
+                }
+              ],
+              "meaning": {
+                "en": "A speech or written discourse in this form.",
+                "zh": null
+              },
+              "notes": [],
+              "patterns": [],
+              "source_path": "/records/295299/senses/1"
+            }
+          ],
+          "source_part_of_speech": "noun"
+        }
+      ],
+      "headword": "soliloquy",
+      "id": "wiktionary:enwiktionary-20261001-lexicue-v2:r295299",
+      "kind": "word",
+      "match": {
+        "note": null,
+        "pattern": null,
+        "sense_ids": [],
+        "type": "exact"
+      },
+      "notes": [],
+      "origin": "headword",
+      "parent_headword": null,
+      "related_expressions": [],
+      "source": {
+        "adapter_version": "wiktionary-local-v2.0.0",
+        "attribution": "English Wiktionary contributors",
+        "content_hash": "2aa545cab19e6320ad0028d5621bde2e465fe303271dc43ef00d4fbd31ee6b2d",
+        "dataset": "English Wiktionary",
+        "delivery": "local",
+        "edition": null,
+        "entry_key": "wiktionary:enwiktionary-20261001-lexicue-v2:r295299",
+        "entry_url": "https://en.wiktionary.org/wiki/soliloquy",
+        "license": {
+          "name": "CC BY-SA 4.0",
+          "url": "https://creativecommons.org/licenses/by-sa/4.0/"
+        },
+        "locator": "/records/295299",
+        "modifications": "Selected English senses, verified ordinary examples and source metadata; compacted and split into coverage packs. Translations, quotations and audio omitted.",
+        "provider": "wiktionary",
+        "release": "enwiktionary-20261001-lexicue-v2",
+        "retrieved_at": null,
+        "source_page": "91328",
+        "source_revision": "89693703"
+      }
+    }
+  ],
+  "notices": [],
+  "query": {
+    "context": "An original reading sentence.",
+    "language": "en",
+    "text": "soliloquy"
+  },
+  "schema_version": 1,
+  "status": "found"
+}

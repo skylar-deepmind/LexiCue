@@ -75,6 +75,10 @@ pub fn run() {
 
             commands::gemma::runtime::initialize(app.handle())?;
             commands::youtube::init_subtitle_cache(app.handle());
+            commands::dictionary_packs::configure(app.handle());
+            // Preserve historical archive/recall normalization for existing libraries.
+            // No Longman lookup/status command is registered; live local dictionary
+            // content comes exclusively from dictionary_packs.
             commands::longman::configure(app.handle());
             commands::cambridge::configure(app.handle());
             commands::free_dictionary::configure(app.handle());
@@ -210,8 +214,12 @@ pub fn run() {
             commands::history::legacy_record_detail,
             commands::materials::open_reading_material,
             commands::materials::lookup_reading_expression,
-            commands::longman::lookup_longman_expression,
-            commands::longman::longman_dictionary_status,
+            commands::dictionary_packs::lookup_local_expression,
+            commands::dictionary_packs::dictionary_pack_status,
+            commands::dictionary_packs::install_dictionary_pack,
+            commands::dictionary_packs::download_dictionary_pack,
+            commands::dictionary_packs::cancel_dictionary_pack,
+            commands::dictionary_packs::remove_dictionary_pack,
             commands::cambridge::lookup_cambridge_expression,
             commands::free_dictionary::lookup_free_dictionary_expression,
             commands::tts::resolve_tts_audio,

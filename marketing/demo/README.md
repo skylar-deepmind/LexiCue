@@ -21,3 +21,5 @@ Same-origin iframe protocol:
 - Parent → child: `{type: 'lexicue-demo-reset'}` clears temporary data and reloads the iframe.
 
 Incoming messages require both the same origin and `event.source === window.parent`. Exported backup JSON is marked `demo: true`; the restore boundary accepts only this demo format.
+
+The demo build maps the app’s local lookup slot to its existing original CC0 sample adapter. It does not impersonate Wiktionary metadata or weaken the installed-app validator. The native dictionary-pack settings view is replaced only in this browser build with an explicit installation boundary.

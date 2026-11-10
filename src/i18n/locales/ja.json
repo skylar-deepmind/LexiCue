@@ -1668,7 +1668,9 @@
       "audio_unavailable": "Dictionary recordings are unavailable; text lookup still works.",
       "package_unavailable": "ローカル辞書パッケージの準備ができていません。",
       "english_only_senses": "Some meanings are available only in English.",
-      "audio_package_unavailable": "Dictionary recordings are unavailable; text lookup still works."
+      "audio_package_unavailable": "Dictionary recordings are unavailable; text lookup still works.",
+      "local_casefold_candidates": "大文字・小文字が選択した表記と異なります。見出し語を確認してください。",
+      "local_pack_unavailable": "ローカル辞書を使用できません。設定の辞書を確認してください。"
     },
     "usVariant": "US variant; main pronunciation {{ipa}}",
     "variant": "Variant: {{form}}",
@@ -1913,5 +1915,40 @@
     },
     "pagePosition": "前回は {{number}} ページ",
     "undoLabel": "デスクの変更を元に戻す"
+  },
+  "dictionaryPacks": {
+    "names": {
+      "daily": "日常・一般知識",
+      "extended": "発展的な読書",
+      "specialist": "専門用語"
+    },
+    "descriptions": {
+      "daily": "日常の読書、生活、一般知識。",
+      "extended": "低頻度、文学的、古い用法。",
+      "specialist": "専門分野や業界の用語。"
+    },
+    "bundled": "内蔵",
+    "installed": "インストール済み",
+    "optional": "任意",
+    "dataSize": "辞書データ：{{size}}",
+    "downloadSize": "ダウンロード：{{size}}",
+    "download": "ダウンロード",
+    "remove": "辞書パックを削除",
+    "installFile": "ファイルからインストール",
+    "unpublished": "ダウンロード準備中",
+    "packUnavailable": "この辞書パックは使用できません。削除して検証済みのファイルをインストールしてください。",
+    "failed": "操作を完了できませんでした。接続と空き容量を確認して再試行してください。",
+    "invalid": "ファイルが辞書パックと一致しないか、検証に失敗しました。正しいファイルを選択してください。",
+    "cancelled": "インストールをキャンセルしました。",
+    "busy": "別の辞書操作が進行中です。",
+    "statusFailed": "辞書の状態を読み込めませんでした。",
+    "sourceRevision": "出典の版 {{revision}}",
+    "phases": {
+      "downloading": "ダウンロード中",
+      "verifying": "検証中",
+      "installing": "インストール中"
+    },
+    "baseUnavailable": "内蔵辞書を使用できません。再試行し、解決しない場合はアプリを再インストールしてください。",
+    "demoBoundary": "このブラウザデモはオリジナルの例示辞書を使用します。辞書パックの管理はアプリで行ってください。"
   }
 }

@@ -34,7 +34,7 @@ Bringe englische Artikel, Bücher oder Untertitel mit. Schlage nur nach, wenn du
 
 [![Lesen und verstehen](docs/media/current/de/lookup-ocean-desktop.webp)](https://skylar-deepmind.github.io/LexiCue/de/guide/reading/)
 
-Wähle ein Wort für die Wörterbuchsuche oder eine Passage für ihre Bedeutung. Der Originaltext bleibt sichtbar.
+Wähle ein Wort für die Wörterbuchsuche oder eine Passage für ihre Bedeutung. Der Originaltext bleibt sichtbar. Das Offline-Paket Alltag & Allgemeinwissen von Wiktionary ist enthalten (60,69 MB Wörterbuchdaten). Optionale Lektüre- und Fachpakete verwaltest du in den Einstellungen.
 
 ### Mit Kontext speichern
 
@@ -53,7 +53,7 @@ Gespeicherte Ausdrücke werden beim späteren Lesen hervorgehoben. Öffne frühe
 ## Funktionen
 
 - **[Deine englischen Materialien importieren](https://skylar-deepmind.github.io/LexiCue/de/guide/files/)** — Importiere PDF, DOCX, EPUB, Markdown, TXT, SRT oder VTT. Füge englischen Text, einen Webseiten- oder YouTube-Link ein und prüfe den extrahierten Inhalt vor dem Import.
-- **[Beim Lesen Wörter nachschlagen](https://skylar-deepmind.github.io/LexiCue/de/guide/reading/)** — Wähle ein Wort für die Wörterbuchsuche oder eine Passage für ihre Bedeutung. Der Originaltext bleibt sichtbar.
+- **[Beim Lesen Wörter nachschlagen](https://skylar-deepmind.github.io/LexiCue/de/guide/reading/)** — Wähle ein Wort für die Wörterbuchsuche oder eine Passage für ihre Bedeutung. Der Originaltext bleibt sichtbar. Das Offline-Paket Alltag & Allgemeinwissen von Wiktionary ist enthalten (60,69 MB Wörterbuchdaten). Optionale Lektüre- und Fachpakete verwaltest du in den Einstellungen.
 - **[Bei Bedarf übersetzen und zuhören](https://skylar-deepmind.github.io/LexiCue/de/guide/reading/)** — Blende chinesische Übersetzungen ein oder aus und starte den Hörmodus. Quellaudio wird verwendet, wenn verfügbar; Sprachausgabe und Übersetzung benötigen die jeweiligen Dienste.
 - **[Bedeutung und Kontext zusammen speichern](https://skylar-deepmind.github.io/LexiCue/de/guide/vocabulary/)** — Speichere Wörter oder Passagen mit Originalsatz, Satzübersetzung und verfügbarer Wörterbuchreferenz. Ergänze eine eigene Erklärung oder Notiz; die Referenz bestätigt keine Bedeutung für diesen Satz.
 - **[Beim Wiedersehen erinnern](https://skylar-deepmind.github.io/LexiCue/de/guide/review/)** — Gespeicherte Ausdrücke werden beim späteren Lesen hervorgehoben. Öffne frühere Sätze und Notizen und kehre zu ihrer Quelle zurück.

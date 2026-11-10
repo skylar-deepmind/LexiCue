@@ -34,7 +34,7 @@ Bring English articles, books or subtitles. Understand a word or passage when yo
 
 [![Read and understand](docs/media/current/en/lookup-ocean-desktop.webp)](https://skylar-deepmind.github.io/LexiCue/guide/reading/)
 
-Select a word for dictionary lookup, or select a passage for its meaning. Read the definition beside the original text.
+Select a word for dictionary lookup, or select a passage for its meaning. Read the definition beside the original text. Includes the offline Everyday & General Wiktionary pack (60.69 MB of dictionary data). Manage optional Extended Reading and Specialist Reference packs in Settings.
 
 ### Save with context
 
@@ -53,7 +53,7 @@ Previously saved expressions are highlighted in later reading. Open the earlier 
 ## Features
 
 - **[Bring your English materials](https://skylar-deepmind.github.io/LexiCue/guide/files/)** — Import PDF, DOCX, EPUB, Markdown, TXT, SRT or VTT. Paste English text, a webpage link or a YouTube link, then check the extracted content before importing.
-- **[Look up words as you read](https://skylar-deepmind.github.io/LexiCue/guide/reading/)** — Select a word for dictionary lookup, or select a passage for its meaning. Read the definition beside the original text.
+- **[Look up words as you read](https://skylar-deepmind.github.io/LexiCue/guide/reading/)** — Select a word for dictionary lookup, or select a passage for its meaning. Read the definition beside the original text. Includes the offline Everyday & General Wiktionary pack (60.69 MB of dictionary data). Manage optional Extended Reading and Specialist Reference packs in Settings.
 - **[Understand a passage when you need it](https://skylar-deepmind.github.io/LexiCue/guide/reading/)** — Show or hide Chinese translations and enter listening mode. Source playback is used when available; speech and missing translations need their online services.
 - **[Save the meaning and its context](https://skylar-deepmind.github.io/LexiCue/guide/vocabulary/)** — Save words or passages with their original sentence, its translation and the available dictionary reference. Add your own explanation or note; a dictionary reference does not confirm the meaning in this sentence.
 - **[Recall it when you meet it again](https://skylar-deepmind.github.io/LexiCue/guide/review/)** — Previously saved expressions are highlighted in later reading. Open the earlier sentences and notes, then return to their sources.

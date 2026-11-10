@@ -34,7 +34,7 @@
 
 [![阅读与理解](docs/media/current/zh/lookup-ocean-desktop.webp)](https://skylar-deepmind.github.io/LexiCue/zh/guide/reading/)
 
-点选单词查词，或选择一段表达查看含义；释义与原文同时可见。
+点选单词查词，或选择一段表达查看含义；释义与原文同时可见。 内置离线 Wiktionary「日常通识」包，词典数据约 60.69 MB；可在设置中管理「进阶阅读」和「专业参考」扩展包。
 
 ### 保存语境
 
@@ -53,7 +53,7 @@
 ## 特色功能
 
 - **[带来自己的英文材料](https://skylar-deepmind.github.io/LexiCue/zh/guide/files/)** — 支持 PDF、DOCX、EPUB、Markdown、TXT、SRT、VTT，也可粘贴英文正文、网页链接或 YouTube 链接，检查提取的内容后导入。
-- **[读到不懂的词，随手查](https://skylar-deepmind.github.io/LexiCue/zh/guide/reading/)** — 点选单词查词，或选择一段表达查看含义；释义与原文同时可见。
+- **[读到不懂的词，随手查](https://skylar-deepmind.github.io/LexiCue/zh/guide/reading/)** — 点选单词查词，或选择一段表达查看含义；释义与原文同时可见。 内置离线 Wiktionary「日常通识」包，词典数据约 60.69 MB；可在设置中管理「进阶阅读」和「专业参考」扩展包。
 - **[需要时再翻译与听读](https://skylar-deepmind.github.io/LexiCue/zh/guide/reading/)** — 按需显示或隐藏中文译文，进入听读模式；有来源音频时可播放来源。朗读和翻译需相应服务可用。
 - **[把理解连同语境一起保存](https://skylar-deepmind.github.io/LexiCue/zh/guide/vocabulary/)** — 保存单词或一段表达，同时保留原句、句子译文与可用的词典参考。可填写自己的解释或注释；词典参考不等于确认本句含义。
 - **[下次遇见，想起上一次](https://skylar-deepmind.github.io/LexiCue/zh/guide/review/)** — 收藏过的表达会在后续阅读中高亮。打开过去的原句和注释，随时返回当时的材料。

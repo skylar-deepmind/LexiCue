@@ -25,7 +25,7 @@ try {
           if (window.requestGates.has(command)) await window.requestGates.get(command).promise;
           if (command === 'youtube_ytdlp_status') return {available:false,path:null,version:null,ejs:'unknown'};
           if (command === 'list_legacy_records') return {rows:[],more:false};
-          if (command === 'longman_dictionary_status') return {state:'ready',audio_available:true};
+          if (command === 'dictionary_pack_status') return {packs:[{id:'daily',installed:true,bundled_by_default:true,error:null,database:{bytes:60694528},archive:{bytes:41852225},download_url:null}],operation:null,busy:false};
           if (command === 'device_sync') return {role:phone?'iphone':'mac',state:'waiting',paired:true,peerName:'Test'};
           if (command === 'plugin:app|version') return '0.4.6';
           if (command === 'plugin:app|identifier') return 'com.lexicue.dev.lansyncqa';
@@ -58,7 +58,7 @@ try {
       assert.equal(await page.locator('.theme-choice').count(),5);
       assert.ok(await groups.locator('.settings-row').evaluateAll(rows=>rows.every(r=>r.clientHeight>=44 && r.scrollWidth<=r.clientWidth+1)));
       if(output) await page.screenshot({path:output+'/'+(phone?'iphone':'mac')+'-'+theme+'.png'});
-      await checkPending('longman_dictionary_status', () => page.locator('[data-entry=dictionary]').click(), page.locator('[role=status] .busy-ring'));
+      await checkPending('dictionary_pack_status', () => page.locator('[data-entry=dictionary]').click(), page.locator('[role=status] .busy-ring'));
       await page.getByRole('button',{name:'返回',exact:true}).click();
       await page.locator('[data-entry=speech]').click();
       await page.locator('.speech-settings details > summary').click();

@@ -1,2 +1,7 @@
 # Preserve the exact SHA-pinned upstream licensing notice.
 docs/dictionary/WORDFREQ-NOTICE.md whitespace=-blank-at-eol,-blank-at-eof
+
+src-tauri/resources/dictionaries/daily/WORDFREQ-NOTICE.md -whitespace
+
+# Preserve byte-pinned dictionary manifests, notices and SQLite on every OS.
+src-tauri/resources/dictionaries/** -text

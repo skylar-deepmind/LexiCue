@@ -10,7 +10,7 @@ export interface SavedViewSnapshot {
 }
 export interface ReaderViewSnapshot {
   materialId: number; contentHash: string; segment: number; offset: number;
-  query?: { segmentId: number; start: number; end: number; expression: string; tab: 'meaning' | 'records'; provider?: 'longman' | 'cambridge' | 'wiktionary' };
+  query?: { segmentId: number; start: number; end: number; expression: string; tab: 'meaning' | 'records'; provider?: import('./dictionaryResult').DictionaryView };
 }
 export type ReturnOrigin = { kind: 'saved'; path: '/saved'; view: SavedViewSnapshot }
   | { kind: 'reader'; path: string; view: ReaderViewSnapshot; parentVisitToken?: string };

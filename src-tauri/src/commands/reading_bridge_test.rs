@@ -1,8 +1,8 @@
 //! Opt-in browser → production command cores → temporary SQLite evidence.
 //! This module is compiled only for tests and never starts with the application.
 use super::{
-    cambridge, dictionary, example::ExampleState, export, free_dictionary, history, longman,
-    materials, recall, saved, tags,
+    cambridge, example::ExampleState, export, free_dictionary, history, longman, materials, recall,
+    saved, tags,
 };
 use serde_json::{json, Value};
 use std::io::{Read, Write};
@@ -109,6 +109,23 @@ fn route(
         "lookup_reading_expression" => {
             serde_json::to_value(materials::lookup(c, text("expression"))?)
                 .map_err(|e| e.to_string())
+        }
+        "lookup_local_expression" => Ok(super::dictionary_packs::query_configured(
+            text("expression"),
+            a["context"].as_str(),
+        )),
+        "dictionary_pack_status" => super::dictionary_packs::status_configured(),
+        "install_dictionary_pack" => {
+            super::dictionary_packs::install_test(text("id"), std::path::Path::new(text("path")))?;
+            Ok(Value::Null)
+        }
+        "remove_dictionary_pack" => {
+            super::dictionary_packs::remove(text("id"))?;
+            Ok(Value::Null)
+        }
+        "cancel_dictionary_pack" => {
+            super::dictionary_packs::cancel_dictionary_pack()?;
+            Ok(Value::Null)
         }
         "lookup_longman_expression" => Ok(longman::query_configured(
             text("expression"),
@@ -437,8 +454,7 @@ fn serve_reading_bridge() {
     let mut conn = crate::db::init_db(&path).unwrap();
     let examples = ExampleState::default();
     let tts_service = super::tts::TtsService::new(dir.path().join("edge-tts-v1"));
-    dictionary::initialize_builtin_dictionary(&conn).unwrap();
-    dictionary::initialize_builtin_phrase_dictionary(&conn).unwrap();
+    super::dictionary_packs::configure_test(dir.path().join("dictionary-packs"));
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let port = listener.local_addr().unwrap().port();
     let info =

@@ -1,7 +1,11 @@
 #[path = "build_apple_sync.rs"]
 mod apple_sync;
 
+#[path = "build_dictionary.rs"]
+mod dictionary;
+
 fn main() {
+    dictionary::verify();
     apple_sync::build();
     let windows_msvc = std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows")
         && std::env::var("CARGO_CFG_TARGET_ENV").as_deref() == Ok("msvc");
