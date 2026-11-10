@@ -38,6 +38,15 @@ Record actual native UI evidence for:
 - Bundle bytes and app-data bytes separately; staging cleanup after completion,
   cancellation, failure and removal. Exclude intentionally copied input ZIPs.
 
+The dictionary picker uses scoped access on iOS. Its default copy mode otherwise
+leaves another archive in `tmp/<app-id>-Inbox`, outside the installer's staging.
+Verify an archive from outside the QA container and check that installation and
+rejection leave no new Inbox ZIP while the selected original remains untouched.
+Do not use `devicectl copy to --remove-existing-content true` for input cleanup:
+on this Xcode version it reset the entire QA appDataContainer despite a Documents
+destination. Use Files to remove only the known test input, and measure recoverable
+Trash separately. Never count such a harness reset as an app restart result.
+
 An unreachable app-specific HTTP(S) proxy tests native request failure on macOS;
 label it as controlled transport failure, not a globally disconnected Mac.
 For iPhone offline acceptance, record and restore the original radio settings.

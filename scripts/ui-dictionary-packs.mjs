@@ -20,7 +20,7 @@ try {
   await page.addInitScript(()=>{
    const original=window.__TAURI_INTERNALS__.invoke;
    window.__TAURI_INTERNALS__.invoke=async(command,args)=>{
-    if(command==='plugin:dialog|open')return window.__packFile??null;
+    if(command==='plugin:dialog|open'){window.__packDialogOptions=args.options;return window.__packFile??null;}
     if(command==='dictionary_pack_status'&&window.__packState)return window.__packState;
     if(command==='cancel_dictionary_pack'){window.__packState.operation=null;window.__packState.busy=false;return;}
     if(['lookup_cambridge_expression','lookup_free_dictionary_expression'].includes(command)){
@@ -36,6 +36,7 @@ try {
   await page.locator('[data-pack=specialist]').getByRole('button',{name:'从文件安装',exact:true}).focus();await page.keyboard.press('Enter');
   await page.waitForFunction(()=>!document.querySelector('[data-pack=specialist] button')?.disabled);
   ok(await page.locator('[data-pack=specialist]').getAttribute('data-installed')==='false',`${label}: cancelling picker changes no pack`);
+  ok(await page.evaluate(()=>window.__packDialogOptions?.fileAccessMode==='scoped'),`${label}: picker reads in place instead of retaining an Inbox archive copy`);
   ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${label}: no horizontal overflow`);
   await page.locator('[data-pack=specialist]').getByRole('button',{name:'从文件安装',exact:true}).hover();
   ok(await page.locator('[data-pack=specialist]').getByRole('button',{name:'从文件安装',exact:true}).evaluate(n=>n.getBoundingClientRect().height>=44),`${label}: touch target`);
