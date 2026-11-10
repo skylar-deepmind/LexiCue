@@ -1,6 +1,10 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {prepareIosProject} from './ios-project.mjs';
+import {execFileSync} from 'node:child_process';
+import {mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
 
 test('repeated iOS preparation preserves build arguments and updates plist once', () => {
   const source = `options:
@@ -8,6 +12,8 @@ test('repeated iOS preparation preserves build arguments and updates plist once'
     iOS: 13.0
 targets:
   app:
+    sources:
+      - path: Externals
     preBuildScripts:
       - script: node cli.js ios xcode-script --platform \${PLATFORM_DISPLAY_NAME} --release
     info:
@@ -25,8 +31,52 @@ targets:
   assert.equal(first.match(/UIFileSharingEnabled/g).length, 1);
   assert.match(first, /"UIFileSharingEnabled": true/);
   assert.match(first, /"UIBackgroundModes": \["audio"\]/);
+  assert.equal(first.match(/buildPhase: none/g).length, 1);
 });
 
 test('an unknown generated project fails rather than losing its build phase', () => {
   assert.throws(() => prepareIosProject('unknown project', {}), /Rust build phase/);
+});
+
+test('XcodeGen keeps a previously built static archive out of app resources', {
+  skip: process.platform !== 'darwin' ? 'requires the native XcodeGen tool' : false,
+}, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'lexicue-ios-project-'));
+  try {
+    mkdirSync(join(dir, 'Externals/arm64/release'), {recursive: true});
+    mkdirSync(join(dir, 'app'));
+    writeFileSync(join(dir, 'Externals/arm64/release/libapp.a'), '!<arch>\n');
+    const source = `name: ArchiveProbe
+targets:
+  app:
+    type: application
+    platform: iOS
+    deploymentTarget: "15.0"
+    sources:
+      - path: Externals
+    dependencies:
+      - framework: libapp.a
+        embed: false
+    preBuildScripts:
+      - script: node cli.js ios xcode-script --release
+    info:
+      path: app/Info.plist
+      properties:
+        CFBundleShortVersionString: 0.4.6
+`;
+    const options = {script: 'node "prepare-ios.mjs" --xcode-build', minimum: '15.0', plist: {UIFileSharingEnabled: true}};
+    let prepared = prepareIosProject(source, options);
+    for (let run = 0; run < 2; run++) {
+      writeFileSync(join(dir, 'project.yml'), prepared);
+      execFileSync('xcodegen', ['generate', '--spec', join(dir, 'project.yml'), '--project', dir], {stdio: 'pipe'});
+      const pbx = readFileSync(join(dir, 'ArchiveProbe.xcodeproj/project.pbxproj'), 'utf8');
+      assert.doesNotMatch(pbx, /libapp\.a in Resources/);
+      assert.match(pbx, /libapp\.a in Frameworks/);
+      const next = prepareIosProject(prepared, options);
+      assert.equal(next, prepared);
+      prepared = next;
+    }
+  } finally {
+    rmSync(dir, {recursive: true, force: true});
+  }
 });

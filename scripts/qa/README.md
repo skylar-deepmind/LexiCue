@@ -19,7 +19,10 @@ node --test scripts/ios-project.test.mjs
 iOS signing requires a locally configured development team/profile for the QA
 identifier. Keep team overrides, device identifiers and provisioning material
 outside Git. Repeating `ios:prepare` is supported; it preserves Rust arguments
-and replaces managed plist values without duplicating them.
+and replaces managed plist values without duplicating them. Generated Externals
+use `buildPhase: none`: link `libapp.a` through the explicit dependency, but
+never copy a previous build's static archive into app resources. Check repeated
+preparation/builds and assert the final app contains no `.a` file.
 
 Run the build with the project's task lock and budget monitoring. Keep build
 outputs task-local. Do not copy model weights or launch against the regular
