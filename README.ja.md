@@ -34,7 +34,7 @@
 
 [![読書と理解](docs/media/current/ja/lookup-ocean-desktop.webp)](https://skylar-deepmind.github.io/LexiCue/ja/guide/reading/)
 
-単語を選んで辞書を引くか、文章の一部を選んで意味を確認。原文を見ながら読めます。
+単語を選んで辞書を引くか、文章の一部を選んで意味を確認。原文を見ながら読めます。 オフラインのWiktionary「日常・一般知識」を内蔵（辞書データ60.69 MB）。設定から発展的な読書・専門用語パックを管理できます。
 
 ### 文脈を保存
 
@@ -53,7 +53,7 @@
 ## 主な機能
 
 - **[自分の英語素材を取り込む](https://skylar-deepmind.github.io/LexiCue/ja/guide/files/)** — PDF、DOCX、EPUB、Markdown、TXT、SRT、VTTに対応。英語の本文、WebページやYouTubeのリンクも貼り付け、抽出内容を確認して取り込めます。
-- **[読みながら単語を調べる](https://skylar-deepmind.github.io/LexiCue/ja/guide/reading/)** — 単語を選んで辞書を引くか、文章の一部を選んで意味を確認。原文を見ながら読めます。
+- **[読みながら単語を調べる](https://skylar-deepmind.github.io/LexiCue/ja/guide/reading/)** — 単語を選んで辞書を引くか、文章の一部を選んで意味を確認。原文を見ながら読めます。 オフラインのWiktionary「日常・一般知識」を内蔵（辞書データ60.69 MB）。設定から発展的な読書・専門用語パックを管理できます。
 - **[必要なときに翻訳・聴読する](https://skylar-deepmind.github.io/LexiCue/ja/guide/reading/)** — 中国語訳の表示を切り替え、聴読モードに入れます。元の音声があれば再生でき、読み上げと翻訳には対応サービスが必要です。
 - **[意味を文脈と一緒に保存する](https://skylar-deepmind.github.io/LexiCue/ja/guide/vocabulary/)** — 単語や表現とともに、元の文、文の訳、利用可能な辞書の参照を保存します。自分の説明やメモを添えられます。辞書の参照は、この文の意味を確定するものではありません。
 - **[また出会ったときに思い出す](https://skylar-deepmind.github.io/LexiCue/ja/guide/review/)** — 保存済みの表現が後の読書で強調表示されます。以前の文とメモを開き、元の素材に戻れます。

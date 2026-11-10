@@ -1,12 +1,9 @@
-//! A recoverable, observable coordinator; each dictionary owns its completion receipt.
-use super::dictionary;
+//! Observable preparation of the bundled v2 dictionary; no imports into user data.
+#[cfg(test)]
 use rusqlite::Connection;
 use serde::Serialize;
-use std::cell::RefCell;
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
-use tauri::{AppHandle, Emitter, Manager, State};
-
+use tauri::{AppHandle, Emitter, State};
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SourceStatus {
@@ -25,15 +22,6 @@ pub struct Snapshot {
     pub current_source: Option<String>,
     pub sources: Vec<SourceStatus>,
 }
-type Initializer = fn(&Connection) -> Result<(), String>;
-const SOURCES: &[(&str, &str, Initializer)] = &[
-    ("ECDICT", "en", dictionary::initialize_builtin_dictionary),
-    (
-        "PhraseDict",
-        "en",
-        dictionary::initialize_builtin_phrase_dictionary,
-    ),
-];
 #[derive(Clone)]
 pub struct DictionaryStatus(Arc<Mutex<Snapshot>>);
 impl Default for DictionaryStatus {
@@ -43,87 +31,85 @@ impl Default for DictionaryStatus {
             sequence: 0,
             state: "idle".into(),
             current_source: None,
-            sources: SOURCES
-                .iter()
-                .map(|(name, language, _)| SourceStatus {
-                    name: (*name).into(),
-                    language: (*language).into(),
-                    state: "pending".into(),
-                    processed_rows: 0,
-                    error: None,
-                })
-                .collect(),
+            sources: vec![SourceStatus {
+                name: "Wiktionary".into(),
+                language: "en".into(),
+                state: "pending".into(),
+                processed_rows: 0,
+                error: None,
+            }],
         })))
     }
 }
 impl DictionaryStatus {
     pub fn snapshot(&self) -> Snapshot {
-        self.0.lock().unwrap().clone()
+        self.0.lock().unwrap_or_else(|e| e.into_inner()).clone()
     }
     pub fn is_ready(&self) -> bool {
         self.snapshot().state == "ready"
     }
-    pub fn language_ready(&self, language: &str) -> bool {
-        self.snapshot()
-            .sources
-            .iter()
-            .filter(|s| {
-                s.language == language && !s.name.contains("Phrase") && !s.name.contains("Idioms")
-            })
-            .all(|s| s.state == "ready")
-    }
-    pub fn language_failed(&self, language: &str) -> bool {
-        self.snapshot().sources.iter().any(|s| {
-            s.language == language
-                && !s.name.contains("Phrase")
-                && !s.name.contains("Idioms")
-                && s.state == "failed"
-        })
-    }
     fn update(&self, app: &AppHandle, edit: impl FnOnce(&mut Snapshot)) {
-        let snapshot = {
-            let mut value = self.0.lock().unwrap();
-            edit(&mut value);
-            value.sequence += 1;
-            value.clone()
+        let next = {
+            let mut s = self.0.lock().unwrap_or_else(|e| e.into_inner());
+            edit(&mut s);
+            s.sequence += 1;
+            s.clone()
         };
-        let _ = app.emit("dictionary-init-progress", snapshot);
+        let _ = app.emit("dictionary-init-progress", next);
     }
     fn begin(&self) -> bool {
-        let mut value = self.0.lock().unwrap();
-        if value.state == "running" || value.state == "ready" {
+        let mut s = self.0.lock().unwrap_or_else(|e| e.into_inner());
+        if s.state == "running" || s.state == "ready" {
             return false;
         }
-        value.run_id += 1;
-        value.sequence += 1;
-        value.state = "running".into();
+        s.run_id += 1;
+        s.sequence += 1;
+        s.state = "running".into();
+        s.sources[0].state = "running".into();
+        s.sources[0].error = None;
         true
     }
 }
-struct Reporter {
-    status: DictionaryStatus,
-    app: AppHandle,
-    index: usize,
-    last: Instant,
+#[cfg(test)]
+pub fn report_rows(_rows: u64) {}
+pub fn start(app: AppHandle, status: DictionaryStatus) {
+    if !status.begin() {
+        return;
+    }
+    let _ = app.emit("dictionary-init-progress", status.snapshot());
+    let worker_status = status.clone();
+    let worker_app = app.clone();
+    if let Err(error) = std::thread::Builder::new()
+        .name("dictionary-init".into())
+        .spawn(move || {
+            let result = super::dictionary_packs::initialize_runtime(&worker_app);
+            worker_status.update(&worker_app, |s| {
+                s.current_source = None;
+                s.state = if result.is_ok() { "ready" } else { "failed" }.into();
+                s.sources[0].state = s.state.clone();
+                s.sources[0].error = result.err();
+                s.sources[0].processed_rows = if s.state == "ready" { 41684 } else { 0 };
+            });
+            let _ = worker_app.emit("dictionary-ready", worker_status.is_ready());
+        })
+    {
+        status.update(&app, |s| {
+            s.state = "failed".into();
+            s.sources[0].state = "failed".into();
+            s.sources[0].error = Some(error.to_string());
+        });
+    }
 }
-thread_local! { static REPORTER: RefCell<Option<Reporter>> = const { RefCell::new(None) }; }
-pub fn report_rows(rows: u64) {
-    REPORTER.with(|cell| {
-        if let Some(reporter) = cell.borrow_mut().as_mut() {
-            {
-                let mut value = reporter.status.0.lock().unwrap();
-                value.sources[reporter.index].processed_rows = rows;
-                value.sequence += 1;
-            }
-            if reporter.last.elapsed() >= Duration::from_millis(200) {
-                let _ = reporter
-                    .app
-                    .emit("dictionary-init-progress", reporter.status.snapshot());
-                reporter.last = Instant::now();
-            }
-        }
-    });
+#[tauri::command]
+pub fn dictionary_init_status(status: State<DictionaryStatus>) -> Snapshot {
+    status.snapshot()
 }
+#[tauri::command]
+pub fn retry_dictionary_init(app: AppHandle, status: State<DictionaryStatus>) -> Snapshot {
+    start(app, status.inner().clone());
+    status.snapshot()
+}
+#[cfg(test)]
 fn validate_source_receipt(conn: &Connection, name: &str, language: &str) -> Result<(), String> {
     let table = match name {
         "ECDICT" => "builtin_dictionary_entries",
@@ -153,112 +139,6 @@ fn validate_source_receipt(conn: &Connection, name: &str, language: &str) -> Res
     }
     Ok(())
 }
-pub fn start(app: AppHandle, status: DictionaryStatus) {
-    if !status.begin() {
-        return;
-    }
-    let _ = app.emit("dictionary-init-progress", status.snapshot());
-    let spawned_status = status.clone();
-    let spawned_app = app.clone();
-    let result = std::thread::Builder::new()
-        .name("dictionary-init".into())
-        .spawn(move || {
-            let status = spawned_status;
-            let app = spawned_app;
-            let opened = (|| {
-                let path = app
-                    .path()
-                    .app_data_dir()
-                    .map_err(|e| e.to_string())?
-                    .join("lexicue.db");
-                let conn = Connection::open(path).map_err(|e| e.to_string())?;
-                conn.busy_timeout(Duration::from_secs(5))
-                    .map_err(|e| e.to_string())?;
-                conn.execute_batch("PRAGMA foreign_keys=ON;")
-                    .map_err(|e| e.to_string())?;
-                Ok::<_, String>(conn)
-            })();
-            let conn = match opened {
-                Ok(conn) => conn,
-                Err(error) => {
-                    status.update(&app, |s| {
-                        s.state = "failed".into();
-                        for source in &mut s.sources {
-                            if source.state != "ready" {
-                                source.state = "failed".into();
-                                source.error = Some(error.clone());
-                            }
-                        }
-                    });
-                    return;
-                }
-            };
-            for (index, (name, language, initialize)) in SOURCES.iter().enumerate() {
-                if status.snapshot().sources[index].state == "ready" {
-                    continue;
-                }
-                status.update(&app, |s| {
-                    s.current_source = Some((*name).into());
-                    s.sources[index].state = "running".into();
-                    s.sources[index].error = None;
-                    s.sources[index].processed_rows = 0;
-                });
-                REPORTER.with(|cell| {
-                    *cell.borrow_mut() = Some(Reporter {
-                        status: status.clone(),
-                        app: app.clone(),
-                        index,
-                        last: Instant::now() - Duration::from_secs(1),
-                    })
-                });
-                let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    validate_source_receipt(&conn, name, language)?;
-                    initialize(&conn)
-                }))
-                .unwrap_or_else(|_| Err("Dictionary initialization worker failed".into()));
-                REPORTER.with(|cell| *cell.borrow_mut() = None);
-                status.update(&app, |s| match result {
-                    Ok(()) => s.sources[index].state = "ready".into(),
-                    Err(error) => {
-                        log::error!("dictionary init {name}: {error}");
-                        s.sources[index].state = "failed".into();
-                        s.sources[index].error = Some(error);
-                    }
-                });
-            }
-            status.update(&app, |s| {
-                s.current_source = None;
-                s.state = if s.sources.iter().all(|s| s.state == "ready") {
-                    "ready"
-                } else {
-                    "failed"
-                }
-                .into();
-            });
-            let _ = app.emit("dictionary-ready", status.is_ready());
-        });
-    if let Err(error) = result {
-        status.update(&app, |s| {
-            s.state = "failed".into();
-            for source in &mut s.sources {
-                if source.state != "ready" {
-                    source.state = "failed".into();
-                    source.error = Some(error.to_string());
-                }
-            }
-        });
-    }
-}
-#[tauri::command]
-pub fn dictionary_init_status(status: State<DictionaryStatus>) -> Snapshot {
-    status.snapshot()
-}
-#[tauri::command]
-pub fn retry_dictionary_init(app: AppHandle, status: State<DictionaryStatus>) -> Snapshot {
-    start(app, status.inner().clone());
-    status.snapshot()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -318,31 +198,22 @@ mod tests {
         assert_eq!(status.snapshot().run_id, 1);
     }
     #[test]
-    fn failure_retry_preserves_completed_sources_and_advances_run() {
+    fn failed_daily_pack_can_retry_without_legacy_sources() {
         let status = DictionaryStatus::default();
         assert!(status.begin());
         {
-            let mut snapshot = status.0.lock().unwrap();
-            snapshot.state = "failed".into();
-            snapshot.sources[0].state = "ready".into();
-            snapshot.sources[1].state = "failed".into();
-            snapshot.sources[1].error = Some("database busy".into());
+            let mut s = status.0.lock().unwrap();
+            s.state = "failed".into();
+            s.sources[0].state = "failed".into();
+            s.sources[0].error = Some("checksum".into());
         }
-        assert!(status.language_ready("en"));
-        assert_eq!(status.snapshot().sources[1].name, "PhraseDict");
-        assert_eq!(status.snapshot().sources[1].state, "failed");
-        assert_eq!(
-            status.snapshot().sources[1].error.as_deref(),
-            Some("database busy")
-        );
-        assert!(status
-            .snapshot()
-            .sources
-            .iter()
-            .all(|source| source.language == "en"));
+        assert!(!status.is_ready());
+        assert_eq!(status.snapshot().sources.len(), 1);
         assert!(status.begin());
-        assert_eq!(status.snapshot().run_id, 2);
-        assert_eq!(status.snapshot().sources[0].state, "ready");
+        let next = status.snapshot();
+        assert_eq!(next.run_id, 2);
+        assert_eq!(next.sources[0].state, "running");
+        assert!(next.sources[0].error.is_none());
         assert!(!status.begin());
     }
 }

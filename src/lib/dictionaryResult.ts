@@ -2,6 +2,11 @@ import { invoke } from '@tauri-apps/api/core';
 import type { DictionaryReference, DictionarySnapshot } from './savedRecords';
 import type { SpeechAccent } from './speechPreferences';
 
+export const LOCAL_WIKTIONARY_ADAPTER = 'wiktionary-local-v2.0.0';
+export const LOCAL_WIKTIONARY_RELEASE = 'enwiktionary-20261001-lexicue-v2';
+export const LOCAL_WIKTIONARY_ATTRIBUTION = 'English Wiktionary contributors';
+export const LOCAL_WIKTIONARY_MODIFICATIONS = 'Selected English senses, verified ordinary examples and source metadata; compacted and split into coverage packs. Translations, quotations and audio omitted.';
+export type DictionaryView = 'local' | 'longman' | 'cambridge' | 'wiktionary';
 export const FREE_DICTIONARY_ADAPTER = 'freedictionaryapi-v1.0.0';
 export const WIKTIONARY_ATTRIBUTION = 'Wiktionary contributors via FreeDictionaryAPI.com';
 export const WIKTIONARY_MODIFICATIONS = 'Adapted English definitions and ordinary examples; translations, quotations and audio omitted.';
@@ -19,7 +24,7 @@ export interface DictionarySense { source_path?: string; ancestors?: DictionaryA
 export interface DictionaryGroup { id: string; part_of_speech: string | null; source_part_of_speech: string | null; pronunciations: { region: string; ipa: string | null; audio: DictionaryAudio | null; form_label: string | null }[]; forms: { text: string; label: string }[]; labels: DictionaryLabel[]; senses: DictionarySense[]; notes: DictionaryNote[] }
 export interface DictionarySourceMetadata {
   provider: 'longman' | 'cambridge' | 'wiktionary'; dataset: string; edition: string | null; release: string | null; adapter_version: string; entry_key: string; locator: string | null; delivery: string; entry_url: string | null; retrieved_at: string | null;
-  access_channel?: 'author_public_api' | 'freedictionaryapi'; service_url?: string; received_at?: string; content_hash?: string; license?: { name: string; url: string }; attribution?: string; modifications?: string;
+  access_channel?: 'author_public_api' | 'freedictionaryapi'; service_url?: string; received_at?: string; content_hash?: string; source_revision?: string; source_page?: string; license?: { name: string; url: string }; attribution?: string; modifications?: string;
 }
 export interface DictionaryEntry {
   id: string; headword: string; kind: 'word' | 'expression'; expression_type: string | null; origin: string; parent_headword: string | null;
@@ -38,15 +43,22 @@ export function defaultSense(result: DictionaryResult | null, savedSense?: strin
   return choices.find(item => item.sense.id === savedSense)?.sense.id ?? choices.find(item => item.entry.id === result?.default_entry_id)?.sense.id ?? choices[0]?.sense.id ?? '';
 }
 export function selectedSnapshot({ entry, group, sense }: SenseSelection): DictionarySnapshot {
-  const { provider, dataset, edition, release, adapter_version, entry_key, locator, entry_url, retrieved_at, access_channel, service_url, received_at, content_hash, license, attribution, modifications } = entry.source;
+  const { provider, dataset, edition, release, adapter_version, entry_key, locator, entry_url, retrieved_at, access_channel, service_url, received_at, content_hash, source_revision, source_page, license, attribution, modifications } = entry.source;
   const examples = [...sense.examples, ...sense.patterns.flatMap(pattern => pattern.examples)].filter((example, index, all) => all.findIndex(other => other.id === example.id) === index).slice(0, 2);
-  return structuredClone<DictionarySnapshot>({ schema_version: 1, headword: entry.headword, source: { provider, dataset, edition, release, adapter_version, entry_key, locator, ...(entry_url ? { entry_url } : {}), ...(retrieved_at ? { retrieved_at } : {}), ...(access_channel ? { access_channel, service_url, received_at } : {}), ...(provider === 'wiktionary' ? { content_hash, license, attribution, modifications } : {}) }, ...(sense.source_path ? { source_path: sense.source_path, content_kind: sense.content_kind, ancestors: sense.ancestors ? structuredClone(sense.ancestors) : [] } : {}), entry_id: entry.id, group_id: group.id, sense_id: sense.id, part_of_speech: group.part_of_speech, meaning: { ...sense.meaning }, labels: [...group.labels, ...sense.labels].filter((label, index, all) => all.findIndex(other => other.kind === label.kind && other.text === label.text) === index).slice(0, 30), examples: examples.map(({ id, english, chinese }) => ({ id, english, chinese })), patterns: sense.patterns.slice(0, 4).map(item => item.text) });
+  return structuredClone<DictionarySnapshot>({ schema_version: 1, headword: entry.headword, source: { provider, dataset, edition, release, adapter_version, entry_key, locator, ...(entry_url ? { entry_url } : {}), ...(retrieved_at ? { retrieved_at } : {}), ...(access_channel ? { access_channel, service_url, received_at } : {}), ...(provider === 'wiktionary' ? { content_hash, license, attribution, modifications, ...(source_revision ? { source_revision, source_page } : {}) } : {}) }, ...(sense.source_path ? { source_path: sense.source_path, content_kind: sense.content_kind, ancestors: sense.ancestors ? structuredClone(sense.ancestors) : [] } : {}), entry_id: entry.id, group_id: group.id, sense_id: sense.id, part_of_speech: group.part_of_speech, meaning: { ...sense.meaning }, labels: [...group.labels, ...sense.labels].filter((label, index, all) => all.findIndex(other => other.kind === label.kind && other.text === label.text) === index).slice(0, 30), examples: examples.map(({ id, english, chinese }) => ({ id, english, chinese })), patterns: sense.patterns.slice(0, 4).map(item => item.text) });
 }
 /** Browse a small sample across the applicable POS groups, without selecting a
  * meaning for this sentence. Full entry data remains untouched. */
 export function dictionaryOverview(result: DictionaryResult | null, limit = 3): SenseSelection[] {
   const byHeadword = new Map<string, { entry: DictionaryEntry; group: DictionaryGroup; senses: DictionarySense[] }[]>();
-  for (const entry of result?.entries ?? []) {
+  const primary = result?.entries.find(entry => entry.id === result.default_entry_id);
+  // A local spelling may also be another head's alternative form (take off /
+  // takeoff). Keep the visible excerpt on its primary head so saving can freeze
+  // every visible sense; related heads remain in the complete dictionary entry.
+  const entries = primary && isLocalWiktionarySource(primary.source)
+    ? result!.entries.filter(entry => entry.headword === primary.headword)
+    : result?.entries ?? [];
+  for (const entry of entries) {
     const groups = byHeadword.get(entry.headword) ?? [];
     groups.push(...entry.groups.map(group => ({ entry, group,
     senses: group.senses.filter(sense => !entry.match.sense_ids.length || entry.match.sense_ids.includes(sense.id)).sort((a, b) => Number(a.content_kind === 'relation') - Number(b.content_kind === 'relation')),
@@ -82,7 +94,7 @@ export function dictionaryPrototypeGroups(result: DictionaryResult | null): { he
 export function accentPronunciations(group: DictionaryGroup, accent: SpeechAccent, includeFragments = false): DictionaryGroup['pronunciations'] {
   const region = accent === 'gb' ? 'uk' : 'us';
   return group.pronunciations.filter(item => {
-    if (item.region.toLowerCase() !== region || !item.ipa?.trim()) return false;
+    if (![region, 'unspecified'].includes(item.region.toLowerCase()) || !item.ipa?.trim()) return false;
     const ipa = item.ipa.trim().replace(/^\//u, '').replace(/\/$/u, '').trim();
     // Some source US variants contain only the changed ending (e.g. -ɔrd).
     // It is a source relationship, not a complete word pronunciation.
@@ -128,8 +140,12 @@ export function validateDictionaryResult(value: DictionaryResult, expression: st
   for (const entry of value.entries) {
     const source = entry.source;
     if (!entry.id || !entry.headword || !source || !['longman', 'cambridge', 'wiktionary'].includes(source.provider) || (provider && source.provider !== provider) || !source.dataset || !source.adapter_version || !source.entry_key || (source.provider === 'longman' && !source.release) || !Array.isArray(entry.groups) || !entry.groups.length || !Array.isArray(entry.match?.sense_ids)) throw new Error('dictionary_invalid_entry');
+    const localWiktionary = source.provider === 'wiktionary' && source.adapter_version === LOCAL_WIKTIONARY_ADAPTER;
+    if (!localWiktionary && (source.source_revision !== undefined || source.source_page !== undefined)) throw new Error('dictionary_invalid_source');
+    const namespace = localWiktionary ? `wiktionary:${LOCAL_WIKTIONARY_RELEASE}:` : `wiktionary:${FREE_DICTIONARY_ADAPTER}:`;
+    if (localWiktionary && (!isLocalWiktionarySource(source, entry.headword) || source.delivery !== 'local' || source.entry_key !== entry.id || !['exact', 'source_relation', 'casefold_candidate'].includes(entry.match.type))) throw new Error('dictionary_invalid_source');
     const publicMetadata = source.provider !== 'wiktionary' && (source.access_channel !== undefined || source.service_url !== undefined || source.received_at !== undefined || PUBLIC_CAMBRIDGE_ADAPTERS.some(version => source.adapter_version === version));
-    if (source.provider === 'wiktionary' && (!isWiktionarySource(source, entry.headword) || !['online', 'cache'].includes(source.delivery) || !entry.id.startsWith(`wiktionary:${FREE_DICTIONARY_ADAPTER}:`) || source.entry_key !== entry.id || entry.headword !== expression || entry.match.type !== 'exact' || entry.match.sense_ids.length > 0)) throw new Error('dictionary_invalid_source');
+    if (source.provider === 'wiktionary' && !localWiktionary && (!isWiktionarySource(source, entry.headword) || !['online', 'cache'].includes(source.delivery) || !entry.id.startsWith(namespace) || source.entry_key !== entry.id || entry.headword !== expression || entry.match.type !== 'exact' || entry.match.sense_ids.length > 0)) throw new Error('dictionary_invalid_source');
     if (source.provider !== 'wiktionary' && (source.content_hash !== undefined || source.license !== undefined || source.attribution !== undefined || source.modifications !== undefined)) throw new Error('dictionary_invalid_source');
     if (publicMetadata && (!isAuthorPublicSource(source) || source.adapter_version !== CURRENT_PUBLIC_CAMBRIDGE_ADAPTER || source.entry_url !== null || source.retrieved_at !== null || source.edition !== null || source.release !== null || !['online', 'cache'].includes(source.delivery))) throw new Error('dictionary_invalid_source');
     if (publicMetadata) {
@@ -149,7 +165,7 @@ export function validateDictionaryResult(value: DictionaryResult, expression: st
         if (Array.isArray(item)) { item.forEach(scan); return; }
         const object = item as Record<string, unknown>;
         if ('id' in object) {
-          if (typeof object.id !== 'string' || !object.id.startsWith(`wiktionary:${FREE_DICTIONARY_ADAPTER}:`) || seen.has(object.id)) throw new Error('dictionary_invalid_identity');
+          if (typeof object.id !== 'string' || !object.id.startsWith(namespace) || seen.has(object.id)) throw new Error('dictionary_invalid_identity');
           seen.add(object.id);
         }
         if (('zh' in object && object.zh !== null) || ('chinese' in object && object.chinese !== null) || ('audio' in object && object.audio !== null)) throw new Error('dictionary_invalid_source_content');
@@ -163,12 +179,12 @@ export function validateDictionaryResult(value: DictionaryResult, expression: st
     for (const group of entry.groups) {
       addId(group.id, 'dictionary_invalid_group');
       if (!Array.isArray(group.senses) || !group.senses.length || !Array.isArray(group.pronunciations)) throw new Error('dictionary_invalid_group');
-      if (source.provider === 'wiktionary' && (!group.id.startsWith(`wiktionary:${FREE_DICTIONARY_ADAPTER}:`) || group.pronunciations.some(item => item.audio !== null))) throw new Error('dictionary_invalid_group');
+      if (source.provider === 'wiktionary' && (!group.id.startsWith(namespace) || group.pronunciations.some(item => item.audio !== null))) throw new Error('dictionary_invalid_group');
       for (const sense of group.senses) {
-        if (source.provider === 'wiktionary') validateWiktionarySense(sense, source.locator!);
+        if (source.provider === 'wiktionary') { if (localWiktionary) validateLocalWiktionarySense(sense, source); else validateWiktionarySense(sense, source.locator!); }
         if (!sense.id || ids.has(sense.id) || !(sense.meaning?.zh?.trim() || sense.meaning?.en?.trim()) || !Array.isArray(sense.examples) || !Array.isArray(sense.patterns) || !Array.isArray(sense.notes)) throw new Error('dictionary_invalid_sense');
         addId(sense.id, 'dictionary_invalid_sense'); senseIds.add(sense.id);
-        for (const example of sense.examples) { addId(example.id, 'dictionary_invalid_example'); if (!example.english?.trim() || (source.provider === 'wiktionary' && (!example.id.startsWith(`wiktionary:${FREE_DICTIONARY_ADAPTER}:`) || example.chinese !== null || example.audio !== null))) throw new Error('dictionary_invalid_example'); }
+        for (const example of sense.examples) { addId(example.id, 'dictionary_invalid_example'); if (!example.english?.trim() || (source.provider === 'wiktionary' && (!example.id.startsWith(namespace) || example.chinese !== null || example.audio !== null))) throw new Error('dictionary_invalid_example'); }
       }
     }
     if (entry.match.sense_ids.length && (new Set(entry.match.sense_ids).size !== entry.match.sense_ids.length || entry.match.sense_ids.some(id => !senseIds.has(id)) || [...senseIds].some(id => !entry.match.sense_ids.includes(id)))) throw new Error('dictionary_invalid_scope');
@@ -216,6 +232,23 @@ function validateWiktionarySense(sense: DictionarySense, locator: string): void 
     || !path.test(sense.source_path ?? '') || !sense.source_path!.startsWith(`${locator}/senses/`) || !['definition', 'relation'].includes(sense.content_kind ?? '') || !Array.isArray(sense.ancestors)
     || sense.ancestors.length > 8 || sense.ancestors.length !== sense.source_path!.split('/subsenses/').length - 1 || sense.ancestors.some((ancestor, index, ancestors) => ancestor.source_path !== sense.source_path!.split('/subsenses/').slice(0, index + 1).join('/subsenses/') || !path.test(ancestor.source_path) || !ancestor.meaning.en?.trim() || ancestor.meaning.zh !== null || !Array.isArray(ancestor.labels) || !sense.source_path!.startsWith(`${ancestor.source_path}/subsenses/`) || (index > 0 && !ancestor.source_path.startsWith(`${ancestors[index - 1].source_path}/subsenses/`)))) throw new Error('dictionary_invalid_sense');
 }
+export function isLocalWiktionarySource(source: DictionarySnapshot['source'], headword?: string): boolean {
+  const line = /^wiktionary:enwiktionary-20261001-lexicue-v2:r([1-9][0-9]*)$/u.exec(source.entry_key ?? '')?.[1];
+  return source.provider === 'wiktionary' && source.dataset === 'English Wiktionary' && source.adapter_version === LOCAL_WIKTIONARY_ADAPTER && source.release === LOCAL_WIKTIONARY_RELEASE
+    && source.edition === null && source.retrieved_at == null && !!line && source.locator === `/records/${line}` && source.access_channel === undefined && source.service_url === undefined && source.received_at === undefined
+    && /^[a-f0-9]{64}$/u.test(source.content_hash ?? '') && /^[1-9][0-9]*$/u.test(source.source_revision ?? '') && /^[1-9][0-9]*$/u.test(source.source_page ?? '') && isWiktionaryEntryUrl(source.entry_url, headword)
+    && source.license?.name === 'CC BY-SA 4.0' && source.license.url === 'https://creativecommons.org/licenses/by-sa/4.0/' && source.attribution === LOCAL_WIKTIONARY_ATTRIBUTION && source.modifications === LOCAL_WIKTIONARY_MODIFICATIONS;
+}
+function validateLocalWiktionarySense(sense: DictionarySense, source: DictionarySourceMetadata): void {
+  const ordinal = new RegExp(`^${source.locator}/senses/([0-9]+)$`, 'u').exec(sense.source_path ?? '')?.[1];
+  if (ordinal === undefined || sense.id !== `${source.entry_key}:s${ordinal}` || sense.content_kind !== 'definition' || sense.meaning.zh !== null || !sense.meaning.en?.trim() || !Array.isArray(sense.ancestors) || sense.ancestors.length > 32
+    || sense.ancestors.some((parent, index) => parent.source_path !== `${sense.source_path}/ancestors/${index}` || parent.meaning.zh !== null || !parent.meaning.en?.trim() || !Array.isArray(parent.labels))) throw new Error('dictionary_invalid_sense');
+}
+export async function lookupLocal(expression: string, context: string): Promise<DictionaryResult> {
+  const result = validateDictionaryResult(await invoke<DictionaryResult>('lookup_local_expression', { expression, context }), expression, 'wiktionary');
+  if (result.entries.some(entry => !isLocalWiktionarySource(entry.source, entry.headword))) throw new Error('dictionary_invalid_source');
+  return result;
+}
 export async function lookupLongman(expression: string, context: string): Promise<DictionaryResult> {
   return validateDictionaryResult(await invoke<DictionaryResult>('lookup_longman_expression', { expression, context }), expression, 'longman');
 }
@@ -223,7 +256,9 @@ export async function lookupCambridge(expression: string, context: string): Prom
   return validateDictionaryResult(await invoke<DictionaryResult>('lookup_cambridge_expression', { expression, context }), expression, 'cambridge');
 }
 export async function lookupFreeDictionary(expression: string, context: string, timeoutMs = 8000): Promise<DictionaryResult> {
-  return validateDictionaryResult(await invoke<DictionaryResult>('lookup_free_dictionary_expression', { expression, context, timeoutMs }), expression, 'wiktionary');
+  const result = validateDictionaryResult(await invoke<DictionaryResult>('lookup_free_dictionary_expression', { expression, context, timeoutMs }), expression, 'wiktionary');
+  if (result.entries.some(entry => !isWiktionarySource(entry.source, entry.headword))) throw new Error('dictionary_invalid_source');
+  return result;
 }
 export interface DictionaryContentAssessment { kind: 'substantive' | 'relation_only' | 'unconfirmed' | 'unavailable'; hasEnglish: boolean; hasChinese: boolean; reason: string }
 /** Complete relationship clauses are not definitions of the referenced target. Short

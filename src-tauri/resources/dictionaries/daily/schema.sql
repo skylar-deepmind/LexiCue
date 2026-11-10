@@ -1,0 +1,14 @@
+PRAGMA application_id=1280857155;
+PRAGMA user_version=2;
+CREATE TABLE metadata(key TEXT PRIMARY KEY,value TEXT NOT NULL);
+CREATE TABLE surfaces(id INTEGER PRIMARY KEY,word TEXT NOT NULL UNIQUE,folded TEXT NOT NULL);
+CREATE INDEX surfaces_folded ON surfaces(folded);
+CREATE TABLE pages(surface_id INTEGER PRIMARY KEY REFERENCES surfaces(id),page_id INTEGER NOT NULL,revision INTEGER NOT NULL,wikitext_sha256 BLOB NOT NULL CHECK(length(wikitext_sha256)=32));
+CREATE TABLE entries(source_line INTEGER PRIMARY KEY,surface_id INTEGER NOT NULL REFERENCES surfaces(id),pos TEXT NOT NULL,etymology_number TEXT NOT NULL,body BLOB NOT NULL);
+CREATE INDEX entries_surface ON entries(surface_id);
+CREATE TABLE labels(id INTEGER PRIMARY KEY,body TEXT NOT NULL UNIQUE);
+CREATE TABLE confirmations(id INTEGER PRIMARY KEY,body TEXT NOT NULL UNIQUE);
+CREATE TABLE origins(id INTEGER PRIMARY KEY,source_line INTEGER NOT NULL,ordinal INTEGER NOT NULL,labels_id INTEGER NOT NULL REFERENCES labels(id),confirmation_id INTEGER NOT NULL REFERENCES confirmations(id),UNIQUE(source_line,ordinal,labels_id,confirmation_id));
+CREATE TABLE aliases(surface_id INTEGER NOT NULL REFERENCES surfaces(id),entry_line INTEGER NOT NULL REFERENCES entries(source_line),kind INTEGER NOT NULL CHECK(kind BETWEEN 1 AND 4),origin_id INTEGER NOT NULL REFERENCES origins(id),PRIMARY KEY(surface_id,entry_line,kind)) WITHOUT ROWID;
+CREATE TABLE surface_records(source_line INTEGER PRIMARY KEY,surface_id INTEGER NOT NULL REFERENCES surfaces(id),pos TEXT NOT NULL,revision INTEGER NOT NULL,body BLOB NOT NULL);
+CREATE INDEX surface_records_surface ON surface_records(surface_id);

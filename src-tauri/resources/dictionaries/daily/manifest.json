@@ -1,0 +1,104 @@
+{
+  "adapter_version": "wiktionary-local-v2.0.0",
+  "audit_sqlite_sha256": "15008bef795862cadba3cc3fddafcda4f69ea7fbd390a4ccba7195209d9f74e0",
+  "bundled_by_default": true,
+  "dataset": "English Wiktionary",
+  "definition_languages": [
+    "en"
+  ],
+  "description": "日常阅读、生活与通识；高于最基本常用词，包含常见健康、文艺、工作、新闻与现代科技词汇。",
+  "english_name": "Everyday & General",
+  "files": {
+    "CC-BY-SA-4.0.txt": {
+      "bytes": 20137,
+      "sha1": "0a6a83d49d1e7d4165fb431e54d922ccd882ee46",
+      "sha256": "23ee78c8bae49cf08ea2f0c84945c66b987ebe4520881fb51b3dad4fb43d07c2"
+    },
+    "CONTRACT.md": {
+      "bytes": 11861,
+      "sha1": "f08cce93fa6cab781669ed92ed5c9cdc43e59f68",
+      "sha256": "79b9d747e3db390606bb84a9c731b822c7865eae358ce70564d20a3ad5992c55"
+    },
+    "NOTICE.txt": {
+      "bytes": 4833,
+      "sha1": "c77688488e2256759f8bec2806f550936b6caa0c",
+      "sha256": "63f4a7ca6236b20108de25dd132c9721942c9f6dd05b4a9f0a6e49f24c06a3e4"
+    },
+    "POLICY.md": {
+      "bytes": 8618,
+      "sha1": "a2dba5bcb6cf8acb08884433099b44b43734495b",
+      "sha256": "cecc90c2a146424633118cd094d5c41ab0c71a875f4b3a613cf7d48fc801f205"
+    },
+    "WORDFREQ-NOTICE.md": {
+      "bytes": 2891,
+      "sha1": "a385da71038ef4b5b3d5c71c581994d21a368bd4",
+      "sha256": "d9b104dafe63886af55e7cea7484824e32e12d4e1f57f319923dd643b36d6b15"
+    },
+    "dictionary.sqlite3": {
+      "bytes": 60694528,
+      "sha1": "09774c081da2b934dd0ba5bfac026ca672aa5108",
+      "sha256": "9325b1238ba7b76c8fd8da10b1daeabe9e1e0a2fe9daabf3ab0dd616f28b879c"
+    },
+    "schema.sql": {
+      "bytes": 1635,
+      "sha1": "e712cadb0937c7f13ee30d3fa02a91286236cfd8",
+      "sha256": "d2936d4aee2c5142045098bd9351ae67f2a41144bb5b44d94037bf541d12df7e"
+    }
+  },
+  "language": "en",
+  "license": {
+    "name": "CC BY-SA 4.0",
+    "url": "https://creativecommons.org/licenses/by-sa/4.0/"
+  },
+  "max_uncompressed_record_bytes": 8388608,
+  "name": "日常通识",
+  "pack_id": "daily",
+  "package_id": "lexicue.wiktionary.en.daily",
+  "payload_codec": "zlib-json-v1",
+  "provider": "wiktionary",
+  "release": "enwiktionary-20261001-lexicue-v2",
+  "requires": [],
+  "schema_version": 2,
+  "selection_policy_sha256": "b05afe2b071a421e62083c85c712256c42ebf3a06c7716f56ae1075a3679e35c",
+  "statistics": {
+    "aliases": 276722,
+    "database": {
+      "bytes": 60694528,
+      "sha1": "09774c081da2b934dd0ba5bfac026ca672aa5108",
+      "sha256": "9325b1238ba7b76c8fd8da10b1daeabe9e1e0a2fe9daabf3ab0dd616f28b879c"
+    },
+    "examples": 53164,
+    "headwords": 41684,
+    "records": 58456,
+    "relation_examples": 1772,
+    "sense_POS": {
+      "adj": 21204,
+      "adv": 3126,
+      "article": 33,
+      "character": 58,
+      "conj": 310,
+      "contraction": 42,
+      "det": 261,
+      "infix": 4,
+      "intj": 1060,
+      "name": 11993,
+      "noun": 75934,
+      "num": 100,
+      "particle": 141,
+      "phrase": 441,
+      "postp": 4,
+      "prefix": 4,
+      "prep": 1023,
+      "prep_phrase": 604,
+      "pron": 614,
+      "proverb": 54,
+      "punct": 1,
+      "suffix": 4,
+      "symbol": 73,
+      "verb": 38825
+    },
+    "senses": 155913,
+    "senses_with_ancestors": 16999,
+    "surface_records": 32825
+  }
+}

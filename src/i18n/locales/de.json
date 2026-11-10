@@ -1685,7 +1685,9 @@
       "audio_unavailable": "Dictionary recordings are unavailable; text lookup still works.",
       "package_unavailable": "Das lokale Wörterbuchpaket ist nicht bereit.",
       "english_only_senses": "Some meanings are available only in English.",
-      "audio_package_unavailable": "Dictionary recordings are unavailable; text lookup still works."
+      "audio_package_unavailable": "Dictionary recordings are unavailable; text lookup still works.",
+      "local_casefold_candidates": "Die Groß- und Kleinschreibung weicht ab. Prüfe das ursprüngliche Stichwort.",
+      "local_pack_unavailable": "Das lokale Wörterbuch ist nicht verfügbar. Prüfe Wörterbuch in den Einstellungen."
     },
     "usVariant": "US variant; main pronunciation {{ipa}}",
     "variant": "Variant: {{form}}",
@@ -1930,5 +1932,40 @@
     },
     "pagePosition": "Zuletzt auf Seite {{number}}",
     "undoLabel": "Tischanordnung rückgängig machen"
+  },
+  "dictionaryPacks": {
+    "names": {
+      "daily": "Alltag & Allgemeinwissen",
+      "extended": "Erweiterte Lektüre",
+      "specialist": "Fachbegriffe"
+    },
+    "descriptions": {
+      "daily": "Alltagslektüre, Leben und Allgemeinwissen.",
+      "extended": "Seltene, literarische und ältere Verwendungen.",
+      "specialist": "Fachgebiete und Branchenbegriffe."
+    },
+    "bundled": "Enthalten",
+    "installed": "Installiert",
+    "optional": "Optional",
+    "dataSize": "Wörterbuchdaten: {{size}}",
+    "downloadSize": "Download: {{size}}",
+    "download": "Herunterladen",
+    "remove": "Wörterbuchpaket entfernen",
+    "installFile": "Aus Datei installieren",
+    "unpublished": "Download noch nicht verfügbar",
+    "packUnavailable": "Dieses Paket ist nicht verfügbar. Entferne es und installiere eine geprüfte Datei.",
+    "failed": "Der Vorgang konnte nicht abgeschlossen werden. Prüfe Verbindung und freien Speicher und versuche es erneut.",
+    "invalid": "Die Datei passt nicht zu diesem Paket oder die Prüfung ist fehlgeschlagen. Wähle die passende Datei.",
+    "cancelled": "Installation abgebrochen.",
+    "busy": "Ein anderer Wörterbuchvorgang läuft.",
+    "statusFailed": "Wörterbuchstatus konnte nicht geladen werden.",
+    "sourceRevision": "Quellrevision {{revision}}",
+    "phases": {
+      "downloading": "Wird heruntergeladen",
+      "verifying": "Wird geprüft",
+      "installing": "Wird installiert"
+    },
+    "baseUnavailable": "Das enthaltene Wörterbuch ist nicht verfügbar. Versuche es erneut; installiere die App bei erneutem Fehler neu.",
+    "demoBoundary": "Diese Browserdemo verwendet ein eigenes Beispielwörterbuch. Installierte Wörterbuchpakete verwaltest du in der App."
   }
 }

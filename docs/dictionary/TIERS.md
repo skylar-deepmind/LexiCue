@@ -3,8 +3,10 @@
 The default is **日常通识 / Everyday & General** (`daily`). Optional supplements
 are **进阶阅读 / Extended Reading** (`extended`) and **专业参考 / Specialist
 Reference** (`specialist`). Only `daily` is marked bundled in `catalog.json`.
-No downloader, native adapter or application UI is implemented by this change.
-Download URLs remain null until a separately authorized hosting/release step.
+The data-package change originally supplied no application integration. The
+current native adapter, package management and installation contract are in
+[RUNTIME.md](RUNTIME.md). Download URLs remain null until a separately authorized
+hosting/release step.
 
 ## Coverage policy
 

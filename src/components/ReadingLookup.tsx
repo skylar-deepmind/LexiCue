@@ -17,7 +17,7 @@ import ContextPanel from './ContextPanel';
 import SoftContentRefresh from './SoftContentRefresh';
 import type { Material } from '../lib/materials';
 import LongmanResult from './LongmanResult';
-import { dictionaryReference, hasSubstantiveTargetContent, lookupLongman, shouldLookupCambridge, type DictionaryEntry, type DictionaryResult } from '../lib/dictionaryResult';
+import { dictionaryReference, hasSubstantiveTargetContent, lookupLocal, type DictionaryView, shouldLookupCambridge, type DictionaryResult } from '../lib/dictionaryResult';
 import { runOnlineDictionary, type OnlineIssue, type OnlineProvider } from '../lib/onlineDictionary';
 import type { Segment } from '../lib/types';
 import { savedErrorKey, type SavedRecord, type SavedMutation, type SavedMutationResult } from '../lib/savedRecords';
@@ -38,7 +38,7 @@ export interface LookupSession extends LookupUndoSession {
 export interface LookupDraft {
     value: string;
     personal: boolean;
-    provider?: DictionaryEntry['source']['provider'];
+    provider?: DictionaryView;
 }
 interface LookupProps {
     layoutSlot?: RefObject<HTMLDivElement | null>;
@@ -50,8 +50,8 @@ interface LookupProps {
     drafts: Map<string, LookupDraft>;
     session: LookupSession;
     initialTab?: 'meaning' | 'records';
-    initialProvider?: DictionaryEntry['source']['provider'];
-    onViewChange?: (view: { tab: 'meaning' | 'records'; provider?: DictionaryEntry['source']['provider'] }) => void;
+    initialProvider?: DictionaryView;
+    onViewChange?: (view: { tab: 'meaning' | 'records'; provider?: DictionaryView }) => void;
     onSource?: (record: SavedRecord) => Promise<void>;
     sourceBusy?: boolean;
 }
@@ -89,7 +89,7 @@ export default function ReadingLookup(props: LookupProps) {
     useLayoutEffect(() => { if (previousKey.current !== key) { previousKey.current = key; setTab('meaning'); setCount(0); setRecordsReady(false); } }, [key]);
     const providerRef = useRef(props.initialProvider);
     const onViewChange = props.onViewChange;
-    const onProvider = useCallback((provider: DictionaryEntry['source']['provider']) => { providerRef.current = provider; onViewChange?.({tab,provider}); }, [onViewChange,tab]);
+    const onProvider = useCallback((provider: DictionaryView) => { providerRef.current = provider; onViewChange?.({tab,provider}); }, [onViewChange,tab]);
     useEffect(() => { props.onViewChange?.({tab, provider:providerRef.current}); });
     const effectiveTab = previousKey.current === key && count > 0 ? tab : 'meaning';
     const [prepared, setPrepared] = useState({ key, ready: false });
@@ -108,7 +108,7 @@ export default function ReadingLookup(props: LookupProps) {
     </ContextPanel></SpeechOwnerContext.Provider>;
 }
 
-function LookupContent({ query, material, scope, onSkip, drafts, session, onReady, onRecordsReady, footerHost, tab, initialProvider, onProvider, onSource, sourceBusy }: LookupProps & { onProvider: (provider: DictionaryEntry['source']['provider']) => void; onReady: (key: string) => void; onRecordsReady: () => void; footerHost: HTMLDivElement | null; tab: 'meaning' | 'records' }) {
+function LookupContent({ query, material, scope, onSkip, drafts, session, onReady, onRecordsReady, footerHost, tab, initialProvider, onProvider, onSource, sourceBusy }: LookupProps & { onProvider: (provider: DictionaryView) => void; onReady: (key: string) => void; onRecordsReady: () => void; footerHost: HTMLDivElement | null; tab: 'meaning' | 'records' }) {
     const { t } = useTranslation();
     const example = scope.kind === 'example';
     const guideActive = useOnboardingStore(state => state.active);
@@ -120,19 +120,20 @@ function LookupContent({ query, material, scope, onSkip, drafts, session, onRead
     const localResultRef = useRef(localResult);
     localResultRef.current = localResult;
     const [onlineResults, setOnlineResults] = useState<Partial<Record<OnlineProvider, DictionaryResult>>>({});
-    const [provider, setProvider] = useState<DictionaryEntry['source']['provider']>(existingDraft?.provider ?? initialProvider ?? 'longman');
+    const [provider, setProvider] = useState<DictionaryView>(existingDraft?.provider ?? initialProvider ?? 'local');
     useEffect(() => { onProvider(provider); }, [provider, onProvider]);
     const [onlineRequest, setOnlineRequest] = useState(0);
     const requestMode = useRef<'automatic' | 'manual' | 'continue'>('automatic');
     const attempted = useRef<Set<OnlineProvider>>(new Set());
     const [onlineState, setOnlineState] = useState<'idle' | 'loading' | 'ready' | 'failed'>('idle');
     const [onlineError, setOnlineError] = useState<OnlineIssue | null>(null);
-    const result = provider === 'longman' ? localResult : onlineResults[provider] ?? localResult;
+    const result = (provider === 'local' || provider === 'longman') ? localResult : onlineResults[provider] ?? localResult;
     const hasOnlineContent = Object.values(onlineResults).some(value => !!value?.entries.length);
-    const activeProvider = result?.entries[0]?.source.provider ?? provider;
+    const activeProvider: DictionaryView = result === localResult ? 'local' : result?.entries[0]?.source.provider ?? provider;
     const [lookupError, setLookupError] = useState('');
     const [loading, setLoading] = useState(true);
     const [retry, setRetry] = useState(0);
+    useEffect(() => { const refresh = () => setRetry(value => value + 1); window.addEventListener('lexicue-dictionary-changed', refresh); return () => window.removeEventListener('lexicue-dictionary-changed', refresh); }, []);
     const [draft, setDraft] = useState(existingDraft?.value ?? '');
     const personal = useRef(existingDraft?.personal ?? false);
     const userModeTouched = useRef(!!existingDraft);
@@ -197,7 +198,7 @@ function LookupContent({ query, material, scope, onSkip, drafts, session, onRead
     useEffect(() => {
         let active = true;
         setLoading(true); setLookupError('');
-        void lookupLongman(query.expression, query.segment.en_text).then(value => { if (active) {
+        void lookupLocal(query.expression, query.segment.en_text).then(value => { if (active) {
             setLocalResult(value); if (example) useOnboardingStore.getState().lookedUp();
         } }).catch(error => { if (active) setLookupError(String(error).includes('NOT_FOUND') ? 'notFound' : 'failed'); }).finally(() => { if (active) { setLoading(false); onReady(key); } });
         return () => { active = false; };
@@ -238,7 +239,7 @@ function LookupContent({ query, material, scope, onSkip, drafts, session, onRead
         return () => { active = false; };
     }, [selection, scope, example]);
     const touch = () => { userModeTouched.current = true; interactionVersion.current++; };
-    const switchSource = (next: DictionaryEntry['source']['provider']) => {
+    const switchSource = (next: DictionaryView) => {
         touch(); setProvider(next);
         drafts.set(key, { value: draft, personal: personal.current, provider: next });
     };
@@ -328,7 +329,7 @@ function LookupContent({ query, material, scope, onSkip, drafts, session, onRead
       {result && (!loading || !!result.entries.length) && <LongmanResult result={result} onInteract={touch} compact/>}
       <details className="lookup-secondary"><summary>{t('dictionary.sources')}{onlineState === 'loading' && <span role="status"><BusyRing/><span className="sr-only">{t('dictionary.onlineLoading')}</span></span>}</summary>
       {!loading && <div className="dictionary-controls" aria-label={t('dictionary.sources')}>
-        {([['longman', localResult], ['cambridge', onlineResults.cambridge], ['wiktionary', onlineResults.wiktionary]] as const).filter(([, value]) => !!value?.entries.length).map(([next], _index, available) => {
+        {([['local', localResult], ['cambridge', onlineResults.cambridge], ['wiktionary', onlineResults.wiktionary]] as const).filter(([, value]) => !!value?.entries.length).map(([next], _index, available) => {
           const label = t(dictionarySourceLabelKey(next));
           const number = dictionaryOnlineSourceNumber(next, available.map(([provider]) => provider));
           return <button key={next} className="ui-button" aria-pressed={activeProvider === next} onClick={() => switchSource(next)}>{number ? t('dictionary.numberedSource', { source: label, index: number }) : label}</button>;
@@ -336,9 +337,9 @@ function LookupContent({ query, material, scope, onSkip, drafts, session, onRead
         {(!attempted.current.has('wiktionary') || onlineState === 'failed') && <button className="ui-button" onClick={continueOnline} disabled={onlineState === 'loading'}>{t(onlineState === 'failed' ? 'dictionary.retryOnline' : attempted.current.has('cambridge') ? 'dictionary.continueOnline' : 'dictionary.lookupOnline')}</button>}
       </div>}
       {onlineState === 'failed' && <p className="longman-notice" role="status">{t(`dictionary.issues.${onlineError ?? 'unavailable'}`)}</p>}
-      {activeProvider === 'longman' && hasOnlineContent && <p className="lookup-note" role="status">{t('dictionary.onlineAvailable')}</p>}
+      {activeProvider === 'local' && hasOnlineContent && <p className="lookup-note" role="status">{t('dictionary.onlineAvailable')}</p>}
       {!loading && !localResult?.entries.length && !hasOnlineContent && onlineState === 'idle' && <p className="longman-notice" role="status">{t('dictionary.cannotConfirm')}</p>}
-      {!loading && (lookupError || localResult?.status === 'unavailable') && activeProvider === 'longman' && <button className="ui-button" onClick={retryLocal}>{t('common.retry')}</button>}
+      {!loading && (lookupError || localResult?.status === 'unavailable') && activeProvider === 'local' && <button className="ui-button" onClick={retryLocal}>{t('common.retry')}</button>}
       {showRecall && <p className="lookup-note" role="status">{t('recall.previous')}</p>}
       {saved?.explanation && saved.explanation_source !== 'personal' && <details className="lookup-more"><summary>{t('dictionaryFlow.historicalMeaning')}</summary><p>{saved.explanation}</p><small>{t(`savedRecords.sources.${saved.explanation_source}`)}</small></details>}
       <button className="ui-button ui-button--icon lookup-edit" aria-label={t('reader.personalExplanation')} title={t('reader.personalExplanation')} onClick={() => { touch(); setEditing(!editing); }} aria-expanded={editing}><Pencil size={20} aria-hidden="true" /></button>

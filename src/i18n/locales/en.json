@@ -1685,7 +1685,9 @@
       "audio_unavailable": "Dictionary recordings are unavailable; text lookup still works.",
       "package_unavailable": "The local dictionary package is not ready.",
       "english_only_senses": "Some meanings are available only in English.",
-      "audio_package_unavailable": "Dictionary recordings are unavailable; text lookup still works."
+      "audio_package_unavailable": "Dictionary recordings are unavailable; text lookup still works.",
+      "local_casefold_candidates": "Case differs from the selected text. Check the original headword.",
+      "local_pack_unavailable": "The local dictionary is unavailable. Check Dictionary in Settings."
     },
     "usVariant": "US variant; main pronunciation {{ipa}}",
     "variant": "Variant: {{form}}",
@@ -1930,5 +1932,40 @@
     },
     "pagePosition": "Last at page {{number}}",
     "undoLabel": "Undo desk change"
+  },
+  "dictionaryPacks": {
+    "names": {
+      "daily": "Everyday & General",
+      "extended": "Extended Reading",
+      "specialist": "Specialist Reference"
+    },
+    "descriptions": {
+      "daily": "Everyday reading, life and general knowledge.",
+      "extended": "Less common, literary and older usage.",
+      "specialist": "Specialist subjects and industry terminology."
+    },
+    "bundled": "Included",
+    "installed": "Installed",
+    "optional": "Optional",
+    "dataSize": "Dictionary data: {{size}}",
+    "downloadSize": "Download: {{size}}",
+    "download": "Download",
+    "remove": "Remove pack",
+    "installFile": "Install from file",
+    "unpublished": "Download not yet available",
+    "packUnavailable": "This pack is unavailable. Remove it and install a verified copy.",
+    "failed": "Could not complete the operation. Check your connection and available storage, then retry.",
+    "invalid": "The file does not match this dictionary pack or failed verification. Choose the correct pack.",
+    "cancelled": "Installation cancelled.",
+    "busy": "Another dictionary operation is in progress.",
+    "statusFailed": "Could not read dictionary status.",
+    "sourceRevision": "Source revision {{revision}}",
+    "phases": {
+      "downloading": "Downloading",
+      "verifying": "Verifying",
+      "installing": "Installing"
+    },
+    "baseUnavailable": "The included dictionary is unavailable. Retry; if it still fails, reinstall the app.",
+    "demoBoundary": "This browser demo uses an original sample dictionary. Manage installed dictionary packs in the app."
   }
 }

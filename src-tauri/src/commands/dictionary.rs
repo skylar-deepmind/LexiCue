@@ -1,8 +1,10 @@
 use reqwest::Client;
+#[cfg(test)]
 use rusqlite::OptionalExtension;
 use serde::{Deserialize, Serialize};
+#[cfg(test)]
 use std::io::Read;
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, State};
 
 use crate::commands::{collins, english};
 use crate::db::{DbState, DictionaryStatus};
@@ -92,6 +94,7 @@ fn now_ms() -> i64 {
         .as_millis() as i64
 }
 
+#[cfg(test)]
 pub fn initialize_builtin_dictionary(conn: &rusqlite::Connection) -> Result<(), String> {
     let exists: bool = conn
         .query_row(
@@ -213,6 +216,7 @@ fn cached_entry(
     stored_entry(conn, lemma, language, "dictionary_entries")
 }
 
+#[cfg(test)]
 pub(crate) fn lookup_offline_entry(
     conn: &rusqlite::Connection,
     term: &str,
@@ -343,42 +347,62 @@ fn stored_entry(
 }
 
 #[tauri::command]
-pub fn lookup_local_dictionary(app: AppHandle, lemma: String) -> Result<DictionaryEntry, String> {
-    let normalized = lemma.trim().to_lowercase();
-    if normalized.is_empty() {
-        return Err("word is empty".into());
+pub fn lookup_local_dictionary(_app: AppHandle, lemma: String) -> Result<DictionaryEntry, String> {
+    let result = super::dictionary_packs::query_configured(&lemma, None);
+    legacy_pack_entry(&result, &lemma)
+}
+
+pub(crate) fn legacy_pack_entry(
+    result: &serde_json::Value,
+    requested: &str,
+) -> Result<DictionaryEntry, String> {
+    if result["status"] == "unavailable" {
+        return Err("ERR_DICTIONARY_UNAVAILABLE".into());
     }
-    let path = collins::index_path(&app)?;
-    if !path.is_file() {
-        return Err("Collins index is not installed".into());
-    }
-    let (matched, match_kind, senses) = resolve_collins_word(&path, &normalized)?;
-    if senses.is_empty() {
-        return Err(format!("Collins entry not found: {normalized}"));
-    }
+    let entries = result["entries"]
+        .as_array()
+        .ok_or("ERR_DICTIONARY_UNAVAILABLE")?;
+    let entry = entries.first().ok_or("ERR_DICTIONARY_NOT_FOUND")?;
+    let definitions = entries
+        .iter()
+        .flat_map(|entry| entry["groups"].as_array().into_iter().flatten())
+        .flat_map(|group| {
+            group["senses"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .map(move |sense| DictionaryDefinition {
+                    part_of_speech: group["part_of_speech"].as_str().unwrap_or("").into(),
+                    definition: sense["ancestors"]
+                        .as_array()
+                        .into_iter()
+                        .flatten()
+                        .filter_map(|parent| parent["meaning"]["en"].as_str())
+                        .chain(sense["meaning"]["en"].as_str())
+                        .collect::<Vec<_>>()
+                        .join(" — "),
+                    translation: None,
+                    example: sense["examples"][0]["english"].as_str().map(str::to_string),
+                })
+        })
+        .collect();
     Ok(DictionaryEntry {
-        language: "en".to_string(),
-        lemma: normalized.clone(),
-        requested_form: normalized,
-        matched_headword: matched,
-        match_kind,
-        provider: collins::PROVIDER.to_string(),
-        phonetic: None,
+        language: "en".into(),
+        lemma: entry["headword"].as_str().unwrap_or(requested).into(),
+        requested_form: requested.into(),
+        matched_headword: entry["headword"].as_str().unwrap_or(requested).into(),
+        match_kind: entry["match"]["type"].as_str().unwrap_or("exact").into(),
+        provider: "Wiktionary".into(),
+        phonetic: entry["groups"][0]["pronunciations"][0]["ipa"]
+            .as_str()
+            .map(str::to_string),
         audio_url: None,
         local_audio_path: None,
-        definitions: senses
-            .into_iter()
-            .map(|sense| DictionaryDefinition {
-                part_of_speech: sense.grammar,
-                definition: sense.definition,
-                translation: None,
-                example: sense.example,
-            })
-            .collect(),
+        definitions,
         fetched_at: now_ms(),
     })
 }
-
+#[cfg(test)]
 fn resolve_collins_word(
     path: &std::path::Path,
     normalized: &str,
@@ -415,6 +439,7 @@ fn resolve_collins_word(
     Ok((matched, match_kind, senses))
 }
 
+#[cfg(test)]
 pub fn initialize_builtin_phrase_dictionary(conn: &rusqlite::Connection) -> Result<(), String> {
     let exists: bool = conn
         .query_row(
@@ -482,6 +507,7 @@ pub fn initialize_builtin_phrase_dictionary(conn: &rusqlite::Connection) -> Resu
 
 // Retained for legacy-data regression fixtures; new imports target English only.
 #[cfg(test)]
+#[cfg(test)]
 pub fn initialize_builtin_japanese_dictionary(conn: &rusqlite::Connection) -> Result<(), String> {
     let exists: bool = conn
         .query_row(
@@ -546,6 +572,7 @@ pub fn initialize_builtin_japanese_dictionary(conn: &rusqlite::Connection) -> Re
 }
 
 // Retained for legacy-data regression fixtures; new imports target English only.
+#[cfg(test)]
 #[cfg(test)]
 pub fn initialize_builtin_german_dictionary(conn: &rusqlite::Connection) -> Result<(), String> {
     let exists: bool = conn
@@ -613,6 +640,7 @@ pub fn initialize_builtin_german_dictionary(conn: &rusqlite::Connection) -> Resu
 
 // Retained for legacy-data regression fixtures; new imports target English only.
 #[cfg(test)]
+#[cfg(test)]
 pub fn initialize_builtin_chinese_dictionary(conn: &rusqlite::Connection) -> Result<(), String> {
     let exists: bool = conn
         .query_row(
@@ -675,6 +703,7 @@ pub fn initialize_builtin_chinese_dictionary(conn: &rusqlite::Connection) -> Res
 }
 
 // Retained for legacy-data regression fixtures; new imports target English only.
+#[cfg(test)]
 #[cfg(test)]
 pub fn initialize_builtin_chinese_phrase_dictionary(
     conn: &rusqlite::Connection,
@@ -744,6 +773,7 @@ pub fn initialize_builtin_chinese_phrase_dictionary(
 
 // Retained for legacy-data regression fixtures; new imports target English only.
 #[cfg(test)]
+#[cfg(test)]
 pub fn initialize_builtin_japanese_phrase_dictionary(
     conn: &rusqlite::Connection,
 ) -> Result<(), String> {
@@ -810,26 +840,6 @@ pub fn initialize_builtin_japanese_phrase_dictionary(
     transaction.commit().map_err(|e| e.to_string())
 }
 
-fn missing_phrase_reason(app: &AppHandle, language: &str) -> String {
-    if let Some(status) = app.try_state::<DictionaryStatus>() {
-        let snapshot = status.snapshot();
-        let sources: Vec<_> = snapshot
-            .sources
-            .iter()
-            .filter(|s| {
-                s.language == language && (s.name.contains("Phrase") || s.name.contains("Idioms"))
-            })
-            .collect();
-        if sources.iter().any(|s| s.state == "failed") {
-            return "ERR_DICTIONARY_UNAVAILABLE".into();
-        }
-        if sources.iter().any(|s| s.state != "ready") {
-            return "ERR_DICTIONARY_PREPARING".into();
-        }
-    }
-    "ERR_DICTIONARY_NOT_FOUND".into()
-}
-
 #[tauri::command]
 pub fn lookup_phrase_dictionary(
     state: State<DbState>,
@@ -837,135 +847,29 @@ pub fn lookup_phrase_dictionary(
     text: String,
     language: Option<String>,
 ) -> Result<PhraseDictionaryEntry, String> {
-    let normalized = text.trim().to_lowercase();
-    let language = language.unwrap_or_else(|| "en".to_string());
-    let collins_path = collins::index_path(&app)?;
-    let mut collins_available = language == "en" && collins_path.is_file();
-    let collins_senses = if language == "en" {
-        collins::lookup_phrase(&collins_path, &normalized).unwrap_or_else(|error| {
-            log::warn!("Collins unavailable: {error}");
-            collins_available = false;
-            Vec::new()
-        })
-    } else {
-        Vec::new()
-    };
-    let conn = state.conn.lock().map_err(|e| e.to_string())?;
-    let ollama_result = conn.query_row(
-        "SELECT text, translation, pinyin, usage_zh, category, provider, other_senses_json, other_senses_edited,
-                meaning_en, usage_en, other_senses_en_json, other_senses_en_edited, expression_meta_json
-         FROM phrase_dictionary_entries WHERE language = ?1 AND text = ?2",
-        [&language, &normalized],
-        |row| {
-            Ok(PhraseDictionaryEntry {
-                text: row.get(0)?,
-                translation: row.get(1)?,
-                pinyin: row.get(2)?,
-                usage_zh: row.get(3)?,
-                category: row.get(4)?,
-                provider: row.get(5)?,
-                other_senses: serde_json::from_str(&row.get::<_, String>(6)?).unwrap_or_default(),
-                other_senses_edited: row.get::<_, i64>(7)? != 0,
-                meaning_en: row.get(8)?,
-                usage_en: row.get(9)?,
-                other_senses_en: serde_json::from_str(&row.get::<_, String>(10)?).unwrap_or_default(),
-                other_senses_en_edited: row.get::<_, i64>(11)? != 0,
-                collins_senses: collins_senses.clone(),
-                collins_available,
-                expression_metadata: row.get::<_, Option<String>>(12)?.and_then(|raw| serde_json::from_str(&raw).ok()),
-            })
-        },
-    );
-    match ollama_result {
-        Ok(entry) => return Ok(entry),
-        Err(rusqlite::Error::QueryReturnedNoRows) => {}
-        Err(error) => return Err(error.to_string()),
+    let _ = (state, app);
+    if language.as_deref().is_some_and(|l| l != "en") {
+        return Err("ERR_DICTIONARY_LANGUAGE".into());
     }
-    if language == "en" && !collins_senses.is_empty() {
-        return Ok(PhraseDictionaryEntry {
-            text: normalized,
-            translation: String::new(),
-            pinyin: None,
-            usage_zh: None,
-            category: None,
-            provider: collins::PROVIDER.into(),
-            other_senses: Vec::new(),
-            other_senses_edited: false,
-            meaning_en: None,
-            usage_en: None,
-            other_senses_en: Vec::new(),
-            other_senses_en_edited: false,
-            collins_senses,
-            collins_available,
-            expression_metadata: None,
-        });
-    }
-    if language == "zh" || language == "ja" {
-        let sql = if language == "ja" {
-            "SELECT text, reading, translation, category FROM builtin_japanese_phrase_dictionary WHERE text = ?1"
-        } else {
-            "SELECT text, reading, translation, category FROM builtin_chinese_phrase_dictionary WHERE text = ?1"
-        };
-        let result = conn.query_row(sql, [&normalized], |row| {
-            Ok(PhraseDictionaryEntry {
-                text: row.get(0)?,
-                translation: row.get(2)?,
-                pinyin: row.get(1)?,
-                usage_zh: None,
-                category: row.get(3)?,
-                provider: if language == "ja" {
-                    "JMdict Idioms"
-                } else {
-                    "CC-CEDICT Phrases"
-                }
-                .to_string(),
-                other_senses: Vec::new(),
-                other_senses_edited: false,
-                meaning_en: None,
-                usage_en: None,
-                other_senses_en: Vec::new(),
-                other_senses_en_edited: false,
-                collins_senses: Vec::new(),
-                collins_available: false,
-                expression_metadata: None,
-            })
-        });
-        return match result {
-            Ok(entry) => Ok(entry),
-            Err(rusqlite::Error::QueryReturnedNoRows) => {
-                Err(missing_phrase_reason(&app, &language))
-            }
-            Err(e) => Err(e.to_string()),
-        };
-    }
-    let result = conn.query_row(
-        "SELECT text, translation, category FROM builtin_phrase_dictionary WHERE text = ?1",
-        [&normalized],
-        |row| {
-            Ok(PhraseDictionaryEntry {
-                text: row.get(0)?,
-                translation: row.get(1)?,
-                pinyin: None,
-                usage_zh: None,
-                category: row.get(2)?,
-                provider: "PhraseDict".to_string(),
-                other_senses: Vec::new(),
-                other_senses_edited: false,
-                meaning_en: None,
-                usage_en: None,
-                other_senses_en: Vec::new(),
-                other_senses_en_edited: false,
-                collins_senses: Vec::new(),
-                collins_available: false,
-                expression_metadata: None,
-            })
-        },
-    );
-    match result {
-        Ok(entry) => Ok(entry),
-        Err(rusqlite::Error::QueryReturnedNoRows) => Err(missing_phrase_reason(&app, &language)),
-        Err(e) => Err(e.to_string()),
-    }
+    let result = super::dictionary_packs::query_configured(&text, None);
+    let entry = legacy_pack_entry(&result, &text)?;
+    Ok(PhraseDictionaryEntry {
+        text,
+        translation: String::new(),
+        pinyin: None,
+        usage_zh: None,
+        category: None,
+        provider: entry.provider,
+        other_senses: Vec::new(),
+        other_senses_edited: false,
+        meaning_en: entry.definitions.first().map(|d| d.definition.clone()),
+        usage_en: None,
+        other_senses_en: Vec::new(),
+        other_senses_en_edited: false,
+        collins_senses: Vec::new(),
+        collins_available: false,
+        expression_metadata: None,
+    })
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -1301,31 +1205,10 @@ pub async fn lookup_dictionary(
 
     match mode.as_deref().unwrap_or("local") {
         "local" => {
-            // This branch must never instantiate a network client or download audio.
-            if language == "en" {
-                if let Ok(entry) = lookup_local_dictionary(app.clone(), normalized.clone()) {
-                    return Ok(entry);
-                }
+            if language != "en" {
+                return Err("ERR_DICTIONARY_LANGUAGE".into());
             }
-            let result = {
-                let conn = state.conn.lock().map_err(|e| e.to_string())?;
-                lookup_offline_entry(&conn, &normalized, &language)?
-            };
-            return result.ok_or_else(|| {
-                if app
-                    .try_state::<DictionaryStatus>()
-                    .is_some_and(|s| s.language_failed(&language))
-                {
-                    "ERR_DICTIONARY_UNAVAILABLE".into()
-                } else if app
-                    .try_state::<DictionaryStatus>()
-                    .is_some_and(|s| !s.language_ready(&language))
-                {
-                    "ERR_DICTIONARY_PREPARING".into()
-                } else {
-                    "ERR_DICTIONARY_NOT_FOUND".into()
-                }
-            });
+            return lookup_local_dictionary(app.clone(), lemma.clone());
         }
         "online" => {}
         _ => return Err("ERR_DICTIONARY_MODE".into()),
@@ -1343,20 +1226,18 @@ pub async fn lookup_dictionary(
         return lookup_chinese(state, app.clone(), normalized, refresh).await;
     }
 
-    // English uses the owner's COBUILD index as the sole local authority.
-    // A refresh explicitly asks for online data; otherwise any Collins hit
-    // returns immediately, without an HTTP request.
-    let collins_entry = if language == "en" {
+    // Preserve explicit online refresh/cache sequencing. Its offline fallback
+    // comes from the same installed v2 packs as the local command.
+    let local_pack_entry = if language == "en" {
         match lookup_local_dictionary(app.clone(), normalized.clone()) {
             Ok(entry) => Some(entry),
             Err(error)
-                if error == "Collins index is not installed"
-                    || error.starts_with("Collins entry not found:") =>
+                if error == "ERR_DICTIONARY_NOT_FOUND" || error == "ERR_DICTIONARY_UNAVAILABLE" =>
             {
                 None
             }
             Err(error) => {
-                log::warn!("Private dictionary unavailable: {error}");
+                log::warn!("Local dictionary unavailable: {error}");
                 None
             }
         }
@@ -1364,7 +1245,7 @@ pub async fn lookup_dictionary(
         None
     };
     if !refresh {
-        if let Some(entry) = collins_entry.as_ref() {
+        if let Some(entry) = local_pack_entry.as_ref() {
             return Ok(entry.clone());
         }
     }
@@ -1379,7 +1260,7 @@ pub async fn lookup_dictionary(
         }
     }
 
-    let local_fallback = online_cached.or(collins_entry);
+    let local_fallback = online_cached.or(local_pack_entry);
 
     let url = format!(
         "https://api.dictionaryapi.dev/api/v2/entries/{}/{}",

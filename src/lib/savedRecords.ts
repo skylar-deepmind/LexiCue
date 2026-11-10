@@ -18,6 +18,8 @@ export interface DictionarySnapshot {
     service_url?: string;
     received_at?: string;
     content_hash?: string;
+    source_revision?: string;
+    source_page?: string;
     license?: { name: string; url: string };
     attribution?: string;
     modifications?: string;

@@ -30,7 +30,7 @@ function Pronunciations({ group, compact = false }: { group: DictionaryGroup; co
     ? t('longman.usVariant', { ipa: label.slice('source US variant of '.length) })
     : label.startsWith('source variant: ') ? t('longman.variant', { form: label.slice('source variant: '.length) }) : label;
   return <>{accentPronunciations(group, accent, !compact).filter(pronunciation => !compact || !pronunciation.form_label?.trim()).map((pronunciation, index) => <span key={index} className={compact ? 'dictionary-overview-ipa' : 'longman-pronunciations'}>
-    <span className="sr-only">{t(`longman.regions.${accent === 'gb' ? 'uk' : 'us'}`)} </span><span className="longman-ipa">{formatIpa(pronunciation.ipa!)}</span>{!compact && pronunciation.form_label && <small>{formLabel(pronunciation.form_label)}</small>}
+    {pronunciation.region !== 'unspecified' && <span className="sr-only">{t(`longman.regions.${accent === 'gb' ? 'uk' : 'us'}`)} </span>}<span className="longman-ipa">{formatIpa(pronunciation.ipa!)}</span>{!compact && pronunciation.form_label && <small>{formLabel(pronunciation.form_label)}</small>}
   </span>)}</>;
 }
 function Sense({ sense, number }: { sense: DictionarySense; number: number }) {
@@ -74,8 +74,8 @@ export default function LongmanResult({ result, onInteract, compact = false }: {
   let previousHeadword: string | undefined;
   const renderOverview = ({ entry, group, sense }: import('../lib/dictionaryResult').SenseSelection) => {
         const showPronunciation = !groupsShown.has(group.id); groupsShown.add(group.id);
-        const relatedForm = entry.match.type === 'inflection' && entry.headword !== result.query.text;
-        const showHeadword = differentHeadwords && previousHeadword !== entry.headword; previousHeadword = entry.headword;
+        const relatedForm = ['inflection', 'source_relation'].includes(entry.match.type) && entry.headword !== result.query.text;
+        const showHeadword = (differentHeadwords || relatedForm) && previousHeadword !== entry.headword; previousHeadword = entry.headword;
         return <li className="dictionary-overview-line" key={sense.id} data-overview-sense={sense.id} data-overview-headword={entry.headword}><div>{showHeadword && <span className="dictionary-overview-headword" lang="en">{relatedForm ? `${result.query.text} → ${entry.headword}` : entry.headword}</span>}<PartOfSpeech group={group}/>{entry.source.provider === 'wiktionary' && <Labels labels={[...group.labels, ...sense.labels]}/>} {showPronunciation && <Pronunciations group={group} compact/>}</div>{sense.ancestors?.map(parent => <p className="dictionary-parent-meaning" key={parent.source_path} lang="en"><Labels labels={parent.labels}/>{parent.meaning.en}</p>)}<p className="longman-meaning" lang={sense.meaning.zh ? 'zh' : 'en'}>{sense.meaning.zh ?? sense.meaning.en}{!sense.meaning.zh && <small className="longman-tag longman-tag--usage">{t('longman.englishOnly')}</small>}</p></li>;
       };
   return <div className={`longman-result${compact ? ' longman-result--compact' : ''}`} data-result-status={result.status} onPointerDownCapture={onInteract} onKeyDownCapture={onInteract} onWheelCapture={onInteract}>
@@ -94,7 +94,8 @@ export default function LongmanResult({ result, onInteract, compact = false }: {
       {result.entries.map(entry => <article className="longman-entry" data-entry-id={entry.id} key={entry.id}>
         <DictionarySource source={entry.source}/>
         <div className="longman-entry-heading"><h3 lang="en">{entry.headword}</h3>{entry.kind === 'expression' && <span className="longman-tag longman-tag--expression">{t(`longman.types.${entry.expression_type ?? 'expression'}`)}</span>}</div>
-        {entry.match.type === 'inflection' && entry.headword !== result.query.text && <p className="dictionary-inflection-relation" lang="en">{result.query.text} → {entry.headword}</p>}
+        {['inflection', 'source_relation'].includes(entry.match.type) && entry.headword !== result.query.text && <p className="dictionary-inflection-relation" lang="en">{result.query.text} → {entry.headword}</p>}
+        {entry.source.delivery === 'local' && entry.match.note && <p className="dictionary-inflection-relation" lang="en">{entry.match.note}</p>}
         {entry.match.pattern && <p className="longman-match-pattern"><span className="longman-tag longman-tag--pattern">{entry.match.pattern}</span></p>}
         {entry.parent_headword && <p className="lookup-provider">{t('longman.parent', { word: entry.parent_headword })}</p>}
         {entry.groups.map(group => <Group key={group.id} group={group}/>)}

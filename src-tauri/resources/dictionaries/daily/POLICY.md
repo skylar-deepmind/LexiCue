@@ -1,0 +1,43 @@
+# LexiCue English Wiktionary v1 selection and rights policy
+
+This policy governs the full verified audit input. Runtime v2 additionally applies the narrower, per-sense selection in [TIERS.md](TIERS.md); it does not install the complete audit database.
+
+This is a data package for a future local adapter. It does not install into LexiCue, replace its online dictionaries, alter the Chinese interface, or ship an application installer.
+
+## Source boundary
+
+The sole lexical source is the English-language section of English Wiktionary, Wikimedia dump **2026-10-01**, extracted by Wiktextract and published in Kaikki's **raw all-language extraction** (2026-10-30 HTTP last modification). The deprecated, postprocessed English-only Kaikki download is forbidden as a build input. No Wordnet definitions, historical Wordnet headword filter, WikDict translations, Longman, Collins, or other independent dictionary data is combined with this package.
+
+`sources.lock.json` pins every input's byte count, SHA-256, and Wikimedia's SHA-1 where available. The Kaikki extraction is a publisher-supplied extraction, not an independent rerun of Wiktextract. Its exact extractor commit and command are not published with the raw download and are recorded as unavailable, never inferred from a current GitHub checkout. Reconstruction of this package starts from those pinned extraction bytes. The separate dump XML provides revision-level attribution and positive example provenance. No full decompressed all-language file is written.
+
+## Lexical selection
+
+Retain English records with a nonempty substantive gloss, excluding proper-name-only records unless the title is an uppercase abbreviation-like name of at most 10 characters, an abbreviation tag is present, or an eligible English form/alternative relation explicitly names the headword as its target. Keep all other English lexical parts of speech, including function words, phrases, compounds and modern vocabulary. This is an intentionally open lexical selection, **not a frequency-ranked “common words” list**. It includes technical, offensive, regional, rare and obsolete senses. An application must display labels; source order is not a learner-frequency ranking.
+
+Keep every substantive sense in a retained record, its full cleaned gloss chain, raw gloss chain with ancestor qualifiers, tags, raw tags, topics, source sense identifiers, relation-only surface pronunciation/form metadata, ordinary examples admitted below, IPA/enPR/other textual pronunciation, forms, and relation provenance. Exclude translations, Chinese definitions, media filenames/URLs, etymologies, citations/quotations, categories, thesaurus/semantic graphs and empty/placeholder/corrupt-text senses. Records or fields with replacement characters or illegal controls are omitted rather than repaired. No generated definitions, Chinese translations or artificial examples are added. Entries retain source capitalization. Normalization is NFC plus whitespace collapsing; case folding is an auxiliary candidate index only.
+
+A sense with `form_of`, `alt_of`, `form-of`/`alt-of` tags or a recognized pure relation gloss is never counted as a definition. Machine-readable targets become directed edges. When a raw target contains a display/article expansion, an alternative endpoint is admitted only if the same sense links to it and an allowlisted relation template in that headword’s pinned English source explicitly names it; source revision, line and template are recorded. No generic article or preposition deletion is used; relation text without a machine target is reported and omitted, never guessed. Name target closure is followed transitively, including through other name aliases. Name targets are admitted to prevent abbreviation links from losing their substantive target. Unresolved targets and cycles are reported and excluded from executable aliases. The complete candidate local mainspace MediaWiki redirect index from the same dump is kept separately, including unresolved rows. Interwiki, non-mainspace targets, and explicitly non-English fragment targets are excluded. English fragments are retained as evidence but **do not narrow the returned sense set**.
+
+Resolve relations with exact-case headwords and compatible source POS, preserving the path. A terminal alias always points directly to an entry that has substantive senses. Limit relation traversal to 16 edges. Do not strip prepositions, stem phrases heuristically, or turn `pay attention to` into an exact hit on `pay attention`. Direct homograph definitions and valid relation targets are both returned. Case-fold-only results are candidates and must be identified as such, especially US/us, IT/it, May/may and Polish/polish.
+
+## Ordinary-example admission: positive and negative evidence
+
+The executable policy is `plain_example` plus `build` in `build_pack.py`:
+
+1. The extraction record must explicitly say `type=example`. Accept populated fields only from `text`, `type`, `tags`, `bold_text_offsets`. A missing `ref` alone is insufficient.
+2. Find the same text on the **same headword's English section** in the pinned Wikimedia XML. It must occupy an entire `#:`/`##:` ordinary-example line containing exactly an allowlisted English template: `ux`, `uxi`, `usex`, `usex-inline`, `eg`, or `co` (collocation).
+3. Only a simple template invocation with the English code and text is accepted. Reject nested templates, extra parameters, attribution/source markers, external URLs, ref/HTML tags, unhandled wiki markup, replacement characters, and text outside 2–500 characters. Strip only bold/italic marks, decode entities, render simple wiki links, and normalize whitespace for matching. Keep the extraction's original example text in the final database.
+4. Omit any otherwise accepted text that is also marked as a quotation anywhere in the English raw extraction. This negative evidence applies across headwords.
+5. Store XML revision ID, original wikitext line number and template name for **every retained example**. This supports audit and correction. An auditor can retrieve the revision or stream the pinned XML to inspect the line; the full page's wikitext SHA-256 is stored on each entry.
+
+Quotation templates (`quote-*`, `RQ:*`, etc.), `#*` citation lines, examples with unknown metadata, bare untemplated examples, and candidates that cannot be positively matched are omitted even if their text looks ordinary. No audio, image, book, newspaper, web, or other external quotation is included as an example.
+
+The positive template match identifies a contributor-presented ordinary use example; it is not proof of independent authorship, a plagiarism detector, or an individual legal clearance. Reuse relies on Wiktionary contributors' text license, combined with this conservative provenance policy. Upstream misclassification or unattributed copying can remain possible. A correction should remove disputed rows and rebuild with a new release; never silently expand the rights claim. The report gives rejection counts and sampled evidence, not an assertion that every contributor's authorship was independently investigated.
+
+## Attribution, share-alike and modifications
+
+English Wiktionary contributors own their contributions. Dictionary content and LexiCue's adaptations are distributed under **CC BY-SA 4.0**. Include NOTICE, the full license, source/version/hash lock, this policy and modification log with redistribution. Each entry links to its Wiktionary page and identifies its dump revision; page history provides contributor attribution. No endorsement by Wikimedia, Wiktionary, Kaikki, Tatu Ylonen or Wiktextract is implied. App users must be able to reach this attribution and license when local content is displayed, saved or exported. Do not apply additional restrictions to the dictionary data.
+
+The package is separate from the application's license; embedding this data does not relabel it as proprietary dictionary content. New adapters must propagate license, attribution, source URL, release, source path and modifications into offline saved excerpts. Existing Longman or online-Wiktionary adapter identities must not be reused.
+
+Primary references: [Kaikki raw data](https://kaikki.org/dictionary/rawdata.html), [Wiktextract format](https://github.com/tatuylonen/wiktextract), [Wiktionary text license and external-material caveat](https://en.wiktionary.org/wiki/Wiktionary:Copyrights), [Wikimedia reuse terms](https://foundation.wikimedia.org/wiki/Policy:Terms_of_Use#7._Licensing_of_Content), [CC BY-SA 4.0 legal code](https://creativecommons.org/licenses/by-sa/4.0/legalcode.en).

@@ -1,0 +1,14 @@
+.dictionary-packs { color: var(--text-body); }
+.dictionary-pack { padding-block: 22px; border-bottom: 1px solid var(--border-soft); }
+.dictionary-pack:first-child { padding-top: 0; }
+.dictionary-pack-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px 16px; }
+.dictionary-pack-heading h2 { font-size: 1rem; color: var(--text-strong); font-weight: 600; }
+.dictionary-pack-heading > span, .dictionary-pack-size, .dictionary-pack-actions > span { color: var(--text-muted); font-size: .875rem; }
+.dictionary-pack p { margin-block: 10px; line-height: 1.65; overflow-wrap: anywhere; }
+.dictionary-pack [role=alert] { color: var(--sync-error-text); }
+.dictionary-pack-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 14px; }
+.dictionary-pack .ui-button { min-height: 48px; }
+.dictionary-pack-progress { display: grid; gap: 10px; margin-block: 14px; }
+.dictionary-pack-progress progress { width: 100%; height: 8px; accent-color: var(--accent-700); }
+.dictionary-pack-progress .ui-button { justify-self: start; }
+@media (max-width: 540px) { .dictionary-pack-actions { align-items: flex-start; flex-direction: column; } }

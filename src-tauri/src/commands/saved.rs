@@ -109,6 +109,10 @@ pub struct DictionarySnapshotSource {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub content_hash: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_revision: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_page: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub license: Option<DictionaryContentLicense>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub attribution: Option<String>,
@@ -139,6 +143,11 @@ fn validate_dictionary_snapshot(snapshot: &DictionarySnapshot) -> Result<(), Str
     let text = |s: &str| !s.trim().is_empty();
     let optional_text = |s: &Option<String>| s.as_deref().is_none_or(text);
     let source = &snapshot.source;
+    if source.adapter_version != super::wiktionary_local::ADAPTER
+        && (source.source_revision.is_some() || source.source_page.is_some())
+    {
+        return Err("saved_dictionary_snapshot_invalid".into());
+    }
     // New public metadata is an explicit contract. Old snapshots omit these
     // fields, retaining their exact serialized request and idempotency signature.
     const PUBLIC_SNAPSHOT_ADAPTERS: [&str; 2] =
@@ -241,6 +250,25 @@ fn validate_dictionary_snapshot(snapshot: &DictionarySnapshot) -> Result<(), Str
 /// New providers carry complete attribution in every offline excerpt. Preserve
 /// legacy snapshots byte-for-byte by making each extension optional for them.
 fn validate_wiktionary_snapshot(snapshot: &DictionarySnapshot) -> Result<(), String> {
+    if snapshot.source.adapter_version == super::wiktionary_local::ADAPTER {
+        let source = serde_json::to_value(&snapshot.source).map_err(|e| e.to_string())?;
+        let mut sense = serde_json::to_value(snapshot).map_err(|e| e.to_string())?;
+        sense["id"] = serde_json::json!(snapshot.sense_id);
+        let namespace = format!("{}:", snapshot.entry_id);
+        if !super::wiktionary_local::valid_source(&source, &snapshot.headword)
+            || snapshot.source.entry_key != snapshot.entry_id
+            || snapshot.group_id != format!("{}:g", snapshot.entry_id)
+            || !super::wiktionary_local::valid_sense(&source, &sense)
+            || snapshot
+                .examples
+                .iter()
+                .any(|e| !e.id.starts_with(&namespace) || e.chinese.is_some())
+            || !snapshot.patterns.is_empty()
+        {
+            return Err("saved_dictionary_snapshot_invalid".into());
+        }
+        return Ok(());
+    }
     let invalid = || "saved_dictionary_snapshot_invalid".to_string();
     let mut source = serde_json::to_value(&snapshot.source).map_err(|_| invalid())?;
     source["delivery"] = serde_json::json!("cache");
@@ -1313,7 +1341,11 @@ fn archive_stamp(conn: &Connection) -> Result<(String, ArchiveStamp), String> {
 /// pages. Transaction-local reads bypass caching: rollback is not represented
 /// by total_changes and must never leave uncommitted facts in a shared view.
 pub fn archive(conn: &Connection, query: &str) -> Result<std::sync::Arc<Archive>, String> {
-    archive_with_catalog(conn, query, super::longman::relation_catalog_configured())
+    archive_with_catalog(
+        conn,
+        query,
+        super::dictionary_packs::relation_catalog_configured(),
+    )
 }
 fn archive_with_catalog(
     conn: &Connection,
@@ -1883,6 +1915,8 @@ mod tests {
                 service_url: None,
                 received_at: None,
                 content_hash: None,
+                source_revision: None,
+                source_page: None,
                 license: None,
                 attribution: None,
                 modifications: None,

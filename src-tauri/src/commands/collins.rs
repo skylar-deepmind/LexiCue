@@ -69,6 +69,7 @@ pub fn lookup_word(path: &Path, lemma: &str) -> Result<Vec<Sense>, String> {
     Ok(rows)
 }
 
+#[cfg(test)]
 pub fn lookup_phrase(path: &Path, phrase: &str) -> Result<Vec<Sense>, String> {
     let Some(conn) = open(path)? else {
         return Ok(Vec::new());

@@ -655,6 +655,7 @@ pub struct Explanation {
     pub provider: String,
     pub more: Vec<String>,
 }
+#[cfg(test)]
 fn explanation_source(provider: &str) -> &'static str {
     let name = provider.to_lowercase();
     if matches!(name.as_str(), "manual" | "personal") {
@@ -675,6 +676,7 @@ fn explanation_source(provider: &str) -> &'static str {
         "unknown"
     }
 }
+#[cfg(test)]
 pub fn lookup(conn: &Connection, expression: &str) -> Result<Explanation, String> {
     let term = super::saved::normalize(expression);
     if term.is_empty() {
@@ -736,10 +738,17 @@ pub async fn lookup_reading_expression(
     state: State<'_, DbState>,
     expression: String,
 ) -> Result<Explanation, String> {
-    let shared = state.conn.clone();
+    let _ = state;
     tauri::async_runtime::spawn_blocking(move || {
-        let conn = shared.lock().map_err(|e| e.to_string())?;
-        lookup(&conn, &expression)
+        let result = super::dictionary_packs::query_configured(&expression, None);
+        let entry = super::dictionary::legacy_pack_entry(&result, &expression)?;
+        let mut meanings = entry.definitions.into_iter().map(|d| d.definition);
+        Ok(Explanation {
+            meaning: meanings.next().ok_or("ERR_DICTIONARY_NOT_FOUND")?,
+            source: "dictionary".into(),
+            provider: "Wiktionary".into(),
+            more: meanings.collect(),
+        })
     })
     .await
     .map_err(|e| e.to_string())?

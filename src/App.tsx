@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+import { listen } from '@tauri-apps/api/event';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import MobileStartup from './components/MobileStartup';
 import { isMobilePlatform } from './lib/platform';
@@ -22,6 +24,12 @@ function FirstLaunch() {
 }
 
 export default function App() {
+  useEffect(() => {
+    let active = true;
+    const subscription = listen('dictionary-packs-changed', () => { if (active) window.dispatchEvent(new Event('lexicue-dictionary-changed')); });
+    void subscription.catch(() => {});
+    return () => { active = false; void subscription.then(unlisten => unlisten()).catch(() => {}); };
+  }, []);
   return (
     <ThemeProvider>
       <MobileStartup>

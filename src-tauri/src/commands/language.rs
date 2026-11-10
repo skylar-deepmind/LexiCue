@@ -28,19 +28,21 @@ fn is_learning_relevant_pos(pos: &str) -> bool {
     !matches!(pos, "助詞" | "助動詞" | "記号" | "補助記号" | "空白")
 }
 
-fn segmenter() -> &'static Mutex<Segmenter> {
-    static SEGMENTER: OnceLock<Mutex<Segmenter>> = OnceLock::new();
-    SEGMENTER.get_or_init(|| {
-        let dictionary = load_dictionary("embedded://unidic")
-            .expect("failed to load embedded unidic dictionary");
-        Mutex::new(Segmenter::new(Mode::Normal, dictionary, None))
-    })
+fn segmenter() -> Option<&'static Mutex<Segmenter>> {
+    static SEGMENTER: OnceLock<Option<Mutex<Segmenter>>> = OnceLock::new();
+    SEGMENTER
+        .get_or_init(|| {
+            let dictionary = load_dictionary("embedded://unidic").ok()?;
+            Some(Mutex::new(Segmenter::new(Mode::Normal, dictionary, None)))
+        })
+        .as_ref()
 }
 
 fn tokenize_japanese_text(text: &str) -> Vec<JapaneseToken> {
-    let segmenter = segmenter()
-        .lock()
-        .expect("japanese segmenter lock poisoned");
+    let Some(segmenter) = segmenter() else {
+        return Vec::new();
+    };
+    let segmenter = segmenter.lock().expect("japanese segmenter lock poisoned");
     let mut tokens = segmenter
         .segment(Cow::Borrowed(text))
         .expect("japanese segmentation failed");
@@ -80,9 +82,10 @@ fn tokenize_japanese_text(text: &str) -> Vec<JapaneseToken> {
 /// highlight spans, so phrase lookups can map a character offset back to a
 /// token index.
 pub fn tokenize_japanese_with_offsets(text: &str) -> Vec<JapaneseTokenWithOffset> {
-    let segmenter = segmenter()
-        .lock()
-        .expect("japanese segmenter lock poisoned");
+    let Some(segmenter) = segmenter() else {
+        return Vec::new();
+    };
+    let segmenter = segmenter.lock().expect("japanese segmenter lock poisoned");
     let mut tokens = segmenter
         .segment(Cow::Borrowed(text))
         .expect("japanese segmentation failed");
@@ -117,9 +120,10 @@ pub fn tokenize_japanese_with_offsets(text: &str) -> Vec<JapaneseTokenWithOffset
 
 /// Complete reading spans, including particles; learning token positions stay unchanged.
 pub(crate) fn reader_japanese_spans(text: &str) -> Vec<(String, String, usize, usize)> {
-    let segmenter = segmenter()
-        .lock()
-        .expect("japanese segmenter lock poisoned");
+    let Some(segmenter) = segmenter() else {
+        return Vec::new();
+    };
+    let segmenter = segmenter.lock().expect("japanese segmenter lock poisoned");
     let mut tokens = segmenter
         .segment(Cow::Borrowed(text))
         .expect("japanese segmentation failed");

@@ -9,7 +9,7 @@ import { backNavigation } from '../lib/backNavigation';
 import { SETTINGS_LABELS, SETTINGS_GROUPS, useSettingsNavigation, type SettingsEntry } from '../lib/settingsNavigation';
 import { usePreferencesStore } from '../stores/preferencesStore';
 import BackupSettings from '../components/BackupSettings';
-import LongmanStatus from '../components/LongmanStatus';
+import DictionaryPacks from '../components/DictionaryPacks';
 import DeviceSyncSettings, { DeviceSyncSummary } from '../components/DeviceSyncSettings';
 import YouTubeDownloadSettings from '../components/YouTubeDownloadSettings';
 import SpeechSettings from '../components/SpeechSettings';
@@ -54,7 +54,7 @@ function SettingsDetail({ entry }: {entry: SettingsEntry}) {
     case 'speech': return <SpeechSettings/>;
     case 'sync': return <DeviceSyncSettings/>;
     case 'backup': return <BackupSettings/>;
-    case 'dictionary': return <LongmanStatus/>;
+    case 'dictionary': return <DictionaryPacks/>;
     case 'youtube': return <YouTubeDownloadSettings/>;
     case 'updates': return <SoftwareUpdateSettings/>;
     case 'guide': return <Link className="ui-button" to="/files?guide=1">{t('onboarding.replay')}</Link>;

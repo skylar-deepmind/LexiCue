@@ -248,7 +248,7 @@ export const manualContent={
           "id": "backup",
           "title": "Data: backup and dictionary",
           "body": [
-            "Backup offers export, restore and History. Dictionary shows local Longman availability and its audio status; retry if unavailable. Online lookup sources may require internet."
+            "Backup offers export, restore and History. Dictionary includes Wiktionary Everyday & General (60.69 MB of dictionary data), with optional Extended Reading and Specialist Reference packs. Install a verified pack file or remove an optional pack here; saved references remain available. Direct downloads appear when package hosting is published. Online lookup sources may require internet."
           ],
           "steps": []
         },
@@ -591,7 +591,7 @@ export const manualContent={
           "id": "backup",
           "title": "资料：备份与词典",
           "body": [
-            "“备份”提供导出、恢复与历史记录；“词典”显示本地朗文及音频可用状态，不可用时可重试。在线查词来源需要联网。"
+            "“备份”提供导出、恢复与历史记录；“词典”内置 Wiktionary「日常通识」（词典数据 60.69 MB），并提供可选的「进阶阅读」「专业参考」包。可从文件安装或移除扩展包，已保存的词典参考仍保留。词典包公开发布后提供直接下载。在线查词来源需要联网。"
           ],
           "steps": []
         },
@@ -934,7 +934,7 @@ export const manualContent={
           "id": "backup",
           "title": "データ：バックアップと辞書",
           "body": [
-            "バックアップから書き出し・復元・履歴へ進めます。辞書ではローカルLongmanと音声の状態を確認し、利用できないときに再試行できます。オンライン辞書には通信が必要です。"
+            "バックアップから書き出し・復元・履歴へ進めます。辞書にはWiktionaryの日常・一般知識（辞書データ60.69 MB）を内蔵し、発展的な読書・専門用語パックを追加できます。検証済みファイルからインストール、または追加パックを削除できます。保存済みの辞書参考は残ります。パックの公開後に直接ダウンロードが利用できます。オンライン辞書には通信が必要です。"
           ],
           "steps": []
         },
@@ -1277,7 +1277,7 @@ export const manualContent={
           "id": "backup",
           "title": "Daten: Sicherung und Wörterbuch",
           "body": [
-            "Sicherung bietet Export, Wiederherstellung und Verlauf. Wörterbuch zeigt die Verfügbarkeit von lokalem Longman und Audio. Bei Fehlern kannst du erneut versuchen. Online-Quellen benötigen Internet."
+            "Sicherung bietet Export, Wiederherstellung und Verlauf. Das Wörterbuch enthält Wiktionary Alltag & Allgemeinwissen (60,69 MB Wörterbuchdaten). Zusätzliche Lektüre- und Fachpakete lassen sich aus einer geprüften Datei installieren oder entfernen; gespeicherte Referenzen bleiben erhalten. Direkte Downloads stehen nach Veröffentlichung der Pakete bereit. Online-Quellen benötigen Internet."
           ],
           "steps": []
         },

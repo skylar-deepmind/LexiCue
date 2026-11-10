@@ -1668,7 +1668,9 @@
       "audio_unavailable": "词典录音暂不可用，文字查询仍可使用。",
       "package_unavailable": "本地词典包尚未就绪。",
       "english_only_senses": "部分意思仅有英文，已保留原文。",
-      "audio_package_unavailable": "词典录音暂不可用，文字查询仍可使用。"
+      "audio_package_unavailable": "词典录音暂不可用，文字查询仍可使用。",
+      "local_casefold_candidates": "候选词的大小写与所选文本不同，请核对词头。",
+      "local_pack_unavailable": "本地词典暂不可用，请在设置中检查词典。"
     },
     "usVariant": "美式变化，主读音 {{ipa}}",
     "variant": "变体：{{form}}",
@@ -1911,5 +1913,40 @@
     },
     "pagePosition": "上次停在第 {{number}} 页",
     "undoLabel": "撤销桌面整理"
+  },
+  "dictionaryPacks": {
+    "names": {
+      "daily": "日常通识",
+      "extended": "进阶阅读",
+      "specialist": "专业参考"
+    },
+    "descriptions": {
+      "daily": "日常阅读、生活与一般通识。",
+      "extended": "低频、生僻、文学和古旧用法。",
+      "specialist": "专业学科与行业术语。"
+    },
+    "bundled": "已内置",
+    "installed": "已安装",
+    "optional": "可选",
+    "dataSize": "词典数据 {{size}}",
+    "downloadSize": "下载 {{size}}",
+    "download": "下载",
+    "remove": "移除词典包",
+    "installFile": "从文件安装",
+    "unpublished": "尚未开放下载",
+    "packUnavailable": "此词典包不可用，请移除后安装经过校验的文件。",
+    "failed": "操作未完成，请检查网络和可用空间后重试。",
+    "invalid": "文件与此词典包不匹配或未通过校验，请选择对应的词典包。",
+    "cancelled": "已取消安装。",
+    "busy": "另一个词典操作正在进行。",
+    "statusFailed": "无法读取词典状态。",
+    "sourceRevision": "来源修订 {{revision}}",
+    "phases": {
+      "downloading": "正在下载",
+      "verifying": "正在校验",
+      "installing": "正在安装"
+    },
+    "baseUnavailable": "内置词典不可用，请重试；仍不可用时请重新安装应用。",
+    "demoBoundary": "网页版演示使用原创样例词典。请在应用中管理已安装的词典包。"
   }
 }

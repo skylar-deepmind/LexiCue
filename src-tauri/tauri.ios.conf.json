@@ -7,12 +7,14 @@
   "bundle": {
     "createUpdaterArtifacts": false,
     "resources": [
-      "resources/ECDICT-LICENSE.txt",
       "resources/ENGLISH-LICENSE.txt",
       "resources/TTS-LICENSE.txt",
       "resources/DOCUMENT-IMPORT-LICENSES.txt",
-      "resources/PHRASEDICT-LICENSE.txt"
+      "resources/dictionaries/catalog.json",
+      "resources/dictionaries/daily/"
     ],
-    "iOS": { "minimumSystemVersion": "15.0" }
+    "iOS": {
+      "minimumSystemVersion": "15.0"
+    }
   }
 }

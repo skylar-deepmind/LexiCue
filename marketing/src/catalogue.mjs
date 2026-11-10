@@ -52,7 +52,7 @@ export const copy={
     ],
     "descriptions": [
       "Import PDF, DOCX, EPUB, Markdown, TXT, SRT or VTT. Paste English text, a webpage link or a YouTube link, then check the extracted content before importing.",
-      "Select a word for dictionary lookup, or select a passage for its meaning. Read the definition beside the original text.",
+      "Select a word for dictionary lookup, or select a passage for its meaning. Read the definition beside the original text. Includes the offline Everyday & General Wiktionary pack (60.69 MB of dictionary data). Manage optional Extended Reading and Specialist Reference packs in Settings.",
       "Show or hide Chinese translations and enter listening mode. Source playback is used when available; speech and missing translations need their online services.",
       "Save words or passages with their original sentence, its translation and the available dictionary reference. Add your own explanation or note; a dictionary reference does not confirm the meaning in this sentence.",
       "Previously saved expressions are highlighted in later reading. Open the earlier sentences and notes, then return to their sources.",
@@ -188,7 +188,7 @@ export const copy={
     ],
     "descriptions": [
       "支持 PDF、DOCX、EPUB、Markdown、TXT、SRT、VTT，也可粘贴英文正文、网页链接或 YouTube 链接，检查提取的内容后导入。",
-      "点选单词查词，或选择一段表达查看含义；释义与原文同时可见。",
+      "点选单词查词，或选择一段表达查看含义；释义与原文同时可见。 内置离线 Wiktionary「日常通识」包，词典数据约 60.69 MB；可在设置中管理「进阶阅读」和「专业参考」扩展包。",
       "按需显示或隐藏中文译文，进入听读模式；有来源音频时可播放来源。朗读和翻译需相应服务可用。",
       "保存单词或一段表达，同时保留原句、句子译文与可用的词典参考。可填写自己的解释或注释；词典参考不等于确认本句含义。",
       "收藏过的表达会在后续阅读中高亮。打开过去的原句和注释，随时返回当时的材料。",
@@ -324,7 +324,7 @@ export const copy={
     ],
     "descriptions": [
       "PDF、DOCX、EPUB、Markdown、TXT、SRT、VTTに対応。英語の本文、WebページやYouTubeのリンクも貼り付け、抽出内容を確認して取り込めます。",
-      "単語を選んで辞書を引くか、文章の一部を選んで意味を確認。原文を見ながら読めます。",
+      "単語を選んで辞書を引くか、文章の一部を選んで意味を確認。原文を見ながら読めます。 オフラインのWiktionary「日常・一般知識」を内蔵（辞書データ60.69 MB）。設定から発展的な読書・専門用語パックを管理できます。",
       "中国語訳の表示を切り替え、聴読モードに入れます。元の音声があれば再生でき、読み上げと翻訳には対応サービスが必要です。",
       "単語や表現とともに、元の文、文の訳、利用可能な辞書の参照を保存します。自分の説明やメモを添えられます。辞書の参照は、この文の意味を確定するものではありません。",
       "保存済みの表現が後の読書で強調表示されます。以前の文とメモを開き、元の素材に戻れます。",
@@ -460,7 +460,7 @@ export const copy={
     ],
     "descriptions": [
       "Importiere PDF, DOCX, EPUB, Markdown, TXT, SRT oder VTT. Füge englischen Text, einen Webseiten- oder YouTube-Link ein und prüfe den extrahierten Inhalt vor dem Import.",
-      "Wähle ein Wort für die Wörterbuchsuche oder eine Passage für ihre Bedeutung. Der Originaltext bleibt sichtbar.",
+      "Wähle ein Wort für die Wörterbuchsuche oder eine Passage für ihre Bedeutung. Der Originaltext bleibt sichtbar. Das Offline-Paket Alltag & Allgemeinwissen von Wiktionary ist enthalten (60,69 MB Wörterbuchdaten). Optionale Lektüre- und Fachpakete verwaltest du in den Einstellungen.",
       "Blende chinesische Übersetzungen ein oder aus und starte den Hörmodus. Quellaudio wird verwendet, wenn verfügbar; Sprachausgabe und Übersetzung benötigen die jeweiligen Dienste.",
       "Speichere Wörter oder Passagen mit Originalsatz, Satzübersetzung und verfügbarer Wörterbuchreferenz. Ergänze eine eigene Erklärung oder Notiz; die Referenz bestätigt keine Bedeutung für diesen Satz.",
       "Gespeicherte Ausdrücke werden beim späteren Lesen hervorgehoben. Öffne frühere Sätze und Notizen und kehre zu ihrer Quelle zurück.",

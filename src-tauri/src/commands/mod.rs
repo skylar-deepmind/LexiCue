@@ -39,6 +39,10 @@ pub mod example;
 
 pub mod cambridge;
 pub mod free_dictionary;
+// Historical archive/recall normalization and migration fixtures remain available.
+// Live lookup IPC is exclusively dictionary_packs; these legacy parser helpers
+// are deliberately not registered as application commands.
+#[allow(dead_code)]
 pub mod longman;
 
 pub mod translation;
@@ -53,3 +57,6 @@ mod slice3_fixture_test;
 pub mod webpage;
 
 pub mod ios_reading;
+
+pub mod dictionary_packs;
+pub mod wiktionary_local;

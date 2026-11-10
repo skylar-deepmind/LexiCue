@@ -5,11 +5,8 @@
   },
   "bundle": {
     "resources": [
-      "resources/ECDICT-LICENSE.txt",
-      "resources/PHRASEDICT-LICENSE.txt",
-      "resources/JMDICT-LICENSE.txt",
-      "resources/CC-CEDICT-LICENSE.txt",
-      "resources/GERMAN-LICENSE.txt"
+      "resources/dictionaries/catalog.json",
+      "resources/dictionaries/daily/"
     ]
   }
 }

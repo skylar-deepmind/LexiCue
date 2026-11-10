@@ -411,6 +411,31 @@ impl RelationCatalog {
             ..Self::default()
         }
     }
+    /// The installed Wiktionary packs supply exact head spellings and explicit
+    /// inflections. Independent meanings and competing targets stay literal.
+    pub(crate) fn from_pack_facts(
+        fingerprint: String,
+        heads: HashSet<String>,
+        spellings: HashSet<String>,
+        targets: BTreeMap<String, BTreeSet<String>>,
+    ) -> Self {
+        let mut out = Self::empty(fingerprint);
+        out.known = spellings;
+        for head in &heads {
+            out.identities.insert(head.clone(), head.clone());
+        }
+        for (surface, choices) in targets {
+            if !heads.contains(&surface) && choices.len() == 1 {
+                let target = choices.into_iter().next().unwrap();
+                if heads.contains(&target) {
+                    out.identities.insert(surface, target);
+                }
+            }
+        }
+        out.rebuild_forms();
+        out.rebuild_case_reservations();
+        out
+    }
     #[cfg(test)]
     pub fn test_fixture(fingerprint: &str, identities: &[(&str, &str)]) -> Self {
         let mut out = Self::empty(fingerprint.into());

@@ -10,6 +10,14 @@ const boundary=()=>({
   name:'lexicue-browser-demo-boundary',enforce:'pre',
   transform(code,id){
    if(id===resolve(project,'src/App.tsx'))return code.replace("import { BrowserRouter,", "import { HashRouter as BrowserRouter,").replace("import MobileStartup", "import { DemoThemeBridge } from '../marketing/demo/theme';\nimport MobileStartup").replace('<BrowserRouter useTransitions={!isMobilePlatform()}>','<BrowserRouter>').replace('<MobileStartup>','<MobileStartup><DemoThemeBridge/>');
+   // The public demo keeps its original CC0 dictionary; it must never label
+   // those illustrative definitions as content from a real Wiktionary pack.
+   if(id===resolve(project,'src/lib/dictionaryResult.ts')){
+    const start=code.indexOf('export async function lookupLocal('),end=code.indexOf('export async function lookupLongman(',start);
+    if(start<0||end<start)throw Error('Local dictionary adapter changed; update the browser demo boundary.');
+    return code.slice(0,start)+'export async function lookupLocal(expression: string, context: string): Promise<DictionaryResult> { return lookupLongman(expression, context); }\n'+code.slice(end);
+   }
+   if(id===resolve(project,'src/components/DictionaryPacks.tsx'))return `import {useTranslation} from 'react-i18next'; export default function DictionaryPacks(){const {t}=useTranslation();return <section><p>{t('dictionaryPacks.demoBoundary')}</p></section>;}`;
    if(id===resolve(project,'src/components/SpeechSettings.tsx')){
     const voices="options={SPEECH_VOICES[speech.accent].map(voice => ({ value: voice.id, label: `${voice.name} · ${t(`speech.${voice.gender}`)}` }))}";
     if(!code.includes(voices)||!code.includes("<details><summary>{t('speech.connection')}</summary>"))throw Error('Speech settings changed; update the browser demo boundary.');

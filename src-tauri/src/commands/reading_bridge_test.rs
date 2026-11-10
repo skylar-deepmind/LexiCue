@@ -1,8 +1,8 @@
 //! Opt-in browser → production command cores → temporary SQLite evidence.
 //! This module is compiled only for tests and never starts with the application.
 use super::{
-    cambridge, dictionary, example::ExampleState, export, free_dictionary, history, longman,
-    materials, recall, saved, tags,
+    cambridge, example::ExampleState, export, free_dictionary, history, longman, materials, recall,
+    saved, tags,
 };
 use serde_json::{json, Value};
 use std::io::{Read, Write};
@@ -109,6 +109,23 @@ fn route(
         "lookup_reading_expression" => {
             serde_json::to_value(materials::lookup(c, text("expression"))?)
                 .map_err(|e| e.to_string())
+        }
+        "lookup_local_expression" => Ok(super::dictionary_packs::query_configured(
+            text("expression"),
+            a["context"].as_str(),
+        )),
+        "dictionary_pack_status" => super::dictionary_packs::status_configured(),
+        "install_dictionary_pack" => {
+            super::dictionary_packs::install_test(text("id"), std::path::Path::new(text("path")))?;
+            Ok(Value::Null)
+        }
+        "remove_dictionary_pack" => {
+            super::dictionary_packs::remove(text("id"))?;
+            Ok(Value::Null)
+        }
+        "cancel_dictionary_pack" => {
+            super::dictionary_packs::cancel_dictionary_pack()?;
+            Ok(Value::Null)
         }
         "lookup_longman_expression" => Ok(longman::query_configured(
             text("expression"),
@@ -353,7 +370,12 @@ fn seed_recall(c: &rusqlite::Connection, a: &Value) -> Result<Value, String> {
         .map(|r| saved::normalize(r["expression"].as_str().unwrap()))
         .collect();
     let vocabulary = {
-        let mut statement=c.prepare("SELECT lemma FROM builtin_dictionary_entries WHERE length(lemma) BETWEEN 3 AND 18 AND lemma NOT GLOB '*[^a-z]*' ORDER BY (rowid * 1103515245 + 12345) % 2147483647 LIMIT 20000").map_err(|e|e.to_string())?;
+        let pack = super::wiktionary_local::Pack::open(
+            &std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("resources/dictionaries/daily/dictionary.sqlite3"),
+            "daily",
+        )?;
+        let mut statement=pack.conn.prepare("SELECT s.word FROM surfaces s WHERE length(s.word) BETWEEN 3 AND 18 AND s.word NOT GLOB '*[^a-z]*' AND EXISTS(SELECT 1 FROM entries e WHERE e.surface_id=s.id) ORDER BY (s.id * 1103515245 + 12345) % 2147483647 LIMIT 20000").map_err(|e|e.to_string())?;
         let found = statement
             .query_map([], |r| r.get::<_, String>(0))
             .map_err(|e| e.to_string())?
@@ -420,7 +442,7 @@ fn seed_recall(c: &rusqlite::Connection, a: &Value) -> Result<Value, String> {
     }
     tx.commit().map_err(|e| e.to_string())?;
     Ok(
-        json!({"records":target,"expressions":recall::index(c)?.len(),"source_file_id":imported.file_id,"filler":"deterministic ECDICT sample: single words and two-word phrases"}),
+        json!({"records":target,"expressions":recall::index(c)?.len(),"source_file_id":imported.file_id,"filler":"deterministic daily Wiktionary sample: single words and two-word phrases"}),
     )
 }
 #[test]
@@ -437,8 +459,7 @@ fn serve_reading_bridge() {
     let mut conn = crate::db::init_db(&path).unwrap();
     let examples = ExampleState::default();
     let tts_service = super::tts::TtsService::new(dir.path().join("edge-tts-v1"));
-    dictionary::initialize_builtin_dictionary(&conn).unwrap();
-    dictionary::initialize_builtin_phrase_dictionary(&conn).unwrap();
+    super::dictionary_packs::configure_test(dir.path().join("dictionary-packs"));
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let port = listener.local_addr().unwrap().port();
     let info =
@@ -541,7 +562,9 @@ fn serve_reading_bridge() {
         }
         .to_string();
         let response=format!("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: {ui_origin}\r\nAccess-Control-Allow-Headers: content-type\r\nAccess-Control-Allow-Methods: POST, OPTIONS\r\nConnection: close\r\nContent-Length: {}\r\n\r\n{}",body.len(),body);
-        stream.write_all(response.as_bytes()).unwrap();
+        // A browser may abort a lookup while changing selection or closing a
+        // page. Its disconnected response must not terminate the test bridge.
+        let _ = stream.write_all(response.as_bytes());
         if command == "test_stop" {
             break;
         }

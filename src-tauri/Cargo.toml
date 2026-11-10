@@ -21,6 +21,8 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 lan-sync = []
 
 [build-dependencies]
+sha2 = "0.10"
+serde_json = "1.0"
 tauri-build = { version = "2.6.3", features = [] }
 
 [dependencies]
@@ -52,11 +54,13 @@ argon2 = "0.5"
 chacha20poly1305 = "0.10"
 rand = "0.8"
 uuid = { version = "1", features = ["v4"] }
+fs2 = "=0.4.3"
 flate2 = "1.1"
+zip = { version = "=4.6.1", default-features = false, features = ["deflate-flate2"] }
 zstd = "0.13"
 sha2 = "0.10"
 time = { version = "0.3", features = ["formatting", "parsing"] }
-lindera = { version = "4.0.1", features = ["embed-unidic"] }
+lindera = { version = "4.0.1", default-features = false }
 jieba-rs = "0.10"
 keyring = { version = "4.1.6", features = ["android-native-keyring-store"] }
 keyring-core = "1.0"
@@ -76,6 +80,8 @@ rcgen = { version = "0.13.2", default-features = false, features = ["crypto", "r
 p12 = "0.6.3"
 
 [dev-dependencies]
+# Historical language/migration regression fixtures only; never shipped.
+lindera = { version = "4.0.1", features = ["embed-unidic"] }
 tempfile = "3"
 
 # Large model checksums must not block debug builds for minutes.
