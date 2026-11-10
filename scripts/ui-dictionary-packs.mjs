@@ -33,14 +33,14 @@ try {
   ok(await page.locator('[data-pack]').count()===3,`${label}: exactly three packs`);
   ok(await page.locator('[data-pack=daily] button').count()===0,`${label}: bundled base cannot be removed`);
   ok((await page.locator('[data-pack=daily]').innerText()).includes('60.69'),`${label}: data size shown`);
-  await page.locator('[data-pack=specialist] button').focus();await page.keyboard.press('Enter');
+  await page.locator('[data-pack=specialist]').getByRole('button',{name:'从文件安装',exact:true}).focus();await page.keyboard.press('Enter');
   await page.waitForFunction(()=>!document.querySelector('[data-pack=specialist] button')?.disabled);
   ok(await page.locator('[data-pack=specialist]').getAttribute('data-installed')==='false',`${label}: cancelling picker changes no pack`);
   ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${label}: no horizontal overflow`);
-  await page.locator('[data-pack=specialist] button').hover();
-  ok(await page.locator('[data-pack=specialist] button').evaluate(n=>n.getBoundingClientRect().height>=44),`${label}: touch target`);
+  await page.locator('[data-pack=specialist]').getByRole('button',{name:'从文件安装',exact:true}).hover();
+  ok(await page.locator('[data-pack=specialist]').getByRole('button',{name:'从文件安装',exact:true}).evaluate(n=>n.getBoundingClientRect().height>=44),`${label}: touch target`);
   await page.screenshot({path:join(output,`${label}-packs.png`),fullPage:true});
-  for(const selector of ['.dictionary-pack-heading h2','.dictionary-pack-size','.dictionary-pack-actions > span']){const ratio=await contrast(page.locator(selector).first());ok(ratio>=4.5,`${label}: ${selector} contrast ${ratio.toFixed(2)}`);}
+  for(const selector of ['.dictionary-pack-heading h2','.dictionary-pack-size','.dictionary-pack-actions button']){const ratio=await contrast(page.locator(selector).first());ok(ratio>=4.5,`${label}: ${selector} contrast ${ratio.toFixed(2)}`);}
   await page.evaluate(()=>document.documentElement.style.fontSize='32px');
   ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${label}: 200 percent text fits width`);
   await page.evaluate(()=>document.documentElement.style.fontSize='');
@@ -50,7 +50,7 @@ try {
   // cancellation and digest checks are covered by actual Rust loopback tests.
   await page.evaluate(status=>{window.__packState={...status,busy:true,operation:{id:'specialist',phase:'downloading',completed:1000000,total:55155825}};document.dispatchEvent(new Event('visibilitychange'));},status);
   await page.locator('[data-pack=specialist] progress').waitFor();
-  ok(await page.locator('[data-pack=extended] button').isDisabled(),`${label}: concurrent operations disabled`);
+  ok(await page.locator('[data-pack=extended] button').first().isDisabled(),`${label}: concurrent operations disabled`);
   await page.screenshot({path:join(output,`${label}-progress.png`),fullPage:true});
   await page.locator('[data-pack=specialist]').getByRole('button',{name:'取消',exact:true}).click();
   await page.locator('[data-pack=specialist] progress').waitFor({state:'detached'});
@@ -67,7 +67,7 @@ try {
    await page.locator('[data-pack=specialist]').getByRole('button',{name:'从文件安装',exact:true}).click();
    await page.locator('[data-pack=specialist] [role=alert]').waitFor();
    await page.screenshot({path:join(output,`${label}-error.png`),fullPage:true});
-   ok(await page.locator('[data-pack=specialist] button').isEnabled(),`${label}: failed installation can be retried`);
+   ok(await page.locator('[data-pack=specialist]').getByRole('button',{name:'从文件安装',exact:true}).isEnabled(),`${label}: failed installation can be retried`);
   }
   const sentence='The soliloquy describes pneumonia.';
   const imported=await h.call('import_reading_material',{input:{operation_id:`pack-ui-${label}`,name:`${label}.txt`,content:sentence,segments:[{index:0,en_text:sentence,zh_text:null,start_time:null,end_time:null}]}});

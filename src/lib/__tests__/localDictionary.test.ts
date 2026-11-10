@@ -1,11 +1,23 @@
 import { describe, expect, it, vi } from 'vitest';
 import raw from './fixtures/wiktionary-local-v2.json';
-import { dictionaryReference, isLocalWiktionarySource, isWiktionarySource, lookupFreeDictionary, selectedSnapshot, senseSelections, validateDictionaryResult, type DictionaryResult } from '../dictionaryResult';
+import { dictionaryOverview, dictionaryReference, isLocalWiktionarySource, isWiktionarySource, lookupFreeDictionary, selectedSnapshot, senseSelections, validateDictionaryResult, type DictionaryResult } from '../dictionaryResult';
 import { dictionaryOnlineSourceNumber, dictionarySourceLabelKey } from '../dictionaryPresentation';
 const mocks = vi.hoisted(() => ({ invoke: vi.fn() }));
 vi.mock('@tauri-apps/api/core', () => ({ invoke: mocks.invoke }));
 const fixture = () => structuredClone(raw) as DictionaryResult;
 describe('local Wiktionary v2 boundary', () => {
+  it('keeps related heads out of the visible primary excerpt so every visible sense can be saved', () => {
+    const result = fixture();
+    const related = structuredClone(result.entries[0]);
+    related.id = 'related-head'; related.headword = 'related head';
+    related.groups[0].senses[0].id = 'related-sense';
+    result.entries.push(related);
+    const overview = dictionaryOverview(result);
+    expect(overview.every(item => item.entry.headword === 'soliloquy')).toBe(true);
+    const frozen = dictionaryReference(result)!;
+    expect(overview.every(item => frozen.senses.some(sense => sense.sense_id === item.sense.id))).toBe(true);
+    expect(result.entries).toContain(related);
+  });
   it('accepts an actual Rust result from the pinned daily database and freezes its revision and ordinary example', () => {
     const result = validateDictionaryResult(fixture(), 'soliloquy', 'wiktionary');
     const selection = senseSelections(result)[0];

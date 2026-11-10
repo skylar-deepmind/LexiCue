@@ -1341,7 +1341,11 @@ fn archive_stamp(conn: &Connection) -> Result<(String, ArchiveStamp), String> {
 /// pages. Transaction-local reads bypass caching: rollback is not represented
 /// by total_changes and must never leave uncommitted facts in a shared view.
 pub fn archive(conn: &Connection, query: &str) -> Result<std::sync::Arc<Archive>, String> {
-    archive_with_catalog(conn, query, super::longman::relation_catalog_configured())
+    archive_with_catalog(
+        conn,
+        query,
+        super::dictionary_packs::relation_catalog_configured(),
+    )
 }
 fn archive_with_catalog(
     conn: &Connection,

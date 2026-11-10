@@ -442,7 +442,7 @@ fn seed_recall(c: &rusqlite::Connection, a: &Value) -> Result<Value, String> {
     }
     tx.commit().map_err(|e| e.to_string())?;
     Ok(
-        json!({"records":target,"expressions":recall::index(c)?.len(),"source_file_id":imported.file_id,"filler":"deterministic ECDICT sample: single words and two-word phrases"}),
+        json!({"records":target,"expressions":recall::index(c)?.len(),"source_file_id":imported.file_id,"filler":"deterministic daily Wiktionary sample: single words and two-word phrases"}),
     )
 }
 #[test]
@@ -562,7 +562,9 @@ fn serve_reading_bridge() {
         }
         .to_string();
         let response=format!("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: {ui_origin}\r\nAccess-Control-Allow-Headers: content-type\r\nAccess-Control-Allow-Methods: POST, OPTIONS\r\nConnection: close\r\nContent-Length: {}\r\n\r\n{}",body.len(),body);
-        stream.write_all(response.as_bytes()).unwrap();
+        // A browser may abort a lookup while changing selection or closing a
+        // page. Its disconnected response must not terminate the test bridge.
+        let _ = stream.write_all(response.as_bytes());
         if command == "test_stop" {
             break;
         }

@@ -17,7 +17,7 @@
         "sha256": "9325b1238ba7b76c8fd8da10b1daeabe9e1e0a2fe9daabf3ab0dd616f28b879c"
       },
       "description": "日常阅读、生活与通识；高于最基本常用词，包含常见健康、文艺、工作、新闻与现代科技词汇。",
-      "download_url": null,
+      "download_url": "https://github.com/skylar-deepmind/LexiCue/releases/download/dictionary-en-20261001-v2/lexicue-daily-enwiktionary-20261001-lexicue-v2.zip",
       "english_name": "Everyday & General",
       "filename": "lexicue-daily-enwiktionary-20261001-lexicue-v2.zip",
       "id": "daily",
@@ -77,7 +77,7 @@
         "sha256": "39d21e3a978b745030d8b2468fd2cfdb2ba0658679c23c67b3da3ae04ec39789"
       },
       "description": "低频、生僻、文学和古旧用法；按需下载。",
-      "download_url": null,
+      "download_url": "https://github.com/skylar-deepmind/LexiCue/releases/download/dictionary-en-20261001-v2/lexicue-extended-enwiktionary-20261001-lexicue-v2.zip",
       "english_name": "Extended Reading",
       "filename": "lexicue-extended-enwiktionary-20261001-lexicue-v2.zip",
       "id": "extended",
@@ -136,7 +136,7 @@
         "sha256": "faba609735bd4ad93d71c76f7c37bfaf45f3d042e37bf89fe5b1681daecb792b"
       },
       "description": "狭窄学科、行业和专业义项；按需下载，日常熟悉的通识解释优先留在基础包。",
-      "download_url": null,
+      "download_url": "https://github.com/skylar-deepmind/LexiCue/releases/download/dictionary-en-20261001-v2/lexicue-specialist-enwiktionary-20261001-lexicue-v2.zip",
       "english_name": "Specialist Reference",
       "filename": "lexicue-specialist-enwiktionary-20261001-lexicue-v2.zip",
       "id": "specialist",

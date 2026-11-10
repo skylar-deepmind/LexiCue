@@ -76,10 +76,6 @@ pub fn run() {
             commands::gemma::runtime::initialize(app.handle())?;
             commands::youtube::init_subtitle_cache(app.handle());
             commands::dictionary_packs::configure(app.handle());
-            // Preserve historical archive/recall normalization for existing libraries.
-            // No Longman lookup/status command is registered; live local dictionary
-            // content comes exclusively from dictionary_packs.
-            commands::longman::configure(app.handle());
             commands::cambridge::configure(app.handle());
             commands::free_dictionary::configure(app.handle());
             commands::tts::configure(app.handle());

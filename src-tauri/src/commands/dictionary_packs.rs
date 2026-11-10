@@ -4,7 +4,7 @@
 use super::wiktionary_local::{self as local, Pack, R};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use std::collections::HashSet;
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -77,6 +77,7 @@ struct Store {
     errors: Vec<(String, String)>,
     initialized: bool,
     fingerprint: String,
+    relations: Option<Arc<super::longman::RelationCatalog>>,
 }
 fn store() -> &'static Mutex<Store> {
     static S: OnceLock<Mutex<Store>> = OnceLock::new();
@@ -231,6 +232,7 @@ fn initialize(s: &mut Store) {
     }
     s.fingerprint = current;
     s.packs.clear();
+    s.relations = None;
     s.errors.clear();
     for id in ["daily", "extended", "specialist"] {
         let root = if id == "daily" {
@@ -247,6 +249,78 @@ fn initialize(s: &mut Store) {
         }
     }
     s.initialized = true;
+}
+fn pack_relations(packs: &[Pack], fingerprint: String) -> R<super::longman::RelationCatalog> {
+    let mut heads = HashSet::new();
+    let mut spellings = HashSet::new();
+    let mut targets: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+    let mut grammatical = HashSet::new();
+    for pack in packs {
+        let mut q = pack.conn.prepare("SELECT word,EXISTS(SELECT 1 FROM entries e WHERE e.surface_id=s.id) FROM surfaces s").map_err(|e| e.to_string())?;
+        let rows = q
+            .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, bool>(1)?)))
+            .map_err(|e| e.to_string())?;
+        for row in rows {
+            let (word, independent) = row.map_err(|e| e.to_string())?;
+            spellings.insert(word.clone());
+            if independent {
+                heads.insert(word);
+            }
+        }
+        // Only explicit grammatical relations grant history aliases. A second
+        // source target prevents folding, even when one is uncommon.
+        let mut q = pack.conn.prepare("SELECT s.word,t.word,a.kind IN (1,3) FROM aliases a JOIN surfaces s ON s.id=a.surface_id JOIN entries e ON e.source_line=a.entry_line JOIN surfaces t ON t.id=e.surface_id").map_err(|e| e.to_string())?;
+        let rows = q
+            .query_map([], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, bool>(2)?,
+                ))
+            })
+            .map_err(|e| e.to_string())?;
+        for row in rows {
+            let (surface, target, inflection) = row.map_err(|e| e.to_string())?;
+            if inflection {
+                grammatical.insert(surface.clone());
+            }
+            targets.entry(surface).or_default().insert(target);
+        }
+    }
+    targets.retain(|surface, _| grammatical.contains(surface));
+    Ok(super::longman::RelationCatalog::from_pack_facts(
+        fingerprint,
+        heads,
+        spellings,
+        targets,
+    ))
+}
+pub fn relation_catalog_configured() -> Arc<super::longman::RelationCatalog> {
+    #[cfg(test)]
+    if let Some(catalog) = super::longman::test_relation_override() {
+        return catalog;
+    }
+    let mut s = store().lock().unwrap_or_else(|e| e.into_inner());
+    initialize(&mut s);
+    if let Some(catalog) = &s.relations {
+        return catalog.clone();
+    }
+    let catalog = Arc::new(
+        pack_relations(
+            &s.packs,
+            format!("wiktionary-pack-relations-v1:{}", s.fingerprint),
+        )
+        .unwrap_or_else(|_| {
+            super::longman::RelationCatalog::from_pack_facts(
+                "wiktionary-unavailable".into(),
+                Default::default(),
+                Default::default(),
+                Default::default(),
+            )
+        }),
+    );
+    s.relations = Some(catalog.clone());
+    catalog
 }
 pub fn query_configured(expression: &str, context: Option<&str>) -> Value {
     let mut s = store().lock().unwrap_or_else(|e| e.into_inner());
@@ -437,6 +511,7 @@ fn activate(root: &Path, id: &str, op: &Operation) -> R<()> {
     fs::rename(root, &target).map_err(|e| e.to_string())?;
     match Pack::open(&target.join("dictionary.sqlite3"), id) {
         Ok(pack) => {
+            s.relations = None;
             s.packs.push(pack);
             s.packs.sort_by(|a, b| a.id.cmp(&b.id));
             s.errors.retain(|(key, _)| key != id);
@@ -543,6 +618,9 @@ async fn fetch_archive(
         .ok_or("dictionary_manifest_invalid")?;
     report(0, total);
     let response = tokio::select! {r=client.get(url).send()=>r.map_err(|_|"dictionary_download_failed")?,_=cancelled(op)=>return Err("dictionary_pack_cancelled".into())};
+    if response.status() == reqwest::StatusCode::NOT_FOUND {
+        return Err("dictionary_download_unpublished".into());
+    }
     let mut response = response
         .error_for_status()
         .map_err(|_| "dictionary_download_failed")?;

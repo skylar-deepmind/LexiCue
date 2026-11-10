@@ -28,8 +28,12 @@ dataset, selection limits, source gaps, attribution and measured database sizes.
   Older records omit them unchanged. New frozen references validate independently
   of installation state, so removing an optional pack does not delete or change
   saved contexts, personal notes, dictionary excerpts, backups or sync payloads.
-- Historical dictionary tables and archive/recall compatibility code remain for
-  existing data. They are not registered as live Longman lookup commands. Legacy
+- Historical dictionary tables remain for existing data. Archive and recall
+  rebuild their spelling/form index from the installed packs: only an explicit
+  grammatical relation with one target and no independent head can join saved
+  forms. Competing targets and proper-name casing stay separate. Installing or
+  removing a pack rebuilds this projection without rewriting saved records.
+  Longman lookup commands are no longer registered. Legacy
   resource importers and UniDic embedding are restricted to regression tests;
   English morphology data still serves the English reading pipeline.
 
@@ -70,11 +74,13 @@ and removes only that pack's directory.
 The HTTP downloader streams to staging, reports progress, checks length and
 SHA-256, supports cancellation while awaiting the network, and shares the same
 verification/activation path. It accepts only URLs in the pinned catalog under
-this repository's HTTPS GitHub Release download path. URLs are currently null:
-the packages have not been publicly hosted. The UI therefore says download is
-not yet available and offers file installation. Publishing the existing audited
-ZIPs and configuring their real URLs is a separate authorized release step; no
-working public download or application release is claimed by this implementation.
+this repository's HTTPS GitHub Release download path. The catalog targets the
+prepared `dictionary-en-20261001-v2` data release. Its three audited ZIPs are
+uploaded to a **draft prerelease**, with GitHub SHA-256 matching the pinned hashes.
+The release must be explicitly approved and published before this App change is
+merged; its final tag URLs are unavailable to unauthenticated users until then.
+A 404 reports “download not yet available”; file installation already works.
+No public download or application release is claimed by preparing the draft.
 
 ## Verification
 

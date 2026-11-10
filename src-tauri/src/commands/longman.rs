@@ -1690,3 +1690,7 @@ pub(crate) fn test_relation_catalog(catalog: Arc<RelationCatalog>) -> TestRelati
         _same_thread: Default::default(),
     }
 }
+#[cfg(test)]
+pub(crate) fn test_relation_override() -> Option<Arc<RelationCatalog>> {
+    TEST_RELATION_CATALOG.with(|slot| slot.borrow().clone())
+}

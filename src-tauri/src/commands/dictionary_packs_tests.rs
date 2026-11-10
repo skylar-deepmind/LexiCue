@@ -1,4 +1,31 @@
 use super::*;
+#[test]
+fn installed_base_proves_recall_forms_and_reserves_independent_case() {
+    let pack = Pack::open(
+        &Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("resources/dictionaries/daily/dictionary.sqlite3"),
+        "daily",
+    )
+    .unwrap();
+    let catalog = pack_relations(&[pack], "base-fixture".into()).unwrap();
+    assert!(!catalog.literal_only());
+    for form in [
+        "take off",
+        "Take off",
+        "took off",
+        "takes off",
+        "taking off",
+    ] {
+        assert_eq!(catalog.identity(form), "take off", "{form}");
+    }
+    for literal in ["running", "went", "US", "us", "May", "may"] {
+        assert_eq!(catalog.identity(literal), literal, "{literal}");
+    }
+    assert!(catalog
+        .case_exclusions(&["us".into(), "may".into()])
+        .contains(&"US".into()));
+    assert!(catalog.safe_forms("take off").contains(&"took off".into()));
+}
 fn detached() -> Operation {
     Operation(
         Arc::new(AtomicBool::new(false)),
@@ -6,6 +33,13 @@ fn detached() -> Operation {
     )
 }
 fn serve(body: &'static [u8], length: usize) -> (String, std::thread::JoinHandle<()>) {
+    serve_status(body, length, 200)
+}
+fn serve_status(
+    body: &'static [u8],
+    length: usize,
+    status: u16,
+) -> (String, std::thread::JoinHandle<()>) {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let thread = std::thread::spawn(move || {
@@ -14,7 +48,7 @@ fn serve(body: &'static [u8], length: usize) -> (String, std::thread::JoinHandle
         let _ = stream.read(&mut request);
         write!(
             stream,
-            "HTTP/1.1 200 OK\r\nContent-Length: {length}\r\nConnection: close\r\n\r\n"
+            "HTTP/1.1 {status} Fixture\r\nContent-Length: {length}\r\nConnection: close\r\n\r\n"
         )
         .unwrap();
         let _ = stream.write_all(body);
@@ -38,6 +72,14 @@ async fn download_validates_stream_length_hash_cancellation_and_progress() {
     server.join().unwrap();
     assert_eq!(fs::read(&path).unwrap(), b"abc");
     assert_eq!(progress.last(), Some(&(3, 3)));
+    let (url, server) = serve_status(b"", 0, 404);
+    assert_eq!(
+        fetch_archive(&client, &url, &path, &expected, &op, |_, _| {})
+            .await
+            .unwrap_err(),
+        "dictionary_download_unpublished"
+    );
+    server.join().unwrap();
     for (body, length) in [
         (b"abd".as_slice(), 3),
         (b"ab".as_slice(), 3),
@@ -104,6 +146,7 @@ fn real_optional_install_merge_remove_and_saved_reference_survives() {
     let dir = tempfile::tempdir().unwrap();
     let installed = dir.path().join("packs");
     configure_test(installed.clone());
+    let base_relations = relation_catalog_configured();
     assert_eq!(query_configured("ichthyology", None)["status"], "not_found");
     for id in ["specialist", "extended"] {
         let spec = item(id).unwrap();
@@ -119,6 +162,8 @@ fn real_optional_install_merge_remove_and_saved_reference_survives() {
         3
     );
     let result = query_configured("ichthyology", None);
+    let all_relations = relation_catalog_configured();
+    assert_ne!(base_relations.fingerprint(), all_relations.fingerprint());
     assert_eq!(result["status"], "found");
     assert_ne!(query_configured("monodrama", None)["status"], "not_found");
     let entry = &result["entries"][0];
@@ -156,6 +201,10 @@ fn real_optional_install_merge_remove_and_saved_reference_survives() {
     drop(a);
     remove("specialist").unwrap();
     remove("extended").unwrap();
+    assert_ne!(
+        all_relations.fingerprint(),
+        relation_catalog_configured().fingerprint()
+    );
     assert_eq!(query_configured("ichthyology", None)["status"], "not_found");
     assert_eq!(query_configured("pneumonia", None)["status"], "found");
     assert_eq!(

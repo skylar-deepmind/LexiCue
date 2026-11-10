@@ -51,7 +51,14 @@ export function selectedSnapshot({ entry, group, sense }: SenseSelection): Dicti
  * meaning for this sentence. Full entry data remains untouched. */
 export function dictionaryOverview(result: DictionaryResult | null, limit = 3): SenseSelection[] {
   const byHeadword = new Map<string, { entry: DictionaryEntry; group: DictionaryGroup; senses: DictionarySense[] }[]>();
-  for (const entry of result?.entries ?? []) {
+  const primary = result?.entries.find(entry => entry.id === result.default_entry_id);
+  // A local spelling may also be another head's alternative form (take off /
+  // takeoff). Keep the visible excerpt on its primary head so saving can freeze
+  // every visible sense; related heads remain in the complete dictionary entry.
+  const entries = primary && isLocalWiktionarySource(primary.source)
+    ? result!.entries.filter(entry => entry.headword === primary.headword)
+    : result?.entries ?? [];
+  for (const entry of entries) {
     const groups = byHeadword.get(entry.headword) ?? [];
     groups.push(...entry.groups.map(group => ({ entry, group,
     senses: group.senses.filter(sense => !entry.match.sense_ids.length || entry.match.sense_ids.includes(sense.id)).sort((a, b) => Number(a.content_kind === 'relation') - Number(b.content_kind === 'relation')),
