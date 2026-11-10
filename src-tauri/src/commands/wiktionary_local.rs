@@ -120,7 +120,22 @@ fn pronunciations(raw: &Value) -> Vec<Value> {
             } else {
                 "unspecified"
             };
-            json!({"region":region,"ipa":p["text"],"audio":null,"form_label":null})
+            let accepted: &[&str] = match region {
+                "us" => &["US", "General-American", "Canada"],
+                "uk" => &["UK", "Received-Pronunciation"],
+                _ => &[],
+            };
+            let qualifiers = labels(&p["labels"])
+                .iter()
+                .map(|label| text(label, "text").to_string())
+                .filter(|label| !accepted.contains(&label.as_str()))
+                .collect::<BTreeSet<_>>();
+            let qualifier = if qualifiers.is_empty() {
+                Value::Null
+            } else {
+                json!(qualifiers.into_iter().collect::<Vec<_>>().join(", "))
+            };
+            json!({"region":region,"ipa":p["text"],"audio":null,"form_label":qualifier})
         })
         .collect()
 }
@@ -359,6 +374,17 @@ mod tests {
             "daily",
         )
         .unwrap()
+    }
+    #[test]
+    fn pronunciations_keep_other_regions_and_usage_qualifiers_explicit() {
+        let items = pronunciations(
+            &json!([{"notation":"ipa","text":"/a/","labels":{"tags":["Australia"]}},{"notation":"ipa","text":"/b/","labels":{"tags":["US","Canada"]}},{"notation":"ipa","text":"/c/","labels":{"tags":["UK","rare"]}}]),
+        );
+        assert_eq!(items[0]["form_label"], "Australia");
+        assert_eq!(items[0]["region"], "unspecified");
+        assert!(items[1]["form_label"].is_null());
+        assert_eq!(items[1]["region"], "us");
+        assert_eq!(items[2]["form_label"], "rare");
     }
     #[test]
     fn typescript_fixture_is_the_actual_rust_projection() {

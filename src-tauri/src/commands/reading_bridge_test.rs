@@ -370,7 +370,12 @@ fn seed_recall(c: &rusqlite::Connection, a: &Value) -> Result<Value, String> {
         .map(|r| saved::normalize(r["expression"].as_str().unwrap()))
         .collect();
     let vocabulary = {
-        let mut statement=c.prepare("SELECT lemma FROM builtin_dictionary_entries WHERE length(lemma) BETWEEN 3 AND 18 AND lemma NOT GLOB '*[^a-z]*' ORDER BY (rowid * 1103515245 + 12345) % 2147483647 LIMIT 20000").map_err(|e|e.to_string())?;
+        let pack = super::wiktionary_local::Pack::open(
+            &std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("resources/dictionaries/daily/dictionary.sqlite3"),
+            "daily",
+        )?;
+        let mut statement=pack.conn.prepare("SELECT s.word FROM surfaces s WHERE length(s.word) BETWEEN 3 AND 18 AND s.word NOT GLOB '*[^a-z]*' AND EXISTS(SELECT 1 FROM entries e WHERE e.surface_id=s.id) ORDER BY (s.id * 1103515245 + 12345) % 2147483647 LIMIT 20000").map_err(|e|e.to_string())?;
         let found = statement
             .query_map([], |r| r.get::<_, String>(0))
             .map_err(|e| e.to_string())?
