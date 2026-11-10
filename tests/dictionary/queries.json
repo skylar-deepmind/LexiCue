@@ -1,0 +1,199 @@
+{
+  "words": [
+    "book",
+    "time",
+    "person",
+    "work",
+    "school",
+    "learn",
+    "language",
+    "understand",
+    "remember",
+    "sentence",
+    "context",
+    "meaning",
+    "example",
+    "dictionary",
+    "read",
+    "write",
+    "speak",
+    "listen",
+    "study",
+    "practice",
+    "bank",
+    "charge",
+    "issue",
+    "matter",
+    "account",
+    "interest",
+    "point",
+    "right",
+    "light",
+    "present",
+    "subject",
+    "object",
+    "state",
+    "case",
+    "record",
+    "figure",
+    "address",
+    "current",
+    "set",
+    "turn",
+    "policy",
+    "evidence",
+    "impact",
+    "significant",
+    "approach",
+    "analysis",
+    "research",
+    "reliable",
+    "accurate",
+    "efficient",
+    "sustainable",
+    "inflation",
+    "algorithm",
+    "privacy",
+    "deadline",
+    "remote",
+    "nuance"
+  ],
+  "phrases": [
+    "take off",
+    "look up",
+    "put up with",
+    "give up",
+    "figure out",
+    "carry out",
+    "come up with",
+    "look forward to",
+    "get along with",
+    "run out of",
+    "turn down",
+    "pick up",
+    "set up",
+    "break down",
+    "put off",
+    "bring up",
+    "by the way",
+    "in fact",
+    "at first",
+    "as soon as",
+    "in spite of",
+    "according to",
+    "due to",
+    "rather than",
+    "as well as",
+    "in terms of",
+    "on the other hand",
+    "at least",
+    "a little",
+    "a lot of",
+    "make sense",
+    "take into account",
+    "pay attention to",
+    "keep in mind",
+    "in charge of",
+    "once in a while",
+    "piece of cake",
+    "break the ice",
+    "machine learning",
+    "climate change"
+  ],
+  "function_word_expected_pos": {
+    "the": [
+      "article",
+      "det"
+    ],
+    "a": [
+      "article",
+      "det"
+    ],
+    "an": [
+      "article",
+      "det"
+    ],
+    "of": [
+      "prep"
+    ],
+    "to": [
+      "prep",
+      "particle"
+    ],
+    "with": [
+      "prep"
+    ],
+    "and": [
+      "conj"
+    ],
+    "or": [
+      "conj"
+    ],
+    "but": [
+      "conj"
+    ],
+    "if": [
+      "conj"
+    ],
+    "because": [
+      "conj"
+    ],
+    "although": [
+      "conj"
+    ],
+    "this": [
+      "det",
+      "pron"
+    ],
+    "those": [
+      "det",
+      "pron"
+    ],
+    "who": [
+      "pron"
+    ],
+    "which": [
+      "det",
+      "pron"
+    ],
+    "some": [
+      "det",
+      "pron"
+    ],
+    "any": [
+      "det",
+      "pron"
+    ],
+    "each": [
+      "det",
+      "pron"
+    ],
+    "every": [
+      "det"
+    ]
+  },
+  "modern_probe": [
+    "doomscrolling",
+    "gaslighting",
+    "deepfake",
+    "podcast",
+    "selfie",
+    "chatbot",
+    "blockchain",
+    "remote work",
+    "large language model",
+    "generative AI"
+  ],
+  "inflection_probe": [
+    "ran",
+    "went",
+    "children",
+    "better",
+    "studying",
+    "looked up",
+    "gave up",
+    "taking off",
+    "putting up with",
+    "looking forward to"
+  ]
+}

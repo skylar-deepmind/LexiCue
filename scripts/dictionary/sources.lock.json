@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "dump_date": "2026-10-01",
+  "raw": {
+    "name": "raw-wiktextract-data.jsonl.gz",
+    "url": "https://kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz",
+    "bytes": 3082476978,
+    "last_modified": "Fri, 30 Oct 2026 20:48:24 GMT",
+    "sha256": "5ff2c072f8099f2d2ce484bd6957bf179f046d2ad37bc36555edf8bb84cb5291"
+  },
+  "wikimedia": [
+    {
+      "name": "enwiktionary-20261001-page.sql.gz",
+      "url": "https://dumps.wikimedia.org/enwiktionary/20261001/enwiktionary-20261001-page.sql.gz",
+      "bytes": 316925156,
+      "sha1": "54c44a384f3e32b479604b7d34bce36194c6f587",
+      "sha256": "252b3069888ca0aa3bb392729012cb975a7c5365abe8bb1cdb5fea8c4698192c"
+    },
+    {
+      "name": "enwiktionary-20261001-redirect.sql.gz",
+      "url": "https://dumps.wikimedia.org/enwiktionary/20261001/enwiktionary-20261001-redirect.sql.gz",
+      "bytes": 1048669,
+      "sha1": "14a9e7d9085e0ec24d160ced9b64a2de73f41bea",
+      "sha256": "e577dd0d435ecfbd4106d0be6c16be8823235a7088abff683f04669c0b4f687f"
+    },
+    {
+      "name": "enwiktionary-20261001-pages-articles1.xml-p1p1500000.bz2",
+      "url": "https://dumps.wikimedia.org/enwiktionary/20261001/enwiktionary-20261001-pages-articles1.xml-p1p1500000.bz2",
+      "bytes": 324893489,
+      "sha1": "0c56197f346dd1ddc4b27c28d5bdd8c3b3a572f2",
+      "sha256": "0e1b835d5894bb7101f5d66c5a72dc926bf97040d33b0b8e9ff849c5c44d4d32"
+    },
+    {
+      "name": "enwiktionary-20261001-pages-articles1.xml-p1500001p3000000.bz2",
+      "url": "https://dumps.wikimedia.org/enwiktionary/20261001/enwiktionary-20261001-pages-articles1.xml-p1500001p3000000.bz2",
+      "bytes": 154579300,
+      "sha1": "c36f96b4370c528d84318b3fb06bb88bcc1d3939",
+      "sha256": "9af9eea2a7839fdb0148466d2ed5bf154e52dd96851d2cd69afe7bb0a4c97a3f"
+    },
+    {
+      "name": "enwiktionary-20261001-pages-articles1.xml-p3000001p4500000.bz2",
+      "url": "https://dumps.wikimedia.org/enwiktionary/20261001/enwiktionary-20261001-pages-articles1.xml-p3000001p4500000.bz2",
+      "bytes": 170030216,
+      "sha1": "5d0cb54295fcf127cd8c9072325b7809f9208e0e",
+      "sha256": "e6ef1614e61442e2a31339ece7b2b9f4e011c54d76c978223196b303be541ac3"
+    },
+    {
+      "name": "enwiktionary-20261001-pages-articles1.xml-p4500001p6000000.bz2",
+      "url": "https://dumps.wikimedia.org/enwiktionary/20261001/enwiktionary-20261001-pages-articles1.xml-p4500001p6000000.bz2",
+      "bytes": 163781739,
+      "sha1": "a55c55cfdc6236b32f8b3de1ec3b2473983e0b09",
+      "sha256": "e755e7baae81fcba5a230ea21b21c3f49d0034d9f17cc1b7d1463a2f38e9a3f7"
+    },
+    {
+      "name": "enwiktionary-20261001-pages-articles1.xml-p6000001p7500000.bz2",
+      "url": "https://dumps.wikimedia.org/enwiktionary/20261001/enwiktionary-20261001-pages-articles1.xml-p6000001p7500000.bz2",
+      "bytes": 188958465,
+      "sha1": "1b808e04913f36557d5ac4cca17b48d4ee858250",
+      "sha256": "bce0b410875931de539bfac1c04ad4c3878236276db34a439951d15acc8ac091"
+    },
+    {
+      "name": "enwiktionary-20261001-pages-articles1.xml-p7500001p9000000.bz2",
+      "url": "https://dumps.wikimedia.org/enwiktionary/20261001/enwiktionary-20261001-pages-articles1.xml-p7500001p9000000.bz2",
+      "bytes": 197436601,
+      "sha1": "98305e480e402c9fd8f99b62cae6179104326cd7",
+      "sha256": "51e7ee068f1ffe2449f90928598a87a817c1263b3ac57c6cfef0cb94564a5867"
+    },
+    {
+      "name": "enwiktionary-20261001-pages-articles1.xml-p9000001p10500000.bz2",
+      "url": "https://dumps.wikimedia.org/enwiktionary/20261001/enwiktionary-20261001-pages-articles1.xml-p9000001p10500000.bz2",
+      "bytes": 272768717,
+      "sha1": "5cf9f4d580738b12864d71ca461e42a74ed1f43f",
+      "sha256": "ed3eba5bd9332845e2d745f7b5360b8b4c1c9efd4ac537a475399f8ee607af85"
+    },
+    {
+      "name": "enwiktionary-20261001-pages-articles1.xml-p10500001p12000000.bz2",
+      "url": "https://dumps.wikimedia.org/enwiktionary/20261001/enwiktionary-20261001-pages-articles1.xml-p10500001p12000000.bz2",
+      "bytes": 160620199,
+      "sha1": "b0f917250feee7fc228cba8866a7cc2154d9ee80",
+      "sha256": "7933a8f7a10d9708611c0d9ee68aa5087aa07b92207c0aca24f6057fac6ee7fc"
+    },
+    {
+      "name": "enwiktionary-20261001-pages-articles1.xml-p12000001p12232726.bz2",
+      "url": "https://dumps.wikimedia.org/enwiktionary/20261001/enwiktionary-20261001-pages-articles1.xml-p12000001p12232726.bz2",
+      "bytes": 14515087,
+      "sha1": "06c125cd63f2834d9f70584e4ce466a1caf57394",
+      "sha256": "c7abc3bbdcfdae9f68f1f08fc4cae687537ee897f0bb733e66553f64e6921744"
+    }
+  ],
+  "provenance": {
+    "lexical_source": "English Wiktionary only",
+    "extraction_kind": "Kaikki raw unprocessed all-language Wiktextract JSONL",
+    "extractor_commit": null,
+    "extractor_command": null,
+    "extractor_version_note": "Not published with raw download. Rebuild conversion from pinned bytes; not a claim of independently reproduced extraction.",
+    "publisher_metadata_snapshot": "rawdata-20261110.html",
+    "dumpstatus_sha256": "bfa67c15c717e3e4c134d18de4f7c9a6ae0d579e1816cc693f36c28f8c2e060d",
+    "raw_entrypoint": "https://kaikki.org/dictionary/rawdata.html",
+    "publisher_metadata_sha256": "919f4b79486f1d437551adf158e0d8d62a0287bda27b3c8288b7441f894afeda"
+  }
+}

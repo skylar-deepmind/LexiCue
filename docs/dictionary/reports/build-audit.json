@@ -1,0 +1,2309 @@
+{
+  "alias_problems": {
+    "counts": {
+      "cycles": 3051342,
+      "unresolved_edges": 90906
+    },
+    "policy": "Cycles/unresolved graph edges omitted from executable aliases; raw MediaWiki index retained separately for audit.",
+    "samples": {
+      "cycles": [
+        [
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alt-of",
+                  "alternative"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 3360931,
+              "target_extra": null
+            },
+            "from": "& cetera",
+            "kind": "alt_of",
+            "pos": "phrase",
+            "to": "et cetera"
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "form-of",
+                  "unabbreviated",
+                  "uncommon",
+                  "usually"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 32657,
+              "target_extra": null
+            },
+            "from": "et cetera",
+            "kind": "form_of",
+            "pos": "phrase",
+            "to": "etc."
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "alt-of"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 149496,
+              "target_extra": "and so on; used to note that the rest of a list or piece of information has been left out on the assumption that it is similar or already known"
+            },
+            "from": "etc.",
+            "kind": "alt_of",
+            "pos": "phrase",
+            "to": "et cetera"
+          }
+        ],
+        [
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alternative",
+                  "dated"
+                ]
+              },
+              "source_line": 32657
+            },
+            "from": "& cetera",
+            "kind": "headword_form",
+            "pos": "phrase",
+            "to": "et cetera"
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "form-of",
+                  "unabbreviated",
+                  "uncommon",
+                  "usually"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 32657,
+              "target_extra": null
+            },
+            "from": "et cetera",
+            "kind": "form_of",
+            "pos": "phrase",
+            "to": "etc."
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "alt-of"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 149496,
+              "target_extra": "and so on; used to note that the rest of a list or piece of information has been left out on the assumption that it is similar or already known"
+            },
+            "from": "etc.",
+            "kind": "alt_of",
+            "pos": "phrase",
+            "to": "et cetera"
+          }
+        ],
+        [
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alternative"
+                ]
+              },
+              "source_line": 3360931
+            },
+            "from": "&c",
+            "kind": "headword_form",
+            "pos": "phrase",
+            "to": "& cetera"
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alt-of",
+                  "alternative"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 3360931,
+              "target_extra": null
+            },
+            "from": "& cetera",
+            "kind": "alt_of",
+            "pos": "phrase",
+            "to": "et cetera"
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "form-of",
+                  "unabbreviated",
+                  "uncommon",
+                  "usually"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 32657,
+              "target_extra": null
+            },
+            "from": "et cetera",
+            "kind": "form_of",
+            "pos": "phrase",
+            "to": "etc."
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "alt-of"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 149496,
+              "target_extra": "and so on; used to note that the rest of a list or piece of information has been left out on the assumption that it is similar or already known"
+            },
+            "from": "etc.",
+            "kind": "alt_of",
+            "pos": "phrase",
+            "to": "et cetera"
+          }
+        ],
+        [
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alternative"
+                ]
+              },
+              "source_line": 3360931
+            },
+            "from": "&c",
+            "kind": "headword_form",
+            "pos": "phrase",
+            "to": "& cetera"
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alternative",
+                  "dated"
+                ]
+              },
+              "source_line": 32657
+            },
+            "from": "& cetera",
+            "kind": "headword_form",
+            "pos": "phrase",
+            "to": "et cetera"
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "form-of",
+                  "unabbreviated",
+                  "uncommon",
+                  "usually"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 32657,
+              "target_extra": null
+            },
+            "from": "et cetera",
+            "kind": "form_of",
+            "pos": "phrase",
+            "to": "etc."
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "alt-of"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 149496,
+              "target_extra": "and so on; used to note that the rest of a list or piece of information has been left out on the assumption that it is similar or already known"
+            },
+            "from": "etc.",
+            "kind": "alt_of",
+            "pos": "phrase",
+            "to": "et cetera"
+          }
+        ],
+        [
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alternative"
+                ]
+              },
+              "source_line": 507929
+            },
+            "from": "&c",
+            "kind": "headword_form",
+            "pos": "phrase",
+            "to": "&c."
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alternative"
+                ]
+              },
+              "source_line": 3360931
+            },
+            "from": "&c.",
+            "kind": "headword_form",
+            "pos": "phrase",
+            "to": "& cetera"
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alt-of",
+                  "alternative"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 3360931,
+              "target_extra": null
+            },
+            "from": "& cetera",
+            "kind": "alt_of",
+            "pos": "phrase",
+            "to": "et cetera"
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "form-of",
+                  "unabbreviated",
+                  "uncommon",
+                  "usually"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 32657,
+              "target_extra": null
+            },
+            "from": "et cetera",
+            "kind": "form_of",
+            "pos": "phrase",
+            "to": "etc."
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "alt-of"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 149496,
+              "target_extra": "and so on; used to note that the rest of a list or piece of information has been left out on the assumption that it is similar or already known"
+            },
+            "from": "etc.",
+            "kind": "alt_of",
+            "pos": "phrase",
+            "to": "et cetera"
+          }
+        ],
+        [
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alternative"
+                ]
+              },
+              "source_line": 507929
+            },
+            "from": "&c",
+            "kind": "headword_form",
+            "pos": "phrase",
+            "to": "&c."
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alternative"
+                ]
+              },
+              "source_line": 3360931
+            },
+            "from": "&c.",
+            "kind": "headword_form",
+            "pos": "phrase",
+            "to": "& cetera"
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alternative",
+                  "dated"
+                ]
+              },
+              "source_line": 32657
+            },
+            "from": "& cetera",
+            "kind": "headword_form",
+            "pos": "phrase",
+            "to": "et cetera"
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "form-of",
+                  "unabbreviated",
+                  "uncommon",
+                  "usually"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 32657,
+              "target_extra": null
+            },
+            "from": "et cetera",
+            "kind": "form_of",
+            "pos": "phrase",
+            "to": "etc."
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "alt-of"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 149496,
+              "target_extra": "and so on; used to note that the rest of a list or piece of information has been left out on the assumption that it is similar or already known"
+            },
+            "from": "etc.",
+            "kind": "alt_of",
+            "pos": "phrase",
+            "to": "et cetera"
+          }
+        ],
+        [
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alternative"
+                ]
+              },
+              "source_line": 507929
+            },
+            "from": "&c",
+            "kind": "headword_form",
+            "pos": "phrase",
+            "to": "&c."
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alt-of",
+                  "archaic"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 507929,
+              "target_extra": null
+            },
+            "from": "&c.",
+            "kind": "alt_of",
+            "pos": "phrase",
+            "to": "etc."
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "alt-of"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 149496,
+              "target_extra": "and so on; used to note that the rest of a list or piece of information has been left out on the assumption that it is similar or already known"
+            },
+            "from": "etc.",
+            "kind": "alt_of",
+            "pos": "phrase",
+            "to": "et cetera"
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "form-of",
+                  "unabbreviated",
+                  "uncommon",
+                  "usually"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 32657,
+              "target_extra": null
+            },
+            "from": "et cetera",
+            "kind": "form_of",
+            "pos": "phrase",
+            "to": "etc."
+          }
+        ],
+        [
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alternative"
+                ]
+              },
+              "source_line": 507929
+            },
+            "from": "&c",
+            "kind": "headword_form",
+            "pos": "phrase",
+            "to": "&c."
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alternative",
+                  "archaic"
+                ]
+              },
+              "source_line": 149496
+            },
+            "from": "&c.",
+            "kind": "headword_form",
+            "pos": "phrase",
+            "to": "etc."
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "alt-of"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 149496,
+              "target_extra": "and so on; used to note that the rest of a list or piece of information has been left out on the assumption that it is similar or already known"
+            },
+            "from": "etc.",
+            "kind": "alt_of",
+            "pos": "phrase",
+            "to": "et cetera"
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "form-of",
+                  "unabbreviated",
+                  "uncommon",
+                  "usually"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 32657,
+              "target_extra": null
+            },
+            "from": "et cetera",
+            "kind": "form_of",
+            "pos": "phrase",
+            "to": "etc."
+          }
+        ],
+        [
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alt-of",
+                  "archaic"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 503332,
+              "target_extra": null
+            },
+            "from": "&c",
+            "kind": "alt_of",
+            "pos": "phrase",
+            "to": "etc."
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "alt-of"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 149496,
+              "target_extra": "and so on; used to note that the rest of a list or piece of information has been left out on the assumption that it is similar or already known"
+            },
+            "from": "etc.",
+            "kind": "alt_of",
+            "pos": "phrase",
+            "to": "et cetera"
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "form-of",
+                  "unabbreviated",
+                  "uncommon",
+                  "usually"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 32657,
+              "target_extra": null
+            },
+            "from": "et cetera",
+            "kind": "form_of",
+            "pos": "phrase",
+            "to": "etc."
+          }
+        ],
+        [
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alternative",
+                  "archaic"
+                ]
+              },
+              "source_line": 149496
+            },
+            "from": "&c",
+            "kind": "headword_form",
+            "pos": "phrase",
+            "to": "etc."
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "alt-of"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 149496,
+              "target_extra": "and so on; used to note that the rest of a list or piece of information has been left out on the assumption that it is similar or already known"
+            },
+            "from": "etc.",
+            "kind": "alt_of",
+            "pos": "phrase",
+            "to": "et cetera"
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "form-of",
+                  "unabbreviated",
+                  "uncommon",
+                  "usually"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 32657,
+              "target_extra": null
+            },
+            "from": "et cetera",
+            "kind": "form_of",
+            "pos": "phrase",
+            "to": "etc."
+          }
+        ],
+        [
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alternative"
+                ]
+              },
+              "source_line": 3360931
+            },
+            "from": "&c.",
+            "kind": "headword_form",
+            "pos": "phrase",
+            "to": "& cetera"
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alt-of",
+                  "alternative"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 3360931,
+              "target_extra": null
+            },
+            "from": "& cetera",
+            "kind": "alt_of",
+            "pos": "phrase",
+            "to": "et cetera"
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "form-of",
+                  "unabbreviated",
+                  "uncommon",
+                  "usually"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 32657,
+              "target_extra": null
+            },
+            "from": "et cetera",
+            "kind": "form_of",
+            "pos": "phrase",
+            "to": "etc."
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "alt-of"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 149496,
+              "target_extra": "and so on; used to note that the rest of a list or piece of information has been left out on the assumption that it is similar or already known"
+            },
+            "from": "etc.",
+            "kind": "alt_of",
+            "pos": "phrase",
+            "to": "et cetera"
+          }
+        ],
+        [
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alternative"
+                ]
+              },
+              "source_line": 3360931
+            },
+            "from": "&c.",
+            "kind": "headword_form",
+            "pos": "phrase",
+            "to": "& cetera"
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alternative",
+                  "dated"
+                ]
+              },
+              "source_line": 32657
+            },
+            "from": "& cetera",
+            "kind": "headword_form",
+            "pos": "phrase",
+            "to": "et cetera"
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "form-of",
+                  "unabbreviated",
+                  "uncommon",
+                  "usually"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 32657,
+              "target_extra": null
+            },
+            "from": "et cetera",
+            "kind": "form_of",
+            "pos": "phrase",
+            "to": "etc."
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "alt-of"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 149496,
+              "target_extra": "and so on; used to note that the rest of a list or piece of information has been left out on the assumption that it is similar or already known"
+            },
+            "from": "etc.",
+            "kind": "alt_of",
+            "pos": "phrase",
+            "to": "et cetera"
+          }
+        ],
+        [
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alt-of",
+                  "archaic"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 507929,
+              "target_extra": null
+            },
+            "from": "&c.",
+            "kind": "alt_of",
+            "pos": "phrase",
+            "to": "etc."
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "alt-of"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 149496,
+              "target_extra": "and so on; used to note that the rest of a list or piece of information has been left out on the assumption that it is similar or already known"
+            },
+            "from": "etc.",
+            "kind": "alt_of",
+            "pos": "phrase",
+            "to": "et cetera"
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "form-of",
+                  "unabbreviated",
+                  "uncommon",
+                  "usually"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 32657,
+              "target_extra": null
+            },
+            "from": "et cetera",
+            "kind": "form_of",
+            "pos": "phrase",
+            "to": "etc."
+          }
+        ],
+        [
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alternative",
+                  "archaic"
+                ]
+              },
+              "source_line": 149496
+            },
+            "from": "&c.",
+            "kind": "headword_form",
+            "pos": "phrase",
+            "to": "etc."
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "alt-of"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 149496,
+              "target_extra": "and so on; used to note that the rest of a list or piece of information has been left out on the assumption that it is similar or already known"
+            },
+            "from": "etc.",
+            "kind": "alt_of",
+            "pos": "phrase",
+            "to": "et cetera"
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "form-of",
+                  "unabbreviated",
+                  "uncommon",
+                  "usually"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 32657,
+              "target_extra": null
+            },
+            "from": "et cetera",
+            "kind": "form_of",
+            "pos": "phrase",
+            "to": "etc."
+          }
+        ],
+        [
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alt-of",
+                  "archaic"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 8518360,
+              "target_extra": null
+            },
+            "from": "&ca",
+            "kind": "alt_of",
+            "pos": "phrase",
+            "to": "etc."
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "alt-of"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 149496,
+              "target_extra": "and so on; used to note that the rest of a list or piece of information has been left out on the assumption that it is similar or already known"
+            },
+            "from": "etc.",
+            "kind": "alt_of",
+            "pos": "phrase",
+            "to": "et cetera"
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "form-of",
+                  "unabbreviated",
+                  "uncommon",
+                  "usually"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 32657,
+              "target_extra": null
+            },
+            "from": "et cetera",
+            "kind": "form_of",
+            "pos": "phrase",
+            "to": "etc."
+          }
+        ],
+        [
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alternative",
+                  "archaic"
+                ]
+              },
+              "source_line": 149496
+            },
+            "from": "&ca",
+            "kind": "headword_form",
+            "pos": "phrase",
+            "to": "etc."
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "alt-of"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 149496,
+              "target_extra": "and so on; used to note that the rest of a list or piece of information has been left out on the assumption that it is similar or already known"
+            },
+            "from": "etc.",
+            "kind": "alt_of",
+            "pos": "phrase",
+            "to": "et cetera"
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "form-of",
+                  "unabbreviated",
+                  "uncommon",
+                  "usually"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 32657,
+              "target_extra": null
+            },
+            "from": "et cetera",
+            "kind": "form_of",
+            "pos": "phrase",
+            "to": "etc."
+          }
+        ],
+        [
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alt-of",
+                  "archaic"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 8518359,
+              "target_extra": null
+            },
+            "from": "&ca.",
+            "kind": "alt_of",
+            "pos": "phrase",
+            "to": "etc."
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "alt-of"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 149496,
+              "target_extra": "and so on; used to note that the rest of a list or piece of information has been left out on the assumption that it is similar or already known"
+            },
+            "from": "etc.",
+            "kind": "alt_of",
+            "pos": "phrase",
+            "to": "et cetera"
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "form-of",
+                  "unabbreviated",
+                  "uncommon",
+                  "usually"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 32657,
+              "target_extra": null
+            },
+            "from": "et cetera",
+            "kind": "form_of",
+            "pos": "phrase",
+            "to": "etc."
+          }
+        ],
+        [
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alternative",
+                  "archaic"
+                ]
+              },
+              "source_line": 149496
+            },
+            "from": "&ca.",
+            "kind": "headword_form",
+            "pos": "phrase",
+            "to": "etc."
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "alt-of"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 149496,
+              "target_extra": "and so on; used to note that the rest of a list or piece of information has been left out on the assumption that it is similar or already known"
+            },
+            "from": "etc.",
+            "kind": "alt_of",
+            "pos": "phrase",
+            "to": "et cetera"
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "form-of",
+                  "unabbreviated",
+                  "uncommon",
+                  "usually"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 32657,
+              "target_extra": null
+            },
+            "from": "et cetera",
+            "kind": "form_of",
+            "pos": "phrase",
+            "to": "etc."
+          }
+        ],
+        [
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alternative"
+                ]
+              },
+              "source_line": 7918699
+            },
+            "from": "'Gram",
+            "kind": "headword_form",
+            "pos": "name",
+            "to": "'gram"
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alternative"
+                ]
+              },
+              "source_line": 326624
+            },
+            "from": "'gram",
+            "kind": "headword_form",
+            "pos": "name",
+            "to": "Gram"
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alternative"
+                ]
+              },
+              "source_line": 7918699
+            },
+            "from": "Gram",
+            "kind": "headword_form",
+            "pos": "name",
+            "to": "'gram"
+          }
+        ],
+        [
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alternative"
+                ]
+              },
+              "source_line": 326624
+            },
+            "from": "'Gram",
+            "kind": "headword_form",
+            "pos": "name",
+            "to": "Gram"
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alternative"
+                ]
+              },
+              "source_line": 7918699
+            },
+            "from": "Gram",
+            "kind": "headword_form",
+            "pos": "name",
+            "to": "'gram"
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alternative"
+                ]
+              },
+              "source_line": 326624
+            },
+            "from": "'gram",
+            "kind": "headword_form",
+            "pos": "name",
+            "to": "Gram"
+          }
+        ],
+        [
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alt-of",
+                  "alternative"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 9099587,
+              "target_extra": null
+            },
+            "from": "'NSYNCer",
+            "kind": "alt_of",
+            "pos": "noun",
+            "to": "NSYNCer"
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alt-of",
+                  "alternative"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 9099588,
+              "target_extra": null
+            },
+            "from": "NSYNCer",
+            "kind": "alt_of",
+            "pos": "noun",
+            "to": "NSYNCer"
+          }
+        ],
+        [
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "form-of",
+                  "plural"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 9129343,
+              "target_extra": null
+            },
+            "from": "'NSYNCers",
+            "kind": "form_of",
+            "pos": "noun",
+            "to": "'NSYNCer"
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alt-of",
+                  "alternative"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 9099587,
+              "target_extra": null
+            },
+            "from": "'NSYNCer",
+            "kind": "alt_of",
+            "pos": "noun",
+            "to": "NSYNCer"
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alt-of",
+                  "alternative"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 9099588,
+              "target_extra": null
+            },
+            "from": "NSYNCer",
+            "kind": "alt_of",
+            "pos": "noun",
+            "to": "NSYNCer"
+          }
+        ],
+        [
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "plural"
+                ]
+              },
+              "source_line": 9099587
+            },
+            "from": "'NSYNCers",
+            "kind": "headword_form",
+            "pos": "noun",
+            "to": "'NSYNCer"
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alt-of",
+                  "alternative"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 9099587,
+              "target_extra": null
+            },
+            "from": "'NSYNCer",
+            "kind": "alt_of",
+            "pos": "noun",
+            "to": "NSYNCer"
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alt-of",
+                  "alternative"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 9099588,
+              "target_extra": null
+            },
+            "from": "NSYNCer",
+            "kind": "alt_of",
+            "pos": "noun",
+            "to": "NSYNCer"
+          }
+        ],
+        [
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "alt-of",
+                  "ellipsis",
+                  "hypercorrect",
+                  "not-comparable"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 2627767,
+              "target_extra": null
+            },
+            "from": "'course",
+            "kind": "alt_of",
+            "pos": "adv",
+            "to": "course"
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alternative"
+                ]
+              },
+              "source_line": 2627767
+            },
+            "from": "course",
+            "kind": "headword_form",
+            "pos": "adv",
+            "to": "'course"
+          }
+        ],
+        [
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "alt-of",
+                  "ellipsis",
+                  "hypercorrect",
+                  "not-comparable"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 2627767,
+              "target_extra": null
+            },
+            "from": "'course",
+            "kind": "alt_of",
+            "pos": "adv",
+            "to": "course"
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "alt-of",
+                  "colloquial",
+                  "ellipsis",
+                  "not-comparable"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 159351,
+              "target_extra": null
+            },
+            "from": "course",
+            "kind": "alt_of",
+            "pos": "adv",
+            "to": "course"
+          }
+        ],
+        [
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alternative",
+                  "hypercorrect"
+                ]
+              },
+              "source_line": 159351
+            },
+            "from": "'course",
+            "kind": "headword_form",
+            "pos": "adv",
+            "to": "course"
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alternative"
+                ]
+              },
+              "source_line": 2627767
+            },
+            "from": "course",
+            "kind": "headword_form",
+            "pos": "adv",
+            "to": "'course"
+          }
+        ],
+        [
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alternative",
+                  "hypercorrect"
+                ]
+              },
+              "source_line": 159351
+            },
+            "from": "'course",
+            "kind": "headword_form",
+            "pos": "adv",
+            "to": "course"
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "alt-of",
+                  "colloquial",
+                  "ellipsis",
+                  "not-comparable"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 159351,
+              "target_extra": null
+            },
+            "from": "course",
+            "kind": "alt_of",
+            "pos": "adv",
+            "to": "course"
+          }
+        ],
+        [
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "alt-of",
+                  "archaic",
+                  "poetic"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 2286794,
+              "target_extra": null
+            },
+            "from": "'ganst",
+            "kind": "alt_of",
+            "pos": "verb",
+            "to": "beganst"
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alternative"
+                ]
+              },
+              "source_line": 5928110
+            },
+            "from": "beganst",
+            "kind": "headword_form",
+            "pos": "verb",
+            "to": "begannest"
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alternative"
+                ]
+              },
+              "source_line": 2286802
+            },
+            "from": "begannest",
+            "kind": "headword_form",
+            "pos": "verb",
+            "to": "beganst"
+          }
+        ],
+        [
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alternative"
+                ]
+              },
+              "source_line": 326624
+            },
+            "from": "'gram",
+            "kind": "headword_form",
+            "pos": "name",
+            "to": "Gram"
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "alternative"
+                ]
+              },
+              "source_line": 7918699
+            },
+            "from": "Gram",
+            "kind": "headword_form",
+            "pos": "name",
+            "to": "'gram"
+          }
+        ],
+        [
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "form-of",
+                  "singular"
+                ]
+              },
+              "sense_ordinal": 0,
+              "source_line": 10593062,
+              "target_extra": null
+            },
+            "from": "'nad",
+            "kind": "form_of",
+            "pos": "noun",
+            "to": "'nads"
+          },
+          {
+            "evidence": {
+              "labels": {
+                "tags": [
+                  "plural"
+                ]
+              },
+              "source_line": 10593062
+            },
+            "from": "'nads",
+            "kind": "headword_form",
+            "pos": "noun",
+            "to": "'nad"
+          }
+        ]
+      ],
+      "unresolved_edges": [
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21%21%21"
+          },
+          "from": "!!!",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "!!"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21%27O%21Kung"
+          },
+          "from": "!'O!Kung",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃ'OǃKung"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21O_Kung"
+          },
+          "from": "!O Kung",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃO Kung"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21O%21Kung"
+          },
+          "from": "!O!Kung",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃOǃKung"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21O%21ung"
+          },
+          "from": "!O!ung",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃoǃung"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21Xoo"
+          },
+          "from": "!Xoo",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃXóõ"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21Xu"
+          },
+          "from": "!Xu",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃXũ"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21X%C3%B3%C3%B5"
+          },
+          "from": "!Xóõ",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃXóõ"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21X%C3%BB"
+          },
+          "from": "!Xû",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃXũ"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21X%C5%A9"
+          },
+          "from": "!Xũ",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃXũ"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21X%C5%A9%C5%A9"
+          },
+          "from": "!Xũũ",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃXũ"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21g%C3%A0a"
+          },
+          "from": "!gàa",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃgàa"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21g%C3%A0%C3%A3"
+          },
+          "from": "!gàã",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃgàã"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21khas"
+          },
+          "from": "!khas",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃkhās"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21kh%C4%81s"
+          },
+          "from": "!khās",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃkhās"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21kx%CA%BB%C3%A1a"
+          },
+          "from": "!kxʻáa",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃkxʻáa"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21kx%CA%BB%C3%A1i"
+          },
+          "from": "!kxʻái",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃkxʻái"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21k%CA%BBq%C3%A1a"
+          },
+          "from": "!kʻqáa",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃkxʻáa"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21k%CA%BBq%C3%A1i"
+          },
+          "from": "!kʻqái",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃkxʻái"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21nona"
+          },
+          "from": "!nona",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃnona"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21n%C3%A0a"
+          },
+          "from": "!nàa",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃnàa"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21n%C3%A1%C3%A3"
+          },
+          "from": "!náã",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃnáã"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21n%C3%A1%C3%A3-s%C3%A9"
+          },
+          "from": "!náã-sé",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃnáã-sé"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21n%C3%BAm"
+          },
+          "from": "!núm",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃnúm"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21n%C3%BB%C9%B2a"
+          },
+          "from": "!nûɲa",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃnûɲa"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21n%C4%81%C3%A3"
+          },
+          "from": "!nāã",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃnāã"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21n%C5%8Do_q%C3%B9li"
+          },
+          "from": "!nōo qùli",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃnōo qùli"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21n%CC%A5%C3%A1%CA%BBa"
+          },
+          "from": "!n̥áʻa",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃn̥áʻa"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21o%21ung"
+          },
+          "from": "!o!ung",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃoǃung"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21o%5E%40Inside-PalmBack"
+          },
+          "from": "!o^@Inside-PalmBack",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "𝣆"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21qh%C3%A0a"
+          },
+          "from": "!qhàa",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃqhàa"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21qh%C3%A0a_g%C7%80qh%C3%B9%C3%A3_q%C3%A1e"
+          },
+          "from": "!qhàa gǀqhùã qáe",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃqhàa gǀqhùã qáe"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21qh%C3%A0a_g%C7%80qh%C5%AB%C3%A3"
+          },
+          "from": "!qhàa gǀqhūã",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃqhàa gǀqhūã"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21qh%C3%A0a_%C7%80n%C3%A0n"
+          },
+          "from": "!qhàa ǀnàn",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃqhàa ǀnàn"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21qh%C3%A0a_%C7%80%C3%A8_s%C3%B2o"
+          },
+          "from": "!qhàa ǀè sòo",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃqhàa ǀè sòo"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21qh%C3%A0a_%CA%BB%CA%98n%C4%81h%C3%A3"
+          },
+          "from": "!qhàa ʻʘnāhã",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃqhàa ʻʘnāhã"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21qh%C4%81%C3%A3"
+          },
+          "from": "!qhāã",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃqhāã"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21q%C3%A1%C5%A9"
+          },
+          "from": "!qáũ",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃqáũ"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21q%C4%81he"
+          },
+          "from": "!qāhe",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃqāhe"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21q%CA%BB%C3%A0ma"
+          },
+          "from": "!qʻàma",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃqʻàma"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21q%CA%BB%C3%B3bi"
+          },
+          "from": "!qʻóbi",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃqʻóbi"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21x%C3%A1a"
+          },
+          "from": "!xáa",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃxáa"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21x%C3%B3%C9%B2a_%C7%82%C3%A0%C3%A3"
+          },
+          "from": "!xóɲa ǂàã",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃxóɲa ǂàã"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21%C3%A0hla"
+          },
+          "from": "!àhla",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃàhla"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21%C3%A1a"
+          },
+          "from": "!áa",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃáa"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21%C3%B9m"
+          },
+          "from": "!ùm",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃùm"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21%C3%BAla"
+          },
+          "from": "!úla",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃúla"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21%C4%81hle"
+          },
+          "from": "!āhle",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃāhle"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21%C4%81ho"
+          },
+          "from": "!āho",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃāho"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21%C4%81h%CA%BBu"
+          },
+          "from": "!āhʻu",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃāhʻu"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21%C4%81o"
+          },
+          "from": "!āo",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃāo"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21%CA%BB%C3%A0a%21%CA%BB%C3%A0as%C3%A8"
+          },
+          "from": "!ʻàa!ʻàasè",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃʻàa-ǃʻàa-sè"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21%CA%BB%C3%A0a-%21%CA%BB%C3%A0a-s%C3%A8"
+          },
+          "from": "!ʻàa-!ʻàa-sè",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃʻàa-ǃʻàa-sè"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21%CA%BB%C3%A1%C3%A3"
+          },
+          "from": "!ʻáã",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃʻáã"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21%CA%BB%C3%BA%C4%A9"
+          },
+          "from": "!ʻúĩ",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃʻúĩ"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21%CA%BB%C3%BB%C4%A9"
+          },
+          "from": "!ʻûĩ",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃʻûĩ"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21%CA%BB%C3%BB%C4%A9_%21kx%CA%BB%C3%A1i"
+          },
+          "from": "!ʻûĩ !kxʻái",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃʻûĩ ǃkxʻái"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21%CA%BB%C3%BB%C4%A9_%C7%82%CA%BB%C3%A0n_%C7%80%C3%A0%C5%A9"
+          },
+          "from": "!ʻûĩ ǂʻàn ǀàũ",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃʻûĩ ǂʻàn ǀàũ"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21%CA%BB%C5%8Da"
+          },
+          "from": "!ʻōa",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃʻōa"
+        },
+        {
+          "evidence": {
+            "dump": "2026-10-01",
+            "fragment": "",
+            "source_url": "https://en.wiktionary.org/wiki/%21%CA%BCO%21Kung"
+          },
+          "from": "!ʼO!Kung",
+          "kind": "mediawiki_redirect",
+          "pos": "",
+          "to": "ǃ'OǃKung"
+        }
+      ]
+    }
+  },
+  "counts": {
+    "corrupt_headword_records_omitted": 1,
+    "empty_or_corrupt_senses_omitted": 1309,
+    "english_records": 1499161,
+    "example_candidates": 733563,
+    "excluded_cross_record_quotation_text": 6,
+    "excluded_example_metadata": 625,
+    "excluded_name_records": 184318,
+    "excluded_no_positive_template_match": 7568,
+    "excluded_not_ordinary": 636023,
+    "graph_edges": 1547542,
+    "mediawiki_redirects": 42611,
+    "missing_source_page_records": 29,
+    "relation_senses": 667793,
+    "relation_without_machine_target": 4196,
+    "senses_with_ancestors": 27525,
+    "source_confirmed_target_edges": 9029,
+    "substantive_senses": 881818
+  }
+}
