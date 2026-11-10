@@ -19,6 +19,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 
 [features]
 lan-sync = []
+dictionary-native-qa = []
 
 [build-dependencies]
 sha2 = "0.10"

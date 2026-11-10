@@ -1,6 +1,7 @@
 mod commands;
 mod db;
 mod device_sync;
+mod native_qa;
 
 #[cfg(target_os = "ios")]
 mod ios;
@@ -56,8 +57,13 @@ pub fn run() {
                         .into(),
                 );
             }
+            let dictionary_qa = native_qa::dictionary_isolation(
+                &app.config().identifier,
+                cfg!(feature = "dictionary-native-qa"),
+            )?;
+            let isolated_runtime = slice_preview || dictionary_qa;
             #[cfg(desktop)]
-            if !slice_preview {
+            if !isolated_runtime {
                 app.handle()
                     .plugin(tauri_plugin_updater::Builder::new().build())?;
             }
@@ -84,7 +90,7 @@ pub fn run() {
             // Sync remains optional: a damaged or unavailable platform store
             // must not prevent access to local learning data. Sync commands
             // return the cached structured error for translated recovery UI.
-            if let Err(error) = if slice_preview {
+            if let Err(error) = if isolated_runtime {
                 Ok(())
             } else {
                 commands::sync::init_secret_store()
@@ -100,7 +106,7 @@ pub fn run() {
             commands::files::resume_pending_delete_jobs(db_state.conn.clone());
             app.manage(db_state);
             #[cfg(target_vendor = "apple")]
-            if !slice_preview {
+            if !isolated_runtime {
                 if let Err(error) = device_sync::initialize(&app_dir, app.handle().clone()) {
                     log::warn!("Device sync is unavailable: {error}");
                 }
