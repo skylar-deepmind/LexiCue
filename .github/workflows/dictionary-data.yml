@@ -1,0 +1,31 @@
+name: Dictionary data contract
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/dictionary/**'
+      - 'tests/dictionary/**'
+      - 'docs/dictionary/**'
+      - '.github/workflows/dictionary-data.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/dictionary/**'
+      - 'tests/dictionary/**'
+      - 'docs/dictionary/**'
+      - '.github/workflows/dictionary-data.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  semantic-fixtures:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Python and offline dictionary semantics
+        run: |
+          python3 --version
+          python3 -m py_compile scripts/dictionary/*.py
+          python3 -m unittest discover -s tests/dictionary -v

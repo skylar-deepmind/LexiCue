@@ -1,0 +1,36 @@
+{
+  "first_sqlite": {
+    "bytes": 1130029056,
+    "sha1": "fa3c99c53a398435d121576b5dbc0c238d9af2e4",
+    "sha256": "15008bef795862cadba3cc3fddafcda4f69ea7fbd390a4ccba7195209d9f74e0"
+  },
+  "first_zip": {
+    "bytes": 254458318,
+    "sha1": "d9144cb0789df21fa8b3c40819dca24722d94e43",
+    "sha256": "635d0c51483755f12fa2281b9dca394516d39bb73ae69dd47bdcb9d5ef0d4e9a"
+  },
+  "method": "Two fresh SQLite outputs from identical SHA-pinned raw extraction and the same audited, fixed-version source index; complete JSON/SQLite/ZIP generation with fixed ZIP order, timestamps and permissions. The second build did not reuse the first final SQLite. Both archives include the final unchanged license text and full MIT notice for build tools.",
+  "reconstructed_sqlite": {
+    "bytes": 1130029056,
+    "sha1": "fa3c99c53a398435d121576b5dbc0c238d9af2e4",
+    "sha256": "15008bef795862cadba3cc3fddafcda4f69ea7fbd390a4ccba7195209d9f74e0"
+  },
+  "reconstructed_zip": {
+    "bytes": 254458318,
+    "sha1": "d9144cb0789df21fa8b3c40819dca24722d94e43",
+    "sha256": "635d0c51483755f12fa2281b9dca394516d39bb73ae69dd47bdcb9d5ef0d4e9a"
+  },
+  "release": "enwiktionary-20261001-lexicue-v1",
+  "schema_version": 1,
+  "sqlite_identical": true,
+  "toolchain": {
+    "builder_sha256": "246aa152c9c197f54c1e2356a281097d40b5fdbf422f1065d8b46d53aed333e9",
+    "input_lock_sha256": "a478e2f8214ccbf0ba2216e54f96fadbe50895b5366aa2df12c744cceb595bf0",
+    "platform": "macOS-15.6.1-arm64-arm-64bit-Mach-O",
+    "python": "3.15.2",
+    "reproducibility": "Pinned bytes, deterministic order and ZIP timestamps; byte-identical rebuild requires recorded Python/SQLite/zlib toolchain.",
+    "sqlite": "3.54.1",
+    "zlib": "1.2.12"
+  },
+  "zip_identical": true
+}

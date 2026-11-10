@@ -1,0 +1,9 @@
+{
+  "builder_sha256": "246aa152c9c197f54c1e2356a281097d40b5fdbf422f1065d8b46d53aed333e9",
+  "input_lock_sha256": "a478e2f8214ccbf0ba2216e54f96fadbe50895b5366aa2df12c744cceb595bf0",
+  "platform": "macOS-15.6.1-arm64-arm-64bit-Mach-O",
+  "python": "3.15.2",
+  "reproducibility": "Pinned bytes, deterministic order and ZIP timestamps; byte-identical rebuild requires recorded Python/SQLite/zlib toolchain.",
+  "sqlite": "3.54.1",
+  "zlib": "1.2.12"
+}

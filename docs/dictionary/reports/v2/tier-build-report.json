@@ -1,0 +1,116 @@
+{
+  "attestations": {
+    "bytes": 412047,
+    "sha1": "0e8291dd07a79a0f10c1533dcab383a63b8bb319",
+    "sha256": "5762736d215c04c8a828122de1c90fa309f9c92f8e2d740fa91f3850fb460599"
+  },
+  "audit_sqlite": {
+    "bytes": 1130029056,
+    "sha1": "fa3c99c53a398435d121576b5dbc0c238d9af2e4",
+    "sha256": "15008bef795862cadba3cc3fddafcda4f69ea7fbd390a4ccba7195209d9f74e0"
+  },
+  "builder_sha256": "89d365e59e1d5b85f6404152ffb61edf4af3f66c21a56fa4f3f8a26cb4823b05",
+  "frequency": {
+    "bytes": 56834549,
+    "data_era": "approximately through 2021; no modern-usage or native familiarity guarantee",
+    "data_license": "CC-BY-SA-4.0; see full upstream NOTICE for constituent attributions including SUBTLEX/Marc Brysbaert et al.",
+    "english_member": "wordfreq/data/large_en.msgpack.gz",
+    "extraction": {
+      "bytes": 1488493,
+      "input_member_sha256": "dffae8066b78dce0a6667cf5f58e567054f902674667090a7ac8a8a44628b05c",
+      "sha256": "ea4756e67dcb2a53e927cf16652f0a842c6b66b94fdd06ea61a2750f2e1b44c9",
+      "tokens": 321180
+    },
+    "extractor_dependency": "msgpack==1.1.2",
+    "notice_sha256": "d9b104dafe63886af55e7cea7484824e32e12d4e1f57f319923dd643b36d6b15",
+    "notice_url": "https://raw.githubusercontent.com/rspeer/wordfreq/42233e6c36ce792031bcccfa17cdd0cec9af5fa7/NOTICE.md",
+    "role": "Selection statistics only; all dictionary text remains English Wiktionary.",
+    "schema_version": 1,
+    "sha256": "4b1c6ecffc6198be3396d5cf871c4423ca71c907c231348d352dd54d62b97473",
+    "url": "https://files.pythonhosted.org/packages/24/61/62835c475d69872d30689f284497853fe33fe1d6dd18f57346d13305861d/wordfreq-3.1.1-py3-none-any.whl",
+    "wordfreq_version": "3.1.1"
+  },
+  "packs": {
+    "daily": {
+      "aliases": 276722,
+      "database": {
+        "bytes": 60694528,
+        "sha1": "09774c081da2b934dd0ba5bfac026ca672aa5108",
+        "sha256": "9325b1238ba7b76c8fd8da10b1daeabe9e1e0a2fe9daabf3ab0dd616f28b879c"
+      },
+      "examples": 53164,
+      "headwords": 41684,
+      "lookup_surfaces": 169908,
+      "nested_senses": 16999,
+      "records": 58456,
+      "relation_examples": 1772,
+      "senses": 155913,
+      "surface_records": 32825
+    },
+    "extended": {
+      "aliases": 1088160,
+      "database": {
+        "bytes": 302448640,
+        "sha1": "9ce53b9ac414ebea40841fadf7e768eb22e938a5",
+        "sha256": "39d21e3a978b745030d8b2468fd2cfdb2ba0658679c23c67b3da3ae04ec39789"
+      },
+      "examples": 29016,
+      "headwords": 470675,
+      "lookup_surfaces": 1086842,
+      "nested_senses": 8906,
+      "records": 500639,
+      "relation_examples": 1555,
+      "senses": 587463,
+      "surface_records": 75051
+    },
+    "specialist": {
+      "aliases": 225974,
+      "database": {
+        "bytes": 78446592,
+        "sha1": "4c5f7371bb1e48231682b08e671ff635728c0c31",
+        "sha256": "faba609735bd4ad93d71c76f7c37bfaf45f3d042e37bf89fe5b1681daecb792b"
+      },
+      "examples": 4586,
+      "headwords": 127274,
+      "lookup_surfaces": 254083,
+      "nested_senses": 1620,
+      "records": 129872,
+      "relation_examples": 403,
+      "senses": 138442,
+      "surface_records": 15698
+    }
+  },
+  "policy_sha256": "b05afe2b071a421e62083c85c712256c42ebf3a06c7716f56ae1075a3679e35c",
+  "reasons": {
+    "daily": {
+      "explicit_familiarity_alias_target": 110,
+      "familiar_components_and_recent_attestations": 16575,
+      "familiarity_supplement": 1552,
+      "frequent_explicit_form_or_alias": 3598,
+      "functional_POS": 2318,
+      "observed_token_frequency": 123534,
+      "phrasal_verb_components": 8226
+    },
+    "extended": {
+      "historical_or_rare_sense": 65605,
+      "less_frequent_general_or_literary": 521858
+    },
+    "specialist": {
+      "less_frequent_domain_term": 92920,
+      "narrow_specialist_sense": 40280,
+      "notation_or_Braille": 729,
+      "specialist_definition_or_morphology": 4513
+    }
+  },
+  "release": "enwiktionary-20261001-lexicue-v2",
+  "selection_audit": {
+    "bytes": 9017976,
+    "sha1": "3facde304cda2b7425cdabd969d4b6a308a92b35",
+    "sha256": "c4426eb96821e9951f318663362f860deb013e6bc6c33b4270014b718ad93b22"
+  },
+  "toolchain": {
+    "python": "3.15.2",
+    "sqlite": "3.54.1",
+    "zlib": "1.2.12"
+  }
+}

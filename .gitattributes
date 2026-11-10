@@ -1,0 +1,2 @@
+# Preserve the exact SHA-pinned upstream licensing notice.
+docs/dictionary/WORDFREQ-NOTICE.md whitespace=-blank-at-eol,-blank-at-eof

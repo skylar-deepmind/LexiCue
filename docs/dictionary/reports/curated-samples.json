@@ -1,0 +1,1496 @@
+{
+  "note": "Real rows, limited to three returned entries per query and two senses plus first nested sense. Full uncropped outputs are in the ZIP sample-entries.json. CC BY-SA 4.0; see ../NOTICE.txt.",
+  "queries": {
+    "dictionary": {
+      "entries": [
+        {
+          "entry_id": 1,
+          "headword": "dictionary",
+          "match": "exact",
+          "paths": [],
+          "pos": "noun",
+          "revision": 92761054,
+          "senses": [
+            {
+              "ancestors": [],
+              "definition": "A reference work listing words or names from one or more languages, usually ordered alphabetically, explaining each term's meanings or senses, often also containing information on its etymology, pronunciation, usage, semantic relations, translations, as well as other relevant information.",
+              "examples": [
+                {
+                  "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r1:s0:e0",
+                  "source_line": 38,
+                  "source_revision": 92761054,
+                  "template": "ux",
+                  "text": "If you want to know the meaning of a word, look it up in the dictionary."
+                }
+              ],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r1:s0",
+              "labels": {}
+            },
+            {
+              "ancestors": [
+                {
+                  "definition": "A reference work listing words or names from one or more languages, usually ordered alphabetically, explaining each term's meanings or senses, often also containing information on its etymology, pronunciation, usage, semantic relations, translations, as well as other relevant information.",
+                  "depth": 1,
+                  "raw_gloss": "A reference work listing words or names from one or more languages, usually ordered alphabetically, explaining each term's meanings or senses, often also containing information on its etymology, pronunciation, usage, semantic relations, translations, as well as other relevant information."
+                }
+              ],
+              "definition": "A synchronic dictionary of a standardised language held to only contain words that are properly part of the language.",
+              "examples": [],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r1:s1",
+              "labels": {
+                "qualifier": "preceded by the"
+              }
+            }
+          ],
+          "source_line": 1,
+          "source_url": "https://en.wiktionary.org/wiki/dictionary"
+        },
+        {
+          "entry_id": 2,
+          "headword": "dictionary",
+          "match": "exact",
+          "paths": [],
+          "pos": "verb",
+          "revision": 92761054,
+          "senses": [
+            {
+              "ancestors": [],
+              "definition": "To look up in a dictionary.",
+              "examples": [],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r2:s0",
+              "labels": {
+                "tags": [
+                  "transitive"
+                ]
+              }
+            },
+            {
+              "ancestors": [],
+              "definition": "To add to a dictionary.",
+              "examples": [],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r2:s1",
+              "labels": {
+                "tags": [
+                  "transitive"
+                ]
+              }
+            }
+          ],
+          "source_line": 2,
+          "source_url": "https://en.wiktionary.org/wiki/dictionary"
+        }
+      ],
+      "normalization": "exact",
+      "requested_form": "dictionary",
+      "surface_records": []
+    },
+    "bank": {
+      "entries": [
+        {
+          "entry_id": 1469,
+          "headword": "bank",
+          "match": "exact",
+          "paths": [],
+          "pos": "noun",
+          "revision": 92974466,
+          "senses": [
+            {
+              "ancestors": [],
+              "definition": "An institution where one can place and borrow money and take care of financial affairs.",
+              "examples": [],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r7413:s0",
+              "labels": {
+                "tags": [
+                  "countable"
+                ]
+              }
+            },
+            {
+              "ancestors": [],
+              "definition": "A branch office of such an institution.",
+              "examples": [],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r7413:s1",
+              "labels": {
+                "tags": [
+                  "countable"
+                ]
+              }
+            }
+          ],
+          "source_line": 7413,
+          "source_url": "https://en.wiktionary.org/wiki/bank"
+        },
+        {
+          "entry_id": 1470,
+          "headword": "bank",
+          "match": "exact",
+          "paths": [],
+          "pos": "verb",
+          "revision": 92974466,
+          "senses": [
+            {
+              "ancestors": [],
+              "definition": "To deal with a bank or financial institution, or for an institution to provide financial services to a client.",
+              "examples": [
+                {
+                  "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r7414:s0:e0",
+                  "source_line": 556,
+                  "source_revision": 92974466,
+                  "template": "ux",
+                  "text": "He banked with Barclays."
+                }
+              ],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r7414:s0",
+              "labels": {
+                "tags": [
+                  "intransitive"
+                ]
+              }
+            },
+            {
+              "ancestors": [],
+              "definition": "To put into a bank (financial institution).",
+              "examples": [
+                {
+                  "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r7414:s1:e0",
+                  "source_line": 559,
+                  "source_revision": 92974466,
+                  "template": "ux",
+                  "text": "I’m going to bank the money."
+                }
+              ],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r7414:s1",
+              "labels": {
+                "tags": [
+                  "transitive"
+                ]
+              }
+            }
+          ],
+          "source_line": 7414,
+          "source_url": "https://en.wiktionary.org/wiki/bank"
+        },
+        {
+          "entry_id": 1471,
+          "headword": "bank",
+          "match": "exact",
+          "paths": [],
+          "pos": "noun",
+          "revision": 92974466,
+          "senses": [
+            {
+              "ancestors": [],
+              "definition": "An edge of river, lake, or other watercourse.",
+              "examples": [],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r7415:s0",
+              "labels": {
+                "topics": [
+                  "geography",
+                  "hydrology",
+                  "natural-sciences"
+                ]
+              }
+            },
+            {
+              "ancestors": [],
+              "definition": "An elevation under the sea; a shallow area of shifting sand, gravel, mud, and so forth",
+              "examples": [
+                {
+                  "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r7415:s1:e0",
+                  "source_line": 624,
+                  "source_revision": 92974466,
+                  "template": "co",
+                  "text": "the banks of Newfoundland"
+                }
+              ],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r7415:s1",
+              "labels": {
+                "topics": [
+                  "geography",
+                  "hydrology",
+                  "natural-sciences",
+                  "nautical",
+                  "transport"
+                ]
+              }
+            }
+          ],
+          "source_line": 7415,
+          "source_url": "https://en.wiktionary.org/wiki/bank"
+        }
+      ],
+      "normalization": "exact",
+      "requested_form": "bank",
+      "surface_records": []
+    },
+    "run": {
+      "entries": [
+        {
+          "entry_id": 6260,
+          "headword": "run",
+          "match": "exact",
+          "paths": [],
+          "pos": "verb",
+          "revision": 92648326,
+          "senses": [
+            {
+              "ancestors": [
+                {
+                  "definition": "To move swiftly.",
+                  "depth": 1,
+                  "raw_gloss": "To move swiftly."
+                }
+              ],
+              "definition": "To move forward quickly upon two feet by alternately making a short jump off either foot.",
+              "examples": [
+                {
+                  "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r34124:s0:e0",
+                  "source_line": 44,
+                  "source_revision": 92648326,
+                  "template": "ux",
+                  "text": "Run, and you might still catch the train!"
+                }
+              ],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r34124:s0",
+              "labels": {
+                "tags": [
+                  "intransitive"
+                ]
+              }
+            },
+            {
+              "ancestors": [
+                {
+                  "definition": "To move swiftly.",
+                  "depth": 1,
+                  "raw_gloss": "To move swiftly."
+                }
+              ],
+              "definition": "To go at a fast pace; to move quickly.",
+              "examples": [
+                {
+                  "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r34124:s1:e0",
+                  "source_line": 48,
+                  "source_revision": 92648326,
+                  "template": "ux",
+                  "text": "I have been running all over the building looking for him."
+                },
+                {
+                  "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r34124:s1:e1",
+                  "source_line": 49,
+                  "source_revision": 92648326,
+                  "template": "ux",
+                  "text": "Sorry, I've got to run; my house is on fire!"
+                }
+              ],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r34124:s1",
+              "labels": {
+                "tags": [
+                  "intransitive"
+                ]
+              }
+            }
+          ],
+          "source_line": 34124,
+          "source_url": "https://en.wiktionary.org/wiki/run"
+        },
+        {
+          "entry_id": 6261,
+          "headword": "run",
+          "match": "exact",
+          "paths": [],
+          "pos": "noun",
+          "revision": 92648326,
+          "senses": [
+            {
+              "ancestors": [],
+              "definition": "Act or instance of running, of moving rapidly using the feet.",
+              "examples": [
+                {
+                  "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r34125:s0:e0",
+                  "source_line": 508,
+                  "source_revision": 92648326,
+                  "template": "ux",
+                  "text": "I just got back from my morning run."
+                }
+              ],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r34125:s0",
+              "labels": {}
+            },
+            {
+              "ancestors": [],
+              "definition": "Act or instance of hurrying (to or from a place) (not necessarily on foot); dash or errand, trip.",
+              "examples": [
+                {
+                  "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r34125:s1:e0",
+                  "source_line": 511,
+                  "source_revision": 92648326,
+                  "template": "ux",
+                  "text": "I need to make a run to the store."
+                }
+              ],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r34125:s1",
+              "labels": {}
+            },
+            {
+              "ancestors": [
+                {
+                  "definition": "A literal or figurative path or course for movement relating to:",
+                  "depth": 1,
+                  "raw_gloss": "A literal or figurative path or course for movement relating to:"
+                }
+              ],
+              "definition": "A (regular) trip or route.",
+              "examples": [
+                {
+                  "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r34125:s6:e0",
+                  "source_line": 525,
+                  "source_revision": 92648326,
+                  "template": "ux",
+                  "text": "The bus on the Cherry Street run is always crowded."
+                }
+              ],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r34125:s6",
+              "labels": {}
+            }
+          ],
+          "source_line": 34125,
+          "source_url": "https://en.wiktionary.org/wiki/run"
+        },
+        {
+          "entry_id": 6262,
+          "headword": "run",
+          "match": "exact",
+          "paths": [],
+          "pos": "adj",
+          "revision": 92648326,
+          "senses": [
+            {
+              "ancestors": [],
+              "definition": "In a liquid state; melted or molten.",
+              "examples": [
+                {
+                  "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r34126:s0:e0",
+                  "source_line": 674,
+                  "source_revision": 92648326,
+                  "template": "ux",
+                  "text": "Put some run butter on the vegetables."
+                }
+              ],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r34126:s0",
+              "labels": {
+                "tags": [
+                  "not-comparable"
+                ]
+              }
+            },
+            {
+              "ancestors": [],
+              "definition": "Cast in a mould.",
+              "examples": [],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r34126:s1",
+              "labels": {
+                "tags": [
+                  "not-comparable"
+                ]
+              }
+            }
+          ],
+          "source_line": 34126,
+          "source_url": "https://en.wiktionary.org/wiki/run"
+        }
+      ],
+      "normalization": "exact",
+      "requested_form": "run",
+      "surface_records": [
+        {
+          "examples": [],
+          "forms": [
+            {
+              "form": "rin",
+              "labels": {
+                "tags": [
+                  "alternative",
+                  "dialectal"
+                ]
+              }
+            },
+            {
+              "form": "ren",
+              "labels": {
+                "tags": [
+                  "alternative",
+                  "dialectal"
+                ]
+              }
+            }
+          ],
+          "headword": "run",
+          "pos": "verb",
+          "pronunciations": [
+            {
+              "labels": {
+                "tags": [
+                  "General-American",
+                  "Received-Pronunciation"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/ɹʌn/"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "Ireland",
+                  "Northern-England"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/ɹʊn/"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "Scotland",
+                  "Wales"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/ɾʌn/"
+            }
+          ],
+          "revision": 92648326,
+          "source_line": 34127,
+          "source_url": "https://en.wiktionary.org/wiki/run"
+        }
+      ]
+    },
+    "those": {
+      "entries": [
+        {
+          "entry_id": 3484,
+          "headword": "that",
+          "match": "relation",
+          "paths": [
+            [
+              {
+                "evidence": {
+                  "labels": {
+                    "tags": [
+                      "form-of",
+                      "plural"
+                    ]
+                  },
+                  "sense_ordinal": 0,
+                  "source_line": 217404,
+                  "target_extra": null
+                },
+                "from": "those",
+                "kind": "form_of",
+                "pos": "det",
+                "to": "that"
+              }
+            ],
+            [
+              {
+                "evidence": {
+                  "labels": {
+                    "tags": [
+                      "plural"
+                    ]
+                  },
+                  "source_line": 18437
+                },
+                "from": "those",
+                "kind": "headword_form",
+                "pos": "det",
+                "to": "that"
+              }
+            ]
+          ],
+          "pos": "det",
+          "revision": 92721707,
+          "senses": [
+            {
+              "ancestors": [],
+              "definition": "The (thing, person, idea, etc) indicated or understood from context, especially if more remote physically, temporally or mentally than one designated as \"this\", or if expressing distinction.",
+              "examples": [
+                {
+                  "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r18437:s0:e0",
+                  "source_line": 280,
+                  "source_revision": 92721707,
+                  "template": "ux",
+                  "text": "That book is a good read. This one isn't."
+                },
+                {
+                  "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r18437:s0:e1",
+                  "source_line": 281,
+                  "source_revision": 92721707,
+                  "template": "ux",
+                  "text": "That battle was in 1450."
+                },
+                {
+                  "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r18437:s0:e2",
+                  "source_line": 282,
+                  "source_revision": 92721707,
+                  "template": "ux",
+                  "text": "That cat of yours is evil."
+                }
+              ],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r18437:s0",
+              "labels": {
+                "tags": [
+                  "demonstrative"
+                ]
+              }
+            }
+          ],
+          "source_line": 18437,
+          "source_url": "https://en.wiktionary.org/wiki/that"
+        },
+        {
+          "entry_id": 3485,
+          "headword": "that",
+          "match": "relation",
+          "paths": [
+            [
+              {
+                "evidence": {
+                  "labels": {
+                    "tags": [
+                      "form-of",
+                      "plural"
+                    ]
+                  },
+                  "sense_ordinal": 0,
+                  "source_line": 217405,
+                  "target_extra": null
+                },
+                "from": "those",
+                "kind": "form_of",
+                "pos": "pron",
+                "to": "that"
+              }
+            ],
+            [
+              {
+                "evidence": {
+                  "labels": {
+                    "tags": [
+                      "plural"
+                    ]
+                  },
+                  "source_line": 18438
+                },
+                "from": "those",
+                "kind": "headword_form",
+                "pos": "pron",
+                "to": "that"
+              }
+            ]
+          ],
+          "pos": "pron",
+          "revision": 92721707,
+          "senses": [
+            {
+              "ancestors": [],
+              "definition": "The thing, person, idea, quality, event, action, or time indicated or understood from context, especially if more remote geographically, temporally or mentally than one designated as \"this\", or if expressing distinction.",
+              "examples": [
+                {
+                  "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r18438:s0:e1",
+                  "source_line": 476,
+                  "source_revision": 92721707,
+                  "template": "ux",
+                  "text": "He went home, and after that I never saw him again."
+                },
+                {
+                  "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r18438:s0:e2",
+                  "source_line": 477,
+                  "source_revision": 92721707,
+                  "template": "ux",
+                  "text": "‘Who's that?’ ‘It’s me.’."
+                }
+              ],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r18438:s0",
+              "labels": {
+                "tags": [
+                  "demonstrative"
+                ]
+              }
+            },
+            {
+              "ancestors": [
+                {
+                  "definition": "The thing, person, idea, quality, event, action, or time indicated or understood from context, especially if more remote geographically, temporally or mentally than one designated as \"this\", or if expressing distinction.",
+                  "depth": 1,
+                  "raw_gloss": "(demonstrative) The thing, person, idea, quality, event, action, or time indicated or understood from context, especially if more remote geographically, temporally or mentally than one designated as \"this\", or if expressing distinction."
+                }
+              ],
+              "definition": "Used to refer to a noun phrase or statement just made.",
+              "examples": [
+                {
+                  "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r18438:s1:e0",
+                  "source_line": 488,
+                  "source_revision": 92721707,
+                  "template": "ux",
+                  "text": "They're getting divorced. What do you think about that?"
+                },
+                {
+                  "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r18438:s1:e1",
+                  "source_line": 489,
+                  "source_revision": 92721707,
+                  "template": "ux",
+                  "text": "They gave me the book about whales. That I've not yet read."
+                },
+                {
+                  "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r18438:s1:e2",
+                  "source_line": 490,
+                  "source_revision": 92721707,
+                  "template": "ux",
+                  "text": "She asked me to lend him my tools. That I couldn't do."
+                },
+                {
+                  "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r18438:s1:e3",
+                  "source_line": 491,
+                  "source_revision": 92721707,
+                  "template": "ux",
+                  "text": "I got fed up, and that to a great degree."
+                }
+              ],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r18438:s1",
+              "labels": {
+                "tags": [
+                  "demonstrative"
+                ]
+              }
+            }
+          ],
+          "source_line": 18438,
+          "source_url": "https://en.wiktionary.org/wiki/that"
+        }
+      ],
+      "normalization": "exact",
+      "requested_form": "those",
+      "surface_records": [
+        {
+          "examples": [
+            {
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r217404:s0:e0",
+              "sense_ordinal": 0,
+              "source_line": 18,
+              "source_revision": 92945726,
+              "template": "ux",
+              "text": "Those bolts go with these parts."
+            }
+          ],
+          "forms": [],
+          "headword": "those",
+          "pos": "det",
+          "pronunciations": [
+            {
+              "labels": {
+                "tags": [
+                  "Received-Pronunciation"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/ðəʊz/"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "US"
+                ]
+              },
+              "notation": "enpr",
+              "text": "thōz"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "US"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/ðoʊz/"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "Canada"
+                ]
+              },
+              "notation": "ipa",
+              "text": "[ðoːz]"
+            }
+          ],
+          "revision": 92945726,
+          "source_line": 217404,
+          "source_url": "https://en.wiktionary.org/wiki/those"
+        },
+        {
+          "examples": [
+            {
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r217405:s0:e2",
+              "sense_ordinal": 0,
+              "source_line": 89,
+              "source_revision": 92945726,
+              "template": "ux",
+              "text": "Services those who do not pay can be prevented from using."
+            }
+          ],
+          "forms": [],
+          "headword": "those",
+          "pos": "pron",
+          "pronunciations": [
+            {
+              "labels": {
+                "tags": [
+                  "Received-Pronunciation"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/ðəʊz/"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "US"
+                ]
+              },
+              "notation": "enpr",
+              "text": "thōz"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "US"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/ðoʊz/"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "Canada"
+                ]
+              },
+              "notation": "ipa",
+              "text": "[ðoːz]"
+            }
+          ],
+          "revision": 92945726,
+          "source_line": 217405,
+          "source_url": "https://en.wiktionary.org/wiki/those"
+        }
+      ]
+    },
+    "US": {
+      "entries": [
+        {
+          "entry_id": 1818,
+          "headword": "United States",
+          "match": "relation",
+          "paths": [
+            [
+              {
+                "evidence": {
+                  "labels": {
+                    "tags": [
+                      "abbreviation",
+                      "alt-of",
+                      "initialism"
+                    ]
+                  },
+                  "sense_ordinal": 0,
+                  "source_line": 37351,
+                  "source_target_confirmation": {
+                    "extracted_target": "the United States",
+                    "revision": 91956816,
+                    "sense_link": [
+                      "United States",
+                      "United States#English"
+                    ],
+                    "source_template": "place",
+                    "wikitext_line": 31
+                  },
+                  "target_extra": "a country in North America"
+                },
+                "from": "US",
+                "kind": "alt_of",
+                "pos": "name",
+                "to": "United States"
+              }
+            ]
+          ],
+          "pos": "name",
+          "revision": 92534770,
+          "senses": [
+            {
+              "ancestors": [],
+              "definition": "A country in North America, also including Hawaii in Oceania; in full, United States of America.",
+              "examples": [],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r10720:s0",
+              "labels": {
+                "qualifier": "formerly also plural",
+                "tags": [
+                  "singular"
+                ]
+              }
+            },
+            {
+              "ancestors": [
+                {
+                  "definition": "A country in North America, also including Hawaii in Oceania; in full, United States of America.",
+                  "depth": 1,
+                  "raw_gloss": "(in the singular, formerly also plural) A country in North America, also including Hawaii in Oceania; in full, United States of America."
+                }
+              ],
+              "definition": "The American federal government.",
+              "examples": [
+                {
+                  "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r10720:s1:e0",
+                  "source_line": 27,
+                  "source_revision": 92534770,
+                  "template": "ux",
+                  "text": "The United States effectively nationalized Fannie and Freddie during the 2008 financial crisis to prevent their collapse."
+                },
+                {
+                  "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r10720:s1:e1",
+                  "source_line": 28,
+                  "source_revision": 92534770,
+                  "template": "ux",
+                  "text": "The United States is causing problems for herself with this policy."
+                }
+              ],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r10720:s1",
+              "labels": {
+                "qualifier": "formerly also plural",
+                "tags": [
+                  "broadly",
+                  "singular"
+                ]
+              }
+            }
+          ],
+          "source_line": 10720,
+          "source_url": "https://en.wiktionary.org/wiki/United_States"
+        },
+        {
+          "entry_id": 36945,
+          "headword": "Upper Sorbian",
+          "match": "relation",
+          "paths": [
+            [
+              {
+                "evidence": {
+                  "labels": {
+                    "tags": [
+                      "abbreviation",
+                      "alt-of",
+                      "initialism"
+                    ]
+                  },
+                  "sense_ordinal": 0,
+                  "source_line": 37354,
+                  "target_extra": null
+                },
+                "from": "US",
+                "kind": "alt_of",
+                "pos": "name",
+                "to": "Upper Sorbian"
+              }
+            ]
+          ],
+          "pos": "name",
+          "revision": 90948541,
+          "senses": [
+            {
+              "ancestors": [],
+              "definition": "a Slavic language spoken in part of Saxony",
+              "examples": [],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r264574:s0",
+              "labels": {}
+            }
+          ],
+          "source_line": 264574,
+          "source_url": "https://en.wiktionary.org/wiki/Upper_Sorbian"
+        },
+        {
+          "entry_id": 101416,
+          "headword": "unserviceable",
+          "match": "relation",
+          "paths": [
+            [
+              {
+                "evidence": {
+                  "labels": {
+                    "tags": [
+                      "abbreviation",
+                      "alt-of",
+                      "not-comparable"
+                    ]
+                  },
+                  "sense_ordinal": 1,
+                  "source_line": 37353,
+                  "target_extra": null
+                },
+                "from": "US",
+                "kind": "alt_of",
+                "pos": "adj",
+                "to": "unserviceable"
+              }
+            ]
+          ],
+          "pos": "adj",
+          "revision": 93150106,
+          "senses": [
+            {
+              "ancestors": [],
+              "definition": "Unusable; of no use.",
+              "examples": [],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r584297:s0",
+              "labels": {
+                "tags": [
+                  "not-comparable"
+                ]
+              }
+            },
+            {
+              "ancestors": [],
+              "definition": "Of machinery, etc.: not working.",
+              "examples": [],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r584297:s1",
+              "labels": {
+                "tags": [
+                  "not-comparable"
+                ]
+              }
+            }
+          ],
+          "source_line": 584297,
+          "source_url": "https://en.wiktionary.org/wiki/unserviceable"
+        }
+      ],
+      "normalization": "exact",
+      "requested_form": "US",
+      "surface_records": [
+        {
+          "examples": [
+            {
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r37351:s0:e0",
+              "sense_ordinal": 0,
+              "source_line": 32,
+              "source_revision": 91956816,
+              "template": "ux",
+              "text": "ICANN is based in the US."
+            },
+            {
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r37351:s0:e1",
+              "sense_ordinal": 0,
+              "source_line": 33,
+              "source_revision": 91956816,
+              "template": "ux",
+              "text": "legal residents of the contiguous US"
+            },
+            {
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r37351:s0:e2",
+              "sense_ordinal": 0,
+              "source_line": 34,
+              "source_revision": 91956816,
+              "template": "ux",
+              "text": "The Gulf States are the US states bordering the Gulf of Mexico."
+            }
+          ],
+          "forms": [
+            {
+              "form": "U.S.",
+              "labels": {
+                "tags": [
+                  "alternative",
+                  "US"
+                ]
+              }
+            },
+            {
+              "form": "U. S.",
+              "labels": {
+                "tags": [
+                  "alternative"
+                ]
+              }
+            }
+          ],
+          "headword": "US",
+          "pos": "name",
+          "pronunciations": [
+            {
+              "labels": {},
+              "notation": "ipa",
+              "text": "/juː.ɛs/"
+            }
+          ],
+          "revision": 91956816,
+          "source_line": 37351,
+          "source_url": "https://en.wiktionary.org/wiki/US"
+        },
+        {
+          "examples": [],
+          "forms": [
+            {
+              "form": "USs",
+              "labels": {
+                "tags": [
+                  "plural"
+                ]
+              }
+            }
+          ],
+          "headword": "US",
+          "pos": "noun",
+          "pronunciations": [],
+          "revision": 91956816,
+          "source_line": 37352,
+          "source_url": "https://en.wiktionary.org/wiki/US"
+        },
+        {
+          "examples": [
+            {
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r37353:s1:e0",
+              "sense_ordinal": 1,
+              "source_line": 93,
+              "source_revision": 91956816,
+              "template": "ux",
+              "text": "The radio is US."
+            }
+          ],
+          "forms": [],
+          "headword": "US",
+          "pos": "adj",
+          "pronunciations": [],
+          "revision": 91956816,
+          "source_line": 37353,
+          "source_url": "https://en.wiktionary.org/wiki/US"
+        }
+      ]
+    },
+    "us": {
+      "entries": [
+        {
+          "entry_id": 4493,
+          "headword": "us",
+          "match": "exact",
+          "paths": [],
+          "pos": "pron",
+          "revision": 93014384,
+          "senses": [
+            {
+              "ancestors": [],
+              "definition": "Me and at least one other person, excluding the person(s) being addressed. (exclusive us.)",
+              "examples": [
+                {
+                  "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r24182:s0:e0",
+                  "source_line": 37,
+                  "source_revision": 93014384,
+                  "template": "ux",
+                  "text": "Don't treat us like idiots."
+                }
+              ],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r24182:s0",
+              "labels": {
+                "tags": [
+                  "personal",
+                  "pronoun"
+                ]
+              }
+            },
+            {
+              "ancestors": [],
+              "definition": "Me and at least one other person, including the person(s) being addressed. (inclusive us.)",
+              "examples": [
+                {
+                  "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r24182:s1:e0",
+                  "source_line": 39,
+                  "source_revision": 93014384,
+                  "template": "ux",
+                  "text": "Let's ask him if he'll give us a lift."
+                }
+              ],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r24182:s1",
+              "labels": {
+                "tags": [
+                  "personal",
+                  "pronoun"
+                ]
+              }
+            }
+          ],
+          "source_line": 24182,
+          "source_url": "https://en.wiktionary.org/wiki/us"
+        },
+        {
+          "entry_id": 4494,
+          "headword": "us",
+          "match": "exact",
+          "paths": [],
+          "pos": "det",
+          "revision": 93014384,
+          "senses": [
+            {
+              "ancestors": [],
+              "definition": "Designates the speaker(s)/writer(s) as constituting or belonging to the stated category of people (objective case).",
+              "examples": [
+                {
+                  "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r24183:s0:e0",
+                  "source_line": 165,
+                  "source_revision": 93014384,
+                  "template": "ux",
+                  "text": "It's not good enough for us teachers."
+                }
+              ],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r24183:s0",
+              "labels": {}
+            },
+            {
+              "ancestors": [],
+              "definition": "Designates the speaker(s)/writer(s) as constituting or belonging to the stated category of people (subjective case).",
+              "examples": [],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r24183:s1",
+              "labels": {
+                "tags": [
+                  "proscribed"
+                ]
+              }
+            }
+          ],
+          "source_line": 24183,
+          "source_url": "https://en.wiktionary.org/wiki/us"
+        },
+        {
+          "entry_id": 4495,
+          "headword": "us",
+          "match": "exact",
+          "paths": [],
+          "pos": "noun",
+          "revision": 93014384,
+          "senses": [
+            {
+              "ancestors": [],
+              "definition": "The relationship between the speaker and some other unspecified person.",
+              "examples": [
+                {
+                  "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r24184:s0:e0",
+                  "source_line": 178,
+                  "source_revision": 93014384,
+                  "template": "ux",
+                  "text": "There is no us."
+                },
+                {
+                  "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r24184:s0:e1",
+                  "source_line": 179,
+                  "source_revision": 93014384,
+                  "template": "ux",
+                  "text": "Us is the best thing that's ever happened to me."
+                }
+              ],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r24184:s0",
+              "labels": {
+                "tags": [
+                  "informal"
+                ]
+              }
+            }
+          ],
+          "source_line": 24184,
+          "source_url": "https://en.wiktionary.org/wiki/us"
+        }
+      ],
+      "normalization": "exact",
+      "requested_form": "us",
+      "surface_records": []
+    },
+    "doomscrolling": {
+      "entries": [
+        {
+          "entry_id": 512143,
+          "headword": "doomscrolling",
+          "match": "exact",
+          "paths": [],
+          "pos": "noun",
+          "revision": 92738243,
+          "senses": [
+            {
+              "ancestors": [],
+              "definition": "The practice of continually reading Internet news about catastrophic events.",
+              "examples": [],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r7969082:s0",
+              "labels": {
+                "tags": [
+                  "informal",
+                  "neologism",
+                  "uncountable"
+                ]
+              }
+            }
+          ],
+          "source_line": 7969082,
+          "source_url": "https://en.wiktionary.org/wiki/doomscrolling"
+        },
+        {
+          "entry_id": 549276,
+          "headword": "doomscroll",
+          "match": "relation",
+          "paths": [
+            [
+              {
+                "evidence": {
+                  "labels": {
+                    "tags": [
+                      "form-of",
+                      "gerund",
+                      "participle",
+                      "present"
+                    ]
+                  },
+                  "sense_ordinal": 0,
+                  "source_line": 7969083,
+                  "target_extra": null
+                },
+                "from": "doomscrolling",
+                "kind": "form_of",
+                "pos": "verb",
+                "to": "doomscroll"
+              }
+            ],
+            [
+              {
+                "evidence": {
+                  "labels": {
+                    "tags": [
+                      "participle",
+                      "present"
+                    ]
+                  },
+                  "source_line": 8593476
+                },
+                "from": "doomscrolling",
+                "kind": "headword_form",
+                "pos": "verb",
+                "to": "doomscroll"
+              }
+            ]
+          ],
+          "pos": "verb",
+          "revision": 92059395,
+          "senses": [
+            {
+              "ancestors": [],
+              "definition": "To continually read Internet news about catastrophic events.",
+              "examples": [],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r8593476:s0",
+              "labels": {
+                "tags": [
+                  "neologism"
+                ],
+                "topics": [
+                  "media"
+                ]
+              }
+            },
+            {
+              "ancestors": [],
+              "definition": "To excessively and unproductively consume Internet posts.",
+              "examples": [
+                {
+                  "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r8593476:s1:e0",
+                  "source_line": 22,
+                  "source_revision": 92059395,
+                  "template": "ux",
+                  "text": "It sucks that I can't even open my phone and check my emails without doomscrolling social media for an hour!"
+                }
+              ],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r8593476:s1",
+              "labels": {
+                "tags": [
+                  "broadly"
+                ],
+                "topics": [
+                  "media"
+                ]
+              }
+            }
+          ],
+          "source_line": 8593476,
+          "source_url": "https://en.wiktionary.org/wiki/doomscroll"
+        }
+      ],
+      "normalization": "exact",
+      "requested_form": "doomscrolling",
+      "surface_records": [
+        {
+          "examples": [],
+          "forms": [
+            {
+              "form": "doom-scrolling",
+              "labels": {
+                "tags": [
+                  "alternative"
+                ]
+              }
+            },
+            {
+              "form": "doom scrolling",
+              "labels": {
+                "tags": [
+                  "alternative"
+                ]
+              }
+            }
+          ],
+          "headword": "doomscrolling",
+          "pos": "verb",
+          "pronunciations": [
+            {
+              "labels": {
+                "tags": [
+                  "General-American"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/ˈdumˌskɹolɪŋ/"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "General-American"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/ˈdumˌskɹoʊlɪŋ/"
+            }
+          ],
+          "revision": 92738243,
+          "source_line": 7969083,
+          "source_url": "https://en.wiktionary.org/wiki/doomscrolling"
+        }
+      ]
+    },
+    "generative AI": {
+      "entries": [
+        {
+          "entry_id": 583434,
+          "headword": "generative AI",
+          "match": "exact",
+          "paths": [],
+          "pos": "noun",
+          "revision": 91069459,
+          "senses": [
+            {
+              "ancestors": [],
+              "definition": "Generative artificial intelligence.",
+              "examples": [],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r9147195:s0",
+              "labels": {}
+            }
+          ],
+          "source_line": 9147195,
+          "source_url": "https://en.wiktionary.org/wiki/generative_AI"
+        }
+      ],
+      "normalization": "exact",
+      "requested_form": "generative AI",
+      "surface_records": []
+    },
+    "get along with": {
+      "entries": [
+        {
+          "entry_id": 48445,
+          "headword": "get along",
+          "match": "relation",
+          "paths": [
+            [
+              {
+                "evidence": {
+                  "dump": "2026-10-01",
+                  "fragment": "",
+                  "source_url": "https://en.wiktionary.org/wiki/get_along_with"
+                },
+                "from": "get along with",
+                "kind": "mediawiki_redirect",
+                "pos": "",
+                "to": "get along"
+              }
+            ]
+          ],
+          "pos": "verb",
+          "revision": 90926143,
+          "senses": [
+            {
+              "ancestors": [],
+              "definition": "To interact or coexist well, without argument or trouble.",
+              "examples": [
+                {
+                  "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r305377:s0:e0",
+                  "source_line": 10,
+                  "source_revision": 90926143,
+                  "template": "ux",
+                  "text": "I wish the kids would get along better."
+                },
+                {
+                  "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r305377:s0:e1",
+                  "source_line": 11,
+                  "source_revision": 90926143,
+                  "template": "ux",
+                  "text": "She never did get along with her brother."
+                }
+              ],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r305377:s0",
+              "labels": {
+                "raw_tags": [
+                  "followed by with"
+                ],
+                "tags": [
+                  "idiomatic",
+                  "intransitive",
+                  "often"
+                ]
+              }
+            },
+            {
+              "ancestors": [],
+              "definition": "To survive; to do well enough.",
+              "examples": [
+                {
+                  "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r305377:s1:e0",
+                  "source_line": 13,
+                  "source_revision": 90926143,
+                  "template": "ux",
+                  "text": "She didn’t have a lot of money, but she had enough to get along."
+                }
+              ],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v1:r305377:s1",
+              "labels": {
+                "tags": [
+                  "idiomatic",
+                  "intransitive"
+                ]
+              }
+            }
+          ],
+          "source_line": 305377,
+          "source_url": "https://en.wiktionary.org/wiki/get_along"
+        }
+      ],
+      "normalization": "exact",
+      "requested_form": "get along with",
+      "surface_records": []
+    },
+    "pay attention to": {
+      "entries": [],
+      "normalization": "casefold_candidates",
+      "requested_form": "pay attention to",
+      "surface_records": []
+    }
+  }
+}

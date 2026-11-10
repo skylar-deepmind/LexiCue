@@ -1,0 +1,1951 @@
+{
+  "note": "Real source examples, truncated for review; full data in the build-review ZIP. CC BY-SA 4.0; see TIER-NOTICE.txt.",
+  "queries": {
+    "pneumonia": {
+      "entries": [
+        {
+          "etymology_number": "",
+          "forms": [
+            {
+              "form": "pneumonias",
+              "labels": {
+                "tags": [
+                  "plural"
+                ]
+              }
+            },
+            {
+              "form": "pneumoniæ",
+              "labels": {
+                "tags": [
+                  "plural"
+                ]
+              }
+            },
+            {
+              "form": "pneumoniae",
+              "labels": {
+                "tags": [
+                  "plural"
+                ]
+              }
+            }
+          ],
+          "headword": "pneumonia",
+          "id": "wiktionary:enwiktionary-20261001-lexicue-v2:r342806",
+          "labels": {},
+          "matches": [
+            {
+              "pack": "daily",
+              "surface": "pneumonia",
+              "type": "exact"
+            }
+          ],
+          "packs": [
+            "daily"
+          ],
+          "pos": "noun",
+          "pronunciations": [
+            {
+              "labels": {
+                "tags": [
+                  "Received-Pronunciation"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/njuˈməʊniə/"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "Canada",
+                  "US"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/nuˈmoʊniə/"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "Canada",
+                  "US"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/nəˈmoʊniə/"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "Canada",
+                  "US"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/nəˈmoʊnjə/"
+            }
+          ],
+          "revision": 93020929,
+          "senses": [
+            {
+              "ancestors": [],
+              "definition": "Inflammation of the lungs caused by viruses, bacteria or other infectious microorganisms.",
+              "examples": [],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v2:r342806:s0",
+              "labels": {
+                "tags": [
+                  "uncountable",
+                  "usually"
+                ]
+              },
+              "ordinal": 0,
+              "pack": "daily",
+              "raw_gloss_path": [
+                "Inflammation of the lungs caused by viruses, bacteria or other infectious microorganisms."
+              ],
+              "source_senseids": []
+            }
+          ],
+          "source_line": 342806,
+          "source_url": "https://en.wiktionary.org/wiki/pneumonia",
+          "wikitext_sha256": "3beef3a4858e7ce0ef5a51475c23bb7cdf60aff7d0f0e855e437f86953e0facc"
+        }
+      ],
+      "normalization": "exact",
+      "release": "enwiktionary-20261001-lexicue-v2",
+      "requested_form": "pneumonia",
+      "schema_version": 2,
+      "surface_records": []
+    },
+    "monologue": {
+      "entries": [
+        {
+          "etymology_number": "",
+          "forms": [
+            {
+              "form": "monologues",
+              "labels": {
+                "tags": [
+                  "plural"
+                ]
+              }
+            },
+            {
+              "form": "monolog",
+              "labels": {
+                "tags": [
+                  "alternative",
+                  "US"
+                ]
+              }
+            }
+          ],
+          "headword": "monologue",
+          "id": "wiktionary:enwiktionary-20261001-lexicue-v2:r381914",
+          "labels": {},
+          "matches": [
+            {
+              "pack": "daily",
+              "surface": "monologue",
+              "type": "exact"
+            }
+          ],
+          "packs": [
+            "daily"
+          ],
+          "pos": "noun",
+          "pronunciations": [
+            {
+              "labels": {
+                "tags": [
+                  "Received-Pronunciation"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/ˈmɒnəlɒɡ/"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "General-American"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/ˈmɑnəˌlɔɡ/"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "General-American",
+                  "cot-caught-merger"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/ˈmɑnəˌlɑɡ/"
+            }
+          ],
+          "revision": 92713265,
+          "senses": [
+            {
+              "ancestors": [],
+              "definition": "A long speech by one person in a play; sometimes a soliloquy; other times spoken to other characters.",
+              "examples": [],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v2:r381914:s0",
+              "labels": {
+                "topics": [
+                  "broadcasting",
+                  "drama",
+                  "dramaturgy",
+                  "entertainment",
+                  "film",
+                  "lifestyle",
+                  "literature",
+                  "media",
+                  "publishing",
+                  "television",
+                  "theater"
+                ]
+              },
+              "ordinal": 0,
+              "pack": "daily",
+              "raw_gloss_path": [
+                "(drama, literature) A long speech by one person in a play; sometimes a soliloquy; other times spoken to other characters."
+              ],
+              "source_senseids": []
+            },
+            {
+              "ancestors": [],
+              "definition": "A long series of comic stories and jokes as an entertainment.",
+              "examples": [],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v2:r381914:s1",
+              "labels": {
+                "topics": [
+                  "comedy",
+                  "entertainment",
+                  "lifestyle"
+                ]
+              },
+              "ordinal": 1,
+              "pack": "daily",
+              "raw_gloss_path": [
+                "(comedy) A long series of comic stories and jokes as an entertainment."
+              ],
+              "source_senseids": []
+            }
+          ],
+          "source_line": 381914,
+          "source_url": "https://en.wiktionary.org/wiki/monologue",
+          "wikitext_sha256": "5a4f7148d494bc11718d25a599f1cbe512c1e99009df36948f7b5e0dbf9b5e7f"
+        },
+        {
+          "etymology_number": "",
+          "forms": [
+            {
+              "form": "monologues",
+              "labels": {
+                "tags": [
+                  "present",
+                  "singular",
+                  "third-person"
+                ]
+              }
+            },
+            {
+              "form": "monologuing",
+              "labels": {
+                "tags": [
+                  "participle",
+                  "present"
+                ]
+              }
+            },
+            {
+              "form": "monologued",
+              "labels": {
+                "tags": [
+                  "participle",
+                  "past"
+                ]
+              }
+            },
+            {
+              "form": "monologued",
+              "labels": {
+                "tags": [
+                  "past"
+                ]
+              }
+            },
+            {
+              "form": "monolog",
+              "labels": {
+                "tags": [
+                  "alternative",
+                  "US"
+                ]
+              }
+            }
+          ],
+          "headword": "monologue",
+          "id": "wiktionary:enwiktionary-20261001-lexicue-v2:r381915",
+          "labels": {},
+          "matches": [
+            {
+              "pack": "daily",
+              "surface": "monologue",
+              "type": "exact"
+            }
+          ],
+          "packs": [
+            "daily"
+          ],
+          "pos": "verb",
+          "pronunciations": [
+            {
+              "labels": {
+                "tags": [
+                  "Received-Pronunciation"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/ˈmɒnəlɒɡ/"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "General-American"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/ˈmɑnəˌlɔɡ/"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "General-American",
+                  "cot-caught-merger"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/ˈmɑnəˌlɑɡ/"
+            }
+          ],
+          "revision": 92713265,
+          "senses": [
+            {
+              "ancestors": [],
+              "definition": "To speak in or deliver a monologue.",
+              "examples": [],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v2:r381915:s0",
+              "labels": {
+                "tags": [
+                  "intransitive"
+                ]
+              },
+              "ordinal": 0,
+              "pack": "daily",
+              "raw_gloss_path": [
+                "(intransitive) To speak in or deliver a monologue."
+              ],
+              "source_senseids": []
+            }
+          ],
+          "source_line": 381915,
+          "source_url": "https://en.wiktionary.org/wiki/monologue",
+          "wikitext_sha256": "5a4f7148d494bc11718d25a599f1cbe512c1e99009df36948f7b5e0dbf9b5e7f"
+        }
+      ],
+      "normalization": "exact",
+      "release": "enwiktionary-20261001-lexicue-v2",
+      "requested_form": "monologue",
+      "schema_version": 2,
+      "surface_records": []
+    },
+    "soliloquy": {
+      "entries": [
+        {
+          "etymology_number": "",
+          "forms": [
+            {
+              "form": "soliloquies",
+              "labels": {
+                "tags": [
+                  "plural"
+                ]
+              }
+            }
+          ],
+          "headword": "soliloquy",
+          "id": "wiktionary:enwiktionary-20261001-lexicue-v2:r295299",
+          "labels": {},
+          "matches": [
+            {
+              "pack": "daily",
+              "surface": "soliloquy",
+              "type": "exact"
+            }
+          ],
+          "packs": [
+            "daily"
+          ],
+          "pos": "noun",
+          "pronunciations": [
+            {
+              "labels": {},
+              "notation": "enpr",
+              "text": "səlĭlʹəkwē"
+            },
+            {
+              "labels": {},
+              "notation": "ipa",
+              "text": "/səˈlɪləkwi/"
+            }
+          ],
+          "revision": 89693703,
+          "senses": [
+            {
+              "ancestors": [],
+              "definition": "The act of a character speaking to themselves so as to reveal their thoughts to the audience.",
+              "examples": [
+                {
+                  "labels": {},
+                  "line": 18,
+                  "ordinal": 0,
+                  "revision": 89693703,
+                  "template": "ux",
+                  "text": "At the end of the second act the main villain gave a soliloquy detailing his plans to attack the protagonist."
+                }
+              ],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v2:r295299:s0",
+              "labels": {
+                "tags": [
+                  "countable",
+                  "uncountable"
+                ],
+                "topics": [
+                  "broadcasting",
+                  "drama",
+                  "dramaturgy",
+                  "entertainment",
+                  "film",
+                  "lifestyle",
+                  "media",
+                  "television",
+                  "theater"
+                ]
+              },
+              "ordinal": 0,
+              "pack": "daily",
+              "raw_gloss_path": [
+                "(drama) The act of a character speaking to themselves so as to reveal their thoughts to the audience."
+              ],
+              "source_senseids": []
+            },
+            {
+              "ancestors": [],
+              "definition": "A speech or written discourse in this form.",
+              "examples": [],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v2:r295299:s1",
+              "labels": {
+                "tags": [
+                  "countable",
+                  "uncountable"
+                ],
+                "topics": [
+                  "authorship",
+                  "broadcasting",
+                  "communications",
+                  "film",
+                  "journalism",
+                  "literature",
+                  "media",
+                  "publishing",
+                  "television",
+                  "writing"
+                ]
+              },
+              "ordinal": 1,
+              "pack": "daily",
+              "raw_gloss_path": [
+                "(authorship) A speech or written discourse in this form."
+              ],
+              "source_senseids": []
+            }
+          ],
+          "source_line": 295299,
+          "source_url": "https://en.wiktionary.org/wiki/soliloquy",
+          "wikitext_sha256": "2aa545cab19e6320ad0028d5621bde2e465fe303271dc43ef00d4fbd31ee6b2d"
+        }
+      ],
+      "normalization": "exact",
+      "release": "enwiktionary-20261001-lexicue-v2",
+      "requested_form": "soliloquy",
+      "schema_version": 2,
+      "surface_records": []
+    },
+    "US": {
+      "entries": [
+        {
+          "etymology_number": "",
+          "forms": [],
+          "headword": "United States",
+          "id": "wiktionary:enwiktionary-20261001-lexicue-v2:r10720",
+          "labels": {},
+          "matches": [
+            {
+              "pack": "daily",
+              "surface": "US",
+              "type": "relation"
+            },
+            {
+              "confirmation": {
+                "source_target_confirmation": {
+                  "extracted_target": "the United States",
+                  "revision": 91956816,
+                  "sense_link": [
+                    "United States",
+                    "United States#English"
+                  ],
+                  "source_template": "place",
+                  "wikitext_line": 31
+                }
+              },
+              "kind": "alt_of",
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "alt-of",
+                  "initialism"
+                ]
+              },
+              "pack": "daily",
+              "source_line": 37351,
+              "source_ordinal": 0,
+              "surface": "US",
+              "type": "relation"
+            }
+          ],
+          "packs": [
+            "daily"
+          ],
+          "pos": "name",
+          "pronunciations": [
+            {
+              "labels": {
+                "tags": [
+                  "Received-Pronunciation"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/juːˌnaɪtɨd ˈsteɪts/"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "Received-Pronunciation"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/jʊˌnaɪtɨd ˈsteɪts/"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "General-American"
+                ]
+              },
+              "notation": "enpr",
+              "text": "yo͞o-nī'tĭd stātsʹ"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "General-American"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/juˌnaɪtɪ̈d ˈsteɪts/"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "General-American"
+                ]
+              },
+              "notation": "ipa",
+              "text": "[juˌnaɪ̯ɾɪ̈d ˈsteɪ̯ts]"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "General-American"
+                ]
+              },
+              "notation": "ipa",
+              "text": "[jɪ̈-]"
+            }
+          ],
+          "revision": 92534770,
+          "senses": [
+            {
+              "ancestors": [],
+              "definition": "A country in North America, also including Hawaii in Oceania; in full, United States of America.",
+              "examples": [],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v2:r10720:s0",
+              "labels": {
+                "qualifier": "formerly also plural",
+                "tags": [
+                  "singular"
+                ]
+              },
+              "ordinal": 0,
+              "pack": "daily",
+              "raw_gloss_path": [
+                "(in the singular, formerly also plural) A country in North America, also including Hawaii in Oceania; in full, United States of America."
+              ],
+              "source_senseids": []
+            },
+            {
+              "ancestors": [
+                {
+                  "definition": "A country in North America, also including Hawaii in Oceania; in full, United States of America.",
+                  "depth": 1,
+                  "raw_gloss": "(in the singular, formerly also plural) A country in North America, also including Hawaii in Oceania; in full, United States of America."
+                }
+              ],
+              "definition": "The American federal government.",
+              "examples": [
+                {
+                  "labels": {},
+                  "line": 27,
+                  "ordinal": 0,
+                  "revision": 92534770,
+                  "template": "ux",
+                  "text": "The United States effectively nationalized Fannie and Freddie during the 2008 financial crisis to prevent their collapse."
+                },
+                {
+                  "labels": {},
+                  "line": 28,
+                  "ordinal": 1,
+                  "revision": 92534770,
+                  "template": "ux",
+                  "text": "The United States is causing problems for herself with this policy."
+                }
+              ],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v2:r10720:s1",
+              "labels": {
+                "qualifier": "formerly also plural",
+                "tags": [
+                  "broadly",
+                  "singular"
+                ]
+              },
+              "ordinal": 1,
+              "pack": "daily",
+              "raw_gloss_path": [
+                "(in the singular, formerly also plural) A country in North America, also including Hawaii in Oceania; in full, United States of America.",
+                "(by extension) The American federal government."
+              ],
+              "source_senseids": []
+            }
+          ],
+          "source_line": 10720,
+          "source_url": "https://en.wiktionary.org/wiki/United_States",
+          "wikitext_sha256": "f551da075bbfdbe0a84dc26f5af57dfaf1de31d7f8e5c8eca4bb76215cbe26a8"
+        },
+        {
+          "etymology_number": "",
+          "forms": [
+            {
+              "form": "USorb.",
+              "labels": {
+                "tags": [
+                  "alternative",
+                  "abbreviation"
+                ]
+              }
+            }
+          ],
+          "headword": "Upper Sorbian",
+          "id": "wiktionary:enwiktionary-20261001-lexicue-v2:r264574",
+          "labels": {},
+          "matches": [
+            {
+              "pack": "daily",
+              "surface": "US",
+              "type": "relation"
+            },
+            {
+              "confirmation": {},
+              "kind": "alt_of",
+              "labels": {
+                "tags": [
+                  "abbreviation",
+                  "alt-of",
+                  "initialism"
+                ]
+              },
+              "pack": "daily",
+              "source_line": 37354,
+              "source_ordinal": 0,
+              "surface": "US",
+              "type": "relation"
+            }
+          ],
+          "packs": [
+            "daily"
+          ],
+          "pos": "name",
+          "pronunciations": [],
+          "revision": 90948541,
+          "senses": [
+            {
+              "ancestors": [],
+              "definition": "a Slavic language spoken in part of Saxony",
+              "examples": [],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v2:r264574:s0",
+              "labels": {},
+              "ordinal": 0,
+              "pack": "daily",
+              "raw_gloss_path": [
+                "a Slavic language spoken in part of Saxony"
+              ],
+              "source_senseids": []
+            }
+          ],
+          "source_line": 264574,
+          "source_url": "https://en.wiktionary.org/wiki/Upper_Sorbian",
+          "wikitext_sha256": "ad8966053f71851be0cf5b82d62d34cab7aad0b6707da246f383fdbe01e39bf1"
+        }
+      ],
+      "normalization": "exact",
+      "release": "enwiktionary-20261001-lexicue-v2",
+      "requested_form": "US",
+      "schema_version": 2,
+      "surface_records": [
+        {
+          "examples": [
+            {
+              "labels": {},
+              "line": 32,
+              "ordinal": 0,
+              "revision": 91956816,
+              "sense_ordinal": 0,
+              "template": "ux",
+              "text": "ICANN is based in the US."
+            },
+            {
+              "labels": {},
+              "line": 33,
+              "ordinal": 1,
+              "revision": 91956816,
+              "sense_ordinal": 0,
+              "template": "ux",
+              "text": "legal residents of the contiguous US"
+            },
+            {
+              "labels": {},
+              "line": 34,
+              "ordinal": 2,
+              "revision": 91956816,
+              "sense_ordinal": 0,
+              "template": "ux",
+              "text": "The Gulf States are the US states bordering the Gulf of Mexico."
+            }
+          ],
+          "forms": [
+            {
+              "form": "U.S.",
+              "labels": {
+                "tags": [
+                  "alternative",
+                  "US"
+                ]
+              }
+            },
+            {
+              "form": "U. S.",
+              "labels": {
+                "tags": [
+                  "alternative"
+                ]
+              }
+            }
+          ],
+          "headword": "US",
+          "labels": {},
+          "pos": "name",
+          "pronunciations": [
+            {
+              "labels": {},
+              "notation": "ipa",
+              "text": "/juː.ɛs/"
+            }
+          ],
+          "revision": 91956816,
+          "source_line": 37351,
+          "source_url": "https://en.wiktionary.org/wiki/US"
+        },
+        {
+          "examples": [],
+          "forms": [
+            {
+              "form": "USs",
+              "labels": {
+                "tags": [
+                  "plural"
+                ]
+              }
+            }
+          ],
+          "headword": "US",
+          "labels": {},
+          "pos": "noun",
+          "pronunciations": [],
+          "revision": 91956816,
+          "source_line": 37352,
+          "source_url": "https://en.wiktionary.org/wiki/US"
+        },
+        {
+          "examples": [
+            {
+              "labels": {},
+              "line": 93,
+              "ordinal": 0,
+              "revision": 91956816,
+              "sense_ordinal": 1,
+              "template": "ux",
+              "text": "The radio is US."
+            }
+          ],
+          "forms": [],
+          "headword": "US",
+          "labels": {},
+          "pos": "adj",
+          "pronunciations": [],
+          "revision": 91956816,
+          "source_line": 37353,
+          "source_url": "https://en.wiktionary.org/wiki/US"
+        }
+      ]
+    },
+    "us": {
+      "entries": [
+        {
+          "etymology_number": "1",
+          "forms": [
+            {
+              "form": "-'s",
+              "labels": {
+                "tags": [
+                  "alternative"
+                ]
+              }
+            },
+            {
+              "form": "uz",
+              "labels": {
+                "tags": [
+                  "alternative",
+                  "Northumbria"
+                ]
+              }
+            },
+            {
+              "form": "is",
+              "labels": {
+                "tags": [
+                  "alternative",
+                  "Northumbria"
+                ]
+              }
+            },
+            {
+              "form": "iz",
+              "labels": {
+                "tags": [
+                  "alternative",
+                  "Northumbria"
+                ]
+              }
+            }
+          ],
+          "headword": "us",
+          "id": "wiktionary:enwiktionary-20261001-lexicue-v2:r24182",
+          "labels": {},
+          "matches": [
+            {
+              "pack": "daily",
+              "surface": "us",
+              "type": "exact"
+            }
+          ],
+          "packs": [
+            "daily"
+          ],
+          "pos": "pron",
+          "pronunciations": [
+            {
+              "labels": {
+                "tags": [
+                  "General-American"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/əs/"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "General-American"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/ʌs/"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "General-American"
+                ]
+              },
+              "notation": "enpr",
+              "text": "ŭs"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "Received-Pronunciation"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/əs/"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "Received-Pronunciation"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/əz/"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "Received-Pronunciation"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/ʌs/"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "Received-Pronunciation"
+                ]
+              },
+              "notation": "enpr",
+              "text": "ŭs"
+            },
+            {
+              "labels": {},
+              "notation": "ipa",
+              "text": "/ʊz/"
+            },
+            {
+              "labels": {},
+              "notation": "enpr",
+              "text": "ŭs"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "Northumbria"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/ɪz/"
+            }
+          ],
+          "revision": 93014384,
+          "senses": [
+            {
+              "ancestors": [],
+              "definition": "Me and at least one other person, excluding the person(s) being addressed. (exclusive us.)",
+              "examples": [
+                {
+                  "labels": {},
+                  "line": 37,
+                  "ordinal": 0,
+                  "revision": 93014384,
+                  "template": "ux",
+                  "text": "Don't treat us like idiots."
+                }
+              ],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v2:r24182:s0",
+              "labels": {
+                "tags": [
+                  "personal",
+                  "pronoun"
+                ]
+              },
+              "ordinal": 0,
+              "pack": "daily",
+              "raw_gloss_path": [
+                "Me and at least one other person, excluding the person(s) being addressed. (exclusive us.)"
+              ],
+              "source_senseids": []
+            },
+            {
+              "ancestors": [],
+              "definition": "Me and at least one other person, including the person(s) being addressed. (inclusive us.)",
+              "examples": [
+                {
+                  "labels": {},
+                  "line": 39,
+                  "ordinal": 0,
+                  "revision": 93014384,
+                  "template": "ux",
+                  "text": "Let's ask him if he'll give us a lift."
+                }
+              ],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v2:r24182:s1",
+              "labels": {
+                "tags": [
+                  "personal",
+                  "pronoun"
+                ]
+              },
+              "ordinal": 1,
+              "pack": "daily",
+              "raw_gloss_path": [
+                "Me and at least one other person, including the person(s) being addressed. (inclusive us.)"
+              ],
+              "source_senseids": []
+            }
+          ],
+          "source_line": 24182,
+          "source_url": "https://en.wiktionary.org/wiki/us",
+          "wikitext_sha256": "8ca41c76577aaf6b23c2885d65c72b8b32e9a31283304bca15a67325aeecc61d"
+        },
+        {
+          "etymology_number": "1",
+          "forms": [],
+          "headword": "us",
+          "id": "wiktionary:enwiktionary-20261001-lexicue-v2:r24183",
+          "labels": {},
+          "matches": [
+            {
+              "pack": "daily",
+              "surface": "us",
+              "type": "exact"
+            }
+          ],
+          "packs": [
+            "daily"
+          ],
+          "pos": "det",
+          "pronunciations": [
+            {
+              "labels": {
+                "tags": [
+                  "General-American"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/əs/"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "General-American"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/ʌs/"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "General-American"
+                ]
+              },
+              "notation": "enpr",
+              "text": "ŭs"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "Received-Pronunciation"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/əs/"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "Received-Pronunciation"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/əz/"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "Received-Pronunciation"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/ʌs/"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "Received-Pronunciation"
+                ]
+              },
+              "notation": "enpr",
+              "text": "ŭs"
+            },
+            {
+              "labels": {},
+              "notation": "ipa",
+              "text": "/ʊz/"
+            },
+            {
+              "labels": {},
+              "notation": "enpr",
+              "text": "ŭs"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "Northumbria"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/ɪz/"
+            }
+          ],
+          "revision": 93014384,
+          "senses": [
+            {
+              "ancestors": [],
+              "definition": "Designates the speaker(s)/writer(s) as constituting or belonging to the stated category of people (objective case).",
+              "examples": [
+                {
+                  "labels": {},
+                  "line": 165,
+                  "ordinal": 0,
+                  "revision": 93014384,
+                  "template": "ux",
+                  "text": "It's not good enough for us teachers."
+                }
+              ],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v2:r24183:s0",
+              "labels": {},
+              "ordinal": 0,
+              "pack": "daily",
+              "raw_gloss_path": [
+                "Designates the speaker(s)/writer(s) as constituting or belonging to the stated category of people (objective case)."
+              ],
+              "source_senseids": []
+            },
+            {
+              "ancestors": [],
+              "definition": "Designates the speaker(s)/writer(s) as constituting or belonging to the stated category of people (subjective case).",
+              "examples": [],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v2:r24183:s1",
+              "labels": {
+                "tags": [
+                  "proscribed"
+                ]
+              },
+              "ordinal": 1,
+              "pack": "daily",
+              "raw_gloss_path": [
+                "(proscribed) Designates the speaker(s)/writer(s) as constituting or belonging to the stated category of people (subjective case)."
+              ],
+              "source_senseids": []
+            }
+          ],
+          "source_line": 24183,
+          "source_url": "https://en.wiktionary.org/wiki/us",
+          "wikitext_sha256": "8ca41c76577aaf6b23c2885d65c72b8b32e9a31283304bca15a67325aeecc61d"
+        }
+      ],
+      "normalization": "exact",
+      "release": "enwiktionary-20261001-lexicue-v2",
+      "requested_form": "us",
+      "schema_version": 2,
+      "surface_records": []
+    },
+    "field": {
+      "entries": [
+        {
+          "etymology_number": "",
+          "forms": [
+            {
+              "form": "fields",
+              "labels": {
+                "tags": [
+                  "plural"
+                ]
+              }
+            }
+          ],
+          "headword": "field",
+          "id": "wiktionary:enwiktionary-20261001-lexicue-v2:r39492",
+          "labels": {},
+          "matches": [
+            {
+              "pack": "daily",
+              "surface": "field",
+              "type": "exact"
+            }
+          ],
+          "packs": [
+            "daily"
+          ],
+          "pos": "noun",
+          "pronunciations": [
+            {
+              "labels": {},
+              "notation": "ipa",
+              "text": "/ˈfi(ː)ld/"
+            },
+            {
+              "labels": {},
+              "notation": "ipa",
+              "text": "[ˈfɪi̯ɫd]"
+            },
+            {
+              "labels": {},
+              "notation": "ipa",
+              "text": "/ˈfi(ː)ʊ̯d/"
+            },
+            {
+              "labels": {},
+              "notation": "ipa",
+              "text": "[ˈfɪi̯ʊd]"
+            }
+          ],
+          "revision": 92758914,
+          "senses": [
+            {
+              "ancestors": [],
+              "definition": "A land area free of woodland, cities, and towns; an area of open country.",
+              "examples": [
+                {
+                  "labels": {},
+                  "line": 30,
+                  "ordinal": 0,
+                  "revision": 92758914,
+                  "template": "ux",
+                  "text": "There are several species of wild flowers growing in this field."
+                }
+              ],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v2:r39492:s0",
+              "labels": {},
+              "ordinal": 0,
+              "pack": "daily",
+              "raw_gloss_path": [
+                "A land area free of woodland, cities, and towns; an area of open country."
+              ],
+              "source_senseids": [
+                "en:land area free of woodland, cities, and towns; open country"
+              ]
+            },
+            {
+              "ancestors": [
+                {
+                  "definition": "A land area free of woodland, cities, and towns; an area of open country.",
+                  "depth": 1,
+                  "raw_gloss": "A land area free of woodland, cities, and towns; an area of open country."
+                }
+              ],
+              "definition": "The open country near or belonging to a town or city.",
+              "examples": [],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v2:r39492:s1",
+              "labels": {
+                "tags": [
+                  "plural-normally"
+                ]
+              },
+              "ordinal": 1,
+              "pack": "daily",
+              "raw_gloss_path": [
+                "A land area free of woodland, cities, and towns; an area of open country.",
+                "(usually in the plural) The open country near or belonging to a town or city."
+              ],
+              "source_senseids": [
+                "en:land area free of woodland, cities, and towns; open country"
+              ]
+            }
+          ],
+          "source_line": 39492,
+          "source_url": "https://en.wiktionary.org/wiki/field",
+          "wikitext_sha256": "b1a2bbc05c155a3621079f582a57d0e9864d9a1d2b7c0c48bf8884909509de4d"
+        },
+        {
+          "etymology_number": "",
+          "forms": [
+            {
+              "form": "fields",
+              "labels": {
+                "tags": [
+                  "present",
+                  "singular",
+                  "third-person"
+                ]
+              }
+            },
+            {
+              "form": "fielding",
+              "labels": {
+                "tags": [
+                  "participle",
+                  "present"
+                ]
+              }
+            },
+            {
+              "form": "fielded",
+              "labels": {
+                "tags": [
+                  "participle",
+                  "past"
+                ]
+              }
+            },
+            {
+              "form": "fielded",
+              "labels": {
+                "tags": [
+                  "past"
+                ]
+              }
+            }
+          ],
+          "headword": "field",
+          "id": "wiktionary:enwiktionary-20261001-lexicue-v2:r39493",
+          "labels": {},
+          "matches": [
+            {
+              "pack": "daily",
+              "surface": "field",
+              "type": "exact"
+            }
+          ],
+          "packs": [
+            "daily"
+          ],
+          "pos": "verb",
+          "pronunciations": [
+            {
+              "labels": {},
+              "notation": "ipa",
+              "text": "/ˈfi(ː)ld/"
+            },
+            {
+              "labels": {},
+              "notation": "ipa",
+              "text": "[ˈfɪi̯ɫd]"
+            },
+            {
+              "labels": {},
+              "notation": "ipa",
+              "text": "/ˈfi(ː)ʊ̯d/"
+            },
+            {
+              "labels": {},
+              "notation": "ipa",
+              "text": "[ˈfɪi̯ʊd]"
+            }
+          ],
+          "revision": 92758914,
+          "senses": [
+            {
+              "ancestors": [],
+              "definition": "To intercept or catch (a ball) and play it.",
+              "examples": [],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v2:r39493:s0",
+              "labels": {
+                "tags": [
+                  "transitive"
+                ],
+                "topics": [
+                  "hobbies",
+                  "lifestyle",
+                  "sports"
+                ]
+              },
+              "ordinal": 0,
+              "pack": "daily",
+              "raw_gloss_path": [
+                "(transitive, sports) To intercept or catch (a ball) and play it."
+              ],
+              "source_senseids": []
+            },
+            {
+              "ancestors": [],
+              "definition": "To be the team catching and throwing the ball, as opposed to hitting it.",
+              "examples": [
+                {
+                  "labels": {},
+                  "line": 1213,
+                  "ordinal": 0,
+                  "revision": 92758914,
+                  "template": "ux",
+                  "text": "The blue team are fielding first, while the reds are batting."
+                }
+              ],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v2:r39493:s1",
+              "labels": {
+                "qualifier": "and other batting sports",
+                "tags": [
+                  "intransitive"
+                ],
+                "topics": [
+                  "ball-games",
+                  "baseball",
+                  "cricket",
+                  "games",
+                  "hobbies",
+                  "lifestyle",
+                  "softball",
+                  "sports"
+                ]
+              },
+              "ordinal": 1,
+              "pack": "daily",
+              "raw_gloss_path": [
+                "(intransitive, baseball, softball, cricket, and other batting sports) To be the team catching and throwing the ball, as opposed to hitting it."
+              ],
+              "source_senseids": []
+            }
+          ],
+          "source_line": 39493,
+          "source_url": "https://en.wiktionary.org/wiki/field",
+          "wikitext_sha256": "b1a2bbc05c155a3621079f582a57d0e9864d9a1d2b7c0c48bf8884909509de4d"
+        }
+      ],
+      "normalization": "exact",
+      "release": "enwiktionary-20261001-lexicue-v2",
+      "requested_form": "field",
+      "schema_version": 2,
+      "surface_records": [
+        {
+          "examples": [],
+          "forms": [
+            {
+              "form": "fields",
+              "labels": {
+                "tags": [
+                  "plural"
+                ]
+              }
+            }
+          ],
+          "headword": "field",
+          "labels": {},
+          "pos": "noun",
+          "pronunciations": [
+            {
+              "labels": {},
+              "notation": "ipa",
+              "text": "/ˈfi(ː)ld/"
+            },
+            {
+              "labels": {},
+              "notation": "ipa",
+              "text": "[ˈfɪi̯ɫd]"
+            },
+            {
+              "labels": {},
+              "notation": "ipa",
+              "text": "/ˈfi(ː)ʊ̯d/"
+            },
+            {
+              "labels": {},
+              "notation": "ipa",
+              "text": "[ˈfɪi̯ʊd]"
+            }
+          ],
+          "revision": 92758914,
+          "source_line": 39492,
+          "source_url": "https://en.wiktionary.org/wiki/field"
+        }
+      ]
+    },
+    "bank": {
+      "entries": [
+        {
+          "etymology_number": "1",
+          "forms": [
+            {
+              "form": "banks",
+              "labels": {
+                "tags": [
+                  "plural"
+                ]
+              }
+            },
+            {
+              "form": "banck",
+              "labels": {
+                "tags": [
+                  "alternative",
+                  "obsolete"
+                ]
+              }
+            },
+            {
+              "form": "bancke",
+              "labels": {
+                "tags": [
+                  "alternative",
+                  "obsolete"
+                ]
+              }
+            },
+            {
+              "form": "banke",
+              "labels": {
+                "tags": [
+                  "alternative",
+                  "obsolete"
+                ]
+              }
+            }
+          ],
+          "headword": "bank",
+          "id": "wiktionary:enwiktionary-20261001-lexicue-v2:r7413",
+          "labels": {},
+          "matches": [
+            {
+              "pack": "daily",
+              "surface": "bank",
+              "type": "exact"
+            }
+          ],
+          "packs": [
+            "daily"
+          ],
+          "pos": "noun",
+          "pronunciations": [
+            {
+              "labels": {
+                "tags": [
+                  "Australia",
+                  "General-American",
+                  "Received-Pronunciation"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/ˈbæŋk/"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "Australia",
+                  "General-American",
+                  "Received-Pronunciation"
+                ]
+              },
+              "notation": "ipa",
+              "text": "[ˈbæŋk]"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "British",
+                  "Northern-England",
+                  "Scotland",
+                  "Southern",
+                  "Standard",
+                  "Wales"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/ˈbaŋk/"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "British",
+                  "Northern-England",
+                  "Scotland",
+                  "Southern",
+                  "Standard",
+                  "Wales"
+                ]
+              },
+              "notation": "ipa",
+              "text": "[ˈbaŋk]"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "New-Zealand"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/ˈbɛŋk/"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "New-Zealand"
+                ]
+              },
+              "notation": "ipa",
+              "text": "[ˈbɛŋk]"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "Canada",
+                  "US"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/ˈbeɪ̯ŋk/"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "Canada",
+                  "US"
+                ]
+              },
+              "notation": "ipa",
+              "text": "[ˈbeɪ̯ŋk]"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "Canada",
+                  "US"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/ˈbɛ̃ŋk/"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "Canada",
+                  "US"
+                ]
+              },
+              "notation": "ipa",
+              "text": "[ˈbɛ̃ŋk]"
+            }
+          ],
+          "revision": 92974466,
+          "senses": [
+            {
+              "ancestors": [],
+              "definition": "An institution where one can place and borrow money and take care of financial affairs.",
+              "examples": [],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v2:r7413:s0",
+              "labels": {
+                "tags": [
+                  "countable"
+                ]
+              },
+              "ordinal": 0,
+              "pack": "daily",
+              "raw_gloss_path": [
+                "(countable) An institution where one can place and borrow money and take care of financial affairs."
+              ],
+              "source_senseids": [
+                "en:Q22687"
+              ]
+            },
+            {
+              "ancestors": [],
+              "definition": "A branch office of such an institution.",
+              "examples": [],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v2:r7413:s1",
+              "labels": {
+                "tags": [
+                  "countable"
+                ]
+              },
+              "ordinal": 1,
+              "pack": "daily",
+              "raw_gloss_path": [
+                "(countable) A branch office of such an institution."
+              ],
+              "source_senseids": []
+            }
+          ],
+          "source_line": 7413,
+          "source_url": "https://en.wiktionary.org/wiki/bank",
+          "wikitext_sha256": "8b5baf1d3c73c6197f0d60a89d8ca86b4fcb978663c1ceedff45f9d38090d757"
+        },
+        {
+          "etymology_number": "1",
+          "forms": [
+            {
+              "form": "banks",
+              "labels": {
+                "tags": [
+                  "present",
+                  "singular",
+                  "third-person"
+                ]
+              }
+            },
+            {
+              "form": "banking",
+              "labels": {
+                "tags": [
+                  "participle",
+                  "present"
+                ]
+              }
+            },
+            {
+              "form": "banked",
+              "labels": {
+                "tags": [
+                  "participle",
+                  "past"
+                ]
+              }
+            },
+            {
+              "form": "banked",
+              "labels": {
+                "tags": [
+                  "past"
+                ]
+              }
+            },
+            {
+              "form": "banck",
+              "labels": {
+                "tags": [
+                  "alternative",
+                  "obsolete"
+                ]
+              }
+            },
+            {
+              "form": "bancke",
+              "labels": {
+                "tags": [
+                  "alternative",
+                  "obsolete"
+                ]
+              }
+            },
+            {
+              "form": "banke",
+              "labels": {
+                "tags": [
+                  "alternative",
+                  "obsolete"
+                ]
+              }
+            }
+          ],
+          "headword": "bank",
+          "id": "wiktionary:enwiktionary-20261001-lexicue-v2:r7414",
+          "labels": {},
+          "matches": [
+            {
+              "pack": "daily",
+              "surface": "bank",
+              "type": "exact"
+            }
+          ],
+          "packs": [
+            "daily"
+          ],
+          "pos": "verb",
+          "pronunciations": [
+            {
+              "labels": {
+                "tags": [
+                  "Australia",
+                  "General-American",
+                  "Received-Pronunciation"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/ˈbæŋk/"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "Australia",
+                  "General-American",
+                  "Received-Pronunciation"
+                ]
+              },
+              "notation": "ipa",
+              "text": "[ˈbæŋk]"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "British",
+                  "Northern-England",
+                  "Scotland",
+                  "Southern",
+                  "Standard",
+                  "Wales"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/ˈbaŋk/"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "British",
+                  "Northern-England",
+                  "Scotland",
+                  "Southern",
+                  "Standard",
+                  "Wales"
+                ]
+              },
+              "notation": "ipa",
+              "text": "[ˈbaŋk]"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "New-Zealand"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/ˈbɛŋk/"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "New-Zealand"
+                ]
+              },
+              "notation": "ipa",
+              "text": "[ˈbɛŋk]"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "Canada",
+                  "US"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/ˈbeɪ̯ŋk/"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "Canada",
+                  "US"
+                ]
+              },
+              "notation": "ipa",
+              "text": "[ˈbeɪ̯ŋk]"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "Canada",
+                  "US"
+                ]
+              },
+              "notation": "ipa",
+              "text": "/ˈbɛ̃ŋk/"
+            },
+            {
+              "labels": {
+                "tags": [
+                  "Canada",
+                  "US"
+                ]
+              },
+              "notation": "ipa",
+              "text": "[ˈbɛ̃ŋk]"
+            }
+          ],
+          "revision": 92974466,
+          "senses": [
+            {
+              "ancestors": [],
+              "definition": "To deal with a bank or financial institution, or for an institution to provide financial services to a client.",
+              "examples": [
+                {
+                  "labels": {},
+                  "line": 556,
+                  "ordinal": 0,
+                  "revision": 92974466,
+                  "template": "ux",
+                  "text": "He banked with Barclays."
+                }
+              ],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v2:r7414:s0",
+              "labels": {
+                "tags": [
+                  "intransitive"
+                ]
+              },
+              "ordinal": 0,
+              "pack": "daily",
+              "raw_gloss_path": [
+                "(intransitive) To deal with a bank or financial institution, or for an institution to provide financial services to a client."
+              ],
+              "source_senseids": []
+            },
+            {
+              "ancestors": [],
+              "definition": "To put into a bank (financial institution).",
+              "examples": [
+                {
+                  "labels": {},
+                  "line": 559,
+                  "ordinal": 0,
+                  "revision": 92974466,
+                  "template": "ux",
+                  "text": "I’m going to bank the money."
+                }
+              ],
+              "id": "wiktionary:enwiktionary-20261001-lexicue-v2:r7414:s1",
+              "labels": {
+                "tags": [
+                  "transitive"
+                ]
+              },
+              "ordinal": 1,
+              "pack": "daily",
+              "raw_gloss_path": [
+                "(transitive) To put into a bank (financial institution)."
+              ],
+              "source_senseids": []
+            }
+          ],
+          "source_line": 7414,
+          "source_url": "https://en.wiktionary.org/wiki/bank",
+          "wikitext_sha256": "8b5baf1d3c73c6197f0d60a89d8ca86b4fcb978663c1ceedff45f9d38090d757"
+        }
+      ],
+      "normalization": "exact",
+      "release": "enwiktionary-20261001-lexicue-v2",
+      "requested_form": "bank",
+      "schema_version": 2,
+      "surface_records": []
+    }
+  }
+}

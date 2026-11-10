@@ -1,0 +1,4066 @@
+{
+  "all_checks_passed": true,
+  "checks": {
+    "US_country_substantive_target": {
+      "detail": null,
+      "passed": true
+    },
+    "US_dotted_alternative_resolves_country": {
+      "detail": null,
+      "passed": true
+    },
+    "US_surface_IPA_retained": {
+      "detail": null,
+      "passed": true
+    },
+    "US_us_exact_separation": {
+      "detail": null,
+      "passed": true
+    },
+    "alias_paths_acyclic_contiguous_exact_endpoints": {
+      "detail": 0,
+      "passed": true
+    },
+    "all_alias_targets_have_substantive_senses": {
+      "detail": 0,
+      "passed": true
+    },
+    "all_entries_have_substantive_senses": {
+      "detail": 0,
+      "passed": true
+    },
+    "all_entry_revisions_match_pinned_XML": {
+      "detail": 0,
+      "passed": true
+    },
+    "all_examples_match_positive_pinned_XML_template_evidence": {
+      "detail": 0,
+      "passed": true
+    },
+    "application_id": {
+      "detail": null,
+      "passed": true
+    },
+    "baseline_57_words": {
+      "detail": null,
+      "passed": true
+    },
+    "baseline_phrases_at_least_39": {
+      "detail": null,
+      "passed": true
+    },
+    "every_example_has_positive_source_evidence": {
+      "detail": 0,
+      "passed": true
+    },
+    "foreign_keys": {
+      "detail": [],
+      "passed": true
+    },
+    "frozen_redirect_a lot of": {
+      "detail": null,
+      "passed": true
+    },
+    "frozen_redirect_get along with": {
+      "detail": null,
+      "passed": true
+    },
+    "frozen_redirect_in charge of": {
+      "detail": null,
+      "passed": true
+    },
+    "frozen_redirect_run out of": {
+      "detail": null,
+      "passed": true
+    },
+    "function_word_intended_POS": {
+      "detail": null,
+      "passed": true
+    },
+    "no_invented_pay_attention_to": {
+      "detail": null,
+      "passed": true
+    },
+    "no_replacement_or_illegal_control_characters": {
+      "detail": [],
+      "passed": true
+    },
+    "provider": {
+      "detail": null,
+      "passed": true
+    },
+    "relation_examples_match_positive_pinned_XML_template_evidence": {
+      "detail": 0,
+      "passed": true
+    },
+    "relation_metadata_revisions_match_pinned_XML": {
+      "detail": 0,
+      "passed": true
+    },
+    "schema_version": {
+      "detail": null,
+      "passed": true
+    },
+    "sense_content_and_ancestry": {
+      "detail": {},
+      "passed": true
+    },
+    "sqlite_integrity": {
+      "detail": null,
+      "passed": true
+    }
+  },
+  "counts": {
+    "aliases": 1505453,
+    "casefolded_headwords": 614738,
+    "entries": 669797,
+    "entries_with_examples": 44080,
+    "entries_with_pronunciation_text": 108740,
+    "exact_case_headwords": 617979,
+    "examples": 86766,
+    "forms": 786601,
+    "pronunciations": 251298,
+    "redirects": 42611,
+    "relation_examples": 2575,
+    "relation_records": 105951,
+    "senses": 881818,
+    "senses_with_ancestors": 27525,
+    "senses_with_examples": 69668
+  },
+  "coverage": {
+    "case_homographs": {
+      "casefold_candidate_queries": [],
+      "details": {
+        "A": {
+          "outcome": "direct",
+          "senses": 32,
+          "targets": [
+            [
+              "A",
+              "adj"
+            ],
+            [
+              "A",
+              "character"
+            ],
+            [
+              "A",
+              "noun"
+            ],
+            [
+              "A",
+              "num"
+            ],
+            [
+              "A",
+              "symbol"
+            ],
+            [
+              "A/B test",
+              "verb"
+            ],
+            [
+              "a",
+              "character"
+            ],
+            [
+              "a",
+              "num"
+            ],
+            [
+              "a.m.",
+              "adv"
+            ],
+            [
+              "ad modum",
+              "adj"
+            ],
+            [
+              "ampere",
+              "noun"
+            ],
+            [
+              "an",
+              "noun"
+            ],
+            [
+              "answer",
+              "noun"
+            ]
+          ]
+        },
+        "Apple": {
+          "outcome": "direct",
+          "senses": 4,
+          "targets": [
+            [
+              "Apple",
+              "name"
+            ],
+            [
+              "Apple",
+              "noun"
+            ]
+          ]
+        },
+        "IT": {
+          "outcome": "relation",
+          "senses": 3,
+          "targets": [
+            [
+              "information technology",
+              "noun"
+            ],
+            [
+              "intrathecal",
+              "adj"
+            ]
+          ]
+        },
+        "May": {
+          "outcome": "direct",
+          "senses": 12,
+          "targets": [
+            [
+              "May",
+              "name"
+            ]
+          ]
+        },
+        "Polish": {
+          "outcome": "direct",
+          "senses": 3,
+          "targets": [
+            [
+              "Polish",
+              "adj"
+            ],
+            [
+              "Polish",
+              "noun"
+            ]
+          ]
+        },
+        "US": {
+          "outcome": "relation",
+          "senses": 11,
+          "targets": [
+            [
+              "United States",
+              "name"
+            ],
+            [
+              "Upper Sorbian",
+              "name"
+            ],
+            [
+              "undersize",
+              "adj"
+            ],
+            [
+              "unserviceable",
+              "adj"
+            ]
+          ]
+        },
+        "a": {
+          "outcome": "direct",
+          "senses": 189,
+          "targets": [
+            [
+              "A",
+              "character"
+            ],
+            [
+              "A",
+              "num"
+            ],
+            [
+              "a",
+              "adj"
+            ],
+            [
+              "a",
+              "adv"
+            ],
+            [
+              "a",
+              "article"
+            ],
+            [
+              "a",
+              "character"
+            ],
+            [
+              "a",
+              "contraction"
+            ],
+            [
+              "a",
+              "intj"
+            ],
+            [
+              "a",
+              "noun"
+            ],
+            [
+              "a",
+              "num"
+            ],
+            [
+              "a",
+              "prep"
+            ],
+            [
+              "a",
+              "pron"
+            ],
+            [
+              "a",
+              "symbol"
+            ],
+            [
+              "a",
+              "verb"
+            ],
+            [
+              "a.m.",
+              "adv"
+            ],
+            [
+              "ad modum",
+              "adj"
+            ],
+            [
+              "and",
+              "conj"
+            ],
+            [
+              "annum",
+              "noun"
+            ],
+            [
+              "have",
+              "verb"
+            ],
+            [
+              "of",
+              "prep"
+            ],
+            [
+              "on",
+              "prep"
+            ],
+            [
+              "to",
+              "particle"
+            ],
+            [
+              "⠁",
+              "character"
+            ],
+            [
+              "𐑩",
+              "article"
+            ]
+          ]
+        },
+        "apple": {
+          "outcome": "direct",
+          "senses": 27,
+          "targets": [
+            [
+              "Adam's apple",
+              "noun"
+            ],
+            [
+              "apple",
+              "noun"
+            ],
+            [
+              "apple",
+              "verb"
+            ],
+            [
+              "apple of the eye",
+              "noun"
+            ],
+            [
+              "apple-green",
+              "noun"
+            ]
+          ]
+        },
+        "iPhone": {
+          "outcome": "direct",
+          "senses": 2,
+          "targets": [
+            [
+              "iPhone",
+              "noun"
+            ]
+          ]
+        },
+        "it": {
+          "outcome": "direct",
+          "senses": 28,
+          "targets": [
+            [
+              "It",
+              "noun"
+            ],
+            [
+              "it",
+              "adj"
+            ],
+            [
+              "it",
+              "det"
+            ],
+            [
+              "it",
+              "noun"
+            ],
+            [
+              "it",
+              "pron"
+            ],
+            [
+              "itself",
+              "pron"
+            ]
+          ]
+        },
+        "may": {
+          "outcome": "direct",
+          "senses": 12,
+          "targets": [
+            [
+              "may",
+              "noun"
+            ],
+            [
+              "may",
+              "verb"
+            ]
+          ]
+        },
+        "polish": {
+          "outcome": "direct",
+          "senses": 8,
+          "targets": [
+            [
+              "polish",
+              "noun"
+            ],
+            [
+              "polish",
+              "verb"
+            ]
+          ]
+        },
+        "us": {
+          "outcome": "direct",
+          "senses": 34,
+          "targets": [
+            [
+              "U",
+              "noun"
+            ],
+            [
+              "u",
+              "character"
+            ],
+            [
+              "u",
+              "noun"
+            ],
+            [
+              "us",
+              "det"
+            ],
+            [
+              "us",
+              "noun"
+            ],
+            [
+              "us",
+              "pron"
+            ],
+            [
+              "we",
+              "pron"
+            ]
+          ]
+        }
+      },
+      "direct": 11,
+      "exact_surface_substantive": 13,
+      "misses": [],
+      "queries_with_examples": 10,
+      "queries_with_pronunciation_text": 12,
+      "total": 13,
+      "via_relation_only": 2
+    },
+    "expanded_inflections": {
+      "casefold_candidate_queries": [],
+      "details": {
+        "been": {
+          "outcome": "direct",
+          "senses": 40,
+          "targets": [
+            [
+              "be",
+              "verb"
+            ],
+            [
+              "bee",
+              "noun"
+            ],
+            [
+              "been",
+              "verb"
+            ],
+            [
+              "bein",
+              "adj"
+            ],
+            [
+              "bein",
+              "adv"
+            ],
+            [
+              "bein",
+              "verb"
+            ],
+            [
+              "bene",
+              "noun"
+            ]
+          ]
+        },
+        "best": {
+          "outcome": "direct",
+          "senses": 53,
+          "targets": [
+            [
+              "best",
+              "adj"
+            ],
+            [
+              "best",
+              "adv"
+            ],
+            [
+              "best",
+              "noun"
+            ],
+            [
+              "best",
+              "verb"
+            ],
+            [
+              "better",
+              "adj"
+            ],
+            [
+              "good",
+              "adj"
+            ],
+            [
+              "good",
+              "adv"
+            ],
+            [
+              "well",
+              "adj"
+            ],
+            [
+              "well",
+              "adv"
+            ]
+          ]
+        },
+        "better": {
+          "outcome": "direct",
+          "senses": 52,
+          "targets": [
+            [
+              "better",
+              "adj"
+            ],
+            [
+              "better",
+              "noun"
+            ],
+            [
+              "better",
+              "verb"
+            ],
+            [
+              "bettor",
+              "noun"
+            ],
+            [
+              "good",
+              "adj"
+            ],
+            [
+              "good",
+              "adv"
+            ],
+            [
+              "had better",
+              "verb"
+            ],
+            [
+              "well",
+              "adj"
+            ],
+            [
+              "well",
+              "adv"
+            ]
+          ]
+        },
+        "children": {
+          "outcome": "relation",
+          "senses": 11,
+          "targets": [
+            [
+              "child",
+              "noun"
+            ],
+            [
+              "childer",
+              "noun"
+            ]
+          ]
+        },
+        "did": {
+          "outcome": "relation",
+          "senses": 40,
+          "targets": [
+            [
+              "dee",
+              "verb"
+            ],
+            [
+              "do",
+              "verb"
+            ]
+          ]
+        },
+        "does": {
+          "outcome": "relation",
+          "senses": 44,
+          "targets": [
+            [
+              "do",
+              "verb"
+            ],
+            [
+              "doe",
+              "noun"
+            ]
+          ]
+        },
+        "done": {
+          "outcome": "direct",
+          "senses": 52,
+          "targets": [
+            [
+              "dhoni",
+              "noun"
+            ],
+            [
+              "do",
+              "verb"
+            ],
+            [
+              "done",
+              "adj"
+            ],
+            [
+              "done",
+              "intj"
+            ],
+            [
+              "done",
+              "verb"
+            ],
+            [
+              "methadone",
+              "noun"
+            ]
+          ]
+        },
+        "gave up": {
+          "outcome": "relation",
+          "senses": 11,
+          "targets": [
+            [
+              "give up",
+              "verb"
+            ]
+          ]
+        },
+        "geese": {
+          "outcome": "relation",
+          "senses": 7,
+          "targets": [
+            [
+              "goose",
+              "noun"
+            ]
+          ]
+        },
+        "giving up": {
+          "outcome": "relation",
+          "senses": 11,
+          "targets": [
+            [
+              "give up",
+              "verb"
+            ]
+          ]
+        },
+        "gone": {
+          "outcome": "direct",
+          "senses": 82,
+          "targets": [
+            [
+              "go",
+              "verb"
+            ],
+            [
+              "gone",
+              "adj"
+            ],
+            [
+              "gone",
+              "prep"
+            ]
+          ]
+        },
+        "had": {
+          "outcome": "direct",
+          "senses": 48,
+          "targets": [
+            [
+              "got",
+              "verb"
+            ],
+            [
+              "had",
+              "verb"
+            ],
+            [
+              "hade",
+              "noun"
+            ],
+            [
+              "have",
+              "verb"
+            ],
+            [
+              "hode",
+              "verb"
+            ]
+          ]
+        },
+        "has": {
+          "outcome": "relation",
+          "senses": 36,
+          "targets": [
+            [
+              "can haz",
+              "verb"
+            ],
+            [
+              "ha",
+              "noun"
+            ],
+            [
+              "have",
+              "verb"
+            ]
+          ]
+        },
+        "looked up": {
+          "outcome": "relation",
+          "senses": 6,
+          "targets": [
+            [
+              "look up",
+              "verb"
+            ]
+          ]
+        },
+        "looking forward to": {
+          "outcome": "relation",
+          "senses": 1,
+          "targets": [
+            [
+              "look forward to",
+              "verb"
+            ]
+          ]
+        },
+        "mice": {
+          "outcome": "direct",
+          "senses": 13,
+          "targets": [
+            [
+              "mice",
+              "verb"
+            ],
+            [
+              "mouse",
+              "noun"
+            ]
+          ]
+        },
+        "putting up with": {
+          "outcome": "relation",
+          "senses": 2,
+          "targets": [
+            [
+              "put up with",
+              "verb"
+            ]
+          ]
+        },
+        "ran": {
+          "outcome": "direct",
+          "senses": 66,
+          "targets": [
+            [
+              "ran",
+              "noun"
+            ],
+            [
+              "rin",
+              "verb"
+            ],
+            [
+              "run",
+              "verb"
+            ]
+          ]
+        },
+        "running": {
+          "outcome": "direct",
+          "senses": 82,
+          "targets": [
+            [
+              "run",
+              "verb"
+            ],
+            [
+              "running",
+              "adj"
+            ],
+            [
+              "running",
+              "adv"
+            ],
+            [
+              "running",
+              "noun"
+            ],
+            [
+              "running",
+              "prep"
+            ]
+          ]
+        },
+        "studied": {
+          "outcome": "direct",
+          "senses": 8,
+          "targets": [
+            [
+              "studied",
+              "adj"
+            ],
+            [
+              "study",
+              "verb"
+            ]
+          ]
+        },
+        "studies": {
+          "outcome": "direct",
+          "senses": 19,
+          "targets": [
+            [
+              "studies",
+              "noun"
+            ],
+            [
+              "study",
+              "noun"
+            ],
+            [
+              "study",
+              "verb"
+            ]
+          ]
+        },
+        "studying": {
+          "outcome": "direct",
+          "senses": 7,
+          "targets": [
+            [
+              "study",
+              "verb"
+            ],
+            [
+              "studying",
+              "noun"
+            ]
+          ]
+        },
+        "taken off": {
+          "outcome": "relation",
+          "senses": 12,
+          "targets": [
+            [
+              "take off",
+              "verb"
+            ]
+          ]
+        },
+        "teeth": {
+          "outcome": "direct",
+          "senses": 13,
+          "targets": [
+            [
+              "teeth",
+              "noun"
+            ],
+            [
+              "teethe",
+              "verb"
+            ],
+            [
+              "tooth",
+              "noun"
+            ]
+          ]
+        },
+        "took off": {
+          "outcome": "relation",
+          "senses": 12,
+          "targets": [
+            [
+              "take off",
+              "verb"
+            ]
+          ]
+        },
+        "was": {
+          "outcome": "direct",
+          "senses": 25,
+          "targets": [
+            [
+              "be",
+              "verb"
+            ],
+            [
+              "was",
+              "verb"
+            ]
+          ]
+        },
+        "went": {
+          "outcome": "direct",
+          "senses": 78,
+          "targets": [
+            [
+              "gan",
+              "verb"
+            ],
+            [
+              "go",
+              "verb"
+            ],
+            [
+              "ween",
+              "verb"
+            ],
+            [
+              "wend",
+              "verb"
+            ],
+            [
+              "went",
+              "noun"
+            ]
+          ]
+        },
+        "were": {
+          "outcome": "direct",
+          "senses": 28,
+          "targets": [
+            [
+              "be",
+              "verb"
+            ],
+            [
+              "wer",
+              "noun"
+            ],
+            [
+              "were",
+              "noun"
+            ],
+            [
+              "were",
+              "verb"
+            ]
+          ]
+        },
+        "worse": {
+          "outcome": "direct",
+          "senses": 39,
+          "targets": [
+            [
+              "bad",
+              "adj"
+            ],
+            [
+              "bad",
+              "adv"
+            ],
+            [
+              "badly",
+              "adv"
+            ],
+            [
+              "ill",
+              "adv"
+            ],
+            [
+              "worse",
+              "adv"
+            ],
+            [
+              "worse",
+              "noun"
+            ],
+            [
+              "worse",
+              "verb"
+            ]
+          ]
+        },
+        "worst": {
+          "outcome": "direct",
+          "senses": 41,
+          "targets": [
+            [
+              "bad",
+              "adj"
+            ],
+            [
+              "bad",
+              "adv"
+            ],
+            [
+              "badly",
+              "adv"
+            ],
+            [
+              "ill",
+              "adv"
+            ],
+            [
+              "worst",
+              "adj"
+            ],
+            [
+              "worst",
+              "noun"
+            ],
+            [
+              "worst",
+              "verb"
+            ]
+          ]
+        }
+      },
+      "direct": 18,
+      "exact_surface_substantive": 30,
+      "misses": [],
+      "queries_with_examples": 29,
+      "queries_with_pronunciation_text": 24,
+      "total": 30,
+      "via_relation_only": 12
+    },
+    "expanded_modern": {
+      "casefold_candidate_queries": [],
+      "details": {
+        "AI": {
+          "outcome": "direct",
+          "senses": 18,
+          "targets": [
+            [
+              "AI",
+              "adj"
+            ],
+            [
+              "AI",
+              "noun"
+            ],
+            [
+              "AI",
+              "verb"
+            ],
+            [
+              "action item",
+              "noun"
+            ],
+            [
+              "adequate intake",
+              "noun"
+            ],
+            [
+              "air integration",
+              "noun"
+            ],
+            [
+              "amelogenesis imperfecta",
+              "noun"
+            ],
+            [
+              "angiotensin I",
+              "noun"
+            ],
+            [
+              "artificial insemination",
+              "noun"
+            ],
+            [
+              "artificial intelligence",
+              "noun"
+            ],
+            [
+              "attitude indicator",
+              "noun"
+            ]
+          ]
+        },
+        "COVID-19": {
+          "outcome": "direct",
+          "senses": 3,
+          "targets": [
+            [
+              "COVID-19",
+              "name"
+            ]
+          ]
+        },
+        "LLM": {
+          "outcome": "relation",
+          "senses": 2,
+          "targets": [
+            [
+              "LL.M.",
+              "noun"
+            ],
+            [
+              "large language model",
+              "noun"
+            ]
+          ]
+        },
+        "algorithm": {
+          "outcome": "direct",
+          "senses": 4,
+          "targets": [
+            [
+              "algorithm",
+              "noun"
+            ]
+          ]
+        },
+        "app": {
+          "outcome": "direct",
+          "senses": 5,
+          "targets": [
+            [
+              "app",
+              "noun"
+            ]
+          ]
+        },
+        "binge-watch": {
+          "outcome": "direct",
+          "senses": 1,
+          "targets": [
+            [
+              "binge-watch",
+              "verb"
+            ]
+          ]
+        },
+        "blockchain": {
+          "outcome": "direct",
+          "senses": 1,
+          "targets": [
+            [
+              "blockchain",
+              "noun"
+            ]
+          ]
+        },
+        "chatbot": {
+          "outcome": "direct",
+          "senses": 1,
+          "targets": [
+            [
+              "chatbot",
+              "noun"
+            ]
+          ]
+        },
+        "clickbait": {
+          "outcome": "direct",
+          "senses": 2,
+          "targets": [
+            [
+              "clickbait",
+              "noun"
+            ],
+            [
+              "clickbait",
+              "verb"
+            ]
+          ]
+        },
+        "contactless": {
+          "outcome": "direct",
+          "senses": 4,
+          "targets": [
+            [
+              "contactless",
+              "adj"
+            ],
+            [
+              "contactless",
+              "noun"
+            ]
+          ]
+        },
+        "coronavirus": {
+          "outcome": "direct",
+          "senses": 4,
+          "targets": [
+            [
+              "coronavirus",
+              "noun"
+            ]
+          ]
+        },
+        "crowdfund": {
+          "outcome": "direct",
+          "senses": 1,
+          "targets": [
+            [
+              "crowdfund",
+              "verb"
+            ]
+          ]
+        },
+        "crowdfunding": {
+          "outcome": "direct",
+          "senses": 2,
+          "targets": [
+            [
+              "crowdfund",
+              "verb"
+            ],
+            [
+              "crowdfunding",
+              "noun"
+            ]
+          ]
+        },
+        "cryptocurrency": {
+          "outcome": "direct",
+          "senses": 1,
+          "targets": [
+            [
+              "cryptocurrency",
+              "noun"
+            ]
+          ]
+        },
+        "cryptomining": {
+          "outcome": "direct",
+          "senses": 1,
+          "targets": [
+            [
+              "cryptomining",
+              "noun"
+            ]
+          ]
+        },
+        "cybersecurity": {
+          "outcome": "direct",
+          "senses": 1,
+          "targets": [
+            [
+              "cybersecurity",
+              "noun"
+            ]
+          ]
+        },
+        "deepfake": {
+          "outcome": "direct",
+          "senses": 2,
+          "targets": [
+            [
+              "deepfake",
+              "noun"
+            ],
+            [
+              "deepfake",
+              "verb"
+            ]
+          ]
+        },
+        "doomscroll": {
+          "outcome": "direct",
+          "senses": 2,
+          "targets": [
+            [
+              "doomscroll",
+              "verb"
+            ]
+          ]
+        },
+        "doomscrolling": {
+          "outcome": "direct",
+          "senses": 3,
+          "targets": [
+            [
+              "doomscroll",
+              "verb"
+            ],
+            [
+              "doomscrolling",
+              "noun"
+            ]
+          ]
+        },
+        "emoji": {
+          "outcome": "direct",
+          "senses": 2,
+          "targets": [
+            [
+              "emoji",
+              "noun"
+            ]
+          ]
+        },
+        "gaslight": {
+          "outcome": "direct",
+          "senses": 4,
+          "targets": [
+            [
+              "gaslight",
+              "noun"
+            ],
+            [
+              "gaslight",
+              "verb"
+            ]
+          ]
+        },
+        "gaslighting": {
+          "outcome": "direct",
+          "senses": 4,
+          "targets": [
+            [
+              "gaslight",
+              "verb"
+            ],
+            [
+              "gaslighting",
+              "noun"
+            ]
+          ]
+        },
+        "generative AI": {
+          "outcome": "direct",
+          "senses": 1,
+          "targets": [
+            [
+              "generative AI",
+              "noun"
+            ]
+          ]
+        },
+        "gig economy": {
+          "outcome": "direct",
+          "senses": 1,
+          "targets": [
+            [
+              "gig economy",
+              "noun"
+            ]
+          ]
+        },
+        "greenwashing": {
+          "outcome": "direct",
+          "senses": 2,
+          "targets": [
+            [
+              "greenwash",
+              "verb"
+            ],
+            [
+              "greenwashing",
+              "noun"
+            ]
+          ]
+        },
+        "hashtag": {
+          "outcome": "direct",
+          "senses": 3,
+          "targets": [
+            [
+              "hashtag",
+              "noun"
+            ],
+            [
+              "hashtag",
+              "verb"
+            ]
+          ]
+        },
+        "influencer": {
+          "outcome": "direct",
+          "senses": 2,
+          "targets": [
+            [
+              "influencer",
+              "noun"
+            ]
+          ]
+        },
+        "large language model": {
+          "outcome": "direct",
+          "senses": 1,
+          "targets": [
+            [
+              "large language model",
+              "noun"
+            ]
+          ]
+        },
+        "livestream": {
+          "outcome": "direct",
+          "senses": 3,
+          "targets": [
+            [
+              "live stream",
+              "noun"
+            ],
+            [
+              "livestream",
+              "verb"
+            ]
+          ]
+        },
+        "livestreaming": {
+          "outcome": "direct",
+          "senses": 3,
+          "targets": [
+            [
+              "livestream",
+              "verb"
+            ],
+            [
+              "livestreaming",
+              "noun"
+            ]
+          ]
+        },
+        "lockdown": {
+          "outcome": "direct",
+          "senses": 2,
+          "targets": [
+            [
+              "lockdown",
+              "noun"
+            ]
+          ]
+        },
+        "machine learning": {
+          "outcome": "direct",
+          "senses": 2,
+          "targets": [
+            [
+              "machine learning",
+              "noun"
+            ]
+          ]
+        },
+        "mansplain": {
+          "outcome": "direct",
+          "senses": 1,
+          "targets": [
+            [
+              "mansplain",
+              "verb"
+            ]
+          ]
+        },
+        "microaggression": {
+          "outcome": "direct",
+          "senses": 1,
+          "targets": [
+            [
+              "microaggression",
+              "noun"
+            ]
+          ]
+        },
+        "net zero": {
+          "outcome": "relation",
+          "senses": 2,
+          "targets": [
+            [
+              "net-zero",
+              "adj"
+            ]
+          ]
+        },
+        "neural network": {
+          "outcome": "direct",
+          "senses": 2,
+          "targets": [
+            [
+              "neural network",
+              "noun"
+            ]
+          ]
+        },
+        "nonbinary": {
+          "outcome": "relation",
+          "senses": 4,
+          "targets": [
+            [
+              "non-binary",
+              "adj"
+            ],
+            [
+              "non-binary",
+              "noun"
+            ]
+          ]
+        },
+        "phishing": {
+          "outcome": "direct",
+          "senses": 3,
+          "targets": [
+            [
+              "phish",
+              "verb"
+            ],
+            [
+              "phishing",
+              "noun"
+            ]
+          ]
+        },
+        "podcast": {
+          "outcome": "direct",
+          "senses": 4,
+          "targets": [
+            [
+              "podcast",
+              "noun"
+            ],
+            [
+              "podcast",
+              "verb"
+            ]
+          ]
+        },
+        "podcasting": {
+          "outcome": "direct",
+          "senses": 3,
+          "targets": [
+            [
+              "podcast",
+              "verb"
+            ],
+            [
+              "podcasting",
+              "noun"
+            ]
+          ]
+        },
+        "ransomware": {
+          "outcome": "direct",
+          "senses": 2,
+          "targets": [
+            [
+              "ransomware",
+              "noun"
+            ]
+          ]
+        },
+        "remote work": {
+          "outcome": "direct",
+          "senses": 1,
+          "targets": [
+            [
+              "remote work",
+              "noun"
+            ]
+          ]
+        },
+        "selfie": {
+          "outcome": "direct",
+          "senses": 2,
+          "targets": [
+            [
+              "selfie",
+              "noun"
+            ],
+            [
+              "selfie",
+              "verb"
+            ]
+          ]
+        },
+        "smartphone": {
+          "outcome": "direct",
+          "senses": 1,
+          "targets": [
+            [
+              "smartphone",
+              "noun"
+            ]
+          ]
+        },
+        "social media": {
+          "outcome": "direct",
+          "senses": 4,
+          "targets": [
+            [
+              "social media",
+              "noun"
+            ],
+            [
+              "social medium",
+              "noun"
+            ]
+          ]
+        },
+        "two-factor authentication": {
+          "outcome": "direct",
+          "senses": 1,
+          "targets": [
+            [
+              "two-factor authentication",
+              "noun"
+            ]
+          ]
+        },
+        "unmute": {
+          "outcome": "direct",
+          "senses": 1,
+          "targets": [
+            [
+              "unmute",
+              "verb"
+            ]
+          ]
+        },
+        "upcycle": {
+          "outcome": "direct",
+          "senses": 3,
+          "targets": [
+            [
+              "upcycle",
+              "noun"
+            ],
+            [
+              "upcycle",
+              "verb"
+            ]
+          ]
+        },
+        "vibe coding": {
+          "outcome": "direct",
+          "senses": 2,
+          "targets": [
+            [
+              "vibe coding",
+              "noun"
+            ],
+            [
+              "vibecode",
+              "verb"
+            ]
+          ]
+        },
+        "work from home": {
+          "outcome": "miss"
+        }
+      },
+      "direct": 46,
+      "exact_surface_substantive": 49,
+      "misses": [
+        "work from home"
+      ],
+      "queries_with_examples": 13,
+      "queries_with_pronunciation_text": 34,
+      "total": 50,
+      "via_relation_only": 3
+    },
+    "function_words": {
+      "details": {
+        "a": {
+          "expected_pos": [
+            "article",
+            "det"
+          ],
+          "matched": true,
+          "targets": [
+            [
+              "a",
+              "article"
+            ],
+            [
+              "𐑩",
+              "article"
+            ]
+          ]
+        },
+        "although": {
+          "expected_pos": [
+            "conj"
+          ],
+          "matched": true,
+          "targets": [
+            [
+              "although",
+              "conj"
+            ]
+          ]
+        },
+        "an": {
+          "expected_pos": [
+            "article",
+            "det"
+          ],
+          "matched": true,
+          "targets": [
+            [
+              "an",
+              "article"
+            ]
+          ]
+        },
+        "and": {
+          "expected_pos": [
+            "conj"
+          ],
+          "matched": true,
+          "targets": [
+            [
+              "and",
+              "conj"
+            ],
+            [
+              "𐑯",
+              "conj"
+            ]
+          ]
+        },
+        "any": {
+          "expected_pos": [
+            "det",
+            "pron"
+          ],
+          "matched": true,
+          "targets": [
+            [
+              "any",
+              "det"
+            ],
+            [
+              "any",
+              "pron"
+            ]
+          ]
+        },
+        "because": {
+          "expected_pos": [
+            "conj"
+          ],
+          "matched": true,
+          "targets": [
+            [
+              "because",
+              "conj"
+            ],
+            [
+              "becuz",
+              "conj"
+            ]
+          ]
+        },
+        "but": {
+          "expected_pos": [
+            "conj"
+          ],
+          "matched": true,
+          "targets": [
+            [
+              "but",
+              "conj"
+            ]
+          ]
+        },
+        "each": {
+          "expected_pos": [
+            "det",
+            "pron"
+          ],
+          "matched": true,
+          "targets": [
+            [
+              "each",
+              "det"
+            ],
+            [
+              "each",
+              "pron"
+            ]
+          ]
+        },
+        "every": {
+          "expected_pos": [
+            "det"
+          ],
+          "matched": true,
+          "targets": [
+            [
+              "every",
+              "det"
+            ]
+          ]
+        },
+        "if": {
+          "expected_pos": [
+            "conj"
+          ],
+          "matched": true,
+          "targets": [
+            [
+              "if",
+              "conj"
+            ]
+          ]
+        },
+        "of": {
+          "expected_pos": [
+            "prep"
+          ],
+          "matched": true,
+          "targets": [
+            [
+              "of",
+              "prep"
+            ],
+            [
+              "𐑝",
+              "prep"
+            ]
+          ]
+        },
+        "or": {
+          "expected_pos": [
+            "conj"
+          ],
+          "matched": true,
+          "targets": [
+            [
+              "or",
+              "conj"
+            ],
+            [
+              "𐑹",
+              "conj"
+            ]
+          ]
+        },
+        "some": {
+          "expected_pos": [
+            "det",
+            "pron"
+          ],
+          "matched": true,
+          "targets": [
+            [
+              "some",
+              "det"
+            ],
+            [
+              "some",
+              "pron"
+            ]
+          ]
+        },
+        "the": {
+          "expected_pos": [
+            "article",
+            "det"
+          ],
+          "matched": true,
+          "targets": [
+            [
+              "the",
+              "article"
+            ],
+            [
+              "they",
+              "det"
+            ],
+            [
+              "𐑞",
+              "article"
+            ]
+          ]
+        },
+        "this": {
+          "expected_pos": [
+            "det",
+            "pron"
+          ],
+          "matched": true,
+          "targets": [
+            [
+              "this",
+              "det"
+            ],
+            [
+              "this",
+              "pron"
+            ]
+          ]
+        },
+        "those": {
+          "expected_pos": [
+            "det",
+            "pron"
+          ],
+          "matched": true,
+          "targets": [
+            [
+              "that",
+              "det"
+            ],
+            [
+              "that",
+              "pron"
+            ]
+          ]
+        },
+        "to": {
+          "expected_pos": [
+            "prep",
+            "particle"
+          ],
+          "matched": true,
+          "targets": [
+            [
+              "to",
+              "particle"
+            ],
+            [
+              "to",
+              "prep"
+            ],
+            [
+              "𐑑",
+              "prep"
+            ]
+          ]
+        },
+        "which": {
+          "expected_pos": [
+            "det",
+            "pron"
+          ],
+          "matched": true,
+          "targets": [
+            [
+              "which",
+              "det"
+            ],
+            [
+              "which",
+              "pron"
+            ]
+          ]
+        },
+        "who": {
+          "expected_pos": [
+            "pron"
+          ],
+          "matched": true,
+          "targets": [
+            [
+              "who",
+              "pron"
+            ]
+          ]
+        },
+        "with": {
+          "expected_pos": [
+            "prep"
+          ],
+          "matched": true,
+          "targets": [
+            [
+              "with",
+              "prep"
+            ]
+          ]
+        }
+      },
+      "intended_pos_hits": 20,
+      "total": 20
+    },
+    "inflection_probe": {
+      "casefold_candidate_queries": [],
+      "details": {
+        "better": {
+          "outcome": "direct",
+          "senses": 52,
+          "targets": [
+            [
+              "better",
+              "adj"
+            ],
+            [
+              "better",
+              "noun"
+            ],
+            [
+              "better",
+              "verb"
+            ],
+            [
+              "bettor",
+              "noun"
+            ],
+            [
+              "good",
+              "adj"
+            ],
+            [
+              "good",
+              "adv"
+            ],
+            [
+              "had better",
+              "verb"
+            ],
+            [
+              "well",
+              "adj"
+            ],
+            [
+              "well",
+              "adv"
+            ]
+          ]
+        },
+        "children": {
+          "outcome": "relation",
+          "senses": 11,
+          "targets": [
+            [
+              "child",
+              "noun"
+            ],
+            [
+              "childer",
+              "noun"
+            ]
+          ]
+        },
+        "gave up": {
+          "outcome": "relation",
+          "senses": 11,
+          "targets": [
+            [
+              "give up",
+              "verb"
+            ]
+          ]
+        },
+        "looked up": {
+          "outcome": "relation",
+          "senses": 6,
+          "targets": [
+            [
+              "look up",
+              "verb"
+            ]
+          ]
+        },
+        "looking forward to": {
+          "outcome": "relation",
+          "senses": 1,
+          "targets": [
+            [
+              "look forward to",
+              "verb"
+            ]
+          ]
+        },
+        "putting up with": {
+          "outcome": "relation",
+          "senses": 2,
+          "targets": [
+            [
+              "put up with",
+              "verb"
+            ]
+          ]
+        },
+        "ran": {
+          "outcome": "direct",
+          "senses": 66,
+          "targets": [
+            [
+              "ran",
+              "noun"
+            ],
+            [
+              "rin",
+              "verb"
+            ],
+            [
+              "run",
+              "verb"
+            ]
+          ]
+        },
+        "studying": {
+          "outcome": "direct",
+          "senses": 7,
+          "targets": [
+            [
+              "study",
+              "verb"
+            ],
+            [
+              "studying",
+              "noun"
+            ]
+          ]
+        },
+        "taking off": {
+          "outcome": "relation",
+          "senses": 12,
+          "targets": [
+            [
+              "take off",
+              "verb"
+            ]
+          ]
+        },
+        "went": {
+          "outcome": "direct",
+          "senses": 78,
+          "targets": [
+            [
+              "gan",
+              "verb"
+            ],
+            [
+              "go",
+              "verb"
+            ],
+            [
+              "ween",
+              "verb"
+            ],
+            [
+              "wend",
+              "verb"
+            ],
+            [
+              "went",
+              "noun"
+            ]
+          ]
+        }
+      },
+      "direct": 4,
+      "exact_surface_substantive": 10,
+      "misses": [],
+      "queries_with_examples": 9,
+      "queries_with_pronunciation_text": 6,
+      "total": 10,
+      "via_relation_only": 6
+    },
+    "modern_probe": {
+      "casefold_candidate_queries": [],
+      "details": {
+        "blockchain": {
+          "outcome": "direct",
+          "senses": 1,
+          "targets": [
+            [
+              "blockchain",
+              "noun"
+            ]
+          ]
+        },
+        "chatbot": {
+          "outcome": "direct",
+          "senses": 1,
+          "targets": [
+            [
+              "chatbot",
+              "noun"
+            ]
+          ]
+        },
+        "deepfake": {
+          "outcome": "direct",
+          "senses": 2,
+          "targets": [
+            [
+              "deepfake",
+              "noun"
+            ],
+            [
+              "deepfake",
+              "verb"
+            ]
+          ]
+        },
+        "doomscrolling": {
+          "outcome": "direct",
+          "senses": 3,
+          "targets": [
+            [
+              "doomscroll",
+              "verb"
+            ],
+            [
+              "doomscrolling",
+              "noun"
+            ]
+          ]
+        },
+        "gaslighting": {
+          "outcome": "direct",
+          "senses": 4,
+          "targets": [
+            [
+              "gaslight",
+              "verb"
+            ],
+            [
+              "gaslighting",
+              "noun"
+            ]
+          ]
+        },
+        "generative AI": {
+          "outcome": "direct",
+          "senses": 1,
+          "targets": [
+            [
+              "generative AI",
+              "noun"
+            ]
+          ]
+        },
+        "large language model": {
+          "outcome": "direct",
+          "senses": 1,
+          "targets": [
+            [
+              "large language model",
+              "noun"
+            ]
+          ]
+        },
+        "podcast": {
+          "outcome": "direct",
+          "senses": 4,
+          "targets": [
+            [
+              "podcast",
+              "noun"
+            ],
+            [
+              "podcast",
+              "verb"
+            ]
+          ]
+        },
+        "remote work": {
+          "outcome": "direct",
+          "senses": 1,
+          "targets": [
+            [
+              "remote work",
+              "noun"
+            ]
+          ]
+        },
+        "selfie": {
+          "outcome": "direct",
+          "senses": 2,
+          "targets": [
+            [
+              "selfie",
+              "noun"
+            ],
+            [
+              "selfie",
+              "verb"
+            ]
+          ]
+        }
+      },
+      "direct": 10,
+      "exact_surface_substantive": 10,
+      "misses": [],
+      "queries_with_examples": 4,
+      "queries_with_pronunciation_text": 6,
+      "total": 10,
+      "via_relation_only": 0
+    },
+    "phrases": {
+      "casefold_candidate_queries": [],
+      "details": {
+        "a little": {
+          "outcome": "direct",
+          "senses": 7,
+          "targets": [
+            [
+              "a little",
+              "adv"
+            ],
+            [
+              "a little",
+              "det"
+            ],
+            [
+              "a little",
+              "pron"
+            ]
+          ]
+        },
+        "a lot of": {
+          "outcome": "relation",
+          "senses": 8,
+          "targets": [
+            [
+              "a lot",
+              "adj"
+            ],
+            [
+              "a lot",
+              "adv"
+            ],
+            [
+              "a lot",
+              "pron"
+            ]
+          ]
+        },
+        "according to": {
+          "outcome": "direct",
+          "senses": 3,
+          "targets": [
+            [
+              "according to",
+              "prep"
+            ]
+          ]
+        },
+        "as soon as": {
+          "outcome": "direct",
+          "senses": 4,
+          "targets": [
+            [
+              "as soon as",
+              "conj"
+            ],
+            [
+              "as soon as",
+              "prep"
+            ]
+          ]
+        },
+        "as well as": {
+          "outcome": "direct",
+          "senses": 3,
+          "targets": [
+            [
+              "as well as",
+              "conj"
+            ],
+            [
+              "as well as",
+              "prep"
+            ]
+          ]
+        },
+        "at first": {
+          "outcome": "direct",
+          "senses": 1,
+          "targets": [
+            [
+              "at first",
+              "prep_phrase"
+            ]
+          ]
+        },
+        "at least": {
+          "outcome": "direct",
+          "senses": 2,
+          "targets": [
+            [
+              "at least",
+              "prep_phrase"
+            ]
+          ]
+        },
+        "break down": {
+          "outcome": "direct",
+          "senses": 29,
+          "targets": [
+            [
+              "break down",
+              "verb"
+            ],
+            [
+              "breakdown",
+              "noun"
+            ]
+          ]
+        },
+        "break the ice": {
+          "outcome": "direct",
+          "senses": 4,
+          "targets": [
+            [
+              "break the ice",
+              "verb"
+            ]
+          ]
+        },
+        "bring up": {
+          "outcome": "direct",
+          "senses": 12,
+          "targets": [
+            [
+              "bring up",
+              "verb"
+            ]
+          ]
+        },
+        "by the way": {
+          "outcome": "direct",
+          "senses": 1,
+          "targets": [
+            [
+              "by the way",
+              "prep_phrase"
+            ]
+          ]
+        },
+        "carry out": {
+          "outcome": "direct",
+          "senses": 3,
+          "targets": [
+            [
+              "carry out",
+              "verb"
+            ]
+          ]
+        },
+        "climate change": {
+          "outcome": "direct",
+          "senses": 2,
+          "targets": [
+            [
+              "climate change",
+              "noun"
+            ]
+          ]
+        },
+        "come up with": {
+          "outcome": "direct",
+          "senses": 3,
+          "targets": [
+            [
+              "come up with",
+              "verb"
+            ]
+          ]
+        },
+        "due to": {
+          "outcome": "direct",
+          "senses": 3,
+          "targets": [
+            [
+              "due to",
+              "prep"
+            ]
+          ]
+        },
+        "figure out": {
+          "outcome": "direct",
+          "senses": 2,
+          "targets": [
+            [
+              "figure out",
+              "verb"
+            ]
+          ]
+        },
+        "get along with": {
+          "outcome": "relation",
+          "senses": 3,
+          "targets": [
+            [
+              "get along",
+              "verb"
+            ]
+          ]
+        },
+        "give up": {
+          "outcome": "direct",
+          "senses": 12,
+          "targets": [
+            [
+              "give up",
+              "adj"
+            ],
+            [
+              "give up",
+              "verb"
+            ]
+          ]
+        },
+        "in charge of": {
+          "outcome": "relation",
+          "senses": 3,
+          "targets": [
+            [
+              "in charge",
+              "prep_phrase"
+            ]
+          ]
+        },
+        "in fact": {
+          "outcome": "direct",
+          "senses": 3,
+          "targets": [
+            [
+              "in fact",
+              "prep_phrase"
+            ]
+          ]
+        },
+        "in spite of": {
+          "outcome": "direct",
+          "senses": 1,
+          "targets": [
+            [
+              "in spite of",
+              "prep"
+            ]
+          ]
+        },
+        "in terms of": {
+          "outcome": "direct",
+          "senses": 3,
+          "targets": [
+            [
+              "in terms of",
+              "prep"
+            ]
+          ]
+        },
+        "keep in mind": {
+          "outcome": "direct",
+          "senses": 1,
+          "targets": [
+            [
+              "keep in mind",
+              "verb"
+            ]
+          ]
+        },
+        "look forward to": {
+          "outcome": "direct",
+          "senses": 1,
+          "targets": [
+            [
+              "look forward to",
+              "verb"
+            ]
+          ]
+        },
+        "look up": {
+          "outcome": "direct",
+          "senses": 6,
+          "targets": [
+            [
+              "look up",
+              "verb"
+            ]
+          ]
+        },
+        "machine learning": {
+          "outcome": "direct",
+          "senses": 2,
+          "targets": [
+            [
+              "machine learning",
+              "noun"
+            ]
+          ]
+        },
+        "make sense": {
+          "outcome": "direct",
+          "senses": 4,
+          "targets": [
+            [
+              "make sense",
+              "verb"
+            ]
+          ]
+        },
+        "on the other hand": {
+          "outcome": "direct",
+          "senses": 1,
+          "targets": [
+            [
+              "on the other hand",
+              "prep_phrase"
+            ]
+          ]
+        },
+        "once in a while": {
+          "outcome": "direct",
+          "senses": 1,
+          "targets": [
+            [
+              "once in a while",
+              "adv"
+            ]
+          ]
+        },
+        "pay attention to": {
+          "outcome": "miss"
+        },
+        "pick up": {
+          "outcome": "direct",
+          "senses": 41,
+          "targets": [
+            [
+              "pick up",
+              "verb"
+            ],
+            [
+              "pickup",
+              "noun"
+            ],
+            [
+              "pickup truck",
+              "noun"
+            ]
+          ]
+        },
+        "piece of cake": {
+          "outcome": "direct",
+          "senses": 2,
+          "targets": [
+            [
+              "piece of cake",
+              "noun"
+            ]
+          ]
+        },
+        "put off": {
+          "outcome": "direct",
+          "senses": 8,
+          "targets": [
+            [
+              "put off",
+              "adj"
+            ],
+            [
+              "put off",
+              "verb"
+            ]
+          ]
+        },
+        "put up with": {
+          "outcome": "direct",
+          "senses": 2,
+          "targets": [
+            [
+              "put up with",
+              "verb"
+            ]
+          ]
+        },
+        "rather than": {
+          "outcome": "direct",
+          "senses": 3,
+          "targets": [
+            [
+              "rather than",
+              "conj"
+            ],
+            [
+              "rather than",
+              "prep"
+            ]
+          ]
+        },
+        "run out of": {
+          "outcome": "relation",
+          "senses": 11,
+          "targets": [
+            [
+              "run out",
+              "verb"
+            ]
+          ]
+        },
+        "set up": {
+          "outcome": "direct",
+          "senses": 21,
+          "targets": [
+            [
+              "set up",
+              "adj"
+            ],
+            [
+              "set up",
+              "verb"
+            ]
+          ]
+        },
+        "take into account": {
+          "outcome": "direct",
+          "senses": 1,
+          "targets": [
+            [
+              "take into account",
+              "verb"
+            ]
+          ]
+        },
+        "take off": {
+          "outcome": "direct",
+          "senses": 18,
+          "targets": [
+            [
+              "take off",
+              "verb"
+            ],
+            [
+              "takeoff",
+              "noun"
+            ]
+          ]
+        },
+        "turn down": {
+          "outcome": "direct",
+          "senses": 3,
+          "targets": [
+            [
+              "turn down",
+              "verb"
+            ]
+          ]
+        }
+      },
+      "direct": 35,
+      "exact_surface_substantive": 39,
+      "misses": [
+        "pay attention to"
+      ],
+      "queries_with_examples": 36,
+      "queries_with_pronunciation_text": 11,
+      "total": 40,
+      "via_relation_only": 4
+    },
+    "words": {
+      "casefold_candidate_queries": [],
+      "details": {
+        "account": {
+          "outcome": "direct",
+          "senses": 23,
+          "targets": [
+            [
+              "account",
+              "noun"
+            ],
+            [
+              "account",
+              "verb"
+            ]
+          ]
+        },
+        "accurate": {
+          "outcome": "direct",
+          "senses": 5,
+          "targets": [
+            [
+              "accurate",
+              "adj"
+            ]
+          ]
+        },
+        "address": {
+          "outcome": "direct",
+          "senses": 29,
+          "targets": [
+            [
+              "address",
+              "noun"
+            ],
+            [
+              "address",
+              "verb"
+            ]
+          ]
+        },
+        "algorithm": {
+          "outcome": "direct",
+          "senses": 4,
+          "targets": [
+            [
+              "algorithm",
+              "noun"
+            ]
+          ]
+        },
+        "analysis": {
+          "outcome": "direct",
+          "senses": 7,
+          "targets": [
+            [
+              "analysis",
+              "noun"
+            ]
+          ]
+        },
+        "approach": {
+          "outcome": "direct",
+          "senses": 22,
+          "targets": [
+            [
+              "approach",
+              "noun"
+            ],
+            [
+              "approach",
+              "verb"
+            ],
+            [
+              "approach shot",
+              "noun"
+            ]
+          ]
+        },
+        "bank": {
+          "outcome": "direct",
+          "senses": 42,
+          "targets": [
+            [
+              "bank",
+              "noun"
+            ],
+            [
+              "bank",
+              "verb"
+            ]
+          ]
+        },
+        "book": {
+          "outcome": "direct",
+          "senses": 42,
+          "targets": [
+            [
+              "bake",
+              "verb"
+            ],
+            [
+              "book",
+              "noun"
+            ],
+            [
+              "book",
+              "verb"
+            ],
+            [
+              "bookjacket",
+              "noun"
+            ]
+          ]
+        },
+        "case": {
+          "outcome": "direct",
+          "senses": 30,
+          "targets": [
+            [
+              "case",
+              "adj"
+            ],
+            [
+              "case",
+              "noun"
+            ],
+            [
+              "case",
+              "verb"
+            ]
+          ]
+        },
+        "charge": {
+          "outcome": "direct",
+          "senses": 43,
+          "targets": [
+            [
+              "charge",
+              "noun"
+            ],
+            [
+              "charge",
+              "verb"
+            ]
+          ]
+        },
+        "context": {
+          "outcome": "direct",
+          "senses": 8,
+          "targets": [
+            [
+              "context",
+              "adj"
+            ],
+            [
+              "context",
+              "noun"
+            ],
+            [
+              "context",
+              "verb"
+            ]
+          ]
+        },
+        "current": {
+          "outcome": "direct",
+          "senses": 10,
+          "targets": [
+            [
+              "current",
+              "adj"
+            ],
+            [
+              "current",
+              "noun"
+            ],
+            [
+              "electric current",
+              "noun"
+            ]
+          ]
+        },
+        "deadline": {
+          "outcome": "direct",
+          "senses": 5,
+          "targets": [
+            [
+              "deadline",
+              "noun"
+            ],
+            [
+              "deadline",
+              "verb"
+            ]
+          ]
+        },
+        "dictionary": {
+          "outcome": "direct",
+          "senses": 9,
+          "targets": [
+            [
+              "dictionary",
+              "noun"
+            ],
+            [
+              "dictionary",
+              "verb"
+            ]
+          ]
+        },
+        "efficient": {
+          "outcome": "direct",
+          "senses": 5,
+          "targets": [
+            [
+              "efficient",
+              "adj"
+            ],
+            [
+              "efficient",
+              "noun"
+            ]
+          ]
+        },
+        "evidence": {
+          "outcome": "direct",
+          "senses": 5,
+          "targets": [
+            [
+              "evidence",
+              "noun"
+            ],
+            [
+              "evidence",
+              "verb"
+            ]
+          ]
+        },
+        "example": {
+          "outcome": "direct",
+          "senses": 7,
+          "targets": [
+            [
+              "example",
+              "noun"
+            ],
+            [
+              "example",
+              "verb"
+            ]
+          ]
+        },
+        "figure": {
+          "outcome": "direct",
+          "senses": 27,
+          "targets": [
+            [
+              "figure",
+              "noun"
+            ],
+            [
+              "figure",
+              "verb"
+            ]
+          ]
+        },
+        "impact": {
+          "outcome": "direct",
+          "senses": 8,
+          "targets": [
+            [
+              "impact",
+              "noun"
+            ],
+            [
+              "impact",
+              "verb"
+            ]
+          ]
+        },
+        "inflation": {
+          "outcome": "direct",
+          "senses": 4,
+          "targets": [
+            [
+              "inflation",
+              "noun"
+            ]
+          ]
+        },
+        "interest": {
+          "outcome": "direct",
+          "senses": 14,
+          "targets": [
+            [
+              "interest",
+              "noun"
+            ],
+            [
+              "interest",
+              "verb"
+            ]
+          ]
+        },
+        "issue": {
+          "outcome": "direct",
+          "senses": 46,
+          "targets": [
+            [
+              "issue",
+              "noun"
+            ],
+            [
+              "issue",
+              "verb"
+            ]
+          ]
+        },
+        "language": {
+          "outcome": "direct",
+          "senses": 13,
+          "targets": [
+            [
+              "language",
+              "intj"
+            ],
+            [
+              "language",
+              "noun"
+            ],
+            [
+              "language",
+              "verb"
+            ]
+          ]
+        },
+        "learn": {
+          "outcome": "direct",
+          "senses": 7,
+          "targets": [
+            [
+              "learn",
+              "noun"
+            ],
+            [
+              "learn",
+              "verb"
+            ]
+          ]
+        },
+        "light": {
+          "outcome": "direct",
+          "senses": 63,
+          "targets": [
+            [
+              "light",
+              "adj"
+            ],
+            [
+              "light",
+              "adv"
+            ],
+            [
+              "light",
+              "noun"
+            ],
+            [
+              "light",
+              "verb"
+            ]
+          ]
+        },
+        "listen": {
+          "outcome": "direct",
+          "senses": 3,
+          "targets": [
+            [
+              "listen",
+              "noun"
+            ],
+            [
+              "listen",
+              "verb"
+            ]
+          ]
+        },
+        "matter": {
+          "outcome": "direct",
+          "senses": 15,
+          "targets": [
+            [
+              "matter",
+              "noun"
+            ],
+            [
+              "matter",
+              "verb"
+            ]
+          ]
+        },
+        "meaning": {
+          "outcome": "direct",
+          "senses": 17,
+          "targets": [
+            [
+              "mean",
+              "verb"
+            ],
+            [
+              "meaning",
+              "adj"
+            ],
+            [
+              "meaning",
+              "noun"
+            ]
+          ]
+        },
+        "nuance": {
+          "outcome": "direct",
+          "senses": 3,
+          "targets": [
+            [
+              "nuance",
+              "noun"
+            ],
+            [
+              "nuance",
+              "verb"
+            ]
+          ]
+        },
+        "object": {
+          "outcome": "direct",
+          "senses": 11,
+          "targets": [
+            [
+              "object",
+              "noun"
+            ],
+            [
+              "object",
+              "verb"
+            ]
+          ]
+        },
+        "person": {
+          "outcome": "direct",
+          "senses": 15,
+          "targets": [
+            [
+              "person",
+              "noun"
+            ],
+            [
+              "person",
+              "verb"
+            ]
+          ]
+        },
+        "point": {
+          "outcome": "direct",
+          "senses": 81,
+          "targets": [
+            [
+              "percentage point",
+              "noun"
+            ],
+            [
+              "point",
+              "intj"
+            ],
+            [
+              "point",
+              "noun"
+            ],
+            [
+              "point",
+              "verb"
+            ],
+            [
+              "point man",
+              "noun"
+            ]
+          ]
+        },
+        "policy": {
+          "outcome": "direct",
+          "senses": 15,
+          "targets": [
+            [
+              "policy",
+              "noun"
+            ],
+            [
+              "policy",
+              "verb"
+            ]
+          ]
+        },
+        "practice": {
+          "outcome": "direct",
+          "senses": 19,
+          "targets": [
+            [
+              "practice",
+              "noun"
+            ],
+            [
+              "practise",
+              "verb"
+            ]
+          ]
+        },
+        "present": {
+          "outcome": "direct",
+          "senses": 35,
+          "targets": [
+            [
+              "presend",
+              "verb"
+            ],
+            [
+              "present",
+              "adj"
+            ],
+            [
+              "present",
+              "noun"
+            ],
+            [
+              "present",
+              "verb"
+            ]
+          ]
+        },
+        "privacy": {
+          "outcome": "direct",
+          "senses": 7,
+          "targets": [
+            [
+              "privacy",
+              "noun"
+            ]
+          ]
+        },
+        "read": {
+          "outcome": "direct",
+          "senses": 38,
+          "targets": [
+            [
+              "read",
+              "noun"
+            ],
+            [
+              "read",
+              "verb"
+            ],
+            [
+              "rede",
+              "noun"
+            ],
+            [
+              "reed",
+              "noun"
+            ]
+          ]
+        },
+        "record": {
+          "outcome": "direct",
+          "senses": 16,
+          "targets": [
+            [
+              "phonograph record",
+              "noun"
+            ],
+            [
+              "record",
+              "adj"
+            ],
+            [
+              "record",
+              "noun"
+            ],
+            [
+              "record",
+              "verb"
+            ]
+          ]
+        },
+        "reliable": {
+          "outcome": "direct",
+          "senses": 3,
+          "targets": [
+            [
+              "reliable",
+              "adj"
+            ],
+            [
+              "reliable",
+              "noun"
+            ]
+          ]
+        },
+        "remember": {
+          "outcome": "direct",
+          "senses": 10,
+          "targets": [
+            [
+              "re-member",
+              "verb"
+            ],
+            [
+              "remember",
+              "verb"
+            ]
+          ]
+        },
+        "remote": {
+          "outcome": "direct",
+          "senses": 10,
+          "targets": [
+            [
+              "remote",
+              "adj"
+            ],
+            [
+              "remote",
+              "noun"
+            ],
+            [
+              "remote",
+              "verb"
+            ],
+            [
+              "remote control",
+              "noun"
+            ]
+          ]
+        },
+        "research": {
+          "outcome": "direct",
+          "senses": 6,
+          "targets": [
+            [
+              "research",
+              "noun"
+            ],
+            [
+              "research",
+              "verb"
+            ]
+          ]
+        },
+        "right": {
+          "outcome": "direct",
+          "senses": 40,
+          "targets": [
+            [
+              "right",
+              "adj"
+            ],
+            [
+              "right",
+              "adv"
+            ],
+            [
+              "right",
+              "intj"
+            ],
+            [
+              "right",
+              "noun"
+            ],
+            [
+              "right",
+              "verb"
+            ]
+          ]
+        },
+        "school": {
+          "outcome": "direct",
+          "senses": 16,
+          "targets": [
+            [
+              "school",
+              "noun"
+            ],
+            [
+              "school",
+              "verb"
+            ]
+          ]
+        },
+        "sentence": {
+          "outcome": "direct",
+          "senses": 13,
+          "targets": [
+            [
+              "sentence",
+              "noun"
+            ],
+            [
+              "sentence",
+              "verb"
+            ]
+          ]
+        },
+        "set": {
+          "outcome": "direct",
+          "senses": 102,
+          "targets": [
+            [
+              "set",
+              "adj"
+            ],
+            [
+              "set",
+              "noun"
+            ],
+            [
+              "set",
+              "verb"
+            ],
+            [
+              "sett",
+              "noun"
+            ],
+            [
+              "sett",
+              "verb"
+            ]
+          ]
+        },
+        "significant": {
+          "outcome": "direct",
+          "senses": 7,
+          "targets": [
+            [
+              "significant",
+              "adj"
+            ],
+            [
+              "significant",
+              "noun"
+            ]
+          ]
+        },
+        "speak": {
+          "outcome": "direct",
+          "senses": 16,
+          "targets": [
+            [
+              "speak",
+              "noun"
+            ],
+            [
+              "speak",
+              "verb"
+            ],
+            [
+              "speaker point",
+              "noun"
+            ]
+          ]
+        },
+        "state": {
+          "outcome": "direct",
+          "senses": 22,
+          "targets": [
+            [
+              "state",
+              "adj"
+            ],
+            [
+              "state",
+              "noun"
+            ],
+            [
+              "state",
+              "verb"
+            ]
+          ]
+        },
+        "study": {
+          "outcome": "direct",
+          "senses": 18,
+          "targets": [
+            [
+              "study",
+              "noun"
+            ],
+            [
+              "study",
+              "verb"
+            ]
+          ]
+        },
+        "subject": {
+          "outcome": "direct",
+          "senses": 17,
+          "targets": [
+            [
+              "subject",
+              "adj"
+            ],
+            [
+              "subject",
+              "noun"
+            ],
+            [
+              "subject",
+              "verb"
+            ]
+          ]
+        },
+        "sustainable": {
+          "outcome": "direct",
+          "senses": 3,
+          "targets": [
+            [
+              "sustainable",
+              "adj"
+            ],
+            [
+              "sustainable",
+              "noun"
+            ]
+          ]
+        },
+        "time": {
+          "outcome": "direct",
+          "senses": 37,
+          "targets": [
+            [
+              "classtime",
+              "noun"
+            ],
+            [
+              "time",
+              "intj"
+            ],
+            [
+              "time",
+              "noun"
+            ],
+            [
+              "time",
+              "prep"
+            ],
+            [
+              "time",
+              "verb"
+            ]
+          ]
+        },
+        "turn": {
+          "outcome": "direct",
+          "senses": 58,
+          "targets": [
+            [
+              "turn",
+              "noun"
+            ],
+            [
+              "turn",
+              "verb"
+            ]
+          ]
+        },
+        "understand": {
+          "outcome": "direct",
+          "senses": 9,
+          "targets": [
+            [
+              "understand",
+              "intj"
+            ],
+            [
+              "understand",
+              "verb"
+            ]
+          ]
+        },
+        "work": {
+          "outcome": "direct",
+          "senses": 50,
+          "targets": [
+            [
+              "work",
+              "noun"
+            ],
+            [
+              "work",
+              "verb"
+            ]
+          ]
+        },
+        "write": {
+          "outcome": "direct",
+          "senses": 15,
+          "targets": [
+            [
+              "write",
+              "noun"
+            ],
+            [
+              "write",
+              "verb"
+            ]
+          ]
+        }
+      },
+      "direct": 57,
+      "exact_surface_substantive": 57,
+      "misses": [],
+      "queries_with_examples": 52,
+      "queries_with_pronunciation_text": 57,
+      "total": 57,
+      "via_relation_only": 0
+    }
+  },
+  "database": {
+    "bytes": 1130029056,
+    "sha1": "fa3c99c53a398435d121576b5dbc0c238d9af2e4",
+    "sha256": "15008bef795862cadba3cc3fddafcda4f69ea7fbd390a4ccba7195209d9f74e0"
+  },
+  "limitations": [
+    "Publisher extraction, not independent full Wiktextract rerun; exact producer commit unavailable.",
+    "Open lexical selection, not frequency ranked; no total-English coverage claim from directed probes.",
+    "No phrase pattern inference, pronoun insertion matching or preposition deletion.",
+    "Some source senses lack examples or pronunciation; positive provenance filtering removes additional examples.",
+    "Positive ordinary-template evidence does not prove independent authorship or detect all upstream copying.",
+    "Source order and historical/rare/technical labels retained; no learner sense ranking.",
+    "Data-only deliverable; application adapter, snapshot validator changes and installed/offline device tests remain future integration work."
+  ],
+  "reading_materials": [
+    {
+      "description": "Narrative: Pride and Prejudice, first 40,000 characters from the opening sentence",
+      "download": {
+        "bytes": 772386,
+        "sha1": "f458576ce60b2ea41b21ac4f38a8ee8974c83c43",
+        "sha256": "3f6bb9d6f78e0293b56acd4714dd68cb7d6d1d293402031ce9d5a216bcaf9d75"
+      },
+      "extracted_text_sha256": "136d5091add9b34a7cd8d6913148d19af36d42b3549726520c02dc8ecf8f1a90",
+      "id": "pride-and-prejudice",
+      "interpretation": "Surface vocabulary candidate coverage, NOT POS/sense correctness or phrase recognition; inflections and casefold fallback reported separately.",
+      "token_counts": {
+        "casefold_candidates": 287,
+        "direct": 6305,
+        "miss": 105,
+        "relation": 482
+      },
+      "tokenization": "ASCII alphabetic words with internal apostrophes/hyphens; original case retained; no stemming, POS tagging or semantic disambiguation.",
+      "top_misses": [
+        [
+          "Bingley",
+          43
+        ],
+        [
+          "Netherfield",
+          10
+        ],
+        [
+          "Meryton",
+          7
+        ],
+        [
+          "Eliza",
+          5
+        ],
+        [
+          "Longbourn",
+          4
+        ],
+        [
+          "Bennet’s",
+          3
+        ],
+        [
+          "Bingley’s",
+          3
+        ],
+        [
+          "Jane’s",
+          3
+        ],
+        [
+          "Bennets",
+          2
+        ],
+        [
+          "Forster",
+          2
+        ],
+        [
+          "I’m",
+          2
+        ],
+        [
+          "Lucas’s",
+          2
+        ],
+        [
+          "brother’s",
+          2
+        ],
+        [
+          "Catherine",
+          1
+        ],
+        [
+          "Darcy’s",
+          1
+        ],
+        [
+          "Derbyshire",
+          1
+        ],
+        [
+          "Elizabeth’s",
+          1
+        ],
+        [
+          "God’s",
+          1
+        ],
+        [
+          "Hurst’s",
+          1
+        ],
+        [
+          "III",
+          1
+        ],
+        [
+          "James’s",
+          1
+        ],
+        [
+          "Lizzy’s",
+          1
+        ],
+        [
+          "Robinson’s",
+          1
+        ],
+        [
+          "assembly-room",
+          1
+        ],
+        [
+          "etc",
+          1
+        ],
+        [
+          "everybody’s",
+          1
+        ],
+        [
+          "fortnight’s",
+          1
+        ],
+        [
+          "heaven’s",
+          1
+        ],
+        [
+          "man’s",
+          1
+        ],
+        [
+          "wife’s",
+          1
+        ]
+      ],
+      "unique_token_counts": {
+        "casefold_candidates": 86,
+        "direct": 1183,
+        "miss": 30,
+        "relation": 180
+      },
+      "url": "https://www.gutenberg.org/ebooks/1342.txt.utf-8"
+    },
+    {
+      "description": "Technical: Python introduction; paragraph text of at least 60 characters",
+      "download": {
+        "bytes": 71957,
+        "sha1": "83adbbcaf5e5f66e8e3fb0e87f243dec91f650c6",
+        "sha256": "3873d184bdbf7916ec73644ba2e0d30987fde2b14a1588b85ac60dee2c8c2e46"
+      },
+      "extracted_text_sha256": "dcca82668037a1c065676b589cc7a9fe9112e46b8bdcabded17ba94de7a4817c",
+      "id": "python-introduction",
+      "interpretation": "Surface vocabulary candidate coverage, NOT POS/sense correctness or phrase recognition; inflections and casefold fallback reported separately.",
+      "token_counts": {
+        "casefold_candidates": 95,
+        "direct": 1475,
+        "miss": 10,
+        "relation": 150
+      },
+      "tokenization": "ASCII alphabetic words with internal apostrophes/hyphens; original case retained; no stemming, POS tagging or semantic disambiguation.",
+      "top_misses": [
+        [
+          "End-of-line",
+          1
+        ],
+        [
+          "Python’s",
+          1
+        ],
+        [
+          "auto-indent",
+          1
+        ],
+        [
+          "comma-separated",
+          1
+        ],
+        [
+          "etc",
+          1
+        ],
+        [
+          "multi-line",
+          1
+        ],
+        [
+          "sub-sequence",
+          1
+        ],
+        [
+          "triple-quotes",
+          1
+        ],
+        [
+          "upper-right",
+          1
+        ],
+        [
+          "versa",
+          1
+        ]
+      ],
+      "unique_token_counts": {
+        "casefold_candidates": 45,
+        "direct": 415,
+        "miss": 10,
+        "relation": 83
+      },
+      "url": "https://docs.python.org/3/tutorial/introduction.html"
+    },
+    {
+      "description": "Science: NASA climate evidence; paragraphs of at least 60 characters before the first numbered reference; reference list and footer omitted",
+      "download": {
+        "bytes": 318403,
+        "sha1": "ffae7473282a4fd2b2f2f743b29e878d3fde558b",
+        "sha256": "819677010a93104ae7fd3cb00bbe4263206c07616040258f59017c9aa18640ef"
+      },
+      "extracted_text_sha256": "e67b7ec16b5b6dd8a417f5b0e08ee28c4132d65915869551ce4f290b4dfeeb21",
+      "id": "nasa-evidence",
+      "interpretation": "Surface vocabulary candidate coverage, NOT POS/sense correctness or phrase recognition; inflections and casefold fallback reported separately.",
+      "token_counts": {
+        "casefold_candidates": 66,
+        "direct": 564,
+        "miss": 20,
+        "relation": 93
+      },
+      "tokenization": "ASCII alphabetic words with internal apostrophes/hyphens; original case retained; no stemming, POS tagging or semantic disambiguation.",
+      "top_misses": [
+        [
+          "Antarctica",
+          2
+        ],
+        [
+          "Earth’s",
+          2
+        ],
+        [
+          "NASA's",
+          2
+        ],
+        [
+          "Andes",
+          1
+        ],
+        [
+          "Ashwin",
+          1
+        ],
+        [
+          "Attribution-Share",
+          1
+        ],
+        [
+          "BY-SA",
+          1
+        ],
+        [
+          "Earth's",
+          1
+        ],
+        [
+          "Earth-orbiting",
+          1
+        ],
+        [
+          "Fabri",
+          1
+        ],
+        [
+          "Himalayas",
+          1
+        ],
+        [
+          "JPL-Caltech",
+          1
+        ],
+        [
+          "Rockies",
+          1
+        ],
+        [
+          "Sun’s",
+          1
+        ],
+        [
+          "Wikimedia",
+          1
+        ],
+        [
+          "heat-trapping",
+          1
+        ],
+        [
+          "planet's",
+          1
+        ]
+      ],
+      "unique_token_counts": {
+        "casefold_candidates": 43,
+        "direct": 240,
+        "miss": 17,
+        "relation": 53
+      },
+      "url": "https://science.nasa.gov/climate-change/evidence/"
+    }
+  ],
+  "release": "enwiktionary-20261001-lexicue-v1",
+  "sense_issue_samples": {},
+  "unicode_issues": []
+}
