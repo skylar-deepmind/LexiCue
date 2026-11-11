@@ -78,6 +78,8 @@ try {
       } else {
         const row=page.locator('[data-entry=language]');
         await row.focus();
+        await page.keyboard.press('Shift+Tab');
+        await page.keyboard.press('Tab');
         assert.equal(await row.evaluate(node=>getComputedStyle(node).outlineStyle),'solid','keyboard focus stays visible');
       }
       if(output) await page.screenshot({path:output+'/'+(phone?'iphone':'mac')+'-'+theme+'.png'});
