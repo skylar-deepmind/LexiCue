@@ -145,7 +145,7 @@ function LookupContent({ query, material, scope, onSkip, drafts, session, onRead
     const [receipt, setReceipt] = useState<string | null>(() => session.receipts.get(key) ?? null);
     const initialSave = useRef(session.actions.get(key)?.promise);
     const initialUndo = useRef(session.undos.get(key)?.promise);
-    const historyKey = `history:${query.expression.trim().toLowerCase()}`;
+    const historyKey = `history:${query.expression.trim()}`;
     const [historyReceipt, setHistoryReceipt] = useState<string | null>(() => session.receipts.get(historyKey) ?? null);
     const [saveFeedback, setSaveFeedback] = useState('');
     const [busy, setBusy] = useState(() => !!(session.actions.get(key)?.promise || session.undos.get(key)));
