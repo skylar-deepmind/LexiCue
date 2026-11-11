@@ -82,6 +82,16 @@ try{
   const curiosity=(await call('saved_recall_contexts',{expression:'curiosity',offset:0,limit:10})).records[0];const removed=await call('mutate_saved_record',{operationId:`remove-${theme}`,mutation:{kind:'remove',record_id:curiosity.record_id,expected_revision:curiosity.revision}});await page.evaluate(()=>window.dispatchEvent(new Event('lexicue-saved-changed')));await ready(page);eq(await matched(page,8,'curiosity'),false,'removed expression no longer marked');await call('undo_saved_mutation',{operationId:removed.operation_id});await page.evaluate(()=>window.dispatchEvent(new Event('lexicue-saved-changed')));await ready(page);await page.locator('[data-sentence="8"] .reading-word--recalled[data-recall="curiosity"]').waitFor();ok(await matched(page,8,'curiosity'),'undo restores hints');
   // Late context replies cannot replace a newer selection.
   await page.evaluate(()=>window.__uiDelayContexts=true);await clickMatch(page,40,'take off');await clickMatch(page,8,'curiosity');await page.locator('.soft-refresh-current:not([inert]) [data-testid=lookup-records-tab]').waitFor();await openRecords(page);await page.locator('.soft-refresh-current:not([inert]) .recall-sentence').first().waitFor();await page.waitForTimeout(450);eq(await page.locator('.soft-refresh-current:not([inert]) .recall-sentence').first().innerText(),'curiosity.','late old recall cannot overwrite current selection');await close(page);await page.evaluate(()=>window.__uiDelayContexts=false);
+  await clickMatch(page,40,'take off'); await openRecords(page);
+  const multiHistory=page.locator('.soft-refresh-current:not([inert])');
+  const previousContexts=await call('saved_recall_contexts',{expression:'take off',offset:0,limit:50});
+  await multiHistory.getByRole('button',{name:'移除这句',exact:true}).first().click();
+  await multiHistory.locator('.recall-undo').waitFor();
+  eq((await call('saved_recall_contexts',{expression:'take off',offset:0,limit:50})).total,previousContexts.total-1,'lookup removal keeps the other original sentences');
+  await multiHistory.locator('.recall-undo').getByRole('button',{name:'撤销',exact:true}).click();
+  await multiHistory.locator('.recall-undo').waitFor({state:'detached'});
+  eq((await call('saved_recall_contexts',{expression:'take off',offset:0,limit:50})).records.map(r=>r.sentence),previousContexts.records.map(r=>r.sentence),'lookup undo keeps original sentence order and contents');
+  await close(page);
   // The lookup itself can remove one historical sentence and undo even the final context.
   await clickMatch(page,8,'curiosity'); await openRecords(page);
   const lookupHistory=page.locator('.soft-refresh-current:not([inert])');

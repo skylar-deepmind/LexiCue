@@ -29,6 +29,13 @@ try {
     return base(command,args);
    };
   });
+  await page.goto(`${h.url}/files/${result.file_id}`);
+  await page.locator('.reading-word').filter({hasText:/^compass$/}).click();
+  await page.locator('.context-panel').waitFor();
+  eq(await page.locator('.context-mobile-return').textContent(),'',`${theme}/${phone}: collapse has no duplicate visible copy`);
+  eq(await page.locator('.context-mobile-return').getAttribute('aria-label'),'收起，继续',`${theme}/${phone}: collapse retains its accessible name`);
+  if(phone) await page.getByRole('button',{name:'收起，继续',exact:true}).click(); else await page.keyboard.press('Escape');
+  await page.locator('.context-panel').waitFor({state:'detached'});
   await page.goto(`${h.url}/files?view=library`);await page.locator('.library-row').waitFor();
   const more=page.locator('.library-menu > button');
   await more.click();await page.getByRole('button',{name:'删除材料',exact:true}).click();
@@ -36,7 +43,7 @@ try {
   assert.match(JSON.stringify(await page.evaluate(()=>window.__deleteAsks)),/remove-me.txt/);
   await page.evaluate(()=>{window.__confirmDelete=true;window.__deleteFail=true;});
   await more.click();await page.getByRole('button',{name:'删除材料',exact:true}).click();
-  await page.getByRole('alert').waitFor();
+  await page.getByRole('button',{name:'复制报错信息',exact:true}).waitFor();
   eq((await h.call('list_materials')).length,1,`${theme}/${phone}: failure keeps material and allows retry`);
   await page.evaluate(()=>window.__deleteFail=false);
   await more.click();await page.getByRole('button',{name:'删除材料',exact:true}).click();
@@ -46,6 +53,12 @@ try {
   await page.goto(`${h.url}/saved`);await page.locator('.saved-record-open').click();
   const remove=page.getByRole('button',{name:'移除这句',exact:true});await remove.waitFor();
   eq(await remove.innerText(),'移除这句',`${theme}/${phone}: sentence action has a visible label`);
+  if(phone) {
+   await page.setViewportSize({width:812,height:375});
+   await page.locator('html').evaluate(node=>node.style.fontSize='125%');
+   eq(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,`${theme}: landscape enlarged text does not overflow`);
+   await page.setViewportSize({width:375,height:812});
+  }
   await remove.click();await page.locator('.saved-record-row').waitFor({state:'detached'});
   await page.getByRole('button',{name:'撤销',exact:true}).click();await page.locator('.saved-record-row').waitFor();
   eq((await h.call('list_saved_records',{query:'',limit:10,offset:0}))[0].explanation,'My compass note',`${theme}/${phone}: final-context undo keeps note after source deletion`);
