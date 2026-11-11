@@ -1,8 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "LexiCue",
+  "productName": "LexiCue UX QA",
   "version": "0.4.7",
-  "identifier": "com.lexicue.app",
+  "identifier": "com.lexicue.qa.v31.windowspolish20261111",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
