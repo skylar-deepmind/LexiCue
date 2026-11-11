@@ -2,6 +2,7 @@ import { LoadingSkeleton, BusyRing } from './LoadingFeedback';
 import { useEffect, useRef, useState } from 'react';
 import { contextsInScope, LIBRARY_SCOPE, type ReadingScope } from '../lib/readingScope';
 import { useTranslation } from 'react-i18next';
+import { Trash2 } from 'lucide-react';
 import type { SavedRecord } from '../lib/savedRecords';
 import { useRecallStore } from '../stores/recallStore';
 import SourceAudioControls from './SourceAudioControls';
@@ -9,7 +10,7 @@ import RecallNote from './RecallNote';
 
 interface Page { records: SavedRecord[]; total: number }
 
-export default function RecallSection({ expression, expanded = false, onLoaded, onSource, sourceBusy, scope=LIBRARY_SCOPE }: { scope?:ReadingScope; expression: string; expanded?: boolean; onLoaded?: () => void; onSource?: (record: SavedRecord) => Promise<void>; sourceBusy?: boolean }) {
+export default function RecallSection({ expression, expanded = false, onLoaded, onSource, sourceBusy, onRemove, removing, scope=LIBRARY_SCOPE }: { scope?:ReadingScope; expression: string; expanded?: boolean; onLoaded?: () => void; onSource?: (record: SavedRecord) => Promise<void>; sourceBusy?: boolean; onRemove?: (record: SavedRecord) => Promise<void>; removing?: boolean }) {
   const sessionId=scope.kind==='example'?scope.sessionId:null;
   const { t, i18n } = useTranslation();
   const revision = useRecallStore(state => state.revision);
@@ -60,6 +61,7 @@ export default function RecallSection({ expression, expanded = false, onLoaded, 
       <small>{value.source ? t('savedRecords.source', { name: value.source.file_name, index: value.source.segment_index + 1 }) : t('savedRecords.legacyMissingSource')} · {value.saved_at === null ? t('savedRecords.unknownTime') : new Date(value.saved_at).toLocaleString(i18n.language)}</small>
       {value.explanation && <><small className="saved-history-label">{value.explanation_source === 'personal' ? t('dictionaryFlow.personalMeaning') : `${t('dictionaryFlow.savedMeaning')} · ${t(`savedRecords.sources.${value.explanation_source}`)}`}</small><p className="recall-meaning">{value.explanation}</p></>}
       <RecallNote scope={scope} record={value} onChange={next=>setPage(previous=>({...previous,records:previous.records.map(record=>record.record_id===next.record_id?next:record)}))}/>
+      {onRemove && <button className="ui-button saved-sentence-remove" disabled={removing || loading || sourceBusy} onClick={() => void onRemove(value)}><Trash2 size={17} aria-hidden="true"/>{t('dictionaryFlow.removeSentence')}</button>}
       {onSource && <button className="ui-button recall-source" data-testid="recall-source" disabled={sourceBusy || !value.source} onClick={() => void onSource(value)}>{t('savedRecords.returnToSource')}</button>}
     </article>)}
     {loading && <span role="status"><BusyRing/><span className="sr-only">{t('common.loading')}</span></span>}

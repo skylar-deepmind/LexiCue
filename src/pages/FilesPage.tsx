@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
-import { Archive, BookOpen, X, Check, ChevronLeft, ChevronRight, ChevronsUp, FileText, MoreHorizontal, Search, Tags, Pencil } from 'lucide-react';
+import { Archive, BookOpen, X, Check, ChevronLeft, ChevronRight, ChevronsUp, FileText, MoreHorizontal, Search, Tags, Pencil, Trash2 } from 'lucide-react';
 import { useMaterialStore } from '../stores/materialStore';
 import { useFileStore } from '../stores/fileStore';
 import { useImportStore } from '../stores/importStore';
@@ -60,6 +60,7 @@ export default function FilesPage() {
     const [manager, setManager] = useState(false);
     const [edit, setEdit] = useState<Material | null>(null);
     const [menu, setMenu] = useState<number | null>(null);
+    const deletionPending = useRef(false);
     const scroll = useRef<HTMLDivElement>(null);
     useQuietScrollbars(scroll, libraryPresent && (!materials.loading || materials.hasLoaded));
     useEffect(() => {
@@ -236,6 +237,21 @@ export default function FilesPage() {
         setMenu(null);
         scroll.current?.querySelector<HTMLButtonElement>(`[data-material="${id}"] .library-menu > button`)?.focus({preventScroll:true});
     };
+    const remove = async (file: Material) => {
+        if (deletionPending.current || deleting[file.id]) return;
+        deletionPending.current = true;
+        closeMenu(file.id);
+        try {
+            if (await useFileStore.getState().deleteFile(file.id, file.name)) {
+                cancelMotion();
+                setExpanded(null);
+                // Reconcile the reading desk only after the native delete job commits.
+                materials.changed();
+                await useMaterialStore.getState().load();
+                if (library) search.current?.focus({preventScroll:true});
+            }
+        } finally { deletionPending.current = false; }
+    };
     const open = (file: Material, origin: 'desk' | 'library') => {
         cancelMotion();
         if (origin === 'library') { focusId.current=file.id; scrollTop.current=scroll.current?.scrollTop ?? 0; remember(); }
@@ -286,7 +302,7 @@ export default function FilesPage() {
                   return <article className="desk-paper" data-desk-active={active} data-desk-position={position} aria-hidden={!active || undefined} inert={!active}
                     style={{transform:deskCardTransform(position), opacity:Math.abs(position)<=1?1:0}}
                     ref={active ? (node) => { paper.current=node; } : undefined} key={`${file.id}:${file.content_hash}`}>
-                    <div className="desk-paper-top"><span>{format(file)}</span><div className="desk-card-menu"><button className="desk-text-button" aria-label={t('materials.more',{name:file.name})} aria-expanded={menu===file.id} onClick={()=>setMenu(menu===file.id?null:file.id)}><MoreHorizontal size={20}/></button>{menu===file.id && <div className="material-actions"><button className="ui-button desk-archive" onClick={()=>{setMenu(null);archive(file)}} disabled={!!deleting[file.id]}><Archive size={16}/>{t('readingDesk.archive')}</button></div>}</div></div>
+                    <div className="desk-paper-top"><span>{format(file)}</span><div className="desk-card-menu"><button className="desk-text-button" aria-label={t('materials.more',{name:file.name})} aria-expanded={menu===file.id} onClick={()=>setMenu(menu===file.id?null:file.id)}><MoreHorizontal size={20}/></button>{menu===file.id && <div className="material-actions"><button className="ui-button desk-archive" onClick={()=>{setMenu(null);archive(file)}} disabled={!!deleting[file.id]}><Archive size={16}/>{t('readingDesk.archive')}</button><button className="ui-button ui-button--danger" disabled={!!deleting[file.id]} onClick={()=>void remove(file)}><Trash2 size={16} aria-hidden="true"/>{t('materials.delete')}</button></div>}</div></div>
                     <button type="button" className="desk-mobile-summary" aria-label={t('readingDesk.openNamed',{name:file.name})} disabled={!!deleting[file.id]} onClick={()=>open(file,'desk')}>
                       <span className="desk-mobile-title" lang="en">{bookmarkTitle(file.name)}</span><span className="desk-mobile-preview" lang="en"><span className="desk-mobile-quote-text">{excerpt.quote}</span></span>{context&&context!==excerpt.quote&&<span className="desk-mobile-context" lang="en">{context}</span>}
                     </button>
@@ -317,7 +333,7 @@ export default function FilesPage() {
             <MotionChange className={menu !== null ? 'library-menu-open' : ''} changeKey={`${query}:${range}:${selectedTags.join(',')}:${untagged}:${matches.map(file => file.id).join(',')}`}><div className={`library-list${menu !== null ? ' has-open-menu' : ''}`}>{matches.slice(0, visibleCount).map(file=><article className="library-row" key={file.id} data-material={file.id} data-menu-open={menu===file.id}>
                 <div className="library-copy"><button className="library-preview-toggle" aria-expanded={expanded===file.id} onClick={()=>setExpanded(expanded===file.id?null:file.id)}><h3>{file.name}</h3></button>{file.tags.length>0 && <div className="material-tags">{file.tags.map(tag=><TagBadge key={tag.id} name={tag.name} tone={tag.tone}/>)}</div>}<div className="library-preview" data-open={expanded===file.id} inert={expanded!==file.id} aria-hidden={expanded!==file.id}><div><p lang="en">{file.preview}</p></div></div></div>
                 <button className="desk-text-button desk-icon-button library-open" title={t('readingDesk.openNamed',{name:file.name})} data-open={file.id} aria-label={t('readingDesk.openNamed',{name:file.name})} disabled={!!deleting[file.id]} onClick={()=>open(file,'library')}><BookOpen size={20} aria-hidden="true"/></button>
-                <div className="library-menu"><button className="desk-text-button" aria-label={t('materials.more',{name:file.name})} aria-expanded={menu===file.id} onClick={()=>setMenu(menu===file.id?null:file.id)}><MoreHorizontal size={19} aria-hidden="true"/></button>{menu===file.id && <div className="material-actions"><button className="ui-button" onClick={()=>{closeMenu(file.id);setEdit(file);}}><Tags size={16} aria-hidden="true"/>{t('tags.edit')}</button><button className="ui-button" onClick={()=>{closeMenu(file.id);if(onDesk(file)) desk.archive(file); else desk.keep(file);}}><Archive size={16} aria-hidden="true"/>{t(onDesk(file) ? 'readingDesk.archive' : 'readingDesk.keep')}</button></div>}</div>
+                <div className="library-menu"><button className="desk-text-button" aria-label={t('materials.more',{name:file.name})} aria-expanded={menu===file.id} onClick={()=>setMenu(menu===file.id?null:file.id)}><MoreHorizontal size={19} aria-hidden="true"/></button>{menu===file.id && <div className="material-actions"><button className="ui-button" onClick={()=>{closeMenu(file.id);setEdit(file);}}><Tags size={16} aria-hidden="true"/>{t('tags.edit')}</button><button className="ui-button" onClick={()=>{closeMenu(file.id);if(onDesk(file)) desk.archive(file); else desk.keep(file);}}><Archive size={16} aria-hidden="true"/>{t(onDesk(file) ? 'readingDesk.archive' : 'readingDesk.keep')}</button><button className="ui-button ui-button--danger" disabled={!!deleting[file.id]} onClick={()=>void remove(file)}><Trash2 size={16} aria-hidden="true"/>{t('materials.delete')}</button></div>}</div>
                 {deleting[file.id] && <p role="status">{t('fileStore.deleting')}</p>}
             </article>)}</div></MotionChange>
             {visibleCount < matches.length && <button className="ui-button" onClick={()=>setVisibleCount(value=>{sessionLibraryCount=value+30;return sessionLibraryCount;})}>{t('savedRecords.loadMore')}</button>}

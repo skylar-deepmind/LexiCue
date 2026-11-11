@@ -26,7 +26,7 @@
   .lexicue-b .context-panel[data-reading-layout] { inset: auto 0 0; width: 100%; height: 52%; max-height: 100%; padding-bottom: var(--safe-bottom); border-radius: 18px 18px 0 0; }
   .lexicue-b .context-panel[data-reading-layout][data-expanded='true'] { height: calc(100% - var(--safe-top)); }
   .context-panel[data-reading-layout] .context-sheet-controls { display: flex; align-items: center; justify-content: space-between; flex: none; padding: 0 12px; border-bottom: 1px solid var(--border-soft); }
-  .context-panel[data-reading-layout] .context-mobile-return { display: flex; min-height: 44px; padding: 8px; border: 0; }
+  .context-panel[data-reading-layout] .context-mobile-return { display: flex; min-width: 48px; min-height: 48px; padding: 8px; border: 0; }
   .context-panel[data-reading-layout] .context-sheet-expand { display: grid; place-items: center; min-width: 44px; min-height: 44px; color: var(--text-body); border-radius: 8px; }
   .context-panel[data-reading-layout] .context-sheet-expand:hover { background: var(--interactive-hover); }
   .context-panel[data-reading-layout] .context-sheet-expand:active { background: var(--interactive-pressed); }

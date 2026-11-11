@@ -990,7 +990,7 @@
     "importFailed": "Import failed. Please check the file content and try again.",
     "importCancelled": "Import cancelled",
     "importing": "Importing...",
-    "deleteAskWithContent": "Deleting “{{name}}” will also remove its reading content and related records. Continue?",
+    "deleteAskWithContent": "Delete “{{name}}” and its reading content? Saved sentences, meanings and notes will remain. This also syncs to paired devices and cannot be undone directly.",
     "deleteAsk": "Delete this file?",
     "deleteTitle": "Delete File",
     "fileDeleted": "File deleted",

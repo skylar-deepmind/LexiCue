@@ -179,7 +179,7 @@ export default function ContextPanel({ label, children, onClose, canClose = true
   return createPortal(<div className={`context-layer${closing ? ' context-layer--closing' : ''}`} ref={layerRef}>
     <aside className="context-panel" role="dialog" aria-label={label} tabIndex={-1} ref={panelRef} data-expanded={expanded} data-closing={closing || undefined} inert={closing} aria-hidden={closing || undefined}>
       <div className="context-sheet-controls">
-        <button className="context-mobile-return" onClick={requestClose} disabled={!canClose}><ChevronDown size={18} aria-hidden="true" />{t('savedRecords.collapse')}</button>
+        <button className="context-mobile-return" onClick={requestClose} disabled={!canClose} aria-label={t('savedRecords.collapse')}><ChevronDown size={18} aria-hidden="true" /></button>
         {layoutSlot && <button className="context-sheet-expand" onClick={() => setExpanded(value => !value)} aria-expanded={expanded} aria-label={t(expanded ? 'reader.halfSheet' : 'reader.fullSheet')}>{expanded ? <Minimize2 size={18} aria-hidden="true"/> : <Maximize2 size={18} aria-hidden="true"/>}</button>}
       </div>{layoutSlot && <button data-testid="lookup-close" className="lookup-close" onClick={requestClose} disabled={!canClose} aria-label={t('common.close')}><X size={20}/></button>}
       {children}

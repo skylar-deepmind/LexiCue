@@ -973,7 +973,7 @@
     "importFailed": "导入失败，请检查文件内容后重试",
     "importCancelled": "已取消导入操作",
     "importing": "导入中...",
-    "deleteAskWithContent": "删除“{{name}}”将同时删除其中的阅读内容和关联记录，是否继续？",
+    "deleteAskWithContent": "删除“{{name}}”及其中的阅读内容？已保存的原句、释义和笔记会保留。此操作也会同步到已配对设备，无法直接撤销。",
     "deleteAsk": "确认删除这个文件吗？",
     "deleteTitle": "删除文件",
     "fileDeleted": "文件已删除",

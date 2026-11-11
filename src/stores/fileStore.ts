@@ -113,7 +113,7 @@ interface FileStore {
   importDictionaryPack: () => Promise<void>;
   confirmImport: () => Promise<void>;
   cancelImport: () => void;
-  deleteFile: (id: number) => Promise<void>;
+  deleteFile: (id: number, name?: string) => Promise<boolean>;
   exportAll: () => Promise<void>;
   restoreAll: (mergeBackupId?: string) => Promise<void>;
   importFromYouTube: (input: YouTubeImportInput) => Promise<boolean>;
@@ -645,12 +645,12 @@ export const useFileStore = create<FileStore>((set, get) => ({
 
   cancelImport: () => set({ pendingImport: null }),
 
-  deleteFile: async (id: number) => {
+  deleteFile: async (id: number, name?: string) => {
     try {
       const file = get().files.find((item) => item.id === id);
       const confirmed = await ask(
-        file
-          ? i18n.t('fileStore.deleteAskWithContent', { name: file.name })
+        name || file
+          ? i18n.t('fileStore.deleteAskWithContent', { name: name ?? file!.name })
           : i18n.t('fileStore.deleteAsk'),
         {
           title: i18n.t('fileStore.deleteTitle'),
@@ -659,7 +659,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
           cancelLabel: i18n.t('common.cancel'),
         },
       );
-      if (!confirmed) return;
+      if (!confirmed) return false;
       const started = await invoke<DeleteJobStatus>('delete_file_start', { fileId: id });
       set((state) => ({ deletingFiles: { ...state.deletingFiles, [id]: started } }));
       let current = started;
@@ -675,14 +675,17 @@ export const useFileStore = create<FileStore>((set, get) => ({
         return { deletingFiles };
       });
       invalidateCaches('files', 'words', 'phrases', 'review', 'insights', 'storage');
-      await get().loadTags(true);
-      await get().loadFiles(true);
+      await Promise.allSettled([get().loadTags(true), get().loadFiles(true)]);
       useFeedbackStore.getState().show(i18n.t('fileStore.fileDeleted'), 'success');
+      return true;
     } catch (e) {
       console.error('Delete failed:', e);
       const code = errorCode(e);
       const messageKey = code === 'unknown' ? 'fileStore.deleteFailed' : `settings.cloudSync.errors.${code}`;
       useFeedbackStore.getState().show(i18n.t(messageKey), 'error', 6000);
+      return false;
+    } finally {
+      set(state => { const deletingFiles = { ...state.deletingFiles }; delete deletingFiles[id]; return { deletingFiles }; });
     }
   },
 

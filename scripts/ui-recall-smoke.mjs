@@ -82,6 +82,26 @@ try{
   const curiosity=(await call('saved_recall_contexts',{expression:'curiosity',offset:0,limit:10})).records[0];const removed=await call('mutate_saved_record',{operationId:`remove-${theme}`,mutation:{kind:'remove',record_id:curiosity.record_id,expected_revision:curiosity.revision}});await page.evaluate(()=>window.dispatchEvent(new Event('lexicue-saved-changed')));await ready(page);eq(await matched(page,8,'curiosity'),false,'removed expression no longer marked');await call('undo_saved_mutation',{operationId:removed.operation_id});await page.evaluate(()=>window.dispatchEvent(new Event('lexicue-saved-changed')));await ready(page);await page.locator('[data-sentence="8"] .reading-word--recalled[data-recall="curiosity"]').waitFor();ok(await matched(page,8,'curiosity'),'undo restores hints');
   // Late context replies cannot replace a newer selection.
   await page.evaluate(()=>window.__uiDelayContexts=true);await clickMatch(page,40,'take off');await clickMatch(page,8,'curiosity');await page.locator('.soft-refresh-current:not([inert]) [data-testid=lookup-records-tab]').waitFor();await openRecords(page);await page.locator('.soft-refresh-current:not([inert]) .recall-sentence').first().waitFor();await page.waitForTimeout(450);eq(await page.locator('.soft-refresh-current:not([inert]) .recall-sentence').first().innerText(),'curiosity.','late old recall cannot overwrite current selection');await close(page);await page.evaluate(()=>window.__uiDelayContexts=false);
+  // The lookup itself can remove one historical sentence and undo even the final context.
+  await clickMatch(page,8,'curiosity'); await openRecords(page);
+  const lookupHistory=page.locator('.soft-refresh-current:not([inert])');
+  await lookupHistory.getByRole('button',{name:'移除这句',exact:true}).click();
+  await lookupHistory.locator('.recall-undo').waitFor();
+  await lookupHistory.locator('.recall-context').waitFor({state:'detached'});
+  eq((await call('saved_recall_contexts',{expression:'curiosity',offset:0,limit:10})).total,0,'lookup removes only its final saved sentence');
+  ok(await lookupHistory.getByRole('tab',{name:/我的记录/}).isVisible(),'zero-count records tab retains undo');
+  await lookupHistory.locator('.recall-undo').getByRole('button',{name:'撤销',exact:true}).click();
+  await lookupHistory.locator('.recall-context').waitFor();
+  eq((await call('saved_recall_contexts',{expression:'curiosity',offset:0,limit:10})).records[0].sentence,curiosity.sentence,'lookup undo restores exact original');
+  await page.evaluate(()=>window.__uiFailure={command:'mutate_saved_record',afterCommit:true,remaining:1});
+  await lookupHistory.getByRole('button',{name:'移除这句',exact:true}).click();
+  await page.locator('.lookup-footer .saved-error').waitFor();
+  await lookupHistory.getByRole('button',{name:'移除这句',exact:true}).click();
+  await lookupHistory.locator('.recall-undo').waitFor();
+  await lookupHistory.locator('.recall-undo').getByRole('button',{name:'撤销',exact:true}).click();
+  await lookupHistory.locator('.recall-context').waitFor();
+  eq((await call('saved_recall_contexts',{expression:'curiosity',offset:0,limit:10})).total,1,'lost removal reply retries idempotently and remains undoable');
+  await close(page);
   // A failed index/Worker disables stale decoration and exposes a real retry.
   await page.evaluate(()=>{window.__uiFailure={command:'saved_recall_catalog',afterCommit:false,remaining:1};window.dispatchEvent(new Event('lexicue-saved-changed'));});await page.locator('.reading-paper[data-recall-state="failed"]').waitFor();eq(await page.locator('.reading-word--recalled').count(),0,'index failure has no stale marks');await page.getByRole('button',{name:'调整学习内容显示',exact:true}).click();await page.getByRole('button',{name:'重试',exact:true}).click();await page.keyboard.press('Escape');await ready(page);
   await hintSwitch(page,false);await page.evaluate(()=>{window.__NativeWorker=window.Worker;window.Worker=class extends window.Worker{constructor(url,options){if(String(url).includes('recallWorker'))throw Error('fixture unavailable worker');super(url,options);}};});await hintSwitch(page,true);await page.locator('.reading-paper[data-recall-state="failed"]').waitFor();eq(await page.locator('.reading-word--recalled').count(),0,'worker failure does not block plain reading');await page.evaluate(()=>{window.Worker=window.__NativeWorker;});await page.getByRole('button',{name:'调整学习内容显示',exact:true}).click();await page.getByRole('button',{name:'重试',exact:true}).click();await page.keyboard.press('Escape');await ready(page);

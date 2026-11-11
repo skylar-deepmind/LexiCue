@@ -990,7 +990,7 @@
     "importFailed": "Import fehlgeschlagen. Bitte Dateiinhalt prüfen und erneut versuchen.",
     "importCancelled": "Import abgebrochen",
     "importing": "Importiere...",
-    "deleteAskWithContent": "Beim Löschen von „{{name}}“ werden auch Leseninhalt und zugehörige Datensätze entfernt. Fortfahren?",
+    "deleteAskWithContent": "„{{name}}“ und seinen Lesetext löschen? Gespeicherte Sätze, Bedeutungen und Notizen bleiben erhalten. Die Löschung wird auf gekoppelte Geräte übertragen und kann nicht direkt rückgängig gemacht werden.",
     "deleteAsk": "Diese Datei löschen?",
     "deleteTitle": "Datei löschen",
     "fileDeleted": "Datei gelöscht",

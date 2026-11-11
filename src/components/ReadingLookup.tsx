@@ -91,7 +91,8 @@ export default function ReadingLookup(props: LookupProps) {
     const onViewChange = props.onViewChange;
     const onProvider = useCallback((provider: DictionaryView) => { providerRef.current = provider; onViewChange?.({tab,provider}); }, [onViewChange,tab]);
     useEffect(() => { props.onViewChange?.({tab, provider:providerRef.current}); });
-    const effectiveTab = previousKey.current === key && count > 0 ? tab : 'meaning';
+    // Keep the records tab reachable after removing its final sentence so undo stays available.
+    const effectiveTab = previousKey.current === key ? tab : 'meaning';
     const [prepared, setPrepared] = useState({ key, ready: false });
     if (prepared.key !== key) setPrepared({ key, ready: false });
     const onReady = useCallback((readyKey: string) => setPrepared(current => current.key === readyKey && !current.ready ? { key: readyKey, ready: true } : current), []);
@@ -100,7 +101,7 @@ export default function ReadingLookup(props: LookupProps) {
       <div className="lookup-stage" style={fontScaleStyle} data-lookup-state={ready ? 'ready' : 'loading'}>
         <SoftContentRefresh className="lookup-content" contentKey={`${key}:${effectiveTab}`} resizeContainer=".context-panel" ready={effectiveTab === 'meaning' ? ready : recordsReady} label={props.query.expression} pendingLabel={t('common.loading')}>
           <header className="lookup-heading"><div><h2 lang="en">{props.query.expression}</h2><SpeechButton text={props.query.expression} speechKey="lookup:term" kind={/\s/.test(props.query.expression.trim()) ? 'phrase' : 'word'} label={t('reader.listenExpression')}/></div></header>
-          {count > 0 && <div className="lookup-tabs" data-tab={effectiveTab} role="tablist"><span className="lookup-tab-indicator" aria-hidden="true"/><button data-testid="lookup-meaning-tab" role="tab" aria-selected={effectiveTab==='meaning'} className={effectiveTab==='meaning'?'active':''} onClick={()=>setTab('meaning')}>{t('annotation.meaning')}</button><button data-testid="lookup-records-tab" role="tab" aria-selected={effectiveTab==='records'} className={effectiveTab==='records'?'active':''} onClick={()=>{if (effectiveTab !== 'records') {setRecordsReady(false);setTab('records');}}}>{t('reader.myRecords')} <span>{count}</span></button></div>}
+          {(count > 0 || effectiveTab === 'records') && <div className="lookup-tabs" data-tab={effectiveTab} role="tablist"><span className="lookup-tab-indicator" aria-hidden="true"/><button data-testid="lookup-meaning-tab" role="tab" aria-selected={effectiveTab==='meaning'} className={effectiveTab==='meaning'?'active':''} onClick={()=>setTab('meaning')}>{t('annotation.meaning')}</button><button data-testid="lookup-records-tab" role="tab" aria-selected={effectiveTab==='records'} className={effectiveTab==='records'?'active':''} onClick={()=>{if (effectiveTab !== 'records') {setRecordsReady(false);setTab('records');}}}>{t('reader.myRecords')} <span>{count}</span></button></div>}
           <LookupContent key={key} {...props} tab={effectiveTab} onProvider={onProvider} onRecordsReady={onRecordsReady} onReady={onReady} footerHost={footerHost}/>
         </SoftContentRefresh>
         <div className="lookup-action-slot" ref={setFooterHost}/>
@@ -144,6 +145,8 @@ function LookupContent({ query, material, scope, onSkip, drafts, session, onRead
     const [receipt, setReceipt] = useState<string | null>(() => session.receipts.get(key) ?? null);
     const initialSave = useRef(session.actions.get(key)?.promise);
     const initialUndo = useRef(session.undos.get(key)?.promise);
+    const historyKey = `history:${query.expression.trim().toLowerCase()}`;
+    const [historyReceipt, setHistoryReceipt] = useState<string | null>(() => session.receipts.get(historyKey) ?? null);
     const [saveFeedback, setSaveFeedback] = useState('');
     const [busy, setBusy] = useState(() => !!(session.actions.get(key)?.promise || session.undos.get(key)));
     const busyRef = useRef(!!(session.actions.get(key)?.promise || session.undos.get(key)));
@@ -315,6 +318,42 @@ function LookupContent({ query, material, scope, onSkip, drafts, session, onRead
         } catch (error) { if (live.current) setWriteError(t(savedErrorKey(error))); }
         finally { busyRef.current = false; if (live.current) setBusy(false); }
     };
+    const changeHistory = async (record?: SavedRecord) => {
+        const undoReceipt = session.receipts.get(historyKey);
+        if (busyRef.current || (!record && !undoReceipt)) return;
+        busyRef.current = true; setBusy(true); setWriteError('');
+        try {
+            if (record) {
+                const operationKey = `remove:${record.record_id}:${record.revision}`;
+                const pending = session.actions.get(operationKey) ?? { id: crypto.randomUUID(), mutation: { kind: 'remove' as const, record_id: record.record_id, expected_revision: record.revision } };
+                session.actions.set(operationKey, pending);
+                const request = pending.promise ?? mutateInScope(scope, pending.mutation, pending.id);
+                pending.promise = request;
+                let result: SavedMutationResult;
+                try { result = await request; } finally { delete pending.promise; }
+                session.actions.delete(operationKey);
+                if (result.changed) session.receipts.set(historyKey, result.operation_id);
+                if (example) useOnboardingStore.getState().recordChanged(result.record);
+            } else {
+                const restored = await startLookupUndo(session, historyKey, undoReceipt!, id => undoInScope(scope, id));
+                if (example) useOnboardingStore.getState().recordChanged(restored);
+            }
+            // Removing the current sentence must also update its pinned save action.
+            // Clear its old save receipt only if this operation touched that record.
+            const current = await selectionInScope(scope, selection);
+            if (live.current) {
+                if (current?.revision !== saved?.revision || (current === null) !== (saved === null)) {
+                    session.receipts.delete(key); setReceipt(null); setSaveFeedback('');
+                }
+                setSaved(current); setHistoryReceipt(session.receipts.get(historyKey) ?? null);
+            }
+        } catch (error) {
+            if (live.current) {
+                setHistoryReceipt(session.receipts.get(historyKey) ?? null);
+                setWriteError(t(savedErrorKey(error)));
+            }
+        } finally { busyRef.current = false; if (live.current) setBusy(false); }
+    };
     // A failed response may follow a committed write. Replay its exact operation ID on re-entry.
     const retryAction = useRef(save);
     retryAction.current = save;
@@ -323,7 +362,7 @@ function LookupContent({ query, material, scope, onSkip, drafts, session, onRead
     }, [key]);
     return <>
     <div className="lookup-body" data-definition-font={definitionFont} data-aux-font={auxiliaryFont} data-active-dictionary={activeProvider} data-online-state={onlineState}>
-      {tab === 'records' ? <RecallSection scope={scope} expression={query.expression} expanded onLoaded={onRecordsReady} onSource={onSource} sourceBusy={sourceBusy}/> : <>
+      {tab === 'records' ? <><RecallSection scope={scope} expression={query.expression} expanded onLoaded={onRecordsReady} onSource={onSource} sourceBusy={sourceBusy} onRemove={changeHistory} removing={busy}/>{historyReceipt && <div className="recall-undo" role="status"><span>{t('savedRecords.removed')}</span><button className="ui-button" disabled={busy} onClick={() => void changeHistory()}><Undo2 size={18} aria-hidden="true"/>{t('savedRecords.undo')}</button></div>}</> : <>
       {example && guideActive && !guidedTour && <div className="example-card-hint"><small role="status">{t(guideStep === 3 ? 'onboarding.step3' : 'onboarding.step2')}</small><button className="ui-button" onClick={onSkip}>{t('onboarding.skip')}</button></div>}
       {loading && !result?.entries.length && <LoadingSkeleton kind="text" label={t('common.loading')}/>}
       {result && (!loading || !!result.entries.length) && <LongmanResult result={result} onInteract={touch} compact/>}
