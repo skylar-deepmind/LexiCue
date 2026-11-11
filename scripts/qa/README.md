@@ -52,6 +52,13 @@ Trash separately. Never count such a harness reset as an app restart result.
 
 An unreachable app-specific HTTP(S) proxy tests native request failure on macOS;
 label it as controlled transport failure, not a globally disconnected Mac.
+Also launch through Finder/LaunchServices without any upper/lowercase HTTP,
+HTTPS or ALL_PROXY environment variables. With the user's existing macOS system
+proxy unchanged, import fresh synthetic English into the native preview and
+verify Chinese translations. A terminal-launched build can conceal a missing
+`reqwest/system-proxy` feature by inheriting proxy variables. Record a fresh-cache
+native translation probe under the same environment as separate service evidence;
+neither cached translations nor a successful curl request proves app IPC works.
 For iPhone offline acceptance, record and restore the original radio settings.
 Do not count cached online definitions as fresh local-pack results. Save an
 explicit Wiktionary excerpt before removal and compare its snapshot afterward.
