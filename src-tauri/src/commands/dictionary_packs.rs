@@ -195,8 +195,7 @@ fn prepare_android(app: &tauri::AppHandle) -> R<()> {
         let temp = stage.0.join("dictionary.sqlite3");
         let mut dest = File::create(&temp).map_err(|e| e.to_string())?;
         std::io::copy(
-            &mut source
-                .by_ref()
+            &mut std::io::Read::by_ref(&mut source)
                 .take(item("daily")?["database"]["bytes"].as_u64().unwrap() + 1),
             &mut dest,
         )
