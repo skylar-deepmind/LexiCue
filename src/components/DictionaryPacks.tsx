@@ -56,7 +56,9 @@ export default function DictionaryPacks() {
     setPending(pack.id); setError(null);
     try {
       if (kind === 'file') {
-        const path = await open({ multiple: false, directory: false, filters: [{ name: 'LexiCue dictionary', extensions: ['zip'] }] });
+        // iOS copy mode leaves a second ZIP in tmp/*-Inbox. The native installer
+        // already reads scoped URLs into bounded staging and releases access.
+        const path = await open({ multiple: false, directory: false, fileAccessMode: 'scoped', filters: [{ name: 'LexiCue dictionary', extensions: ['zip'] }] });
         if (!path) return;
         await invoke('install_dictionary_pack', { id: pack.id, path });
       } else await invoke(kind === 'download' ? 'download_dictionary_pack' : 'remove_dictionary_pack', { id: pack.id });

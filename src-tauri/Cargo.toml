@@ -19,6 +19,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 
 [features]
 lan-sync = []
+dictionary-native-qa = []
 
 [build-dependencies]
 sha2 = "0.10"
@@ -45,7 +46,9 @@ libloading = "0.7"
 libc = "0.2"
 log = "0.4"
 tauri-plugin-log = "2"
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+# Finder-launched apps do not inherit a terminal's proxy environment. Keep the
+# platform proxy resolver while selecting rustls instead of reqwest's TLS defaults.
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "system-proxy"] }
 tokio = { version = "1", features = ["time", "macros", "process", "sync", "fs", "io-util"] }
 base64 = "0.22"
 msedge-tts = { path = "vendor/msedge-tts", default-features = false, features = ["tokio-runtime"] }

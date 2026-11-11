@@ -1,4 +1,74 @@
-# Isolated macOS data and external-service checks
+# Isolated native acceptance and external-service checks
+
+## macOS and iPhone dictionary acceptance
+
+Use `dictionary-native-qa` with the matching config below to install alongside
+the regular app. The feature refuses production identifiers; the QA identifiers
+also refuse to launch without the feature. Both platforms retain the normal
+frontend, native dictionary IPC, downloads, SQLite, import and saved-record code.
+Only the updater and shared device-sync credential/runtime initialization are
+disabled. Do not enable any `VITE_SLICE_*` fixture flags.
+
+```sh
+npm run tauri -- build --bundles app --features dictionary-native-qa --config scripts/qa/dictionary-macos.json --no-sign --ci
+npm run ios:prepare -- --ci --skip-targets-install --config scripts/qa/dictionary-ios.json
+npm run tauri -- ios build --features dictionary-native-qa --config scripts/qa/dictionary-ios.json --archive-only --export-method debugging --ci
+node --test scripts/ios-project.test.mjs
+```
+
+iOS signing requires a locally configured development team/profile for the QA
+identifier. Keep team overrides, device identifiers and provisioning material
+outside Git. Repeating `ios:prepare` is supported; it preserves Rust arguments
+and replaces managed plist values without duplicating them. Generated Externals
+use `buildPhase: none`: link `libapp.a` through the explicit dependency, but
+never copy a previous build's static archive into app resources. Check repeated
+preparation/builds and assert the final app contains no `.a` file.
+
+Run the build with the project's task lock and budget monitoring. Keep build
+outputs task-local. Do not copy model weights or launch against the regular
+app's database. An unsigned/ad hoc macOS app and a development-signed iPhone
+app establish local acceptance, not App Store/notarization or release readiness.
+QA disables some startup code, so its footprint is not an exact shipping estimate.
+
+Record actual native UI evidence for:
+
+- Fresh launch: only Everyday & General is included; no optional DB copies.
+- Download progress, cancellation, retry and successful installation.
+- Native file picker installation, wrong/corrupt archive rejection and recovery.
+- Base coverage (`pneumonia`, `soliloquy`) and optional coverage (`ichthyology`).
+- Offline/local lookup, saved excerpts, optional-pack removal and app restart.
+- Both Ocean and Midnight themes, including loading, disabled and failure states.
+- Bundle bytes and app-data bytes separately; staging cleanup after completion,
+  cancellation, failure and removal. Exclude intentionally copied input ZIPs.
+
+The dictionary picker uses scoped access on iOS. Its default copy mode otherwise
+leaves another archive in `tmp/<app-id>-Inbox`, outside the installer's staging.
+Verify an archive from outside the QA container and check that installation and
+rejection leave no new Inbox ZIP while the selected original remains untouched.
+Do not use `devicectl copy to --remove-existing-content true` for input cleanup:
+on this Xcode version it reset the entire QA appDataContainer despite a Documents
+destination. Use Files to remove only the known test input, and measure recoverable
+Trash separately. Never count such a harness reset as an app restart result.
+
+An unreachable app-specific HTTP(S) proxy tests native request failure on macOS;
+label it as controlled transport failure, not a globally disconnected Mac.
+Also launch through Finder/LaunchServices without any upper/lowercase HTTP,
+HTTPS or ALL_PROXY environment variables. With the user's existing macOS system
+proxy unchanged, import fresh synthetic English into the native preview and
+verify Chinese translations. A terminal-launched build can conceal a missing
+`reqwest/system-proxy` feature by inheriting proxy variables. Record a fresh-cache
+native translation probe under the same environment as separate service evidence;
+neither cached translations nor a successful curl request proves app IPC works.
+For iPhone offline acceptance, record and restore the original radio settings.
+Do not count cached online definitions as fresh local-pack results. Save an
+explicit Wiktionary excerpt before removal and compare its snapshot afterward.
+Installed-pack state must affect new local lookups while the frozen excerpt,
+original sentence, user explanation and license attribution remain readable.
+
+Audit old-library dictionary/cache residue separately on a disposable copy. Fresh
+install size and successful pack removal do not prove old caches were reclaimed.
+Never remove user dictionaries, non-English archival records or learning history
+as part of a generic cache cleanup.
 
 These tools use real SQLite/native Rust service code. They do not control the
 application UI or establish that WKWebView playback, file pickers or IPC were

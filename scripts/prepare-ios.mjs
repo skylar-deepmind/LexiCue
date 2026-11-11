@@ -4,6 +4,7 @@ import {execFileSync, spawnSync} from 'node:child_process';
 import {readFileSync, writeFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {join} from 'node:path';
+import {prepareIosProject} from './ios-project.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const project = join(root, 'src-tauri/gen/apple');
@@ -32,8 +33,6 @@ if (process.argv[2] === '--xcode-build') {
   run(process.execPath, [cli, 'ios', 'init', ...process.argv.slice(2)], root);
   const yml = join(project, 'project.yml');
   const source = readFileSync(yml, 'utf8');
-  const pattern = /^(\s*- script: ).*? ios xcode-script (.*)$/m;
-  if (!pattern.test(source)) throw Error('Cannot locate the Rust build phase in the generated Xcode project.');
   const config = JSON.parse(readFileSync(join(root, 'src-tauri/tauri.ios.conf.json'), 'utf8'));
   const minimum = config.bundle.iOS.minimumSystemVersion;
   // NODE_BINARY remains overridable. The default is the actual Node that ran
@@ -45,13 +44,7 @@ if (process.argv[2] === '--xcode-build') {
   const plist = JSON.parse(execFileSync('plutil', [
     '-convert', 'json', '-o', '-', join(root, 'src-tauri/Info.ios.plist'),
   ], {encoding: 'utf8'}));
-  const properties = Object.entries(plist)
-    .map(([key, value]) => `        ${JSON.stringify(key)}: ${JSON.stringify(value)}`).join('\n');
-  const info = /^(    info:\n      path: [^\n]+\n      properties:)$/m;
-  if (!info.test(source)) throw Error('Cannot locate the generated application Info.plist properties.');
-  const updated = source.replace(pattern, (_, indent, args) => `${indent}${script} ${args}`)
-    .replace(/^(\s+iOS:) [\d.]+$/m, `$1 ${minimum}`)
-    .replace(info, (_, section) => `${section}\n${properties}`);
+  const updated = prepareIosProject(source, {script, minimum, plist});
   writeFileSync(yml, updated);
   run('xcodegen', ['generate'], project);
 }

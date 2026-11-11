@@ -1,0 +1,8 @@
+{
+  "productName": "LexiCue Dictionary QA",
+  "identifier": "com.lexicue.qa.dictionary.ios",
+  "bundle": {
+    "createUpdaterArtifacts": false,
+    "iOS": {"minimumSystemVersion": "15.0"}
+  }
+}

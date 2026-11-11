@@ -1,0 +1,9 @@
+{
+  "productName": "LexiCue Dictionary QA",
+  "identifier": "com.lexicue.qa.dictionary.macos",
+  "bundle": {
+    "createUpdaterArtifacts": false,
+    "targets": ["app"],
+    "macOS": {"signingIdentity": "-"}
+  }
+}

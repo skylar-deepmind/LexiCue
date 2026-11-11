@@ -64,9 +64,13 @@ class MainActivity : TauriActivity() {
             }
 
             @JavascriptInterface
+            @Suppress("DEPRECATION") // Android 14 and older still draw these bars.
             fun setDarkTheme(dark: Boolean) {
                 runOnUiThread {
-                    content.setBackgroundColor(Color.parseColor(if (dark) "#151820" else "#f8fafc"))
+                    val background = Color.parseColor(if (dark) "#151820" else "#f8fafc")
+                    content.setBackgroundColor(background)
+                    window.statusBarColor = Color.TRANSPARENT
+                    window.navigationBarColor = Color.TRANSPARENT
                     val controller = WindowCompat.getInsetsController(window, webView)
                     controller.isAppearanceLightStatusBars = !dark
                     controller.isAppearanceLightNavigationBars = !dark
