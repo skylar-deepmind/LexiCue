@@ -21,7 +21,7 @@ try {
    window.__confirmDelete=false;window.__deleteFail=false;window.__deleteAsks=[];
    const base=window.__TAURI_INTERNALS__.invoke;
    window.__TAURI_INTERNALS__.invoke=async(command,args={})=>{
-    if(command==='plugin:dialog|ask'){window.__deleteAsks.push(args);return window.__confirmDelete;}
+    if(command==='plugin:dialog|message'){window.__deleteAsks.push(args);return args.buttons.OkCancelCustom[window.__confirmDelete?0:1];}
     if(command==='delete_file_start'){
      if(window.__deleteFail) throw Error('local_delete_failed');
      await base('test_delete_source',args);return {job_id:'controlled',file_id:args.fileId,phase:'done'};
@@ -41,6 +41,7 @@ try {
   await more.click();await page.getByRole('button',{name:'删除材料',exact:true}).click();
   eq((await h.call('list_materials')).length,1,`${theme}/${phone}: cancel keeps material`);
   assert.match(JSON.stringify(await page.evaluate(()=>window.__deleteAsks)),/remove-me.txt/);
+  eq(await more.evaluate(node=>node===document.activeElement),true,`${theme}/${phone}: cancel restores the menu trigger focus`);
   await page.evaluate(()=>{window.__confirmDelete=true;window.__deleteFail=true;});
   await more.click();await page.getByRole('button',{name:'删除材料',exact:true}).click();
   await page.getByRole('button',{name:'复制报错信息',exact:true}).waitFor();

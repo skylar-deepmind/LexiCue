@@ -669,13 +669,8 @@ export const useFileStore = create<FileStore>((set, get) => ({
         set((state) => ({ deletingFiles: { ...state.deletingFiles, [id]: current } }));
       }
       if (current.phase === 'failed') throw new Error(current.error_code ?? 'local_delete_failed');
-      set((state) => {
-        const deletingFiles = { ...state.deletingFiles };
-        delete deletingFiles[id];
-        return { deletingFiles };
-      });
       invalidateCaches('files', 'words', 'phrases', 'review', 'insights', 'storage');
-      await Promise.allSettled([get().loadTags(true), get().loadFiles(true)]);
+      await Promise.allSettled([get().loadTags(true), get().loadFiles(true), useMaterialStore.getState().load()]);
       useFeedbackStore.getState().show(i18n.t('fileStore.fileDeleted'), 'success');
       return true;
     } catch (e) {
