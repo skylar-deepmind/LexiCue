@@ -235,7 +235,9 @@ export default function FilesPage() {
     const remember = () => saveLibraryView({query,range,tagsOpen,tagIds:selectedTags,untagged,scroll:scrollTop.current,focusId:focusId.current,expandedId:expanded});
     const closeMenu = (id: number) => {
         setMenu(null);
-        scroll.current?.querySelector<HTMLButtonElement>(`[data-material="${id}"] .library-menu > button`)?.focus({preventScroll:true});
+        const target = scroll.current?.querySelector<HTMLButtonElement>(`[data-material="${id}"] .library-menu > button`)
+            ?? paper.current?.querySelector<HTMLButtonElement>('.desk-card-menu > button');
+        target?.focus({preventScroll:true});
     };
     const remove = async (file: Material) => {
         if (deletionPending.current || deleting[file.id]) return;
@@ -245,10 +247,11 @@ export default function FilesPage() {
             if (await useFileStore.getState().deleteFile(file.id, file.name)) {
                 cancelMotion();
                 setExpanded(null);
-                // Reconcile the reading desk only after the native delete job commits.
-                materials.changed();
-                await useMaterialStore.getState().load();
-                if (library) search.current?.focus({preventScroll:true});
+                // The store reloads and reconciles only after the delete job commits.
+                requestAnimationFrame(() => {
+                    const target = library ? search.current : paper.current?.querySelector<HTMLButtonElement>('.desk-card-menu > button') ?? libraryReturnTarget();
+                    target?.focus({preventScroll:true});
+                });
             }
         } finally { deletionPending.current = false; }
     };
