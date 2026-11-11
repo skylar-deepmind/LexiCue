@@ -204,6 +204,17 @@ fn prepare_android(app: &tauri::AppHandle) -> R<()> {
         verify_file(&temp, &item("daily")?["database"])?;
         fs::rename(temp, root.join("dictionary.sqlite3")).map_err(|e| e.to_string())?;
     }
+    // The Android fs plugin materializes compressed APK assets in this cache
+    // before returning a File. Once our verified working copy exists, keep only
+    // that copy. Also reclaim the redundant asset left by earlier app versions.
+    if let Ok(cache) = app.path().app_cache_dir() {
+        let asset = cache.join("_assets/resources/dictionaries/daily/dictionary.sqlite3");
+        if let Err(error) = fs::remove_file(asset) {
+            if error.kind() != std::io::ErrorKind::NotFound {
+                log::warn!("Could not remove redundant dictionary asset cache: {error}");
+            }
+        }
+    }
     store().lock().map_err(|e| e.to_string())?.bundled = root;
     Ok(())
 }
