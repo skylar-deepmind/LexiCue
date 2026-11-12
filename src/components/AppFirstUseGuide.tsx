@@ -58,8 +58,8 @@ export default function AppFirstUseGuide() {
       progress=2;target='.reading-sentence .reading-word';title='不懂的词，点一下！';
       body=mobile?'轻点正文里的词看释义；长按也能选择词组。试试 Curiosity。':'点击正文里的词看释义；拖选或用 Shift + 方向键选词组。试试 Curiosity。';break;
     case 'save':
-      progress=3;target='.lookup-footer';title=guide.records.length?'原句也一起留下了':`想留下，就点「${saveLabel}」`;
-      body=guide.records.length?'刚才的表达和原句已经记下。不小心点错，也可以撤销。':`点查词卡底部的「${saveLabel}」，表达、释义和上下文一起保存。体验记录不会进入你的材料库。`;
+      progress=3;target=guide.records.length?'[data-testid=lookup-records-tab]':'.lookup-footer';title=guide.records.length?'原句也一起留下了':`想留下，就点「${saveLabel}」`;
+      body=guide.records.length?'刚才的表达和原句已经记下。从「我的记录」可以回看原句和补充笔记。':`点查词卡底部的「${saveLabel}」，表达、释义和上下文一起保存。体验记录不会进入你的材料库。`;
       action=guide.records.length?'继续听读':'稍后再试';onNext=tools;
       if(!document.querySelector('.context-panel')){target='.reading-sentence .reading-word';title='再点开一个词试试';body=`在查词卡底部点「${saveLabel}」，就能保留原句。也可以稍后再试。`;}
       break;
@@ -68,8 +68,8 @@ export default function AppFirstUseGuide() {
       action=guide.records.length?'看看记忆提示':'开始自己的阅读';onNext=()=>guide.records.length?guide.setTour('recall'):finish();break;
     case 'recall':{
       progress=5;
-      const history=document.querySelector('.recall-history .recall-sentence'), panel=document.querySelector('.context-panel');
-      if(history){target='.recall-history .recall-sentence';title='记忆，带着它的来处';body='这里就是刚才保存的原句。以后再遇到这个表达，也能从「我的记录」回看原句和笔记。';action='开始自己的阅读';onNext=finish;}
+      const history=document.querySelector('.recall-history .saved-sentence-original'), panel=document.querySelector('.context-panel');
+      if(history){target='.recall-history .saved-sentence-original';title='记忆，带着它的来处';body='这里就是刚才保存的原句。以后再遇到这个表达，也能从「我的记录」回看原句和笔记。';action='开始自己的阅读';onNext=finish;}
       else if(panel){target='[data-testid="lookup-records-tab"]';title='打开「我的记录」看看';body='点这里，找回你刚才记下的表达和原句。';}
       else{target='.reading-word[data-recall]';title='记下的词，有了轻标记';body='点一下带标记的词，再打开「我的记录」。这是你刚才真实记下的内容。';}
       break;

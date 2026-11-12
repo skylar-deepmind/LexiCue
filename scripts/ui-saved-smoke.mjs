@@ -13,6 +13,8 @@ let currentPage;
 async function fixture(page, theme) {
   page.on('pageerror', error => errors.push(error.message));
   await page.addInitScript(theme => {
+    window.__uiWindowErrors=[];
+    window.addEventListener('error',event=>window.__uiWindowErrors.push(event.message));
     localStorage.setItem('lexicue-theme', theme);
     localStorage.setItem('lexicue-preferences', JSON.stringify({ state: { uiLanguage: 'zh' }, version: 0 }));
     const records = ['take off', 'curiosity', 'make sense'].map((expression, index) => ({
@@ -179,6 +181,7 @@ try {
     await page.evaluate(() => { document.documentElement.style.fontSize = '20px'; }); await noOverflow(page, `${theme} enlarged text`);
     await collapse(page);
     assert.ok(await page.evaluate(() => !window.__uiCalls.some(call => ['update_word_status', 'create_review_card', 'create_phrase_review_card', 'delete_file'].includes(call.command)))); checks++;
+    assert.deepEqual(await page.evaluate(()=>window.__uiWindowErrors),[],'no browser-reported layout errors'); checks++;
     await context.close();
   }
   assert.deepEqual(errors, []);

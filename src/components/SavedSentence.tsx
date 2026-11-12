@@ -65,9 +65,12 @@ export default function SavedSentence({ record, active, onActivate, onChange, on
     if (!paragraph || expanded) return;
     const measure = () => setOverflows(paragraph.scrollHeight > paragraph.clientHeight + 1);
     measure();
-    const observer = new ResizeObserver(measure);
+    let frame = 0;
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(frame); frame = requestAnimationFrame(measure);
+    });
     observer.observe(paragraph);
-    return () => observer.disconnect();
+    return () => { observer.disconnect(); cancelAnimationFrame(frame); };
   }, [sentence, expanded]);
 
   const closeEditor = () => {

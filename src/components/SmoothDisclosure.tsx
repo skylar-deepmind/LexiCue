@@ -8,8 +8,11 @@ export default function SmoothDisclosure({open, id, children}: {open: boolean; i
   const mounted = useRef(false);
   useLayoutEffect(() => {
     const node=root.current!, inner=content.current!;
+    let frame=0, targetHeight=Number.NaN;
     const update=() => {
       const height=currentOpen.current ? inner.getBoundingClientRect().height : 0;
+      if (Math.abs(height-targetHeight)<.5) return;
+      targetHeight=height;
       const from=node.getBoundingClientRect().height;
       motion.current?.cancel(); motion.current=null;
       delete node.dataset.moving;
@@ -21,8 +24,8 @@ export default function SmoothDisclosure({open, id, children}: {open: boolean; i
       void animation.finished.then(()=>{if(motion.current===animation){motion.current=null;delete node.dataset.moving;}},()=>{});
     };
     update(); mounted.current=true;
-    const observer=new ResizeObserver(update); observer.observe(inner);
-    return ()=>{observer.disconnect();motion.current?.cancel();delete node.dataset.moving;};
+    const observer=new ResizeObserver(()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(update);}); observer.observe(inner);
+    return ()=>{observer.disconnect();cancelAnimationFrame(frame);motion.current?.cancel();delete node.dataset.moving;};
   },[open]);
   return <div ref={root} id={id} className="saved-disclosure" data-open={open} inert={!open} aria-hidden={!open}><div ref={content} className="saved-disclosure-content">{children}</div></div>;
 }
