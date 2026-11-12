@@ -990,7 +990,7 @@
     "importFailed": "Import fehlgeschlagen. Bitte Dateiinhalt prüfen und erneut versuchen.",
     "importCancelled": "Import abgebrochen",
     "importing": "Importiere...",
-    "deleteAskWithContent": "Beim Löschen von „{{name}}“ werden auch Leseninhalt und zugehörige Datensätze entfernt. Fortfahren?",
+    "deleteAskWithContent": "„{{name}}“ und seinen Lesetext löschen? Gespeicherte Sätze, Bedeutungen und Notizen bleiben erhalten. Die Löschung wird auf gekoppelte Geräte übertragen und kann nicht direkt rückgängig gemacht werden.",
     "deleteAsk": "Diese Datei löschen?",
     "deleteTitle": "Datei löschen",
     "fileDeleted": "Datei gelöscht",
@@ -1387,7 +1387,8 @@
     "usage": "Verwendung",
     "englishMeaning": "Bisherige englische Erklärung",
     "extraSense": "Weitere Bedeutung",
-    "example": "Beispiel"
+    "example": "Beispiel",
+    "saveExplanation": "Erklärung speichern"
   },
   "materials": {
     "title": "Material",
@@ -1584,7 +1585,13 @@
     "translateFullConfirm": "Übersetzung starten",
     "translationProgress": "Ganzes Material wird übersetzt ({{done}} / {{total}} Sätze)",
     "fullSheet": "Vollbild öffnen",
-    "halfSheet": "Halbbild anzeigen"
+    "halfSheet": "Halbbild anzeigen",
+    "sentenceActions": "Satzaktionen",
+    "toggleTranslation": "Übersetzung ein- oder ausblenden",
+    "noSavedTranslation": "Für diesen Satz ist keine Übersetzung gespeichert",
+    "expandSentence": "Ganzen Satz anzeigen",
+    "collapseSentence": "Satz einklappen",
+    "noSavedSentences": "Noch keine gespeicherten Sätze"
   },
   "history": {
     "export": "Datensicherung exportieren",
@@ -1830,7 +1837,13 @@
       "phrasal verb": "phrasal verb",
       "number": "number",
       "article": "article"
-    }
+    },
+    "moreContexts": "{{count}} weitere",
+    "saveToast": "Gespeichert",
+    "localTag": "Lokal",
+    "onlineTag": "Online",
+    "compactContextCount": "{{count}} Sätze",
+    "compactContextCount_one": "{{count}} Satz"
   },
   "sourceAudio": {
     "clip": "Original clip",

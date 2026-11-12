@@ -990,7 +990,7 @@
     "importFailed": "Import failed. Please check the file content and try again.",
     "importCancelled": "Import cancelled",
     "importing": "Importing...",
-    "deleteAskWithContent": "Deleting “{{name}}” will also remove its reading content and related records. Continue?",
+    "deleteAskWithContent": "Delete “{{name}}” and its reading content? Saved sentences, meanings and notes will remain. This also syncs to paired devices and cannot be undone directly.",
     "deleteAsk": "Delete this file?",
     "deleteTitle": "Delete File",
     "fileDeleted": "File deleted",
@@ -1387,7 +1387,8 @@
     "usage": "Usage",
     "englishMeaning": "Previous English meaning",
     "extraSense": "Additional meaning",
-    "example": "Example"
+    "example": "Example",
+    "saveExplanation": "Save explanation"
   },
   "materials": {
     "title": "Materials",
@@ -1584,7 +1585,13 @@
     "translateFullConfirm": "Start translation",
     "translationProgress": "Translating full material ({{done}} / {{total}} sentences)",
     "fullSheet": "Expand to full screen",
-    "halfSheet": "Switch to half screen"
+    "halfSheet": "Switch to half screen",
+    "sentenceActions": "Sentence actions",
+    "toggleTranslation": "Show or hide translation",
+    "noSavedTranslation": "No translation saved for this sentence",
+    "expandSentence": "Show full sentence",
+    "collapseSentence": "Collapse sentence",
+    "noSavedSentences": "No saved sentences yet"
   },
   "history": {
     "export": "Export data backup",
@@ -1830,7 +1837,13 @@
       "phrasal verb": "phrasal verb",
       "number": "number",
       "article": "article"
-    }
+    },
+    "moreContexts": "{{count}} more",
+    "saveToast": "Saved",
+    "localTag": "Local",
+    "onlineTag": "Online",
+    "compactContextCount": "{{count}} sentences",
+    "compactContextCount_one": "{{count}} sentence"
   },
   "sourceAudio": {
     "clip": "Original clip",

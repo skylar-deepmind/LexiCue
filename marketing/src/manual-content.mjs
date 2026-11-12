@@ -64,7 +64,7 @@ export const manualContent={
           "id": "tags",
           "title": "Desk, library and tags",
           "body": [
-            "Keep current reading on the desk. Put a material away to the library, bring it back later, search by title or filter with tags. Tag colors help identify groups; removing a tag does not remove its materials."
+            "Keep current reading on the desk. Put a material away to the library, bring it back later, search by title or filter with tags. Tag colors help identify groups; removing a tag does not remove its materials. Choose Delete material in a material’s More menu to remove its reading content after confirmation. Saved sentences, meanings and notes remain available."
           ],
           "steps": [],
           "image": "files"
@@ -148,7 +148,7 @@ export const manualContent={
           "id": "organize",
           "title": "Edit a context",
           "body": [
-            "Update your note or explanation on the relevant saved record. Remove only that context when needed, and use Undo if offered. Other contexts for the same expression remain separate."
+            "Update your note or explanation on the relevant saved record. Choose “Remove this sentence” beside a context in Saved or in the lookup card’s My records tab, then Undo to restore it. Other contexts for the same expression remain separate."
           ],
           "steps": []
         },
@@ -407,7 +407,7 @@ export const manualContent={
           "id": "tags",
           "title": "桌面、材料库与标签",
           "body": [
-            "正在读的材料留在桌面，暂时不读的收进材料库，之后可以重新放回。按标题搜索或用标签筛选，颜色帮助区分材料组；删除标签不会删除材料。"
+            "正在读的材料留在桌面，暂时不读的收进材料库，之后可以重新放回。按标题搜索或用标签筛选，颜色帮助区分材料组；删除标签不会删除材料。材料的“更多”菜单提供“删除材料”，确认后删除阅读内容，已保存的原句、释义和笔记仍保留。"
           ],
           "steps": [],
           "image": "files"
@@ -491,7 +491,7 @@ export const manualContent={
           "id": "organize",
           "title": "编辑一条语境",
           "body": [
-            "在对应收藏记录修改注释或解释；按需移除这一条语境，提供撤销时可撤回。同一表达的其他语境各自独立。"
+            "在对应收藏记录修改注释或解释。在“已保存”或查词卡片的“我的记录”中，点击原句旁的“移除这句”，可用“撤销”恢复。同一表达的其他语境各自独立。"
           ],
           "steps": []
         },

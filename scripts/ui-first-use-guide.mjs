@@ -36,10 +36,10 @@ try{
   await page.getByRole('button',{name:'Curiosity',exact:true}).click();await page.locator('.app-guide[data-stage=save]').waitFor();await fits(page,`${theme}-${width}-save`);
   const label=await page.getByTestId('lookup-save').innerText();ok((await page.locator('.app-guide__bubble').innerText()).includes(label),'copy uses actual save action label');
   await page.evaluate(()=>window.__uiFailure={command:'mutate_example_saved_record',afterCommit:true,remaining:1});
-  await page.getByTestId('lookup-save').click();await page.locator('.lookup-footer [role=alert]').waitFor();eq((await state(page)).records,0,'lost receipt never invents saved state');
-  await page.getByTestId('lookup-save').click();await page.locator('.lookup-saved').waitFor();eq((await state(page)).records,1,'real save updates coach');
+  await page.getByTestId('lookup-save').click();await page.locator('.lookup-write-error[role=alert]').waitFor();eq((await state(page)).records,0,'lost receipt never invents saved state');
+  await page.getByTestId('lookup-save').click();await page.locator('.lookup-save-toast').waitFor();eq((await state(page)).records,1,'real save updates coach');
   await page.getByTestId('lookup-undo').click();await page.getByTestId('lookup-save').waitFor();eq((await state(page)).records,0,'real undo returns coach to save instruction');
-  await page.getByTestId('lookup-save').click();await page.locator('.lookup-saved').waitFor();await fits(page,`${theme}-${width}-saved`);
+  await page.getByTestId('lookup-save').click();await page.locator('.lookup-save-toast').waitFor();await fits(page,`${theme}-${width}-saved`);
   for(const interaction of ['default','hover','focus']){
    if(interaction==='hover')await page.locator('.app-guide__next').hover();if(interaction==='focus')await page.locator('.app-guide__next').focus();
    ok(await contrast(page.locator('.app-guide__next'))>=4.5,`${theme} ${interaction} primary contrast`);
@@ -53,11 +53,11 @@ try{
   ok(await page.locator('.reading-translation').first().innerText(),'real sample translation is available');
   await page.getByRole('button',{name:'看看记忆提示',exact:true}).click();await page.locator('.app-guide[data-stage=recall]').waitFor();await fits(page,`${theme}-${width}-recall`);
   await page.locator('.reading-word[data-recall]').first().click();await page.getByTestId('lookup-records-tab').waitFor();await fits(page,`${theme}-${width}-records-tab`);
-  await page.getByTestId('lookup-records-tab').click();await page.locator('.recall-history .recall-sentence').waitFor();await fits(page,`${theme}-${width}-history`);
-  eq((await page.locator('.recall-sentence').innerText()).trim(),'Curiosity helps us notice small changes.','history is the sentence saved in this session');
+  await page.getByTestId('lookup-records-tab').click();await page.locator('.recall-history .saved-sentence-original').waitFor();await fits(page,`${theme}-${width}-history`);
+  eq((await page.locator('.saved-sentence-original').innerText()).trim(),'Curiosity helps us notice small changes.','history is the sentence saved in this session');
   await page.screenshot({path:`${output}/${theme}-${width}-history.png`});
   // Personal notes in sample history also stay in its in-memory scope.
-  await page.locator('.recall-note-editor button').first().click();await page.locator('.recall-note-editor textarea').fill('体验笔记');await page.locator('.recall-note-editor form button').first().click();await page.locator('.recall-note-editor form').waitFor({state:'detached'});
+  await page.getByRole('button',{name:'补充个人解释',exact:true}).click();await page.getByRole('textbox',{name:'个人解释',exact:true}).fill('体验笔记');await page.locator('.app-guide').waitFor({state:'detached'});eq(await page.locator('.app-guide').count(),0,'note editor owns the screen without a coach blocking its save action');await page.getByRole('button',{name:'保存解释',exact:true}).click();await page.getByRole('textbox',{name:'个人解释',exact:true}).waitFor({state:'detached'});
   eq((await call('export_all')).data,before,'sample saves and notes never change real backup tables');
   await page.getByRole('button',{name:'开始自己的阅读',exact:true}).click();await page.waitForURL(/\/files$/);eq((await state(page)).outcome,'completed','completion is remembered');
   eq(await page.locator('.app-guide').count(),0,'coach cleans up after completion');eq(await page.locator('[data-guide-anchor-active]').count(),0,'anchor accessibility additions are removed');
@@ -79,7 +79,7 @@ try{
     eq((await call('export_all')).data,before,'late example write remains isolated');
     await page.goto(`${url}/example`);await page.locator('.reading-word').first().waitFor();
     await page.getByRole('button',{name:'Curiosity',exact:true}).click();await page.getByTestId('lookup-save').waitFor();
-    eq(await page.locator('.lookup-saved').count(),0,'replay starts with an empty example DB');
+    eq(await page.locator('.lookup-save-toast').count(),0,'replay starts with an empty example DB');
     await page.setViewportSize({width:844,height:390});await fits(page,`${theme}-landscape`);
     await page.getByRole('button',{name:'跳过引导',exact:true}).click();await page.waitForURL(/\/files$/);
     await page.evaluate(()=>window.__uiDelayExampleBegin=true);await page.goto(`${url}/example`);await page.locator('.example-load').waitFor();

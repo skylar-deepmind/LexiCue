@@ -1,0 +1,87 @@
+/* Reading lookup and saved sentences follow the reviewed Figma content hierarchy. */
+.context-panel.context-panel--lookup .lookup-stage { display:flex; flex:1; flex-direction:column; min-height:0; }
+.context-panel--lookup .lookup-fixed-header { flex:none; background:var(--surface); }
+.context-panel.context-panel--lookup .lookup-heading { flex:none; height:60px; padding:12px 16px 0; border:0; }
+.context-panel--lookup .lookup-heading > div { height:48px; padding-right:96px; gap:0; align-items:center; }
+.lookup-word-identity { display:flex; align-items:center; gap:8px; min-width:0; flex:1; }
+.context-panel.context-panel--lookup .lookup-heading h2 { font:400 calc(26px * var(--learning-font-scale,1))/calc(34px * var(--learning-font-scale,1)) 'Source Serif 4',Georgia,serif; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.lookup-source-tag { display:inline-flex; align-items:center; flex:none; height:22px; padding:0 6px; border-radius:4px; font-size:13px; line-height:20px; color:var(--accent-700); background:var(--accent-50); }
+.context-panel--lookup .lookup-heading .speech-button { width:48px; min-width:48px; height:48px; min-height:48px; padding:0; }
+.context-panel.context-panel--lookup .context-sheet-controls { position:absolute; z-index:5; right:16px; top:12px; display:flex; align-items:center; gap:0; height:48px; padding:0; border:0; }
+.context-panel--lookup .context-sheet-controls > button { display:grid; place-items:center; width:48px; min-width:48px; height:48px; min-height:48px; padding:0; border:0; border-radius:8px; color:var(--text-body); background:transparent; }
+.context-panel--lookup .context-sheet-controls .context-mobile-return { order:2; }
+.lexicue-b .context-panel.context-panel--lookup[data-reading-layout] .context-mobile-return { display:grid; }
+.context-panel--lookup .context-sheet-controls button:hover:not(:disabled) { background:var(--interactive-hover); }
+.context-panel--lookup .context-sheet-controls button:active:not(:disabled) { background:var(--interactive-pressed); }
+.context-panel--lookup .context-sheet-controls button:focus-visible { outline:2px solid var(--accent-700); outline-offset:-3px; }
+.context-panel--lookup .lookup-close { display:none; }
+.context-panel.context-panel--lookup .lookup-tabs { flex:none; height:44px; margin:0 16px; padding:0; border-radius:0; background:transparent; }
+.context-panel--lookup .lookup-tabs button { display:flex; align-items:center; justify-content:center; gap:6px; min-height:44px; padding:0 8px; border:0; border-radius:0; font-size:15px; line-height:22px; }
+.context-panel--lookup .lookup-tab-indicator { top:auto; bottom:0; left:calc(25% - 26px); width:52px; height:2px; border-radius:0; background:var(--accent-600); }
+.context-panel--lookup .lookup-tabs[data-tab='records'] .lookup-tab-indicator { left:calc(75% - 26px); }
+.lookup-record-count { display:inline-flex; align-items:center; justify-content:center; min-width:22px; height:22px; padding:0 5px; border-radius:999px; font-size:13px; font-weight:400; line-height:20px; color:var(--accent-700); background:var(--accent-50); }
+.context-panel.context-panel--lookup .lookup-content { flex:1; min-height:0; overflow:clip; }
+.context-panel--lookup .lookup-content > .soft-refresh-current { flex:1; min-height:0; overflow:auto; overscroll-behavior:contain; }
+.context-panel.context-panel--lookup .lookup-body { flex:none; padding:16px; }
+.context-panel--lookup .recall-section.recall-history { margin:0; padding:0; border:0; }
+.context-panel--lookup .lookup-action-slot:empty { display:none; }
+.context-panel--lookup .lookup-footer { padding:8px 16px; border:0; background:var(--surface); }
+.context-panel--lookup .lookup-write-error { padding:8px 16px; margin:0; }
+.lookup-save-toast { position:fixed; z-index:96; transform:translate(-50%,-100%); display:flex; align-items:center; gap:8px; width:192px; max-width:calc(100vw - 32px); min-height:48px; padding:0 4px 0 12px; border-radius:999px; color:var(--accent-700); background:var(--surface); box-shadow:0 3px 12px color-mix(in srgb,var(--text-strong) 14%,transparent); font-size:15px; line-height:22px; }
+.lookup-save-toast > svg { flex:none; }
+.lookup-save-toast .ui-button { flex:none; margin-left:auto; width:48px; min-width:48px; height:48px; min-height:48px; padding:0; border:0; background:transparent; }
+.saved-context-entry.saved-sentence { display:flex; flex-direction:column; gap:8px; min-width:0; margin:0; padding:12px 0; border:0; color:var(--text-body); }
+.saved-context-entry.saved-sentence + .saved-context-entry.saved-sentence { margin-top:12px; padding-top:24px; border-top:1px solid var(--border-soft); }
+.saved-sentence:focus { outline:none; }
+.saved-sentence:focus-visible { outline:2px solid var(--accent-700); outline-offset:4px; border-radius:4px; }
+.saved-sentence p { margin:0; overflow-wrap:anywhere; }
+.saved-sentence .saved-sentence-original { font:400 calc(18px * var(--learning-font-scale,1))/calc(28px * var(--learning-font-scale,1)) 'Source Serif 4',Georgia,serif; color:var(--text-strong); }
+.saved-sentence-original[data-expanded='false'] { display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+.saved-sentence-expression { text-decoration:underline solid var(--accent-700); text-decoration-thickness:2px; text-underline-offset:3px; text-decoration-skip-ink:none; }
+.saved-sentence .saved-sentence-translation,.saved-sentence .saved-sentence-personal { font-size:14px; line-height:22px; white-space:pre-wrap; }
+.saved-sentence-source { display:block; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text-muted); font-size:13px; line-height:20px; }
+.saved-sentence .saved-sentence-actions { display:flex; flex:none; flex-wrap:nowrap; align-items:center; justify-content:flex-start; gap:8px; min-height:48px; margin:0; padding:0; }
+.saved-sentence-actions > .ui-button { margin:0; display:inline-flex; align-items:center; justify-content:center; flex:none; width:48px; min-width:48px; height:48px; min-height:48px; padding:0; border:0; border-radius:8px; background:transparent; color:var(--text-body); }
+.saved-sentence-actions > .ui-button:hover:not(:disabled) { background:var(--interactive-hover); color:var(--accent-700); }
+.saved-sentence-actions > .ui-button:active:not(:disabled) { background:var(--interactive-pressed); }
+.saved-sentence-actions > .ui-button[aria-pressed='true'] { background:var(--accent-50); color:var(--accent-700); }
+.saved-sentence-actions > .ui-button:focus-visible { outline:2px solid var(--accent-700); outline-offset:-3px; }
+.saved-sentence-actions > .saved-sentence-remove { color:var(--sync-error-text); }
+.saved-sentence-actions > .saved-sentence-remove:hover:not(:disabled) { color:var(--sync-error-text); background:var(--interactive-hover); }
+.saved-sentence-actions > .ui-button:disabled { color:var(--text-muted); background:transparent; opacity:1; }
+.saved-sentence-disclosure,.saved-context-more { align-self:flex-start; min-height:48px; padding:0 12px; border:0; color:var(--accent-700); background:transparent; }
+.saved-sentence-legacy { color:var(--text-muted); font-size:13px; line-height:20px; }
+.saved-sentence-legacy summary { cursor:pointer; padding-block:8px; }
+.saved-sentence-legacy p { padding-block:8px; white-space:pre-wrap; }
+.saved-group-contexts.saved-detail-body { padding:0; }
+.saved-group-row .saved-record-open { display:grid; grid-template-columns:minmax(0,1fr) auto 48px; gap:0; min-height:86px; padding:8px 0; align-items:center; }
+.saved-group-row .saved-record-open[aria-expanded='true'] { background:transparent; }
+.saved-group-row .saved-record-term { grid-column:1; grid-row:1; min-width:0; margin:0; font:400 calc(26px * var(--learning-font-scale,1))/calc(34px * var(--learning-font-scale,1)) 'Source Serif 4',Georgia,serif; }
+.saved-group-row .saved-context-count { grid-column:2; grid-row:1; margin:0; font-size:13px; line-height:20px; }
+.saved-group-row .saved-chevron { position:static; grid-column:3; grid-row:1; justify-self:center; transform:none; }
+.saved-group-row[data-expanded='true'] .saved-chevron { transform:rotate(90deg); }
+.saved-group-row .saved-record-meaning { grid-column:1 / -1; grid-row:2; margin:0; font-size:14px; line-height:22px; }
+.overlay-panel.sentence-note-dialog { display:flex; flex-direction:column; width:min(100%,440px); height:356px; max-height:100%; padding:0 0 var(--safe-bottom); border-radius:20px; overflow:auto; }
+.sentence-note-dialog > header { display:flex; flex:none; align-items:center; justify-content:space-between; height:56px; padding:0 8px 0 20px; }
+.sentence-note-dialog > header h2 { margin:0; font-size:15px; font-weight:500; line-height:22px; color:var(--text-strong); }
+.sentence-note-dialog > header button { width:48px; height:48px; min-width:48px; min-height:48px; padding:0; border:0; background:transparent; }
+.sentence-note-dialog > form { display:flex; flex:1; flex-direction:column; gap:12px; padding:16px; }
+.sentence-note-dialog textarea { width:100%; min-height:112px; padding:12px; border:1px solid var(--accent-600); border-radius:8px; color:var(--text-strong); background:var(--surface-muted); font:inherit; font-size:16px; line-height:22px; resize:vertical; }
+.sentence-note-dialog form > .saved-primary { width:100%; min-height:48px; margin-top:auto; }
+@media (max-width:767px) {
+  .lexicue-b .context-panel.context-panel--lookup[data-reading-layout] { height:min(500px,calc(100% - max(104px,var(--safe-top)))); border:0; border-radius:20px 20px 0 0; }
+  .lexicue-b .context-panel.context-panel--lookup[data-expanded='true'] { height:calc(100% - var(--safe-top)); }
+  .context-panel--lookup::before { content:''; position:absolute; z-index:5; top:4px; left:calc(50% - 18px); width:36px; height:3px; border-radius:2px; background:var(--border); pointer-events:none; }
+  .overlay-layer--sheet:has(.sentence-note-dialog) { align-items:flex-end; padding:var(--safe-top) 0 0; }
+  .overlay-panel.sentence-note-dialog { width:100%; border-radius:20px 20px 0 0; }
+}
+@media (min-width:768px) {
+  .context-panel--lookup .context-sheet-controls .context-sheet-expand { display:none; }
+  .context-panel.context-panel--lookup .lookup-heading > div { padding-right:48px; }
+  .context-panel.context-panel--lookup[data-reading-layout='columns'] { width:var(--reading-slot-width); }
+}
+@media (hover:none) {
+  .saved-sentence-actions > .ui-button:hover:not(:disabled):not([aria-pressed='true']) { color:var(--text-body); background:transparent; }
+  .saved-sentence-actions > .saved-sentence-remove:hover:not(:disabled) { color:var(--sync-error-text); }
+  .context-panel--lookup .context-sheet-controls button:hover:not(:disabled) { background:transparent; }
+}

@@ -461,13 +461,13 @@ export default function ReadingPage({ data, scope }: {
         lookupTrigger.current = null;
         keyRange.current = null; pointerRange.current = null; setKeyboardRange(null); setQuery(null);
     };
-    const visitSource = async (record: SavedRecord) => {
+    const visitSource = async (record: SavedRecord, isCurrent?: () => boolean) => {
         if (sourceBusy || example) return;
         const generation = ++sourceRequest.current;
         setSourceBusy(true); setSourceError('');
         try {
             const target = await resolveSavedSource(record);
-            if (sourceRequest.current !== generation) return;
+            if (sourceRequest.current !== generation || isCurrent?.() === false) return;
             if (!target) { setSourceError(t('savedRecords.sourceMissing')); return; }
             const viewport = scroll.current!, top = viewport.getBoundingClientRect().top;
             const anchor = [...viewport.querySelectorAll<HTMLElement>('[data-sentence]')].find(node => node.getBoundingClientRect().bottom > top);

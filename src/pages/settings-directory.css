@@ -46,9 +46,22 @@
 .settings-value:empty { display:none; }
 .settings-chevron { flex:none; margin-left:auto; color:var(--text-muted); stroke-width:1.6; }
 .settings-value:not(:empty) + .settings-chevron { margin-left:-6px; }
-.settings-directory :is(.settings-row,.settings-back):hover { background:var(--interactive-hover); }
-.settings-directory .theme-choice:hover { border-color:var(--text-muted); }
-.settings-directory :is(.settings-row,.theme-choice,.settings-back):active { background:var(--interactive-pressed); }
+/* Touch WebViews retain emulated :hover after a scroll or tap. Only a real
+   hovering pointer paints whole rows; touch keeps a delayed, cancellable cue. */
+.settings-directory :is(.settings-row,.theme-choice,.settings-back) {
+  -webkit-tap-highlight-color:transparent;
+  -webkit-user-select:none;
+  user-select:none;
+  -webkit-touch-callout:none;
+}
+@media(hover:hover) and (pointer:fine) {
+  .settings-directory :is(.settings-row,.settings-back):hover { background:var(--interactive-hover); }
+  .settings-directory .theme-choice:hover { border-color:var(--text-muted); }
+  .settings-directory :is(.settings-row,.theme-choice,.settings-back):active { background:var(--interactive-pressed); }
+}
+@media(hover:none), (pointer:coarse) {
+  .settings-directory :is(.settings-row,.theme-choice,.settings-back):active { opacity:.65; transition:opacity 100ms ease 120ms; }
+}
 .settings-directory :is(.settings-row,.theme-choice,.settings-back):focus-visible { outline:2px solid var(--accent-700); outline-offset:-3px; }
 .settings-detail { max-width:100%; overflow-wrap:anywhere; }
 .settings-detail .settings-row[aria-pressed] { justify-content:space-between; }

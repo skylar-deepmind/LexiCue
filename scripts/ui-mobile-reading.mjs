@@ -138,8 +138,8 @@ try {
   const measure=()=>page.evaluate(()=>{
    const p=document.querySelector('.context-panel').getBoundingClientRect();
    const s=document.querySelector('.reading-word[aria-pressed="true"]').getBoundingClientRect();
-   const f=document.querySelector('.lookup-footer').getBoundingClientRect();
-   return {width:p.width,height:p.height,top:p.top,bottom:p.bottom,wordBottom:s.bottom,footerBottom:f.bottom,overflow:document.documentElement.scrollWidth>innerWidth};
+   const f=document.querySelector('.lookup-footer')?.getBoundingClientRect();
+   return {width:p.width,height:p.height,top:p.top,bottom:p.bottom,wordBottom:s.bottom,footerBottom:f?.bottom,overflow:document.documentElement.scrollWidth>innerWidth};
   });
   const lookupFrames=await lookupScrollFrames;ok(lookupFrames.filter((v,i)=>i===0||Math.abs(v-lookupFrames[i-1])>.5).length>5,`${theme}: selected word moves over multiple frames rather than jumping ${JSON.stringify(lookupFrames)}`);
   let m=await measure();ok(m.width===430&&m.height>400&&m.height<520,`${theme}: half sheet geometry`);ok(m.wordBottom<m.top,`${theme}: selected original remains visible`);ok(!m.overflow,`${theme}: no horizontal overflow`);ok(Math.abs(m.footerBottom-m.bottom)<40,`${theme}: save stays at bottom`);
@@ -150,7 +150,7 @@ try {
   await page.getByTestId('lookup-undo').click();await save.waitFor();ok(true,`${theme}: undo returns save action`);
   await save.click();await page.getByTestId('lookup-undo').waitFor();
   await page.keyboard.press('Escape'); await panel.waitFor({state:'detached'});
-  await page.locator('.reading-word').filter({hasText:/^take$/}).nth(3).click();await page.getByTestId('lookup-undo').waitFor();ok(true,`${theme}: saved state survives reopening`);
+  await page.locator('.reading-word').filter({hasText:/^take$/}).nth(3).click();await page.getByTestId('lookup-records-tab').waitFor();await page.waitForFunction(()=>!document.querySelector('[data-testid=lookup-save]'));await page.waitForFunction(()=>Number(document.querySelector('.lookup-record-count')?.textContent)>0);ok(await page.getByTestId('lookup-save').count()===0,`${theme}: saved state survives reopening without a persistent toast`);
   await page.screenshot({path:`${output}/${theme}-saved.png`});
   for(const viewport of [{width:320,height:568},{width:390,height:844},{width:430,height:500}]) {
    await page.setViewportSize(viewport);
@@ -171,18 +171,18 @@ try {
   await page.keyboard.press('Escape'); await panel.waitFor({state:'detached'});
   await page.locator('.reading-word').filter({hasText:/^take$/}).nth(1).click();
   await page.getByTestId('lookup-records-tab').waitFor();
-  await page.getByTestId('lookup-records-tab').click();await page.locator('.recall-context').first().waitFor();
-  ok((await page.locator('.recall-sentence').first().innerText()).includes('The plane'),`${theme}: re-encounter shows stored original`);
-  await page.locator('.recall-note-editor > button').first().click();
-  ok(!(await page.locator('.lookup-action-slot').isVisible()),`${theme}: editing has one save action`);
-  await page.locator('.recall-note-editor textarea').fill('Only this earlier sentence: a personal note.');
-  await page.locator('.recall-note-editor > button').first().click();
-  await page.locator('.recall-note-editor > button').first().click();
-  ok((await page.locator('.recall-note-editor textarea').inputValue()).includes('Only this earlier sentence'),`${theme}: collapsed note draft survives`);
-  await page.locator('.recall-note-editor form button').first().click();
-  await page.locator('.recall-note-editor textarea').waitFor({state:'detached'});
-  ok(await page.locator('.lookup-action-slot').isVisible(),`${theme}: current save returns after editing`);
-  ok((await page.locator('.recall-meaning').first().innerText()).includes('Only this earlier sentence'),`${theme}: edit stays with earlier context`);
+  await page.getByTestId('lookup-records-tab').click();await page.locator('.saved-sentence').first().waitFor();
+  ok((await page.locator('.saved-sentence-original').first().innerText()).includes('The plane'),`${theme}: re-encounter shows stored original`);
+  const noteEditor=page.getByRole('textbox',{name:'个人解释',exact:true});
+  await page.getByRole('button',{name:'补充个人解释',exact:true}).click();
+  ok(await page.getByRole('dialog').getByRole('button',{name:'保存解释',exact:true}).isVisible(),`${theme}: editing has one save action`);
+  await noteEditor.fill('Only this earlier sentence: a personal note.');
+  await page.getByRole('dialog').getByRole('button',{name:'取消',exact:true}).click();
+  await page.getByRole('button',{name:'补充个人解释',exact:true}).click();
+  ok((await noteEditor.inputValue()).includes('Only this earlier sentence'),`${theme}: dismissed note draft survives`);
+  await page.getByRole('button',{name:'保存解释',exact:true}).click();
+  await noteEditor.waitFor({state:'detached'});
+  ok((await page.locator('.saved-sentence-note').first().innerText()).includes('Only this earlier sentence'),`${theme}: edit stays with earlier context`);
   await page.getByTestId('recall-source').first().click();await page.getByTestId('source-return').waitFor();
   await page.getByTestId('source-return').click();await page.getByTestId('lookup-records-tab').waitFor();ok(true,`${theme}: source visit returns to query`);
   await page.goto(`${h.url}/saved`);await page.locator('.saved-record-open').first().waitFor();
@@ -191,12 +191,12 @@ try {
   await page.locator('.saved-record-open').first().click();await page.locator('.saved-context-entry').first().waitFor();
   const frames=await navFrames;ok(frames.every(r=>r.every((v,i)=>Math.abs(v-frames[0][i])<.1)),`${theme}: saved navigation icon remains fixed throughout disclosure frames`);
   ok(await page.locator('.b-mobile-nav a[href="/saved"] .mobile-saved-icon').evaluate(n=>{const s=getComputedStyle(n);return s.maskImage!=='none'&&s.backgroundColor!=='rgba(0, 0, 0, 0)'&&n.getBoundingClientRect().width===22;}),`${theme}: saved uses a cached monochrome mask instead of live inline SVG`);
-  await page.locator('.saved-record-actions button[aria-label="补充个人解释"]').first().click();await page.locator('.saved-context-entry textarea').waitFor();
-  ok(await page.locator('.saved-context-entry textarea').evaluate(n=>document.activeElement===n&&!n.closest('.motion-change[data-motion-moving]')),`${theme}: record editor focuses outside a resize animation`);
+  await page.locator('.saved-record-actions button[aria-label="补充个人解释"]').first().click();await page.getByRole('textbox',{name:'个人解释',exact:true}).waitFor();
+  ok(await page.getByRole('textbox',{name:'个人解释',exact:true}).evaluate(n=>document.activeElement===n&&!n.closest('.motion-change[data-motion-moving]')),`${theme}: record editor focuses outside a resize animation`);
   ok(!(await page.locator('.saved-record-actions .speech-button').first().innerText()).trim(),`${theme}: TTS-only action has no redundant visible label`);
-  await page.locator('.saved-context-entry textarea').fill('A saved note remains attached to this original.');
-  await page.getByRole('button',{name:'保存修改',exact:true}).click();await page.locator('.saved-context-entry textarea').waitFor({state:'detached'});
-  ok((await page.locator('.saved-detail-meaning').first().innerText()).includes('A saved note'),`${theme}: saved archive editor commits to the correct record`);
+  await page.getByRole('textbox',{name:'个人解释',exact:true}).fill('A saved note remains attached to this original.');
+  await page.getByRole('button',{name:'保存解释',exact:true}).click();await page.getByRole('textbox',{name:'个人解释',exact:true}).waitFor({state:'detached'});
+  ok((await page.locator('.saved-sentence-note').first().innerText()).includes('A saved note'),`${theme}: saved archive editor commits to the correct record`);
   await page.getByRole('link',{name:'设置',exact:true}).click();
   await page.locator('.system-settings').waitFor();
   ok((await page.locator('.b-mobile-nav').count())===0&&(await page.locator('.mobile-settings-header h1').innerText())==='设置',`${theme}: settings has one compact back/title header`);

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, Maximize2, Minimize2, X } from 'lucide-react';
+import { ChevronDown, Expand, Maximize2, Minimize2, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { associatedGuide } from '../lib/guideFocus';
 import { backNavigation } from '../lib/backNavigation';
@@ -10,9 +10,10 @@ import { createLookupScrollMotion } from '../lib/lookupMotion';
 
 /** Modeless: unused space dismisses the card without covering reading or controls.
  * Dragging, selection, scrolling and other dialogs retain their normal behavior. */
-export default function ContextPanel({ label, children, onClose, canClose = true, onClosing, interactionKey, layoutSlot }: {
+export default function ContextPanel({ label, children, onClose, canClose = true, onClosing, interactionKey, layoutSlot, compactHeader = false }: {
   label: string; children: ReactNode; onClose: () => void; canClose?: boolean; onClosing?: () => void; interactionKey?: unknown;
   layoutSlot?: RefObject<HTMLDivElement | null>;
+  compactHeader?: boolean;
 }) {
   const { t } = useTranslation();
   const panelRef = useRef<HTMLElement>(null);
@@ -86,7 +87,7 @@ export default function ContextPanel({ label, children, onClose, canClose = true
     const opacity = desktop ? initial ? '0' : getComputedStyle(panel).opacity : '1';
     const target = closing ? desktop ? `translateX(${shift})` : 'translateY(100%)' : desktop ? 'translateX(0)' : 'translateY(0)';
     const targetOpacity=desktop&&closing?'0':'1';
-    const finish = () => { paper.style.transform = desktop ? target : 'none'; panel.style.transform = target; panel.style.opacity = targetOpacity; delete layout.dataset.lookupMoving; };
+    const finish = () => { paper.style.transform = desktop ? target : 'none'; panel.style.transform = target; panel.style.opacity = targetOpacity; delete layout.dataset.lookupMoving; panel.dispatchEvent(new Event('lexicue-panel-settled')); };
     if (reduced.matches) { finish(); return; }
     layout.dataset.lookupMoving = 'true';
     const options: KeyframeAnimationOptions = { duration: desktop ? (closing ? 340 : 420) : (closing ? 300 : 360), easing:'cubic-bezier(.22,1,.36,1)', fill:'both' };
@@ -177,11 +178,11 @@ export default function ContextPanel({ label, children, onClose, canClose = true
     };
   }, []);
   return createPortal(<div className={`context-layer${closing ? ' context-layer--closing' : ''}`} ref={layerRef}>
-    <aside className="context-panel" role="dialog" aria-label={label} tabIndex={-1} ref={panelRef} data-expanded={expanded} data-closing={closing || undefined} inert={closing} aria-hidden={closing || undefined}>
+    <aside className={`context-panel${compactHeader ? ' context-panel--lookup' : ''}`} role="dialog" aria-label={label} tabIndex={-1} ref={panelRef} data-expanded={expanded} data-closing={closing || undefined} inert={closing} aria-hidden={closing || undefined}>
       <div className="context-sheet-controls">
-        <button className="context-mobile-return" onClick={requestClose} disabled={!canClose}><ChevronDown size={18} aria-hidden="true" />{t('savedRecords.collapse')}</button>
-        {layoutSlot && <button className="context-sheet-expand" onClick={() => setExpanded(value => !value)} aria-expanded={expanded} aria-label={t(expanded ? 'reader.halfSheet' : 'reader.fullSheet')}>{expanded ? <Minimize2 size={18} aria-hidden="true"/> : <Maximize2 size={18} aria-hidden="true"/>}</button>}
-      </div>{layoutSlot && <button data-testid="lookup-close" className="lookup-close" onClick={requestClose} disabled={!canClose} aria-label={t('common.close')}><X size={20}/></button>}
+        <button data-testid={compactHeader ? 'lookup-close' : undefined} className="context-mobile-return" onClick={requestClose} disabled={!canClose} aria-label={t('savedRecords.collapse')}><ChevronDown size={20} strokeWidth={1.8} aria-hidden="true" /></button>
+        {layoutSlot && <button className="context-sheet-expand" onClick={() => setExpanded(value => !value)} aria-expanded={expanded} aria-label={t(expanded ? 'reader.halfSheet' : 'reader.fullSheet')}>{expanded ? <Minimize2 size={20} aria-hidden="true"/> : compactHeader ? <Expand size={20} strokeWidth={1.8} aria-hidden="true"/> : <Maximize2 size={18} aria-hidden="true"/>}</button>}
+      </div>{layoutSlot && !compactHeader && <button data-testid="lookup-close" className="lookup-close" onClick={requestClose} disabled={!canClose} aria-label={t('common.close')}><X size={20}/></button>}
       {children}
     </aside>
   </div>, document.body);

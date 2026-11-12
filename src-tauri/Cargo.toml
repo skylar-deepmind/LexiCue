@@ -5,7 +5,7 @@ resolver = "2"
 
 [package]
 name = "lexicue"
-version = "0.4.6"
+version = "0.4.7"
 description = "LexiCue - Local-first vocabulary learning tool"
 authors = ["skylar-deepmind"]
 license = "MIT"

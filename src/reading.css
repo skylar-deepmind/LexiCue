@@ -234,18 +234,12 @@
 .reading-paper[data-definition-font='lg'] .reading-translation { font-size:1.125rem; }
 .reading-paper[data-aux-font='sm'] .sentence-side small { font-size:.6875rem; }
 .reading-paper[data-aux-font='lg'] .sentence-side small { font-size:.9375rem; }
-/* Paint the text itself so button and passive line boxes share the same marker. */
-.reading-recall-ink { position:relative; isolation:isolate; color:var(--recall-text); padding-block:2px; background-image:linear-gradient(transparent 56%,var(--recall-marker) 56%); box-decoration-break:clone; -webkit-box-decoration-break:clone; }
+/* Saved markers stay inside the actual glyphs, independently of touch targets. */
+.reading-recall-ink { color:var(--accent-700); background:none; text-decoration:underline solid currentColor; text-decoration-thickness:2px; text-underline-offset:3px; text-decoration-skip-ink:none; }
 .reading-word--recalled { border-radius:0; }
-.reading-word--recalled:hover,.reading-word--recalled[aria-pressed='true'] { background:transparent; }
-.reading-recall:has(.reading-word:hover:not(:disabled)) .reading-recall-ink { background:var(--recall-hover-bg); }
-.reading-word--recalled[aria-pressed='true'] .reading-recall-ink,
-.reading-recall:has(.reading-word[aria-pressed='true']):not(:has(.reading-word[aria-pressed='false'])) .reading-recall-ink { background:var(--recall-selected-bg); text-decoration:underline solid var(--recall-selected-line); text-decoration-thickness:2px; text-underline-offset:6px; }
+.reading-word--recalled:hover .reading-recall-ink { background:var(--recall-hover-bg); }
+.reading-word--recalled[aria-pressed='true'] .reading-recall-ink { background:var(--recall-selected-bg); }
 .reading-recall .reading-word:focus-visible { outline:none; box-shadow:inset 0 -2px 0 var(--recall-selected-line); }
-@media (max-width:767px), (pointer:coarse) {
- /* Extend across the existing 48px touch target without moving any text. */
- .reading-word--recalled > .reading-recall-ink::before { content:''; position:absolute; inset:0; min-width:44px; z-index:-1; pointer-events:none; background:inherit; }
-}
 .recall-section { border-bottom:1px solid var(--border); margin-bottom:20px; padding-bottom:20px; }
 .recall-section h3,.lookup-current-heading { color:var(--text-strong); font-size:.875rem; font-weight:600; line-height:1.7; }
 .lookup-current-heading { margin-bottom:12px; }

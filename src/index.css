@@ -1520,3 +1520,8 @@ button:disabled:is([class*='bg-blue-'], [class*='bg-purple-'], [class*='bg-gray-
 
 .status-badge-control:hover { background:var(--interactive-hover); color:var(--text-strong); }
 .status-badge-control:active { background:var(--interactive-pressed); }
+
+/* A sentence's destructive action is readable beside its original, including on touch. */
+.saved-record-actions .saved-sentence-remove, .saved-sentence-remove { color:var(--sync-error-text); min-height:48px; }
+.saved-record-actions .saved-sentence-remove:hover:not(:disabled), .saved-sentence-remove:hover:not(:disabled) { color:var(--sync-error-text); background:var(--sync-error-bg); }
+.recall-undo { display:flex; align-items:center; flex-wrap:wrap; gap:12px; margin-top:16px; }

@@ -57,6 +57,31 @@ try {
       assert.equal(first.y===second.y,!phone);
       assert.equal(await page.locator('.theme-choice').count(),5);
       assert.ok(await groups.locator('.settings-row').evaluateAll(rows=>rows.every(r=>r.clientHeight>=44 && r.scrollWidth<=r.clientWidth+1)));
+      if (phone) {
+        const cdp = await page.context().newCDPSession(page);
+        const row = page.locator('[data-entry=dictionary]');
+        await row.scrollIntoViewIfNeeded();
+        const rect = await row.boundingBox();
+        const x = rect.x + 60, y = rect.y + rect.height / 2;
+        const style = () => row.evaluate(node => ({background:getComputedStyle(node).backgroundColor, outline:getComputedStyle(node).outlineStyle}));
+        const before = await style();
+        await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y}]});
+        // Native touch scrolling should cancel the tap, without synthesized sticky hover.
+        for(let i=1;i<=8;i++) await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x,y:Math.min(780,y+15*i)}]});
+        await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+        await page.evaluate(()=>new Promise(done=>requestAnimationFrame(()=>requestAnimationFrame(done))));
+        assert.equal(new URL(page.url()).search,'','scroll does not open a settings entry');
+        assert.equal((await style()).background,before.background,'touch scroll leaves no highlighted row');
+        assert.equal(await row.evaluate(node=>getComputedStyle(node).webkitTapHighlightColor),'rgba(0, 0, 0, 0)');
+        await cdp.detach();
+        await page.locator('.settings-scroll').evaluate(node=>node.scrollTop=0);
+      } else {
+        const row=page.locator('[data-entry=language]');
+        await row.focus();
+        await page.keyboard.press('Shift+Tab');
+        await page.keyboard.press('Tab');
+        assert.equal(await row.evaluate(node=>getComputedStyle(node).outlineStyle),'solid','keyboard focus stays visible');
+      }
       if(output) await page.screenshot({path:output+'/'+(phone?'iphone':'mac')+'-'+theme+'.png'});
       await checkPending('dictionary_pack_status', () => page.locator('[data-entry=dictionary]').click(), page.locator('[role=status] .busy-ring'));
       await page.getByRole('button',{name:'返回',exact:true}).click();

@@ -13,6 +13,8 @@ let currentPage;
 async function fixture(page, theme) {
   page.on('pageerror', error => errors.push(error.message));
   await page.addInitScript(theme => {
+    window.__uiWindowErrors=[];
+    window.addEventListener('error',event=>window.__uiWindowErrors.push(event.message));
     localStorage.setItem('lexicue-theme', theme);
     localStorage.setItem('lexicue-preferences', JSON.stringify({ state: { uiLanguage: 'zh' }, version: 0 }));
     const records = ['take off', 'curiosity', 'make sense'].map((expression, index) => ({
@@ -121,17 +123,18 @@ try {
     // A failed edit keeps the draft; the retry uses the same operation receipt.
     await first.click(); await settle(page); await details(page).locator('.saved-context-entry').first().getByRole('button', { name: '补充个人解释', exact: true }).click();
     await page.getByRole('textbox', { name: '个人解释' }).fill('我的个人修正');
-    await page.evaluate(() => { window.__uiFailSave = true; }); await page.getByRole('button', { name: '保存修改' }).click();
-    await details(page).getByRole('alert').waitFor(); assert.equal(await page.getByRole('textbox', { name: '个人解释' }).inputValue(), '我的个人修正'); checks++;
+    await page.evaluate(() => { window.__uiFailSave = true; }); await page.getByRole('button', { name: '保存解释' }).click();
+    await page.getByRole('dialog', { name: '个人解释', exact: true }).getByRole('alert').waitFor(); assert.equal(await page.getByRole('textbox', { name: '个人解释' }).inputValue(), '我的个人修正'); checks++;
+    await page.getByRole('dialog', { name: '个人解释', exact: true }).getByRole('button', { name: '取消', exact: true }).click();
     await collapse(page);
     await first.click(); await settle(page); await details(page).locator('.saved-context-entry').first().getByRole('button', { name: '补充个人解释', exact: true }).click(); assert.equal(await page.getByRole('textbox', { name: '个人解释' }).inputValue(), '我的个人修正'); checks++;
-    await page.evaluate(() => { window.__uiFailSave = false; }); await page.getByRole('button', { name: '保存修改' }).click();
+    await page.evaluate(() => { window.__uiFailSave = false; }); await page.getByRole('button', { name: '保存解释' }).click();
     await details(page).getByText('我的个人修正', { exact: true }).waitFor();
     assert.ok(await page.evaluate(() => { const calls = window.__uiCalls.filter(call => call.command === 'mutate_saved_record' && call.args.mutation.kind === 'edit'); return calls.at(-1).args.operationId === calls.at(-2).args.operationId; })); checks++;
     await collapse(page);
     // One word card contains two independent contexts; removing one leaves its sibling.
-    assert.match(await first.innerText(), /2 处原句/); checks++;
-    await first.click(); await settle(page); await details(page).locator('.saved-context-entry').nth(1).waitFor();
+    assert.match(await first.innerText(), /2 句/); checks++;
+    await first.click(); await settle(page); await page.getByRole('button', { name: '还有 1 句', exact: true }).click(); await details(page).locator('.saved-context-entry').nth(1).waitFor();
     assert.equal(await details(page).locator('.saved-context-entry').count(), 2); checks++;
     assert.ok(await details(page).getByText('Please take off your coat.', { exact: true }).isVisible()); checks++;
     const removeButton = details(page).locator('.saved-context-entry').first().getByRole('button', { name: '移除这句', exact: true });
@@ -143,13 +146,13 @@ try {
     await removeButton.click();
     await page.waitForFunction(() => document.querySelectorAll('.saved-context-entry').length === 1); checks++;
     assert.equal(await page.locator('.saved-record-row').count(), 3); checks++;
-    assert.match(await first.innerText(), /1 处原句/); checks++;
+    assert.match(await first.innerText(), /1 句/); checks++;
     assert.ok(await details(page).getByText('Please take off your coat.', { exact: true }).isVisible()); checks++;
     assert.ok(await page.getByRole('button', { name: '撤销', exact: true }).evaluate(node => node === document.activeElement)); checks++;
     assert.ok(await contrast(page.locator('.saved-undo > span')) >= 4.5); checks++;
     await page.getByRole('button', { name: '撤销', exact: true }).click(); await page.waitForFunction(() => document.querySelectorAll('.saved-context-entry').length === 2);
-    assert.equal(await details(page).locator('.saved-detail-meaning').first().innerText(), '我的个人修正'); checks++;
-    assert.match(await first.innerText(), /2 处原句/); checks++;
+    assert.equal(await details(page).locator('.saved-sentence-note').first().innerText(), '我的个人修正'); checks++;
+    assert.match(await first.innerText(), /2 句/); checks++;
     await collapse(page);
     await page.locator('.saved-record-open').filter({ has: page.locator('.saved-record-term', { hasText: /^curiosity$/ }) }).click(); await settle(page); await page.getByRole('button', { name: '返回原文', exact: true }).click();
     await page.getByText('原材料已不存在或已变更，仍可阅读此副本。', { exact: true }).waitFor();
@@ -178,6 +181,7 @@ try {
     await page.evaluate(() => { document.documentElement.style.fontSize = '20px'; }); await noOverflow(page, `${theme} enlarged text`);
     await collapse(page);
     assert.ok(await page.evaluate(() => !window.__uiCalls.some(call => ['update_word_status', 'create_review_card', 'create_phrase_review_card', 'delete_file'].includes(call.command)))); checks++;
+    assert.deepEqual(await page.evaluate(()=>window.__uiWindowErrors),[],'no browser-reported layout errors'); checks++;
     await context.close();
   }
   assert.deepEqual(errors, []);
