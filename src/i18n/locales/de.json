@@ -1980,5 +1980,14 @@
     },
     "baseUnavailable": "Das enthaltene Wörterbuch ist nicht verfügbar. Versuche es erneut; installiere die App bei erneutem Fehler neu.",
     "demoBoundary": "Diese Browserdemo verwendet ein eigenes Beispielwörterbuch. Installierte Wörterbuchpakete verwaltest du in der App."
+  },
+  "collection": {
+    "range": "{{start}}–{{end}} von {{total}}",
+    "goToPage": "Zur Seite",
+    "pageCount": "{{count}} Seiten",
+    "sort": "Material sortieren",
+    "newest": "Neueste zuerst",
+    "oldest": "Älteste zuerst",
+    "title": "Titel A–Z"
   }
 }

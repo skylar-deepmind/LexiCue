@@ -1980,5 +1980,14 @@
     },
     "baseUnavailable": "The included dictionary is unavailable. Retry; if it still fails, reinstall the app.",
     "demoBoundary": "This browser demo uses an original sample dictionary. Manage installed dictionary packs in the app."
+  },
+  "collection": {
+    "range": "{{start}}–{{end}} of {{total}}",
+    "goToPage": "Go to page",
+    "pageCount": "{{count}} pages",
+    "sort": "Sort materials",
+    "newest": "Newest first",
+    "oldest": "Oldest first",
+    "title": "Title A–Z"
   }
 }

@@ -1962,5 +1962,14 @@
     },
     "baseUnavailable": "内蔵辞書を使用できません。再試行し、解決しない場合はアプリを再インストールしてください。",
     "demoBoundary": "このブラウザデモはオリジナルの例示辞書を使用します。辞書パックの管理はアプリで行ってください。"
+  },
+  "collection": {
+    "range": "{{total}} 件中 {{start}}–{{end}}",
+    "goToPage": "ページに移動",
+    "pageCount": "全 {{count}} ページ",
+    "sort": "資料の並び順",
+    "newest": "新しい順",
+    "oldest": "古い順",
+    "title": "タイトル A–Z"
   }
 }

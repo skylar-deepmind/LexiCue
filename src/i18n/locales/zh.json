@@ -1960,5 +1960,14 @@
     },
     "baseUnavailable": "内置词典不可用，请重试；仍不可用时请重新安装应用。",
     "demoBoundary": "网页版演示使用原创样例词典。请在应用中管理已安装的词典包。"
+  },
+  "collection": {
+    "range": "{{start}}–{{end}} / {{total}} 项",
+    "goToPage": "跳转到页码",
+    "pageCount": "共 {{count}} 页",
+    "sort": "材料排序",
+    "newest": "最近导入",
+    "oldest": "最早导入",
+    "title": "标题 A–Z"
   }
 }
