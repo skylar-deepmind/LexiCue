@@ -76,6 +76,8 @@
   .overlay-panel.sentence-note-dialog { width:100%; border-radius:20px 20px 0 0; }
 }
 @media (min-width:768px) {
+  .context-panel--lookup .context-sheet-controls .context-sheet-expand { display:none; }
+  .context-panel.context-panel--lookup .lookup-heading > div { padding-right:48px; }
   .context-panel.context-panel--lookup[data-reading-layout='columns'] { width:var(--reading-slot-width); }
 }
 @media (hover:none) {
