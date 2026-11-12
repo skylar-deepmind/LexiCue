@@ -13,7 +13,7 @@ function updateInert() {
   // A portalled child selector may live inside the dialog or in its own body layer.
   const active = layers.slice(layers.indexOf(modal)).map(layer => layer.element);
   for (const child of Array.from(document.body.children)) {
-    if (!(child instanceof HTMLElement) || active.some(element => child.contains(element)) || child.hasAttribute('data-app-guide')) continue;
+    if (!(child instanceof HTMLElement) || active.some(element => child.contains(element)) || (child.hasAttribute('data-app-guide') || child.hasAttribute('data-notification-host'))) continue;
     inertBefore.set(child, child.inert);
     child.inert = true;
   }
@@ -34,7 +34,7 @@ export function useOverlay(ref: RefObject<HTMLElement | null>, onClose: CloseAct
     element.closest<HTMLElement>('[data-overlay-layer]')?.style.setProperty('--overlay-order', String(layers.length));
     const unregister = backNavigation.register(() => close.current());
     updateInert();
-    const controls = () => [element,associatedGuide(element)].filter((root):root is HTMLElement=>!!root).flatMap(root=>Array.from(root.querySelectorAll<HTMLElement>(
+    const controls = () => [element,associatedGuide(element),document.querySelector<HTMLElement>('[data-notification-host]')].filter((root):root is HTMLElement=>!!root).flatMap(root=>Array.from(root.querySelectorAll<HTMLElement>(
       'button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), a[href], [tabindex]',
     ))).filter(node => node.tabIndex >= 0 && !node.closest('[inert]') && node.getClientRects().length > 0);
     if (!element.contains(document.activeElement)) {
@@ -54,9 +54,9 @@ export function useOverlay(ref: RefObject<HTMLElement | null>, onClose: CloseAct
         const items = controls();
         if (!items.length) { event.preventDefault(); element.focus(); return; }
         const first = items[0], last = items.at(-1)!;
-        if (event.shiftKey && (document.activeElement === first || document.activeElement === element || !element.contains(document.activeElement)&&!associatedGuide(element)?.contains(document.activeElement))) {
+        if (event.shiftKey && (document.activeElement === first || document.activeElement === element || !element.contains(document.activeElement)&&!associatedGuide(element)?.contains(document.activeElement)&&!document.querySelector('[data-notification-host]')?.contains(document.activeElement))) {
           event.preventDefault(); last.focus();
-        } else if (!event.shiftKey && (document.activeElement === last || !element.contains(document.activeElement)&&!associatedGuide(element)?.contains(document.activeElement))) {
+        } else if (!event.shiftKey && (document.activeElement === last || !element.contains(document.activeElement)&&!associatedGuide(element)?.contains(document.activeElement)&&!document.querySelector('[data-notification-host]')?.contains(document.activeElement))) {
           event.preventDefault(); first.focus();
         }
       }

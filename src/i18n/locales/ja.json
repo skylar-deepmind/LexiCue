@@ -975,7 +975,7 @@
     "importing": "インポート中...",
     "deleteAskWithContent": "「{{name}}」と読書コンテンツを削除しますか？保存した原文・意味・メモは残ります。ペアリング済み端末にも同期され、この操作は直接元に戻せません。",
     "deleteAsk": "このファイルを削除しますか？",
-    "deleteTitle": "ファイルを削除",
+    "deleteTitle": "資料を削除",
     "fileDeleted": "ファイルを削除しました",
     "deleteFailed": "ファイルの削除に失敗しました",
     "deleting": "削除中...",
@@ -1371,7 +1371,10 @@
     "englishMeaning": "旧英語の説明",
     "extraSense": "追加の意味",
     "example": "例文",
-    "saveExplanation": "説明を保存"
+    "saveExplanation": "説明を保存",
+    "groupActions": "「{{expression}}」の操作",
+    "deleteGroupNamed": "「{{expression}}」と全 {{count}} 文を削除",
+    "groupRemoved": "「{{expression}}」と {{count}} 文を削除しました"
   },
   "materials": {
     "title": "資料",

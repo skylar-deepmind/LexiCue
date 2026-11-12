@@ -1,7 +1,8 @@
 import { migrateTagColors } from '../lib/portableReading';
 import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
-import { ask, message, open, save } from '@tauri-apps/plugin-dialog';
+import { open, save } from '@tauri-apps/plugin-dialog';
+import { confirmAction as ask, notifyMessage as message } from '../lib/confirmAction';
 import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
 import type {TagColors} from '../lib/tagAppearance';
 import type { FileRecord, BackupPayload, TagInfo, TagSelection } from '../lib/types';

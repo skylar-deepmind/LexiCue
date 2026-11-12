@@ -1,5 +1,6 @@
 import { useEffect, useId, useState, type FormEvent } from 'react';
-import { ask, save } from '@tauri-apps/plugin-dialog';
+import { save } from '@tauri-apps/plugin-dialog';
+import { confirmAction as ask } from '../lib/confirmAction';
 import { writeTextFile } from '@tauri-apps/plugin-fs';
 import { invoke } from '@tauri-apps/api/core';
 import { useTranslation } from 'react-i18next';

@@ -360,15 +360,15 @@
 
 /* Only the secondary actions listed in the approved plan lose their box. */
 :is(.dictionary-controls,.lookup-context) .ui-button, .lookup-context .speech-button.ui-button, .lookup-edit.ui-button,
-.saved-context-actions > .ui-button:not(.saved-primary):not(.saved-remove), .saved-undo .ui-button {
+.saved-context-actions > .ui-button:not(.saved-primary):not(.saved-remove) {
   border-color: transparent; background: transparent; color: var(--text-body); box-shadow: none;
 }
 :is(.dictionary-controls,.lookup-context) .ui-button:hover:not(:disabled), .lookup-edit.ui-button:hover:not(:disabled),
-.saved-context-actions > .ui-button:not(.saved-primary):not(.saved-remove):hover:not(:disabled), .saved-undo .ui-button:hover:not(:disabled) { background: var(--interactive-hover); color: var(--accent-700); }
+.saved-context-actions > .ui-button:not(.saved-primary):not(.saved-remove):hover:not(:disabled) { background: var(--interactive-hover); color: var(--accent-700); }
 :is(.dictionary-controls,.lookup-context) .ui-button:active:not(:disabled), .lookup-edit.ui-button:active:not(:disabled),
-.saved-context-actions > .ui-button:not(.saved-primary):not(.saved-remove):active:not(:disabled), .saved-undo .ui-button:active:not(:disabled) { background: var(--interactive-pressed); }
+.saved-context-actions > .ui-button:not(.saved-primary):not(.saved-remove):active:not(:disabled) { background: var(--interactive-pressed); }
 :is(.dictionary-controls,.lookup-context) .ui-button:disabled, .lookup-edit.ui-button:disabled,
-.saved-context-actions > .ui-button:not(.saved-primary):not(.saved-remove):disabled, .saved-undo .ui-button:disabled { color: var(--text-muted); background: transparent; opacity: 1; }
+.saved-context-actions > .ui-button:not(.saved-primary):not(.saved-remove):disabled { color: var(--text-muted); background: transparent; opacity: 1; }
 
 .b-mobile-nav .b-dock-control[aria-current="page"] > span { color: var(--text-muted); }
 

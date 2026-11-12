@@ -1,6 +1,6 @@
 import { Globe } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { ask } from '@tauri-apps/plugin-dialog';
+import { confirmAction as ask } from '../lib/confirmAction';
 import AppSelect from './AppSelect';
 import { LANGUAGES, type Language } from '../lib/languages';
 import { usePreferencesStore } from '../stores/preferencesStore';

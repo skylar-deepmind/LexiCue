@@ -120,7 +120,7 @@ export async function runSlice4FlowChecks() {
       check((await invoke<SavedRecord | null>('saved_for_selection', { input }))?.explanation_source === 'personal', `${theme}: explicit note save preserves personal provenance`);
       await click(`${rowSelector} .saved-record-actions button:nth-child(3)`);
       await until(async () => (await groups(expression)).total_records === baseline, 'remove original');
-      await click('.saved-undo button');
+      await click('.toast-card .toast-action');
       await until(async () => (await groups(expression)).total_records === baseline + 1, 'undo original removal');
       const restored = await invoke<SavedRecord | null>('saved_for_selection', { input });
       check(restored?.record_id === saved!.record_id && restored.explanation === note && restored.sentence === segment.en_text, `${theme}: delete/undo restores the same original and personal note`);
@@ -142,7 +142,7 @@ export async function runSlice4FlowChecks() {
       await click(`[data-material="${outsider.id}"] .material-actions button:last-child`);
       const kept = desk();
       check(kept.items.length === 5 && kept.items.some(ref => ref.id === outsider.id) && current.items.filter(ref => !kept.items.some(next => next.id === ref.id)).length === 1, `${theme}: keeping sixth replaces exactly one desk item`);
-      await click('.reading-library .desk-feedback button');
+      await click('.notification-host .toast-action');
       check(JSON.stringify(desk()) === JSON.stringify(current), `${theme}: replacement undo restores exact desk order, selection and recency`);
       await escape(); await until(() => !document.querySelector('.library-overlay-panel'), 'library exits');
       check(!document.getElementById('root')?.inert && document.activeElement === dock, `${theme}: library Escape restores background and trigger focus`);

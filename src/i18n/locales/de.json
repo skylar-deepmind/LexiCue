@@ -992,7 +992,7 @@
     "importing": "Importiere...",
     "deleteAskWithContent": "„{{name}}“ und seinen Lesetext löschen? Gespeicherte Sätze, Bedeutungen und Notizen bleiben erhalten. Die Löschung wird auf gekoppelte Geräte übertragen und kann nicht direkt rückgängig gemacht werden.",
     "deleteAsk": "Diese Datei löschen?",
-    "deleteTitle": "Datei löschen",
+    "deleteTitle": "Material löschen",
     "fileDeleted": "Datei gelöscht",
     "deleteFailed": "Löschen der Datei fehlgeschlagen",
     "deleting": "Wird gelöscht...",
@@ -1388,7 +1388,10 @@
     "englishMeaning": "Bisherige englische Erklärung",
     "extraSense": "Weitere Bedeutung",
     "example": "Beispiel",
-    "saveExplanation": "Erklärung speichern"
+    "saveExplanation": "Erklärung speichern",
+    "groupActions": "Aktionen für {{expression}}",
+    "deleteGroupNamed": "{{expression}} und alle {{count}} Sätze löschen",
+    "groupRemoved": "{{expression}} und {{count}} Sätze gelöscht"
   },
   "materials": {
     "title": "Material",

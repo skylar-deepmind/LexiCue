@@ -2,11 +2,13 @@ import CollectionPager from '../components/CollectionPager';
 import { collectionPage } from '../lib/collectionPage';
 import { useRestoreGuard } from '../stores/restoreGuard';
 import { LoadingSkeleton, BusyRing } from '../components/LoadingFeedback';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Bookmark, ChevronRight, Search, Undo2 } from 'lucide-react';
+import { Bookmark, ChevronRight, Search, Trash2, MoreHorizontal } from 'lucide-react';
+import useSwipeDelete from '../components/useSwipeDelete';
+import { useFeedbackStore } from '../stores/feedbackStore';
 import MotionChange from '../components/MotionChange';
 import SmoothDisclosure from '../components/SmoothDisclosure';
 import SavedSentence from '../components/SavedSentence';
@@ -14,7 +16,7 @@ import { useQuietScrollbars } from '../components/useQuietScrollbars';
 import { useImportStore } from '../stores/importStore';
 import { backNavigation } from '../lib/backNavigation';
 import { readerNavigation, resolveSavedSource, savedNoteDrafts, type SavedNoteDraft, type SavedViewSnapshot } from '../lib/readerNavigation';
-import { mutateSaved, savedErrorKey, undoSaved, type SavedConflict, type SavedMigrationReport, type SavedRecord, type SavedGroup, type SavedGroupPage, type SavedContextPage } from '../lib/savedRecords';
+import { mutateSaved, removeSavedGroup, undoSavedGroup, savedErrorKey, undoSaved, type SavedConflict, type SavedMigrationReport, type SavedRecord, type SavedGroup, type SavedGroupPage, type SavedContextPage } from '../lib/savedRecords';
 
 const PAGE_SIZE = 20;
 // A single bounded page keeps tab/settings returns stable while revalidating.
@@ -25,7 +27,6 @@ type EditDraft = SavedNoteDraft;
 
 interface SavedGroupDetailProps {
   group: SavedGroup; revision: number; drafts: Map<string, EditDraft>; pendingRemove: string | null;
-  undo: string | null; undoBusy: boolean; undoButton: RefObject<HTMLButtonElement | null>; onUndo: () => Promise<void>;
   onClose: () => void; onRemove: (record: SavedRecord) => Promise<void>; onReturn: (record: SavedRecord, isCurrent?: () => boolean) => Promise<void>;
   initialCount: number; initialRecordId?: string; onCount: (count: number) => void; active: boolean;
 }
@@ -97,16 +98,27 @@ function SavedGroupContent({ group, revision, pendingRemove, onRemove, onReturn,
   </>;
 }
 
-export function SavedGroupCard({ group, selected, onOpen, children, disabled = false }: { group: SavedGroup; selected: boolean; onOpen: () => void; children?: React.ReactNode; disabled?: boolean }) {
+export function SavedGroupCard({ group, selected, onOpen, children, disabled = false, onRemove, swipeOpen = false, onSwipeOpen, removing = false }: { group: SavedGroup; selected: boolean; onOpen: () => void; children?: React.ReactNode; disabled?: boolean; onRemove?: () => void; swipeOpen?: boolean; onSwipeOpen?: (open:boolean) => void; removing?: boolean }) {
   const { t } = useTranslation();
   const summary = (group as SavedGroup & { summary?: string | null }).summary;
   const id = `saved-panel-${group.group_id}`;
-  return <li className="saved-record-row saved-group-row" data-group={group.group_id} data-expanded={selected}>
+  const front=useRef<HTMLDivElement>(null);
+  const trash=useRef<HTMLButtonElement>(null),more=useRef<HTMLButtonElement>(null),focusDelete=useRef(false),wasOpen=useRef(swipeOpen);
+  useLayoutEffect(()=>{
+    if(swipeOpen && focusDelete.current){focusDelete.current=false;trash.current?.focus({preventScroll:true});}
+    else if(wasOpen.current&&!swipeOpen&&document.activeElement===trash.current)more.current?.focus({preventScroll:true});
+    wasOpen.current=swipeOpen;
+  },[swipeOpen]);
+  useSwipeDelete(front,swipeOpen,open=>onSwipeOpen?.(open),!!onRemove&&!disabled);
+  return <li className="saved-record-row saved-group-row" data-group={group.group_id} data-expanded={selected} data-swipe-open={swipeOpen || undefined}>
+    {onRemove && <button type="button" className="saved-group-delete" ref={trash} tabIndex={swipeOpen?0:-1} aria-hidden={!swipeOpen} aria-label={t('savedRecords.deleteGroupNamed',{expression:group.expression,count:group.context_count})} disabled={disabled} onClick={onRemove} aria-busy={removing}>{removing?<BusyRing/>:<Trash2 size={21} aria-hidden="true"/>}</button>}
+    <div className="saved-swipe-front" ref={front}><div className="saved-row-handle">
     <button className="saved-record-open" disabled={disabled} onClick={onOpen} aria-expanded={selected} aria-controls={id}>
       <span className="saved-record-term" lang="en">{group.expression}</span><span className="saved-context-count">{t('dictionaryFlow.compactContextCount', { count: group.context_count })}</span>
       {summary && <span className="saved-record-meaning">{summary}</span>}<ChevronRight className="saved-chevron" size={20} strokeWidth={1.8} aria-hidden="true" />
     </button>
-    <SmoothDisclosure id={id} open={selected}>{children}</SmoothDisclosure>
+    {onRemove && <button type="button" className="saved-group-more desk-text-button" ref={more} aria-label={t('savedRecords.groupActions',{expression:group.expression})} aria-expanded={swipeOpen} disabled={disabled} onClick={()=>{focusDelete.current=!swipeOpen;onSwipeOpen?.(!swipeOpen);}}><MoreHorizontal size={20} aria-hidden="true"/></button>}
+    </div><SmoothDisclosure id={id} open={selected}>{children}</SmoothDisclosure></div>
   </li>;
 }
 
@@ -144,23 +156,22 @@ export default function SavedPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [pendingRemove, setPendingRemove] = useState<string | null>(null);
-  const [undo, setUndo] = useState<string | null>(null);
   const [undoBusy, setUndoBusy] = useState(false);
+  const [swiped, setSwiped] = useState<string | null>(null);
+  const mutationPending=useRef(false);
+  const undoToast=useRef<number|null>(null);
   const [report, setReport] = useState<SavedMigrationReport | null>(null);
   const [conflicts, setConflicts] = useState<SavedConflict[]>([]);
   const request = useRef(0);
   const removalReceipts = useRef(new Map<string, string>());
-  const removedGroup = useRef<string | null>(null);
-  const wantedGroup = useRef<string | null>(null);
+  const wantedGroup = useRef<{id:string;query:string;number:number}|null>(null);
   const editDrafts = useRef(savedNoteDrafts);
   const liveView = useRef({ query, page, pageNumber, selected, loadedContexts });
   liveView.current = { query, page, pageNumber, selected, loadedContexts };
   useLayoutEffect(() => {
     if (!snapshot && cached && savedScroll.current) savedScroll.current.scrollTop = cached.scroll;
   }, [cached, snapshot]);
-  const undoButton = useRef<HTMLButtonElement>(null);
   useEffect(() => { if (importOpen) setSelected(null); }, [importOpen]);
-  useEffect(() => { if (undo) undoButton.current?.focus({ preventScroll: true }); }, [undo, selected?.group_id]);
   const load = useCallback(async () => {
     const current = ++request.current;
     const intentAtStart = selectionIntent.current;
@@ -175,8 +186,9 @@ export default function SavedPage() {
       sessionPage = {generation, query:settledQuery, number:pageNumber, data:next, scroll:savedScroll.current?.scrollTop ?? 0};
       // Capture the intent before the updater is queued; never let an older
       // request restore a group after the user has chosen another one.
-      const wanted = wantedGroup.current;
-      wantedGroup.current = null;
+      const target = wantedGroup.current;
+      const wanted = target?.query === settledQuery && target.number === pageNumber ? target.id : null;
+      if(wanted)wantedGroup.current = null;
       const mayRestore = intentAtStart === selectionIntent.current;
       setSelected(previous => {
         const id = (mayRestore ? wanted : null) ?? previous?.group_id ?? (mayRestore && !didRestore.current ? snapshot?.expandedGroupId : null);
@@ -247,36 +259,78 @@ export default function SavedPage() {
     if (!selected) return;
     return backNavigation.setPage(() => { setSelected(null); return true; }, 2);
   }, [selected]);
+  const loadCurrent = useRef(load);loadCurrent.current=load;
+  const offerUndo = (receipt: {id:string;kind:'record'|'group';groupId:string|null;expression:string;count:number;number:number;query:string}) => {
+    const feedback=useFeedbackStore.getState();
+    const restoreGeneration=useRestoreGuard.getState().generation;
+    if(undoToast.current!==null)feedback.dismiss(undoToast.current);
+    undoToast.current=feedback.show(t(receipt.kind==='group'?'savedRecords.groupRemoved':'savedRecords.removed',{expression:receipt.expression,count:receipt.count}),'success',10000,{
+      label:t('savedRecords.undo'),focus:true,onClick:async()=>{
+        if(useRestoreGuard.getState().generation!==restoreGeneration){useFeedbackStore.getState().show(t('savedRecords.conflictError'),'info');return true;}
+        if(mutationPending.current||useRestoreGuard.getState().active)return false;
+        mutationPending.current=true;setUndoBusy(true);
+        const intent=selectionIntent.current;
+        try {
+          if(receipt.kind==='group')await undoSavedGroup(receipt.id);else await undoSaved(receipt.id);
+          if(livePage.current){
+            const current=liveView.current;
+            if(receipt.groupId && current.query===receipt.query && selectionIntent.current===intent){
+              wantedGroup.current={id:receipt.groupId,query:receipt.query,number:receipt.number};
+              setOpened(value=>value.includes(receipt.groupId!)?value:[...value,receipt.groupId!]);
+              if(current.pageNumber!==receipt.number)setPageNumber(receipt.number);else await loadCurrent.current();
+            }else await loadCurrent.current();
+          }
+          return true;
+        }catch(reason){useFeedbackStore.getState().show(t(savedErrorKey(reason)),'error');return false;}
+        finally{mutationPending.current=false;if(livePage.current)setUndoBusy(false);}
+      },
+    });
+  };
   const remove = async (record: SavedRecord) => {
-    if (pendingRemove || undoBusy) return;
+    if (mutationPending.current || undoBusy) return;
+    mutationPending.current=true;
     const key = `${record.record_id}:${record.revision}`;
     const operationId = removalReceipts.current.get(key) ?? crypto.randomUUID();
     removalReceipts.current.set(key, operationId);
-    const removingGroup = selected?.group_id ?? null;
+    const removingGroup=selected?.group_id??null;
+    const origin={number:pageNumber,query};
     setPendingRemove(record.record_id); setError('');
     try {
-      const result = await mutateSaved({ kind: 'remove', record_id: record.record_id, expected_revision: record.revision }, operationId);
-      if (result.changed) { removedGroup.current = removingGroup; setUndo(result.operation_id); if (selected?.context_count === 1) setSelected(current => current?.group_id === removingGroup ? null : current); }
+      const result = await mutateSaved({kind:'remove',record_id:record.record_id,expected_revision:record.revision},operationId);
+      if(result.changed){offerUndo({id:result.operation_id,kind:'record',groupId:removingGroup,expression:record.expression,count:1,...origin});if(selected?.context_count===1)setSelected(null);}
       removalReceipts.current.delete(key);
-    } catch (reason) { setError(t(savedErrorKey(reason))); throw reason; }
-    finally { setPendingRemove(null); }
+    } catch(reason){setError(t(savedErrorKey(reason)));throw reason;}
+    finally{mutationPending.current=false;setPendingRemove(null);}
   };
-  const restore = async () => {
-    if (!undo || undoBusy) return;
-    setUndoBusy(true); setError('');
-    try { wantedGroup.current = removedGroup.current; await undoSaved(undo); await load(); setUndo(null); }
-    catch (reason) { setError(t(savedErrorKey(reason))); }
-    finally { setUndoBusy(false); }
+  const removeGroup = async (group: SavedGroup) => {
+    if(mutationPending.current||changingView)return;
+    mutationPending.current=true;
+    const key=`group:${group.group_id}:${group.context_count}`;
+    const operationId=removalReceipts.current.get(key)??crypto.randomUUID();
+    removalReceipts.current.set(key,operationId);
+    const origin={number:pageNumber,query};
+    selectionIntent.current++;visitGeneration.current++;setPendingRemove(group.group_id);setError('');
+    try {
+      const result=await removeSavedGroup(group,operationId);
+      setSwiped(null);setSelected(current=>current?.group_id===group.group_id?null:current);
+      removalReceipts.current.delete(key);
+      if(result.changed)offerUndo({id:result.operation_id,kind:'group',groupId:group.group_id,expression:group.expression,count:result.count,...origin});
+    }catch(reason){useFeedbackStore.getState().show(t(savedErrorKey(reason)),'error');}
+    finally{mutationPending.current=false;setPendingRemove(null);}
   };
+  useEffect(()=>{
+    if(!swiped)return;
+    return backNavigation.register(()=>{setSwiped(null);return true;});
+  },[swiped]);
   const changePage = (next: number) => {
     if(next === pageNumber)return;
-    selectionIntent.current++; setSelected(null); setOpened([]); setPageNumber(next);
+    selectionIntent.current++; wantedGroup.current=null; setSwiped(null); setSelected(null); setOpened([]); setPageNumber(next);
     if(savedScroll.current)savedScroll.current.scrollTop=0;
   };
   return <div className="saved-page">
     <div className="saved-scroll" ref={savedScroll} onScroll={() => { if(sessionPage && !changingView)sessionPage.scroll=savedScroll.current?.scrollTop ?? 0; }} onPointerDown={event => { if (event.target === event.currentTarget || event.target === event.currentTarget.firstElementChild) setSelected(null); }}><div className="saved-workspace workspace-paper">
       <div className="sr-only"><h1>{t('savedRecords.title')}</h1><span role="status">{t('dictionaryFlow.groupCount', { count: page.total_groups, contexts: page.total_records })}</span></div>
-      <div className="collection-toolbar"><label className="saved-search"><Search size={18} aria-hidden="true" /><span className="sr-only">{t('savedRecords.search')}</span><input type="search" value={query} onChange={event => { request.current++; setSelected(null); setOpened([]); setPageNumber(1); setQuery(event.target.value); if(savedScroll.current)savedScroll.current.scrollTop=0; }} placeholder={t('savedRecords.search')} /></label>
+      <div className="collection-toolbar"><label className="saved-search"><Search size={18} aria-hidden="true" /><span className="sr-only">{t('savedRecords.search')}</span><input type="search" value={query} onChange={event => { request.current++; selectionIntent.current++; wantedGroup.current=null; setSwiped(null); setSelected(null); setOpened([]); setPageNumber(1); setQuery(event.target.value); if(savedScroll.current)savedScroll.current.scrollTop=0; }} placeholder={t('savedRecords.search')} /></label>
       <CollectionPager label={t('savedRecords.title')} total={page.total_groups} page={pageNumber} size={PAGE_SIZE} busy={loading || changingView} onChange={changePage}/></div>
       {error && <div className="saved-error" role="alert"><p>{error}</p><button className="ui-button" onClick={() => void load()}>{t('common.retry')}</button></div>}
       {loading && !page.groups.length && <LoadingSkeleton kind="list" label={t('common.loading')}/>}
@@ -284,15 +338,15 @@ export default function SavedPage() {
       {/* Loading results must paint at full height, including on desktop where
           a route transition may still be running when the first reply arrives. */}
       <MotionChange enabled={!loading && !changingView} interruptKey={selected?.group_id ?? ''} changeKey={`${query}:${page.groups.map(group => `${group.group_id}:${group.context_count}`).join(',')}`}><ul className="saved-record-list" aria-busy={loading || changingView} aria-label={t('savedRecords.title')}>
-        {page.groups.map(group => <SavedGroupCard key={group.group_id} group={group} disabled={changingView} selected={selected?.group_id === group.group_id} onOpen={() => { selectionIntent.current++; setSelected(current => current?.group_id === group.group_id ? null : group); setOpened(current => current.includes(group.group_id) ? current : [...current, group.group_id]); }}>
-          {opened.includes(group.group_id) && <SavedGroupContent active={selected?.group_id === group.group_id} group={group} revision={contextRevision} drafts={editDrafts.current} pendingRemove={pendingRemove} undo={undo} undoBusy={undoBusy} undoButton={undoButton} onUndo={restore} onClose={() => setSelected(null)} onRemove={remove} onReturn={returnToSource} initialRecordId={snapshot?.focusRecordId} initialCount={snapshot?.loadedContexts[group.group_id] ?? 1} onCount={count => contextCount(group.group_id, count)} />}
+        {page.groups.map(group => <SavedGroupCard key={group.group_id} group={group} removing={pendingRemove===group.group_id} disabled={changingView || pendingRemove!==null || undoBusy} swipeOpen={swiped===group.group_id} onSwipeOpen={open=>setSwiped(open?group.group_id:null)} onRemove={()=>void removeGroup(group)} selected={selected?.group_id === group.group_id} onOpen={() => { selectionIntent.current++; setSwiped(null); setSelected(current => current?.group_id === group.group_id ? null : group); setOpened(current => current.includes(group.group_id) ? current : [...current, group.group_id]); }}>
+          {opened.includes(group.group_id) && <SavedGroupContent active={selected?.group_id === group.group_id} group={group} revision={contextRevision} drafts={editDrafts.current} pendingRemove={pendingRemove} onClose={() => setSelected(null)} onRemove={remove} onReturn={returnToSource} initialRecordId={snapshot?.focusRecordId} initialCount={snapshot?.loadedContexts[group.group_id] ?? 1} onCount={count => contextCount(group.group_id, count)} />}
         </SavedGroupCard>)}
       </ul></MotionChange>
       {loading && page.groups.length > 0 && <div className="saved-status" role="status"><BusyRing/><span className="sr-only">{t('common.loading')}</span></div>}
       {report && report.saved_contexts > 0 && <details className="saved-migration"><summary>{t('savedRecords.migrationTitle')}</summary><p>{t('savedRecords.migrationReport', { count: report.saved_contexts, missing: report.missing_sources })}</p></details>}
       {conflicts.length > 0 && <details className="saved-conflicts"><summary>{t('savedRecords.conflicts', { count: conflicts.length })}</summary><p>{t('savedRecords.conflictsHint')}</p>{conflicts.map(conflict => <section key={conflict.id}><h2>{conflict.local.expression}</h2><p>{t('savedRecords.localVersion')}：{conflict.local.explanation || t('savedRecords.noExplanation')}</p><p>{t('savedRecords.remoteVersion')}：{conflict.remote.explanation || t('savedRecords.noExplanation')}</p><p lang="en">{conflict.local.sentence}</p></section>)}</details>}
     </div></div>
-    {undo && <div className="saved-undo" role="status"><span>{t('savedRecords.removed')}</span><button className="ui-button ui-button--icon" aria-label={t('savedRecords.undo')} title={t('savedRecords.undo')} ref={undoButton} disabled={undoBusy || pendingRemove !== null} onClick={() => void restore()}><Undo2 size={20} aria-hidden="true" /></button></div>}
+
 
   </div>;
 }

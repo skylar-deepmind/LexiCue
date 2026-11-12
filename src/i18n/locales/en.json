@@ -992,7 +992,7 @@
     "importing": "Importing...",
     "deleteAskWithContent": "Delete “{{name}}” and its reading content? Saved sentences, meanings and notes will remain. This also syncs to paired devices and cannot be undone directly.",
     "deleteAsk": "Delete this file?",
-    "deleteTitle": "Delete File",
+    "deleteTitle": "Delete material",
     "fileDeleted": "File deleted",
     "deleteFailed": "Failed to delete file",
     "deleting": "Deleting...",
@@ -1388,7 +1388,10 @@
     "englishMeaning": "Previous English meaning",
     "extraSense": "Additional meaning",
     "example": "Example",
-    "saveExplanation": "Save explanation"
+    "saveExplanation": "Save explanation",
+    "groupActions": "Actions for {{expression}}",
+    "deleteGroupNamed": "Delete {{expression}} and all {{count}} sentences",
+    "groupRemoved": "Deleted {{expression}} and {{count}} sentences"
   },
   "materials": {
     "title": "Materials",

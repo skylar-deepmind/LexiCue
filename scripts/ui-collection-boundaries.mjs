@@ -43,13 +43,13 @@ try {
   await workspace.getByRole('searchbox').fill('00024');await savedReady(page,'word 00024');eq(await rows(page).count(),1,'saved search across all pages');
   await page.evaluate(()=>window.__collection.delay=0);
   await workspace.getByRole('searchbox').fill('');await savedReady(page,'word 00001');
-  await rows(page).first().getByRole('button',{expanded:false}).click();await page.locator('.saved-sentence').first().waitFor();
+  await rows(page).first().locator('.saved-record-open[aria-expanded=false]').click();await page.locator('.saved-sentence').first().waitFor();
   eq(await page.locator('.page-live .saved-sentence:visible').count(),1,'a thousand contexts start with one sentence');
   await page.getByRole('button',{name:'还有 1002 句',exact:true}).click();
   eq(await page.locator('.page-live .saved-sentence:visible').count(),20,'opening contexts is bounded to twenty');
   const details=page.locator('.page-live .saved-disclosure[data-open=true]');await jump(details,51);await page.waitForFunction(()=>document.querySelectorAll('.page-live .saved-sentence').length===3);await settle(page);
   eq(await details.locator('.saved-sentence').count(),3,'a thousand contexts support direct paging');
-  await rows(page).first().getByRole('button',{expanded:true}).click();await settle(page);
+  await rows(page).first().locator('.saved-record-open[aria-expanded=true]').click();await settle(page);
   await jump(workspace,2);await savedReady(page,'word 00021');
   // Sticky controls stay reachable even at the end of the page.
   await page.locator('.saved-scroll').evaluate(n=>n.scrollTop=n.scrollHeight);await overflow(page,'saved page fits viewport');

@@ -1,0 +1,20 @@
+.notification-host { position:fixed; z-index:150; left:50%; top:calc(var(--visual-top,0px) + var(--visual-height,100dvh) - max(24px,calc(var(--safe-bottom,0px) + 16px))); bottom:auto; transform:translate(-50%,-100%); display:flex; align-items:center; flex-direction:column; gap:8px; width:max-content; max-width:calc(100vw - 48px); pointer-events:none; }
+.toast-card { pointer-events:auto; display:flex; align-items:center; flex-wrap:wrap; gap:4px 8px; width:max-content; max-width:min(360px,calc(100vw - 48px)); padding:8px 12px; border:1px solid var(--border); border-radius:16px; background:var(--surface); color:var(--text-strong); box-shadow:var(--panel-shadow); font-size:.875rem; line-height:1.5; animation:notice-enter 180ms ease-out; }
+.toast-card > svg { flex:none; color:var(--accent-700); }
+.toast-card[data-type='error'] > svg { color:var(--sync-error-text); }
+.toast-message { flex:1; min-width:0; overflow-wrap:anywhere; max-height:min(9em,28dvh); overflow:auto; }
+.toast-card .toast-action.ui-button { display:inline-flex; flex:none; margin:0; padding:8px; min-height:44px; border:0; background:transparent; color:var(--accent-700); }
+.toast-card .toast-icon { display:grid; place-items:center; flex:none; width:44px; min-height:44px; border:0; border-radius:10px; color:var(--text-muted); background:transparent; }
+.toast-card button:hover:not(:disabled) { background:var(--interactive-hover); }
+.toast-card button:active:not(:disabled) { background:var(--interactive-pressed); }
+.toast-card button:focus-visible { outline:2px solid var(--accent-700); outline-offset:-2px; }
+.toast-card button:disabled { opacity:.5; }
+.lexicue-b .confirm-popup-layer { align-items:center; justify-content:center; padding:24px; }
+.lexicue-b .overlay-panel.confirm-popup { width:min(340px,calc(100vw - 48px)); max-width:100%; max-height:calc(var(--visual-height,100dvh) - 48px); padding:20px; border:1px solid var(--border); border-radius:18px; background:var(--surface); color:var(--text-strong); box-shadow:var(--panel-shadow); }
+.confirm-popup h2 { margin:0 0 12px; font-size:1.125rem; font-weight:550; }
+.confirm-popup p { color:var(--text-body); overflow-wrap:anywhere; font-size:.9375rem; line-height:1.65; }
+.confirm-popup-actions { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px; margin-top:20px; }
+.confirm-popup-actions .ui-button { min-height:44px; min-width:72px; }
+@keyframes notice-enter { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+@media(prefers-reduced-motion:reduce) { .toast-card { animation:none; } }
+.lexicue-b .overlay-panel.compact-prompt { width:min(380px,calc(100vw - 48px)); max-width:100%; margin-inline:auto; }

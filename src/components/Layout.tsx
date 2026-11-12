@@ -11,6 +11,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import Sidebar from './Sidebar';
 import MobileNav from './MobileNav';
+import ConfirmationHost from './ConfirmationHost';
 import ToastHost from './ToastHost';
 import { useDictionaryStore } from '../stores/dictionaryStore';
 import { useYoutubeStore } from '../stores/youtubeStore';
@@ -195,6 +196,7 @@ export default function Layout() {
       </main>
       <ImportPanel />
       <ToastHost />
+      <ConfirmationHost />
       <AppFirstUseGuide />
       {restoring && <Overlay className="restore-progress" label={t('fileStore.restoring')} onClose={() => false}><p role="status">{t('fileStore.restoring')}</p><ActivityTrack /></Overlay>}
     </div>);

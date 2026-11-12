@@ -168,3 +168,15 @@ export function legacyContent(value: unknown): { label: string; text: string }[]
   }
   return result;
 }
+
+export interface SavedGroupMutationResult { operation_id: string; count: number; changed: boolean }
+export async function removeSavedGroup(group: SavedGroup, operationId: string): Promise<SavedGroupMutationResult> {
+  const result = await invoke<SavedGroupMutationResult>('remove_saved_group', { groupId: group.group_id, expectedCount: group.context_count, operationId });
+  if (result.changed) window.dispatchEvent(new Event('lexicue-saved-changed'));
+  return result;
+}
+export async function undoSavedGroup(operationId: string): Promise<SavedGroupMutationResult> {
+  const result = await invoke<SavedGroupMutationResult>('undo_saved_group', { operationId });
+  window.dispatchEvent(new Event('lexicue-saved-changed'));
+  return result;
+}

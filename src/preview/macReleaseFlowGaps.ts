@@ -55,7 +55,7 @@ export async function runMacReleaseFlowGaps() {
       }
       check(!!live('.desk-empty')&&useReadingDeskStore.getState().desk.items.length===0,`${theme}: explicitly empty desk is available`);
       check((await files()).length===countBefore,`${theme}: shelving never deletes materials`);
-      await click('.desk-feedback button');await settle();
+      await click('.notification-host .toast-action');await settle();
       check(useReadingDeskStore.getState().desk.items.length===1&&!live('.desk-empty'),`${theme}: last shelving undo restores its actual material`);
       await click('.dock-import-slot button');
       check(!live('.lc-import-footer .lc-import-primary')&&!!live('.lc-import-source--clipboard'),`${theme}: compact entry has clipboard action but no confirmation/write action`);

@@ -149,7 +149,7 @@ try {
     assert.match(await first.innerText(), /1 句/); checks++;
     assert.ok(await details(page).getByText('Please take off your coat.', { exact: true }).isVisible()); checks++;
     assert.ok(await page.getByRole('button', { name: '撤销', exact: true }).evaluate(node => node === document.activeElement)); checks++;
-    assert.ok(await contrast(page.locator('.saved-undo > span')) >= 4.5); checks++;
+    assert.ok(await contrast(page.locator('.toast-card .toast-message')) >= 4.5); checks++;
     await page.getByRole('button', { name: '撤销', exact: true }).click(); await page.waitForFunction(() => document.querySelectorAll('.saved-context-entry').length === 2);
     assert.equal(await details(page).locator('.saved-sentence-note').first().innerText(), '我的个人修正'); checks++;
     assert.match(await first.innerText(), /2 句/); checks++;

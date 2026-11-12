@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => {
   return { invoke: vi.fn(), open: vi.fn(), ask: vi.fn(), read: vi.fn() };
 });
 vi.mock('@tauri-apps/api/core', () => ({ invoke: mocks.invoke }));
+vi.mock('../../lib/confirmAction', () => ({ confirmAction: mocks.ask, notifyMessage: vi.fn() }));
 vi.mock('@tauri-apps/plugin-dialog', () => ({ open: mocks.open, ask: mocks.ask, message: vi.fn(), save: vi.fn() }));
 vi.mock('@tauri-apps/plugin-fs', () => ({ readTextFile: mocks.read, writeTextFile: vi.fn() }));
 vi.mock('../../i18n', () => ({ default: { t: (key: string, values?: {path?: string}) => `${key}:${values?.path ?? ''}` } }));

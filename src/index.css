@@ -92,7 +92,6 @@
 .saved-error { color: var(--sync-error-text); padding-block: 16px; font-size: .875rem; line-height: 1.6; }
 .saved-status { color: var(--text-muted); padding-block: 12px; }
 .saved-empty { display: grid; justify-items: center; gap: 16px; padding: 64px 12px; text-align: center; color: var(--text-muted); }
-.saved-undo { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 8px 20px max(8px, var(--safe-bottom)); border-top: 1px solid var(--border); background: var(--sync-success-bg); color: var(--sync-success-text); }
 .saved-migration, .saved-conflicts { margin-top: 24px; padding: 12px 0; font-size: .875rem; line-height: 1.65; color: var(--text-muted); }
 .saved-migration summary, .saved-conflicts summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; }
 .saved-conflicts { color: var(--sync-warning-text); }

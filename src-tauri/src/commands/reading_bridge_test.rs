@@ -158,6 +158,15 @@ fn route(
             &serde_json::from_value(a["mutation"].clone()).map_err(|e| e.to_string())?,
         )?)
         .map_err(|e| e.to_string()),
+        "remove_saved_group" => serde_json::to_value(saved::remove_group(
+            c,
+            text("operationId"),
+            text("groupId"),
+            a["expectedCount"].as_u64().unwrap_or(0) as usize,
+        )?)
+        .map_err(|e| e.to_string()),
+        "undo_saved_group" => serde_json::to_value(saved::undo_group(c, text("operationId"))?)
+            .map_err(|e| e.to_string()),
         "undo_saved_mutation" => {
             serde_json::to_value(saved::undo(c, text("operationId"))?).map_err(|e| e.to_string())
         }

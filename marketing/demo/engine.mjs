@@ -55,6 +55,24 @@ export class DemoEngine {
   case 'saved_for_selection':return clone(this.selection(args.input));
   case 'mutate_saved_record':return this.mutate(args.mutation,args.operationId);
   case 'undo_saved_mutation':return this.undo(args.operationId);
+  case 'remove_saved_group':{
+   const request=JSON.stringify([args.groupId,args.expectedCount]),previous=this.receipts.get(args.operationId);
+   if(previous){if(previous.kind!=='remove_group'||previous.request!==request||previous.undone)throw Error('saved_conflict');return clone(previous.result);}
+   const records=this.active().filter(r=>'demo-group:'+r.normalized_expression===args.groupId);
+   if(!records.length||records.length!==args.expectedCount)throw Error('saved_conflict');
+   const before=clone(records),after={};
+   for(const record of records){record.deleted_at=Date.now();record.updated_at=Date.now();record.revision=this.revision();after[record.record_id]=record.revision;}
+   const result={operation_id:args.operationId,count:records.length,changed:true};
+   this.receipts.set(args.operationId,{kind:'remove_group',request,before,after,result,undone:false});return clone(result);
+  }
+  case 'undo_saved_group':{
+   const receipt=this.receipts.get(args.operationId);if(receipt?.kind!=='remove_group')throw Error('saved_conflict');
+   if(receipt.undone)return {...clone(receipt.result),changed:false};
+   const targets=receipt.before.map(before=>this.records.find(r=>r.record_id===before.record_id));
+   if(targets.some(record=>!record||record.deleted_at===null||record.revision!==receipt.after[record.record_id]))throw Error('saved_conflict');
+   targets.forEach((record,index)=>Object.assign(record,clone(receipt.before[index]),{generation:record.generation+1,revision:this.revision(),updated_at:Date.now()}));
+   receipt.undone=true;return clone(receipt.result);
+  }
   case 'list_saved_groups':return this.groups(args);
   case 'saved_group_contexts':{const rows=this.active(String(args.groupId).replace('demo-group:',''));return clone({records:rows.slice(args.offset||0,(args.offset||0)+(args.limit||10)),total:rows.length});}
   case 'saved_recall_contexts':{const rows=this.active(args.expression);return clone({records:rows.slice(args.offset||0,(args.offset||0)+(args.limit||10)),total:rows.length});}

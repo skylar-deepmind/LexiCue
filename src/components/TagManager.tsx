@@ -1,7 +1,7 @@
 import { LoadingSkeleton } from './LoadingFeedback';
 import { useRef, useState } from 'react';
 import { Pencil, Plus, Trash2, X } from 'lucide-react';
-import { ask } from '@tauri-apps/plugin-dialog';
+import { confirmAction as ask } from '../lib/confirmAction';
 import { useTranslation } from 'react-i18next';
 import { useFileStore } from '../stores/fileStore';
 import type { TagInfo } from '../lib/types';

@@ -975,7 +975,7 @@
     "importing": "导入中...",
     "deleteAskWithContent": "删除“{{name}}”及其中的阅读内容？已保存的原句、释义和笔记会保留。此操作也会同步到已配对设备，无法直接撤销。",
     "deleteAsk": "确认删除这个文件吗？",
-    "deleteTitle": "删除文件",
+    "deleteTitle": "删除材料",
     "fileDeleted": "文件已删除",
     "deleteFailed": "文件删除失败",
     "deleting": "删除中...",
@@ -1371,7 +1371,10 @@
     "englishMeaning": "旧英语解释",
     "extraSense": "扩展义",
     "example": "例句",
-    "saveExplanation": "保存解释"
+    "saveExplanation": "保存解释",
+    "groupActions": "“{{expression}}”的更多操作",
+    "deleteGroupNamed": "删除“{{expression}}”及全部 {{count}} 句",
+    "groupRemoved": "已删除“{{expression}}”及 {{count}} 句"
   },
   "materials": {
     "title": "材料",

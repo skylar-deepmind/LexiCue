@@ -202,6 +202,8 @@ pub fn run() {
             commands::saved::saved_group_contexts,
             commands::saved::mutate_saved_record,
             commands::saved::undo_saved_mutation,
+            commands::saved::remove_saved_group,
+            commands::saved::undo_saved_group,
             commands::saved::saved_record_source,
             commands::saved::saved_migration_report,
             commands::saved::saved_record_conflicts,

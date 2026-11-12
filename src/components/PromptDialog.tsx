@@ -39,7 +39,7 @@ export default function PromptDialog({
   };
 
   return (
-    <Overlay label={title} onClose={cancel} className="w-full max-w-sm rounded-2xl bg-white shadow-xl">
+    <Overlay label={title} onClose={cancel} className="compact-prompt max-w-sm rounded-2xl bg-white shadow-xl">
         <div className="border-b border-gray-100 p-5">
           <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
         </div>
