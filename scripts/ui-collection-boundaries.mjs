@@ -73,7 +73,12 @@ try {
   const button=page.locator('.desk-empty .desk-primary');eq(await button.isVisible(),true,'zero materials expose an import action');
   eq(await button.evaluate(n=>{const r=n.getBoundingClientRect();return r.top>=0&&r.bottom<=innerHeight;}),true,'empty action fits a small phone');
   await page.evaluate(()=>document.documentElement.style.fontSize='24px');await overflow(page,'large text empty state fits');
-  await page.screenshot({path:`${output}/${theme}-empty.png`});await context.close();
+  await page.screenshot({path:`${output}/${theme}-empty.png`});
+  await page.goto(`${url}/files?view=library`);const library=page.getByRole('dialog',{name:'材料库',exact:true});
+  await library.getByRole('button',{name:'导入',exact:true}).waitFor();
+  await library.getByRole('button',{name:'导入',exact:true}).click();
+  await page.locator('.lc-import-modal').waitFor();eq(await page.locator('.lc-import-modal').isVisible(),true,'deleting the final material leaves a working import path in the library');
+  await context.close();
  }
  eq(errors,[],'no application errors');
  await writeFile(`${output}/report.json`,JSON.stringify({checks,errors,scope:'Chromium desktop and responsive/touch emulation; UI fixtures with 10,003 materials/groups and 1,003 contexts. No physical-device acceptance.'},null,2));
