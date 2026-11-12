@@ -33,7 +33,7 @@ import '../mobile.css';
 export default function Layout() {
     const { t } = useTranslation();
     const restoring = useRestoreGuard(state => state.active);
-    const { pathname: rawPathname, state: routeState } = useLocation();
+    const { pathname: rawPathname, state: routeState, search } = useLocation();
     const pathname = normalizeNavigationPath(rawPathname);
     const navigate = useNavigate();
     useEffect(() => {
@@ -189,7 +189,7 @@ export default function Layout() {
       <Sidebar />
       <main className="app-main b-main">
         <div className="app-page workspace-stage" ref={stageRef}>
-          <PageTransition pageKey={pathname}><Outlet /></PageTransition>
+          <PageTransition pageKey={pathname === '/settings' ? pathname + search : pathname}><Outlet /></PageTransition>
         </div>
         <MobileNav />
       </main>

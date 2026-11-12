@@ -21,7 +21,20 @@ try {
   await pager.fill('2');await pager.press('Enter');await page.waitForFunction(()=>document.querySelector('.saved-record-term')?.textContent==='quiet');
   await page.locator('.saved-record-open').click();await page.getByRole('button',{name:'还有 20 句',exact:true}).click();
   const contextPager=page.locator('.saved-group-contexts').getByRole('textbox',{name:'跳转到页码'});
+  await page.evaluate(()=>{
+    const invoke=window.__TAURI_INTERNALS__.invoke;
+    window.__TAURI_INTERNALS__.invoke=async(command,args)=>{
+      const result=await invoke(command,args);
+      if(command==='saved_record_source'){window.__sourcePending=true;await new Promise(resolve=>setTimeout(resolve,150));window.__sourcePending=false;}
+      if(command==='saved_group_contexts'&&args.offset===20)await new Promise(resolve=>setTimeout(resolve,350));
+      return result;
+    };
+  });
+  await page.getByRole('button',{name:'返回原文',exact:true}).click();
+  await page.waitForFunction(()=>window.__sourcePending);
   await contextPager.fill('2');await contextPager.press('Enter');
+  await page.waitForFunction(()=>window.__sourcePending===false);
+  eq(new URL(page.url()).pathname,'/saved',`${theme}/${width}: context page change cancels an earlier source visit`);
   await page.waitForFunction(()=>document.querySelectorAll('.saved-sentence').length===1&&!document.querySelector('.saved-group-contexts[aria-busy=true]'));
   const record=await page.locator('.saved-sentence').getAttribute('data-record');
   await page.getByRole('button',{name:'返回原文',exact:true}).click();await page.locator('.reading-page').waitFor();

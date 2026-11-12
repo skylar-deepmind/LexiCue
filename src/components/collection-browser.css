@@ -8,6 +8,7 @@
 .collection-pager button:hover:not(:disabled) { background:var(--interactive-hover); }
 .collection-pager button:active:not(:disabled) { background:var(--interactive-pressed); }
 .collection-toolbar { position:sticky; top:0; z-index:3; padding-block:8px; background:var(--surface); border-bottom:1px solid var(--border-soft); }
+.collection-toolbar::before { content:''; position:absolute; inset:-32px 0 100%; background:var(--surface); }
 .saved-page .saved-search { margin:0; }
 .collection-toolbar .collection-pager { padding-bottom:0; }
 .library-browse-controls { position:sticky; top:44px; z-index:3; background:var(--desk-paper); padding-bottom:8px; border-bottom:1px solid var(--border-soft); }

@@ -37,7 +37,7 @@ export default function Sidebar() {
     <DockPresence visible={importEntryVisible(pathname)} className="dock-import-presence">
       <div className="dock-import-slot"><button data-guide="import" className="b-dock-control" onClick={event => { rememberImportFocus(event.currentTarget); show(); }} aria-pressed={open} aria-label={t(running ? 'materials.importRunning' : 'materials.import')}><FilePlus2 size={22} aria-hidden="true"/>{running && <span className="dock-busy" aria-hidden="true"/>}</button></div>
     </DockPresence>
-    <Link className="b-dock-control" to="/settings" aria-label={t('sidebar.settings')} aria-current={pathname.startsWith('/settings') ? 'page' : undefined} onClick={() => useImportStore.getState().hide()}><Settings size={22} aria-hidden="true"/></Link>
+    <Link className="b-dock-control" to="/settings" state={{settingsOrigin:pathname.startsWith('/saved') ? '/saved' : '/files'}} aria-label={t('sidebar.settings')} aria-current={pathname.startsWith('/settings') ? 'page' : undefined} onClick={() => useImportStore.getState().hide()}><Settings size={22} aria-hidden="true"/></Link>
     </div>
   <ReadingTools/>
   </nav></aside>;

@@ -37,10 +37,10 @@ export default class PageTransition extends Component<{pageKey:string; children:
   // desk. Neither direction should animate a snapshot of only that desk.
   if(!snapshot){
    if(this.media.matches||!(isMobilePlatform()||innerWidth<768)||
-      ![previous.pageKey,this.props.pageKey].every(key=>['/files','/saved','/settings'].includes(key))||
+      ![previous.pageKey,this.props.pageKey].every(key=>['/files','/saved','/settings'].includes(key.split('?')[0]))||
       this.live.current?.querySelector('[data-library-restored="true"]'))return;
    // Keep content visible throughout; never fade an entire phone page to zero.
-   this.animations=[this.live.current!.animate([{opacity:.94,transform:'translateX(6px)'},{opacity:1,transform:'translateX(0)'}],{duration:200,easing:'cubic-bezier(.2,.8,.2,1)'})];
+   this.animations=[this.live.current!.animate([{opacity:.94,transform:`translateX(${previous.pageKey.startsWith('/settings?') && this.props.pageKey==='/settings' ? -6 : 6}px)`},{opacity:1,transform:'translateX(0)'}],{duration:200,easing:'cubic-bezier(.2,.8,.2,1)'})];
    const generation=this.generation;
    void this.animations[0].finished.then(()=>{if(generation===this.generation)this.finish()},()=>{});
    this.timer=setTimeout(this.finish,280);

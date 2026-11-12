@@ -41,6 +41,7 @@ function SavedGroupContent({ group, revision, pendingRemove, onRemove, onReturn,
   const [visibleCount, setVisibleCount] = useState(initialCount > CONTEXT_PAGE_SIZE ? CONTEXT_PAGE_SIZE : Math.max(1, initialCount));
   const body = useRef<HTMLDivElement>(null);
   const revealPage = useRef(false);
+  const contextIntent = useRef(0);
   const request = useRef(0);
   const onCountRef = useRef(onCount);
   onCountRef.current = onCount;
@@ -51,7 +52,7 @@ function SavedGroupContent({ group, revision, pendingRemove, onRemove, onReturn,
       const next = await invoke<SavedContextPage>('saved_group_contexts', { groupId: group.group_id, limit: CONTEXT_PAGE_SIZE, offset: (contextPage-1)*CONTEXT_PAGE_SIZE });
       if(request.current !== current)return;
       const valid=collectionPage(next.total,contextPage,CONTEXT_PAGE_SIZE).page;
-      if(valid!==contextPage){revealPage.current=true;setContextPage(valid);return;}
+      if(valid!==contextPage){contextIntent.current++;revealPage.current=true;setContextPage(valid);return;}
       setPage(next);
     } catch { if (request.current === current) setError(t('savedRecords.loadError')); }
     finally { if (request.current === current) setLoading(false); }
@@ -65,7 +66,7 @@ function SavedGroupContent({ group, revision, pendingRemove, onRemove, onReturn,
   const showMore = () => setVisibleCount(CONTEXT_PAGE_SIZE);
   const changePage = (next: number) => {
     if(next===contextPage)return;
-    revealPage.current=true; setContextPage(next); setVisibleCount(CONTEXT_PAGE_SIZE); setActiveRecord(null);
+    contextIntent.current++; revealPage.current=true; setContextPage(next); setVisibleCount(CONTEXT_PAGE_SIZE); setActiveRecord(null);
   };
   useLayoutEffect(() => {
     if(loading || !revealPage.current)return;
@@ -83,7 +84,10 @@ function SavedGroupContent({ group, revision, pendingRemove, onRemove, onReturn,
       {visibleRecords.map(record => <SavedSentence key={record.record_id} record={record}
         active={record.record_id === (visibleRecords.some(value => value.record_id === activeRecord) ? activeRecord : visibleRecords[0]?.record_id)}
         onActivate={() => setActiveRecord(record.record_id)} removing={pendingRemove !== null || loading} displayReady={active}
-        onRemove={onRemove} onSource={onReturn}
+        onRemove={onRemove} onSource={(record, isCurrent) => {
+          const intent = contextIntent.current;
+          return onReturn(record, () => intent === contextIntent.current && isCurrent?.() !== false);
+        }}
         onChange={next => setPage(previous => ({ ...previous, records: previous.records.map(value => value.record_id === next.record_id ? next : value) }))}/>) }
       {error && <div className="saved-error" role="alert"><p>{error}</p><button className="ui-button" onClick={() => setRetry(value => value + 1)} disabled={loading}>{t('common.retry')}</button></div>}
       {loading && page.records.length > 0 && <div className="saved-status" role="status"><BusyRing/><span className="sr-only">{t('common.loading')}</span></div>}
