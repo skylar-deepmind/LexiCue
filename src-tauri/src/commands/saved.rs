@@ -986,22 +986,34 @@ pub fn undo_group(conn: &Connection, operation_id: &str) -> Result<GroupMutation
 }
 
 #[tauri::command]
-pub fn remove_saved_group(
-    state: State<DbState>,
+pub async fn remove_saved_group(
+    state: State<'_, DbState>,
     operation_id: String,
     group_id: String,
     expected_count: usize,
 ) -> Result<GroupMutationResult, String> {
-    let conn = state.conn.lock().map_err(|e| e.to_string())?;
-    remove_group(&conn, &operation_id, &group_id, expected_count)
+    // A word can have thousands of contexts. Keep the native event thread free
+    // while waiting for SQLite, writing tombstones and serializing the receipt.
+    let shared = state.conn.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let conn = shared.lock().map_err(|e| e.to_string())?;
+        remove_group(&conn, &operation_id, &group_id, expected_count)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 #[tauri::command]
-pub fn undo_saved_group(
-    state: State<DbState>,
+pub async fn undo_saved_group(
+    state: State<'_, DbState>,
     operation_id: String,
 ) -> Result<GroupMutationResult, String> {
-    let conn = state.conn.lock().map_err(|e| e.to_string())?;
-    undo_group(&conn, &operation_id)
+    let shared = state.conn.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let conn = shared.lock().map_err(|e| e.to_string())?;
+        undo_group(&conn, &operation_id)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[derive(Default, Serialize, Deserialize)]
