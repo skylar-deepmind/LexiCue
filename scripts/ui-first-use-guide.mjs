@@ -57,7 +57,7 @@ try{
   eq((await page.locator('.saved-sentence-original').innerText()).trim(),'Curiosity helps us notice small changes.','history is the sentence saved in this session');
   await page.screenshot({path:`${output}/${theme}-${width}-history.png`});
   // Personal notes in sample history also stay in its in-memory scope.
-  await page.getByRole('button',{name:'补充个人解释',exact:true}).click();await page.getByRole('textbox',{name:'个人解释',exact:true}).fill('体验笔记');await page.getByRole('button',{name:'保存解释',exact:true}).click();await page.getByRole('textbox',{name:'个人解释',exact:true}).waitFor({state:'detached'});
+  await page.getByRole('button',{name:'补充个人解释',exact:true}).click();await page.getByRole('textbox',{name:'个人解释',exact:true}).fill('体验笔记');await page.locator('.app-guide').waitFor({state:'detached'});eq(await page.locator('.app-guide').count(),0,'note editor owns the screen without a coach blocking its save action');await page.getByRole('button',{name:'保存解释',exact:true}).click();await page.getByRole('textbox',{name:'个人解释',exact:true}).waitFor({state:'detached'});
   eq((await call('export_all')).data,before,'sample saves and notes never change real backup tables');
   await page.getByRole('button',{name:'开始自己的阅读',exact:true}).click();await page.waitForURL(/\/files$/);eq((await state(page)).outcome,'completed','completion is remembered');
   eq(await page.locator('.app-guide').count(),0,'coach cleans up after completion');eq(await page.locator('[data-guide-anchor-active]').count(),0,'anchor accessibility additions are removed');

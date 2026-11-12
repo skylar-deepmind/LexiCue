@@ -41,7 +41,7 @@ export default function AppFirstUseGuide() {
     document.addEventListener('keydown',keys);return()=>document.removeEventListener('keydown',keys);
   },[location.pathname,navigate]);
   void revision;
-  if(starting||!guide.active||!guide.tour||location.pathname==='/example'&&!document.querySelector('.reading-page'))return null;
+  if(starting||!guide.active||!guide.tour||document.querySelector('.sentence-note-dialog')||location.pathname==='/example'&&!document.querySelector('.reading-page'))return null;
   const skip=()=>{guide.finish('skipped');if(location.pathname==='/example')navigate('/files',{replace:true});};
   const finish=()=>{guide.finish('completed');navigate('/files',{replace:true});};
   const startExample=()=>{useImportStore.getState().hide();navigate('/example');};
