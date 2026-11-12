@@ -1825,8 +1825,7 @@
     "saveToast": "保存しました",
     "localTag": "ローカル",
     "onlineTag": "オンライン",
-    "compactContextCount": "{{count}} 文",
-    "compactContextCount_one": "{{count}} 文"
+    "compactContextCount": "{{count}} 文"
   },
   "sourceAudio": {
     "clip": "Original clip",

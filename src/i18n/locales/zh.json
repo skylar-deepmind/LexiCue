@@ -1823,8 +1823,7 @@
     "saveToast": "已保存",
     "localTag": "本地",
     "onlineTag": "在线",
-    "compactContextCount": "{{count}} 句",
-    "compactContextCount_one": "{{count}} 句"
+    "compactContextCount": "{{count}} 句"
   },
   "sourceAudio": {
     "clip": "原片段",

@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { DictionaryReference, DictionarySnapshot, SavedGroup, SavedRecord } from '../../lib/savedRecords';
 
 const translations: Record<string, string> = {
-  'dictionaryFlow.contextCount': '{{count}} 处原句',
+  'dictionaryFlow.compactContextCount': '{{count}} 句',
   'dictionaryFlow.savedReference': '当时的词典参考（节选）',
   'dictionaryFlow.referenceNote': '词典参考，不代表已确认的本句意思',
   'dictionaryFlow.savedMeaning': '当时保存的释义',
@@ -36,7 +36,7 @@ describe('saved word archive presentation', () => {
     const summarized = { ...group, summary: '变化' };
     const markup = renderToStaticMarkup(createElement(SavedGroupCard, { group: summarized, selected: false, onOpen: () => {} }, createElement('p', null, 'Keep the change.')));
     expect(markup.match(/<button /g)).toHaveLength(1);
-    expect(markup).toContain('2 处原句');
+    expect(markup).toContain('2 句');
     expect(markup).toContain('变化');
     expect(markup).toContain('aria-expanded="false"');
     expect(markup).toContain('aria-hidden="true"');
