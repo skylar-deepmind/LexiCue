@@ -41,7 +41,7 @@
 .saved-sentence .saved-sentence-translation,.saved-sentence .saved-sentence-personal { font-size:14px; line-height:22px; white-space:pre-wrap; }
 .saved-sentence-source { display:block; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text-muted); font-size:13px; line-height:20px; }
 .saved-sentence .saved-sentence-actions { display:flex; flex:none; flex-wrap:nowrap; align-items:center; justify-content:flex-start; gap:8px; min-height:48px; margin:0; padding:0; }
-.saved-sentence-actions > .ui-button { display:inline-flex; align-items:center; justify-content:center; flex:none; width:48px; min-width:48px; height:48px; min-height:48px; padding:0; border:0; border-radius:8px; background:transparent; color:var(--text-body); }
+.saved-sentence-actions > .ui-button { margin:0; display:inline-flex; align-items:center; justify-content:center; flex:none; width:48px; min-width:48px; height:48px; min-height:48px; padding:0; border:0; border-radius:8px; background:transparent; color:var(--text-body); }
 .saved-sentence-actions > .ui-button:hover:not(:disabled) { background:var(--interactive-hover); color:var(--accent-700); }
 .saved-sentence-actions > .ui-button:active:not(:disabled) { background:var(--interactive-pressed); }
 .saved-sentence-actions > .ui-button[aria-pressed='true'] { background:var(--accent-50); color:var(--accent-700); }
