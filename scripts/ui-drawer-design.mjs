@@ -34,6 +34,8 @@ try {
   equal(await panel.locator('.saved-sentence-actions').count(),1,`${theme}/${phone}: only one toolbar`);
   equal(await panel.locator('.saved-sentence-actions button').count(),5,`${theme}/${phone}: five icon actions`);
   equal(await panel.locator('.saved-sentence-actions button').evaluateAll(nodes=>nodes.every(n=>{const r=n.getBoundingClientRect();return r.width===48&&r.height===48;})),true,`${theme}/${phone}: 48px action targets`);
+  equal(await panel.locator('.saved-sentence-actions button').evaluateAll(nodes=>nodes.every((node,index,all)=>Math.abs(node.getBoundingClientRect().y-all[0].getBoundingClientRect().y)<.5)),true,`${theme}/${phone}: all five actions share a vertical baseline`);
+  equal(await panel.locator('.saved-sentence-actions').evaluate(node=>node.getBoundingClientRect().height),48,`${theme}/${phone}: legacy button margins do not enlarge the action row`);
   equal(await panel.locator('.saved-sentence-translation').count(),0,`${theme}/${phone}: translations initially folded`);
   await panel.getByRole('button',{name:'显示或隐藏译文',exact:true}).click();
   await panel.locator('.saved-sentence-translation').waitFor();
