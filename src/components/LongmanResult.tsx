@@ -81,12 +81,12 @@ export default function LongmanResult({ result, onInteract, compact = false }: {
   return <div className={`longman-result${compact ? ' longman-result--compact' : ''}`} data-result-status={result.status} onPointerDownCapture={onInteract} onKeyDownCapture={onInteract} onWheelCapture={onInteract}>
     {!!overview.length && <section className="dictionary-overview" aria-label={t('dictionaryFlow.overview')}>
       <h3>{t('dictionaryFlow.overview')}</h3>
-      {wiktionary && <DictionarySource source={result.entries[0].source} compact/>}
+      {wiktionary && !compact && <DictionarySource source={result.entries[0].source} compact/>}
       {prototypes.length ? <div className="dictionary-prototypes">{prototypes.map(prototype => <section key={prototype.headword} className="dictionary-prototype" data-prototype={prototype.headword}>
         <p className="dictionary-prototype-heading"><small>{t('dictionaryFlow.prototype')}</small><strong lang="en">{prototype.headword}</strong></p>
         <ul className="dictionary-overview-list">{prototype.senses.map(renderOverview)}</ul>
       </section>)}</div> : <ul className="dictionary-overview-list">{overview.map(renderOverview)}</ul>}
-      {!wiktionary && <small className="lookup-provider">{t(dictionarySourceLabelKey(result.entries[0].source.provider))}</small>}
+      {!wiktionary && !compact && <small className="lookup-provider">{t(dictionarySourceLabelKey(result.entries[0].source.provider))}</small>}
     </section>}
     {result.status === 'partial' && !wiktionary && <p className="longman-notice" role="status">{t('longman.partial')}</p>}
     {result.notices.filter(notice => notice.code !== 'online_free_english_only').map((notice, index) => <p className="longman-notice" role="status" key={index}>{t(`longman.notices.${notice.code}`, { defaultValue: notice.text })}</p>)}

@@ -3,113 +3,36 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObje
 import { invoke } from '@tauri-apps/api/core';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Bookmark, ChevronRight, ExternalLink, Pencil, Search, Trash2, Undo2 } from 'lucide-react';
+import { Bookmark, ChevronRight, Search, Undo2 } from 'lucide-react';
 import MotionChange from '../components/MotionChange';
 import SmoothDisclosure from '../components/SmoothDisclosure';
 import { readPaged } from '../components/readPaged';
-import { updateSavedNoteDraft } from '../components/savedNoteDraft';
-import SourceAudioControls from '../components/SourceAudioControls';
+import SavedSentence from '../components/SavedSentence';
 import { useQuietScrollbars } from '../components/useQuietScrollbars';
 import { useImportStore } from '../stores/importStore';
 import { backNavigation } from '../lib/backNavigation';
 import { readerNavigation, resolveSavedSource, savedNoteDrafts, type SavedNoteDraft, type SavedViewSnapshot } from '../lib/readerNavigation';
-import { documentLocationLabel } from '../lib/documentTypes';
 import { mutateSaved, savedErrorKey, undoSaved, type SavedConflict, type SavedMigrationReport, type SavedRecord, type SavedGroup, type SavedGroupPage, type SavedContextPage } from '../lib/savedRecords';
 
 const PAGE_SIZE = 50;
 const CONTEXT_PAGE_SIZE = 20;
 type EditDraft = SavedNoteDraft;
 
-/** Editing and removal belong to one source record, never to the whole word. */
-function SavedContext({ record, drafts, removing, displayReady, onRemove, onChange, onReturn }: {
-  record: SavedRecord; drafts: Map<string, EditDraft>; removing: boolean; displayReady: boolean;
-  onRemove: (record: SavedRecord) => Promise<void>; onChange: (record: SavedRecord) => void; onReturn: (record: SavedRecord) => Promise<void>;
-}) {
-  const { t, i18n } = useTranslation();
-  const initial = useRef(drafts.get(record.record_id));
-  const editor = useRef<HTMLTextAreaElement>(null);
-  const [editing, setEditing] = useState(!!initial.current?.editing);
-  const [draft, setDraft] = useState(initial.current?.text ?? (record.explanation_source === 'personal' ? record.explanation ?? '' : ''));
-  const expectedRevision = useRef(initial.current?.revision ?? record.revision);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const [sourceMissing, setSourceMissing] = useState(!record.source);
-  const pending = useRef<{ value: string; operationId: string } | null>(initial.current?.operationId ? { value: initial.current.text, operationId: initial.current.operationId } : null);
-  const editorId = `saved-explanation-${record.record_id}`;
-  useLayoutEffect(() => {
-    // Focus only after the live, expanded editor has mounted. Native autofocus
-    // during a height animation can pan WKWebView outside the app shell.
-    if (displayReady && editing) {
-      editor.current?.focus({preventScroll:true});
-    }
-  }, [displayReady, editing]);
-  const save = async () => {
-    if (busy || removing) return;
-    setBusy(true); setError('');
-    if (pending.current?.value !== draft) pending.current = { value: draft, operationId: crypto.randomUUID() };
-    drafts.set(record.record_id, { text: draft, revision: expectedRevision.current, operationId: pending.current!.operationId, editing: true });
-    try {
-      const result = await mutateSaved({ kind: 'edit', record_id: record.record_id, expected_revision: expectedRevision.current, explanation: draft }, pending.current!.operationId);
-      expectedRevision.current = result.record.revision;
-      if (drafts.get(record.record_id)?.operationId === pending.current?.operationId) drafts.delete(record.record_id);
-      onChange(result.record); pending.current = null; setEditing(false);
-    } catch (reason) { setError(t(savedErrorKey(reason))); }
-    finally { setBusy(false); }
-  };
-  const returnToSource = async () => {
-    if (busy) return;
-    setBusy(true); setError('');
-    try { await onReturn(record); } catch (reason) {
-      if (reason === 'missing') setSourceMissing(true); else setError(t('savedRecords.sourceError'));
-    } finally { setBusy(false); }
-  };
-  useEffect(() => {
-    if (!editing || !displayReady) return;
-    const dismiss = () => { drafts.set(record.record_id, updateSavedNoteDraft(drafts.get(record.record_id), draft, expectedRevision.current, false)); setEditing(false); return true; };
-    const unregister = backNavigation.register(dismiss);
-    const outside = (event: PointerEvent) => { if (event.target instanceof Element && !event.target.closest(`[data-record="${CSS.escape(record.record_id)}"]`)) dismiss(); };
-    document.addEventListener('pointerdown', outside);
-    return () => { unregister(); document.removeEventListener('pointerdown', outside); };
-  }, [editing, displayReady, draft, drafts, record.record_id]);
-  return <article className="saved-context-entry" data-record={record.record_id}>
-    <section className="saved-context-copy">
-      <div className="saved-record-top"><small>{record.source ? t('savedRecords.source', { name: record.source.file_name, index: record.source.segment_index + 1 }) : t('savedRecords.legacyMissingSource')}</small><div className="saved-record-actions">
-        <SourceAudioControls reference={record.source?.media} target={{ record_id: record.record_id }} text={record.sentence ?? ''} speechKey={`saved:${record.record_id}`}/>
-        <button className="ui-button ui-button--icon" aria-label={t('savedRecords.returnToSource')} disabled={busy || sourceMissing} onClick={() => void returnToSource()}><ExternalLink size={17} /></button>
-        <button className="ui-button ui-button--icon" aria-label={t('reader.personalExplanation')} disabled={busy || removing || editing} onClick={() => { if (!drafts.has(record.record_id)) expectedRevision.current = record.revision; drafts.set(record.record_id, updateSavedNoteDraft(drafts.get(record.record_id), draft, expectedRevision.current, true)); setEditing(true); }}><Pencil size={17} /></button>
-        <button className="ui-button saved-sentence-remove" disabled={busy || removing || editing} onClick={() => { setError(''); void onRemove(record).catch(reason => setError(t(savedErrorKey(reason)))); }}><Trash2 size={17} aria-hidden="true" />{t('dictionaryFlow.removeSentence')}</button>
-      </div></div><p lang="en">{record.sentence || t('savedRecords.missingOriginal')}</p>
-      {record.sentence_translation && <p>{record.sentence_translation}</p>}
-      <small>{record.source?.document && [record.source.document.origin?.kind === 'clipboard' ? t('materials.importDialog.clipboardText') : record.source.document.origin?.kind === 'webpage' ? record.source.document.origin.final_url : record.source.document.original_format.toUpperCase(), record.source.document.section_title, documentLocationLabel(record.source.document.locations[0])].filter(Boolean).join(' · ')}</small>
-      <small className="saved-time">{record.saved_at === null ? t('savedRecords.unknownTime') : new Date(record.saved_at).toLocaleString(i18n.language)}</small>
-    </section>
-    {editing ? <form onSubmit={event => { event.preventDefault(); void save(); }}>
-      <label htmlFor={editorId}>{t('dictionaryFlow.personalMeaning')}</label>
-      <textarea ref={editor} id={editorId} value={draft} onChange={event => { setDraft(event.target.value); drafts.set(record.record_id, updateSavedNoteDraft(drafts.get(record.record_id), event.target.value, expectedRevision.current, true)); }} disabled={busy || removing} />
-      <div className="saved-detail-actions"><button className="ui-button saved-primary" type="submit" disabled={busy || removing}>{t('savedRecords.saveChanges')}</button>
-        <button className="ui-button" type="button" disabled={busy || removing} onClick={() => { setEditing(false); drafts.delete(record.record_id); setDraft(record.explanation_source === 'personal' ? record.explanation ?? '' : ''); pending.current = null; setError(''); }}>{t('common.cancel')}</button></div>
-    </form> : record.explanation ? <section className="saved-context-meaning">
-      <small className="saved-history-label">{record.explanation_source === 'personal' ? t('dictionaryFlow.personalMeaning') : `${t('dictionaryFlow.savedMeaning')} · ${t(`savedRecords.sources.${record.explanation_source}`)}`}</small>
-      <p className="saved-detail-meaning">{record.explanation}</p>
-    </section> : null}
-    {sourceMissing && <p className="saved-status" role="status">{t('savedRecords.sourceMissing')}</p>}
-    {error && <p className="saved-error" role="alert">{error}</p>}
-  </article>;
-}
-
 interface SavedGroupDetailProps {
   group: SavedGroup; revision: number; drafts: Map<string, EditDraft>; pendingRemove: string | null;
   undo: string | null; undoBusy: boolean; undoButton: RefObject<HTMLButtonElement | null>; onUndo: () => Promise<void>;
-  onClose: () => void; onRemove: (record: SavedRecord) => Promise<void>; onReturn: (record: SavedRecord) => Promise<void>;
-  initialCount: number; onCount: (count: number) => void; active: boolean;
+  onClose: () => void; onRemove: (record: SavedRecord) => Promise<void>; onReturn: (record: SavedRecord, isCurrent?: () => boolean) => Promise<void>;
+  initialCount: number; initialRecordId?: string; onCount: (count: number) => void; active: boolean;
 }
 
-function SavedGroupContent({ group, revision, drafts, pendingRemove, onRemove, onReturn, initialCount, onCount, active }: SavedGroupDetailProps) {
+function SavedGroupContent({ group, revision, pendingRemove, onRemove, onReturn, initialCount, initialRecordId, onCount, active }: SavedGroupDetailProps) {
   const { t } = useTranslation();
   const [page, setPage] = useState<SavedContextPage>({ records: [], total: group.context_count });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [retry, setRetry] = useState(0);
+  const [activeRecord, setActiveRecord] = useState<string | null>(initialRecordId ?? null);
+  const [visibleCount, setVisibleCount] = useState(Math.max(1, initialCount));
   const request = useRef(0);
   const loadedCount = useRef(initialCount);
   const onCountRef = useRef(onCount);
@@ -126,7 +49,7 @@ function SavedGroupContent({ group, revision, drafts, pendingRemove, onRemove, o
       if (!batch) return;
       const next = {records: batch.items, total: batch.total};
       setPage(previous => ({ records: offset ? [...previous.records, ...next.records] : next.records, total: next.total }));
-      loadedCount.current = offset + next.records.length; onCountRef.current(loadedCount.current);
+      loadedCount.current = offset + next.records.length;
     } catch { if (request.current === current) setError(t('savedRecords.loadError')); }
     finally { if (request.current === current) setLoading(false); }
   }, [group.group_id, t]);
@@ -134,13 +57,23 @@ function SavedGroupContent({ group, revision, drafts, pendingRemove, onRemove, o
   useLayoutEffect(() => { if (!active) invalidateRequest(); return invalidateRequest; }, [active, invalidateRequest]);
   useEffect(() => { if (!active) return; void load(); return invalidateRequest; }, [active, load, revision, retry, invalidateRequest]);
 
+  const visibleRecords = page.records.slice(0, visibleCount);
+  useEffect(() => { if (page.records.length) onCountRef.current(Math.min(visibleCount, page.records.length)); }, [visibleCount, page.records.length]);
+  const showMore = async () => {
+    if (visibleCount < page.records.length) setVisibleCount(page.records.length);
+    else { await load(page.records.length); setVisibleCount(value => value + CONTEXT_PAGE_SIZE); }
+  };
   return <>
     <div className="saved-detail-body saved-group-contexts" aria-busy={loading}>
       {loading && !page.records.length && <LoadingSkeleton kind="list" label={t('common.loading')}/>}
-      {page.records.map(record => <SavedContext key={record.record_id} record={record} drafts={drafts} removing={pendingRemove !== null} displayReady={active} onRemove={onRemove} onReturn={onReturn} onChange={next => setPage(previous => ({ ...previous, records: previous.records.map(value => value.record_id === next.record_id ? next : value) }))} />)}
+      {visibleRecords.map(record => <SavedSentence key={record.record_id} record={record}
+        active={record.record_id === (visibleRecords.some(value => value.record_id === activeRecord) ? activeRecord : visibleRecords[0]?.record_id)}
+        onActivate={() => setActiveRecord(record.record_id)} removing={pendingRemove !== null} displayReady={active}
+        onRemove={onRemove} onSource={onReturn}
+        onChange={next => setPage(previous => ({ ...previous, records: previous.records.map(value => value.record_id === next.record_id ? next : value) }))}/>) }
       {error && <div className="saved-error" role="alert"><p>{error}</p><button className="ui-button" onClick={() => setRetry(value => value + 1)} disabled={loading}>{t('common.retry')}</button></div>}
       {loading && page.records.length > 0 && <div className="saved-status" role="status"><BusyRing/><span className="sr-only">{t('common.loading')}</span></div>}
-      {page.records.length < page.total && <button className="ui-button" disabled={loading} onClick={() => void load(page.records.length)}>{t('savedRecords.loadMore')}</button>}
+      {visibleRecords.length < page.total && <button className="ui-button saved-context-more" disabled={loading} onClick={() => void showMore()}>{t('dictionaryFlow.moreContexts', {count: page.total - visibleRecords.length})}</button>}
     </div>
 
   </>;
@@ -152,8 +85,8 @@ export function SavedGroupCard({ group, selected, onOpen, children }: { group: S
   const id = `saved-panel-${group.group_id}`;
   return <li className="saved-record-row saved-group-row" data-group={group.group_id} data-expanded={selected}>
     <button className="saved-record-open" onClick={onOpen} aria-expanded={selected} aria-controls={id}>
-      <span className="saved-record-term" lang="en">{group.expression}</span><span className="saved-context-count">{t('dictionaryFlow.contextCount', { count: group.context_count })}</span>
-      {summary && <span className="saved-record-meaning">{summary}</span>}<ChevronRight className="saved-chevron" size={18} aria-hidden="true" />
+      <span className="saved-record-term" lang="en">{group.expression}</span><span className="saved-context-count">{t('dictionaryFlow.compactContextCount', { count: group.context_count })}</span>
+      {summary && <span className="saved-record-meaning">{summary}</span>}<ChevronRight className="saved-chevron" size={20} strokeWidth={1.8} aria-hidden="true" />
     </button>
     <SmoothDisclosure id={id} open={selected}>{children}</SmoothDisclosure>
   </li>;
@@ -273,10 +206,10 @@ export default function SavedPage() {
     });
     return () => { cancelled = true; clearTimeout(timer); };
   }, [snapshot, loading, loadedContexts, restoreToken, selected]);
-  const returnToSource = async (record: SavedRecord) => {
+  const returnToSource = async (record: SavedRecord, isCurrent?: () => boolean) => {
     const groupId = selectedRef.current, generation = visitGeneration.current;
     const target = await resolveSavedSource(record);
-    if (!livePage.current || selectedRef.current !== groupId || visitGeneration.current !== generation) return;
+    if (!livePage.current || selectedRef.current !== groupId || visitGeneration.current !== generation || isCurrent?.() === false) return;
     if (!target) throw 'missing';
     const scroll = savedScroll.current;
     const row = scroll?.querySelector<HTMLElement>(`[data-record="${CSS.escape(record.record_id)}"]`);
@@ -323,7 +256,7 @@ export default function SavedPage() {
           a route transition may still be running when the first reply arrives. */}
       <MotionChange enabled={!loading} interruptKey={selected?.group_id ?? ''} changeKey={`${query}:${page.groups.map(group => `${group.group_id}:${group.context_count}`).join(',')}`}><ul className="saved-record-list" aria-label={t('savedRecords.title')}>
         {page.groups.map(group => <SavedGroupCard key={group.group_id} group={group} selected={selected?.group_id === group.group_id} onOpen={() => { selectionIntent.current++; setSelected(current => current?.group_id === group.group_id ? null : group); setOpened(current => current.includes(group.group_id) ? current : [...current, group.group_id]); }}>
-          {opened.includes(group.group_id) && <SavedGroupContent active={selected?.group_id === group.group_id} group={group} revision={contextRevision} drafts={editDrafts.current} pendingRemove={pendingRemove} undo={undo} undoBusy={undoBusy} undoButton={undoButton} onUndo={restore} onClose={() => setSelected(null)} onRemove={remove} onReturn={returnToSource} initialCount={snapshot?.loadedContexts[group.group_id] ?? CONTEXT_PAGE_SIZE} onCount={count => contextCount(group.group_id, count)} />}
+          {opened.includes(group.group_id) && <SavedGroupContent active={selected?.group_id === group.group_id} group={group} revision={contextRevision} drafts={editDrafts.current} pendingRemove={pendingRemove} undo={undo} undoBusy={undoBusy} undoButton={undoButton} onUndo={restore} onClose={() => setSelected(null)} onRemove={remove} onReturn={returnToSource} initialRecordId={snapshot?.focusRecordId} initialCount={snapshot?.loadedContexts[group.group_id] ?? 1} onCount={count => contextCount(group.group_id, count)} />}
         </SavedGroupCard>)}
       </ul></MotionChange>
       {loading && page.groups.length > 0 && <div className="saved-status" role="status"><BusyRing/><span className="sr-only">{t('common.loading')}</span></div>}

@@ -1370,7 +1370,8 @@
     "usage": "用法",
     "englishMeaning": "旧英语解释",
     "extraSense": "扩展义",
-    "example": "例句"
+    "example": "例句",
+    "saveExplanation": "保存解释"
   },
   "materials": {
     "title": "材料",
@@ -1567,7 +1568,13 @@
     "translateFullConfirm": "开始翻译",
     "translationProgress": "全文翻译中（{{done}} / {{total}} 句）",
     "fullSheet": "全屏展开",
-    "halfSheet": "切换半屏"
+    "halfSheet": "切换半屏",
+    "sentenceActions": "原句操作",
+    "toggleTranslation": "显示或隐藏译文",
+    "noSavedTranslation": "这条记录暂无译文",
+    "expandSentence": "展开原句",
+    "collapseSentence": "收起原句",
+    "noSavedSentences": "暂无保存的原句"
   },
   "history": {
     "export": "导出资料备份",
@@ -1811,7 +1818,13 @@
       "phrasal verb": "短语动词",
       "number": "数词",
       "article": "冠词"
-    }
+    },
+    "moreContexts": "还有 {{count}} 句",
+    "saveToast": "已保存",
+    "localTag": "本地",
+    "onlineTag": "在线",
+    "compactContextCount": "{{count}} 句",
+    "compactContextCount_one": "{{count}} 句"
   },
   "sourceAudio": {
     "clip": "原片段",

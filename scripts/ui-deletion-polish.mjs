@@ -53,7 +53,7 @@ try {
   eq((await h.call('list_saved_records',{query:'',limit:10,offset:0}))[0],saved.record,`${theme}/${phone}: saved sentence and personal meaning remain exact`);
   await page.goto(`${h.url}/saved`);await page.locator('.saved-record-open').click();
   const remove=page.getByRole('button',{name:'移除这句',exact:true});await remove.waitFor();
-  eq(await remove.innerText(),'移除这句',`${theme}/${phone}: sentence action has a visible label`);
+  eq(await remove.innerText(),'',`${theme}/${phone}: sentence removal uses an icon with an accessible name`);
   if(phone) {
    await page.setViewportSize({width:812,height:375});
    await page.locator('html').evaluate(node=>node.style.fontSize='125%');
