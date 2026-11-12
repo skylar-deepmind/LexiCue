@@ -62,7 +62,8 @@ try{
   await p.screenshot({path:`${output}/${theme}-${phone?'phone':'desktop'}-swipe-delete.png`});
   const trash=quiet.getByRole('button',{name:'删除“quiet”及全部 2 句',exact:true});
   eq(await contrast(trash)>=4.5,true,'delete icon contrast works in this theme');
-  await trash.focus();eq(await trash.evaluate(n=>getComputedStyle(n).outlineStyle==='solid'),true,'revealed delete has a keyboard focus indicator');
+  await quiet.locator('.saved-record-open').focus();await p.keyboard.press('Shift+Tab');
+  eq(await trash.evaluate(n=>{const style=getComputedStyle(n);return document.activeElement===n&&n.matches(':focus-visible')&&(style.outlineStyle!=='none'||style.boxShadow!=='none');}),true,'revealed delete has a keyboard focus indicator');
   await trash.click();await quiet.waitFor({state:'detached'});
   eq((await list()).length,1,'one click deletes all contexts of exactly one expression');
   eq((await h.call('list_materials')).length,1,'deleting saved contexts preserves the source material');
