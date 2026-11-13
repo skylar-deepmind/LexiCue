@@ -71,6 +71,29 @@ try {
       assert.equal(linkDrag.unrelatedCancelled, false, 'non-link text drags are not intercepted');
       assert.equal(linkDrag.dragStyle, 'none');
       assert.notEqual(linkDrag.touch, 'none', 'links do not block native panning');
+      // Reproduce a WebKit synthetic click after the pointer has moved/cancelled.
+      const cancelledClick = await page.locator('[data-entry=speech]').evaluate(link => {
+        link.dispatchEvent(new PointerEvent('pointerdown', {bubbles:true, pointerId:7, isPrimary:true, button:0, clientX:100, clientY:350}));
+        link.dispatchEvent(new PointerEvent('pointermove', {bubbles:true, pointerId:7, clientX:100, clientY:220}));
+        const click = new MouseEvent('click', {bubbles:true, cancelable:true, detail:1});
+        link.dispatchEvent(click);
+        return click.defaultPrevented;
+      });
+      assert.equal(cancelledClick, true, 'a drag cannot activate the link on release');
+      assert.equal(new URL(page.url()).search, '', 'drag release leaves the directory open');
+      const heldClick = await page.locator('[data-entry=speech]').evaluate(async link => {
+        link.dispatchEvent(new PointerEvent('pointerdown', {bubbles:true, pointerId:8, isPrimary:true, button:0}));
+        await new Promise(done=>setTimeout(done,550));
+        const click = new MouseEvent('click', {bubbles:true, cancelable:true, detail:1});
+        link.dispatchEvent(click);
+        return click.defaultPrevented;
+      });
+      assert.equal(heldClick, true, 'holding a link is not a navigation tap');
+      await page.locator('[data-entry=speech]').focus();
+      await page.keyboard.press('Enter');
+      await page.locator('.speech-settings').waitFor();
+      await page.getByRole('button',{name:'返回',exact:true}).click();
+      assert.equal(new URL(page.url()).search, '', 'keyboard activation after a cancelled gesture still works');
       if (phone) {
         // This directory fits an 812px screen; use a shorter phone to exercise panning.
         await page.setViewportSize({width:375,height:667});

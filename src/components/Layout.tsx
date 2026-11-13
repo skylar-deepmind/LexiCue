@@ -33,6 +33,7 @@ import './restore-progress.css';
 import '../mobile.css';
 export default function Layout() {
     const { t } = useTranslation();
+    const linkPress = useRef<{link: Element; pointer: number; x: number; y: number; moved: boolean; started: number} | null>(null);
     const restoring = useRestoreGuard(state => state.active);
     const { pathname: rawPathname, state: routeState, search } = useLocation();
     const pathname = normalizeNavigationPath(rawPathname);
@@ -186,6 +187,27 @@ export default function Layout() {
         };
     }, []);
     return (<div className="app-layout b-shell" data-context-open={panels.length > 0}
+        onPointerDownCapture={event => {
+            const link = event.target instanceof Element ? event.target.closest('a[href]') : null;
+            linkPress.current = link && event.isPrimary && event.button === 0
+                ? {link, pointer:event.pointerId, x:event.clientX, y:event.clientY, moved:false, started:performance.now()} : null;
+        }}
+        onPointerMoveCapture={event => {
+            const press = linkPress.current;
+            if (press?.pointer === event.pointerId && Math.hypot(event.clientX - press.x, event.clientY - press.y) > 10) press.moved = true;
+        }}
+        onPointerCancelCapture={event => {
+            if (linkPress.current?.pointer === event.pointerId) linkPress.current.moved = true;
+        }}
+        onClickCapture={event => {
+            const press = linkPress.current;
+            linkPress.current = null;
+            // WKWebView may synthesize a link click after a cancelled long drag.
+            // Keyboard/assistive activation has no pointer click count.
+            if (event.detail !== 0 && press && (press.moved || performance.now() - press.started >= 500) && event.target instanceof Element && event.target.closest('a[href]') === press.link) {
+                event.preventDefault(); event.stopPropagation();
+            }
+        }}
         onDragStartCapture={event => {
             // Links are tap/navigation controls, including links in portals.
             // Leave text selection and incoming material file drops alone.
