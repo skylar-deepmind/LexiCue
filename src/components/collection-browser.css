@@ -59,7 +59,7 @@
 .saved-group-row:has(.saved-swipe-front[data-swiping='true']) .saved-group-delete { visibility:visible; }
 /* Keep the expression legible while its delete action is revealed. */
 .saved-swipe-front :is(.saved-record-term,.saved-record-meaning) { transform:translateX(calc(0px - var(--swipe-shift,0px))); max-width:calc(100% + var(--swipe-shift,0px)); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; transition:transform 200ms ease-out; }
-.saved-swipe-front .saved-record-term { transform:translate(calc(0px - var(--swipe-shift,0px)),var(--saved-press-y,0px)); transition:transform 170ms cubic-bezier(.2,.8,.2,1),opacity 140ms ease; }
+.saved-swipe-front .saved-record-term { transform:translate(calc(0px - var(--swipe-shift,0px)),var(--saved-press-y,0px)); transition:transform 200ms ease-out,opacity 140ms ease; }
 .saved-record-open[data-press] .saved-record-term { --saved-press-y:1.5px; opacity:.74; }
 .saved-swipe-front[data-swiping='true'] :is(.saved-record-term,.saved-record-meaning) { transition:none; }
 .library-browse-controls .tag-filter { border-bottom:0; }

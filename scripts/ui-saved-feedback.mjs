@@ -15,7 +15,13 @@ async function pan(page,button,dx,dy){
  const r=await button.boundingBox(),x=r.x+Math.min(r.width-30,210),y=r.y+r.height/2;
  await page.mouse.move(x,y);await page.mouse.down();
  for(let i=1;i<=10;i++)await page.mouse.move(x+dx*i/10,y+dy*i/10);
+ const settling=button.evaluate(n=>new Promise(resolve=>{
+  const xs=[],word=n.querySelector('.saved-record-term'),start=performance.now();
+  const sample=()=>{xs.push(word.getBoundingClientRect().x);if(performance.now()-start<240)requestAnimationFrame(sample);else resolve(xs);};requestAnimationFrame(sample);
+ }));
  await page.mouse.up();
+ const xs=await settling;
+ eq(Math.max(...xs)-Math.min(...xs)<.75,true,'the expression stays horizontally steady while a swipe settles');
 }
 try{
  for(const theme of ['ocean','midnight'])for(const [phone,motion] of [[false,'no-preference'],[true,'no-preference'],[true,'reduce']]){
