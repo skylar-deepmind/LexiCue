@@ -76,10 +76,6 @@
 .saved-record-list { list-style: none; margin: 0; padding: 0; }
 .saved-record-row { position: relative; border-bottom: 1px solid var(--border-soft); padding-right: 52px; }
 .saved-record-open { display: block; width: 100%; text-align: left; min-height: 112px; padding: 16px 12px; border-radius: 10px; overflow-wrap: anywhere; }
-.saved-record-open:hover { background: var(--interactive-hover); }
-.saved-record-open[aria-pressed='true'] { background: var(--accent-50); }
-.saved-record-open[aria-pressed='true']:hover { background: var(--accent-100); }
-.saved-record-open:active { background: var(--interactive-pressed); }
 .saved-record-term { display: inline-block; margin-right: 16px; font-family: Georgia, 'Times New Roman', serif; font-size: 1.5rem; color: var(--text-strong); }
 .saved-record-meaning { font-size: .875rem; color: var(--text-body); }
 .saved-record-open p { margin-top: 6px; font-family: Georgia, 'Times New Roman', serif; font-size: 1.125rem; line-height: 1.65; }
@@ -1471,8 +1467,6 @@ button:disabled:is([class*='bg-blue-'], [class*='bg-purple-'], [class*='bg-gray-
 /* Saved entries stay mounted while their disclosure closes. */
 .saved-group-row { padding-right:0; }
 .saved-group-row .saved-record-open { position:relative; min-height:76px; padding-right:40px; }
-.saved-group-row .saved-record-open[aria-expanded='true'] { background:var(--accent-50); }
-.saved-group-row .saved-record-open[aria-expanded='true']:hover { background:var(--accent-100); }
 .saved-group-row .saved-record-meaning { display:block; margin-top:4px; }
 .saved-chevron { position:absolute; right:12px; top:50%; transform:translateY(-50%); transition:transform 360ms cubic-bezier(.16,1,.3,1); }
 .saved-group-row[data-expanded='true'] .saved-chevron { transform:translateY(-50%) rotate(90deg); }

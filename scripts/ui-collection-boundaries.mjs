@@ -42,7 +42,13 @@ try {
   eq(await workspace.locator('.collection-pager,.collection-range').count(),0,'no top pagination or range count');
   await page.locator('.saved-scroll').evaluate(n=>n.scrollTop=160);
   await page.locator('.saved-floating-pager[data-visible=true]').waitFor();
-  eq(await page.locator('.saved-floating-pager form span').evaluate(n=>n.getClientRects().length===1&&n.getBoundingClientRect().height<30),true,'floating page count stays on one line');
+  eq(await page.locator('.saved-floating-pager .collection-page-total').evaluate(n=>n.getClientRects().length===1&&n.getBoundingClientRect().height<30),true,'floating page count stays on one line');
+  const pagerLayout=await page.locator('.saved-floating-pager').evaluate(node=>{
+    const input=node.querySelector('input'),total=node.querySelector('.collection-page-total'),form=node.querySelector('form'),buttons=node.querySelectorAll('button');
+    const c=n=>{const r=n.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2,width:r.width};},a=c(buttons[0]),b=c(buttons[1]),middle=c(form),capsule=c(node),i=getComputedStyle(input),t=getComputedStyle(total);
+    return {sameSize:i.fontSize===t.fontSize,bolder:Number(i.fontWeight)>Number(t.fontWeight),numberWidths:Math.abs(c(input).width-c(total).width)<.5,centered:Math.abs(middle.x-capsule.x)<.5&&Math.abs((a.x+b.x)/2-capsule.x)<.5,baseline:Math.abs(c(input).y-c(total).y)<.5};
+  });
+  eq(pagerLayout,{sameSize:true,bolder:true,numberWidths:true,centered:true,baseline:true},'page numbers share font size and centerline, only current page is bold, arrows and number cells balance');
   await jump(page.locator('.page-live .saved-floating-pager'),501);await savedReady(page,'word 10001');eq(await rows(page).count(),3,'saved jumps directly to the last partial page');
   await page.evaluate(()=>window.__collection.delay=250);
   await workspace.getByRole('searchbox').fill('00024');await savedReady(page,'word 00024');eq(await rows(page).count(),1,'saved search across all pages');
