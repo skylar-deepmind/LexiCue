@@ -78,7 +78,10 @@ try {
   await page.locator('[data-testid=lookup-save]').click();await page.locator('.lookup-save-toast').waitFor();
   const saved=await h.call('list_saved_records',{query:'soliloquy',limit:100,offset:0});
   ok(saved.some(r=>r.dictionary_reference?.senses[0].source.adapter_version==='wiktionary-local-v2.0.0'),`${label}: real local revision reference saved`);
-  ok(await page.evaluate(()=>window.__uiCalls.some(c=>c.command==='lookup_cambridge_expression')&&!window.__uiCalls.some(c=>c.command==='lookup_free_dictionary_expression')),`${label}: online sequence retains existing English-content fallback policy`);
+  ok(await page.evaluate(()=>!window.__uiCalls.some(c=>['lookup_cambridge_expression','lookup_free_dictionary_expression'].includes(c.command))),`${label}: local reading and saving never trigger online transport`);
+  await page.locator('.lookup-source-switch button').filter({hasText:'在线'}).click();await page.locator('.lookup-body[data-online-state=failed]').waitFor();
+  ok(await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='lookup_cambridge_expression').length===1&&!window.__uiCalls.some(c=>c.command==='lookup_free_dictionary_expression')),`${label}: explicit online uses only the preferred provider`);
+  await page.locator('.lookup-source-switch button').filter({hasText:'本地'}).click();await page.locator('.lookup-body[data-active-dictionary=local] .dictionary-overview').waitFor();
   await page.screenshot({path:join(output,`${label}-lookup.png`)});
   await page.close();
  }

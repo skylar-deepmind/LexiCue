@@ -60,6 +60,7 @@ try {
   await page.locator('.reading-word').filter({hasText:/^soliloquy$/}).click();await page.locator('.lookup-stage[data-lookup-state=ready]').waitFor();
   eq(await localButton.isDisabled(),true,'missing local source is visibly unavailable');await online.click();await page.locator('.lookup-body[data-online-state=loading]').waitFor();await page.waitForFunction(()=>window.__lookupControls.pending.length>0);await page.evaluate(()=>window.__lookupControls.pending.shift()());
   await page.locator('.lookup-body[data-online-state=failed]').waitFor();eq(await online.getAttribute('data-state'),'missing','neither-source state reports missing instead of inventing content');
+  eq(await page.locator('.lookup-body .longman-notice').count(),1,'missing online result has one concise status instead of duplicate adapter notices');
   eq(await page.getByTestId('lookup-save').isEnabled(),true,'no dictionary result still permits preserving the sentence');
   await page.evaluate(()=>{window.__lookupControls.missing=false;window.__lookupControls.failed=true;});
   await online.click();await page.locator('.lookup-body[data-online-state=loading]').waitFor();await page.waitForFunction(()=>window.__lookupControls.pending.length>0);await page.evaluate(()=>window.__lookupControls.pending.shift()());

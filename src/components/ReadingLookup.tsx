@@ -363,8 +363,8 @@ function LookupContent({ query, scope, onSkip, drafts, session, onReady, onRecor
       {tab === 'records' ? <><RecallSection scope={scope} expression={query.expression} expanded onLoaded={onRecordsReady} onSource={onSource} sourceBusy={sourceBusy} onRemove={changeHistory} removing={busy}/>{historyReceipt && <div className="recall-undo" role="status"><span>{t('savedRecords.removed')}</span><button className="ui-button" disabled={busy} onClick={() => void changeHistory()}><Undo2 size={18} aria-hidden="true"/>{t('savedRecords.undo')}</button></div>}</> : <>
       {example && guideActive && !guidedTour && <div className="example-card-hint"><small role="status">{t(guideStep === 3 ? 'onboarding.step3' : 'onboarding.step2')}</small><button className="ui-button" onClick={onSkip}>{t('onboarding.skip')}</button></div>}
       {(loading && activeProvider === 'local' || onlineState === 'loading' && activeProvider !== 'local') && !result?.entries.length && <LoadingSkeleton kind="text" label={t('common.loading')}/>}
-      {result && (!loading || !!result.entries.length) && <LongmanResult result={result} onInteract={touch} compact/>}
-      {!loading && activeProvider === 'local' && !localResult?.entries.length && <p className="longman-notice" role="status">{t(lookupError ? 'reader.failed' : 'dictionarySwitch.local.missing')}</p>}
+      {result && (activeProvider === 'local' || !!result.entries.length) && (!loading || !!result.entries.length) && <LongmanResult result={result} onInteract={touch} compact/>}
+      {!loading && activeProvider === 'local' && !localResult?.entries.length && (lookupError || !localResult?.notices.length) && <p className="longman-notice" role="status">{t(lookupError ? 'reader.failed' : 'dictionarySwitch.local.missing')}</p>}
       {onlineState === 'failed' && activeProvider !== 'local' && <p className="longman-notice" role="status">{t(`dictionary.issues.${onlineError ?? 'unavailable'}`)}</p>}
 
       {!loading && (lookupError || localResult?.status === 'unavailable') && activeProvider === 'local' && <button className="ui-button" onClick={retryLocal}>{t('common.retry')}</button>}
