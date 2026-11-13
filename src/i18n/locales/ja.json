@@ -1781,7 +1781,8 @@
     "failed": "読み上げを利用できません。読み上げボタンで再試行してください。",
     "tooLong": "1,000 文字以内の短い内容を選択してください。",
     "playbackBlocked": "再生がブロックされました。もう一度読み上げボタンを押してください。",
-    "offlineMissing": "この音声と内容はキャッシュされていません。オンライン読み上げか端末の予備音声を有効にしてください。"
+    "offlineMissing": "この音声と内容はキャッシュされていません。オンライン読み上げか端末の予備音声を有効にしてください。",
+    "replay": "もう一度再生"
   },
   "dictionaryFlow": {
     "prototype": "原形の候補",
@@ -1974,5 +1975,30 @@
     "newest": "新しい順",
     "oldest": "古い順",
     "title": "タイトル A–Z"
+  },
+  "dictionaryPreferences": {
+    "title": "オンライン辞書",
+    "source": "オンライン辞書",
+    "cambridge": "英中の語義",
+    "cambridgeProvider": "Cambridge 公開API（非公式）",
+    "wiktionary": "英英の語義",
+    "wiktionaryProvider": "FreeDictionaryAPI.com · Wiktionary",
+    "onDemand": "最初にローカルの結果を表示します。「オンライン」を選ぶと検索して切り替えます。"
+  },
+  "dictionarySwitch": {
+    "local": {
+      "idle": "ローカル辞書",
+      "loading": "ローカル辞書を検索中",
+      "ready": "ローカルの語義に切り替え",
+      "missing": "ローカルの語義はありません",
+      "error": "ローカル検索に失敗しました。再試行"
+    },
+    "online": {
+      "idle": "オンラインの語義を取得",
+      "loading": "オンライン辞書を検索中",
+      "ready": "オンラインの語義に切り替え",
+      "missing": "オンラインの語義はありません。再試行",
+      "error": "オンライン検索に失敗しました。再試行"
+    }
   }
 }

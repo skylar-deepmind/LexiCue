@@ -1,6 +1,6 @@
 .collection-pager { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:4px 12px; min-height:48px; padding-block:4px; color:var(--text-muted); font-size:.8125rem; font-variant-numeric:tabular-nums; }
 .collection-page-controls,.collection-pager form { display:flex; align-items:center; gap:4px; }
-.collection-page-controls { margin-left:auto; }
+.collection-page-controls { margin-left:auto; white-space:nowrap; flex-shrink:0; }
 .collection-pager .desk-text-button { min-width:44px; min-height:44px; padding:8px; }
 .collection-pager input { width:4ch; min-width:44px; max-width:7ch; min-height:44px; border:0; border-radius:0; background:transparent; color:var(--text-strong); text-align:center; font:inherit; font-size:16px; }
 .collection-pager :is(button,input):focus-visible { outline:none; box-shadow:inset 0 -2px 0 var(--accent-700); }
@@ -46,16 +46,24 @@
 .saved-swipe-front[data-swiping='true'] { transition:none; }
 .saved-row-handle { display:flex; align-items:center; }
 .saved-row-handle .saved-record-open { flex:1; min-width:0; touch-action:pan-y; }
-.saved-group-more { flex:none; min-width:44px; width:44px; padding:8px; }
-.saved-group-delete { position:absolute; z-index:0; top:0; right:0; width:72px; min-height:88px; display:grid; place-items:center; color:var(--sync-error-text); background:var(--sync-error-bg); border-radius:12px; }
-.saved-group-delete:hover:not(:disabled) { box-shadow:inset 0 0 0 1px var(--sync-error-text); }
-.saved-group-delete:focus-visible { outline:2px solid var(--sync-error-text); outline-offset:-3px; }
+.saved-group-delete { position:absolute; z-index:0; top:10px; right:4px; width:64px; height:64px; min-height:64px; display:grid; place-items:center; color:var(--sync-error-text); background:var(--sync-error-bg); border:0; border-radius:50%; }
+.saved-group-delete:hover:not(:disabled) { color:var(--sync-error-text); opacity:.85; }
+.saved-group-delete:focus-visible { outline:none; box-shadow:inset 0 -2px 0 currentColor; }
 .saved-group-delete:disabled { opacity:.5; }
 .saved-group-row:not([data-swipe-open='true']) .saved-group-delete { visibility:hidden; }
 @media(prefers-reduced-motion:reduce) { .saved-swipe-front { transition:none; } }
 .saved-group-row:has(.saved-swipe-front[data-swiping='true']) .saved-group-delete { visibility:visible; }
 /* Keep the expression legible while its delete action is revealed. */
-.saved-swipe-front .saved-record-term { transform:translateX(calc(0px - var(--swipe-shift,0px))); max-width:calc(100% + var(--swipe-shift,0px)); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; transition:transform 200ms ease-out; }
-.saved-swipe-front[data-swiping='true'] .saved-record-term { transition:none; }
+.saved-swipe-front :is(.saved-record-term,.saved-record-meaning) { transform:translateX(calc(0px - var(--swipe-shift,0px))); max-width:calc(100% + var(--swipe-shift,0px)); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; transition:transform 200ms ease-out; }
+.saved-swipe-front[data-swiping='true'] :is(.saved-record-term,.saved-record-meaning) { transition:none; }
 .library-browse-controls .tag-filter { border-bottom:0; }
-@media(prefers-reduced-motion:reduce) { .saved-swipe-front .saved-record-term { transition:none; } }
+@media(prefers-reduced-motion:reduce) { .saved-swipe-front :is(.saved-record-term,.saved-record-meaning) { transition:none; } }
+
+.saved-page { position:relative; }
+.saved-page .saved-workspace { padding-bottom:100px; }
+.saved-floating-pager { width:max-content; position:fixed; z-index:15; left:50%; top:calc(var(--visual-top,0px) + var(--visual-height,100dvh) - max(24px,calc(var(--safe-bottom,0px) + 16px))); transform:translate(-50%,-100%); padding:2px 8px; max-width:calc(100vw - 32px); border:0; border-radius:999px; color:var(--text-body); background:var(--surface); box-shadow:var(--panel-shadow); transition:opacity 160ms ease; }
+.saved-floating-pager:not([data-visible]):not(:focus-within) { opacity:0; pointer-events:none; }
+.saved-floating-pager .collection-pager { padding:0; min-height:44px; }
+.saved-floating-pager .collection-page-controls { margin:0; }
+.library-sort-control .app-select:is(:hover,:active,[aria-expanded='true']) { background:transparent; border-color:transparent; }
+@media(prefers-reduced-motion:reduce) { .saved-floating-pager { transition:none; } }

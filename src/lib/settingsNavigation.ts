@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 export const SETTINGS_LABELS = {
   language: 'settings.uiLanguage.title',
   speech: 'speech.title',
+  lookup: 'dictionaryPreferences.title',
   guide: 'onboarding.replayTitle',
   sync: 'settings.deviceSync.title',
   backup: 'materials.backups',
@@ -14,7 +15,7 @@ export const SETTINGS_LABELS = {
 export type SettingsEntry = keyof typeof SETTINGS_LABELS;
 
 export const SETTINGS_GROUPS = [
-  { key: 'preferences', entries: ['language', 'speech', 'guide'] },
+  { key: 'preferences', entries: ['language', 'speech', 'lookup', 'guide'] },
   { key: 'data', entries: ['sync', 'backup', 'dictionary'] },
   { key: 'tools', entries: ['youtube'] },
   { key: 'app', entries: ['updates'] },

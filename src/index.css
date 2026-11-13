@@ -32,11 +32,10 @@
 .recall-history .recall-context { margin-top: 16px; }
 
 /* Speech controls use the same semantic tokens in every theme. */
-.speech-button.ui-button { min-width: 44px; min-height: 44px; flex: none; color: var(--text-body); background: transparent; border: 1px solid transparent; gap: 8px; }
-.speech-button.ui-button:hover:not(:disabled) { color: var(--text-strong); background: var(--interactive-hover); }
-.speech-button.ui-button[aria-pressed='true'] { color: var(--accent-700); background: var(--accent-50); border-color: transparent; }
-.speech-button.ui-button[aria-pressed='true']:hover:not(:disabled) { background: var(--accent-100); }
-.speech-button.ui-button:active:not(:disabled) { background: var(--interactive-pressed); }
+.speech-button.ui-button { min-width: 44px; min-height: 44px; flex: none; color: var(--text-body); background: transparent; border: 0; gap: 8px; }
+.speech-button.ui-button:hover:not(:disabled) { color: var(--accent-700); background: transparent; }
+.speech-button.ui-button[data-speech-state='playing'], .speech-button.ui-button[data-speech-state='loading'] { color:var(--accent-700); background:transparent; }
+.speech-button.ui-button:active:not(:disabled) { color:var(--accent-700); background:transparent; }
 .speech-button.ui-button:disabled { color: var(--text-muted); background: var(--interactive-disabled); opacity: 1; }
 .speech-button.ui-button:focus-visible, .speech-settings :is(button,input,summary):focus-visible { outline:none; box-shadow:inset 0 -2px 0 currentColor; }
 .speech-feedback { color: var(--text-body); font-size: .875rem; line-height: 1.65; margin-block: 12px; }
@@ -400,7 +399,7 @@ body { margin: 0; background: var(--app-bg); color: var(--text-body); }
 .ui-button:active:not(:disabled) { background: var(--accent-100); }
 .ui-button:disabled { background: var(--surface-muted); color: var(--text-muted); cursor: not-allowed; }
 .ui-button:focus-visible, .app-select:focus-visible, .learning-ring:focus-visible, .file-card__open:focus-visible { outline:none; box-shadow:inset 0 -2px 0 currentColor; }
-.ui-button--icon { width: 44px; padding: 0; flex-shrink: 0; }
+.ui-button--icon { width:44px; min-height:44px; padding:0; flex-shrink:0; border:0; border-radius:50%; background:transparent; }
 .ui-button--danger { color: var(--sync-error-text); }
 .ui-button--danger:hover:not(:disabled), .ui-button--danger:active:not(:disabled) { background: var(--sync-error-bg); color: var(--sync-error-text); border-color: var(--sync-error-border); }
 .app-select { display: inline-flex; align-items: center; justify-content: space-between; gap: 0.5rem; width: 100%; min-width: 0; min-height: 44px; padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: 0.625rem; background: var(--surface); color: var(--text-strong); text-align: left; font-size: 0.875rem; cursor: pointer; }
@@ -1524,3 +1523,10 @@ button:disabled:is([class*='bg-blue-'], [class*='bg-purple-'], [class*='bg-gray-
 .saved-record-actions .saved-sentence-remove, .saved-sentence-remove { color:var(--sync-error-text); min-height:48px; }
 .saved-record-actions .saved-sentence-remove:hover:not(:disabled), .saved-sentence-remove:hover:not(:disabled) { color:var(--sync-error-text); background:var(--sync-error-bg); }
 .recall-undo { display:flex; align-items:center; flex-wrap:wrap; gap:12px; margin-top:16px; }
+
+/* Point pronunciation remains an action, without a latched selection frame. */
+.speech-playing path:nth-last-child(-n+2) { animation:speech-wave 900ms ease-in-out infinite; }
+.speech-playing path:last-child { animation-delay:180ms; }
+@keyframes speech-wave { 0%,100% { opacity:.35; } 50% { opacity:1; } }
+@media(prefers-reduced-motion:reduce) { .speech-playing path:nth-last-child(-n+2) { animation:none; } }
+.ui-button--icon:is(:hover,:active):not(:disabled) { border-color:transparent; border-radius:50%; }

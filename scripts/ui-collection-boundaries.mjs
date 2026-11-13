@@ -38,7 +38,12 @@ try {
   const nav=page.locator(phone?'.b-mobile-nav':'.b-dock');await nav.locator('a[href="/saved"]').click();await savedReady(page,'word 00001');
   eq(await rows(page).count(),20,'10,003 saved expressions render twenty groups');
   const workspace=page.locator('.page-live .saved-workspace');
-  await jump(workspace,501);await savedReady(page,'word 10001');eq(await rows(page).count(),3,'saved jumps directly to the last partial page');
+  eq(await page.locator('.saved-group-more').count(),0,'no duplicate delete entry');
+  eq(await workspace.locator('.collection-pager,.collection-range').count(),0,'no top pagination or range count');
+  await page.locator('.saved-scroll').evaluate(n=>n.scrollTop=160);
+  await page.locator('.saved-floating-pager[data-visible=true]').waitFor();
+  eq(await page.locator('.saved-floating-pager form span').evaluate(n=>n.getClientRects().length===1&&n.getBoundingClientRect().height<30),true,'floating page count stays on one line');
+  await jump(page.locator('.page-live .saved-floating-pager'),501);await savedReady(page,'word 10001');eq(await rows(page).count(),3,'saved jumps directly to the last partial page');
   await page.evaluate(()=>window.__collection.delay=250);
   await workspace.getByRole('searchbox').fill('00024');await savedReady(page,'word 00024');eq(await rows(page).count(),1,'saved search across all pages');
   await page.evaluate(()=>window.__collection.delay=0);
@@ -50,13 +55,13 @@ try {
   const details=page.locator('.page-live .saved-disclosure[data-open=true]');await jump(details,51);await page.waitForFunction(()=>document.querySelectorAll('.page-live .saved-sentence').length===3);await settle(page);
   eq(await details.locator('.saved-sentence').count(),3,'a thousand contexts support direct paging');
   await rows(page).first().locator('.saved-record-open[aria-expanded=true]').click();await settle(page);
-  await jump(workspace,2);await savedReady(page,'word 00021');
+  await jump(page.locator('.page-live .saved-floating-pager'),2);await savedReady(page,'word 00021');
   // Sticky controls stay reachable even at the end of the page.
   await page.locator('.saved-scroll').evaluate(n=>n.scrollTop=n.scrollHeight);await overflow(page,'saved page fits viewport');
   eq(await workspace.getByRole('searchbox').isVisible(),true,'saved search remains available at the bottom');
   await page.screenshot({path:`${output}/${theme}-${viewport.width}-saved.png`});
   await nav.locator('a[href="/files"]').click();await page.locator('.page-live .desk-paper[data-desk-active=true]').waitFor();
-  await nav.locator('a[href="/saved"]').click();await savedReady(page,'word 00021');eq(await workspace.getByRole('textbox',{name:'跳转到页码'}).inputValue(),'2','tab return retains the page');
+  await nav.locator('a[href="/saved"]').click();await savedReady(page,'word 00021');eq(await page.locator('.page-live .saved-floating-pager').getByRole('textbox',{name:'跳转到页码'}).inputValue(),'2','tab return retains the page');
   await page.evaluate(()=>{window.__collection.savedCount=20;window.dispatchEvent(new Event('lexicue-saved-changed'));});await savedReady(page,'word 00001');eq(await rows(page).count(),20,'sync/deletion shrinks last page safely');
   await page.evaluate(()=>{window.__collection.savedCount=0;window.dispatchEvent(new Event('lexicue-saved-changed'));});await page.locator('.saved-empty').waitFor();
   eq(await page.locator('.saved-empty button').textContent(),'材料','empty saved records have a next action');

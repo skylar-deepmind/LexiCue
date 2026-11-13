@@ -1781,7 +1781,8 @@
     "failed": "暂时无法朗读，点击朗读按钮重试。",
     "tooLong": "请选择较短的内容（最多 1,000 个字符）。",
     "playbackBlocked": "播放被阻止，请再次点击朗读按钮。",
-    "offlineMissing": "当前音色和内容尚无缓存，可开启在线朗读或设备备用语音。"
+    "offlineMissing": "当前音色和内容尚无缓存，可开启在线朗读或设备备用语音。",
+    "replay": "重新播放"
   },
   "dictionaryFlow": {
     "prototype": "原型候选",
@@ -1972,5 +1973,30 @@
     "newest": "最近导入",
     "oldest": "最早导入",
     "title": "标题 A–Z"
+  },
+  "dictionaryPreferences": {
+    "title": "在线词典",
+    "source": "在线词典",
+    "cambridge": "英汉释义",
+    "cambridgeProvider": "剑桥公共接口（非官方）",
+    "wiktionary": "英英释义",
+    "wiktionaryProvider": "FreeDictionaryAPI.com · Wiktionary",
+    "onDemand": "先显示本地；点击“在线”后才查询并切换。"
+  },
+  "dictionarySwitch": {
+    "local": {
+      "idle": "本地词典",
+      "loading": "正在查询本地词典",
+      "ready": "切换到本地释义",
+      "missing": "没有本地释义",
+      "error": "本地查询失败，点击重试"
+    },
+    "online": {
+      "idle": "点击获取在线释义",
+      "loading": "正在查询在线词典",
+      "ready": "切换到在线释义",
+      "missing": "没有在线释义，点击重试",
+      "error": "在线查询失败，点击重试"
+    }
   }
 }

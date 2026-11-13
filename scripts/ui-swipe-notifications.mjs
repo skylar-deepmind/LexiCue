@@ -57,8 +57,8 @@ try{
   const quiet=p.locator('.page-live .saved-record-row').filter({has:p.locator('.saved-record-term',{hasText:/^quiet$/})});
   await quiet.waitFor();await settle(p);
   if(phone){await swipe(p,quiet,true);eq(await quiet.getAttribute('data-swipe-open'),null,'vertical scroll never reveals delete');await swipe(p,quiet);}
-  else{await quiet.getByRole('button',{name:'“quiet”的更多操作',exact:true}).focus();await p.keyboard.press('Enter');}
-  eq(await quiet.getAttribute('data-swipe-open'),'true','swipe/menu reveals an explicit trash action');eq((await list()).length,3,'swiping alone never deletes');
+  else{await quiet.locator('.saved-record-open').focus();await p.keyboard.press('Delete');}
+  eq(await quiet.getAttribute('data-swipe-open'),'true','swipe/keyboard reveals an explicit trash action');eq((await list()).length,3,'swiping alone never deletes');
   await p.screenshot({path:`${output}/${theme}-${phone?'phone':'desktop'}-swipe-delete.png`});
   const trash=quiet.getByRole('button',{name:'删除“quiet”及全部 2 句',exact:true});
   eq(await contrast(trash)>=4.5,true,'delete icon contrast works in this theme');
@@ -75,7 +75,7 @@ try{
   await undo.click();await quiet.waitFor();const restored=await list();
   eq(restored.map(r=>[r.record_id,r.sentence,r.explanation,r.source]).sort(),before.map(r=>[r.record_id,r.sentence,r.explanation,r.source]).sort(),'group undo restores every note, original and source snapshot');
   // A lost receipt retries the same native operation, without partial writes.
-  await quiet.getByRole('button',{name:'“quiet”的更多操作',exact:true}).click();
+  await quiet.locator('.saved-record-open').focus();await p.keyboard.press('Delete');
   await p.evaluate(()=>{window.__uiFailure={command:'remove_saved_group',afterCommit:true,remaining:1};});
   await quiet.getByRole('button',{name:'删除“quiet”及全部 2 句',exact:true}).click();await p.getByRole('button',{name:'复制报错信息',exact:true}).waitFor();
   eq((await list()).length,1,'lost receipt still committed the complete group');

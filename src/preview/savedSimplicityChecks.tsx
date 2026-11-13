@@ -35,7 +35,7 @@ export async function runSavedSimplicityChecks() {
       check(buttons()[0].title.includes('原视频') && buttons()[1].title.includes('合成语音'), `${theme}: full voice descriptions remain accessible`);
       buttons()[0].click(); await wait(60);
       check(spoken.at(-1)?.key === 'saved-simplicity-qa' && (spoken.at(-1)?.media as { source_key: string })?.source_key === reference.source.key, `${theme}: original audio uses the bound original segment`);
-      check(buttons()[0].textContent === '原音' && buttons()[0].getAttribute('aria-pressed') === 'true' && !!buttons()[0].querySelector('.lucide-square'), `${theme}: original playback changes the icon in place`);
+      check(buttons()[0].textContent === '原音' && buttons()[0].dataset.speechState === 'playing' && !!buttons()[0].querySelector('.speech-playing'), `${theme}: original playback changes the icon in place`);
       buttons()[0].click(); await wait(40); buttons()[1].click(); await wait(60);
       check(spoken.at(-1)?.key.endsWith(':synthetic') && !spoken.at(-1)?.media && buttons()[1].textContent === '朗读', `${theme}: synthetic reading remains a distinct action`);
       buttons()[1].click(); await wait(40); buttons()[0].focus({ preventScroll: true });

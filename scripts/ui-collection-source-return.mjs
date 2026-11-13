@@ -17,7 +17,8 @@ try {
   const page=await context.newPage();current=page;await h.fixture(page,theme);
   await page.addInitScript(()=>localStorage.setItem('lexicue-onboarding-v1','{"version":1,"status":"skipped"}'));
   await page.goto(`${h.url}/saved`);await page.locator('.saved-record-row').first().waitFor();
-  const pager=page.locator('.collection-toolbar').getByRole('textbox',{name:'跳转到页码'});
+  await page.locator('.saved-scroll').evaluate(n=>n.scrollTop=120);
+  const pager=page.locator('.saved-floating-pager').getByRole('textbox',{name:'跳转到页码'});
   await pager.fill('2');await pager.press('Enter');await page.waitForFunction(()=>document.querySelector('.saved-record-term')?.textContent==='quiet');
   await page.locator('.saved-record-open').click();await page.getByRole('button',{name:'还有 20 句',exact:true}).click();
   const contextPager=page.locator('.saved-group-contexts').getByRole('textbox',{name:'跳转到页码'});

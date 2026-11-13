@@ -16,6 +16,8 @@ const FONT_SIZES: ContentFontSize[] = ['sm', 'md', 'lg'];
 const LINE_HEIGHTS: ReadingLineHeight[] = ['compact', 'normal', 'loose'];
 
 interface PreferencesState {
+  onlineDictionary: 'cambridge' | 'wiktionary';
+  setOnlineDictionary: (provider: 'cambridge' | 'wiktionary') => void;
   tagColors: TagColors;
   setTagColors: (colors: TagColors) => void;
   contentFontScale: ContentFontScale;
@@ -51,6 +53,8 @@ export const usePreferencesStore = create<PreferencesState>()(
   subscribeWithSelector(
     persist(
       (set) => ({
+        onlineDictionary: 'cambridge',
+        setOnlineDictionary: onlineDictionary => set({ onlineDictionary }),
         tagColors: {},
         setTagColors: colors => set(state=>({tagColors:{...state.tagColors,...normalizeTagColors(colors)}})),
         contentFontScale: normalizeContentFontScale(null),
@@ -92,6 +96,7 @@ export const usePreferencesStore = create<PreferencesState>()(
         storage: createJSONStorage(() => localStorage),
         merge: (persisted, current) => {
           const saved = (persisted ?? {}) as {
+            onlineDictionary?: unknown;
             tagColors?: unknown;
             speech?: unknown;
             contentFontScale?: unknown;
@@ -133,7 +138,7 @@ export const usePreferencesStore = create<PreferencesState>()(
             word: saved.annotationModes?.word === 'single' ? 'single' : 'batch',
             phrase: saved.annotationModes?.phrase === 'single' ? 'single' : 'batch',
           };
-          return { ...current, tagColors:normalizeTagColors(saved.tagColors), contentFontScale: normalizeContentFontScale(saved.contentFontScale), speech: normalizeSpeechPreferences(saved.speech), reencounterHints: typeof saved.reencounterHints==='boolean'?saved.reencounterHints:current.reencounterHints, vocabularyKind: saved.vocabularyKind === 'phrase' ? 'phrase' : 'word', youtube: normalizeYouTubePreferences(saved.youtube), annotationModes, language, uiLanguage, learningTextFontSize, definitionFontSize, auxiliaryFontSize, readingLineHeight };
+          return { ...current, onlineDictionary: saved.onlineDictionary === 'wiktionary' ? 'wiktionary' : 'cambridge', tagColors:normalizeTagColors(saved.tagColors), contentFontScale: normalizeContentFontScale(saved.contentFontScale), speech: normalizeSpeechPreferences(saved.speech), reencounterHints: typeof saved.reencounterHints==='boolean'?saved.reencounterHints:current.reencounterHints, vocabularyKind: saved.vocabularyKind === 'phrase' ? 'phrase' : 'word', youtube: normalizeYouTubePreferences(saved.youtube), annotationModes, language, uiLanguage, learningTextFontSize, definitionFontSize, auxiliaryFontSize, readingLineHeight };
         },
       },
     ),

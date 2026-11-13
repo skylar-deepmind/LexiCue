@@ -1,4 +1,5 @@
 import CollectionPager from '../components/CollectionPager';
+import FloatingCollectionPager from '../components/FloatingCollectionPager';
 import { collectionPage } from '../lib/collectionPage';
 import { useRestoreGuard } from '../stores/restoreGuard';
 import { LoadingSkeleton, BusyRing } from '../components/LoadingFeedback';
@@ -6,7 +7,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { invoke } from '@tauri-apps/api/core';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Bookmark, ChevronRight, Search, Trash2, MoreHorizontal } from 'lucide-react';
+import { Bookmark, ChevronRight, Search, Trash2 } from 'lucide-react';
 import useSwipeDelete from '../components/useSwipeDelete';
 import { useFeedbackStore } from '../stores/feedbackStore';
 import MotionChange from '../components/MotionChange';
@@ -103,21 +104,24 @@ export function SavedGroupCard({ group, selected, onOpen, children, disabled = f
   const summary = (group as SavedGroup & { summary?: string | null }).summary;
   const id = `saved-panel-${group.group_id}`;
   const front=useRef<HTMLDivElement>(null);
-  const trash=useRef<HTMLButtonElement>(null),more=useRef<HTMLButtonElement>(null),focusDelete=useRef(false),wasOpen=useRef(swipeOpen);
+  const trash=useRef<HTMLButtonElement>(null),opener=useRef<HTMLButtonElement>(null),focusDelete=useRef(false),wasOpen=useRef(swipeOpen);
   useLayoutEffect(()=>{
     if(swipeOpen && focusDelete.current){focusDelete.current=false;trash.current?.focus({preventScroll:true});}
-    else if(wasOpen.current&&!swipeOpen&&document.activeElement===trash.current)more.current?.focus({preventScroll:true});
+    else if(wasOpen.current&&!swipeOpen&&document.activeElement===trash.current)opener.current?.focus({preventScroll:true});
     wasOpen.current=swipeOpen;
   },[swipeOpen]);
   useSwipeDelete(front,swipeOpen,open=>onSwipeOpen?.(open),!!onRemove&&!disabled);
   return <li className="saved-record-row saved-group-row" data-group={group.group_id} data-expanded={selected} data-swipe-open={swipeOpen || undefined}>
     {onRemove && <button type="button" className="saved-group-delete" ref={trash} tabIndex={swipeOpen?0:-1} aria-hidden={!swipeOpen} aria-label={t('savedRecords.deleteGroupNamed',{expression:group.expression,count:group.context_count})} disabled={disabled} onClick={onRemove} aria-busy={removing}>{removing?<BusyRing/>:<Trash2 size={21} aria-hidden="true"/>}</button>}
     <div className="saved-swipe-front" ref={front}><div className="saved-row-handle">
-    <button className="saved-record-open" disabled={disabled} onClick={onOpen} aria-expanded={selected} aria-controls={id}>
+    <button className="saved-record-open" ref={opener} disabled={disabled} onClick={onOpen} aria-expanded={selected} aria-controls={id}
+      aria-keyshortcuts={onRemove ? 'Delete ArrowLeft' : undefined} onKeyDown={event=>{
+        if(onRemove && ['Delete','ArrowLeft'].includes(event.key)){event.preventDefault();focusDelete.current=true;onSwipeOpen?.(true);}
+        else if(event.key==='ArrowRight' && swipeOpen){event.preventDefault();onSwipeOpen?.(false);}
+      }}>
       <span className="saved-record-term" lang="en">{group.expression}</span><span className="saved-context-count">{t('dictionaryFlow.compactContextCount', { count: group.context_count })}</span>
       {summary && <span className="saved-record-meaning">{summary}</span>}<ChevronRight className="saved-chevron" size={20} strokeWidth={1.8} aria-hidden="true" />
     </button>
-    {onRemove && <button type="button" className="saved-group-more desk-text-button" ref={more} aria-label={t('savedRecords.groupActions',{expression:group.expression})} aria-expanded={swipeOpen} disabled={disabled} onClick={()=>{focusDelete.current=!swipeOpen;onSwipeOpen?.(!swipeOpen);}}><MoreHorizontal size={20} aria-hidden="true"/></button>}
     </div><SmoothDisclosure id={id} open={selected}>{children}</SmoothDisclosure></div>
   </li>;
 }
@@ -331,7 +335,7 @@ export default function SavedPage() {
     <div className="saved-scroll" ref={savedScroll} onScroll={() => { if(sessionPage && !changingView)sessionPage.scroll=savedScroll.current?.scrollTop ?? 0; }} onPointerDown={event => { if (event.target === event.currentTarget || event.target === event.currentTarget.firstElementChild) setSelected(null); }}><div className="saved-workspace workspace-paper">
       <div className="sr-only"><h1>{t('savedRecords.title')}</h1><span role="status">{t('dictionaryFlow.groupCount', { count: page.total_groups, contexts: page.total_records })}</span></div>
       <div className="collection-toolbar"><label className="saved-search"><Search size={18} aria-hidden="true" /><span className="sr-only">{t('savedRecords.search')}</span><input type="search" value={query} onChange={event => { request.current++; selectionIntent.current++; wantedGroup.current=null; setSwiped(null); setSelected(null); setOpened([]); setPageNumber(1); setQuery(event.target.value); if(savedScroll.current)savedScroll.current.scrollTop=0; }} placeholder={t('savedRecords.search')} /></label>
-      <CollectionPager label={t('savedRecords.title')} total={page.total_groups} page={pageNumber} size={PAGE_SIZE} busy={loading || changingView} onChange={changePage}/></div>
+      </div>
       {error && <div className="saved-error" role="alert"><p>{error}</p><button className="ui-button" onClick={() => void load()}>{t('common.retry')}</button></div>}
       {loading && !page.groups.length && <LoadingSkeleton kind="list" label={t('common.loading')}/>}
       {!loading && !changingView && !error && !page.groups.length && <div className="saved-empty"><Bookmark size={30} aria-hidden="true" /><p>{t(query ? 'savedRecords.noResults' : 'savedRecords.empty')}</p>{query ? <button className="ui-button" onClick={()=>{setQuery('');setSettledQuery('');setPageNumber(1);}}>{t('readingDesk.resetFilters')}</button> : <button className="ui-button" onClick={()=>navigate('/files')}>{t('materials.title')}</button>}</div>}
@@ -346,7 +350,6 @@ export default function SavedPage() {
       {report && report.saved_contexts > 0 && <details className="saved-migration"><summary>{t('savedRecords.migrationTitle')}</summary><p>{t('savedRecords.migrationReport', { count: report.saved_contexts, missing: report.missing_sources })}</p></details>}
       {conflicts.length > 0 && <details className="saved-conflicts"><summary>{t('savedRecords.conflicts', { count: conflicts.length })}</summary><p>{t('savedRecords.conflictsHint')}</p>{conflicts.map(conflict => <section key={conflict.id}><h2>{conflict.local.expression}</h2><p>{t('savedRecords.localVersion')}：{conflict.local.explanation || t('savedRecords.noExplanation')}</p><p>{t('savedRecords.remoteVersion')}：{conflict.remote.explanation || t('savedRecords.noExplanation')}</p><p lang="en">{conflict.local.sentence}</p></section>)}</details>}
     </div></div>
-
-
+    <FloatingCollectionPager scroll={savedScroll} resetKey={query} label={t('savedRecords.title')} total={page.total_groups} page={pageNumber} size={PAGE_SIZE} busy={loading || changingView} onChange={changePage}/>
   </div>;
 }

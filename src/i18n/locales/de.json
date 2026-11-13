@@ -1798,7 +1798,8 @@
     "failed": "Vorlesen ist nicht verfügbar. Erneut auf die Vorlesetaste drücken.",
     "tooLong": "Bitte einen kürzeren Text wählen (bis zu 1.000 Zeichen).",
     "playbackBlocked": "Wiedergabe wurde blockiert. Bitte erneut auf die Vorlesetaste drücken.",
-    "offlineMissing": "Diese Stimme und dieser Text sind nicht im Cache. Bitte Onlinestimme oder Gerätestimme aktivieren."
+    "offlineMissing": "Diese Stimme und dieser Text sind nicht im Cache. Bitte Onlinestimme oder Gerätestimme aktivieren.",
+    "replay": "Erneut abspielen"
   },
   "dictionaryFlow": {
     "prototype": "Mögliche Grundform",
@@ -1992,5 +1993,30 @@
     "newest": "Neueste zuerst",
     "oldest": "Älteste zuerst",
     "title": "Titel A–Z"
+  },
+  "dictionaryPreferences": {
+    "title": "Online-Wörterbuch",
+    "source": "Online-Wörterbuch",
+    "cambridge": "Englisch–chinesische Definitionen",
+    "cambridgeProvider": "Öffentliche Cambridge-API (inoffiziell)",
+    "wiktionary": "Englische Definitionen",
+    "wiktionaryProvider": "FreeDictionaryAPI.com · Wiktionary",
+    "onDemand": "Zuerst erscheinen lokale Ergebnisse. Online ruft Definitionen ab und wechselt die Ansicht."
+  },
+  "dictionarySwitch": {
+    "local": {
+      "idle": "Lokales Wörterbuch",
+      "loading": "Lokales Wörterbuch wird durchsucht",
+      "ready": "Zu lokalen Definitionen wechseln",
+      "missing": "Keine lokalen Definitionen",
+      "error": "Lokale Suche fehlgeschlagen. Erneut versuchen"
+    },
+    "online": {
+      "idle": "Online-Definitionen abrufen",
+      "loading": "Online-Wörterbuch wird durchsucht",
+      "ready": "Zu Online-Definitionen wechseln",
+      "missing": "Keine Online-Definitionen. Erneut versuchen",
+      "error": "Online-Suche fehlgeschlagen. Erneut versuchen"
+    }
   }
 }

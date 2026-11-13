@@ -74,7 +74,7 @@ try {
   const imported=await h.call('import_reading_material',{input:{operation_id:`pack-ui-${label}`,name:`${label}.txt`,content:sentence,segments:[{index:0,en_text:sentence,zh_text:null,start_time:null,end_time:null}]}});
   await page.goto(`${h.url}/files/${imported.file_id}`);
   await page.locator('.reading-word').filter({hasText:/^soliloquy$/}).click();await page.locator('.dictionary-overview').waitFor();
-  ok((await page.locator('.lookup-source-tag').innerText()).includes('本地'),`${label}: local source slot is distinct from online Wiktionary`);
+  ok((await page.locator('.lookup-source-switch button[aria-pressed="true"] > span').innerText()).includes('本地'),`${label}: local source slot is distinct from online Wiktionary`);
   await page.locator('[data-testid=lookup-save]').click();await page.locator('.lookup-save-toast').waitFor();
   const saved=await h.call('list_saved_records',{query:'soliloquy',limit:100,offset:0});
   ok(saved.some(r=>r.dictionary_reference?.senses[0].source.adapter_version==='wiktionary-local-v2.0.0'),`${label}: real local revision reference saved`);

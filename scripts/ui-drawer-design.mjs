@@ -22,9 +22,9 @@ try {
   await page.locator('.reading-word').filter({hasText:/^in$/}).first().click();
   await page.locator('[data-testid="lookup-records-tab"]').waitFor();
   await page.waitForFunction(()=>document.querySelector('.lookup-record-count')?.textContent==='2');
-  equal(await page.locator('.lookup-fixed-header').evaluate(n=>Math.round(n.getBoundingClientRect().height)),104,`${theme}/${phone}: 104px fixed header`);
+  equal(await page.locator('.lookup-fixed-header').evaluate(n=>Math.round(n.getBoundingClientRect().height)),148,`${theme}/${phone}: 148px header with source controls`);
   equal(await page.locator('.context-sheet-expand').isVisible(),phone,`${theme}/${phone}: expand is shown only where it changes sheet size`);
-  equal(await page.locator('.lookup-source-tag').textContent(),'本地',`${theme}/${phone}: one compact source tag`);
+  equal(await page.locator('.lookup-source-switch button[aria-pressed="true"] > span').textContent(),'本地',`${theme}/${phone}: explicit current source button`);
   equal(await page.locator('.lookup-context').count(),0,`${theme}/${phone}: no duplicate current-context section`);
   equal(await page.locator('.reading-recall-ink').first().evaluate(n=>getComputedStyle(n,'::before').content),'none',`${theme}/${phone}: saved marker has no expanded paint box`);
   equal(await page.locator('.reading-recall-ink').first().evaluate(n=>getComputedStyle(n).textDecorationThickness),'2px',`${theme}/${phone}: saved underline is 2px`);

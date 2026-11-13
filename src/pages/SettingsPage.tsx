@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Archive, AudioLines, BookOpen, Captions, Check, ChevronLeft, ChevronRight, Compass, Languages, MonitorSmartphone, RefreshCw } from 'lucide-react';
+import { Archive, AudioLines, BookOpen, Captions, Check, ChevronLeft, ChevronRight, Compass, Languages, MonitorSmartphone, RefreshCw, Search } from 'lucide-react';
 import { useTheme } from '../components/useTheme';
 import { THEMES } from '../lib/themes';
 import { SELF_NAMES, UI_LANGUAGES } from '../lib/languages';
@@ -13,11 +13,12 @@ import DictionaryPacks from '../components/DictionaryPacks';
 import DeviceSyncSettings, { DeviceSyncSummary } from '../components/DeviceSyncSettings';
 import YouTubeDownloadSettings from '../components/YouTubeDownloadSettings';
 import SpeechSettings from '../components/SpeechSettings';
+import DictionaryPreferences from '../components/DictionaryPreferences';
 import SoftwareUpdateSettings from '../components/SoftwareUpdateSettings';
 import './materials-settings.css';
 import './settings-directory.css';
 
-const icons = { language: Languages, speech: AudioLines, guide: Compass, sync: MonitorSmartphone, backup: Archive, dictionary: BookOpen, youtube: Captions, updates: RefreshCw };
+const icons = { language: Languages, speech: AudioLines, lookup: Search, guide: Compass, sync: MonitorSmartphone, backup: Archive, dictionary: BookOpen, youtube: Captions, updates: RefreshCw };
 const preview = import.meta.env.VITE_SLICE_PREVIEW === '1';
 
 function ThemeChoices() {
@@ -52,6 +53,7 @@ function SettingsDetail({ entry }: {entry: SettingsEntry}) {
   switch (entry) {
     case 'language': return <div className="settings-list">{UI_LANGUAGES.map(language => <button className="settings-row" key={language} aria-pressed={uiLanguage === language} onClick={() => setUiLanguage(language)}>{SELF_NAMES[language]}{uiLanguage === language && <Check size={18} aria-hidden="true"/>}</button>)}</div>;
     case 'speech': return <SpeechSettings/>;
+    case 'lookup': return <DictionaryPreferences/>;
     case 'sync': return <DeviceSyncSettings/>;
     case 'backup': return <BackupSettings/>;
     case 'dictionary': return <DictionaryPacks/>;

@@ -52,7 +52,7 @@ try {
       assert.equal(await page.locator('html').getAttribute('data-theme'),theme);
       const groups=page.locator('.settings-groups > section');
       assert.deepEqual(await groups.locator('h2').allTextContents(),['偏好','资料与设备','工具','应用']);
-      assert.deepEqual(await groups.locator('.settings-row-label').allTextContents(),['界面语言','英语朗读','实操引导','设备同步','备份与旧记录','离线词典','YouTube 字幕','软件更新']);
+      assert.deepEqual(await groups.locator('.settings-row-label').allTextContents(),['界面语言','英语朗读','在线词典','实操引导','设备同步','备份与旧记录','离线词典','YouTube 字幕','软件更新']);
       const first=await groups.nth(0).boundingBox(), second=await groups.nth(1).boundingBox();
       assert.equal(first.y===second.y,!phone);
       assert.equal(await page.locator('.theme-choice').count(),5);

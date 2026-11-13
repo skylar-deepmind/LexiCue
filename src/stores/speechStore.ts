@@ -51,7 +51,7 @@ interface SpeechState {
     startSourceContinuous: (request: ReadingSourceRequest) => Promise<void>;
     jumpSourceContinuous: (request: ReadingSourceJump) => boolean;
     startQueue: (items: readonly SpeechQueueItem[], startIndex?: number) => Promise<void>;
-    speak: (text: string, key: string, options?: { kind?: SpeechKind; media?: MediaTarget; owner?: string; ownerScope?: string | null }) => Promise<void>;
+    speak: (text: string, key: string, options?: { kind?: SpeechKind; media?: MediaTarget; owner?: string; ownerScope?: string | null; restart?: boolean }) => Promise<void>;
     pause: (reason?: PauseReason) => void;
     resume: () => Promise<void>;
     replayCurrent: () => Promise<void>;
@@ -792,7 +792,7 @@ export const useSpeechStore = create<SpeechState>((set, get) => {
             await invoke('clear_tts_cache');
         },
         speak: async (text, key, options) => {
-            if (get().key === key && get().owner === (options?.owner ?? null) && (get().status === 'loading' || get().status === 'playing')) {
+            if (!options?.restart && get().key === key && get().owner === (options?.owner ?? null) && (get().status === 'loading' || get().status === 'playing')) {
                 stopOwnedChannel();
                 return;
             }

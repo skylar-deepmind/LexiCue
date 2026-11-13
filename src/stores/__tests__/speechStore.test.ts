@@ -78,6 +78,31 @@ describe('shared Edge player and request ownership', () => {
     expect(mocks.invoke.mock.calls.filter(([command]) => command === 'cancel_tts')).toHaveLength(9);
   });
 
+  it('restarts a point-pronunciation button during playback and ignores old player callbacks', async () => {
+    const options = { kind: 'word' as const, owner: 'point-button', restart: true };
+    await speech().speak('borrow', 'lookup:term', options);
+    const first = TestAudio.played[0], oldEnd = first.onended!;
+    await speech().speak('borrow', 'lookup:term', options);
+    expect(first.pause).toHaveBeenCalled();
+    expect(TestAudio.played).toHaveLength(2);
+    oldEnd();
+    expect(speech()).toMatchObject({ key: 'lookup:term', owner: 'point-button', status: 'playing' });
+  });
+
+  it('restarts the same loading button and keeps only the latest request', async () => {
+    const responses = Array.from({ length: 5 }, () => pending<ReturnType<typeof edge>>());
+    let index = 0;
+    mocks.invoke.mockImplementation((command: string) => command === 'resolve_tts_audio' ? responses[index++].promise : Promise.resolve());
+    const requests = responses.map(() => speech().speak('borrow', 'lookup:term', { kind: 'word', owner: 'point-button', restart: true }));
+    responses[4].resolve(edge());
+    for (let i = 0; i < 4; i++) responses[i].reject(Error('stale request'));
+    await Promise.all(requests);
+    expect(TestAudio.played).toHaveLength(1);
+    expect(speech()).toMatchObject({ key: 'lookup:term', owner: 'point-button', status: 'playing' });
+    expect(deviceSpeak).not.toHaveBeenCalled();
+    expect(mocks.invoke.mock.calls.filter(([command]) => command === 'cancel_tts')).toHaveLength(4);
+  });
+
   it('toggles a loading item off and isolates old audio callbacks from the next item', async () => {
     const response = pending<ReturnType<typeof edge>>();
     mocks.invoke.mockImplementationOnce(() => response.promise);

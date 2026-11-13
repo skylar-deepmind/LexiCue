@@ -15,9 +15,8 @@ export default function CollectionPager({ total, page, size, busy = false, onCha
     setDraft(null);
     if (draft !== null && draft.trim() && Number.isSafeInteger(value)) onChange(collectionPage(total, value, size).page);
   };
-  if (!total) return null;
+  if (window.pages <= 1) return null;
   return <nav className="collection-pager" aria-label={label} aria-busy={busy}>
-    <span className="collection-range" role="status">{t('collection.range', { start: window.start, end: window.end, total })}</span>
     {window.pages > 1 && <div className="collection-page-controls">
       <button type="button" className="desk-text-button" aria-label={t('history.previous')} disabled={busy || window.page === 1} onClick={() => onChange(window.page - 1)}><ChevronLeft size={18} aria-hidden="true" /></button>
       <form onSubmit={event => { event.preventDefault(); commit(); }}>
