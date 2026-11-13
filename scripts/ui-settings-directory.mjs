@@ -57,23 +57,44 @@ try {
       assert.equal(first.y===second.y,!phone);
       assert.equal(await page.locator('.theme-choice').count(),5);
       assert.ok(await groups.locator('.settings-row').evaluateAll(rows=>rows.every(r=>r.clientHeight>=44 && r.scrollWidth<=r.clientWidth+1)));
+      const linkDrag = await page.locator('[data-entry=speech] .settings-row-icon').evaluate(node => {
+        const drag = new DragEvent('dragstart', {bubbles:true, cancelable:true});
+        node.dispatchEvent(drag);
+        const link = node.closest('a');
+        const unrelated = new DragEvent('dragstart', {bubbles:true, cancelable:true});
+        document.querySelector('.settings-heading h1').dispatchEvent(unrelated);
+        return {cancelled:drag.defaultPrevented, unrelatedCancelled:unrelated.defaultPrevented,
+          dragStyle:getComputedStyle(link).webkitUserDrag, callout:getComputedStyle(link).webkitTouchCallout,
+          touch:getComputedStyle(link).touchAction};
+      });
+      assert.equal(linkDrag.cancelled, true, 'dragging a nested link icon cannot lift the URL');
+      assert.equal(linkDrag.unrelatedCancelled, false, 'non-link text drags are not intercepted');
+      assert.equal(linkDrag.dragStyle, 'none');
+      assert.notEqual(linkDrag.touch, 'none', 'links do not block native panning');
       if (phone) {
+        // This directory fits an 812px screen; use a shorter phone to exercise panning.
+        await page.setViewportSize({width:375,height:667});
         const cdp = await page.context().newCDPSession(page);
-        const row = page.locator('[data-entry=dictionary]');
+        const row = page.locator('[data-entry=speech]');
         await row.scrollIntoViewIfNeeded();
         const rect = await row.boundingBox();
         const x = rect.x + 60, y = rect.y + rect.height / 2;
         const style = () => row.evaluate(node => ({background:getComputedStyle(node).backgroundColor, outline:getComputedStyle(node).outlineStyle}));
         const before = await style();
+        const scrollBefore = await page.locator('.settings-scroll').evaluate(node=>node.scrollTop);
         await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y}]});
+        await page.waitForTimeout(700); // Hold past the native long-press threshold before panning.
         // Native touch scrolling should cancel the tap, without synthesized sticky hover.
-        for(let i=1;i<=8;i++) await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x,y:Math.min(780,y+15*i)}]});
+        for(let i=1;i<=8;i++) await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x,y:y-15*i}]});
         await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
         await page.evaluate(()=>new Promise(done=>requestAnimationFrame(()=>requestAnimationFrame(done))));
         assert.equal(new URL(page.url()).search,'','scroll does not open a settings entry');
+        const scrollAfter = await page.locator('.settings-scroll').evaluate(node=>({top:node.scrollTop, height:node.clientHeight, content:node.scrollHeight}));
+        assert.ok(scrollAfter.top>scrollBefore,`long press followed by vertical movement still scrolls: ${JSON.stringify({scrollBefore,...scrollAfter})}`);
         assert.equal((await style()).background,before.background,'touch scroll leaves no highlighted row');
         assert.equal(await row.evaluate(node=>getComputedStyle(node).webkitTapHighlightColor),'rgba(0, 0, 0, 0)');
         await cdp.detach();
+        await page.setViewportSize({width:375,height:812});
         await page.locator('.settings-scroll').evaluate(node=>node.scrollTop=0);
       } else {
         const row=page.locator('[data-entry=language]');

@@ -1107,6 +1107,14 @@ body { margin: 0; background: var(--app-bg); color: var(--text-body); }
 .ui-button--danger:active:not(:disabled) { background: var(--sync-error-bg); }
 .overlay-panel > .p-5:not(:first-child):not(:last-child) { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 :is(button, input, select, textarea) { touch-action: manipulation; }
+/* App links navigate on click; long presses must not lift a URL preview.
+   Scope to links so reader text selection and editor copy/paste stay native. */
+body.lexicue-b a[href], body.lexicue-b a[href] * {
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
 button { cursor: pointer; }
 button:disabled { cursor: not-allowed; }
 [data-theme] .bg-blue-600.text-white { color: var(--on-accent); }

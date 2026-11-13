@@ -185,7 +185,12 @@ export default function Layout() {
             void subscription.then(stop => stop()).catch(() => {});
         };
     }, []);
-    return (<div className="app-layout b-shell" data-context-open={panels.length > 0}>
+    return (<div className="app-layout b-shell" data-context-open={panels.length > 0}
+        onDragStartCapture={event => {
+            // Links are tap/navigation controls, including links in portals.
+            // Leave text selection and incoming material file drops alone.
+            if (event.target instanceof Element && event.target.closest('a[href]')) event.preventDefault();
+        }}>
       <WorkspaceHeader />
       <Sidebar />
       <main className="app-main b-main">
