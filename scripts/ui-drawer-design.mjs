@@ -23,9 +23,9 @@ try {
   await page.locator('[data-testid="lookup-records-tab"]').waitFor();
   await page.waitForFunction(()=>document.querySelector('.lookup-record-count')?.textContent==='2');
   const centered = async label => {
-    const geometry=await page.locator('.context-panel').evaluate(node=>{const r=node.getBoundingClientRect();return {center:(r.top+r.bottom)/2,top:r.top,bottom:r.bottom,viewport:innerHeight};});
+    const geometry=await page.locator('.context-panel').evaluate(node=>{const r=node.getBoundingClientRect();return {center:(r.top+r.bottom)/2,top:r.top,bottom:r.bottom,viewport:innerHeight,maxHeight:getComputedStyle(node).maxHeight};});
     equal(Math.abs(geometry.center-geometry.viewport/2)<1,true,`${theme}: ${label} stays on the window centerline`);
-    equal(geometry.top>=23 && geometry.bottom<=geometry.viewport-23,true,`${theme}: ${label} retains 24px vertical safety margins`);
+    equal(geometry.top>=23 && geometry.bottom<=geometry.viewport-23,true,`${theme}: ${label} retains 24px vertical safety margins (${JSON.stringify(geometry)})`);
   };
   if(!phone)await centered('meaning card');
   equal(await page.locator('.lookup-fixed-header').evaluate(n=>Math.round(n.getBoundingClientRect().height)),148,`${theme}/${phone}: 148px header with source controls`);

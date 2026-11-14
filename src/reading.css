@@ -453,7 +453,7 @@
  .lexicue-b .context-panel[data-reading-layout='columns'] {
   top:50%;
   translate:0 -50%;
-  max-height:calc(100dvh - 48px);
+  max-height:calc(100% - 48px);
  }
 }
 .lookup-close { position:absolute; z-index:5; right:12px; top:12px; display:grid; place-items:center; width:44px; height:44px; border-radius:10px; color:var(--text-muted); }
