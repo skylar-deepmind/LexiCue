@@ -62,7 +62,7 @@ try{
   await page.getByRole('button',{name:'开始自己的阅读',exact:true}).click();await page.waitForURL(/\/files$/);eq((await state(page)).outcome,'completed','completion is remembered');
   eq(await page.locator('.app-guide').count(),0,'coach cleans up after completion');eq(await page.locator('[data-guide-anchor-active]').count(),0,'anchor accessibility additions are removed');
   await page.goto(`${url}/settings`);const replayIndex=await page.evaluate(()=>history.state.idx);await page.getByRole('link',{name:'实操引导',exact:true}).click();await page.locator('.app-guide[data-stage=import]').waitFor();
-  await page.getByRole('button',{name:'跳过引导',exact:true}).click();eq((await state(page)).outcome,'skipped','skip works from import');
+  await page.getByRole('button',{name:'跳过引导',exact:true}).click();await page.waitForURL(/\/settings$/);eq(await page.evaluate(()=>history.state.idx),replayIndex,'directory replay returns to its original history entry');eq((await state(page)).outcome,'skipped','skip works from import');
   await page.goto(`${url}/example`);await page.locator('.app-guide[data-stage=lookup]').waitFor();await page.emulateMedia({reducedMotion:'reduce'});eq(await page.locator('.app-guide__bubble').evaluate(n=>getComputedStyle(n).animationName),'none','reduced motion honored');
   await page.keyboard.press('Escape');await page.waitForURL(/\/files$/);eq((await state(page)).active,false,'Escape skips without trapping focus');
   if(width===1280){
@@ -83,7 +83,7 @@ try{
     await page.setViewportSize({width:844,height:390});await fits(page,`${theme}-landscape`);
     await page.getByRole('button',{name:'跳过引导',exact:true}).click();await page.waitForURL(/\/files$/);
     await page.evaluate(()=>window.__uiDelayExampleBegin=true);await page.goto(`${url}/example`);await page.locator('.example-load').waitFor();
-    await page.getByRole('button',{name:'跳过引导',exact:true}).click();await page.waitForURL(/\/settings$/);eq(await page.evaluate(()=>history.state.idx),replayIndex,'replayed guide returns to its original settings entry without adding history');await page.waitForTimeout(500);
+    await page.getByRole('button',{name:'跳过引导',exact:true}).click();await page.waitForURL(/\/files$/);await page.waitForTimeout(500);
     eq(await page.locator('.reading-page').count(),0,'late begin cannot reopen a skipped sample');
   }
   await context.close();
