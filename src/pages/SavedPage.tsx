@@ -140,7 +140,7 @@ export default function SavedPage() {
   const navigate = useNavigate();
   const restoreToken = location.state?.restoreVisitToken;
   const restoreView = useRef(readerNavigation.get(restoreToken)?.origin);
-  
+
   const generation = useRestoreGuard(state => state.generation);
   const key=viewKey(location);
   const {back:pageBack,origin:pageOrigin}=usePageReturn();

@@ -41,7 +41,7 @@ try{
   await page.getByTestId('lookup-records-tab').click();await page.locator('.recall-history .saved-sentence').first().waitFor();
   const lookupLabel=await page.locator('.lookup-heading h2').textContent();
   if(width>=768){await settings();await page.locator('.settings-groups').waitFor();await page.evaluate(()=>window.__lexicueBack());}
-  else{await page.locator('.mobile-saved-control').click();await page.locator('.saved-record-row').first().waitFor();await page.locator('.mobile-workspace-header .page-back').click();}
+  else{await page.getByRole('button',{name:'返回原文',exact:true}).first().click();await page.locator('.reader-return-origin').click();}
   await page.locator('.reading-page').waitFor();
   eq(await page.locator('.lookup-heading h2').textContent(),lookupLabel,`${label}: reader visit keeps selected word`);
   eq(await page.getByTestId('lookup-records-tab').getAttribute('aria-selected'),'true',`${label}: reader visit keeps lookup tab`);
@@ -49,6 +49,15 @@ try{
   eq(await contextPager.inputValue(),'2',`${label}: source return keeps example page`);
   const frames=await page.evaluate(()=>new Promise(resolve=>{const frames=[];const start=performance.now();const step=()=>{const n=document.querySelector('.saved-scroll');frames.push({scroll:n.scrollTop,opacity:getComputedStyle(n.closest('.page-live')).opacity,ghost:!!document.querySelector('.page-ghost .page-snapshot')});if(performance.now()-start<500)requestAnimationFrame(step);else resolve(frames);};requestAnimationFrame(step);}));
   assert.ok(frames.every(f=>Math.abs(f.scroll-before)<=2&&f.opacity==='1'&&!f.ghost),`${label}: return stays at restored position without a crossfade/late jump`);checks.push(`${label}: normal-motion return stays stable across 500ms`);
+  await contextPager.fill('1');await contextPager.press('Enter');await page.waitForFunction(()=>document.querySelectorAll('.saved-group-contexts .saved-sentence').length===20&&!document.querySelector('.saved-group-contexts[aria-busy=true]'));
+  await page.locator('.saved-sentence-original').nth(8).click();
+  await page.getByRole('button',{name:'返回原文',exact:true}).scrollIntoViewIfNeeded();
+  const scrolled=await page.locator('.saved-scroll').evaluate(n=>n.scrollTop);assert.ok(scrolled>100,`${label}: exercise a nonzero scroll anchor`);
+  await page.getByRole('button',{name:'返回原文',exact:true}).click();await page.locator('.reading-page').waitFor();await sourceReturn.click();
+  await page.locator('.saved-group-contexts .saved-sentence').nth(8).waitFor();
+  const positions=await page.evaluate(()=>new Promise(resolve=>{const values=[];const start=performance.now();const frame=()=>{values.push(document.querySelector('.saved-scroll').scrollTop);if(performance.now()-start<500)requestAnimationFrame(frame);else resolve(values);};requestAnimationFrame(frame);}));
+  assert.ok(positions.every(n=>Math.abs(n-scrolled)<2),`${label}: nonzero scroll never flashes at the top or jumps after return`);checks.push(`${label}: exact nonzero scroll remains stable throughout normal-motion return`);
+  if(width<768){await page.getByRole('button',{name:'返回原文',exact:true}).click();await page.locator('.reading-page').waitFor();await page.locator('.mobile-saved-control').click();await page.locator('.saved-record-row').first().waitFor();await page.locator('.mobile-workspace-header .page-back').click();await page.locator('.reading-page').waitFor();eq(await page.locator('.context-panel').count(),0,`${label}: reader/saved roundtrip preserves a deliberately closed lookup`);await sourceReturn.click();}
   await settings();await page.locator('[data-entry=backup]').click();await page.locator('a[href="/legacy"]').click();await page.locator('.legacy-paper').waitFor();
   await page.locator(width<768?'.mobile-workspace-header .page-back':'.legacy-paper .page-back').click();await page.waitForURL('**/settings?section=backup');
   eq(new URL(page.url()).search,'?section=backup',`${label}: old records return to backup, not materials`);
