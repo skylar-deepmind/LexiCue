@@ -1532,3 +1532,11 @@ button:disabled:is([class*='bg-blue-'], [class*='bg-purple-'], [class*='bg-gray-
 @keyframes speech-wave { 0%,100% { opacity:.35; } 50% { opacity:1; } }
 @media(prefers-reduced-motion:reduce) { .speech-playing path:nth-last-child(-n+2) { animation:none; } }
 .ui-button--icon:is(:hover,:active):not(:disabled) { border-color:transparent; border-radius:50%; }
+
+/* Source return is an icon, never a text chip or filled rectangular control. */
+.page-back { display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding:0;border:0;background:transparent;color:var(--text-secondary);flex-shrink:0; }
+.page-back:active { opacity:.65; }
+.page-back:focus-visible { outline:2px solid var(--accent-500);outline-offset:-4px;border-radius:50%; }
+.page-back .mobile-reader-back { display:block; }
+.settings-heading .settings-back { min-width:44px;min-height:44px;padding:0;display:inline-flex;align-items:center;justify-content:center;border:0;background:transparent; }
+@media(max-width:767px){.desktop-page-back{display:none}}

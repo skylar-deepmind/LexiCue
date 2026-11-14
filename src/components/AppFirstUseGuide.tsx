@@ -1,3 +1,4 @@
+import { usePageReturn } from '../lib/pageNavigation';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -14,10 +15,11 @@ export default function AppFirstUseGuide() {
   const saveLabel=t('reader.saveSentence');
   const guide=useOnboardingStore(), importing=useImportStore(state=>state.open);
   const location=useLocation(), navigate=useNavigate();
+  const {back,origin}=usePageReturn();
   const [revision,setRevision]=useState(0);
   useEffect(()=>{
     if(location.pathname==='/files'&&new URLSearchParams(location.search).get('guide')==='1'){
-      useOnboardingStore.getState().begin('import');navigate('/files',{replace:true});
+      useOnboardingStore.getState().begin('import');navigate('/files',{replace:true,state:location.state});
     } else if(!['/files','/example','/'].includes(location.pathname)&&useOnboardingStore.getState().tour&&useOnboardingStore.getState().active){
       useOnboardingStore.getState().finish('skipped');
     }
@@ -35,16 +37,16 @@ export default function AppFirstUseGuide() {
   useEffect(()=>{
     const keys=(event:KeyboardEvent)=>{
       if(event.key==='Escape'&&!event.defaultPrevented&&!backNavigation.hasLayers()&&useOnboardingStore.getState().active){
-        useOnboardingStore.getState().finish('skipped');if(location.pathname==='/example')navigate('/files',{replace:true});
+        useOnboardingStore.getState().finish('skipped');if(origin)back();else if(location.pathname==='/example')navigate('/files',{replace:true});
       }
     };
     document.addEventListener('keydown',keys);return()=>document.removeEventListener('keydown',keys);
   },[location.pathname,navigate]);
   void revision;
   if(starting||!guide.active||!guide.tour||document.querySelector('.sentence-note-dialog')||location.pathname==='/example'&&!document.querySelector('.reading-page'))return null;
-  const skip=()=>{guide.finish('skipped');if(location.pathname==='/example')navigate('/files',{replace:true});};
-  const finish=()=>{guide.finish('completed');navigate('/files',{replace:true});};
-  const startExample=()=>{useImportStore.getState().hide();navigate('/example');};
+  const skip=()=>{guide.finish('skipped');if(origin)back();else if(location.pathname==='/example')navigate('/files',{replace:true});};
+  const finish=()=>{guide.finish('completed');if(origin)back();else navigate('/files',{replace:true});};
+  const startExample=()=>{useImportStore.getState().hide();navigate('/example',{state:location.state});};
   const tools=()=>{if(document.querySelector('.context-panel'))backNavigation.dismiss();guide.setTour('tools');};
   const mobile=matchMedia('(max-width:767px)').matches;
   let target='',title='',body='',action:string|undefined,progress=1,onNext=()=>{};

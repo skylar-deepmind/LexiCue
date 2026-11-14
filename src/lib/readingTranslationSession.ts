@@ -16,6 +16,7 @@ export interface ReadingTranslationOptions {
   contentHash: string;
   segments: readonly Segment[];
   allowGenerate: boolean;
+  initial?: ReadingTranslationSnapshot;
 }
 
 /** Confirmation authorizes one material version, never a viewport or another file. */
@@ -24,6 +25,7 @@ export function createReadingTranslationSession(options: ReadingTranslationOptio
   let state: ReadingTranslationSnapshot = { enabled: false, confirming: false,
     missingCount: options.segments.filter(row => !!row.en_text.trim() && !row.zh_text?.trim()).length,
     status: 'idle', progress: null, generated: {} };
+  if(options.initial) state={...options.initial,confirming:false,progress:null,status:options.initial.status==='loading'?'partial':options.initial.status};
   let generation = 0, authorized = false;
   let request: AbortController | null = null;
   const listeners = new Set<() => void>();

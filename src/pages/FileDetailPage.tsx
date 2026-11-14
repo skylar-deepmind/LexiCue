@@ -1,6 +1,10 @@
+import { readerViews } from '../lib/readerViewMemory';
+import { viewKey } from '../lib/pageNavigation';
+import VisitLink from '../components/VisitLink';
+import PageBack from '../components/PageBack';
 import { LoadingSkeleton } from '../components/LoadingFeedback';
 import { useEffect, useState } from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom';
 import { invoke } from '@tauri-apps/api/core';
 import { useTranslation } from 'react-i18next';
 import type { ReadingMaterial } from '../lib/materials';
@@ -13,21 +17,24 @@ import { useReadingDeskStore } from '../stores/readingDeskStore';
 export default function FileDetailPage() {
     const { fileId: raw } = useParams();
     const id = Number(raw);
-    return <MaterialReader key={id} id={id}/>;
+    const location=useLocation();
+    return <MaterialReader key={`${id}:${location.key}`} id={id}/>;
 }
 function MaterialReader({ id }: { id: number }) {
     const title = useMaterialStore(store =>
         store.files.find(file => file.id === id)?.name ?? (store.current?.id === id ? store.current.name : undefined));
-    const { state } = useLocation();
+    const location = useLocation();
+    const {state} = location;
+    const [cached] = useState(()=>readerViews.get(viewKey(location)));
     const importToken = state?.importReadingToken;
     const visit = readerNavigation.get(state?.sourceVisitToken);
     const { t } = useTranslation();
-    const [data, setData] = useState<ReadingMaterial | null>(null);
+    const [data, setData] = useState<ReadingMaterial | null>(cached?.data.material.id===id ? cached.data : null);
     const [error, setError] = useState(false);
     const [revision, setRevision] = useState(0);
     useEffect(() => {
         let active = true;
-        setData(null);
+        if (!cached) setData(null);
         setError(false);
         if (!Number.isInteger(id) || id < 1) {
             setError(true);
@@ -45,9 +52,9 @@ function MaterialReader({ id }: { id: number }) {
             consumeImportedReading(importToken); setError(true);
         } });
         return () => { active = false; useReadingDeskStore.getState().clearNotice(); };
-    }, [id, revision, importToken]);
+    }, [id, revision, importToken,cached]);
     if (error || data && visit && !sourceMatches(visit.target, data))
-        return <div className="reader-load-error"><p>{t('reader.unavailable')}</p>{visit && <blockquote lang="en">{visit.target.sentence}</blockquote>}<div>{visit && <Link className="ui-button" to={visit.origin.path} state={{restoreVisitToken:state?.sourceVisitToken, sourceVisitToken:visit.origin.kind==='reader'?visit.origin.parentVisitToken:undefined}}>{t('common.back')}</Link>}<button className="ui-button" onClick={() => setRevision(revision + 1)}>{t('common.retry')}</button><Link className="ui-button" to={`/legacy?fileId=${id}`}>{t('materials.history')}</Link></div></div>;
+        return <div className="reader-load-error"><p>{t('reader.unavailable')}</p>{visit && <blockquote lang="en">{visit.target.sentence}</blockquote>}<div><PageBack fallback={visit?.origin.path ?? '/files'}/><button className="ui-button" onClick={() => setRevision(revision + 1)}>{t('common.retry')}</button><VisitLink className="ui-button" to={`/legacy?fileId=${id}`}>{t('materials.history')}</VisitLink></div></div>;
     if (!data)
         return <div className="material-reading"><div className="reading-page"><div className="reader-scroll"><div className="reading-layout"><section className="workspace-paper reading-paper" aria-busy="true">
             {title && <h1 className="reading-title" lang="en">{title}</h1>}

@@ -26,6 +26,7 @@ import { useOnboardingStore } from '../stores/onboardingStore';
 import { readingReturnPath, retainImportedReading } from '../lib/readingEntry';
 import { DESK_KEY } from '../lib/readingDesk';
 import { useReadingDeskStore } from '../stores/readingDeskStore';
+import { useImportStore } from '../stores/importStore';
 import { useMaterialStore } from '../stores/materialStore';
 import { useRestoreGuard } from '../stores/restoreGuard';
 import Overlay from './Overlay';
@@ -88,6 +89,7 @@ export default function Layout() {
     }, []);
     useEffect(() => { retainImportedReading(routeState?.importReadingToken); }, [rawPathname, routeState]);
     useMaterialDrop();
+    useEffect(()=>{const restore=()=>useImportStore.getState().show();window.addEventListener('lexicue-return-import',restore);return()=>window.removeEventListener('lexicue-return-import',restore);},[]);
     useEffect(() => { document.body.classList.add('lexicue-b'); return () => document.body.classList.remove('lexicue-b'); }, []);
     const panels = useWorkspaceStore(state => state.panels);
     const stageRef = useRef<HTMLDivElement>(null);

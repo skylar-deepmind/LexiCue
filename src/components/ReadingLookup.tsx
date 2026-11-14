@@ -10,10 +10,10 @@ import { useTranslation } from 'react-i18next';
 import { Undo2, Volume2 } from 'lucide-react';
 import LookupSaveToast from './LookupSaveToast';
 import SpeechButton, { SpeechFeedback } from './SpeechButton';
-import RecallSection from './RecallSection';
+import RecallSection, {type RecallView} from './RecallSection';
 import { useRecallStore } from '../stores/recallStore';
 import { recallExpression } from '../lib/recallMatcher';
-import ContextPanel from './ContextPanel';
+import ContextPanel, {type PanelView} from './ContextPanel';
 import SoftContentRefresh from './SoftContentRefresh';
 import type { Material } from '../lib/materials';
 import LongmanResult from './LongmanResult';
@@ -32,7 +32,9 @@ export interface ReadingQuery {
     end: number;
     expression: string;
 }
+interface LookupMemory {local:DictionaryResult|null;online:Partial<Record<OnlineProvider,DictionaryResult>>;ready:boolean}
 export interface LookupSession extends LookupUndoSession {
+    panels?:Map<string,PanelView>;results?:Map<string,LookupMemory>;recall?:Map<string,RecallView>;
     actions: Map<string, { mutation: SavedMutation; id: string; promise?: Promise<SavedMutationResult> }>;
 }
 export interface LookupDraft {
@@ -65,13 +67,16 @@ export default function ReadingLookup(props: LookupProps) {
     const fontScaleStyle = useContentFontScaleStyle();
     const [footerHost, setFooterHost] = useState<HTMLDivElement | null>(null);
     const [tab, setTab] = useState<'meaning' | 'records'>(props.initialTab ?? 'meaning');
-    const [recordsReady, setRecordsReady] = useState(false);
+    const [recordsReady, setRecordsReady] = useState(!!props.session.recall?.get(queryKey(props.query))?.page.records.length);
     const [sourceHost, setSourceHost] = useState<HTMLDivElement | null>(null);
     const onRecordsReady = useCallback(() => setRecordsReady(true), []);
     const recallSessionId=props.scope.kind==='example'?props.scope.sessionId:null;
     const exampleSavedVersion=useOnboardingStore(state=>state.saved);
     const [count, setCount] = useState(0);
     const key = queryKey(props.query);
+    props.session.panels ??= new Map();props.session.recall ??= new Map();
+    if(!props.session.panels.has(key))props.session.panels.set(key,{expanded:false,scroll:0});
+    if(!props.session.recall.has(key))props.session.recall.set(key,{page:{records:[],total:0},activeRecord:null});
     const currentKey = useRef(key);
     currentKey.current = key;
     const [savedVersion, setSavedVersion] = useState(0);
@@ -94,11 +99,11 @@ export default function ReadingLookup(props: LookupProps) {
     useEffect(() => { props.onViewChange?.({tab, provider:providerRef.current}); });
     // Keep the records tab reachable after removing its final sentence so undo stays available.
     const effectiveTab = previousKey.current === key ? tab : 'meaning';
-    const [prepared, setPrepared] = useState({ key, ready: false });
+    const [prepared, setPrepared] = useState({ key, ready: !!props.session.results?.get(key)?.ready });
     if (prepared.key !== key) setPrepared({ key, ready: false });
     const onReady = useCallback((readyKey: string) => setPrepared(current => current.key === readyKey && !current.ready ? { key: readyKey, ready: true } : current), []);
     const ready = prepared.key === key && prepared.ready;
-    return <SpeechOwnerContext.Provider value={ownerScope}><ContextPanel compactHeader layoutSlot={props.layoutSlot} label={props.query.expression} interactionKey={props.query} onClose={props.onClose} onClosing={() => { useSpeechStore.getState().stopScope(ownerScope); }}>
+    return <SpeechOwnerContext.Provider value={ownerScope}><ContextPanel view={props.session.panels.get(key)} compactHeader layoutSlot={props.layoutSlot} label={props.query.expression} interactionKey={props.query} onClose={props.onClose} onClosing={() => { useSpeechStore.getState().stopScope(ownerScope); }}>
       <div className="lookup-stage" style={fontScaleStyle} data-lookup-state={ready ? 'ready' : 'loading'}>
         <div className="lookup-fixed-header">
           <header className="lookup-heading"><div><div className="lookup-word-identity"><h2 lang="en" title={props.query.expression}>{props.query.expression}</h2></div><SpeechButton text={props.query.expression} speechKey="lookup:term" kind={/\s/.test(props.query.expression.trim()) ? 'phrase' : 'word'} label={t('reader.listenExpression')} idleIcon={<Volume2 size={20} strokeWidth={1.8} aria-hidden="true"/>}/></div></header>
@@ -123,21 +128,24 @@ function LookupContent({ query, scope, onSkip, drafts, session, onReady, onRecor
     const guideStep = useOnboardingStore(state => state.step);
     const key = queryKey(query);
     const existingDraft = drafts.get(key);
-    const [localResult, setLocalResult] = useState<DictionaryResult | null>(null);
+    session.results ??= new Map();
+    const cached=session.results.get(key);
+    const [localResult, setLocalResult] = useState<DictionaryResult | null>(cached?.local ?? null);
     const localResultRef = useRef(localResult);
     localResultRef.current = localResult;
-    const [onlineResults, setOnlineResults] = useState<Partial<Record<OnlineProvider, DictionaryResult>>>({});
+    const [onlineResults, setOnlineResults] = useState<Partial<Record<OnlineProvider, DictionaryResult>>>(cached?.online ?? {});
     const initialChoice = existingDraft?.provider ?? initialProvider ?? 'local';
     const [provider, setProvider] = useState<DictionaryView>(initialChoice);
     const requestedProvider = useRef<OnlineProvider>(initialChoice === 'wiktionary' || initialChoice === 'cambridge' ? initialChoice : preferredOnline);
     useEffect(() => { onProvider(provider); }, [provider, onProvider]);
     const [onlineRequest, setOnlineRequest] = useState(initialChoice === 'cambridge' || initialChoice === 'wiktionary' ? 1 : 0);
-    const [onlineState, setOnlineState] = useState<'idle' | 'loading' | 'ready' | 'failed'>('idle');
+    const [onlineState, setOnlineState] = useState<'idle' | 'loading' | 'ready' | 'failed'>(cached?.online[requestedProvider.current]?'ready':'idle');
     const [onlineError, setOnlineError] = useState<OnlineIssue | null>(null);
     const result = (provider === 'local' || provider === 'longman') ? localResult : onlineResults[provider] ?? null;
     const activeProvider: DictionaryView = provider === 'longman' ? 'local' : provider;
     const [lookupError, setLookupError] = useState('');
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(!cached?.ready);
+    useLayoutEffect(()=>{session.results!.set(key,{local:localResult,online:onlineResults,ready:!loading});});
     const [retry, setRetry] = useState(0);
     useEffect(() => { const refresh = () => setRetry(value => value + 1); window.addEventListener('lexicue-dictionary-changed', refresh); return () => window.removeEventListener('lexicue-dictionary-changed', refresh); }, []);
     const [draft, setDraft] = useState(existingDraft?.value ?? '');
@@ -360,7 +368,7 @@ function LookupContent({ query, scope, onSkip, drafts, session, onReady, onRecor
     {sourceHost && createPortal(<LookupSourceSwitch selected={activeProvider === 'local' ? 'local' : 'online'} local={localState} online={onlineStateLabel}
       onLocal={() => { switchSource('local'); if(localState === 'error')retryLocal(); }} onOnline={continueOnline}/>, sourceHost)}
     <div className="lookup-body" data-definition-font={definitionFont} data-aux-font={auxiliaryFont} data-active-dictionary={activeProvider} data-online-state={onlineState}>
-      {tab === 'records' ? <><RecallSection scope={scope} expression={query.expression} expanded onLoaded={onRecordsReady} onSource={onSource} sourceBusy={sourceBusy} onRemove={changeHistory} removing={busy}/>{historyReceipt && <div className="recall-undo" role="status"><span>{t('savedRecords.removed')}</span><button className="ui-button" disabled={busy} onClick={() => void changeHistory()}><Undo2 size={18} aria-hidden="true"/>{t('savedRecords.undo')}</button></div>}</> : <>
+      {tab === 'records' ? <><RecallSection memory={session.recall?.get(key)} scope={scope} expression={query.expression} expanded onLoaded={onRecordsReady} onSource={onSource} sourceBusy={sourceBusy} onRemove={changeHistory} removing={busy}/>{historyReceipt && <div className="recall-undo" role="status"><span>{t('savedRecords.removed')}</span><button className="ui-button" disabled={busy} onClick={() => void changeHistory()}><Undo2 size={18} aria-hidden="true"/>{t('savedRecords.undo')}</button></div>}</> : <>
       {example && guideActive && !guidedTour && <div className="example-card-hint"><small role="status">{t(guideStep === 3 ? 'onboarding.step3' : 'onboarding.step2')}</small><button className="ui-button" onClick={onSkip}>{t('onboarding.skip')}</button></div>}
       {(loading && activeProvider === 'local' || onlineState === 'loading' && activeProvider !== 'local') && !result?.entries.length && <LoadingSkeleton kind="text" label={t('common.loading')}/>}
       {result && (activeProvider === 'local' || !!result.entries.length) && (!loading || !!result.entries.length) && <LongmanResult result={result} onInteract={touch} compact/>}

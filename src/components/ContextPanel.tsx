@@ -10,7 +10,9 @@ import { createLookupScrollMotion } from '../lib/lookupMotion';
 
 /** Modeless: unused space dismisses the card without covering reading or controls.
  * Dragging, selection, scrolling and other dialogs retain their normal behavior. */
-export default function ContextPanel({ label, children, onClose, canClose = true, onClosing, interactionKey, layoutSlot, compactHeader = false }: {
+export interface PanelView { expanded:boolean; scroll:number; seen?:boolean }
+export default function ContextPanel({ view, label, children, onClose, canClose = true, onClosing, interactionKey, layoutSlot, compactHeader = false }: {
+  view?:PanelView;
   label: string; children: ReactNode; onClose: () => void; canClose?: boolean; onClosing?: () => void; interactionKey?: unknown;
   layoutSlot?: RefObject<HTMLDivElement | null>;
   compactHeader?: boolean;
@@ -24,10 +26,12 @@ export default function ContextPanel({ label, children, onClose, canClose = true
   const callbacks = useRef({ onClose, canClose, onClosing });
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [closing, setClosing] = useState(false);
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(view?.expanded ?? false);
+  const restored=useRef(!!view?.seen);
+  if(view)view.expanded=expanded;
   // Only move the original when the half sheet would cover the selected sentence.
   useLayoutEffect(() => {
-    if (!layoutSlot || expanded || closing || !matchMedia('(max-width: 767px)').matches) return;
+    if (restored.current || !layoutSlot || expanded || closing || !matchMedia('(max-width: 767px)').matches) return;
     const scroll=layoutSlot.current?.closest<HTMLElement>('.reader-scroll');
     if(!scroll)return;
     const motion=createLookupScrollMotion(scroll);
@@ -48,6 +52,18 @@ export default function ContextPanel({ label, children, onClose, canClose = true
     scroll.addEventListener('touchmove',cancel,{passive:true});scroll.addEventListener('wheel',cancel,{passive:true});
     return () => {cancelAnimationFrame(frame);motion.cancel();scroll.removeEventListener('touchmove',cancel);scroll.removeEventListener('wheel',cancel);};
   }, [interactionKey, expanded, closing, layoutSlot]);
+  useLayoutEffect(()=>{
+    const panel=panelRef.current;if(!panel || !view)return;
+    const body=()=>panel.querySelector<HTMLElement>('.lookup-body') ?? panel;
+    const desired=view.scroll;
+    const restore=()=>{if(restored.current)body().scrollTop=desired;};
+    restore();view.seen=true;
+    const observer=new MutationObserver(restore);if(restored.current)observer.observe(panel,{childList:true,subtree:true});
+    const remember=()=>{view.scroll=body().scrollTop;};
+    const intentional=()=>{restored.current=false;observer.disconnect();};
+    panel.addEventListener('scroll',remember,true);panel.addEventListener('wheel',intentional,{passive:true});panel.addEventListener('touchmove',intentional,{passive:true});
+    return()=>{observer.disconnect();remember();panel.removeEventListener('scroll',remember,true);panel.removeEventListener('wheel',intentional);panel.removeEventListener('touchmove',intentional);};
+  },[view]);
   const lastInteraction = useRef(interactionKey);
   const markReadingClosing = useCallback((value: boolean) => {
     const layout = layoutSlot?.current?.closest<HTMLElement>('.reading-layout');
@@ -88,7 +104,7 @@ export default function ContextPanel({ label, children, onClose, canClose = true
     const target = closing ? desktop ? `translateX(${shift})` : 'translateY(100%)' : desktop ? 'translateX(0)' : 'translateY(0)';
     const targetOpacity=desktop&&closing?'0':'1';
     const finish = () => { paper.style.transform = desktop ? target : 'none'; panel.style.transform = target; panel.style.opacity = targetOpacity; delete layout.dataset.lookupMoving; panel.dispatchEvent(new Event('lexicue-panel-settled')); };
-    if (reduced.matches) { finish(); return; }
+    if (reduced.matches || initial && restored.current) { finish(); return; }
     layout.dataset.lookupMoving = 'true';
     const options: KeyframeAnimationOptions = { duration: desktop ? (closing ? 340 : 420) : (closing ? 300 : 360), easing:'cubic-bezier(.22,1,.36,1)', fill:'both' };
     const animations = [panel.animate([{transform:fromCard,opacity},{transform:target,opacity:targetOpacity}], options)];

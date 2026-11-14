@@ -3,8 +3,8 @@ import { createReadingTranslationSession, type ReadingTranslationOptions } from 
 
 export default function useReadingTranslation(options: ReadingTranslationOptions, beforeLayoutChange?: () => void) {
   const { materialId, contentHash, segments, allowGenerate } = options;
-  const session = useMemo(() => createReadingTranslationSession({ materialId, contentHash, segments, allowGenerate }),
-    [materialId, contentHash, segments, allowGenerate]);
+  const session = useMemo(() => createReadingTranslationSession({ materialId, contentHash, segments, allowGenerate, initial:options.initial }),
+    [materialId, contentHash, segments, allowGenerate,options.initial]);
   const beforeChange = useRef(beforeLayoutChange); beforeChange.current = beforeLayoutChange;
   const subscribe = useCallback((notify: () => void) => session.subscribe(() => {
     // Runs with the old DOM still present, including for asynchronous results.

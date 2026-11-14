@@ -1,6 +1,6 @@
 import InlineProgress from './InlineProgress';
 import { BookOpen, Headphones, Languages, LoaderCircle, Pause, Play } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import VisitLink from './VisitLink';
 import { useTranslation } from 'react-i18next';
 import { useReadingToolsStore } from '../stores/readingToolsStore';
 
@@ -23,7 +23,7 @@ export default function MobileReadingTools() {
           <button type="button" className="b-dock-control" aria-label={t('reader.exitListening')} title={t('reader.exitListening')} onClick={tools.onListen}><BookOpen size={22} aria-hidden="true"/></button>
         </div>
       </div>
-      <Link className="b-dock-control mobile-saved-control" to="/saved" aria-label={t('savedRecords.title')} title={t('savedRecords.title')}><span className="mobile-saved-icon" aria-hidden="true"/></Link>
+      <VisitLink className="b-dock-control mobile-saved-control" to="/saved" aria-label={t('savedRecords.title')} title={t('savedRecords.title')}><span className="mobile-saved-icon" aria-hidden="true"/></VisitLink>
     </div>
   </nav>;
 }

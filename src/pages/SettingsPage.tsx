@@ -1,5 +1,7 @@
+import VisitLink from '../components/VisitLink';
+import { createViewCache } from '../lib/pageNavigation';
 import { useEffect, useLayoutEffect, useRef } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Archive, AudioLines, BookOpen, Captions, Check, ChevronLeft, ChevronRight, Compass, Languages, MonitorSmartphone, RefreshCw, Search } from 'lucide-react';
 import { useTheme } from '../components/useTheme';
@@ -59,10 +61,11 @@ function SettingsDetail({ entry }: {entry: SettingsEntry}) {
     case 'dictionary': return <DictionaryPacks/>;
     case 'youtube': return <YouTubeDownloadSettings/>;
     case 'updates': return <SoftwareUpdateSettings/>;
-    case 'guide': return <Link className="ui-button" to="/files?guide=1">{t('onboarding.replay')}</Link>;
+    case 'guide': return <VisitLink className="ui-button" to="/files?guide=1">{t('onboarding.replay')}</VisitLink>;
   }
 }
 
+const directoryScroll = createViewCache<number>();
 export default function SettingsPage() {
   const { t } = useTranslation();
   const { state } = useLocation();
@@ -71,20 +74,21 @@ export default function SettingsPage() {
   const previous = useRef(section);
   const heading = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
-    if (previous.current === section) return;
+    if (previous.current === section) { page.current?.scrollTo(0, directoryScroll.get(section ?? 'home') ?? 0); return; }
     if (section) {
-      page.current?.scrollTo(0, 0);
+      page.current?.scrollTo(0, directoryScroll.get(section) ?? 0);
       heading.current?.focus({ preventScroll: true });
     } else {
-      page.current?.querySelector<HTMLElement>(`[data-entry="${previous.current}"]`)?.focus();
+      page.current?.querySelector<HTMLElement>(`[data-entry="${previous.current}"]`)?.focus({preventScroll:true});
+      page.current?.scrollTo(0, directoryScroll.get('home') ?? 0);
     }
     previous.current = section;
   }, [section]);
   useEffect(() => backNavigation.setPage(() => { back(); return true; }, 1), [back]);
-  return <div className="materials-scroll settings-scroll" ref={page}>
+  return <div className="materials-scroll settings-scroll" ref={page} onScroll={()=>directoryScroll.set(section ?? 'home', page.current?.scrollTop ?? 0)}>
     <div className="system-settings settings-directory">
       <div className="settings-heading" ref={heading} tabIndex={-1} aria-label={t(section ? SETTINGS_LABELS[section] : 'settings.title')}>
-        {section && <button className="settings-back" onClick={back} aria-label={t('common.back')}><ChevronLeft size={17} aria-hidden="true"/>{t('settings.title')}</button>}
+        <button className="settings-back" onClick={back} aria-label={t('common.back')}><ChevronLeft size={22} aria-hidden="true"/></button>
         <h1>{t(section ? SETTINGS_LABELS[section] : 'settings.title')}</h1>
       </div>
       {section ? <div className="settings-detail"><SettingsDetail entry={section}/></div> : <>
@@ -96,13 +100,13 @@ export default function SettingsPage() {
               <h2>{t(`settings.directory.${group.key}`)}</h2>
               <div className="settings-list">{entries.map(entry => {
                 const Icon = icons[entry];
-                return <Link className="settings-row" key={entry} data-entry={entry}
+                return <VisitLink className="settings-row" key={entry} data-entry={entry}
                   to={entry === 'guide' ? '/files?guide=1' : `/settings?section=${entry}`} state={{...state, fromSettingsHome: true}}>
                   <Icon className="settings-row-icon" size={21} aria-hidden="true"/>
                   <span className="settings-row-label">{t(SETTINGS_LABELS[entry])}</span>
                   <span className="settings-value"><EntrySummary entry={entry}/></span>
                   <ChevronRight className="settings-chevron" size={16} aria-hidden="true"/>
-                </Link>;
+                </VisitLink>;
               })}</div>
             </section>;
           })}

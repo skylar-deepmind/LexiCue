@@ -1,3 +1,5 @@
+import { createViewCache, usePageReturn, viewKey, visitState } from '../lib/pageNavigation';
+import PageBack from '../components/PageBack';
 import CollectionPager from '../components/CollectionPager';
 import FloatingCollectionPager from '../components/FloatingCollectionPager';
 import { collectionPage } from '../lib/collectionPage';
@@ -22,25 +24,29 @@ import { mutateSaved, removeSavedGroup, undoSavedGroup, savedErrorKey, undoSaved
 const PAGE_SIZE = 20;
 // A single bounded page keeps tab/settings returns stable while revalidating.
 // Restore generation prevents data from the previous library resurfacing.
-let sessionPage: { generation: number; query: string; number: number; data: SavedGroupPage; scroll: number } | null = null;
+interface GroupView {page:SavedContextPage;contextPage:number;visibleCount:number;activeRecord:string|null}
+interface SavedSession {generation:number;query:string;number:number;data:SavedGroupPage;scroll:number;view?:SavedViewSnapshot;opened?:string[];details?:Record<string,GroupView>}
+let sessionPage:SavedSession|null=null;
+const savedViews=createViewCache<SavedSession>();
 const CONTEXT_PAGE_SIZE = 20;
 type EditDraft = SavedNoteDraft;
 
 interface SavedGroupDetailProps {
   group: SavedGroup; revision: number; drafts: Map<string, EditDraft>; pendingRemove: string | null;
   onClose: () => void; onRemove: (record: SavedRecord) => Promise<void>; onReturn: (record: SavedRecord, isCurrent?: () => boolean) => Promise<void>;
+  initialState?:GroupView;onSnapshot?:(view:GroupView)=>void;
   initialCount: number; initialRecordId?: string; onCount: (count: number) => void; active: boolean;
 }
 
-function SavedGroupContent({ group, revision, pendingRemove, onRemove, onReturn, initialCount, initialRecordId, onCount, active }: SavedGroupDetailProps) {
+function SavedGroupContent({ group, revision, pendingRemove, onRemove, onReturn, initialCount, initialRecordId, onCount, active, initialState, onSnapshot }: SavedGroupDetailProps) {
   const { t } = useTranslation();
-  const [page, setPage] = useState<SavedContextPage>({ records: [], total: group.context_count });
+  const [page, setPage] = useState<SavedContextPage>(initialState?.page ?? { records: [], total: group.context_count });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [retry, setRetry] = useState(0);
-  const [activeRecord, setActiveRecord] = useState<string | null>(initialRecordId ?? null);
-  const [contextPage, setContextPage] = useState(Math.floor((Math.max(1, initialCount)-1)/CONTEXT_PAGE_SIZE)+1);
-  const [visibleCount, setVisibleCount] = useState(initialCount > CONTEXT_PAGE_SIZE ? CONTEXT_PAGE_SIZE : Math.max(1, initialCount));
+  const [activeRecord, setActiveRecord] = useState<string | null>(initialState?.activeRecord ?? initialRecordId ?? null);
+  const [contextPage, setContextPage] = useState(initialState?.contextPage ?? Math.floor((Math.max(1, initialCount)-1)/CONTEXT_PAGE_SIZE)+1);
+  const [visibleCount, setVisibleCount] = useState(initialState?.visibleCount ?? (initialCount > CONTEXT_PAGE_SIZE ? CONTEXT_PAGE_SIZE : Math.max(1, initialCount)));
   const body = useRef<HTMLDivElement>(null);
   const revealPage = useRef(false);
   const contextIntent = useRef(0);
@@ -63,6 +69,7 @@ function SavedGroupContent({ group, revision, pendingRemove, onRemove, onReturn,
   useLayoutEffect(() => { if (!active) invalidateRequest(); return invalidateRequest; }, [active, invalidateRequest]);
   useEffect(() => { if (!active) return; void load(); return invalidateRequest; }, [active, load, revision, retry, invalidateRequest]);
 
+  useLayoutEffect(()=>{if(page.records.length)onSnapshot?.({page,contextPage,visibleCount,activeRecord});});
   const visibleRecords = page.records.slice(0, visibleCount);
   useEffect(() => { if (page.records.length) onCountRef.current((contextPage-1)*CONTEXT_PAGE_SIZE + Math.min(visibleCount, page.records.length)); }, [visibleCount, page.records.length, contextPage]);
   const showMore = () => setVisibleCount(CONTEXT_PAGE_SIZE);
@@ -133,9 +140,13 @@ export default function SavedPage() {
   const navigate = useNavigate();
   const restoreToken = location.state?.restoreVisitToken;
   const restoreView = useRef(readerNavigation.get(restoreToken)?.origin);
-  const snapshot = restoreView.current?.kind === 'saved' ? restoreView.current.view : undefined;
+  
   const generation = useRestoreGuard(state => state.generation);
-  const [cached] = useState(() => sessionPage?.generation === generation ? sessionPage : null);
+  const key=viewKey(location);
+  const {back:pageBack,origin:pageOrigin}=usePageReturn();
+  const [cached] = useState(() => {const value=savedViews.get(key) ?? sessionPage;return value?.generation===generation?value:null;});
+  const snapshot = restoreView.current?.kind === 'saved' ? restoreView.current.view : cached?.view;
+  const details=useRef<Record<string,GroupView>>(cached?.details ?? {});
   const [query, setQuery] = useState(snapshot?.query ?? cached?.query ?? '');
   const [settledQuery, setSettledQuery] = useState(query);
   const [pageNumber, setPageNumber] = useState(snapshot?.pageNumber ?? (snapshot ? 1 : cached?.number ?? 1));
@@ -143,9 +154,9 @@ export default function SavedPage() {
   const [resolved, setResolved] = useState({query, number:pageNumber});
   const changingView = query !== resolved.query || pageNumber !== resolved.number;
   useEffect(() => { const timer = setTimeout(() => setSettledQuery(query), 160); return () => clearTimeout(timer); }, [query]);
-  const [selected, setSelected] = useState<SavedGroup | null>(null);
-  const [opened, setOpened] = useState<string[]>(snapshot?.expandedGroupId ? [snapshot.expandedGroupId] : []);
-  const [loadedContexts, setLoadedContexts] = useState<Record<string, number>>({});
+  const [selected, setSelected] = useState<SavedGroup | null>(()=>cached?.data.groups.find(g=>g.group_id===snapshot?.expandedGroupId) ?? null);
+  const [opened, setOpened] = useState<string[]>(cached?.opened ?? (snapshot?.expandedGroupId ? [snapshot.expandedGroupId] : []));
+  const [loadedContexts, setLoadedContexts] = useState<Record<string, number>>(cached?.view?.loadedContexts ?? {});
   const savedScroll = useRef<HTMLDivElement>(null);
   useQuietScrollbars(savedScroll, true);
   const livePage = useRef(true);
@@ -187,7 +198,7 @@ export default function SavedPage() {
       if (valid !== pageNumber) { setPageNumber(valid); return; }
       setPage(next);
       setResolved({query:settledQuery, number:pageNumber});
-      sessionPage = {generation, query:settledQuery, number:pageNumber, data:next, scroll:savedScroll.current?.scrollTop ?? 0};
+      sessionPage = {...sessionPage,generation, query:settledQuery, number:pageNumber, data:next, scroll:savedScroll.current?.scrollTop ?? 0};
       // Capture the intent before the updater is queued; never let an older
       // request restore a group after the user has chosen another one.
       const target = wantedGroup.current;
@@ -229,22 +240,25 @@ export default function SavedPage() {
     };
   }, [load]);
   useLayoutEffect(() => {
-    if (!snapshot || didRestore.current || loading || (snapshot.expandedGroupId && selected && !(snapshot.expandedGroupId in loadedContexts))) return;
-    let cancelled = false;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    void (document.fonts?.ready ?? Promise.resolve()).then(() => {
-      if (cancelled) return;
-      timer = setTimeout(() => {
-        if (cancelled) return;
-        if (savedScroll.current) savedScroll.current.scrollTop = snapshot.scrollTop;
-        const anchor = snapshot.anchor && savedScroll.current?.querySelector<HTMLElement>(`[data-record="${CSS.escape(snapshot.anchor.recordId)}"]`);
-        if (anchor && savedScroll.current) savedScroll.current.scrollTop += anchor.getBoundingClientRect().top - savedScroll.current.getBoundingClientRect().top - snapshot.anchor!.offset;
-        if (snapshot.focusRecordId) savedScroll.current?.querySelector<HTMLElement>(`[data-record="${CSS.escape(snapshot.focusRecordId)}"] .saved-record-actions button`)?.focus({preventScroll:true});
-        didRestore.current = true; readerNavigation.complete(restoreToken);
-      }, matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 380);
-    });
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [snapshot, loading, loadedContexts, restoreToken, selected]);
+    if(!snapshot || didRestore.current || !page.groups.length && loading || selected && !details.current[selected.group_id])return;
+    const container=savedScroll.current;if(!container)return;
+    container.scrollTop=snapshot.scrollTop;
+    const anchor=snapshot.anchor && container.querySelector<HTMLElement>(`[data-record="${CSS.escape(snapshot.anchor.recordId)}"]`);
+    if(anchor)container.scrollTop+=anchor.getBoundingClientRect().top-container.getBoundingClientRect().top-snapshot.anchor!.offset;
+    if(snapshot.focusRecordId)container.querySelector<HTMLElement>(`[data-record="${CSS.escape(snapshot.focusRecordId)}"] .saved-record-actions button`)?.focus({preventScroll:true});
+    didRestore.current=true;readerNavigation.complete(restoreToken);
+  },[snapshot,page,loading,loadedContexts,selected,restoreToken]);
+  const capture=()=>{
+    const current=liveView.current,container=savedScroll.current;
+    const anchor=container && [...container.querySelectorAll<HTMLElement>('[data-record]')].find(n=>n.getBoundingClientRect().bottom>container.getBoundingClientRect().top);
+    const view:SavedViewSnapshot={query:current.query,pageNumber:current.pageNumber,loadedGroups:current.page.groups.length,
+      expandedGroupId:current.selected?.group_id ?? null,loadedContexts:current.loadedContexts,scrollTop:container?.scrollTop ?? 0,
+      anchor:anchor&&container?{recordId:anchor.dataset.record!,offset:anchor.getBoundingClientRect().top-container.getBoundingClientRect().top}:undefined};
+    return {generation,query:current.query,number:current.pageNumber,data:current.page,scroll:view.scrollTop,view,opened,details:details.current};
+  };
+  const captureRef=useRef(capture);captureRef.current=capture;
+  useLayoutEffect(()=>()=>{if(useRestoreGuard.getState().generation===generation){sessionPage=captureRef.current();savedViews.set(key,sessionPage);}},[key,generation]);
+  useEffect(()=>pageOrigin?.path.startsWith('/files/') ? backNavigation.setPage(()=>{pageBack();return true;},20):undefined,[pageOrigin,pageBack]);
   const returnToSource = async (record: SavedRecord, isCurrent?: () => boolean) => {
     const groupId = selectedRef.current, generation = visitGeneration.current;
     const target = await resolveSavedSource(record);
@@ -256,7 +270,8 @@ export default function SavedPage() {
     const view: SavedViewSnapshot = { query: current.query, pageNumber:current.pageNumber, loadedGroups: current.page.groups.length, expandedGroupId: current.selected?.group_id ?? null, loadedContexts: current.loadedContexts, scrollTop: scroll?.scrollTop ?? 0,
       anchor: row && scroll ? { recordId: record.record_id, offset: row.getBoundingClientRect().top - scroll.getBoundingClientRect().top } : undefined, focusRecordId: record.record_id };
     const token = readerNavigation.create({kind:'saved', path:'/saved', view}, target);
-    navigate(`/files/${target.fileId}?segment=${target.segmentIndex}`, {state:{sourceVisitToken:token}});
+    sessionPage=capture();savedViews.set(key,sessionPage);
+    navigate(`/files/${target.fileId}?segment=${target.segmentIndex}`, {state:{sourceVisitToken:token,...visitState(location)}});
   };
   const contextCount = useCallback((groupId: string, count: number) => setLoadedContexts(current => current[groupId] === count ? current : {...current, [groupId]: count}), []);
   useEffect(() => {
@@ -334,7 +349,7 @@ export default function SavedPage() {
   return <div className="saved-page">
     <div className="saved-scroll" ref={savedScroll} onScroll={() => { if(sessionPage && !changingView)sessionPage.scroll=savedScroll.current?.scrollTop ?? 0; }} onPointerDown={event => { if (event.target === event.currentTarget || event.target === event.currentTarget.firstElementChild) setSelected(null); }}><div className="saved-workspace workspace-paper">
       <div className="sr-only"><h1>{t('savedRecords.title')}</h1><span role="status">{t('dictionaryFlow.groupCount', { count: page.total_groups, contexts: page.total_records })}</span></div>
-      <div className="collection-toolbar"><label className="saved-search"><Search size={18} aria-hidden="true" /><span className="sr-only">{t('savedRecords.search')}</span><input type="search" value={query} onChange={event => { request.current++; selectionIntent.current++; wantedGroup.current=null; setSwiped(null); setSelected(null); setOpened([]); setPageNumber(1); setQuery(event.target.value); if(savedScroll.current)savedScroll.current.scrollTop=0; }} placeholder={t('savedRecords.search')} /></label>
+      <div className="collection-toolbar">{pageOrigin?.path.startsWith('/files/') && <PageBack className="desktop-page-back"/>}<label className="saved-search"><Search size={18} aria-hidden="true" /><span className="sr-only">{t('savedRecords.search')}</span><input type="search" value={query} onChange={event => { request.current++; selectionIntent.current++; wantedGroup.current=null; setSwiped(null); setSelected(null); setOpened([]); setPageNumber(1); setQuery(event.target.value); if(savedScroll.current)savedScroll.current.scrollTop=0; }} placeholder={t('savedRecords.search')} /></label>
       </div>
       {error && <div className="saved-error" role="alert"><p>{error}</p><button className="ui-button" onClick={() => void load()}>{t('common.retry')}</button></div>}
       {loading && !page.groups.length && <LoadingSkeleton kind="list" label={t('common.loading')}/>}
@@ -343,7 +358,7 @@ export default function SavedPage() {
           a route transition may still be running when the first reply arrives. */}
       <MotionChange enabled={!loading && !changingView} interruptKey={selected?.group_id ?? ''} changeKey={`${query}:${page.groups.map(group => `${group.group_id}:${group.context_count}`).join(',')}`}><ul className="saved-record-list" aria-busy={loading || changingView} aria-label={t('savedRecords.title')}>
         {page.groups.map(group => <SavedGroupCard key={group.group_id} group={group} removing={pendingRemove===group.group_id} disabled={changingView || pendingRemove!==null || undoBusy} swipeOpen={swiped===group.group_id} onSwipeOpen={open=>setSwiped(open?group.group_id:null)} onRemove={()=>void removeGroup(group)} selected={selected?.group_id === group.group_id} onOpen={() => { selectionIntent.current++; setSwiped(null); setSelected(current => current?.group_id === group.group_id ? null : group); setOpened(current => current.includes(group.group_id) ? current : [...current, group.group_id]); }}>
-          {opened.includes(group.group_id) && <SavedGroupContent active={selected?.group_id === group.group_id} group={group} revision={contextRevision} drafts={editDrafts.current} pendingRemove={pendingRemove} onClose={() => setSelected(null)} onRemove={remove} onReturn={returnToSource} initialRecordId={snapshot?.focusRecordId} initialCount={snapshot?.loadedContexts[group.group_id] ?? 1} onCount={count => contextCount(group.group_id, count)} />}
+          {opened.includes(group.group_id) && <SavedGroupContent initialState={details.current[group.group_id]} onSnapshot={view=>{details.current[group.group_id]=view;}} active={selected?.group_id === group.group_id} group={group} revision={contextRevision} drafts={editDrafts.current} pendingRemove={pendingRemove} onClose={() => setSelected(null)} onRemove={remove} onReturn={returnToSource} initialRecordId={snapshot?.focusRecordId} initialCount={snapshot?.loadedContexts[group.group_id] ?? 1} onCount={count => contextCount(group.group_id, count)} />}
         </SavedGroupCard>)}
       </ul></MotionChange>
       {loading && page.groups.length > 0 && <div className="saved-status" role="status"><BusyRing/><span className="sr-only">{t('common.loading')}</span></div>}
