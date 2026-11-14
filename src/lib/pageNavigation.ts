@@ -19,7 +19,7 @@ export function usePageReturn(fallback = '/files') {
   const origin = validOrigin(location.state?.returnOrigin) ? location.state.returnOrigin as PageOrigin : null;
   const back = useCallback(() => {
     if (location.state?.reopenImport) window.dispatchEvent(new Event('lexicue-return-import'));
-    if (origin && origin.index !== null && history.state?.idx === origin.index + 1) navigate(-1);
+    if (origin && origin.index !== null && Number.isSafeInteger(origin.index) && origin.index>=0 && Number.isSafeInteger(history.state?.idx) && history.state.idx>origin.index) navigate(origin.index-history.state.idx);
     else if (origin) navigate(origin.path, { replace: true, state: { ...origin.state, restoreViewKey: origin.key, viewReturning: true } });
     else navigate(fallback, { replace: true, state: { viewReturning: true,restoreLibrary:fallback.includes('view=library') } });
   }, [origin, navigate, fallback,location.state]);
