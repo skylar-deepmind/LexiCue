@@ -1534,7 +1534,7 @@ button:disabled:is([class*='bg-blue-'], [class*='bg-purple-'], [class*='bg-gray-
 .ui-button--icon:is(:hover,:active):not(:disabled) { border-color:transparent; border-radius:50%; }
 
 /* Source return is an icon, never a text chip or filled rectangular control. */
-.page-back { display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding:0;border:0;background:transparent;color:var(--text-secondary);flex-shrink:0; }
+.page-back { display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding:0;border:0;background:transparent;color:var(--text-body);flex-shrink:0; }
 .page-back:active { opacity:.65; }
 .page-back:focus-visible { outline:2px solid var(--accent-500);outline-offset:-4px;border-radius:50%; }
 .page-back .mobile-reader-back { display:block; }
