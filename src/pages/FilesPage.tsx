@@ -1,10 +1,13 @@
+import CollectionPager from '../components/CollectionPager';
+import AppSelect from '../components/AppSelect';
+import { collectionPage } from '../lib/collectionPage';
 import { LoadingSkeleton, BusyRing } from '../components/LoadingFeedback';
 import { isMobilePlatform } from '../lib/platform';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
-import { Archive, BookOpen, X, Check, ChevronLeft, ChevronRight, ChevronsUp, FileText, MoreHorizontal, Search, Tags, Pencil, Trash2 } from 'lucide-react';
+import { ArrowDownWideNarrow, Archive, BookOpen, X, Check, ChevronLeft, ChevronRight, ChevronsUp, FileText, MoreHorizontal, Search, Tags, Pencil, Trash2 } from 'lucide-react';
 import { useMaterialStore } from '../stores/materialStore';
 import { useFileStore } from '../stores/fileStore';
 import { useImportStore } from '../stores/importStore';
@@ -31,8 +34,7 @@ import './materials-settings.css';
 import './reading-stage.css';
 import './desktop-desk-height.css';
 
-// Keep the rendered prefix when returning from a material in this session.
-let sessionLibraryCount = 30;
+const LIBRARY_PAGE_SIZE = 20;
 
 export default function FilesPage() {
     const { t } = useTranslation();
@@ -54,8 +56,9 @@ export default function FilesPage() {
     const [range, setRange] = useState(saved.range);
     const [tagsOpen, setTagsOpen] = useState(saved.tagsOpen);
     const [libraryPresent, setLibraryPresent] = useState(library);
-    const [visibleCount, setVisibleCount] = useState(sessionLibraryCount);
-    const filterKey = useRef(`${saved.query}:${saved.range}:${saved.tagIds.join(',')}:${saved.untagged}`);
+    const [pageNumber, setPageNumber] = useState(saved.page ?? 1);
+    const [sort, setSort] = useState<'newest' | 'oldest' | 'title'>(saved.sort ?? 'newest');
+    const filterKey = useRef(`${saved.query}:${saved.range}:${saved.tagIds.join(',')}:${saved.untagged}:${saved.sort ?? 'newest'}`);
     const [expanded, setExpanded] = useState<number | null>(saved.expandedId??null);
     const [manager, setManager] = useState(false);
     const [edit, setEdit] = useState<Material | null>(null);
@@ -69,10 +72,11 @@ export default function FilesPage() {
         return () => clearTimeout(timer);
     }, [library, mobileSheet]);
     useEffect(() => {
-        const next = `${query}:${range}:${selectedTags.join(',')}:${untagged}`;
+        const next = `${query}:${range}:${selectedTags.join(',')}:${untagged}:${sort}`;
         if (filterKey.current === next) return;
-        filterKey.current = next; sessionLibraryCount = 30; setVisibleCount(30); setExpanded(null);
-    }, [query, range, selectedTags, untagged]);
+        filterKey.current = next; setPageNumber(1); setExpanded(null); setMenu(null);
+        scrollTop.current = 0; if (scroll.current) scroll.current.scrollTop = 0;
+    }, [query, range, selectedTags, untagged, sort]);
     const dock = useRef<HTMLButtonElement>(null);
     const shelf = useRef<HTMLDivElement>(null);
     const emptyImport = useRef<HTMLButtonElement>(null);
@@ -150,8 +154,8 @@ export default function FilesPage() {
         }
     }, [library,saved.tagIds,saved.untagged]);
     useEffect(() => {
-        saveLibraryView({query,range,tagsOpen,tagIds:selectedTags,untagged,scroll:scrollTop.current,focusId:focusId.current,expandedId:expanded});
-    }, [query,range,tagsOpen,selectedTags,untagged,expanded]);
+        saveLibraryView({query,page:pageNumber,sort,range,tagsOpen,tagIds:selectedTags,untagged,scroll:scrollTop.current,focusId:focusId.current,expandedId:expanded});
+    }, [query,pageNumber,sort,range,tagsOpen,selectedTags,untagged,expanded]);
     useEffect(() => backNavigation.setPage(() => {
         if (!library) return false;
         setParams({}, {replace:true}); return true;
@@ -193,7 +197,7 @@ export default function FilesPage() {
         if (menu === null || !library) return;
         return backNavigation.register(() => { setMenu(null); scroll.current?.querySelector<HTMLButtonElement>(`[data-material="${menu}"] .library-menu > button`)?.focus({preventScroll:true}); });
     }, [menu,library]);
-    const onDesk = (file: Material) => desk.desk.items.some(ref => matchesMaterial(ref,file));
+    const onDesk = useCallback((file: Material) => desk.desk.items.some(ref => matchesMaterial(ref,file)), [desk.desk.items]);
     const desktop = desk.desk.items.map(ref => materials.files.find(file => matchesMaterial(ref,file))).filter((file): file is Material => !!file);
     const main = desktop.find(file => desk.desk.selected && matchesMaterial(desk.desk.selected,file)) ?? desktop[0];
     const [resumes, setResumes] = useState<Record<string,string>>({});
@@ -220,19 +224,22 @@ export default function FilesPage() {
         setMenu(null);
     });
     const shelfFit=useBookmarkDesk(cardTurn.stackRef,shelf,main?.id,Math.max(0,materials.files.length-1));
-    const source = (file: Material) => file.document?.origin?.kind === 'webpage' ? file.document.origin.final_url : file.source?.title ?? (file.document?.origin?.kind === 'clipboard' ? t('materials.importDialog.clipboardText') : t('readingDesk.localSource'));
-    const format = (file: Material) => {
+    const source = useCallback((file: Material) => file.document?.origin?.kind === 'webpage' ? file.document.origin.final_url : file.source?.title ?? (file.document?.origin?.kind === 'clipboard' ? t('materials.importDialog.clipboardText') : t('readingDesk.localSource')), [t]);
+    const format = useCallback((file: Material) => {
         const kind = file.source_kind ?? (file.source ? 'youtube' : file.document?.origin?.kind === 'webpage' ? 'webpage' : file.document?.origin?.kind === 'clipboard' ? 'clipboard' : 'file');
         if (kind === 'youtube') return 'YouTube';
         if (kind === 'webpage') return t('materials.importDialog.webpage');
         if (kind === 'clipboard') return t('materials.importDialog.clipboardText');
         return file.original_format?.toUpperCase() ?? file.document?.original_format?.toUpperCase() ?? t('readingDesk.localSource');
-    };
+    }, [t]);
     const term = query.trim().toLocaleLowerCase();
-    const matches = materials.files.filter(file => (range === 'all' || !onDesk(file)) &&
+    const matches = useMemo(() => materials.files.filter(file => (range === 'all' || !onDesk(file)) &&
         (!untagged || !file.tags.length) && selectedTags.every(id => file.tags.some(tag => tag.id === id)) &&
-        (!term || `${file.name} ${source(file)} ${format(file)}`.toLocaleLowerCase().includes(term)));
-    const remember = () => saveLibraryView({query,range,tagsOpen,tagIds:selectedTags,untagged,scroll:scrollTop.current,focusId:focusId.current,expandedId:expanded});
+        (!term || `${file.name} ${source(file)} ${format(file)}`.toLocaleLowerCase().includes(term))).sort((a,b) => sort === 'title' ? a.name.localeCompare(b.name, 'en', {numeric:true, sensitivity:'base'}) || b.id-a.id : sort === 'oldest' ? a.imported_at-b.imported_at || a.id-b.id : b.imported_at-a.imported_at || b.id-a.id), [materials.files, range, onDesk, untagged, selectedTags, term, source, format, sort]);
+    const pageWindow = collectionPage(matches.length, pageNumber, LIBRARY_PAGE_SIZE);
+    useEffect(() => { if (materials.hasLoaded && !materials.loading && pageWindow.page !== pageNumber) { setPageNumber(pageWindow.page); scrollTop.current=0; if(scroll.current) scroll.current.scrollTop=0; } }, [pageWindow.page,pageNumber,materials.hasLoaded,materials.loading]);
+    const changePage = (next: number) => { if(next===pageWindow.page)return; setPageNumber(next); setExpanded(null); setMenu(null); scrollTop.current=0; if(scroll.current)scroll.current.scrollTop=0; };
+    const remember = () => saveLibraryView({query,page:pageNumber,sort,range,tagsOpen,tagIds:selectedTags,untagged,scroll:scrollTop.current,focusId:focusId.current,expandedId:expanded});
     const closeMenu = (id: number) => {
         setMenu(null);
         const target = scroll.current?.querySelector<HTMLButtonElement>(`[data-material="${id}"] .library-menu > button`)
@@ -316,31 +323,30 @@ export default function FilesPage() {
                 {cardIndex>0&&<button type="button" className="desk-swipe-cue desk-swipe-cue-left" data-testid="desk-swipe-prev" aria-label={t('history.previous')} onClick={()=>cardTurn.turn(-1)}><ChevronLeft size={12} strokeWidth={1.75} aria-hidden="true"/></button>}
                 {cardIndex<desktop.length-1&&<button type="button" className="desk-swipe-cue desk-swipe-cue-right" data-testid="desk-swipe-next" aria-label={t('history.next')} onClick={()=>cardTurn.turn(1)}><ChevronRight size={12} strokeWidth={1.75} aria-hidden="true"/></button>}
               </div><div className="desk-pager"><button className="desk-text-button" aria-label={t('history.previous')} data-testid="desk-prev" disabled={cardIndex===0} onClick={()=>cardTurn.turn(-1)}><ChevronLeft size={20}/></button><span>{cardIndex+1} / {desktop.length}</span><button className="desk-text-button" aria-label={t('history.next')} data-testid="desk-next" disabled={cardIndex>=desktop.length-1} onClick={()=>cardTurn.turn(1)}><ChevronRight size={20}/></button></div>
-            </> : <div className="desk-empty"><span className="desk-empty-symbol" aria-hidden="true">{materials.files.length?<Check size={24}/>:<FileText size={26}/>}</span><h2>{t(materials.files.length?'readingDesk.clear':'readingDesk.noMaterials')}</h2><p>{t(materials.files.length?'readingDesk.clearHint':'readingDesk.importHint')}</p><button ref={emptyImport} className="desk-primary" onClick={event=>{rememberImportFocus(event.currentTarget);useImportStore.getState().show();}}>{t('materials.import')}</button></div>}
+            </> : <div className="desk-empty"><span className="desk-empty-symbol" aria-hidden="true">{materials.files.length?<Check size={24}/>:<FileText size={26}/>}</span><h2>{t(materials.files.length?'readingDesk.clear':'readingDesk.noMaterials')}</h2><p>{t(materials.files.length?'readingDesk.clearHint':'readingDesk.importHint')}</p><button ref={emptyImport} data-guide={!materials.files.length ? "import" : undefined} className="desk-primary" onClick={event=>{if(materials.files.length)showLibrary();else{rememberImportFocus(event.currentTarget);useImportStore.getState().show();}}}>{t(materials.files.length?'readingDesk.library':'materials.import')}</button></div>}
         </section>}
         {ready && materials.files.length>0 && <div ref={shelf} className={`desk-dock-wrap${library || libraryPresent ? ' library-dock-hidden' : ''}`}><button className="desk-library-dock" ref={dock} onClick={showLibrary} aria-expanded={library} aria-label={`${t('readingDesk.library')} ${t('readingDesk.materialCount',{count:materials.files.length})}`}><span className="desk-dock-art" aria-hidden="true"><Archive size={20} strokeWidth={1.75}/></span><span><strong>{t('readingDesk.library')}</strong><small>{t('readingDesk.materialCount',{count:materials.files.length})}</small></span><ChevronsUp size={20} strokeWidth={1.75} aria-hidden="true"/></button><div className="desk-shelf-previews" aria-label={t('readingDesk.library')}>
             {materials.files.slice(0,5).map((file,index)=>{const othersBefore=materials.files.slice(0,index).filter(item=>item.id!==main?.id).length;const visible=file.id!==main?.id&&othersBefore<shelfFit.count;return <div className="desk-shelf-row" key={file.id} data-visible={visible} inert={!visible} aria-hidden={!visible||undefined}><div><button className="desk-shelf-open" disabled={!!deleting[file.id]} onClick={()=>open(file,'desk')} aria-label={t('readingDesk.openNamed',{name:file.name})}><span><strong lang="en">{bookmarkTitle(file.name)}</strong><small lang="en">{file.preview}</small></span><BookOpen size={20} strokeWidth={1.75} aria-hidden="true"/></button></div></div>;})}
         </div><DeskFeedback beforeUndo={()=>{cancelMotion();lastArchive.current=-Infinity;}}/></div>}
         {ready && !materials.files.length && <DeskFeedback/>}
     </div></div>
-        {libraryPresent && <Overlay panelRef={libraryPanel} returnFocus={libraryReturnTarget} initialFocus={()=>{const target=location.state?.restoreLibrary&&focusId.current?scroll.current?.querySelector<HTMLButtonElement>(`[data-open="${focusId.current}"]`):null;return target??(mobileSheet?libraryPanel.current:null);}} label={t('readingDesk.library')} onClose={closeLibrary} className="library-overlay-panel" layerClassName={`library-overlay-layer${mobileSheet ? ' is-mobile-sheet' : ''}${library ? '' : ' is-closing'}${location.state?.restoreLibrary ? ' is-restoring' : ''}`}><div className="library-sheet-grab" aria-hidden="true"><span/></div><div ref={scroll} className="library-overlay-scroll" inert={!library} onScroll={() => { scrollTop.current=scroll.current?.scrollTop ?? 0; remember(); }}><section className="reading-library" aria-label={t('readingDesk.library')}>
+        {libraryPresent && <Overlay panelRef={libraryPanel} returnFocus={libraryReturnTarget} initialFocus={()=>{const target=location.state?.restoreLibrary&&focusId.current?scroll.current?.querySelector<HTMLButtonElement>(`[data-open="${focusId.current}"]`):null;return target??(mobileSheet?libraryPanel.current:null);}} label={t('readingDesk.library')} onClose={closeLibrary} className="library-overlay-panel" layerClassName={`library-overlay-layer${materials.files.length>LIBRARY_PAGE_SIZE ? ' is-large-library' : ''}${mobileSheet ? ' is-mobile-sheet' : ''}${library ? '' : ' is-closing'}${location.state?.restoreLibrary ? ' is-restoring' : ''}`}><div className="library-sheet-grab" aria-hidden="true"><span/></div><div ref={scroll} className="library-overlay-scroll" inert={!library} onScroll={() => { scrollTop.current=scroll.current?.scrollTop ?? 0; remember(); }}><section className="reading-library" aria-label={t('readingDesk.library')}>
             <DeskFeedback/>
-            <div className="library-heading"><h2>{t('readingDesk.library')}</h2>{refreshIndicator}<button className="desk-text-button desk-icon-button" onClick={closeLibrary} aria-label={t('readingDesk.backDesk')} title={t('readingDesk.backDesk')}><X size={20} aria-hidden="true"/></button></div>
+            <div className="library-heading"><h2>{t('readingDesk.library')}</h2>{refreshIndicator}<div className="library-sort-control"><ArrowDownWideNarrow size={20} aria-hidden="true"/><AppSelect aria-label={t('collection.sort')} value={sort} options={(['newest','oldest','title'] as const).map(value=>({value,label:t(`collection.${value}`)}))} onChange={value=>setSort(value as typeof sort)}/></div><button className="desk-text-button desk-icon-button" onClick={closeLibrary} aria-label={t('readingDesk.backDesk')} title={t('readingDesk.backDesk')}><X size={20} aria-hidden="true"/></button></div>
             {initialLoad && <LoadingSkeleton kind="list" label={t('common.loading')}/>}
             {loadError}
-            {ready && <><div className="library-tools"><div className="library-ranges" role="group" aria-label={t('readingDesk.range')}>
+            {ready && <><div className="library-browse-controls"><div className="library-tools"><div className="library-ranges" role="group" aria-label={t('readingDesk.range')}>
                 {(['all','stored'] as const).map(value=><button key={value} className="desk-text-button" aria-pressed={range===value} onClick={()=>{setRange(value);scrollTop.current=0;}}>{t(value==='all'?'readingDesk.all':'readingDesk.stored')} <span>{value==='all'?materials.files.length:materials.files.filter(file=>!onDesk(file)).length}</span></button>)}
             </div><label className="library-search"><Search size={17} aria-hidden="true"/><input ref={search} type="search" aria-label={t('readingDesk.search')} placeholder={t('readingDesk.search')} value={query} onChange={event=>{setQuery(event.target.value);scrollTop.current=0;}}/></label><button className="desk-text-button library-tag-toggle" aria-label={t('materials.filterTags')} aria-expanded={tagsOpen} onClick={()=>setTagsOpen(!tagsOpen)}><Tags size={18} aria-hidden="true"/></button></div>
             {tagsOpen && <TagFilterBar onManage={()=>setManager(true)}/>}
-            <p className="library-result-count sr-only" role="status">{t('readingDesk.results',{count:matches.length})}</p>
-            <MotionChange className={menu !== null ? 'library-menu-open' : ''} changeKey={`${query}:${range}:${selectedTags.join(',')}:${untagged}:${matches.map(file => file.id).join(',')}`}><div className={`library-list${menu !== null ? ' has-open-menu' : ''}`}>{matches.slice(0, visibleCount).map(file=><article className="library-row" key={file.id} data-material={file.id} data-menu-open={menu===file.id}>
+            <div className="library-page-row"><CollectionPager label={t('readingDesk.library')} total={matches.length} page={pageWindow.page} size={LIBRARY_PAGE_SIZE} onChange={changePage}/></div></div>
+            <MotionChange className={menu !== null ? 'library-menu-open' : ''} changeKey={`${pageWindow.page}:${sort}:${query}:${range}:${selectedTags.join(',')}:${untagged}:${matches.slice(pageWindow.offset, pageWindow.offset + LIBRARY_PAGE_SIZE).map(file => file.id).join(',')}`}><div className={`library-list${menu !== null ? ' has-open-menu' : ''}`}>{matches.slice(pageWindow.offset, pageWindow.offset + LIBRARY_PAGE_SIZE).map(file=><article className="library-row" key={file.id} data-material={file.id} data-menu-open={menu===file.id}>
                 <div className="library-copy"><button className="library-preview-toggle" aria-expanded={expanded===file.id} onClick={()=>setExpanded(expanded===file.id?null:file.id)}><h3>{file.name}</h3></button>{file.tags.length>0 && <div className="material-tags">{file.tags.map(tag=><TagBadge key={tag.id} name={tag.name} tone={tag.tone}/>)}</div>}<div className="library-preview" data-open={expanded===file.id} inert={expanded!==file.id} aria-hidden={expanded!==file.id}><div><p lang="en">{file.preview}</p></div></div></div>
                 <button className="desk-text-button desk-icon-button library-open" title={t('readingDesk.openNamed',{name:file.name})} data-open={file.id} aria-label={t('readingDesk.openNamed',{name:file.name})} disabled={!!deleting[file.id]} onClick={()=>open(file,'library')}><BookOpen size={20} aria-hidden="true"/></button>
                 <div className="library-menu"><button className="desk-text-button" aria-label={t('materials.more',{name:file.name})} aria-expanded={menu===file.id} onClick={()=>setMenu(menu===file.id?null:file.id)}><MoreHorizontal size={19} aria-hidden="true"/></button>{menu===file.id && <div className="material-actions"><button className="ui-button" onClick={()=>{closeMenu(file.id);setEdit(file);}}><Tags size={16} aria-hidden="true"/>{t('tags.edit')}</button><button className="ui-button" onClick={()=>{closeMenu(file.id);if(onDesk(file)) desk.archive(file); else desk.keep(file);}}><Archive size={16} aria-hidden="true"/>{t(onDesk(file) ? 'readingDesk.archive' : 'readingDesk.keep')}</button><button className="ui-button ui-button--danger" disabled={!!deleting[file.id]} onClick={()=>void remove(file)}><Trash2 size={16} aria-hidden="true"/>{t('materials.delete')}</button></div>}</div>
                 {deleting[file.id] && <p role="status">{t('fileStore.deleting')}</p>}
             </article>)}</div></MotionChange>
-            {visibleCount < matches.length && <button className="ui-button" onClick={()=>setVisibleCount(value=>{sessionLibraryCount=value+30;return sessionLibraryCount;})}>{t('savedRecords.loadMore')}</button>}
-            {!matches.length && <div className="library-no-results" role="status"><p>{t(materials.files.length?'materials.noMatches':'materials.empty')}</p>{materials.files.length > 0 && <button className="ui-button" onClick={()=>{setQuery('');setRange('all');useFileStore.getState().setTagFilter([],false);}}>{t('readingDesk.resetFilters')}</button>}</div>}
+            {!matches.length && <div className="library-no-results" role="status"><p>{t(materials.files.length?'materials.noMatches':'materials.empty')}</p>{materials.files.length > 0 ? <button className="ui-button" onClick={()=>{setQuery('');setRange('all');useFileStore.getState().setTagFilter([],false);}}>{t('readingDesk.resetFilters')}</button> : <button className="desk-primary" onClick={()=>{closeLibrary();useImportStore.getState().show();}}>{t('materials.import')}</button>}</div>}
         </>}</section></div></Overlay>}
         {manager && <TagManager onClose={()=>{setManager(false);materials.changed();}}/>}{edit && <TagEditDialog file={edit} onClose={()=>{setEdit(null);materials.changed();}}/>}
     </div>;

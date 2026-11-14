@@ -2,9 +2,9 @@ import { create } from 'zustand';
 
 export type FeedbackType = 'success' | 'error' | 'info';
 
-export interface FeedbackAction { label: string; onClick: () => void; }
+export interface FeedbackAction { label: string; onClick: () => void | boolean | Promise<void | boolean>; focus?: boolean; ariaLabel?: string; }
 
-interface FeedbackMessage {
+export interface FeedbackMessage {
   id: number;
   message: string;
   type: FeedbackType;
@@ -15,10 +15,12 @@ interface FeedbackStore {
   messages: FeedbackMessage[];
   show: (message: string, type?: FeedbackType, duration?: number, action?: FeedbackAction) => number;
   dismiss: (id: number) => void;
+  pause: (id: number) => void;
+  resume: (id: number) => void;
 }
 
 let nextId = 1;
-const timers = new Map<number, number>();
+const timers = new Map<number, {timer?:number;remaining:number;started:number}>();
 
 export const useFeedbackStore = create<FeedbackStore>((set) => ({
   messages: [],
@@ -30,13 +32,21 @@ export const useFeedbackStore = create<FeedbackStore>((set) => ({
       timers.delete(id);
       set((state) => ({ messages: state.messages.filter((item) => item.id !== id) }));
     }, effectiveDuration);
-    timers.set(id, timerId);
+    timers.set(id, {timer:timerId, remaining:effectiveDuration, started:Date.now()});
     return id;
   },
+  pause: id => {
+    const timer=timers.get(id);if(!timer || timer.timer===undefined)return;
+    window.clearTimeout(timer.timer);timer.remaining=Math.max(0,timer.remaining-(Date.now()-timer.started));timer.timer=undefined;
+  },
+  resume: id => {
+    const timer=timers.get(id);if(!timer || timer.timer!==undefined)return;
+    timer.started=Date.now();timer.timer=window.setTimeout(()=>{timers.delete(id);set(state=>({messages:state.messages.filter(item=>item.id!==id)}));},timer.remaining);
+  },
   dismiss: (id) => {
-    const timerId = timers.get(id);
-    if (timerId) {
-      window.clearTimeout(timerId);
+    const timer = timers.get(id);
+    if (timer) {
+      window.clearTimeout(timer.timer);
       timers.delete(id);
     }
     set((state) => ({

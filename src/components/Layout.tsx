@@ -11,6 +11,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import Sidebar from './Sidebar';
 import MobileNav from './MobileNav';
+import ConfirmationHost from './ConfirmationHost';
 import ToastHost from './ToastHost';
 import { useDictionaryStore } from '../stores/dictionaryStore';
 import { useYoutubeStore } from '../stores/youtubeStore';
@@ -25,6 +26,7 @@ import { useOnboardingStore } from '../stores/onboardingStore';
 import { readingReturnPath, retainImportedReading } from '../lib/readingEntry';
 import { DESK_KEY } from '../lib/readingDesk';
 import { useReadingDeskStore } from '../stores/readingDeskStore';
+import { useImportStore } from '../stores/importStore';
 import { useMaterialStore } from '../stores/materialStore';
 import { useRestoreGuard } from '../stores/restoreGuard';
 import Overlay from './Overlay';
@@ -32,8 +34,9 @@ import './restore-progress.css';
 import '../mobile.css';
 export default function Layout() {
     const { t } = useTranslation();
+    const linkPress = useRef<{link: Element; pointer: number; x: number; y: number; moved: boolean; started: number} | null>(null);
     const restoring = useRestoreGuard(state => state.active);
-    const { pathname: rawPathname, state: routeState } = useLocation();
+    const { pathname: rawPathname, state: routeState, search } = useLocation();
     const pathname = normalizeNavigationPath(rawPathname);
     const navigate = useNavigate();
     useEffect(() => {
@@ -86,6 +89,7 @@ export default function Layout() {
     }, []);
     useEffect(() => { retainImportedReading(routeState?.importReadingToken); }, [rawPathname, routeState]);
     useMaterialDrop();
+    useEffect(()=>{const restore=()=>useImportStore.getState().show();window.addEventListener('lexicue-return-import',restore);return()=>window.removeEventListener('lexicue-return-import',restore);},[]);
     useEffect(() => { document.body.classList.add('lexicue-b'); return () => document.body.classList.remove('lexicue-b'); }, []);
     const panels = useWorkspaceStore(state => state.panels);
     const stageRef = useRef<HTMLDivElement>(null);
@@ -184,17 +188,44 @@ export default function Layout() {
             void subscription.then(stop => stop()).catch(() => {});
         };
     }, []);
-    return (<div className="app-layout b-shell" data-context-open={panels.length > 0}>
+    return (<div className="app-layout b-shell" data-context-open={panels.length > 0}
+        onPointerDownCapture={event => {
+            const link = event.target instanceof Element ? event.target.closest('a[href]') : null;
+            linkPress.current = link && event.isPrimary && event.button === 0
+                ? {link, pointer:event.pointerId, x:event.clientX, y:event.clientY, moved:false, started:performance.now()} : null;
+        }}
+        onPointerMoveCapture={event => {
+            const press = linkPress.current;
+            if (press?.pointer === event.pointerId && Math.hypot(event.clientX - press.x, event.clientY - press.y) > 10) press.moved = true;
+        }}
+        onPointerCancelCapture={event => {
+            if (linkPress.current?.pointer === event.pointerId) linkPress.current.moved = true;
+        }}
+        onClickCapture={event => {
+            const press = linkPress.current;
+            linkPress.current = null;
+            // WKWebView may synthesize a link click after a cancelled long drag.
+            // Keyboard/assistive activation has no pointer click count.
+            if (event.detail !== 0 && press && (press.moved || performance.now() - press.started >= 500) && event.target instanceof Element && event.target.closest('a[href]') === press.link) {
+                event.preventDefault(); event.stopPropagation();
+            }
+        }}
+        onDragStartCapture={event => {
+            // Links are tap/navigation controls, including links in portals.
+            // Leave text selection and incoming material file drops alone.
+            if (event.target instanceof Element && event.target.closest('a[href]')) event.preventDefault();
+        }}>
       <WorkspaceHeader />
       <Sidebar />
       <main className="app-main b-main">
         <div className="app-page workspace-stage" ref={stageRef}>
-          <PageTransition pageKey={pathname}><Outlet /></PageTransition>
+          <PageTransition pageKey={pathname === '/settings' ? pathname + search : pathname}><Outlet /></PageTransition>
         </div>
         <MobileNav />
       </main>
       <ImportPanel />
       <ToastHost />
+      <ConfirmationHost />
       <AppFirstUseGuide />
       {restoring && <Overlay className="restore-progress" label={t('fileStore.restoring')} onClose={() => false}><p role="status">{t('fileStore.restoring')}</p><ActivityTrack /></Overlay>}
     </div>);

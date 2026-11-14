@@ -992,7 +992,7 @@
     "importing": "Importing...",
     "deleteAskWithContent": "Delete “{{name}}” and its reading content? Saved sentences, meanings and notes will remain. This also syncs to paired devices and cannot be undone directly.",
     "deleteAsk": "Delete this file?",
-    "deleteTitle": "Delete File",
+    "deleteTitle": "Delete material",
     "fileDeleted": "File deleted",
     "deleteFailed": "Failed to delete file",
     "deleting": "Deleting...",
@@ -1388,7 +1388,10 @@
     "englishMeaning": "Previous English meaning",
     "extraSense": "Additional meaning",
     "example": "Example",
-    "saveExplanation": "Save explanation"
+    "saveExplanation": "Save explanation",
+    "groupActions": "Actions for {{expression}}",
+    "deleteGroupNamed": "Delete {{expression}} and all {{count}} sentences",
+    "groupRemoved": "Deleted {{expression}} and {{count}} sentences"
   },
   "materials": {
     "title": "Materials",
@@ -1795,7 +1798,8 @@
     "failed": "Reading is unavailable. Press the reading button to retry.",
     "tooLong": "Select a shorter passage (up to 1,000 characters).",
     "playbackBlocked": "Playback was blocked. Press the reading button to try again.",
-    "offlineMissing": "This voice and text are not cached. Enable online speech or device fallback to listen."
+    "offlineMissing": "This voice and text are not cached. Enable online speech or device fallback to listen.",
+    "replay": "Play again"
   },
   "dictionaryFlow": {
     "prototype": "Possible phrase",
@@ -1980,5 +1984,39 @@
     },
     "baseUnavailable": "The included dictionary is unavailable. Retry; if it still fails, reinstall the app.",
     "demoBoundary": "This browser demo uses an original sample dictionary. Manage installed dictionary packs in the app."
+  },
+  "collection": {
+    "range": "{{start}}–{{end}} of {{total}}",
+    "goToPage": "Go to page",
+    "pageCount": "{{count}} pages",
+    "sort": "Sort materials",
+    "newest": "Newest first",
+    "oldest": "Oldest first",
+    "title": "Title A–Z"
+  },
+  "dictionaryPreferences": {
+    "title": "Online dictionary",
+    "source": "Online dictionary",
+    "cambridge": "English–Chinese definitions",
+    "cambridgeProvider": "Cambridge public API (unofficial)",
+    "wiktionary": "English definitions",
+    "wiktionaryProvider": "FreeDictionaryAPI.com · Wiktionary",
+    "onDemand": "Local results appear first. Select Online to fetch and switch."
+  },
+  "dictionarySwitch": {
+    "local": {
+      "idle": "Local dictionary",
+      "loading": "Searching the local dictionary",
+      "ready": "Switch to local definitions",
+      "missing": "No local definitions",
+      "error": "Local lookup failed. Select to retry"
+    },
+    "online": {
+      "idle": "Fetch online definitions",
+      "loading": "Searching the online dictionary",
+      "ready": "Switch to online definitions",
+      "missing": "No online definitions. Select to retry",
+      "error": "Online lookup failed. Select to retry"
+    }
   }
 }

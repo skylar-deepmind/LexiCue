@@ -13,3 +13,11 @@ it('accepts older snapshots and ignores saved viewport geometry and invalid prev
   vi.stubGlobal('sessionStorage',{getItem:()=>JSON.stringify({query:'Old',scroll:23})});
   expect(readLibraryView()).toMatchObject({query:'Old',scroll:23,expandedId:null});
 });
+
+it('preserves a distant page and sort, ignoring invalid persisted pagination',()=>{
+  vi.stubGlobal('sessionStorage',{getItem:()=>JSON.stringify({page:501,sort:'title'})});
+  expect(readLibraryView()).toMatchObject({page:501,sort:'title'});
+  vi.stubGlobal('sessionStorage',{getItem:()=>JSON.stringify({page:-2,sort:'unknown'})});
+  expect(readLibraryView()).not.toHaveProperty('page');
+  expect(readLibraryView()).not.toHaveProperty('sort');
+});

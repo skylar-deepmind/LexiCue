@@ -64,7 +64,8 @@ export const manualContent={
           "id": "tags",
           "title": "Desk, library and tags",
           "body": [
-            "Keep current reading on the desk. Put a material away to the library, bring it back later, search by title or filter with tags. Tag colors help identify groups; removing a tag does not remove its materials. Choose Delete material in a material’s More menu to remove its reading content after confirmation. Saved sentences, meanings and notes remain available."
+            "Keep current reading on the desk. Put a material away to the library, bring it back later, search by title or filter with tags. Tag colors help identify groups; removing a tag does not remove its materials. Choose Delete material in a material’s More menu to remove its reading content after confirmation. Saved sentences, meanings and notes remain available.",
+            "The library shows 20 items per page. Search titles or sources, filter by tags and change sorting from the heading. Enter a page number to jump. Deleting a material preserves saved sentences, meanings and notes; returning to its deleted original is unavailable."
           ],
           "steps": [],
           "image": "files"
@@ -148,7 +149,8 @@ export const manualContent={
           "id": "organize",
           "title": "Edit a context",
           "body": [
-            "Update your note or explanation on the relevant saved record. Choose “Remove this sentence” beside a context in Saved or in the lookup card’s My records tab, then Undo to restore it. Other contexts for the same expression remain separate."
+            "Update your note or explanation on the relevant saved record. Choose “Remove this sentence” beside a context in Saved or in the lookup card’s My records tab, then Undo to restore it. Other contexts for the same expression remain separate.",
+            "After scrolling Saved, use the floating page control at the bottom to jump directly to a page. Expressions and their contexts are paged separately. Swipe an expression left, then tap the trash icon to delete the expression and all its sentences, meanings and notes. Undo in the small floating notice restores them together. The original material remains. Removing one sentence keeps the others."
           ],
           "steps": []
         },
@@ -256,7 +258,9 @@ export const manualContent={
           "id": "dictionary",
           "title": "Dictionary meanings",
           "body": [
-            "Lookup can retain a reference to the current dictionary result. It is a reference, not a confirmed sentence meaning. You can save your own explanation even when no dictionary entry is available."
+            "Lookup can retain a reference to the current dictionary result. It is a reference, not a confirmed sentence meaning. You can save your own explanation even when no dictionary entry is available.",
+            "Lookup starts locally. Tap Online to query the selected service; results never switch sources for you. Settings → Online dictionary offers English–Chinese (Cambridge author public API, unofficial) or English-only (FreeDictionaryAPI.com / Wiktionary). Tap Local to return to an available local result.",
+            "Pronunciation shows loading feedback and animated sound waves while playing. Tap again to restart immediately."
           ],
           "steps": []
         },
@@ -407,7 +411,8 @@ export const manualContent={
           "id": "tags",
           "title": "桌面、材料库与标签",
           "body": [
-            "正在读的材料留在桌面，暂时不读的收进材料库，之后可以重新放回。按标题搜索或用标签筛选，颜色帮助区分材料组；删除标签不会删除材料。材料的“更多”菜单提供“删除材料”，确认后删除阅读内容，已保存的原句、释义和笔记仍保留。"
+            "正在读的材料留在桌面，暂时不读的收进材料库，之后可以重新放回。按标题搜索或用标签筛选，颜色帮助区分材料组；删除标签不会删除材料。材料的“更多”菜单提供“删除材料”，确认后删除阅读内容，已保存的原句、释义和笔记仍保留。",
+            "材料库每页显示 20 项，可搜索标题或来源、按标签筛选，并从标题栏调整排序。点击页码可直接跳页。删除材料会保留已保存的原句、释义和笔记，但无法再返回被删除的原文。"
           ],
           "steps": [],
           "image": "files"
@@ -491,7 +496,8 @@ export const manualContent={
           "id": "organize",
           "title": "编辑一条语境",
           "body": [
-            "在对应收藏记录修改注释或解释。在“已保存”或查词卡片的“我的记录”中，点击原句旁的“移除这句”，可用“撤销”恢复。同一表达的其他语境各自独立。"
+            "在对应收藏记录修改注释或解释。在“已保存”或查词卡片的“我的记录”中，点击原句旁的“移除这句”，可用“撤销”恢复。同一表达的其他语境各自独立。",
+            "下滑后，底部圆角悬浮页码可直接跳页。词条和词条内的语境分别分页。左滑整个词条，再点垃圾桶，可删除这个词条及其全部例句、释义和笔记；小型浮动通知中的“撤销”可一起恢复。原材料不会被删除。只移除一条例句时，其他例句仍保留。"
           ],
           "steps": []
         },
@@ -599,7 +605,9 @@ export const manualContent={
           "id": "dictionary",
           "title": "词典义项",
           "body": [
-            "查词可保留当前词典结果的参考，它不代表已确认当前句子的含义。没有可用词条时，也能保存自己的解释。"
+            "查词可保留当前词典结果的参考，它不代表已确认当前句子的含义。没有可用词条时，也能保存自己的解释。",
+            "查词先显示本地；点击“在线”才请求所选服务，结果返回不会替你切换来源。“设置 → 在线词典”可选英汉释义（剑桥作者公共接口，非官方）或英英释义（FreeDictionaryAPI.com / Wiktionary）。本地有结果时，点击“本地”即可返回。",
+            "读音按钮在加载时显示进度，播放时声量图标动态变化；再次点击会立即从头播放。"
           ],
           "steps": []
         },
@@ -750,7 +758,8 @@ export const manualContent={
           "id": "tags",
           "title": "デスク・ライブラリ・タグ",
           "body": [
-            "今読む素材はデスクに置き、後で読むものはライブラリにしまいます。タイトル検索や色付きタグで探せます。タグを削除しても素材は残ります。"
+            "今読む素材はデスクに置き、後で読むものはライブラリにしまいます。タイトル検索や色付きタグで探せます。タグを削除しても素材は残ります。",
+            "ライブラリは1ページ20件です。タイトルや出典の検索、タグの絞り込み、見出しからの並び替え、ページ番号での移動ができます。資料を削除しても保存した原文・意味・メモは残りますが、削除した資料の原文には戻れません。"
           ],
           "steps": [],
           "image": "files"
@@ -834,7 +843,8 @@ export const manualContent={
           "id": "organize",
           "title": "文脈を編集する",
           "body": [
-            "該当する記録のメモや説明を編集します。必要な文脈だけを削除し、表示された取り消しで戻せます。同じ表現の別の文脈は独立しています。"
+            "該当する記録のメモや説明を編集します。必要な文脈だけを削除し、表示された取り消しで戻せます。同じ表現の別の文脈は独立しています。",
+            "保存画面をスクロールすると、下部の丸いページ操作から直接移動できます。表現と各表現の文脈は別々にページ分けされます。表現を左にスワイプし、ごみ箱を押すと、その表現と全ての例文・意味・メモを削除します。小さな通知の「取り消し」でまとめて復元できます。元の資料は残ります。1文だけ削除した場合、他の例文は残ります。"
           ],
           "steps": []
         },
@@ -942,7 +952,9 @@ export const manualContent={
           "id": "dictionary",
           "title": "辞書の語義",
           "body": [
-            "現在の辞書結果への参照を残せます。参照であり、この文の意味を確定するものではありません。辞書項目がなくても、自分の説明を保存できます。"
+            "現在の辞書結果への参照を残せます。参照であり、この文の意味を確定するものではありません。辞書項目がなくても、自分の説明を保存できます。",
+            "最初はローカル辞書を表示します。「オンライン」を押した時だけ選択したサービスを照会し、結果が届いても表示元を自動変更しません。「設定 → オンライン辞書」で英中（Cambridge作者の非公式公開API）または英英（FreeDictionaryAPI.com / Wiktionary）を選べます。ローカル結果があれば「ローカル」で戻れます。",
+            "発音ボタンは読み込み中と再生中を表示します。もう一度押すとすぐ最初から再生します。"
           ],
           "steps": []
         },
@@ -1093,7 +1105,8 @@ export const manualContent={
           "id": "tags",
           "title": "Lesetisch, Bibliothek und Tags",
           "body": [
-            "Lass aktuelle Lektüre auf dem Lesetisch und lege andere Materialien in der Bibliothek ab. Suche nach Titel oder farbigen Tags. Das Entfernen eines Tags löscht die Materialien nicht."
+            "Lass aktuelle Lektüre auf dem Lesetisch und lege andere Materialien in der Bibliothek ab. Suche nach Titel oder farbigen Tags. Das Entfernen eines Tags löscht die Materialien nicht.",
+            "Die Bibliothek zeigt 20 Einträge pro Seite. Suche nach Titel oder Quelle, filtere nach Tags und ändere die Sortierung neben der Überschrift. Über die Seitenzahl springst du direkt. Beim Löschen von Material bleiben gespeicherte Sätze, Bedeutungen und Notizen erhalten; die gelöschte Quelle kann nicht mehr geöffnet werden."
           ],
           "steps": [],
           "image": "files"
@@ -1177,7 +1190,8 @@ export const manualContent={
           "id": "organize",
           "title": "Einen Kontext bearbeiten",
           "body": [
-            "Bearbeite Notiz oder Erklärung des betreffenden Eintrags. Entferne bei Bedarf nur diesen Kontext und nutze, falls angeboten, Rückgängig. Andere Kontexte desselben Ausdrucks bleiben getrennt."
+            "Bearbeite Notiz oder Erklärung des betreffenden Eintrags. Entferne bei Bedarf nur diesen Kontext und nutze, falls angeboten, Rückgängig. Andere Kontexte desselben Ausdrucks bleiben getrennt.",
+            "Nach dem Scrollen erscheint unten eine abgerundete schwebende Seitenauswahl. Ausdrücke und ihre Kontexte haben getrennte Seiten. Wische einen Ausdruck nach links und tippe auf den Papierkorb, um ihn samt allen Sätzen, Bedeutungen und Notizen zu entfernen. Rückgängig in der kleinen schwebenden Mitteilung stellt alles zusammen wieder her. Das Originalmaterial bleibt erhalten. Das Entfernen eines einzelnen Satzes lässt die anderen bestehen."
           ],
           "steps": []
         },
@@ -1285,7 +1299,9 @@ export const manualContent={
           "id": "dictionary",
           "title": "Wörterbuchbedeutungen",
           "body": [
-            "Die Suche kann eine Referenz zum aktuellen Wörterbuchergebnis behalten. Diese bestätigt keine Satzbedeutung. Auch ohne Eintrag kannst du deine eigene Erklärung speichern."
+            "Die Suche kann eine Referenz zum aktuellen Wörterbuchergebnis behalten. Diese bestätigt keine Satzbedeutung. Auch ohne Eintrag kannst du deine eigene Erklärung speichern.",
+            "Die Suche beginnt lokal. Online fragt erst nach Antippen den gewählten Dienst ab; eintreffende Ergebnisse ändern die Auswahl nicht. Einstellungen → Online-Wörterbuch bietet Englisch–Chinesisch (inoffizielle öffentliche Cambridge-API) oder Englisch–Englisch (FreeDictionaryAPI.com / Wiktionary). Mit Lokal kehrst du zu einem verfügbaren lokalen Ergebnis zurück.",
+            "Die Aussprache zeigt Laden und animierte Schallwellen während der Wiedergabe. Erneutes Antippen startet sofort von vorn."
           ],
           "steps": []
         },

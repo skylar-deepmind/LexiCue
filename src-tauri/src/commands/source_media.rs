@@ -1466,6 +1466,13 @@ pub fn portable_saved_value(
     conn: &Connection,
     mut value: serde_json::Value,
 ) -> Result<serde_json::Value, String> {
+    if value.get("kind").and_then(|v| v.as_str()) == Some("remove_group") {
+        if let Some(records) = value.get_mut("records").and_then(|v| v.as_array_mut()) {
+            for record in records {
+                *record = portable_saved_value(conn, record.take())?;
+            }
+        }
+    }
     if let Some(media) = value
         .pointer_mut("/source/media")
         .and_then(|v| v.as_object_mut())

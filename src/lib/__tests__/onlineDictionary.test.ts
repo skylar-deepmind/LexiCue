@@ -60,3 +60,23 @@ describe('the sequential reading fallback controller', () => {
     expect(limitedTransport).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('explicit online source preference', () => {
+  it('queries only the selected English provider even when complete local content exists', async () => {
+    const cambridge = vi.fn(), free = vi.fn().mockResolvedValue(content('A useful English definition.')), onResult = vi.fn();
+    const result = await runOnlineDictionary({ expression: 'target', context: '', local: content('Local', '本地'), preferred: 'wiktionary', signal: signal(), cambridge, free, onResult });
+    expect(cambridge).not.toHaveBeenCalled(); expect(free).toHaveBeenCalledOnce();
+    expect(result.attempted).toEqual(['wiktionary']); expect(onResult).toHaveBeenCalledWith('wiktionary', expect.anything());
+  });
+  it('does not silently query another provider when the selected bilingual source is missing', async () => {
+    const cambridge = vi.fn().mockResolvedValue(missing), free = vi.fn();
+    const result = await runOnlineDictionary({ expression: 'target', context: '', local: null, preferred: 'cambridge', signal: signal(), cambridge, free, onResult: vi.fn() });
+    expect(result).toEqual({ attempted: ['cambridge'], issue: 'not_found' }); expect(free).not.toHaveBeenCalled();
+  });
+  it('does not emit a late preferred-provider response after the query closes', async () => {
+    const controller = new AbortController(), onResult = vi.fn();
+    const free = vi.fn().mockImplementation(async () => { controller.abort(); return content('Late result'); });
+    await runOnlineDictionary({ expression: 'target', context: '', local: null, preferred: 'wiktionary', signal: controller.signal, free, onResult });
+    expect(onResult).not.toHaveBeenCalled();
+  });
+});

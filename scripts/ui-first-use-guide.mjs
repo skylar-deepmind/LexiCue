@@ -61,20 +61,20 @@ try{
   eq((await call('export_all')).data,before,'sample saves and notes never change real backup tables');
   await page.getByRole('button',{name:'开始自己的阅读',exact:true}).click();await page.waitForURL(/\/files$/);eq((await state(page)).outcome,'completed','completion is remembered');
   eq(await page.locator('.app-guide').count(),0,'coach cleans up after completion');eq(await page.locator('[data-guide-anchor-active]').count(),0,'anchor accessibility additions are removed');
-  await page.goto(`${url}/settings`);await page.getByRole('link',{name:'实操引导',exact:true}).click();await page.locator('.app-guide[data-stage=import]').waitFor();
-  await page.getByRole('button',{name:'跳过引导',exact:true}).click();eq((await state(page)).outcome,'skipped','skip works from import');
+  await page.goto(`${url}/settings`);const replayIndex=await page.evaluate(()=>history.state.idx);await page.getByRole('link',{name:'实操引导',exact:true}).click();await page.locator('.app-guide[data-stage=import]').waitFor();
+  await page.getByRole('button',{name:'跳过引导',exact:true}).click();await page.waitForURL(/\/settings$/);eq(await page.evaluate(()=>history.state.idx),replayIndex,'directory replay returns to its original history entry');eq((await state(page)).outcome,'skipped','skip works from import');
   await page.goto(`${url}/example`);await page.locator('.app-guide[data-stage=lookup]').waitFor();await page.emulateMedia({reducedMotion:'reduce'});eq(await page.locator('.app-guide__bubble').evaluate(n=>getComputedStyle(n).animationName),'none','reduced motion honored');
   await page.keyboard.press('Escape');await page.waitForURL(/\/files$/);eq((await state(page)).active,false,'Escape skips without trapping focus');
   if(width===1280){
     // Loading failures and late receipts must not trap the user or resurrect a skipped tour.
-    await page.goto(`${url}/settings`);await page.getByRole('link',{name:'实操引导',exact:true}).click();
+    await page.goto(`${url}/settings`);const replayIndex=await page.evaluate(()=>history.state.idx);await page.getByRole('link',{name:'实操引导',exact:true}).click();
     await page.evaluate(()=>window.__uiFailure={command:'begin_example_session',afterCommit:false,remaining:100});
     await page.getByRole('button',{name:'先用体验材料',exact:true}).click();await page.locator('.example-load [role=alert]').waitFor();
     eq(await page.getByRole('button',{name:'跳过引导',exact:true}).count(),1,'one reachable skip on material load failure');
     await page.evaluate(()=>window.__uiFailure=null);await page.getByRole('button',{name:'重试',exact:true}).click();await page.locator('.reading-word').first().waitFor();
     await page.getByRole('button',{name:'Curiosity',exact:true}).click();await page.locator('.app-guide[data-stage=save]').waitFor();
     await page.evaluate(()=>window.__uiDelayExampleSave=true);await page.getByTestId('lookup-save').click();
-    await page.getByRole('button',{name:'跳过引导',exact:true}).click();await page.waitForURL(/\/files$/);await page.waitForTimeout(500);
+    await page.getByRole('button',{name:'跳过引导',exact:true}).click();await page.waitForURL(/\/settings$/);eq(await page.evaluate(()=>history.state.idx),replayIndex,'replayed guide returns to its original settings entry without adding history');await page.waitForTimeout(500);
     eq((await state(page)).outcome,'skipped','late save cannot complete a skipped coach');
     eq((await call('export_all')).data,before,'late example write remains isolated');
     await page.goto(`${url}/example`);await page.locator('.reading-word').first().waitFor();

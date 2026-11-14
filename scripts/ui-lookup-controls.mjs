@@ -1,0 +1,74 @@
+import assert from 'node:assert/strict';
+import {readFile,mkdir,writeFile} from 'node:fs/promises';
+import {collectionFixture} from './ui-collection-fixture.mjs';
+import {lookupControlsFixture} from './ui-lookup-controls-fixture.mjs';
+const {chromium}=await import(process.env.LEXICUE_PLAYWRIGHT_MODULE||'playwright');
+const browser=await chromium.launch({channel:process.env.LEXICUE_UI_BROWSER_CHANNEL||'chrome',headless:true});
+const url=process.env.LEXICUE_UI_URL||'http://127.0.0.1:5317';
+const output=process.env.LEXICUE_LOOKUP_UI_OUTPUT||'/tmp/lexicue-lookup-controls';
+const local=JSON.parse(await readFile(new URL('../src/lib/__tests__/fixtures/wiktionary-local-v2.json',import.meta.url),'utf8'));
+await mkdir(output,{recursive:true});
+const checks=[],errors=[];let page;
+const eq=(a,b,label)=>{assert.deepEqual(a,b,label);checks.push(label);};
+try {
+ for(const theme of ['ocean','midnight'])for(const viewport of [{width:1100,height:800},{width:375,height:812}]){
+  const context=await browser.newContext({viewport,hasTouch:viewport.width===375,isMobile:viewport.width===375});
+  page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));await page.routeWebSocket('**',s=>s.close());
+  await page.addInitScript(collectionFixture,{theme,count:41});await page.addInitScript(lookupControlsFixture,{local});
+  await page.goto(`${url}/files/1`);await page.locator('.reading-word').filter({hasText:/^soliloquy$/}).click();
+  await page.locator('.lookup-stage[data-lookup-state=ready]').waitFor();
+  const sources=page.locator('.lookup-source-switch'),localButton=sources.getByRole('button',{name:'本地',exact:true}),online=sources.getByRole('button',{name:'在线',exact:true});
+  await page.waitForTimeout(350);
+  eq(await page.evaluate(()=>window.__lookupControls.calls.filter(c=>c.command==='lookup_cambridge_expression'||c.command==='lookup_free_dictionary_expression').length),0,'no unsolicited online transport');
+  eq(await localButton.getAttribute('aria-pressed'),'true','local is initially selected');
+  await online.click();await page.locator('.lookup-body[data-online-state=loading]').waitFor();
+  eq(await online.getAttribute('aria-busy'),'true','online loading is explicit');
+  await localButton.click();await page.evaluate(()=>window.__lookupControls.pending.shift()());await page.locator('.lookup-body[data-online-state=ready]').waitFor();
+  eq(await localButton.getAttribute('aria-pressed'),'true','late online reply does not take over local selection');
+  eq(await page.locator('.lookup-body').getAttribute('data-active-dictionary'),'local','late reply retains the actual local content');
+  await online.click();await page.locator('.lookup-body[data-active-dictionary=cambridge] .dictionary-overview').waitFor();
+  await page.locator('.dictionary-more > summary').click();
+  eq(await page.locator('.dictionary-source[data-access-channel=author_public_api]').count(),0,'public adapter metadata is absent from full dictionary content');
+  await page.screenshot({path:`${output}/${theme}-${viewport.width}-sources.png`});
+  // The actual component dispatches restart on every tap, including loading.
+  await page.evaluate(async()=>{const {useSpeechStore:s}=await import('/src/stores/speechStore.ts');window.__speechTaps=[];s.setState({speak:async(text,key,options)=>{window.__speechTaps.push(options);s.setState({key,owner:options.owner,status:'loading',loading:true,error:false});}});});
+  const speech=page.locator('.lookup-heading .speech-button');await speech.click();await speech.click();
+  eq(await page.evaluate(()=>window.__speechTaps.map(v=>v.restart)),[true,true],'repeat taps while loading both request restart');
+  await page.evaluate(async()=>{const {useSpeechStore:s}=await import('/src/stores/speechStore.ts');s.setState({status:'playing',loading:false});});
+  await speech.locator('.speech-playing').waitFor();await speech.click();
+  eq(await speech.getAttribute('aria-pressed'),null,'pronunciation is an action without latched selection');
+  eq(await speech.evaluate(n=>getComputedStyle(n).borderWidth),'0px','pronunciation has no rectangular frame');
+  await page.evaluate(async()=>{const {useSpeechStore:s}=await import('/src/stores/speechStore.ts');s.setState({status:'playing',loading:false});});
+  await page.emulateMedia({reducedMotion:'reduce'});
+  eq(await speech.locator('.speech-playing path').last().evaluate(n=>getComputedStyle(n).animationName),'none','reduced motion suppresses wave animation');
+  await page.keyboard.press('Escape');await page.locator('.context-panel').waitFor({state:'detached'});
+  await page.goto(`${url}/settings?section=lookup`);await page.getByRole('radio',{name:/英英释义/}).check();
+  eq(await page.evaluate(()=>JSON.parse(localStorage.getItem('lexicue-preferences')).state.onlineDictionary),'wiktionary','English-only preference persists');
+  await page.screenshot({path:`${output}/${theme}-${viewport.width}-preferences.png`});
+  // Init fixture keeps the provider written by Settings on this navigation.
+    await page.addInitScript(()=>{const p=JSON.parse(localStorage.getItem('lexicue-preferences'));p.state.onlineDictionary='wiktionary';localStorage.setItem('lexicue-preferences',JSON.stringify(p));});
+  await page.goto(`${url}/files/1`);await page.locator('.reading-word').filter({hasText:/^soliloquy$/}).click();await page.locator('.lookup-stage[data-lookup-state=ready]').waitFor();
+  await online.click();await page.locator('.lookup-body[data-online-state=loading]').waitFor();await page.waitForFunction(()=>window.__lookupControls.pending.length>0);await page.evaluate(()=>window.__lookupControls.pending.shift()());
+  await page.locator('.lookup-body[data-active-dictionary=wiktionary] .dictionary-overview').waitFor();
+  eq(await page.evaluate(()=>window.__lookupControls.calls.filter(c=>c.command==='lookup_cambridge_expression').length),0,'English preference never invokes the bilingual provider');
+  await page.locator('.dictionary-more > summary').click();await page.locator('.dictionary-source a').first().waitFor();
+  eq(await page.locator('.dictionary-source').innerText().then(v=>v.includes('FreeDictionaryAPI.com')),true,'required English-source attribution remains visible');
+  await page.screenshot({path:`${output}/${theme}-${viewport.width}-english.png`});
+  await page.keyboard.press('Escape');await page.locator('.context-panel').waitFor({state:'detached'});
+  await page.reload();await page.locator('.reading-word').filter({hasText:/^soliloquy$/}).waitFor();
+  await page.evaluate(()=>{window.__lookupControls.localMissing=true;window.__lookupControls.missing=true;});
+  await page.locator('.reading-word').filter({hasText:/^soliloquy$/}).click();await page.locator('.lookup-stage[data-lookup-state=ready]').waitFor();
+  eq(await localButton.isDisabled(),true,'missing local source is visibly unavailable');await online.click();await page.locator('.lookup-body[data-online-state=loading]').waitFor();await page.waitForFunction(()=>window.__lookupControls.pending.length>0);await page.evaluate(()=>window.__lookupControls.pending.shift()());
+  await page.locator('.lookup-body[data-online-state=failed]').waitFor();eq(await online.getAttribute('data-state'),'missing','neither-source state reports missing instead of inventing content');
+  eq(await page.locator('.lookup-body .longman-notice').count(),1,'missing online result has one concise status instead of duplicate adapter notices');
+  eq(await page.getByTestId('lookup-save').isEnabled(),true,'no dictionary result still permits preserving the sentence');
+  await page.evaluate(()=>{window.__lookupControls.missing=false;window.__lookupControls.failed=true;});
+  await online.click();await page.locator('.lookup-body[data-online-state=loading]').waitFor();await page.waitForFunction(()=>window.__lookupControls.pending.length>0);await page.evaluate(()=>window.__lookupControls.pending.shift()());
+  await page.locator('.lookup-body[data-online-state=failed]').waitFor();eq(await online.getAttribute('data-state'),'error','connection failure has an explicit retry state');
+  await page.evaluate(()=>window.__lookupControls.failed=false);await online.click();await page.locator('.lookup-body[data-online-state=loading]').waitFor();await page.waitForFunction(()=>window.__lookupControls.pending.length>0);await page.evaluate(()=>window.__lookupControls.pending.shift()());
+  await page.locator('.lookup-body[data-online-state=ready]').waitFor();eq(await localButton.isDisabled(),true,'online-only content keeps missing local unavailable');
+  eq(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'lookup fits viewport');
+  await context.close();
+ }
+ eq(errors,[],'no application errors');await writeFile(`${output}/report.json`,JSON.stringify({checks,scope:'Actual React UI in Chromium; captured local result, controlled online/playback responses. No physical-device acceptance.'},null,2));console.log(`Lookup controls: ${checks.length} checks passed`);
+}catch(error){await page?.screenshot({path:`${output}/failure.png`}).catch(()=>{});throw error;}finally{await browser.close();}

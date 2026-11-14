@@ -1,3 +1,4 @@
+import { usePageReturn } from '../lib/pageNavigation';
 import { LoadingSkeleton } from '../components/LoadingFeedback';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -10,7 +11,7 @@ import { useImportStore } from '../stores/importStore';
 import { backNavigation } from '../lib/backNavigation';
 interface Example {session_id:string;data:ReadingMaterial}
 export default function ExamplePage(){
-  const {t}=useTranslation();const navigate=useNavigate();
+  const {t}=useTranslation();const navigate=useNavigate();const {back,origin}=usePageReturn();
   const [id]=useState(()=>crypto.randomUUID());const [example,setExample]=useState<Example|null>(null);const [error,setError]=useState(false);const [retry,setRetry]=useState(0);const generation=useRef(0);
   const importOpen=useImportStore(state=>state.open);
   useEffect(()=>{
@@ -22,9 +23,9 @@ export default function ExamplePage(){
     const disposeCurrent=()=>{if(generation.current===current)leave();};
     return()=>{live=false;window.removeEventListener('pagehide',leave);queueMicrotask(disposeCurrent);};
   },[id,retry]);
-  useEffect(()=>{if(importOpen){if(useOnboardingStore.getState().active)useOnboardingStore.getState().finish('skipped');navigate('/files',{replace:true});}},[importOpen,navigate]);
-  useEffect(()=>backNavigation.setPage(()=>{if(useOnboardingStore.getState().active)useOnboardingStore.getState().finish('skipped');navigate('/files',{replace:true});return true;},1),[navigate]);
-  const skip=()=>{useOnboardingStore.getState().finish('skipped');navigate('/files',{replace:true});};
+  useEffect(()=>{if(importOpen){if(useOnboardingStore.getState().active)useOnboardingStore.getState().finish('skipped');if(origin)back();else navigate('/files',{replace:true});}},[importOpen,navigate,origin,back]);
+  useEffect(()=>backNavigation.setPage(()=>{if(useOnboardingStore.getState().active)useOnboardingStore.getState().finish('skipped');if(origin)back();else navigate('/files',{replace:true});return true;},1),[navigate,origin,back]);
+  const skip=()=>{useOnboardingStore.getState().finish('skipped');if(origin)back();else navigate('/files',{replace:true});};
   if(error)return <section className="workspace-paper example-load"><h1>{t('onboarding.sample')}</h1><p role="alert">{t('onboarding.loadFailed')}</p><button className="ui-button" onClick={()=>setRetry(retry+1)}>{t('common.retry')}</button><button className="ui-button" onClick={skip}>{t('onboarding.skip')}</button></section>;
   if(!example)return <section className="workspace-paper example-load"><h1>{t('onboarding.sample')}</h1><LoadingSkeleton kind="text" label={t('common.loading')}/><button className="ui-button" onClick={skip}>{t('onboarding.skip')}</button></section>;
   return <ReadingPage data={example.data} scope={{kind:'example',sessionId:id}}/>;

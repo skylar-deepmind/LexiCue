@@ -52,7 +52,9 @@
   .mobile-workspace-header { display: flex; flex: none; height: 52px; align-items: center; justify-content: space-between; padding: 0 24px; color: var(--text-muted); font-size: 15px; font-weight: 500; }
   .mobile-workspace-header > div { display: flex; align-items:center; gap: 8px; }
   .mobile-workspace-header :is(button,a) { display: grid; place-items: center; flex:none; width: 44px; min-width:44px; height: 44px; min-height:44px; border: 0; border-radius: 8px; background: transparent; color: var(--text-body); }
-  .mobile-workspace-header :is(button,a):hover { background: var(--interactive-hover); }
+  @media (hover:hover) and (pointer:fine) {
+    .mobile-workspace-header :is(button,a):hover { background: var(--interactive-hover); }
+  }
   .mobile-workspace-header :is(button,a):active { background: var(--interactive-pressed); }
   .mobile-workspace-header a[aria-current='page'] { color: var(--accent-700); background: var(--accent-50); }
   .b-shell .b-mobile-nav { order: -1; display: flex; gap: 8px; margin: 8px 24px 0; padding: 0; height: 48px; min-height: 48px; border: 0; border-radius: 12px; background: var(--app-bg); }
@@ -318,3 +320,6 @@
 }
 
 /* Phone composition follows the approved mobile frames, rather than the desktop dock. */
+
+.b-shell .mobile-settings-header button:is(:hover,:active), .mobile-workspace-header .page-back:is(:hover,:active) { background:transparent; }
+.b-shell .mobile-settings-header button:active { opacity:.65; }

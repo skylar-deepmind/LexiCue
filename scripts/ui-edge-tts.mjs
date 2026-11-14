@@ -39,12 +39,12 @@ try{
   await choose('speech-accent','英音');check((await page.locator('#speech-voice').innerText()).includes('Ryan'),`${theme}: UK memory`);await choose('speech-accent','美音');
   for(const state of ['default','hover','focus','selected','disabled']){
    if(state==='hover')await preview.hover();if(state==='focus'){await page.keyboard.press('Tab');await preview.focus();check(await preview.evaluate(n=>getComputedStyle(n).boxShadow.includes('inset')),`${theme}: keyboard focus baseline`);}
-   if(state==='selected')await preview.evaluate(n=>n.setAttribute('aria-pressed','true'));
-   if(state==='disabled')await preview.evaluate(n=>{n.setAttribute('aria-pressed','false');n.disabled=true;});
+   if(state==='selected')await preview.evaluate(n=>n.setAttribute('data-speech-state','playing'));
+   if(state==='disabled')await preview.evaluate(n=>{n.setAttribute('data-speech-state','idle');n.disabled=true;});
    check(await contrast(preview)>=4.5,`${theme}: ${state} readable contrast`);
    if(state==='disabled')await preview.evaluate(n=>{n.disabled=false;});
   }
-  await preview.evaluate(n=>n.setAttribute('aria-pressed','false'));
+  await preview.evaluate(n=>n.setAttribute('data-speech-state','idle'));
   await preview.click();await waitPlaying(page);let state=await speech(page);check(['edge-network','edge-cache'].includes(state.source),`${theme}: preview uses Edge`);observations.push({theme,preview:state});
   await page.screenshot({path:`${output}/${theme}-settings-playing.png`});await preview.click();check((await speech(page)).status==='idle',`${theme}: repeat click stops`);
   // Replay with online requests disabled proves the exact preference-key cache path.

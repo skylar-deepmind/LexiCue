@@ -199,7 +199,7 @@ try{
   await page.evaluate(()=>{window.__translationHold=true;window.__releaseTranslation=undefined;});await translationToggle().click();await page.locator('.translation-dialog').getByRole('button',{name:'开始翻译',exact:true}).click();await page.waitForFunction(()=>typeof window.__releaseTranslation==='function');
   await contrast(page.locator('.reading-translation-status span'),`${theme} translation status`);await page.screenshot({path:`${output}/${theme}-translating.png`});
   const fillsBeforeCancel=await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='fill_reading_translations').length);
-  await page.locator('.reading-breadcrumb a').click();await page.locator('.materials-paper').waitFor();await page.evaluate(()=>{window.__translationHold=false;window.__releaseTranslation();});
+  await page.locator('.reading-breadcrumb .page-back').click();await page.locator('.materials-paper').waitFor();await page.evaluate(()=>{window.__translationHold=false;window.__releaseTranslation();});
   await page.waitForTimeout(80);eq(await page.locator('.reading-page:not(.page-ghost *),.lc-import-modal').count(),0,'late translation cannot reopen a departed material');
   ok(await page.evaluate(()=>window.__uiCalls.some(c=>c.command==='cancel_import_translation')),'navigation cancels full translation');
   eq(await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='fill_reading_translations').length),fillsBeforeCancel,'cancelled late translation cannot write back');

@@ -22,15 +22,31 @@ try {
   await page.locator('.reading-word').filter({hasText:/^in$/}).first().click();
   await page.locator('[data-testid="lookup-records-tab"]').waitFor();
   await page.waitForFunction(()=>document.querySelector('.lookup-record-count')?.textContent==='2');
-  equal(await page.locator('.lookup-fixed-header').evaluate(n=>Math.round(n.getBoundingClientRect().height)),104,`${theme}/${phone}: 104px fixed header`);
+  const centered = async label => {
+    const geometry=await page.locator('.context-panel').evaluate(node=>{const r=node.getBoundingClientRect();return {center:(r.top+r.bottom)/2,top:r.top,bottom:r.bottom,viewport:innerHeight,maxHeight:getComputedStyle(node).maxHeight};});
+    equal(Math.abs(geometry.center-geometry.viewport/2)<1,true,`${theme}: ${label} stays on the window centerline`);
+    equal(geometry.top>=23 && geometry.bottom<=geometry.viewport-23,true,`${theme}: ${label} retains 24px vertical safety margins (${JSON.stringify(geometry)})`);
+  };
+  if(!phone)await centered('meaning card');
+  equal(await page.locator('.lookup-fixed-header').evaluate(n=>Math.round(n.getBoundingClientRect().height)),148,`${theme}/${phone}: 148px header with source controls`);
   equal(await page.locator('.context-sheet-expand').isVisible(),phone,`${theme}/${phone}: expand is shown only where it changes sheet size`);
-  equal(await page.locator('.lookup-source-tag').textContent(),'本地',`${theme}/${phone}: one compact source tag`);
+  equal(await page.locator('.lookup-source-switch button[aria-pressed="true"] > span').textContent(),'本地',`${theme}/${phone}: explicit current source button`);
   equal(await page.locator('.lookup-context').count(),0,`${theme}/${phone}: no duplicate current-context section`);
   equal(await page.locator('.reading-recall-ink').first().evaluate(n=>getComputedStyle(n,'::before').content),'none',`${theme}/${phone}: saved marker has no expanded paint box`);
   equal(await page.locator('.reading-recall-ink').first().evaluate(n=>getComputedStyle(n).textDecorationThickness),'2px',`${theme}/${phone}: saved underline is 2px`);
   await page.locator('[data-testid="lookup-records-tab"]').click();
   const panel=page.locator('.context-panel .soft-refresh-current');
   await panel.locator('.saved-sentence').first().waitFor();
+  if(!phone){
+    await centered('records card');
+    for(const size of [{width:1100,height:750},{width:1100,height:600},{width:900,height:520}]){
+      await page.setViewportSize(size);
+      await centered(`records card at ${size.width}x${size.height}`);
+      const box=await page.locator('.context-panel').boundingBox();
+      equal(box.height<=size.height-47,true,`${theme}: long content is constrained to the usable height`);
+    }
+    await page.setViewportSize(viewport);await centered('resized-back records card');
+  }
   equal(await panel.locator('.saved-sentence-actions').count(),1,`${theme}/${phone}: only one toolbar`);
   equal(await panel.locator('.saved-sentence-actions button').count(),5,`${theme}/${phone}: five icon actions`);
   equal(await panel.locator('.saved-sentence-actions button').evaluateAll(nodes=>nodes.every(n=>{const r=n.getBoundingClientRect();return r.width===48&&r.height===48;})),true,`${theme}/${phone}: 48px action targets`);

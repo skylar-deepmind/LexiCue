@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import VisitLink from './VisitLink';
 import { useTranslation } from 'react-i18next';
 import { useFileStore } from '../stores/fileStore';
 
@@ -34,5 +34,5 @@ export default function BackupSettings() {
             setBusy(false);
         }
     };
-    return <><p>{t('fileStore.backupScope')}</p><div className="settings-options"><button className="ui-button settings-quiet-action" disabled={busy} onClick={() => void backup()}>{t('history.export')}</button><button ref={restoreButton} className="ui-button settings-quiet-action" disabled={busy} onClick={() => void backup(true)}>{t('history.restore')}</button><Link className="ui-button" to="/legacy">{t('materials.history')}</Link></div></>;
+    return <><p>{t('fileStore.backupScope')}</p><div className="settings-options"><button className="ui-button settings-quiet-action" disabled={busy} onClick={() => void backup()}>{t('history.export')}</button><button ref={restoreButton} className="ui-button settings-quiet-action" disabled={busy} onClick={() => void backup(true)}>{t('history.restore')}</button><VisitLink className="ui-button" to="/legacy">{t('materials.history')}</VisitLink></div></>;
 }

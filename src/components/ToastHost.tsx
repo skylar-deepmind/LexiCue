@@ -1,50 +1,33 @@
 import { Copy, X, CheckCircle2, AlertCircle, Info } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { useFeedbackStore } from '../stores/feedbackStore';
+import { useFeedbackStore, type FeedbackMessage } from '../stores/feedbackStore';
+import './notifications.css';
 
-const STYLE_MAP = {
-  success: { container: 'border-green-200 bg-green-50 text-green-800', icon: CheckCircle2, iconColor: 'text-green-600' },
-  error: { container: 'border-red-200 bg-red-50 text-red-800', icon: AlertCircle, iconColor: 'text-red-600' },
-  info: { container: 'border-gray-200 bg-white text-gray-800', icon: Info, iconColor: 'text-gray-400' },
-};
-
-export default function ToastHost() {
+function Notice({ item }: { item: FeedbackMessage }) {
   const { t } = useTranslation();
-  const { messages, dismiss } = useFeedbackStore();
-
-  return (
-    <div className="pointer-events-none fixed right-4 top-4 z-[100] flex w-[calc(100vw-2rem)] flex-col gap-2 sm:w-80">
-      {messages.map((item) => {
-        const style = STYLE_MAP[item.type];
-        const Icon = style.icon;
-        return (
-          <div
-            key={item.id}
-            role="status"
-            className={`pointer-events-auto flex items-start gap-2.5 rounded-lg border px-3 py-2.5 text-sm shadow-lg ${style.container}`}
-          >
-            <Icon size={17} className={`mt-0.5 shrink-0 ${style.iconColor}`} />
-            <div className="flex-1 break-words">{item.message}{item.action && <button type="button" className="ui-button toast-action" onClick={() => { item.action?.onClick(); dismiss(item.id); }}>{item.action.label}</button>}</div>
-            {item.type === 'error' && (
-              <button
-                onClick={() => navigator.clipboard.writeText(item.message)}
-                aria-label={t('toast.copyErrorAria')}
-                title={t('toast.copyErrorAria')}
-                className="shrink-0 cursor-pointer rounded p-0.5 opacity-60 hover:bg-black/5 hover:opacity-100"
-              >
-                <Copy size={15} />
-              </button>
-            )}
-            <button
-              onClick={() => dismiss(item.id)}
-              aria-label={t('toast.closeAria')}
-              className="shrink-0 cursor-pointer rounded p-0.5 opacity-60 hover:bg-black/5 hover:opacity-100"
-            >
-              <X size={15} />
-            </button>
-          </div>
-        );
-      })}
-    </div>
-  );
+  const [busy, setBusy] = useState(false);
+  const busyRef=useRef(false);
+  const action = useRef<HTMLButtonElement>(null);
+  const Icon = item.type === 'error' ? AlertCircle : item.type === 'success' ? CheckCircle2 : Info;
+  const store = useFeedbackStore.getState;
+  useEffect(() => { if (item.action?.focus) action.current?.focus({preventScroll:true}); }, [item.action]);
+  return <div className="toast-card" data-type={item.type} role="status"
+    onMouseEnter={() => store().pause(item.id)} onMouseLeave={() => store().resume(item.id)}
+    onFocusCapture={() => store().pause(item.id)} onBlurCapture={event => { if(!busyRef.current&&!event.currentTarget.contains(event.relatedTarget as Node))store().resume(item.id); }}>
+    <Icon size={18} aria-hidden="true"/><span className="toast-message">{item.message}</span>
+    {item.action && <button type="button" ref={action} className="ui-button toast-action" aria-label={item.action.ariaLabel} disabled={busy} onClick={async () => {
+      if(busyRef.current)return;busyRef.current=true;store().pause(item.id);setBusy(true);
+      try { if(await item.action!.onClick() !== false)store().dismiss(item.id); }
+      catch { store().show(t('shell.saveFailed'),'error'); }
+      finally { busyRef.current=false;setBusy(false);requestAnimationFrame(()=>{if(item.action?.focus)action.current?.focus({preventScroll:true});else store().resume(item.id);}); }
+    }}>{item.action.label}</button>}
+    {item.type === 'error' && <button type="button" className="toast-icon" aria-label={t('toast.copyErrorAria')} onClick={() => { void navigator.clipboard.writeText(item.message).catch(()=>{}); }}><Copy size={16} aria-hidden="true"/></button>}
+    <button type="button" className="toast-icon" disabled={busy} aria-label={t('toast.closeAria')} onClick={() => store().dismiss(item.id)}><X size={16} aria-hidden="true"/></button>
+  </div>;
+}
+export default function ToastHost() {
+  const messages = useFeedbackStore(state => state.messages);
+  return createPortal(<div className="notification-host" data-notification-host="">{messages.map(item => <Notice key={item.id} item={item}/>)}</div>,document.body);
 }

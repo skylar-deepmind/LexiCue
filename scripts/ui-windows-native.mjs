@@ -199,7 +199,7 @@ try{
    await button('保存修改');await absent('#saved-explanation');eq(await text('.saved-detail-meaning'),`Windows ${mode} 个人解释：好奇心`,`${mode}: actual personal edit persisted`);await close();
    const edited=(await call('list_saved_records',{query:`Windows ${mode} 个人解释`,limit:200,offset:0}))[0];ok(edited&&edited.explanation_source==='personal',`${mode}: personal edit has correct provenance`);
    await fill('.saved-search input',`Windows ${mode} 个人解释`);await wait(()=>count('.saved-record-row').then(n=>n===1),'unique personal result');
-   await click('.saved-row-actions button');await button('移除');await absent('.saved-record-row');await button('撤销','.saved-undo button');await exists('.saved-record-row');eq(await text('.saved-record-meaning'),edited.explanation,`${mode}: remove/undo restores exact edited snapshot`);
+   await click('.saved-row-actions button');await button('移除');await absent('.saved-record-row');await button('撤销','.toast-card:has(.toast-action) button');await exists('.saved-record-row');eq(await text('.saved-record-meaning'),edited.explanation,`${mode}: remove/undo restores exact edited snapshot`);
    await click('.saved-record-open');await button('返回原文');await ready();eq(await exec(()=>Number(location.pathname.split('/').at(-1))),source.file_id,`${mode}: return opens actual source`);
    await go('/files');await exists(`.material-card[data-material="${source.file_id}"]`);await click(`.material-card[data-material="${source.file_id}"] .material-row-menu > button`);
    await dialogClick(()=>button('删除材料'),{action:'button',name:'^删除$'});await wait(async()=>!(await call('list_materials')).some(f=>f.id===source.file_id),'source deletion completes',60000);

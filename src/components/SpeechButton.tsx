@@ -1,7 +1,7 @@
 import { useContext, useEffect, useMemo, type ReactNode } from 'react';
 import { SpeechOwnerContext } from './speechOwner';
 import type { MediaTarget } from '../lib/sourceMedia';
-import { LoaderCircle, RotateCcw, Square, Volume2 } from 'lucide-react';
+import { LoaderCircle, RotateCcw, Volume2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { SpeechKind } from '../lib/speechPreferences';
 import { useSpeechStore } from '../stores/speechStore';
@@ -19,15 +19,15 @@ export default function SpeechButton({ text, speechKey, kind, label, displayLabe
   const active = speech.owner === owner && speech.key === speechKey && (speech.status === 'loading' || speech.status === 'playing');
   const loading = active && speech.status === 'loading';
   const failed = speech.error && speech.errorKey === speechKey;
-  const action = loading ? t('speech.cancelLoading') : active ? t('speech.stop') : failed ? t('speech.retry') : label;
+  const action = active ? t('speech.replay') : failed ? t('speech.retry') : label;
   useEffect(() => () => {
     useSpeechStore.getState().stopOwned(owner);
   }, [owner]);
   return <button type="button" className={`ui-button ${showLabel ? '' : 'ui-button--icon'} speech-button ${className}`}
     disabled={disabled || language !== 'en' || !text.trim()} aria-label={action} title={action}
-    aria-pressed={active} aria-busy={loading} data-speech-key={speechKey} data-speech-state={active ? speech.status : failed ? 'error' : 'idle'}
-    onClick={event => { event.stopPropagation(); if (active) speech.stopOwned(owner); else void speech.speak(text, speechKey, { kind, media, owner, ownerScope }); }}>
-    {loading ? media ? <InlineProgress label={t('sourceAudio.preparing')}/> : <LoaderCircle className="speech-spinner" size={18} aria-hidden="true"/> : active ? <Square size={18} aria-hidden="true"/> : failed ? <RotateCcw size={18} aria-hidden="true"/> : idleIcon ?? <Volume2 size={18} aria-hidden="true"/>}
+    aria-busy={loading} data-speech-key={speechKey} data-speech-state={active ? speech.status : failed ? 'error' : 'idle'}
+    onClick={event => { event.stopPropagation(); void speech.speak(text, speechKey, { kind, media, owner, ownerScope, restart: true }); }}>
+    {loading ? media ? <InlineProgress label={t('sourceAudio.preparing')}/> : <LoaderCircle className="speech-spinner" size={18} aria-hidden="true"/> : active ? <Volume2 className="speech-playing" size={20} aria-hidden="true"/> : failed ? <RotateCcw size={18} aria-hidden="true"/> : idleIcon ?? <Volume2 size={18} aria-hidden="true"/>}
     {showLabel && <span>{displayLabel ?? action}</span>}
   </button>;
 }

@@ -52,28 +52,72 @@ try {
       assert.equal(await page.locator('html').getAttribute('data-theme'),theme);
       const groups=page.locator('.settings-groups > section');
       assert.deepEqual(await groups.locator('h2').allTextContents(),['偏好','资料与设备','工具','应用']);
-      assert.deepEqual(await groups.locator('.settings-row-label').allTextContents(),['界面语言','英语朗读','实操引导','设备同步','备份与旧记录','离线词典','YouTube 字幕','软件更新']);
+      assert.deepEqual(await groups.locator('.settings-row-label').allTextContents(),['界面语言','英语朗读','在线词典','实操引导','设备同步','备份与旧记录','离线词典','YouTube 字幕','软件更新']);
       const first=await groups.nth(0).boundingBox(), second=await groups.nth(1).boundingBox();
       assert.equal(first.y===second.y,!phone);
       assert.equal(await page.locator('.theme-choice').count(),5);
       assert.ok(await groups.locator('.settings-row').evaluateAll(rows=>rows.every(r=>r.clientHeight>=44 && r.scrollWidth<=r.clientWidth+1)));
+      const linkDrag = await page.locator('[data-entry=speech] .settings-row-icon').evaluate(node => {
+        const drag = new DragEvent('dragstart', {bubbles:true, cancelable:true});
+        node.dispatchEvent(drag);
+        const link = node.closest('a');
+        const unrelated = new DragEvent('dragstart', {bubbles:true, cancelable:true});
+        document.querySelector('.settings-heading h1').dispatchEvent(unrelated);
+        return {cancelled:drag.defaultPrevented, unrelatedCancelled:unrelated.defaultPrevented,
+          dragStyle:getComputedStyle(link).webkitUserDrag, callout:getComputedStyle(link).webkitTouchCallout,
+          touch:getComputedStyle(link).touchAction};
+      });
+      assert.equal(linkDrag.cancelled, true, 'dragging a nested link icon cannot lift the URL');
+      assert.equal(linkDrag.unrelatedCancelled, false, 'non-link text drags are not intercepted');
+      assert.equal(linkDrag.dragStyle, 'none');
+      assert.notEqual(linkDrag.touch, 'none', 'links do not block native panning');
+      // Reproduce a WebKit synthetic click after the pointer has moved/cancelled.
+      const cancelledClick = await page.locator('[data-entry=speech]').evaluate(link => {
+        link.dispatchEvent(new PointerEvent('pointerdown', {bubbles:true, pointerId:7, isPrimary:true, button:0, clientX:100, clientY:350}));
+        link.dispatchEvent(new PointerEvent('pointermove', {bubbles:true, pointerId:7, clientX:100, clientY:220}));
+        const click = new MouseEvent('click', {bubbles:true, cancelable:true, detail:1});
+        link.dispatchEvent(click);
+        return click.defaultPrevented;
+      });
+      assert.equal(cancelledClick, true, 'a drag cannot activate the link on release');
+      assert.equal(new URL(page.url()).search, '', 'drag release leaves the directory open');
+      const heldClick = await page.locator('[data-entry=speech]').evaluate(async link => {
+        link.dispatchEvent(new PointerEvent('pointerdown', {bubbles:true, pointerId:8, isPrimary:true, button:0}));
+        await new Promise(done=>setTimeout(done,550));
+        const click = new MouseEvent('click', {bubbles:true, cancelable:true, detail:1});
+        link.dispatchEvent(click);
+        return click.defaultPrevented;
+      });
+      assert.equal(heldClick, true, 'holding a link is not a navigation tap');
+      await page.locator('[data-entry=speech]').focus();
+      await page.keyboard.press('Enter');
+      await page.locator('.speech-settings').waitFor();
+      await page.getByRole('button',{name:'返回',exact:true}).click();
+      assert.equal(new URL(page.url()).search, '', 'keyboard activation after a cancelled gesture still works');
       if (phone) {
+        // This directory fits an 812px screen; use a shorter phone to exercise panning.
+        await page.setViewportSize({width:375,height:667});
         const cdp = await page.context().newCDPSession(page);
-        const row = page.locator('[data-entry=dictionary]');
+        const row = page.locator('[data-entry=speech]');
         await row.scrollIntoViewIfNeeded();
         const rect = await row.boundingBox();
         const x = rect.x + 60, y = rect.y + rect.height / 2;
         const style = () => row.evaluate(node => ({background:getComputedStyle(node).backgroundColor, outline:getComputedStyle(node).outlineStyle}));
         const before = await style();
+        const scrollBefore = await page.locator('.settings-scroll').evaluate(node=>node.scrollTop);
         await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y}]});
+        await page.waitForTimeout(700); // Hold past the native long-press threshold before panning.
         // Native touch scrolling should cancel the tap, without synthesized sticky hover.
-        for(let i=1;i<=8;i++) await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x,y:Math.min(780,y+15*i)}]});
+        for(let i=1;i<=8;i++) await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x,y:y-15*i}]});
         await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
         await page.evaluate(()=>new Promise(done=>requestAnimationFrame(()=>requestAnimationFrame(done))));
         assert.equal(new URL(page.url()).search,'','scroll does not open a settings entry');
+        const scrollAfter = await page.locator('.settings-scroll').evaluate(node=>({top:node.scrollTop, height:node.clientHeight, content:node.scrollHeight}));
+        assert.ok(scrollAfter.top>scrollBefore,`long press followed by vertical movement still scrolls: ${JSON.stringify({scrollBefore,...scrollAfter})}`);
         assert.equal((await style()).background,before.background,'touch scroll leaves no highlighted row');
         assert.equal(await row.evaluate(node=>getComputedStyle(node).webkitTapHighlightColor),'rgba(0, 0, 0, 0)');
         await cdp.detach();
+        await page.setViewportSize({width:375,height:812});
         await page.locator('.settings-scroll').evaluate(node=>node.scrollTop=0);
       } else {
         const row=page.locator('[data-entry=language]');

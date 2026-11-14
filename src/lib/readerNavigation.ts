@@ -4,7 +4,7 @@ import type { SavedRecord } from './savedRecords';
 
 export interface SavedNoteDraft { text: string; revision: string; operationId?: string; editing?: boolean }
 export interface SavedViewSnapshot {
-  query: string; loadedGroups: number; expandedGroupId: string | null;
+  query: string; pageNumber?: number; loadedGroups: number; expandedGroupId: string | null;
   loadedContexts: Record<string, number>; scrollTop: number;
   anchor?: { recordId: string; offset: number }; focusRecordId?: string;
 }

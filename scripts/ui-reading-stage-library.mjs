@@ -97,7 +97,7 @@ try {
   await page.evaluate(async()=>{const {useSpeechStore:s}=await window.__uiStoreModule('speechStore');s.setState({status:'playing',key:'stage-playback-fixture',playbackMode:'single'});window.__readerScrollWithQuery=document.querySelector('.reader-scroll').scrollTop;});
   await page.getByRole('button',{name:'留在桌面',exact:true}).focus();await page.keyboard.press('Enter');
   check(JSON.stringify(await ids())===JSON.stringify([d.id,c.id,b.id]),'explicit keep prepends and evicts the deterministic oldest member');
-  check((await page.locator('.desk-feedback').innerText()).includes(a.name),'replacement feedback names the displaced material');
+  check((await page.locator('.notification-host').innerText()).includes(a.name),'replacement feedback names the displaced material');
   check(await page.evaluate(async()=>{const {useSpeechStore:s}=await window.__uiStoreModule('speechStore');return window.__readerNode===document.querySelector('.reading-paper')&&window.__lookupNode===document.querySelector('.context-panel')&&Math.abs(window.__readerScrollWithQuery-document.querySelector('.reader-scroll').scrollTop)<1&&s.getState().status==='playing';}),'keep preserves reader node, query node, exact scroll and playback state');
   await shot('reader-kept-undo');
   await page.getByRole('button',{name:'撤销桌面整理',exact:true}).focus();await page.keyboard.press('Enter');

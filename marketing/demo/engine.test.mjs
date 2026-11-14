@@ -101,3 +101,15 @@ test('unknown imported words and arbitrary passages never receive a universal de
  }
  const first=demoDictionary('Curiosity');first.entries[0].groups[0].senses[0].meaning.zh='changed';assert.notEqual(demoDictionary('Curiosity').entries[0].groups[0].senses[0].meaning.zh,'changed');
 });
+
+test('whole-expression removal and undo preserve all independent contexts and material data',()=>{
+ const e=new DemoEngine(),data=e.open(e.materials[1].material.id),segment=data.segments[0],start=segment.en_text.indexOf('take off');
+ e.mutate({kind:'save',input:{segment_id:segment.id,expression:'take off',start_offset:start,end_offset:start+8,explanation:'A second source.',explanation_source:'personal'}},'second-context');
+ const before=e.active('take off').map(r=>[r.record_id,r.sentence,r.explanation,r.source]),materials=structuredClone(e.materials);
+ const group=e.invoke('list_saved_groups',{query:'take off'}).groups[0],args={groupId:group.group_id,expectedCount:2,operationId:'remove-group'};
+ assert.equal(e.invoke('remove_saved_group',args).count,2);assert.equal(e.active('take off').length,0);
+ e.invoke('remove_saved_group',args);assert.deepEqual(e.materials,materials);
+ e.invoke('undo_saved_group',{operationId:'remove-group'});
+ assert.deepEqual(e.active('take off').map(r=>[r.record_id,r.sentence,r.explanation,r.source]),before);
+ assert.equal(e.invoke('undo_saved_group',{operationId:'remove-group'}).changed,false);
+});

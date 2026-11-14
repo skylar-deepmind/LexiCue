@@ -20,7 +20,8 @@
         "resizable": true,
         "fullscreen": false,
         "focus": true,
-        "acceptFirstMouse": true
+        "acceptFirstMouse": true,
+        "allowLinkPreview": false
       }
     ],
     "security": {

@@ -1,6 +1,7 @@
+import { visitState } from '../lib/pageNavigation';
 import { BusyRing } from './LoadingFeedback';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Check, ClipboardPaste, FileText, Upload, X } from 'lucide-react';
 import Overlay from './Overlay';
@@ -19,6 +20,7 @@ import '../import.css';
 export default function ImportPanel() {
     const { t } = useTranslation();
     const navigate = useNavigate();
+    const location=useLocation();
     const live = useImportStore();
     const panelRef = useRef<HTMLDivElement>(null);
     const present = useImportPresence(live.open, panelRef);
@@ -147,7 +149,7 @@ export default function ImportPanel() {
                     {preview && item.draft ? <button className="lc-import-item-select" aria-pressed={selected?.id === item.id} onClick={() => state.select(item.id)}><FileText size={18} aria-hidden="true" /><span><strong>{item.name}</strong><small>{t(`materials.stages.${item.stage}`)}</small></span><Check size={18} aria-hidden="true" /></button> : <div className="lc-import-item-status"><FileText size={18} aria-hidden="true" /><span><strong>{item.name}</strong><small>{t(`materials.stages.${item.stage}`)}</small></span>{item.stage === 'created' && <Check size={18} aria-hidden="true" />}</div>}
                     {item.error && item.stage === 'failed' && <p className="lc-import-error" role="alert">{t(`materials.errors.${item.error}`)}</p>}
                     {item.englishFallback !== undefined && <button className="ui-button" onClick={() => void state.useEnglish(item.id)}>{t('materials.englishFallback')}</button>}
-                    {item.result?.outcome === 'duplicate' && <button className="ui-button" onClick={() => { state.hide(); navigate(item.result!.readable ? `/files/${item.result!.file_id}` : `/legacy?fileId=${item.result!.file_id}`); }}>{t('materials.openExisting')}</button>}
+                    {item.result?.outcome === 'duplicate' && <button className="ui-button" onClick={() => { state.hide(); navigate(item.result!.readable ? `/files/${item.result!.file_id}` : `/legacy?fileId=${item.result!.file_id}`,{state:{...visitState(location),reopenImport:true}}); }}>{t('materials.openExisting')}</button>}
                 </li>)}</ul>}
                 {retryable && <button className="ui-button" onClick={() => void state.retry()} disabled={running}>{t('materials.retryFailed')}</button>}
             </>}

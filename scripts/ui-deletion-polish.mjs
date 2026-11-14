@@ -18,10 +18,9 @@ try {
   const context=await h.browser.newContext({viewport:phone?{width:375,height:812}:{width:1140,height:714},...(phone?{isMobile:true,hasTouch:true,userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Mobile'}:{}),reducedMotion:'reduce'});
   const page=await context.newPage();await h.fixture(page,theme);
   await page.addInitScript(()=>{
-   window.__confirmDelete=false;window.__deleteFail=false;window.__deleteAsks=[];
+   window.__deleteFail=false;
    const base=window.__TAURI_INTERNALS__.invoke;
    window.__TAURI_INTERNALS__.invoke=async(command,args={})=>{
-    if(command==='plugin:dialog|message'){window.__deleteAsks.push(args);return args.buttons.OkCancelCustom[window.__confirmDelete?0:1];}
     if(command==='delete_file_start'){
      if(window.__deleteFail) throw Error('local_delete_failed');
      await base('test_delete_source',args);return {job_id:'controlled',file_id:args.fileId,phase:'done'};
@@ -39,15 +38,19 @@ try {
   await page.goto(`${h.url}/files?view=library`);await page.locator('.library-row').waitFor();
   const more=page.locator('.library-menu > button');
   await more.click();await page.getByRole('button',{name:'删除材料',exact:true}).click();
+  const confirmation=page.getByRole('dialog',{name:'删除材料',exact:true});
+  await confirmation.waitFor();assert.match(await confirmation.innerText(),/remove-me.txt/);
+  await confirmation.getByRole('button',{name:'取消',exact:true}).click();
   eq((await h.call('list_materials')).length,1,`${theme}/${phone}: cancel keeps material`);
-  assert.match(JSON.stringify(await page.evaluate(()=>window.__deleteAsks)),/remove-me.txt/);
   eq(await more.evaluate(node=>node===document.activeElement),true,`${theme}/${phone}: cancel restores the menu trigger focus`);
-  await page.evaluate(()=>{window.__confirmDelete=true;window.__deleteFail=true;});
+  await page.evaluate(()=>{window.__deleteFail=true;});
   await more.click();await page.getByRole('button',{name:'删除材料',exact:true}).click();
+  await confirmation.getByRole('button',{name:'删除',exact:true}).click();
   await page.getByRole('button',{name:'复制报错信息',exact:true}).waitFor();
   eq((await h.call('list_materials')).length,1,`${theme}/${phone}: failure keeps material and allows retry`);
   await page.evaluate(()=>window.__deleteFail=false);
   await more.click();await page.getByRole('button',{name:'删除材料',exact:true}).click();
+  await confirmation.getByRole('button',{name:'删除',exact:true}).click();
   await page.locator('.library-row').waitFor({state:'detached'});
   eq((await h.call('list_materials')).length,0,`${theme}/${phone}: success refreshes library`);
   eq((await h.call('list_saved_records',{query:'',limit:10,offset:0}))[0],saved.record,`${theme}/${phone}: saved sentence and personal meaning remain exact`);

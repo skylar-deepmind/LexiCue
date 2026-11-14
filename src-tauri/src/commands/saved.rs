@@ -852,6 +852,170 @@ pub fn undo(conn: &Connection, operation_id: &str) -> Result<SavedRecord, String
     Ok(record)
 }
 
+/// Group deletion uses the same tombstones, sync triggers and portable receipt
+/// table as sentence removal. Every snapshot and receipt commits together.
+#[derive(Serialize)]
+pub struct GroupMutationResult {
+    pub operation_id: String,
+    pub count: usize,
+    pub changed: bool,
+}
+#[derive(Serialize, Deserialize)]
+struct GroupBefore {
+    kind: String,
+    records: Vec<SavedRecord>,
+}
+
+pub fn remove_group(
+    conn: &Connection,
+    operation_id: &str,
+    group_id: &str,
+    expected_count: usize,
+) -> Result<GroupMutationResult, String> {
+    if operation_id.is_empty() || operation_id.len() > 200 || expected_count == 0 {
+        return Err("saved_operation_invalid".into());
+    }
+    let request = serde_json::json!({"kind":"remove_group","group_id":group_id,"expected_count":expected_count}).to_string();
+    let tx = rusqlite::Transaction::new_unchecked(conn, TransactionBehavior::Immediate)
+        .map_err(|e| e.to_string())?;
+    let receipt: Option<(String, bool)> = tx
+        .query_row(
+            "SELECT request_json,undone FROM saved_actions WHERE operation_id=?1",
+            [operation_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+    if let Some((previous, undone)) = receipt {
+        if previous != request || undone {
+            return Err("saved_operation_conflict".into());
+        }
+        return Ok(GroupMutationResult {
+            operation_id: operation_id.into(),
+            count: expected_count,
+            changed: true,
+        });
+    }
+    // Read membership inside the immediate transaction, including dictionary
+    // relations; never rely on a frontend page or a truncated group preview.
+    let archive = archive(&tx, "")?;
+    let group = archive.groups.get(group_id).ok_or("saved_conflict")?;
+    if group.record_ids.len() != expected_count {
+        return Err("saved_conflict".into());
+    }
+    let mut before = GroupBefore {
+        kind: "remove_group".into(),
+        records: Vec::with_capacity(expected_count),
+    };
+    let mut revisions = std::collections::BTreeMap::new();
+    for id in &group.record_ids {
+        let record = get(&tx, id)?.ok_or("saved_missing")?;
+        if record.deleted_at.is_some() {
+            return Err("saved_conflict".into());
+        }
+        before.records.push(record.clone());
+        let mut removed = record;
+        removed.deleted_at = Some(now_ms());
+        removed.updated_at = now_ms();
+        removed.revision = Uuid::new_v4().to_string();
+        write_record(&tx, &removed)?;
+        revisions.insert(removed.record_id, removed.revision);
+    }
+    tx.execute("INSERT INTO saved_actions(operation_id,request_json,record_id,before_json,after_revision,changed) VALUES(?1,?2,?3,?4,?5,1)",
+        params![operation_id, request, before.records[0].record_id,
+            serde_json::to_string(&before).map_err(|e|e.to_string())?,
+            serde_json::to_string(&revisions).map_err(|e|e.to_string())?]).map_err(|e|e.to_string())?;
+    tx.commit().map_err(|e| e.to_string())?;
+    Ok(GroupMutationResult {
+        operation_id: operation_id.into(),
+        count: expected_count,
+        changed: true,
+    })
+}
+
+pub fn undo_group(conn: &Connection, operation_id: &str) -> Result<GroupMutationResult, String> {
+    let tx = rusqlite::Transaction::new_unchecked(conn, TransactionBehavior::Immediate)
+        .map_err(|e| e.to_string())?;
+    let (request, raw, after, undone): (String,String,String,bool) = tx.query_row(
+        "SELECT request_json,before_json,after_revision,undone FROM saved_actions WHERE operation_id=?1",[operation_id],
+        |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?)),
+    ).map_err(|_|"saved_operation_missing".to_string())?;
+    let request: serde_json::Value = serde_json::from_str(&request).map_err(|e| e.to_string())?;
+    let before: GroupBefore = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
+    if before.kind != "remove_group"
+        || request["kind"] != "remove_group"
+        || before.records.is_empty()
+    {
+        return Err("saved_operation_invalid".into());
+    }
+    let count = before.records.len();
+    if undone {
+        return Ok(GroupMutationResult {
+            operation_id: operation_id.into(),
+            count,
+            changed: false,
+        });
+    }
+    let revisions: std::collections::BTreeMap<String, String> =
+        serde_json::from_str(&after).map_err(|e| e.to_string())?;
+    // A concurrent save/edit/sync of any member rejects the complete undo.
+    // The transaction rolls back earlier restored members and sync entries.
+    for mut record in before.records {
+        let current = get(&tx, &record.record_id)?.ok_or("saved_conflict")?;
+        if revisions.get(&record.record_id) != Some(&current.revision)
+            || current.deleted_at.is_none()
+        {
+            return Err("saved_conflict".into());
+        }
+        record.generation = current.generation + 1;
+        record.revision = Uuid::new_v4().to_string();
+        record.updated_at = now_ms();
+        write_record(&tx, &record)?;
+    }
+    tx.execute(
+        "UPDATE saved_actions SET undone=1 WHERE operation_id=?1",
+        [operation_id],
+    )
+    .map_err(|e| e.to_string())?;
+    tx.commit().map_err(|e| e.to_string())?;
+    Ok(GroupMutationResult {
+        operation_id: operation_id.into(),
+        count,
+        changed: true,
+    })
+}
+
+#[tauri::command]
+pub async fn remove_saved_group(
+    state: State<'_, DbState>,
+    operation_id: String,
+    group_id: String,
+    expected_count: usize,
+) -> Result<GroupMutationResult, String> {
+    // A word can have thousands of contexts. Keep the native event thread free
+    // while waiting for SQLite, writing tombstones and serializing the receipt.
+    let shared = state.conn.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let conn = shared.lock().map_err(|e| e.to_string())?;
+        remove_group(&conn, &operation_id, &group_id, expected_count)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+#[tauri::command]
+pub async fn undo_saved_group(
+    state: State<'_, DbState>,
+    operation_id: String,
+) -> Result<GroupMutationResult, String> {
+    let shared = state.conn.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let conn = shared.lock().map_err(|e| e.to_string())?;
+        undo_group(&conn, &operation_id)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 #[derive(Default, Serialize, Deserialize)]
 pub struct MigrationReport {
     pub eligible_words: usize,
@@ -3841,6 +4005,112 @@ mod tests {
                 .as_deref(),
             Some("我的个人解释")
         );
+    }
+
+    #[test]
+    fn group_delete_and_undo_preserve_every_context_and_unrelated_words() {
+        let (_dir, conn) = db();
+        let first = mutate(&conn, "one", &input(1)).unwrap().record;
+        let first = edit(&conn, &first, "personal note");
+        let second = mutate(&conn, "two", &input(2)).unwrap().record;
+        let mut other = input(1);
+        if let Mutation::Save { input } = &mut other {
+            input.expression = "plane".into();
+            input.start_offset = 4;
+            input.end_offset = 9;
+        }
+        let unrelated = mutate(&conn, "other", &other).unwrap().record;
+        let group = groups(&conn, "take off", 20, 0)
+            .unwrap()
+            .groups
+            .into_iter()
+            .find(|group| group.expression == "take off")
+            .unwrap();
+        let queue = count(&conn, "sync_changes");
+        assert_eq!(
+            remove_group(&conn, "group-remove", &group.group_id, 2)
+                .unwrap()
+                .count,
+            2
+        );
+        assert_eq!(list(&conn, "", 200, 0).unwrap(), vec![unrelated.clone()]);
+        assert_eq!(count(&conn, "sync_changes"), queue + 2);
+        remove_group(&conn, "group-remove", &group.group_id, 2).unwrap();
+        assert_eq!(count(&conn, "sync_changes"), queue + 2);
+        undo_group(&conn, "group-remove").unwrap();
+        for original in [first, second] {
+            let restored = get(&conn, &original.record_id).unwrap().unwrap();
+            let mut expected = original;
+            expected.revision = restored.revision.clone();
+            expected.updated_at = restored.updated_at;
+            expected.generation += 1;
+            assert_eq!(restored, expected);
+        }
+        assert_eq!(
+            get(&conn, &unrelated.record_id).unwrap().unwrap(),
+            unrelated
+        );
+        let changes = count(&conn, "sync_changes");
+        assert!(!undo_group(&conn, "group-remove").unwrap().changed);
+        assert_eq!(count(&conn, "sync_changes"), changes);
+        assert!(remove_group(&conn, "group-remove", &group.group_id, 2).is_err());
+    }
+
+    #[test]
+    fn group_receipt_failure_and_stale_count_roll_back_all_tombstones_and_sync() {
+        let (_dir, conn) = db();
+        mutate(&conn, "one", &input(1)).unwrap();
+        mutate(&conn, "two", &input(2)).unwrap();
+        let group = groups(&conn, "", 20, 0).unwrap().groups.remove(0);
+        assert!(remove_group(&conn, "stale", &group.group_id, 1).is_err());
+        let before = list(&conn, "", 200, 0).unwrap();
+        let changes = count(&conn, "sync_changes");
+        conn.execute_batch("CREATE TRIGGER fail_group_receipt BEFORE INSERT ON saved_actions BEGIN SELECT RAISE(ABORT,'disk write failure'); END;").unwrap();
+        assert!(remove_group(&conn, "failed", &group.group_id, 2).is_err());
+        assert_eq!(list(&conn, "", 200, 0).unwrap(), before);
+        assert_eq!(count(&conn, "sync_changes"), changes);
+        assert_eq!(count(&conn, "saved_actions"), 2);
+    }
+
+    #[test]
+    fn group_undo_conflict_never_partially_restores_or_overwrites_another_save() {
+        let (_dir, conn) = db();
+        let first = mutate(&conn, "one", &input(1)).unwrap().record;
+        let second = mutate(&conn, "two", &input(2)).unwrap().record;
+        let group = groups(&conn, "", 20, 0).unwrap().groups.remove(0);
+        remove_group(&conn, "remove", &group.group_id, 2).unwrap();
+        let restored = mutate(&conn, "new-save", &input(1)).unwrap().record;
+        let changes = count(&conn, "sync_changes");
+        assert!(undo_group(&conn, "remove").is_err());
+        assert_eq!(get(&conn, &first.record_id).unwrap().unwrap(), restored);
+        assert!(get(&conn, &second.record_id)
+            .unwrap()
+            .unwrap()
+            .deleted_at
+            .is_some());
+        assert_eq!(count(&conn, "sync_changes"), changes);
+    }
+
+    #[test]
+    fn group_undo_survives_reopen_backup_restore_and_material_deletion() {
+        let (dir, conn) = db();
+        let original = mutate(&conn, "one", &input(1)).unwrap().record;
+        mutate(&conn, "two", &input(2)).unwrap();
+        let group = groups(&conn, "", 20, 0).unwrap().groups.remove(0);
+        remove_group(&conn, "remove", &group.group_id, 2).unwrap();
+        conn.execute("DELETE FROM files", []).unwrap();
+        let backup = backup_payload(&conn).unwrap();
+        drop(conn);
+        let conn = crate::db::init_db(&dir.path().join("test.db")).unwrap();
+        restore_backup(&conn, &backup).unwrap();
+        undo_group(&conn, "remove").unwrap();
+        assert_eq!(list(&conn, "", 200, 0).unwrap().len(), 2);
+        let restored = get(&conn, &original.record_id).unwrap().unwrap();
+        assert_eq!(restored.sentence, original.sentence);
+        assert_eq!(restored.source, original.source);
+        assert!(resolve_source(&conn, &original.record_id)
+            .unwrap()
+            .is_none());
     }
 
     #[test]

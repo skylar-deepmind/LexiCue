@@ -975,7 +975,7 @@
     "importing": "インポート中...",
     "deleteAskWithContent": "「{{name}}」と読書コンテンツを削除しますか？保存した原文・意味・メモは残ります。ペアリング済み端末にも同期され、この操作は直接元に戻せません。",
     "deleteAsk": "このファイルを削除しますか？",
-    "deleteTitle": "ファイルを削除",
+    "deleteTitle": "資料を削除",
     "fileDeleted": "ファイルを削除しました",
     "deleteFailed": "ファイルの削除に失敗しました",
     "deleting": "削除中...",
@@ -1371,7 +1371,10 @@
     "englishMeaning": "旧英語の説明",
     "extraSense": "追加の意味",
     "example": "例文",
-    "saveExplanation": "説明を保存"
+    "saveExplanation": "説明を保存",
+    "groupActions": "「{{expression}}」の操作",
+    "deleteGroupNamed": "「{{expression}}」と全 {{count}} 文を削除",
+    "groupRemoved": "「{{expression}}」と {{count}} 文を削除しました"
   },
   "materials": {
     "title": "資料",
@@ -1778,7 +1781,8 @@
     "failed": "読み上げを利用できません。読み上げボタンで再試行してください。",
     "tooLong": "1,000 文字以内の短い内容を選択してください。",
     "playbackBlocked": "再生がブロックされました。もう一度読み上げボタンを押してください。",
-    "offlineMissing": "この音声と内容はキャッシュされていません。オンライン読み上げか端末の予備音声を有効にしてください。"
+    "offlineMissing": "この音声と内容はキャッシュされていません。オンライン読み上げか端末の予備音声を有効にしてください。",
+    "replay": "もう一度再生"
   },
   "dictionaryFlow": {
     "prototype": "原形の候補",
@@ -1962,5 +1966,39 @@
     },
     "baseUnavailable": "内蔵辞書を使用できません。再試行し、解決しない場合はアプリを再インストールしてください。",
     "demoBoundary": "このブラウザデモはオリジナルの例示辞書を使用します。辞書パックの管理はアプリで行ってください。"
+  },
+  "collection": {
+    "range": "{{total}} 件中 {{start}}–{{end}}",
+    "goToPage": "ページに移動",
+    "pageCount": "全 {{count}} ページ",
+    "sort": "資料の並び順",
+    "newest": "新しい順",
+    "oldest": "古い順",
+    "title": "タイトル A–Z"
+  },
+  "dictionaryPreferences": {
+    "title": "オンライン辞書",
+    "source": "オンライン辞書",
+    "cambridge": "英中の語義",
+    "cambridgeProvider": "Cambridge 公開API（非公式）",
+    "wiktionary": "英英の語義",
+    "wiktionaryProvider": "FreeDictionaryAPI.com · Wiktionary",
+    "onDemand": "最初にローカルの結果を表示します。「オンライン」を選ぶと検索して切り替えます。"
+  },
+  "dictionarySwitch": {
+    "local": {
+      "idle": "ローカル辞書",
+      "loading": "ローカル辞書を検索中",
+      "ready": "ローカルの語義に切り替え",
+      "missing": "ローカルの語義はありません",
+      "error": "ローカル検索に失敗しました。再試行"
+    },
+    "online": {
+      "idle": "オンラインの語義を取得",
+      "loading": "オンライン辞書を検索中",
+      "ready": "オンラインの語義に切り替え",
+      "missing": "オンラインの語義はありません。再試行",
+      "error": "オンライン検索に失敗しました。再試行"
+    }
   }
 }

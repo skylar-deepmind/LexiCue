@@ -22,6 +22,7 @@ export function onlineIssue(result: DictionaryResult | null): OnlineIssue {
 export async function runOnlineDictionary(options: {
   expression: string; context: string; local: DictionaryResult | null;
   mode?: 'automatic' | 'manual' | 'continue'; signal: AbortSignal;
+  preferred?: OnlineProvider;
   onResult: (provider: OnlineProvider, result: DictionaryResult) => void;
   cambridge?: typeof lookupCambridge; free?: typeof lookupFreeDictionary;
   now?: () => number;
@@ -30,6 +31,19 @@ export async function runOnlineDictionary(options: {
   const now = options.now ?? (() => performance.now());
   const deadline = now() + 18_000;
   const attempted: OnlineProvider[] = [];
+  if (options.preferred) {
+    if (signal.aborted) return { attempted, issue: null };
+    const provider = options.preferred;
+    attempted.push(provider);
+    try {
+      const value = provider === 'cambridge'
+        ? await (options.cambridge ?? lookupCambridge)(expression, context)
+        : await (options.free ?? lookupFreeDictionary)(expression, context, 8000);
+      if (signal.aborted) return { attempted, issue: null };
+      onResult(provider, value);
+      return { attempted, issue: hasSubstantiveTargetContent(value) ? null : onlineIssue(value) };
+    } catch { return { attempted, issue: signal.aborted ? null : 'unavailable' }; }
+  }
   if (signal.aborted || (mode === 'automatic' && !shouldLookupCambridge(local))) return { attempted, issue: null };
   let cambridge: DictionaryResult | null = null;
   let issue: OnlineIssue | null = null;

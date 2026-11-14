@@ -6,11 +6,14 @@ import { navigationItems, navigationActive, importEntryVisible } from './Navigat
 import { useImportStore } from '../stores/importStore';
 import ReadingTools from './ReadingTools';
 import DockPresence from './DockPresence';
+import VisitLink from './VisitLink';
+import { visitState } from '../lib/pageNavigation';
 import { rememberImportFocus } from './importFocus';
 import './navigation.css';
 export default function Sidebar() {
     const { t } = useTranslation();
-    const { pathname } = useLocation();
+    const location = useLocation();
+    const { pathname } = location;
     const show = useImportStore(s => s.show);
     const open = useImportStore(s => s.open);
     const running = useImportStore(s => s.running);
@@ -32,12 +35,12 @@ export default function Sidebar() {
     }, []);
     return <aside className="b-dock b-dock-centered" ref={dockRef}><nav aria-label={t('sidebar.navAria')}>
     <div className="dock-base-controls">
-    {navigationItems.slice(0, 2).map(item => <Link className="b-dock-control" key={item.to} to={item.to} aria-label={t(item.key)} aria-current={navigationActive(pathname, item.to) ? 'page' : undefined} onClick={() => useImportStore.getState().hide()}><item.icon size={22} aria-hidden="true"/></Link>)}
+    {navigationItems.slice(0, 2).map(item => <Link state={pathname.startsWith('/files/') && item.to==='/saved' ? visitState(location) : undefined} className="b-dock-control" key={item.to} to={item.to} aria-label={t(item.key)} aria-current={navigationActive(pathname, item.to) ? 'page' : undefined} onClick={() => useImportStore.getState().hide()}><item.icon size={22} aria-hidden="true"/></Link>)}
     <span className="b-dock-divider"/>
     <DockPresence visible={importEntryVisible(pathname)} className="dock-import-presence">
       <div className="dock-import-slot"><button data-guide="import" className="b-dock-control" onClick={event => { rememberImportFocus(event.currentTarget); show(); }} aria-pressed={open} aria-label={t(running ? 'materials.importRunning' : 'materials.import')}><FilePlus2 size={22} aria-hidden="true"/>{running && <span className="dock-busy" aria-hidden="true"/>}</button></div>
     </DockPresence>
-    <Link className="b-dock-control" to="/settings" aria-label={t('sidebar.settings')} aria-current={pathname.startsWith('/settings') ? 'page' : undefined} onClick={() => useImportStore.getState().hide()}><Settings size={22} aria-hidden="true"/></Link>
+    <VisitLink className="b-dock-control" to="/settings" aria-label={t('sidebar.settings')} aria-current={pathname.startsWith('/settings') ? 'page' : undefined} onClick={() => useImportStore.getState().hide()}><Settings size={22} aria-hidden="true"/></VisitLink>
     </div>
   <ReadingTools/>
   </nav></aside>;

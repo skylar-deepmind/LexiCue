@@ -1,7 +1,10 @@
+import { useRestoreGuard } from '../stores/restoreGuard';
+import { readerViews } from '../lib/readerViewMemory';
+import { usePageReturn, viewKey, visitState } from '../lib/pageNavigation';
 import { invoke } from '@tauri-apps/api/core';
 import { positionMatchesMaterial } from '../lib/readingDesk';
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type PointerEvent as ReactPointerEvent } from 'react';
-import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { readerNavigation, resolveSavedSource, sourceMatches, type ReaderViewSnapshot } from '../lib/readerNavigation';
 import type { SavedRecord } from '../lib/savedRecords';
 import { backNavigation } from '../lib/backNavigation';
@@ -51,24 +54,30 @@ export default function ReadingPage({ data, scope }: {
     const location = useLocation();
     const example = scope.kind === 'example';
     const guide = useOnboardingStore();
-    const skip = () => { guide.finish('skipped'); navigate('/files', {replace:true}); };
+    const skip = () => { guide.finish('skipped'); pageBack(); };
     const [params] = useSearchParams();
     const { material } = data;
+    const memoryKey=viewKey(location);
+    const [viewGeneration]=useState(()=>useRestoreGuard.getState().generation);
+    const [memory]=useState(()=>readerViews.get(memoryKey));
+    const memoryView=memory?.view.contentHash===material.content_hash ? memory.view : undefined;
+    const {back:pageBack,origin:pageOrigin}=usePageReturn(readingReturnPath(location.state));
     const visitToken = location.state?.sourceVisitToken;
     const visit = readerNavigation.get(visitToken);
     const [returnContext] = useState(() => readerNavigation.get(location.state?.restoreVisitToken));
-    const returnView = returnContext?.origin.kind === 'reader' && returnContext.origin.view.materialId === material.id && returnContext.origin.view.contentHash === material.content_hash ? returnContext.origin.view : undefined;
+    const returnView = memoryView ?? (returnContext?.origin.kind === 'reader' && returnContext.origin.view.materialId === material.id && returnContext.origin.view.contentHash === material.content_hash ? returnContext.origin.view : undefined);
     const [sourceError, setSourceError] = useState('');
     const sourceRequest = useRef(0);
     const [sourceBusy, setSourceBusy] = useState(false);
     useEffect(() => () => { sourceRequest.current++; }, []);
     const returnToOrigin = useCallback(() => {
-        if (!visit) return;
+        if (pageOrigin) {pageBack();return;}
+        if (!visit) {pageBack();return;}
         navigate(visit.origin.path, { state: { restoreVisitToken: visitToken, sourceVisitToken: visit.origin.kind === 'reader' ? visit.origin.parentVisitToken : undefined } });
-    }, [navigate, visit, visitToken]);
-    useEffect(() => visit ? backNavigation.setPage(() => { returnToOrigin(); return true; }, 20) : undefined, [visit, returnToOrigin]);
+    }, [navigate, visit, visitToken, pageOrigin, pageBack]);
+    useEffect(() => visit || pageOrigin ? backNavigation.setPage(() => { returnToOrigin(); return true; }, 20) : undefined, [visit, pageOrigin, returnToOrigin]);
     const preserveTranslationPosition = useRef<() => void>(() => {});
-    const translationState = useReadingTranslation({ materialId: material.id, contentHash: material.content_hash, segments: data.segments, allowGenerate: !example }, () => preserveTranslationPosition.current());
+    const translationState = useReadingTranslation({ materialId: material.id, contentHash: material.content_hash, segments: data.segments, allowGenerate: !example, initial: memory?.translation }, () => preserveTranslationPosition.current());
     const { generated: generatedTranslations, enabled: translation, status: translationStatus } = translationState;
     const segments = useMemo(() => data.segments.map(segment => segment.zh_text?.trim() || !generatedTranslations[segment.id] ? segment : {...segment, zh_text: generatedTranslations[segment.id]}), [data.segments, generatedTranslations]);
     const mediaIdentity = material.source?.key ?? material.document?.identity ?? material.content_hash;
@@ -114,8 +123,8 @@ export default function ReadingPage({ data, scope }: {
     });
     const lookupView = useRef({ tab: returnView?.query?.tab ?? 'meaning', provider: returnView?.query?.provider });
     const queryWithMedia = useMemo(() => query ? {...query,media:data.media_refs?.[query.segment.id]} : null, [query,data.media_refs]);
-    const drafts = useRef(returnLookupMemory.get(location.state?.restoreVisitToken)?.drafts ?? new Map<string, LookupDraft>());
-    const lookupSession = useRef<LookupSession>(returnLookupMemory.get(location.state?.restoreVisitToken)?.session ?? {receipts:new Map(), actions:new Map(), undos:new Map()});
+    const drafts = useRef(memory?.drafts ?? returnLookupMemory.get(location.state?.restoreVisitToken)?.drafts ?? new Map<string, LookupDraft>());
+    const lookupSession = useRef<LookupSession>(memory?.session ?? returnLookupMemory.get(location.state?.restoreVisitToken)?.session ?? {receipts:new Map(), actions:new Map(), undos:new Map()});
     const lookupTrigger = useRef<{ node: HTMLElement; segment: number; index: number } | null>(null);
     const pointerSelection = useRef(false);
     const pointerRange = useRef<{ segment: number; anchor: number; edge: number } | null>(null);
@@ -159,7 +168,8 @@ export default function ReadingPage({ data, scope }: {
         scroll.current?.querySelector<HTMLElement>(`[data-sentence="${segments[documentJump]?.index_num}"]`)?.scrollIntoView({block: 'start'});
         setDocumentJump(null);
     }, [documentJump, segments]);
-    const [listening, setListening] = useState(false);
+    const [listening, setListening] = useState(memory?.listening ?? false);
+    const pausedIndex=useRef(memory?.playbackIndex);
     const speech = useSpeechStore();
     const reading = speech.reading?.key.startsWith(`reader:${mediaIdentity}:`) ? speech.reading : null;
     const currentReadingIndex = reading?.mode === 'source-continuous' && reading.status === 'playing' ? speech.queueIndex : reading?.index;
@@ -223,7 +233,7 @@ export default function ReadingPage({ data, scope }: {
     const playbackAction = (action: 'resume' | 'replay') => {
         lookupInterruption.current.clear();
         followAllowed.current = true;
-        if (!reading) { listenFrom(readingStartIndex()); return; }
+        if (!reading) { listenFrom(pausedIndex.current ?? readingStartIndex()); pausedIndex.current=undefined; return; }
         if (query) { pendingPlayback.current = action; closeLookup(); return; }
         void useSpeechStore.getState()[action === 'resume' ? 'resume' : 'replayCurrent']();
     };
@@ -258,7 +268,7 @@ export default function ReadingPage({ data, scope }: {
         const node = scroll.current;
         if (!node || restored.current) return;
         let cancelled = false, frame = 0;
-        const restore = () => { frame = requestAnimationFrame(() => {
+        const restore = () => {
             if (cancelled) return;
             const target = node.querySelector<HTMLElement>(`[data-sentence="${initial.segment}"]`);
             if (!target) return;
@@ -269,8 +279,9 @@ export default function ReadingPage({ data, scope }: {
             rememberViewport();
             restored.current = true;
             if (returnView) { readerNavigation.complete(location.state?.restoreVisitToken); returnLookupMemory.delete(location.state?.restoreVisitToken); }
-        }); };
-        void document.fonts.ready.then(restore);
+        };
+        if (document.fonts.status==='loaded' || returnView) restore();
+        else void document.fonts.ready.then(restore);
         return () => { cancelled = true; cancelAnimationFrame(frame); };
     }, [initial, returnView, location.state?.restoreVisitToken, segments, visit, rememberViewport]);
     useLayoutEffect(() => {
@@ -332,6 +343,7 @@ export default function ReadingPage({ data, scope }: {
     const choose = (segment: Segment, start: number, end: number) => {
         followAllowed.current=false;
         pauseForLookup('lookup');
+        lookupView.current={tab:'meaning',provider:undefined};
         const text = segment.en_text.slice(start, end);
         if (!text.trim())
             return;
@@ -415,7 +427,8 @@ export default function ReadingPage({ data, scope }: {
         // trailing punctuation stays attached to its word without being painted.
         const gap = (start: number, end: number, match?: RecallMatch) => {
             if (start >= end) return '';
-            const text = segment.en_text.slice(start, end);
+            lookupView.current={tab:'meaning',provider:undefined};
+        const text = segment.en_text.slice(start, end);
             if (!match || start >= match.end || end <= match.start) return text;
             const from = Math.max(start, match.start), to = Math.min(end, match.end);
             return <Fragment key={`gap-${start}-${end}`}>{segment.en_text.slice(start, from)}<span className="reading-recall-ink reading-recall-gap">{segment.en_text.slice(from, to)}</span>{segment.en_text.slice(to, end)}</Fragment>;
@@ -461,6 +474,17 @@ export default function ReadingPage({ data, scope }: {
         lookupTrigger.current = null;
         keyRange.current = null; pointerRange.current = null; setKeyboardRange(null); setQuery(null);
     };
+    const captureView = () => {
+        const viewport=scroll.current, top=viewport?.getBoundingClientRect().top ?? 0;
+        const anchor=viewport && [...viewport.querySelectorAll<HTMLElement>('[data-sentence]')].find(node=>node.getBoundingClientRect().bottom>top);
+        const view:ReaderViewSnapshot={materialId:material.id,contentHash:material.content_hash,
+            segment:anchor?Number(anchor.dataset.sentence):initial.segment,offset:anchor?top-anchor.getBoundingClientRect().top:0,
+            query:query?{segmentId:query.segment.id,start:query.start,end:query.end,expression:query.expression,...lookupView.current}:undefined};
+        return {data,view,drafts:drafts.current,session:lookupSession.current,translation:translationState,
+            listening,playbackIndex:currentReadingIndex ?? pausedIndex.current};
+    };
+    const latestView=useRef(captureView);latestView.current=captureView;
+    useLayoutEffect(()=>()=>{if(!example && restored.current && useRestoreGuard.getState().generation===viewGeneration)readerViews.set(memoryKey,latestView.current());},[memoryKey,example,viewGeneration]);
     const visitSource = async (record: SavedRecord, isCurrent?: () => boolean) => {
         if (sourceBusy || example) return;
         const generation = ++sourceRequest.current;
@@ -477,13 +501,14 @@ export default function ReadingPage({ data, scope }: {
             const token = readerNavigation.create({ kind: 'reader', path: location.pathname + location.search, view, parentVisitToken: visitToken }, target);
             returnLookupMemory.set(token, { drafts: drafts.current, session: lookupSession.current });
             while (returnLookupMemory.size > 16) returnLookupMemory.delete(returnLookupMemory.keys().next().value!);
-            navigate(`/files/${target.fileId}?segment=${target.segmentIndex}`, { state: { sourceVisitToken: token } });
+            readerViews.set(memoryKey, captureView());
+            navigate(`/files/${target.fileId}?segment=${target.segmentIndex}`, { state: { sourceVisitToken: token, ...visitState(location) } });
         } catch { if (sourceRequest.current === generation) setSourceError(t('savedRecords.sourceError')); }
         finally { if (sourceRequest.current === generation) setSourceBusy(false); }
     };
     const previous = () => { const node = scroll.current; if (!node)
         return; const height = node.scrollHeight; setFirst(value => Math.max(0, value - 60)); requestAnimationFrame(() => { node.scrollTop += node.scrollHeight - height; }); };
-    return <div className="reading-page" style={fontScaleStyle} data-listening={listening}><nav className="reading-breadcrumb" aria-label={t('materials.path')}>{visit ? <button className="reader-return-origin" aria-label={`${t('common.back')} · ${t(visit.origin.kind === 'saved' ? 'savedRecords.title' : 'reader.title', { defaultValue: '阅读' })}`} data-testid="source-return" onClick={returnToOrigin}><ChevronLeft className="mobile-reader-back" size={22} aria-hidden="true"/><span className="reading-return-label">{t('common.back')} · {t(visit.origin.kind === 'saved' ? 'savedRecords.title' : 'reader.title', { defaultValue: '阅读' })}</span></button> : <Link to={readingReturnPath(location.state)} state={{restoreLibrary:true}} aria-label={t(location.state?.readingOrigin === 'library' ? 'readingDesk.backLibrary' : 'readingDesk.backMaterials')}><ChevronLeft className="mobile-reader-back" size={22} aria-hidden="true"/><span className="reading-return-label">{t(location.state?.readingOrigin === 'library' ? 'readingDesk.library' : 'materials.title')}</span></Link>}<span aria-hidden="true">/</span><span>{material.name}</span><span className="mobile-reading-path">{t(location.state?.readingOrigin === 'library' ? 'readingDesk.library' : 'materials.title')}</span><DisplaySettingsMenu dock className="mobile-reader-display" showRecall={!example}/></nav><div className="reader-scroll" ref={scroll}><div className="reading-layout" ref={readingLayout.layout} data-query-open={!!query}><div className="workspace-paper reading-paper" data-recall-state={recall.status} data-font={size} data-lines={lineHeight} data-aux-font={auxiliaryFont} data-definition-font={definitionFont}><h1 className="reading-title" lang="en">{material.name}</h1>{sourceError && <p className="saved-error" role="status">{sourceError}</p>}
+    return <div className="reading-page" style={fontScaleStyle} data-listening={listening}><nav className="reading-breadcrumb" aria-label={t('materials.path')}>{visit || pageOrigin ? <button className="reader-return-origin page-back" aria-label={`${t('common.back')} · ${t(visit?.origin.kind === 'saved' ? 'savedRecords.title' : 'reader.title', { defaultValue: '阅读' })}`} data-testid="source-return" onClick={returnToOrigin}><ChevronLeft className="mobile-reader-back" size={22} aria-hidden="true"/></button> : <button className="page-back" onClick={pageBack} aria-label={t(location.state?.readingOrigin === 'library' ? 'readingDesk.backLibrary' : 'readingDesk.backMaterials')}><ChevronLeft className="mobile-reader-back" size={22} aria-hidden="true"/></button>}<span aria-hidden="true">/</span><span>{material.name}</span><span className="mobile-reading-path">{t(location.state?.readingOrigin === 'library' ? 'readingDesk.library' : 'materials.title')}</span><DisplaySettingsMenu dock className="mobile-reader-display" showRecall={!example}/></nav><div className="reader-scroll" ref={scroll}><div className="reading-layout" ref={readingLayout.layout} data-query-open={!!query}><div className="workspace-paper reading-paper" data-recall-state={recall.status} data-font={size} data-lines={lineHeight} data-aux-font={auxiliaryFont} data-definition-font={definitionFont}><h1 className="reading-title" lang="en">{material.name}</h1>{sourceError && <p className="saved-error" role="status">{sourceError}</p>}
     {example && <section className="example-intro" aria-label={t('onboarding.sample')}>
       <div><h1>{t('onboarding.sample')}</h1>{guide.active && !guide.tour && !query && <button className="ui-button" onClick={skip}>{t('onboarding.skip')}</button>}</div>
       <p>{t('onboarding.privacy')}</p>
@@ -522,7 +547,7 @@ export default function ReadingPage({ data, scope }: {
     {!query && <SpeechFeedback prefix="reader:"/>}
   </div><div className="reading-query-slot" ref={readingLayout.slot} aria-hidden="true"/></div></div>
     <ReadingPlaybackControls visible={listening} playing={reading?.status === 'playing' || reading?.status === 'loading'} loading={reading?.status === 'loading'} paused={reading?.status === 'paused'} restartSentence={reading?.status === 'paused' && reading.resumeMode === 'restart-sentence'} disabled={!segments.length} rate={reading?.rate ?? speech.rate} onPlay={() => playbackAction('resume')} onPause={() => { followAllowed.current = false; useSpeechStore.getState().pause('user'); }} onReplay={() => playbackAction('replay')} onRate={() => { const rates = [1, 1.25, 1.5, .75] as const; useSpeechStore.getState().setRate(rates[(rates.indexOf(reading?.rate ?? speech.rate) + 1) % rates.length]); }} onExit={() => { pendingListen.current = null; pendingPlayback.current = null; useSpeechStore.getState().exitReading(); setListening(false); }}/>
-    {queryWithMedia && <ReadingLookup layoutSlot={readingLayout.slot} query={queryWithMedia} material={material} scope={scope} onClose={closeLookup} onSkip={skip} drafts={drafts.current} session={lookupSession.current} initialTab={returnView?.query?.tab} initialProvider={returnView?.query?.provider} onViewChange={view => { lookupView.current = {tab:view.tab,provider:view.provider}; }} onSource={example ? undefined : visitSource} sourceBusy={sourceBusy}/>}
+    {queryWithMedia && <ReadingLookup layoutSlot={readingLayout.slot} query={queryWithMedia} material={material} scope={scope} onClose={closeLookup} onSkip={skip} drafts={drafts.current} session={lookupSession.current} initialTab={query?.segment.id===returnView?.query?.segmentId && query?.start===returnView?.query?.start && query?.end===returnView?.query?.end ? returnView?.query?.tab : undefined} initialProvider={query?.segment.id===returnView?.query?.segmentId && query?.start===returnView?.query?.start && query?.end===returnView?.query?.end ? returnView?.query?.provider : undefined} onViewChange={view => { lookupView.current = {tab:view.tab,provider:view.provider}; }} onSource={example ? undefined : visitSource} sourceBusy={sourceBusy}/>}
     {translationState.confirming && <ReadingTranslationDialog count={translationState.missingCount} onConfirm={translationState.confirm} onCancel={translationState.dismissConfirmation}/>}
   </div>;
 }

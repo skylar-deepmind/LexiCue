@@ -24,7 +24,7 @@ describe('dictionary source provenance presentation', () => {
     expect(localMarkup).toContain('<p>本地 · 第 6 版</p>');
     expect(localMarkup).not.toContain('Longman');
     expect(localMarkup).not.toContain('朗文');
-    expect(onlineMarkup).toContain('在线 · 作者公共接口 · 缓存');
+    expect(onlineMarkup).toBe('');
     expect(onlineMarkup).not.toContain('本地');
     expect(onlineMarkup).not.toContain('剑桥');
     expect({ local, cachedOnline }).toEqual(original);
@@ -47,22 +47,18 @@ describe('dictionary source provenance presentation', () => {
     expect(markup).toContain('许可适用于词典节选');
     expect(markup).not.toContain('作者公共接口');
   });
-  it('labels the public receipt time and unknown originals without a fabricated entry link', () => {
+  it('omits public-adapter housekeeping from the visible result without inventing an entry link', () => {
     const markup = renderToStaticMarkup(createElement(DictionarySource, { source: publicSource, historical: true }));
-    expect(markup).toContain('在线 · 作者公共接口');
-    expect(markup).toContain('查询获取时间');
-    expect(markup).toContain('dateTime="2026-10-26T03:04:05Z"');
-    expect(markup).toContain('原词条链接、原网页抓取时间未知');
+    expect(markup).toBe('');
+    expect(publicSource.received_at).toBe('2026-10-26T03:04:05Z');
     expect(markup).not.toContain('<a ');
     expect(markup).not.toContain('抓取于');
     expect(markup).not.toContain('Cambridge Dictionary (author public API)');
   });
 
-  it('also labels the current public adapter without changing the historical public label', () => {
+  it('also omits housekeeping for the current public adapter', () => {
     const markup = renderToStaticMarkup(createElement(DictionarySource, { source: { ...publicSource, adapter_version: 'cambridge-public-v1.1.0' }, historical: true }));
-    expect(markup).toContain('在线 · 作者公共接口');
-    expect(markup).toContain('查询获取时间');
-    expect(markup).toContain('原词条链接、原网页抓取时间未知');
+    expect(markup).toBe('');
     expect(markup).not.toContain('<a ');
   });
 
