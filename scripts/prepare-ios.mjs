@@ -44,7 +44,7 @@ if (process.argv[2] === '--xcode-build') {
   const plist = JSON.parse(execFileSync('plutil', [
     '-convert', 'json', '-o', '-', join(root, 'src-tauri/Info.ios.plist'),
   ], {encoding: 'utf8'}));
-  const updated = prepareIosProject(source, {script, minimum, plist});
+  const updated = prepareIosProject(source, {script, minimum, plist, privacyManifest: '../../PrivacyInfo.xcprivacy'});
   writeFileSync(yml, updated);
   run('xcodegen', ['generate'], project);
 }

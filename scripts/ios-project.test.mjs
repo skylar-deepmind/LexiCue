@@ -45,6 +45,7 @@ test('XcodeGen keeps a previously built static archive out of app resources', {
   try {
     mkdirSync(join(dir, 'Externals/arm64/release'), {recursive: true});
     mkdirSync(join(dir, 'app'));
+    writeFileSync(join(dir, 'PrivacyInfo.xcprivacy'), readFileSync(new URL('../src-tauri/PrivacyInfo.xcprivacy', import.meta.url)));
     writeFileSync(join(dir, 'Externals/arm64/release/libapp.a'), '!<arch>\n');
     const source = `name: ArchiveProbe
 targets:
@@ -64,7 +65,7 @@ targets:
       properties:
         CFBundleShortVersionString: 0.4.6
 `;
-    const options = {script: 'node "prepare-ios.mjs" --xcode-build', minimum: '15.0', plist: {UIFileSharingEnabled: true}};
+    const options = {script: 'node "prepare-ios.mjs" --xcode-build', minimum: '15.0', plist: {UIFileSharingEnabled: true}, privacyManifest: 'PrivacyInfo.xcprivacy'};
     let prepared = prepareIosProject(source, options);
     for (let run = 0; run < 2; run++) {
       writeFileSync(join(dir, 'project.yml'), prepared);
@@ -72,6 +73,8 @@ targets:
       const pbx = readFileSync(join(dir, 'ArchiveProbe.xcodeproj/project.pbxproj'), 'utf8');
       assert.doesNotMatch(pbx, /libapp\.a in Resources/);
       assert.match(pbx, /libapp\.a in Frameworks/);
+      assert.match(pbx, /PrivacyInfo\.xcprivacy in Resources/);
+      assert.equal(prepared.match(/- path: PrivacyInfo\.xcprivacy/g).length, 1);
       const next = prepareIosProject(prepared, options);
       assert.equal(next, prepared);
       prepared = next;
