@@ -1,5 +1,5 @@
 // Tauri may preserve project.yml on a subsequent `ios init`.
-export function prepareIosProject(source, {script, minimum, plist}) {
+export function prepareIosProject(source, {script, minimum, plist, privacyManifest}) {
   const phase = /^(\s*- script: ).*?(?: ios xcode-script|prepare-ios\.mjs" --xcode-build) (.*)$/m;
   if (!phase.test(source)) throw Error('Cannot locate the Rust build phase in the generated Xcode project.');
   let updated = source.replace(phase, (_, indent, args) => `${indent}${script} ${args}`)
@@ -9,6 +9,12 @@ export function prepareIosProject(source, {script, minimum, plist}) {
     // the entire archive into the application in addition to linking it.
     .replace(/^( +)- path: Externals(?:\n\1  buildPhase: \w+)?$/gm,
       (_, indent) => `${indent}- path: Externals\n${indent}  buildPhase: none`);
+  if (privacyManifest && !updated.includes(`- path: ${privacyManifest}\n`)) {
+    const resourceAnchor = /^( +)- path: Externals$/m;
+    if (!resourceAnchor.test(updated)) throw Error('Cannot locate iOS target sources for the privacy manifest.');
+    updated = updated.replace(resourceAnchor, (_, indent) =>
+      `${indent}- path: ${privacyManifest}\n${indent}  buildPhase: resources\n${indent}- path: Externals`);
+  }
   // Replace our plist values rather than appending duplicates on every run.
   for (const key of Object.keys(plist)) {
     const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

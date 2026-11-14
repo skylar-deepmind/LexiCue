@@ -31,6 +31,8 @@ if (process.argv[2] === '--xcode-build') {
   run(process.execPath, [cli, 'ios', 'xcode-script', ...process.argv.slice(3)], root, env);
 } else {
   run(process.execPath, [cli, 'ios', 'init', ...process.argv.slice(2)], root);
+  run('xcrun', ['swift', join(root, 'scripts/prepare-ios-icons.swift'),
+    join(root, 'src-tauri/icons/ios'), join(project, 'Assets.xcassets/AppIcon.appiconset')], root);
   const yml = join(project, 'project.yml');
   const source = readFileSync(yml, 'utf8');
   const config = JSON.parse(readFileSync(join(root, 'src-tauri/tauri.ios.conf.json'), 'utf8'));
@@ -44,7 +46,7 @@ if (process.argv[2] === '--xcode-build') {
   const plist = JSON.parse(execFileSync('plutil', [
     '-convert', 'json', '-o', '-', join(root, 'src-tauri/Info.ios.plist'),
   ], {encoding: 'utf8'}));
-  const updated = prepareIosProject(source, {script, minimum, plist});
+  const updated = prepareIosProject(source, {script, minimum, plist, privacyManifest: '../../PrivacyInfo.xcprivacy'});
   writeFileSync(yml, updated);
   run('xcodegen', ['generate'], project);
 }
