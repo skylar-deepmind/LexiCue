@@ -57,7 +57,7 @@ try{
   await page.evaluate(content=>window.__uiFiles={'/fixture/flight.srt':content},flight);
   await page.getByRole('button',{name:'选择文件',exact:true}).click();await page.getByRole('button',{name:'确认导入（1）',exact:true}).click();await page.waitForURL(/\/files\/\d+/);await page.locator('.reading-word').first().waitFor();
   const fileId=Number(new URL(page.url()).pathname.split('/').at(-1));eq((await call('test_counts')).files,1,'single-file real write');
-  ok((await page.locator('.reading-breadcrumb').innerText()).includes('材料'),'actual return path');
+  ok((await page.locator('.reading-breadcrumb .page-back').getAttribute('aria-label')).includes('材料'),'actual return path remains accessible without visible text');
   const layout=()=>page.locator('.reading-original').first().evaluate(node=>{const r=node.getBoundingClientRect(),s=getComputedStyle(node);return {width:r.width,font:s.fontSize,line:s.lineHeight,height:r.height};});
   const before=await layout();const take=page.locator('.reading-word').filter({hasText:/^take$/}).first();await take.focus();await take.click();await page.locator('.soft-refresh-current .longman-meaning').first().waitFor();await settle(page);
   const after=await layout();eq({font:after.font,line:after.line},{font:before.font,line:before.line},'opening card preserves user typography');
