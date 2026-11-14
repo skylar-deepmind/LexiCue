@@ -19,7 +19,7 @@
 
 带来想读的英文文章、书籍或字幕。遇到不懂的词句再查，连同原句与理解一起保存，在下次遇见时唤回记忆。
 
-> 本文介绍当前 main 分支的功能。最新公开下载仍为 v0.4.5（2026 年 10 月 12 日），早于本次阅读工作区和 Mac–iPhone 同步。iPhone 已通过本地签名构建实测，尚无公开安装包。
+> v0.4.7 正在准备，尚未公开发布。本文介绍当前 main 分支的功能。最新公开下载仍为 v0.4.5（2026 年 10 月 12 日），早于本次阅读工作区和 Mac–iPhone 同步。iPhone 已通过本地签名构建实测，尚无公开安装包。
 
 ## 简单的学习闭环
 
@@ -57,8 +57,8 @@
 - **[需要时再翻译与听读](https://skylar-deepmind.github.io/LexiCue/zh/guide/reading/)** — 按需显示或隐藏中文译文，进入听读模式；有来源音频时可播放来源。朗读和翻译需相应服务可用。
 - **[把理解连同语境一起保存](https://skylar-deepmind.github.io/LexiCue/zh/guide/vocabulary/)** — 保存单词或一段表达，同时保留原句、句子译文与可用的词典参考。可填写自己的解释或注释；词典参考不等于确认本句含义。
 - **[下次遇见，想起上一次](https://skylar-deepmind.github.io/LexiCue/zh/guide/review/)** — 收藏过的表达会在后续阅读中高亮。打开过去的原句和注释，随时返回当时的材料。
-- **[从上次读到的地方继续](https://skylar-deepmind.github.io/LexiCue/zh/guide/insights/)** — 再次打开材料时回到已保存的阅读位置。从收藏跳到来源后，也能返回此前的位置。
-- **[整理自己的阅读桌面](https://skylar-deepmind.github.io/LexiCue/zh/guide/files/)** — 在桌面摆放材料卡，将暂时不读的材料收进材料库，按标题或彩色标签寻找。
+- **[从上次读到的地方继续](https://skylar-deepmind.github.io/LexiCue/zh/guide/insights/)** — 再次打开材料时接着读。从设置或收藏来源返回时，保留搜索、页码、滚动位置、展开例句和查词状态。
+- **[整理自己的阅读桌面](https://skylar-deepmind.github.io/LexiCue/zh/guide/files/)** — 桌面只摆正在读的材料；完整材料库支持搜索、标签、排序和分页。已保存词条及例句分别分页。删除材料仍保留已保存的原句、释义和笔记。
 - **[四种界面语言，五种主题](https://skylar-deepmind.github.io/LexiCue/zh/guide/settings/)** — 学习目标为英语；界面可选中文、英语、日语、德语，支持海湾蓝、鼠尾草绿、琥珀暖光、暮光紫、深夜墨色五种主题，阅读中可调字号。
 - **[学习资料留在自己手里](https://skylar-deepmind.github.io/LexiCue/zh/guide/faq/)** — 材料与语境收藏保存在本地，可在设置中导出与恢复备份；旧学习记录保留在“历史记录”中。
 - **[在 Mac 与 iPhone 之间接续](https://skylar-deepmind.github.io/LexiCue/zh/guide/settings/)** — 在“设置 → 设备同步”中配对一台 Mac 和一台 iPhone：扫描临时二维码，在两端核对验证码。连接可达时，材料、语境收藏、注释、标签和阅读位置通过局域网交换。

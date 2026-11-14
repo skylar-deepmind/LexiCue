@@ -19,7 +19,7 @@
 
 Bringe englische Artikel, Bücher oder Untertitel mit. Schlage nur nach, wenn du es brauchst, speichere die Bedeutung mit dem Originalsatz und erinnere dich beim nächsten Auftauchen.
 
-> Beschrieben ist der aktuelle main-Zweig. Der öffentliche Download v0.4.5 (12. Oktober 2026) enthält diesen Lesearbeitsplatz und die Mac–iPhone-Synchronisierung noch nicht. Das iPhone wurde mit einem lokal signierten Build geprüft; ein öffentlicher iPhone-Installer fehlt.
+> Version 0.4.7 wird vorbereitet und ist noch nicht veröffentlicht. Beschrieben ist der aktuelle main-Zweig. Der öffentliche Download v0.4.5 (12. Oktober 2026) enthält diesen Lesearbeitsplatz und die Mac–iPhone-Synchronisierung noch nicht. Das iPhone wurde mit einem lokal signierten Build geprüft; ein öffentlicher iPhone-Installer fehlt.
 
 ## Ein einfacher Lernkreislauf
 
@@ -57,8 +57,8 @@ Gespeicherte Ausdrücke werden beim späteren Lesen hervorgehoben. Öffne frühe
 - **[Bei Bedarf übersetzen und zuhören](https://skylar-deepmind.github.io/LexiCue/de/guide/reading/)** — Blende chinesische Übersetzungen ein oder aus und starte den Hörmodus. Quellaudio wird verwendet, wenn verfügbar; Sprachausgabe und Übersetzung benötigen die jeweiligen Dienste.
 - **[Bedeutung und Kontext zusammen speichern](https://skylar-deepmind.github.io/LexiCue/de/guide/vocabulary/)** — Speichere Wörter oder Passagen mit Originalsatz, Satzübersetzung und verfügbarer Wörterbuchreferenz. Ergänze eine eigene Erklärung oder Notiz; die Referenz bestätigt keine Bedeutung für diesen Satz.
 - **[Beim Wiedersehen erinnern](https://skylar-deepmind.github.io/LexiCue/de/guide/review/)** — Gespeicherte Ausdrücke werden beim späteren Lesen hervorgehoben. Öffne frühere Sätze und Notizen und kehre zu ihrer Quelle zurück.
-- **[An der letzten Stelle weiterlesen](https://skylar-deepmind.github.io/LexiCue/de/guide/insights/)** — Öffne ein Material an der gespeicherten Leseposition. Von einer gespeicherten Quelle kannst du zur vorherigen Stelle zurückkehren.
-- **[Deinen Lesetisch ordnen](https://skylar-deepmind.github.io/LexiCue/de/guide/files/)** — Ordne Materialkarten auf dem Lesetisch, lege andere Materialien in der Bibliothek ab und suche nach Titel oder farbigen Tags.
+- **[An der letzten Stelle weiterlesen](https://skylar-deepmind.github.io/LexiCue/de/guide/insights/)** — Öffne ein Material an der letzten Leseposition. Nach einem Besuch in den Einstellungen oder einer gespeicherten Quelle bleiben Suche, Seite, Scrollposition, ausgeklappte Kontexte und Wörterbuchansicht beim Zurückkehren erhalten.
+- **[Deinen Lesetisch ordnen](https://skylar-deepmind.github.io/LexiCue/de/guide/files/)** — Behalte wenige aktive Materialien auf dem Schreibtisch. Durchsuche die ganze Bibliothek mit Tags, Sortierung und Seiten. Gespeicherte Ausdrücke und Kontexte haben eigene Seiten. Beim Löschen eines Materials bleiben gespeicherte Sätze, Bedeutungen und Notizen erhalten.
 - **[Vier Oberflächensprachen, fünf Themen](https://skylar-deepmind.github.io/LexiCue/de/guide/settings/)** — Die Lernsprache ist Englisch. Die Oberfläche bietet Englisch, Chinesisch, Japanisch und Deutsch, fünf Themen und einstellbare Schriftgrößen im Lesebereich.
 - **[Die Kontrolle über deine Daten behalten](https://skylar-deepmind.github.io/LexiCue/de/guide/faq/)** — Materialien und gespeicherte Kontexte liegen lokal. Exportiere oder stelle Backups in den Einstellungen wieder her; frühere Lernaufzeichnungen bleiben im Verlauf verfügbar.
 - **[Zwischen Mac und iPhone weiterlesen](https://skylar-deepmind.github.io/LexiCue/de/guide/settings/)** — Kopple einen Mac und ein iPhone unter Einstellungen → Gerätesynchronisierung. Scanne den zeitlich begrenzten QR-Code und vergleiche den Code auf beiden Geräten. Erreichbare Apps tauschen Materialien, Kontexte, Notizen, Tags und Lesepositionen im lokalen Netzwerk aus.
