@@ -19,7 +19,7 @@
 
 Bring English articles, books or subtitles. Understand a word or passage when you need it, save it with its original context, and recall it when it appears again.
 
-> Current main-branch features are described here. The latest public download is v0.4.5 (12 October 2026), which predates this reading workspace and Mac–iPhone sync. iPhone has been tested with a locally signed build; no public iPhone installer is available.
+> Version 0.4.7 is being prepared and is not public yet. Current main-branch features are described here. The latest public download is v0.4.5 (12 October 2026), which predates this reading workspace and Mac–iPhone sync. iPhone has been tested with a locally signed build; no public iPhone installer is available.
 
 ## A simple learning loop
 
@@ -57,8 +57,8 @@ Previously saved expressions are highlighted in later reading. Open the earlier 
 - **[Understand a passage when you need it](https://skylar-deepmind.github.io/LexiCue/guide/reading/)** — Show or hide Chinese translations and enter listening mode. Source playback is used when available; speech and missing translations need their online services.
 - **[Save the meaning and its context](https://skylar-deepmind.github.io/LexiCue/guide/vocabulary/)** — Save words or passages with their original sentence, its translation and the available dictionary reference. Add your own explanation or note; a dictionary reference does not confirm the meaning in this sentence.
 - **[Recall it when you meet it again](https://skylar-deepmind.github.io/LexiCue/guide/review/)** — Previously saved expressions are highlighted in later reading. Open the earlier sentences and notes, then return to their sources.
-- **[Pick up where you left off](https://skylar-deepmind.github.io/LexiCue/guide/insights/)** — Reopen a material at its saved reading position. Open a saved source and return to the place you came from.
-- **[Keep your reading desk in order](https://skylar-deepmind.github.io/LexiCue/guide/files/)** — Arrange material cards on your desk, put materials away in the library, and find them by title or colored tags.
+- **[Pick up where you left off](https://skylar-deepmind.github.io/LexiCue/guide/insights/)** — Reopen a material at its reading position. After visiting Settings or a saved source, return with your search, page, expanded contexts and lookup state restored.
+- **[Keep your reading desk in order](https://skylar-deepmind.github.io/LexiCue/guide/files/)** — Keep a few active materials on the desk. Search, filter by tag, sort and page through the full library. Saved expressions and their contexts are paged separately; deleting a material keeps saved sentences, meanings and notes.
 - **[Four interface languages, five themes](https://skylar-deepmind.github.io/LexiCue/guide/settings/)** — Learn English with an English, Chinese, Japanese or German interface. Choose ocean, sage, amber, twilight or midnight, and adjust text size in the reader.
 - **[Keep control of your data](https://skylar-deepmind.github.io/LexiCue/guide/faq/)** — Materials and saved contexts live locally. Export or restore a backup in Settings; older learning records remain available in History.
 - **[Continue between Mac and iPhone](https://skylar-deepmind.github.io/LexiCue/guide/settings/)** — Pair one Mac and one iPhone in Settings → Device sync. Scan the temporary QR code and compare the code on both devices. Reachable paired apps exchange materials, saved contexts, notes, tags and reading positions on the local network.

@@ -20,7 +20,7 @@ try{
 for(const locale of cfg.locales)for(const theme of cfg.themes)for(const width of cfg.widths){
  mark('workspace/load');await page.cdp('Page.bringToFront');
  await page.cdp('Emulation.setDeviceMetricsOverride',{width,height:cfg.height,deviceScaleFactor:1,mobile:width<650});
- const actual=await page.evaluate(()=>({width:innerWidth,height:innerHeight}));if(Math.abs(actual.width-width)>1||Math.abs(actual.height-cfg.height)>1)await page.cdp('Emulation.setDeviceMetricsOverride',{width:Math.round(width*width/actual.width),height:Math.round(cfg.height*cfg.height/actual.height),deviceScaleFactor:1,mobile:width<650});
+ const actual=await page.evaluate(()=>({width:innerWidth,height:innerHeight,ratio:devicePixelRatio}));if(Math.abs(actual.width-width)>1||Math.abs(actual.height-cfg.height)>1||Math.abs(actual.ratio-1)>.01)await page.cdp('Emulation.setDeviceMetricsOverride',{width:Math.round(width*width/actual.width),height:Math.round(cfg.height*cfg.height/actual.height),deviceScaleFactor:1/actual.ratio,mobile:width<650});
  const prefix=cfg.base+(locale==='en'?'':locale+'/');
  await page.goto(cfg.mode==='manual'?prefix+'guide/quick-start/':homeFor(locale));await page.evaluate(theme=>localStorage.setItem('lexicue-marketing-theme',theme),theme);await page.reload();
  if(cfg.mode!=='manual'){
@@ -60,15 +60,17 @@ for(const locale of cfg.locales)for(const theme of cfg.themes)for(const width of
    const hit=doc.elementFromPoint(r.left+r.width/2,r.top+r.height/2),outerHit=document.elementFromPoint(x+r.width/2,y+r.height/2);
    return style.display!=='none'&&style.visibility==='visible'&&r.width>0&&r.height>0&&r.left>=0&&r.top>=0&&r.right<=child.innerWidth+1&&r.bottom<=child.innerHeight+1&&x>=0&&y>=0&&x+r.width<=innerWidth+1&&y+r.height<=innerHeight+1&&(hit===button||button.contains(hit))&&outerHit===frame;
   });
-  mark('workspace/save-click');await page.click('[data-testid=lookup-save]');await page.waitForFunction(()=>document.querySelector('.live-app-frame').contentDocument.querySelector('.lookup-saved'));
+  // The hit-test above checks pointer reachability. Keyboard activation avoids
+  // browser-zoom conversion errors in the automation's cross-frame click path.
+  mark('workspace/save');await page.focus('[data-testid=lookup-save]');await page.keyboard.press('Enter');await page.waitForFunction(()=>{const doc=document.querySelector('.live-app-frame').contentDocument;return Number(doc.querySelector('.lookup-record-count')?.textContent)>0&&!!doc.querySelector('.lookup-note')&&!doc.querySelector('[data-testid=lookup-save]');});
   check(await page.evaluate(()=>!!document.querySelector('.live-app-frame').contentDocument.querySelector('.longman-result[data-result-status=found] .dictionary-overview .longman-meaning')),'sample word renders real dictionary content and saves demo data');
-  mark('workspace/theme');await page.click('.site-nav .theme-button');
+  mark('workspace/theme');await page.focus('.site-nav .theme-button');await page.keyboard.press('Enter');
   await page.waitForFunction(theme=>document.querySelector('.live-app-frame').contentDocument.documentElement.dataset.theme===(theme==='ocean'?'midnight':'ocean'),theme);
-  await page.click('.site-nav .theme-button');await page.waitForFunction(theme=>document.querySelector('.live-app-frame').contentDocument.documentElement.dataset.theme===theme,theme);
-  mark('workspace/locale');const other=locale==='en'?'zh':'en';await page.click('.site-nav .language-switch a[lang='+other+']');
+  await page.focus('.site-nav .theme-button');await page.keyboard.press('Enter');await page.waitForFunction(theme=>document.querySelector('.live-app-frame').contentDocument.documentElement.dataset.theme===theme,theme);
+  mark('workspace/locale');const other=locale==='en'?'zh':'en';await page.focus('.site-nav .language-switch a[lang='+other+']');await page.keyboard.press('Enter');
   await page.waitForFunction(locale=>document.querySelector('.live-app-frame').contentDocument.documentElement.lang===locale,other);
-  check(await page.evaluate(()=>document.querySelector('.live-app-frame').contentWindow===window.__qaDemoWindow&&!!document.querySelector('.live-app-frame').contentDocument.querySelector('.lookup-saved')),'locale and theme preserve the same live app and saved state');
-  await page.click('.site-nav .language-switch a[lang='+locale+']');await page.waitForFunction(locale=>document.querySelector('.live-app-frame').contentDocument.documentElement.lang===locale,locale);
+  check(await page.evaluate(()=>document.querySelector('.live-app-frame').contentWindow===window.__qaDemoWindow&&Number(document.querySelector('.live-app-frame').contentDocument.querySelector('.lookup-record-count')?.textContent)>0),'locale and theme preserve the same live app and saved state');
+  await page.focus('.site-nav .language-switch a[lang='+locale+']');await page.keyboard.press('Enter');await page.waitForFunction(locale=>document.querySelector('.live-app-frame').contentDocument.documentElement.lang===locale,locale);
   mark('workspace/checks');const state=await observe();check(state.width===width,'requested viewport width');check(!state.overflow,'workspace horizontal overflow');check(!state.errors.length,'workspace missing outer assets: '+JSON.stringify(state.errors));check(!state.remote.length,'workspace unexpected outer network request');
   check(await contrast('.workspace-download p')>=4.5,'download summary contrast');
   if(locale==='zh'&&(width===390||width===1440)){await page.evaluate(()=>window.scrollTo({top:0,behavior:'instant'}));await page.screenshot({path:cfg.out+'/workspace-'+locale+'-'+theme+'-'+width+'x'+cfg.height+'.png'});}
@@ -90,7 +92,7 @@ for(const locale of cfg.locales)for(const theme of cfg.themes)for(const width of
    const picture='.doc-image-'+(theme==='midnight'?'dark':'light')+' img';
    await page.evaluate(selector=>document.querySelector(selector).scrollIntoView(),picture);
    await page.waitForFunction(selector=>{const img=document.querySelector(selector);return img.complete&&img.naturalWidth>0;},picture);
-   await page.click('[data-doc-image]');await page.waitForSelector('.doc-lightbox[open]');
+   await page.focus('[data-doc-image]');await page.keyboard.press('Enter');await page.waitForSelector('.doc-lightbox[open]');
    check(await page.evaluate(()=>document.querySelector('.doc-lightbox img').src).then(src=>src.endsWith(theme+'-'+(width<=650?'mobile':'desktop')+'.webp')),'full-size manual picture matches theme and viewport');
    await page.keyboard.press('Escape');await page.waitForFunction(()=>!document.querySelector('.doc-lightbox'));
    await page.waitForFunction(()=>document.activeElement.matches('[data-doc-image]')).catch(e=>{throw Error('Focus restore: '+stage+'; '+e.message);});check(true,'manual lightbox restores focus');

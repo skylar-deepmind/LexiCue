@@ -158,7 +158,7 @@ export const manualContent={
           "id": "source",
           "title": "Return to the source",
           "body": [
-            "Choose the source on a saved context to open its original material and sentence. Return to continue where you came from. A missing or deleted source cannot be reopened; the saved context remains readable."
+            "Open a context’s source to read the matching sentence. The icon-only back button restores the prior page, search, page number, scroll position and expanded contexts. A missing or deleted source cannot be opened; its saved context remains available."
           ],
           "steps": []
         }
@@ -505,7 +505,7 @@ export const manualContent={
           "id": "source",
           "title": "返回来源",
           "body": [
-            "点击语境的来源打开原材料和对应句子，再返回此前的位置。来源缺失或已删除时无法打开，已保存的语境仍可查看。"
+            "点击语境的来源打开原材料和对应句子。使用纯图标返回按钮回到此前页面，保留搜索、页码、滚动位置和展开例句。来源缺失或已删除时无法打开，已保存的语境仍可查看。"
           ],
           "steps": []
         }
@@ -852,7 +852,7 @@ export const manualContent={
           "id": "source",
           "title": "出典に戻る",
           "body": [
-            "文脈の出典から元の素材と文を開き、前の位置へ戻れます。元の素材がない場合も、保存された文脈は読めます。"
+            "文脈の出典を開くと、元の素材の該当文へ移動します。アイコンのみの戻るボタンで、前の画面の検索、ページ、スクロール位置と展開した例文を復元します。出典が見つからない場合や削除済みの場合も、保存した文脈は閲覧できます。"
           ],
           "steps": []
         }
@@ -1199,7 +1199,7 @@ export const manualContent={
           "id": "source",
           "title": "Zur Quelle zurückkehren",
           "body": [
-            "Öffne über die Quelle das ursprüngliche Material und den Satz und kehre danach zurück. Fehlt die Quelle oder wurde sie gelöscht, bleibt der gespeicherte Kontext lesbar."
+            "Öffne die Quelle eines Kontexts an der passenden Textstelle. Die Zurück-Schaltfläche mit Pfeilsymbol stellt die vorige Seite samt Suche, Seitenzahl, Scrollposition und ausgeklappten Kontexten wieder her. Fehlende oder gelöschte Quellen lassen sich nicht öffnen; der gespeicherte Kontext bleibt lesbar."
           ],
           "steps": []
         }

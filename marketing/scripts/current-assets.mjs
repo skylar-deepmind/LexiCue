@@ -82,26 +82,31 @@ for(const locale of locales)for(const theme of themes)for(const device of device
  ego(`const c=${JSON.stringify(cfg)};
 const t=await taskSpace(c.space),p=t.page(c.page),fs=await import('node:fs/promises');
 await p.cdp('Page.bringToFront');
-await p.cdp('Page.addScriptToEvaluateOnNewDocument',{source:c.init});
+const initId=(await p.cdp('Page.addScriptToEvaluateOnNewDocument',{source:c.init})).identifier;
+try{
 await p.cdp('Emulation.setDeviceMetricsOverride',{width:c.device==='mobile'?390:1280,height:c.device==='mobile'?844:850,deviceScaleFactor:1,mobile:c.device==='mobile'});
+const target={width:c.device==='mobile'?390:1280,height:c.device==='mobile'?844:850};
+const actual=await p.evaluate(()=>({width:innerWidth,height:innerHeight}));
+if(Math.abs(actual.width-target.width)>1||Math.abs(actual.height-target.height)>1)await p.cdp('Emulation.setDeviceMetricsOverride',{width:Math.round(target.width*target.width/actual.width),height:Math.round(target.height*target.height/actual.height),deviceScaleFactor:1,mobile:c.device==='mobile'});
 await p.cdp('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
 const q='?locale='+c.locale+'&theme='+c.theme;
 const go=async path=>{await p.goto(c.app+path+q);await p.waitForLoadState('load');};
-const shot=async scene=>{if(!c.scenes.includes(scene))return;await p.evaluate(()=>document.fonts.ready.then(()=>true));await p.evaluate(()=>Promise.allSettled(document.getAnimations().filter(a=>a.effect?.getComputedTiming().iterations!==Infinity).map(a=>a.finished)).then(()=>true));await p.screenshot({path:c.temp+'/'+c.locale+'-'+scene+'-'+c.theme+'-'+c.device+'.png'});};
+const shot=async scene=>{if(!c.scenes.includes(scene))return;await p.evaluate(()=>document.fonts.ready.then(()=>true));await p.evaluate(()=>Promise.allSettled(document.getAnimations().filter(a=>a.effect?.getComputedTiming().iterations!==Infinity).map(a=>a.finished)).then(()=>true));const capture=await p.cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:false,fromSurface:true});await fs.writeFile(c.temp+'/'+c.locale+'-'+scene+'-'+c.theme+'-'+c.device+'.png',Buffer.from(capture.data,'base64'));};
 await go('/files');await p.waitForSelector('.desk-library-dock');
 await p.evaluate(async ids=>{const {useMaterialStore:m}=await window.__uiStoreModule('materialStore');await m.getState().load();const {useReadingDeskStore:d}=await window.__uiStoreModule('readingDeskStore');for(const id of [...ids].reverse())d.getState().keep(m.getState().files.find(f=>f.id===id));d.getState().select(m.getState().files.find(f=>f.id===ids[0]));d.getState().clearNotice();},c.ids);
 await p.waitForSelector('.desk-paper[data-desk-active="true"]');await shot('materials');
 if(c.scenes.some(s=>['reading','lookup','recall'].includes(s))){
  await go('/files/'+c.ids[1]);await p.waitForSelector('.reading-word');await shot('reading');
  if(c.scenes.includes('lookup')){await p.focus('.reading-word[data-word-index="1"] >> nth=0');await p.keyboard.press('Enter');await p.waitForSelector('.dictionary-overview [data-overview-sense]',{timeout:20000});await shot('lookup');await p.keyboard.press('Escape');await p.waitForSelector('.context-panel',{state:'detached'});}
- if(c.scenes.includes('recall')){await p.waitForSelector('.reading-word[data-recall]');await p.evaluate(()=>document.querySelector('.reading-word[data-recall]').click());await p.waitForFunction(()=>document.querySelector('.lookup-content')?.dataset.refreshState==='ready'&&document.querySelector('.soft-refresh-current:not([inert]) [data-testid=lookup-records-tab]'));await p.evaluate(()=>document.querySelector('.soft-refresh-current:not([inert]) [data-testid=lookup-records-tab]').click());await p.waitForSelector('.recall-context');await shot('recall');}
+ if(c.scenes.includes('recall')){await p.waitForSelector('.reading-word[data-recall]');await p.evaluate(()=>document.querySelector('.reading-word[data-recall]').click());await p.waitForFunction(()=>document.querySelector('.lookup-content')?.dataset.refreshState==='ready'&&document.querySelector('.context-panel [data-testid=lookup-records-tab]'));await p.evaluate(()=>document.querySelector('.context-panel [data-testid=lookup-records-tab]').click());await p.waitForSelector('.context-panel .saved-context-entry');await shot('recall');}
 }
 if(c.scenes.includes('saved')){await go('/saved');await p.waitForSelector('.saved-record-row');await p.click('.saved-record-open >> nth=0');await p.waitForSelector('.saved-context-entry');await shot('saved');}
 if(c.scenes.includes('settings')){await go('/settings');await p.waitForSelector('.settings-groups');await shot('settings');}
 console.log('Captured '+c.locale+'/'+c.theme+'/'+c.device);
+}finally{await p.cdp('Page.removeScriptToEvaluateOnNewDocument',{identifier:initId});}
 `);
  await mkdir(resolve(output,locale),{recursive:true});
- for(const scene of scenes)await sharp(resolve(temp,`${locale}-${scene}-${theme}-${device}.png`)).webp({quality:86}).toFile(resolve(output,locale,`${scene}-${theme}-${device}.webp`));
+ for(const scene of scenes)await sharp(resolve(temp,`${locale}-${scene}-${theme}-${device}.png`)).resize(device==='mobile'?390:1280,device==='mobile'?844:850,{fit:'fill'}).webp({quality:86}).toFile(resolve(output,locale,`${scene}-${theme}-${device}.webp`));
 }
 const images=[];
 for(const locale of ['en','zh','ja','de'])for(const file of await readdir(resolve(output,locale)).catch(()=>[])){

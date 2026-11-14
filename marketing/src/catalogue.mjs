@@ -56,8 +56,8 @@ export const copy={
       "Show or hide Chinese translations and enter listening mode. Source playback is used when available; speech and missing translations need their online services.",
       "Save words or passages with their original sentence, its translation and the available dictionary reference. Add your own explanation or note; a dictionary reference does not confirm the meaning in this sentence.",
       "Previously saved expressions are highlighted in later reading. Open the earlier sentences and notes, then return to their sources.",
-      "Reopen a material at its saved reading position. Open a saved source and return to the place you came from.",
-      "Arrange material cards on your desk, put materials away in the library, and find them by title or colored tags.",
+      "Reopen a material at its reading position. After visiting Settings or a saved source, return with your search, page, expanded contexts and lookup state restored.",
+      "Keep a few active materials on the desk. Search, filter by tag, sort and page through the full library. Saved expressions and their contexts are paged separately; deleting a material keeps saved sentences, meanings and notes.",
       "Learn English with an English, Chinese, Japanese or German interface. Choose ocean, sage, amber, twilight or midnight, and adjust text size in the reader.",
       "Materials and saved contexts live locally. Export or restore a backup in Settings; older learning records remain available in History.",
       "Pair one Mac and one iPhone in Settings → Device sync. Scan the temporary QR code and compare the code on both devices. Reachable paired apps exchange materials, saved contexts, notes, tags and reading positions on the local network."
@@ -138,7 +138,7 @@ export const copy={
       ],
       "limitations": "README screenshots use sample data. The online workspace reuses the current desktop and mobile views with temporary demo data. Real device pairing and native update services are not connected; files, clipboard and speech use browser capabilities and applicable permissions."
     },
-    "releaseNote": "Current main-branch features are described here. The latest public download is v0.4.5 (12 October 2026), which predates this reading workspace and Mac–iPhone sync. iPhone has been tested with a locally signed build; no public iPhone installer is available."
+    "releaseNote": "Version 0.4.7 is being prepared and is not public yet. Current main-branch features are described here. The latest public download is v0.4.5 (12 October 2026), which predates this reading workspace and Mac–iPhone sync. iPhone has been tested with a locally signed build; no public iPhone installer is available."
   },
   "zh": {
     "tag": "读你喜欢的内容，记住真正会用的词。",
@@ -192,8 +192,8 @@ export const copy={
       "按需显示或隐藏中文译文，进入听读模式；有来源音频时可播放来源。朗读和翻译需相应服务可用。",
       "保存单词或一段表达，同时保留原句、句子译文与可用的词典参考。可填写自己的解释或注释；词典参考不等于确认本句含义。",
       "收藏过的表达会在后续阅读中高亮。打开过去的原句和注释，随时返回当时的材料。",
-      "再次打开材料时回到已保存的阅读位置。从收藏跳到来源后，也能返回此前的位置。",
-      "在桌面摆放材料卡，将暂时不读的材料收进材料库，按标题或彩色标签寻找。",
+      "再次打开材料时接着读。从设置或收藏来源返回时，保留搜索、页码、滚动位置、展开例句和查词状态。",
+      "桌面只摆正在读的材料；完整材料库支持搜索、标签、排序和分页。已保存词条及例句分别分页。删除材料仍保留已保存的原句、释义和笔记。",
       "学习目标为英语；界面可选中文、英语、日语、德语，支持海湾蓝、鼠尾草绿、琥珀暖光、暮光紫、深夜墨色五种主题，阅读中可调字号。",
       "材料与语境收藏保存在本地，可在设置中导出与恢复备份；旧学习记录保留在“历史记录”中。",
       "在“设置 → 设备同步”中配对一台 Mac 和一台 iPhone：扫描临时二维码，在两端核对验证码。连接可达时，材料、语境收藏、注释、标签和阅读位置通过局域网交换。"
@@ -274,7 +274,7 @@ export const copy={
       ],
       "limitations": "README 截图使用样例数据。在线工作区复用当前桌面与手机版界面，使用临时演示数据。不连接真实设备配对与原生更新服务；文件、剪贴板和朗读使用浏览器能力及相应授权。"
     },
-    "releaseNote": "本文介绍当前 main 分支的功能。最新公开下载仍为 v0.4.5（2026 年 10 月 12 日），早于本次阅读工作区和 Mac–iPhone 同步。iPhone 已通过本地签名构建实测，尚无公开安装包。"
+    "releaseNote": "v0.4.7 正在准备，尚未公开发布。本文介绍当前 main 分支的功能。最新公开下载仍为 v0.4.5（2026 年 10 月 12 日），早于本次阅读工作区和 Mac–iPhone 同步。iPhone 已通过本地签名构建实测，尚无公开安装包。"
   },
   "ja": {
     "tag": "好きなものを読んで、使える言葉を覚える。",
@@ -328,8 +328,8 @@ export const copy={
       "中国語訳の表示を切り替え、聴読モードに入れます。元の音声があれば再生でき、読み上げと翻訳には対応サービスが必要です。",
       "単語や表現とともに、元の文、文の訳、利用可能な辞書の参照を保存します。自分の説明やメモを添えられます。辞書の参照は、この文の意味を確定するものではありません。",
       "保存済みの表現が後の読書で強調表示されます。以前の文とメモを開き、元の素材に戻れます。",
-      "素材を開き直すと、保存した読書位置に戻ります。保存した出典から元の画面へも戻れます。",
-      "デスクに素材カードを置き、後で読む素材はライブラリへ。タイトルや色付きタグで探せます。",
+      "素材を開き直すと、前回の読書位置に戻ります。設定や保存した出典から戻ると、検索、ページ、スクロール位置、展開した例文と辞書の状態も復元します。",
+      "読んでいる素材だけをデスクに置き、ライブラリ全体は検索、タグ、並べ替え、ページで探せます。保存した表現と例文は別々にページ分け。素材を削除しても、保存した原文、意味、メモは残ります。",
       "学習対象は英語です。表示言語は英語・中国語・日本語・ドイツ語。5つのテーマと読書画面の文字サイズを選べます。",
       "素材と保存した文脈は端末内に保管。設定からバックアップを入出力でき、以前の学習記録は履歴に残ります。",
       "設定の「デバイス同期」で Mac 1台と iPhone 1台をペアリング。期限付きQRコードを読み取り、両端末でコードを照合します。接続可能な間、素材・文脈・メモ・タグ・読書位置をローカルネットワークで交換します。"
@@ -410,7 +410,7 @@ export const copy={
       ],
       "limitations": "README の画面はサンプルデータです。オンラインは現在のデスクトップ・モバイル画面と一時的なデモデータを使います。実際の端末ペアリングやネイティブ更新サービスには接続せず、ファイル・クリップボード・読み上げはブラウザの機能と必要な許可を使います。"
     },
-    "releaseNote": "ここでは現在の main ブランチの機能を紹介しています。公開ダウンロードは v0.4.5（2026年10月12日）で、この読書ワークスペースと Mac–iPhone 同期は含まれません。iPhone はローカル署名ビルドで実機確認済みですが、公開インストーラーはありません。"
+    "releaseNote": "v0.4.7 は準備中で、まだ公開されていません。ここでは現在の main ブランチの機能を紹介しています。公開ダウンロードは v0.4.5（2026年10月12日）で、この読書ワークスペースと Mac–iPhone 同期は含まれません。iPhone はローカル署名ビルドで実機確認済みですが、公開インストーラーはありません。"
   },
   "de": {
     "tag": "Lies, was du liebst. Behalte die Wörter.",
@@ -464,8 +464,8 @@ export const copy={
       "Blende chinesische Übersetzungen ein oder aus und starte den Hörmodus. Quellaudio wird verwendet, wenn verfügbar; Sprachausgabe und Übersetzung benötigen die jeweiligen Dienste.",
       "Speichere Wörter oder Passagen mit Originalsatz, Satzübersetzung und verfügbarer Wörterbuchreferenz. Ergänze eine eigene Erklärung oder Notiz; die Referenz bestätigt keine Bedeutung für diesen Satz.",
       "Gespeicherte Ausdrücke werden beim späteren Lesen hervorgehoben. Öffne frühere Sätze und Notizen und kehre zu ihrer Quelle zurück.",
-      "Öffne ein Material an der gespeicherten Leseposition. Von einer gespeicherten Quelle kannst du zur vorherigen Stelle zurückkehren.",
-      "Ordne Materialkarten auf dem Lesetisch, lege andere Materialien in der Bibliothek ab und suche nach Titel oder farbigen Tags.",
+      "Öffne ein Material an der letzten Leseposition. Nach einem Besuch in den Einstellungen oder einer gespeicherten Quelle bleiben Suche, Seite, Scrollposition, ausgeklappte Kontexte und Wörterbuchansicht beim Zurückkehren erhalten.",
+      "Behalte wenige aktive Materialien auf dem Schreibtisch. Durchsuche die ganze Bibliothek mit Tags, Sortierung und Seiten. Gespeicherte Ausdrücke und Kontexte haben eigene Seiten. Beim Löschen eines Materials bleiben gespeicherte Sätze, Bedeutungen und Notizen erhalten.",
       "Die Lernsprache ist Englisch. Die Oberfläche bietet Englisch, Chinesisch, Japanisch und Deutsch, fünf Themen und einstellbare Schriftgrößen im Lesebereich.",
       "Materialien und gespeicherte Kontexte liegen lokal. Exportiere oder stelle Backups in den Einstellungen wieder her; frühere Lernaufzeichnungen bleiben im Verlauf verfügbar.",
       "Kopple einen Mac und ein iPhone unter Einstellungen → Gerätesynchronisierung. Scanne den zeitlich begrenzten QR-Code und vergleiche den Code auf beiden Geräten. Erreichbare Apps tauschen Materialien, Kontexte, Notizen, Tags und Lesepositionen im lokalen Netzwerk aus."
@@ -546,7 +546,7 @@ export const copy={
       ],
       "limitations": "README-Screenshots verwenden Beispieldaten. Online werden die aktuellen Desktop- und Mobilansichten mit temporären Demodaten genutzt. Echte Gerätekopplung und native Update-Dienste sind nicht verbunden. Dateien, Zwischenablage und Sprachausgabe nutzen Browserfunktionen und erforderliche Berechtigungen."
     },
-    "releaseNote": "Beschrieben ist der aktuelle main-Zweig. Der öffentliche Download v0.4.5 (12. Oktober 2026) enthält diesen Lesearbeitsplatz und die Mac–iPhone-Synchronisierung noch nicht. Das iPhone wurde mit einem lokal signierten Build geprüft; ein öffentlicher iPhone-Installer fehlt."
+    "releaseNote": "Version 0.4.7 wird vorbereitet und ist noch nicht veröffentlicht. Beschrieben ist der aktuelle main-Zweig. Der öffentliche Download v0.4.5 (12. Oktober 2026) enthält diesen Lesearbeitsplatz und die Mac–iPhone-Synchronisierung noch nicht. Das iPhone wurde mit einem lokal signierten Build geprüft; ein öffentlicher iPhone-Installer fehlt."
   }
 };
 export const features=featureIds.map((id,index)=>({id,index,seconds:8,core:index<6,limitations:id==='sync'?'Current main; Mac and iPhone only':null}));
