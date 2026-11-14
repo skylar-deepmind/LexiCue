@@ -79,7 +79,7 @@ export default function ContextPanel({ view, label, children, onClose, canClose 
       panel.dataset.readingLayout = columns ? 'columns' : 'overlay';
       panel.style.setProperty('--reading-slot-left', `${rect.left}px`);
       panel.style.setProperty('--reading-slot-width', `${rect.width}px`);
-      panel.style.setProperty('--reading-slot-top', `${viewport.getBoundingClientRect().top + (columns ? 100 : 8)}px`);
+      panel.style.setProperty('--reading-slot-top', `${viewport.getBoundingClientRect().top + 8}px`);
     };
     update();
     const observer = new ResizeObserver(update);

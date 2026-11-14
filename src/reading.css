@@ -449,6 +449,13 @@
 .lexicue-b .context-panel[data-reading-layout] { animation:none; }
 .lexicue-b .context-layer--closing .context-panel[data-reading-layout] { animation:none; }
 .lexicue-b .context-panel[data-reading-layout='columns'] { top:var(--reading-slot-top); bottom:auto; max-height:calc(100dvh - var(--reading-slot-top) - 24px); height:auto; border:1px solid var(--border); border-radius:14px; box-shadow:var(--panel-shadow); }
+@media(min-width:768px) {
+ .lexicue-b .context-panel[data-reading-layout='columns'] {
+  top:50%;
+  translate:0 -50%;
+  max-height:calc(100dvh - 48px);
+ }
+}
 .lookup-close { position:absolute; z-index:5; right:12px; top:12px; display:grid; place-items:center; width:44px; height:44px; border-radius:10px; color:var(--text-muted); }
 .lookup-close:hover:not(:disabled) { background:var(--interactive-hover); color:var(--text-strong); }
 .lookup-close:focus-visible { outline:none; box-shadow:inset 0 -2px 0 currentColor; }
