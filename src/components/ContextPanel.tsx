@@ -10,7 +10,7 @@ import { createLookupScrollMotion } from '../lib/lookupMotion';
 
 /** Modeless: unused space dismisses the card without covering reading or controls.
  * Dragging, selection, scrolling and other dialogs retain their normal behavior. */
-export interface PanelView { expanded:boolean; scroll:number; seen?:boolean }
+export interface PanelView { expanded:boolean; scroll:number; scrolls?:number[];seen?:boolean }
 export default function ContextPanel({ view, label, children, onClose, canClose = true, onClosing, interactionKey, layoutSlot, compactHeader = false }: {
   view?:PanelView;
   label: string; children: ReactNode; onClose: () => void; canClose?: boolean; onClosing?: () => void; interactionKey?: unknown;
@@ -54,15 +54,15 @@ export default function ContextPanel({ view, label, children, onClose, canClose 
   }, [interactionKey, expanded, closing, layoutSlot]);
   useLayoutEffect(()=>{
     const panel=panelRef.current;if(!panel || !view)return;
-    const body=()=>panel.querySelector<HTMLElement>('.lookup-body') ?? panel;
-    const desired=view.scroll;
-    const restore=()=>{if(restored.current)body().scrollTop=desired;};
+    const nodes=()=>[panel,...['.lookup-content','.soft-refresh-current','.lookup-body'].map(selector=>panel.querySelector<HTMLElement>(selector))];
+    const desired=view.scrolls ?? [view.scroll,0,0,view.scroll];
+    const restore=()=>{if(restored.current)nodes().forEach((node,i)=>{if(node)node.scrollTop=desired[i] ?? 0;});};
     restore();view.seen=true;
     const observer=new MutationObserver(restore);if(restored.current)observer.observe(panel,{childList:true,subtree:true});
-    const remember=()=>{view.scroll=body().scrollTop;};
+    const remember=()=>{view.scrolls=nodes().map(node=>node?.scrollTop ?? 0);view.scroll=Math.max(...view.scrolls);};
     const intentional=()=>{restored.current=false;observer.disconnect();};
-    panel.addEventListener('scroll',remember,true);panel.addEventListener('wheel',intentional,{passive:true});panel.addEventListener('touchmove',intentional,{passive:true});
-    return()=>{observer.disconnect();remember();panel.removeEventListener('scroll',remember,true);panel.removeEventListener('wheel',intentional);panel.removeEventListener('touchmove',intentional);};
+    panel.addEventListener('pointerdown',intentional);panel.addEventListener('keydown',intentional);panel.addEventListener('scroll',remember,true);panel.addEventListener('wheel',intentional,{passive:true});panel.addEventListener('touchmove',intentional,{passive:true});
+    return()=>{observer.disconnect();remember();panel.removeEventListener('pointerdown',intentional);panel.removeEventListener('keydown',intentional);panel.removeEventListener('scroll',remember,true);panel.removeEventListener('wheel',intentional);panel.removeEventListener('touchmove',intentional);};
   },[view]);
   const lastInteraction = useRef(interactionKey);
   const markReadingClosing = useCallback((value: boolean) => {

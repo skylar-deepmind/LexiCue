@@ -1,3 +1,4 @@
+import { createViewCache } from '../lib/pageNavigation';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ExternalLink, Languages, Pencil, Trash2, Volume2, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -26,6 +27,7 @@ interface Props {
 }
 
 /** Stable sentence content; only the selected record mounts its action row. */
+const sentenceViews=createViewCache<{translated:boolean;expanded:boolean}>(128);
 export default function SavedSentence({ record, active, onActivate, onChange, onRemove, onSource, removing = false, sourceBusy = false, displayReady = true, scope = LIBRARY_SCOPE }: Props) {
   const { t } = useTranslation();
   const fontScaleStyle = useContentFontScaleStyle();
@@ -42,8 +44,9 @@ export default function SavedSentence({ record, active, onActivate, onChange, on
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [sourceMissing, setSourceMissing] = useState(!record.source);
-  const [translated, setTranslated] = useState(false);
-  const [expanded, setExpanded] = useState(false);
+  const [translated, setTranslated] = useState(sentenceViews.get(record.record_id)?.translated ?? false);
+  const [expanded, setExpanded] = useState(sentenceViews.get(record.record_id)?.expanded ?? false);
+  useLayoutEffect(()=>sentenceViews.set(record.record_id,{translated,expanded}),[record.record_id,translated,expanded]);
   const [overflows, setOverflows] = useState(false);
   const original = useRef<HTMLParagraphElement>(null);
   const editor = useRef<HTMLTextAreaElement>(null);

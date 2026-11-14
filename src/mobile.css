@@ -320,3 +320,6 @@
 }
 
 /* Phone composition follows the approved mobile frames, rather than the desktop dock. */
+
+.b-shell .mobile-settings-header button:is(:hover,:active), .mobile-workspace-header .page-back:is(:hover,:active) { background:transparent; }
+.b-shell .mobile-settings-header button:active { opacity:.65; }

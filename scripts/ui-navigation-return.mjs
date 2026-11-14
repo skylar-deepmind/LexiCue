@@ -40,11 +40,17 @@ try{
   await page.locator('.reading-word').filter({hasText:/^quiet$/}).first().click();await page.locator('.lookup-stage[data-lookup-state=ready]').waitFor();
   await page.getByTestId('lookup-records-tab').click();await page.locator('.recall-history .saved-sentence').first().waitFor();
   const lookupLabel=await page.locator('.lookup-heading h2').textContent();
+  await page.locator('.context-sheet-expand').click();
+  await page.locator('.lookup-content > .soft-refresh-current').evaluate(n=>n.scrollTop=240);
+  const panelTop=await page.locator('.lookup-content > .soft-refresh-current').evaluate(n=>n.scrollTop);
   if(width>=768){await settings();await page.locator('.settings-groups').waitFor();await page.evaluate(()=>window.__lexicueBack());}
-  else{await page.getByRole('button',{name:'返回原文',exact:true}).first().click();await page.locator('.reader-return-origin').click();}
+  else{await page.locator('.recall-history .saved-sentence-original').nth(4).click();await page.getByRole('button',{name:'返回原文',exact:true}).first().click();await page.locator('.reader-return-origin').click();}
   await page.locator('.reading-page').waitFor();
   eq(await page.locator('.lookup-heading h2').textContent(),lookupLabel,`${label}: reader visit keeps selected word`);
   eq(await page.getByTestId('lookup-records-tab').getAttribute('aria-selected'),'true',`${label}: reader visit keeps lookup tab`);
+  eq(await page.locator('.context-panel').getAttribute('data-expanded'),'true',`${label}: return restores full lookup sheet`);
+  if(width>=768)eq(await page.locator('.lookup-content > .soft-refresh-current').evaluate(n=>n.scrollTop),panelTop,`${label}: lookup internal scroll is restored`);
+  if(width<768)await page.locator('.context-sheet-expand').click();
   await sourceReturn.click();await page.locator('.saved-record-open[aria-expanded=true]').waitFor();
   eq(await contextPager.inputValue(),'2',`${label}: source return keeps example page`);
   const frames=await page.evaluate(()=>new Promise(resolve=>{const frames=[];const start=performance.now();const step=()=>{const n=document.querySelector('.saved-scroll');frames.push({scroll:n.scrollTop,opacity:getComputedStyle(n.closest('.page-live')).opacity,ghost:!!document.querySelector('.page-ghost .page-snapshot')});if(performance.now()-start<500)requestAnimationFrame(step);else resolve(frames);};requestAnimationFrame(step);}));
@@ -62,6 +68,8 @@ try{
   await page.locator(width<768?'.mobile-workspace-header .page-back':'.legacy-paper .page-back').click();await page.waitForURL('**/settings?section=backup');
   eq(new URL(page.url()).search,'?section=backup',`${label}: old records return to backup, not materials`);
   await back();await page.locator('.settings-groups').waitFor();
+  const returnIcon=page.locator(width<768?'.mobile-settings-header button':'.settings-back');await returnIcon.hover();
+  eq(await returnIcon.evaluate(n=>getComputedStyle(n).backgroundColor),'rgba(0, 0, 0, 0)',`${label}: return icon hover has no rectangular fill`);
   const directory=page.locator('.settings-scroll');await directory.evaluate(n=>n.scrollTop=130);const dirTop=await directory.evaluate(n=>n.scrollTop);
   await page.locator('[data-entry=updates]').click();await back();await page.locator('.settings-groups').waitFor();
   eq(await directory.evaluate(n=>n.scrollTop),dirTop,`${label}: settings directory returns without auto-scroll from focus`);

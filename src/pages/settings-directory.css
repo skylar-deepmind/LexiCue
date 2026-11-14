@@ -55,9 +55,9 @@
   -webkit-touch-callout:none;
 }
 @media(hover:hover) and (pointer:fine) {
-  .settings-directory :is(.settings-row,.settings-back):hover { background:var(--interactive-hover); }
+  .settings-directory .settings-row:hover { background:var(--interactive-hover); }
   .settings-directory .theme-choice:hover { border-color:var(--text-muted); }
-  .settings-directory :is(.settings-row,.theme-choice,.settings-back):active { background:var(--interactive-pressed); }
+  .settings-directory :is(.settings-row,.theme-choice):active { background:var(--interactive-pressed); }
 }
 @media(hover:none), (pointer:coarse) {
   .settings-directory :is(.settings-row,.theme-choice,.settings-back):active { opacity:.65; transition:opacity 100ms ease 120ms; }
@@ -73,7 +73,7 @@
   .settings-scroll.materials-scroll { padding-inline:24px; }
   .b-shell:has(.page-live .settings-directory) .b-dock-control[aria-current=page] { background:var(--accent-50); }
   .settings-directory .settings-theme-heading { padding-bottom:4px; }
-  .settings-heading:has(.settings-back) { flex-direction:column; align-items:flex-start; gap:4px; }
+  .settings-heading:has(.settings-back) { flex-direction:row; align-items:center; gap:10px; }
   .settings-scroll:has(.settings-back) { padding-top:23px; }
 }
 @media(max-width:767px) {
@@ -102,3 +102,6 @@
   .settings-row + .settings-row::before { left:49px; }
   .settings-detail { padding-top:8px; }
 }
+
+.settings-directory .settings-back:is(:hover,:active) { background:transparent; }
+.settings-directory .settings-back:active { opacity:.65; }
