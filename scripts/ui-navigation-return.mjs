@@ -40,7 +40,7 @@ try{
   await page.locator('.reading-word').filter({hasText:/^quiet$/}).first().click();await page.locator('.lookup-stage[data-lookup-state=ready]').waitFor();
   await page.getByTestId('lookup-records-tab').click();await page.locator('.recall-history .saved-sentence').first().waitFor();
   const lookupLabel=await page.locator('.lookup-heading h2').textContent();
-  await page.locator('.context-sheet-expand').click();
+  if(width<768)await page.locator('.context-sheet-expand').click();
   await page.locator('.lookup-content > .soft-refresh-current').evaluate(n=>n.scrollTop=240);
   const panelTop=await page.locator('.lookup-content > .soft-refresh-current').evaluate(n=>n.scrollTop);
   if(width>=768){await settings();await page.locator('.settings-groups').waitFor();await page.evaluate(()=>window.__lexicueBack());}
@@ -48,7 +48,7 @@ try{
   await page.locator('.reading-page').waitFor();
   eq(await page.locator('.lookup-heading h2').textContent(),lookupLabel,`${label}: reader visit keeps selected word`);
   eq(await page.getByTestId('lookup-records-tab').getAttribute('aria-selected'),'true',`${label}: reader visit keeps lookup tab`);
-  eq(await page.locator('.context-panel').getAttribute('data-expanded'),'true',`${label}: return restores full lookup sheet`);
+  eq(await page.locator('.context-panel').getAttribute('data-expanded'),String(width<768),`${label}: return restores full lookup sheet`);
   if(width>=768)eq(await page.locator('.lookup-content > .soft-refresh-current').evaluate(n=>n.scrollTop),panelTop,`${label}: lookup internal scroll is restored`);
   if(width<768)await page.locator('.context-sheet-expand').click();
   await sourceReturn.click();await page.locator('.saved-record-open[aria-expanded=true]').waitFor();
