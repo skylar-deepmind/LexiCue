@@ -37,6 +37,9 @@ export interface LookupSession extends LookupUndoSession {
     panels?:Map<string,PanelView>;results?:Map<string,LookupMemory>;recall?:Map<string,RecallView>;
     actions: Map<string, { mutation: SavedMutation; id: string; promise?: Promise<SavedMutationResult> }>;
 }
+function trimSessionViews(session:LookupSession) {
+    for(const map of [session.panels,session.results,session.recall])while(map && map.size>16)map.delete(map.keys().next().value!);
+}
 export interface LookupDraft {
     value: string;
     personal: boolean;
@@ -77,6 +80,7 @@ export default function ReadingLookup(props: LookupProps) {
     props.session.panels ??= new Map();props.session.recall ??= new Map();
     if(!props.session.panels.has(key))props.session.panels.set(key,{expanded:false,scroll:0});
     if(!props.session.recall.has(key))props.session.recall.set(key,{page:{records:[],total:0},activeRecord:null});
+    trimSessionViews(props.session);
     const currentKey = useRef(key);
     currentKey.current = key;
     const [savedVersion, setSavedVersion] = useState(0);
@@ -145,7 +149,7 @@ function LookupContent({ query, scope, onSkip, drafts, session, onReady, onRecor
     const activeProvider: DictionaryView = provider === 'longman' ? 'local' : provider;
     const [lookupError, setLookupError] = useState('');
     const [loading, setLoading] = useState(!cached?.ready);
-    useLayoutEffect(()=>{session.results!.set(key,{local:localResult,online:onlineResults,ready:!loading});});
+    useLayoutEffect(()=>{session.results!.set(key,{local:localResult,online:onlineResults,ready:!loading});trimSessionViews(session);});
     const [retry, setRetry] = useState(0);
     useEffect(() => { const refresh = () => setRetry(value => value + 1); window.addEventListener('lexicue-dictionary-changed', refresh); return () => window.removeEventListener('lexicue-dictionary-changed', refresh); }, []);
     const [draft, setDraft] = useState(existingDraft?.value ?? '');

@@ -41,7 +41,7 @@ export default function RecallSection({ memory, expression, expanded = false, on
       if (!live || pending.current) return;
       pending.current = true; setLoading(true); setError(false);
       try {
-        const next = await contextsInScope(sessionId?{kind:'example',sessionId}:LIBRARY_SCOPE, expression, offset, offset ? 20 : Math.max(20,restoredCount.current));
+        const next = await contextsInScope(sessionId?{kind:'example',sessionId}:LIBRARY_SCOPE, expression, offset, offset ? 10 : Math.max(10,restoredCount.current));
         if (live && current === generation.current) { setPage(previous => ({ records: offset ? [...previous.records, ...next.records] : next.records, total: next.total })); }
       } catch { if (live && current === generation.current) setError(true); }
       finally { if (live && current === generation.current) { pending.current = false; setLoading(false); onLoaded?.(); } }
