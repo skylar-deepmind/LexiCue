@@ -11,7 +11,10 @@ the repository version. TestFlight uses the `app-store-connect` export method.
 The API key is optional; Xcode Organizer can also upload the archive.
 
 `npm run ios:prepare` includes `src-tauri/PrivacyInfo.xcprivacy` in the native
-application's Resources phase. Do not remove local signing settings when updating
+application's Resources phase and replaces the generated template icons with
+opaque RGB versions of the existing LexiCue assets in `src-tauri/icons/ios`.
+Verify the actual exported icon, not only the source icon directory.
+Do not remove local signing settings when updating
 an existing generated project. Verify that the exported app contains the manifest
 at its root, and verify its signature, team, application identifier, build number,
 distribution profile and disabled debugger entitlement before upload.
