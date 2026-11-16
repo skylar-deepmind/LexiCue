@@ -1549,6 +1549,7 @@ button:disabled:is([class*='bg-blue-'], [class*='bg-purple-'], [class*='bg-gray-
  --approved-focus:#487965; --approved-dot:#a2b3a6; --approved-cover-mat:#26312e;
  --approved-wall:#302d2b; --approved-wall-title:#24483e; --approved-warm:#a5470e;
  --approved-selected:#f4d6b9; --approved-selected-ink:#213b35;
+ --approved-reading-selected:#dce9ef; --approved-reading-selected-ink:#34596d;
 }
 :root[data-theme="midnight"] {
  --approved-desk:#202926; --approved-card:#28332e; --approved-card-ink:#f0eee2;
@@ -1557,4 +1558,5 @@ button:disabled:is([class*='bg-blue-'], [class*='bg-purple-'], [class*='bg-gray-
  --approved-focus:#b4d7bd; --approved-dot:#6e8d7a; --approved-cover-mat:#17211c;
  --approved-wall:#202321; --approved-wall-title:#24483e; --approved-warm:#ffb175;
  --approved-selected:#604533; --approved-selected-ink:#e3e9df;
+ --approved-reading-selected:#324b56; --approved-reading-selected-ink:#dceaf0;
 }
