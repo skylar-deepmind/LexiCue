@@ -1,10 +1,12 @@
 // Install isolated storage before evaluating any product store.
 import {engine,firstSession,persist,resetDemo} from './runtime';
+// Match the installed app: base styles load before the page-specific styles.
+import '../../src/index.css';
 import './demo.css';
 import {configureBrowserSpeechPreferences} from './speech';
 async function start(){
  const [{default:App},{createRoot},{initI18n},{usePreferencesStore},{useReadingDeskStore},{useMaterialStore}]=await Promise.all([
-  import('../../src/App'),import('react-dom/client'),import('../../src/i18n'),import('../../src/stores/preferencesStore'),import('../../src/stores/readingDeskStore'),import('../../src/stores/materialStore'),import('../../src/index.css'),
+  import('../../src/App'),import('react-dom/client'),import('../../src/i18n'),import('../../src/stores/preferencesStore'),import('../../src/stores/readingDeskStore'),import('../../src/stores/materialStore'),
  ]);
  configureBrowserSpeechPreferences(()=>usePreferencesStore.getState().speech);
  const allowedLocales=['en','zh','ja','de'],allowedThemes=['ocean','sage','amber','twilight','midnight'];
