@@ -6,6 +6,7 @@ type Entrance = { id: number; hash: string; origin: 'desk' | 'wall'; card: Box; 
 let entrance: Entrance | null = null;
 let returning: { title?: Piece; quote?: Piece; cover?: Piece; words?: Piece[] } | null = null;
 let pending = false, cleanup = () => {};
+let returnFrame = 0;
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 function box(node: Element): Box { const { x, y, width, height } = node.getBoundingClientRect(); return { x, y, width, height }; }
 function piece(node: HTMLElement | null): Piece | undefined {
@@ -22,6 +23,7 @@ function findSentence(text: string): HTMLElement | null {
   return nodes.find(node => normalized(node.textContent ?? '') === normalized(text)) ?? null;
 }
 export function captureReadingEntrance(material: Material, card: HTMLElement, origin: 'desk' | 'wall') {
+  cancelAnimationFrame(returnFrame); returnFrame = 0;
   cleanup(); returning = null; pending = true;
   const title = card.querySelector<HTMLElement>('.approved-card-title,.approved-poster strong');
   const quote = card.querySelector<HTMLElement>('.approved-card-quote');
@@ -57,6 +59,7 @@ function contours(source: Piece | undefined, origin: Entrance['origin']): HTMLCa
   } catch { return null; } // Cross-origin thumbnails still get a complete paper transition.
 }
 function run(reverse: boolean) {
+  if (reverse && !returning) return;
   const data = entrance; if (!data) return;
   const reader = document.querySelector<HTMLElement>('.reading-page');
   const card = document.querySelector<HTMLElement>(`[data-motion-file="${data.id}"]`);
@@ -106,7 +109,10 @@ function run(reverse: boolean) {
     const glow = document.createElement('div'); glow.className = 'approved-exposure'; place(glow, source.card);
     animate(glow, [{ opacity: 0, transform: 'scale(.8)' }, { opacity: .8, offset: .19 }, { opacity: .3, transform: 'scale(4)', offset: .65 }, { opacity: 0, transform: 'scale(8)', offset: 1 }]);
   }
+  let disposed = false;
   const dispose = () => {
+    if (disposed) return;
+    disposed = true;
     jobs.forEach(a => a.cancel()); hidden.forEach(({ node, visibility }) => { node.style.visibility = visibility; }); layer.remove();
     window.removeEventListener('resize', dispose); window.removeEventListener('pagehide', dispose); document.removeEventListener('visibilitychange', visibility);
     if (cleanup === dispose) cleanup = () => {};
@@ -123,8 +129,8 @@ export function finishReadingEntrance(id: number): () => void {
   return () => { cancelAnimationFrame(frame); cleanup(); };
 }
 export function finishReadingReturn() {
-  if (!returning || !entrance) return;
-  requestAnimationFrame(() => run(true));
+  if (!returning || !entrance || returnFrame) return;
+  returnFrame = requestAnimationFrame(() => { returnFrame = 0; run(true); });
 }
 
 export function readingMotionExcerpt(material: Material): string | undefined { return entrance?.id === material.id && entrance.hash === material.content_hash && returning ? entrance.text : undefined; }
