@@ -1540,3 +1540,21 @@ button:disabled:is([class*='bg-blue-'], [class*='bg-purple-'], [class*='bg-gray-
 .page-back .mobile-reader-back { display:block; }
 .settings-heading .settings-back { min-width:44px;min-height:44px;padding:0;display:inline-flex;align-items:center;justify-content:center;border:0;background:transparent; }
 @media(max-width:767px){.desktop-page-back{display:none}}
+
+/* Figma-approved reading-room surfaces; all interaction colors have dark peers. */
+:root {
+ --approved-desk:#e9ede5; --approved-card:#fcf9f1; --approved-card-ink:#213c34;
+ --approved-ink:#213b35; --approved-secondary:#42574d; --approved-tag:#526d59;
+ --approved-paper:#faf9f6; --approved-settings:#f8f9f1; --approved-hover:#dce4d9;
+ --approved-focus:#487965; --approved-dot:#a2b3a6; --approved-cover-mat:#26312e;
+ --approved-wall:#302d2b; --approved-wall-title:#24483e; --approved-warm:#a5470e;
+ --approved-selected:#f4d6b9; --approved-selected-ink:#213b35;
+}
+:root[data-theme="midnight"] {
+ --approved-desk:#202926; --approved-card:#28332e; --approved-card-ink:#f0eee2;
+ --approved-ink:#e3e9df; --approved-secondary:#d3dcd0; --approved-tag:#b1c9b4;
+ --approved-paper:#202926; --approved-settings:#2c3831; --approved-hover:#33433b;
+ --approved-focus:#b4d7bd; --approved-dot:#6e8d7a; --approved-cover-mat:#17211c;
+ --approved-wall:#202321; --approved-wall-title:#24483e; --approved-warm:#ffb175;
+ --approved-selected:#604533; --approved-selected-ink:#e3e9df;
+}

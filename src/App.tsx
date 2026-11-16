@@ -2,12 +2,11 @@ import { useEffect } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import MobileStartup from './components/MobileStartup';
-import { isMobilePlatform } from './lib/platform';
 import Layout from './components/Layout';
 import FilesPage from './pages/FilesPage';
 import FileDetailPage from './pages/FileDetailPage';
 import SettingsPage from './pages/SettingsPage';
-import SavedPage from './pages/SavedPage';
+import SavedPage from './pages/SavedArchivePage';
 import LegacyPage from './pages/LegacyPage';
 import ExamplePage from './pages/ExamplePage';
 import { useOnboardingStore } from './stores/onboardingStore';
@@ -33,7 +32,7 @@ export default function App() {
   return (
     <ThemeProvider>
       <MobileStartup>
-      <BrowserRouter useTransitions={!isMobilePlatform()}>
+      <BrowserRouter useTransitions={false}>
         <Routes>
           <Route element={<Layout />}>
             <Route path="/" element={<FirstLaunch />} />

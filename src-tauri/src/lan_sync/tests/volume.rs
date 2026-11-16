@@ -49,6 +49,7 @@ fn volume_and_foreground_writes() {
         file = materials::import_material(
             &a,
             &materials::MaterialInput {
+                tag_ids: Vec::new(),
                 operation_id: Uuid::new_v4().to_string(),
                 name: format!("Lecture {n}.txt"),
                 content,

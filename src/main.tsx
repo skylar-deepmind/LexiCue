@@ -4,6 +4,7 @@ import './index.css'
 import { initI18n } from './i18n'
 import App from './App'
 import './reading-drawer.css'
+import './pages/approved-ui.css'
 
 async function start() {
   if (import.meta.env.VITE_SLICE_PREVIEW === '1') {

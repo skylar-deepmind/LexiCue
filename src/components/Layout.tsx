@@ -188,7 +188,7 @@ export default function Layout() {
             void subscription.then(stop => stop()).catch(() => {});
         };
     }, []);
-    return (<div className="app-layout b-shell" data-context-open={panels.length > 0}
+    return (<div className={`app-layout b-shell${new URLSearchParams(search).get('view') === 'manage' || routeState?.returnOrigin?.path?.includes('view=manage') ? '' : ' figma-shell'}`} data-approved-page={pathname.startsWith('/files/') || pathname === '/example' ? 'reader' : pathname.slice(1)} data-context-open={panels.length > 0}
         onPointerDownCapture={event => {
             const link = event.target instanceof Element ? event.target.closest('a[href]') : null;
             linkPress.current = link && event.isPrimary && event.button === 0

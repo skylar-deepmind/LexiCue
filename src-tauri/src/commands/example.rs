@@ -78,6 +78,7 @@ impl ExampleState {
             let imported = materials::import_material(
                 &conn,
                 &materials::MaterialInput {
+                    tag_ids: Vec::new(),
                     document: None,
                     normalized_kind: None,
                     source: None,

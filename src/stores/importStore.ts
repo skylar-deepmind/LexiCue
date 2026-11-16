@@ -178,7 +178,7 @@ let generation = 0;
 let pickerGeneration = 0;
 let rangeGeneration = 0;
 let jobSequence = Date.now();
-const empty = { items: [] as ImportItem[], phase: 'source' as ImportPhase, source: 'choose' as 'choose' | 'file' | 'youtube', selectedId: null as string | null,
+const empty = { importTagIds: [] as number[], items: [] as ImportItem[], phase: 'source' as ImportPhase, source: 'choose' as 'choose' | 'file' | 'youtube', selectedId: null as string | null,
     running: false, stopping: false, destination: null as number | 'materials' | null, pickerError: false, picking: false, selectionBusy: null as string | null };
 function abandonPreparation() {
     generation++;
@@ -199,6 +199,8 @@ export const useImportStore = create<{
     destination: number | 'materials' | null;
     pickerError: boolean;
     selectionBusy: string | null;
+    importTagIds: number[];
+    setImportTagIds: (ids: number[]) => void;
     selectRange: (id: string, selection: DocumentSelection) => Promise<void>;
     show: () => void;
     hide: () => void;
@@ -235,7 +237,7 @@ export const useImportStore = create<{
         const active = new AbortController();
         controller = active;
         set({ phase: 'committing', running: true, stopping: false, picking: false, destination: null });
-        await commitImportQueue(items, active.signal, update, input => invoke('import_reading_material', { input }));
+        await commitImportQueue(items, active.signal, update, input => invoke('import_reading_material', { input: { ...input, ...(get().importTagIds.length ? { tag_ids: get().importTagIds } : {}) } }));
         const current = get().items;
         // A hidden write still owns its receipt and refreshes the catalog, but
         // must not leave a deferred navigation that fires on the next opening.
@@ -246,6 +248,7 @@ export const useImportStore = create<{
     };
     return {
         open: false, ...empty,
+        setImportTagIds: ids => { if (!get().running && get().phase === 'preview') set({ importTagIds: [...new Set(ids)] }); },
         show: () => set({ open: true }),
         clearDestination: () => set({ destination: null }),
         hide: () => {

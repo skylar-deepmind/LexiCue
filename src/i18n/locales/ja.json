@@ -2000,5 +2000,26 @@
       "missing": "オンラインの語義はありません。再試行",
       "error": "オンライン検索に失敗しました。再試行"
     }
+  },
+  "approved": {
+    "light": "ライトモード",
+    "dark": "ダークモード",
+    "manage": "教材を管理",
+    "chooseTag": "タグを選択",
+    "noNew": "新しい用法はありません",
+    "moreUses": "ほかの用法",
+    "supplement": "用法を追加検索",
+    "savedCount": "{{count}} 件",
+    "startDate": "開始日",
+    "endDate": "終了日",
+    "allDates": "すべての日付",
+    "preferences": "環境設定",
+    "data": "データとデバイス",
+    "tools": "ツール",
+    "updates": "ソフトウェア更新",
+    "dictionary": "辞書",
+    "more": "もっと見る",
+    "loadFailed": "保存した項目を読み込めません。もう一度お試しください。",
+    "manageSaved": "保存した項目を管理"
   }
 }

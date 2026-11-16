@@ -142,3 +142,15 @@ The two source-sensitive archive/recall unit tests use a scoped thread-local
 `cfg(test)` relation catalog, preserving actual production wrapper behavior and
 the separate missing-dictionary tests. The existing genuine-package integration
 tests remain opt-in; no private Longman package is required by the default suite.
+
+## Approved desktop/mobile UI acceptance
+
+`approved-macos.json` and `approved-ios.json` use fresh explicit UI-QA identities
+with `dictionary-native-qa`; they do not open or replace everyday app data.
+Use the normal frontend and real dictionary, clipboard, file, speech, import and
+saved-record services. Never enable `VITE_SLICE_*`. The same isolation disables
+updater and shared sync credentials, so QA is not an everyday installation or
+end-to-end production sync claim. Preserve source SHA, artifact checksums,
+per-device receipts, screenshots and fixture fingerprints outside worktrees.
+The two-interface browser regression is `scripts/ui-approved-smoke.mjs`;
+its real Rust/SQLite bridge is disposable and OS boundaries are controlled.

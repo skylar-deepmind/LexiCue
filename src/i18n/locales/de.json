@@ -2018,5 +2018,26 @@
       "missing": "Keine Online-Definitionen. Erneut versuchen",
       "error": "Online-Suche fehlgeschlagen. Erneut versuchen"
     }
+  },
+  "approved": {
+    "light": "Hellen Modus aktivieren",
+    "dark": "Dunklen Modus aktivieren",
+    "manage": "Material verwalten",
+    "chooseTag": "Tag wählen",
+    "noNew": "Keine neuen Verwendungen gefunden",
+    "moreUses": "Weitere Verwendungen",
+    "supplement": "Weitere Verwendungen suchen",
+    "savedCount": "{{count}} Einträge",
+    "startDate": "Startdatum",
+    "endDate": "Enddatum",
+    "allDates": "Alle Daten",
+    "preferences": "Einstellungen",
+    "data": "Daten & Geräte",
+    "tools": "Werkzeuge",
+    "updates": "Softwareupdate",
+    "dictionary": "Wörterbücher",
+    "more": "Mehr",
+    "loadFailed": "Gespeicherte Einträge konnten nicht geladen werden. Bitte erneut versuchen.",
+    "manageSaved": "Gespeicherte Einträge verwalten"
   }
 }

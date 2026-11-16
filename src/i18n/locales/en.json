@@ -2018,5 +2018,26 @@
       "missing": "No online definitions. Select to retry",
       "error": "Online lookup failed. Select to retry"
     }
+  },
+  "approved": {
+    "light": "Switch to light mode",
+    "dark": "Switch to dark mode",
+    "manage": "Manage materials",
+    "chooseTag": "Choose a tag",
+    "noNew": "No new uses found",
+    "moreUses": "More uses",
+    "supplement": "Look up more uses",
+    "savedCount": "{{count}} entries",
+    "startDate": "Start date",
+    "endDate": "End date",
+    "allDates": "All dates",
+    "preferences": "Preferences",
+    "data": "Data & devices",
+    "tools": "Tools",
+    "updates": "Software update",
+    "dictionary": "Dictionary",
+    "more": "More",
+    "loadFailed": "Saved entries could not be loaded. Please try again.",
+    "manageSaved": "Manage saved entries"
   }
 }

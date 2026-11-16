@@ -3,7 +3,10 @@
 pub fn dictionary_isolation(identifier: &str, enabled: bool) -> Result<bool, &'static str> {
     let isolated = matches!(
         identifier,
-        "com.lexicue.qa.dictionary.macos" | "com.lexicue.qa.dictionary.ios"
+        "com.lexicue.qa.dictionary.macos"
+            | "com.lexicue.qa.dictionary.ios"
+            | "com.lexicue.qa.approved.macos"
+            | "com.lexicue.qa.approved.ios"
     );
     if isolated != enabled {
         return Err("Dictionary QA feature and isolated application identifier must agree");
@@ -23,6 +26,8 @@ mod tests {
         for id in [
             "com.lexicue.qa.dictionary.macos",
             "com.lexicue.qa.dictionary.ios",
+            "com.lexicue.qa.approved.macos",
+            "com.lexicue.qa.approved.ios",
         ] {
             assert_eq!(dictionary_isolation(id, true), Ok(true));
             assert!(dictionary_isolation(id, false).is_err());

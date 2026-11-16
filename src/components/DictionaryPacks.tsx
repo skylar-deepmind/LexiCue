@@ -20,6 +20,7 @@ function errorKey(error: unknown): string {
 }
 export default function DictionaryPacks() {
   const { t, i18n } = useTranslation();
+  const [bookInfo, setBookInfo] = useState<PackId | null>(null);
   const [status, setStatus] = useState<Status | null>(null);
   const [operation, setOperation] = useState<Progress | null>(null);
   const [pending, setPending] = useState<PackId | null>(null);
@@ -78,11 +79,15 @@ export default function DictionaryPacks() {
   if (!status) return <section className="dictionary-packs"><p role="status">{!error && <BusyRing />}{t(error ? 'dictionaryPacks.statusFailed' : 'common.loading')}</p>{error && <button className="ui-button" onClick={() => { setError(null); void refresh(); }}>{t('common.retry')}</button>}</section>;
   return <div className="dictionary-packs">
     {status.packs.map(pack => <section className="dictionary-pack" ref={node => { if (node) rows.current.set(pack.id, node); else rows.current.delete(pack.id); }} key={pack.id} aria-labelledby={`pack-${pack.id}`} data-pack={pack.id} data-installed={pack.installed}>
-      <div className="dictionary-pack-heading"><h2 id={`pack-${pack.id}`}>{t(`dictionaryPacks.names.${pack.id}`)}</h2><span>{t(pack.bundled_by_default ? 'dictionaryPacks.bundled' : pack.installed ? 'dictionaryPacks.installed' : 'dictionaryPacks.optional')}</span></div>
-      <p>{t(`dictionaryPacks.descriptions.${pack.id}`)}</p>
+      <button type="button" className="approved-dictionary-book" aria-label={t(`dictionaryPacks.names.${pack.id}`)} aria-busy={operation?.id === pack.id || pending === pack.id} disabled={!!busy && operation?.id !== pack.id && pending !== pack.id} onClick={() => {
+        if (operation?.id === pack.id || pending === pack.id) return;
+        if (!pack.installed && !pack.bundled_by_default && pack.download_url) void action(pack, 'download');
+        else setBookInfo(current => current === pack.id ? null : pack.id);
+      }}><span className="approved-book-rule"/><h2 id={`pack-${pack.id}`}>{t(`dictionaryPacks.names.${pack.id}`)}</h2><img className="approved-book-device" src={`/design/book-${pack.id}.svg`} alt=""/><span className="approved-book-status">{operation?.id === pack.id ? operation.phase === 'downloading' && operation.total ? `${Math.round(operation.completed / operation.total * 100)}%` : t(`dictionaryPacks.phases.${operation.phase}`) : pending === pack.id ? t('common.loading') : t(pack.bundled_by_default ? 'dictionaryPacks.bundled' : pack.installed ? 'dictionaryPacks.installed' : pack.download_url ? 'dictionaryPacks.download' : 'dictionaryPacks.optional')}</span>{operation?.id === pack.id && <progress aria-label={t(`dictionaryPacks.phases.${operation.phase}`)} max={operation.total || 1} value={operation.phase === 'downloading' ? operation.completed : undefined}/>}</button>
+      <p>{t(`dictionaryPacks.descriptions.${pack.id}`)}</p><details open={bookInfo === pack.id} onToggle={event => { if (event.currentTarget.open) setBookInfo(pack.id); }}><summary aria-label={`${t(`dictionaryPacks.names.${pack.id}`)} · ${t('approved.more')}`}>…</summary>
       <p className="dictionary-pack-size">{t('dictionaryPacks.dataSize', { size: size(pack.database.bytes) })}{!pack.bundled_by_default && ` · ${t('dictionaryPacks.downloadSize', { size: size(pack.archive.bytes) })}`}</p>
       {pack.error && <p role="alert">{t(pack.bundled_by_default ? 'dictionaryPacks.baseUnavailable' : 'dictionaryPacks.packUnavailable')}</p>}
-      {operation?.id === pack.id && <div className="dictionary-pack-progress"><span role="status">{t(`dictionaryPacks.phases.${operation.phase}`)}</span><progress aria-label={t(`dictionaryPacks.phases.${operation.phase}`)} max={operation.total || 1} value={operation.phase === 'downloading' ? operation.completed : undefined}/>{operation.phase === 'downloading' && <span>{size(operation.completed)} / {size(operation.total)}</span>}<button className="ui-button" onClick={() => { void invoke('cancel_dictionary_pack').catch(() => setError({ id: pack.id, key: 'failed' })); }}>{t('common.cancel')}</button></div>}
+      {operation?.id === pack.id && <div className="dictionary-pack-progress"><span role="status">{t(`dictionaryPacks.phases.${operation.phase}`)}</span>{operation.phase === 'downloading' && <span>{size(operation.completed)} / {size(operation.total)}</span>}<button className="ui-button" onClick={() => { void invoke('cancel_dictionary_pack').catch(() => setError({ id: pack.id, key: 'failed' })); }}>{t('common.cancel')}</button></div>}
       {pending === pack.id && !operation && <p role="status"><BusyRing/>{t('common.loading')}</p>}
       {error?.id === pack.id && <p role="alert">{t(`dictionaryPacks.${error.key}`)}</p>}
       {!pack.bundled_by_default && <div className="dictionary-pack-actions">
@@ -92,6 +97,7 @@ export default function DictionaryPacks() {
         </>}
       </div>}
       {pack.bundled_by_default && !pack.installed && <button className="ui-button" disabled={busy} onClick={() => { void invoke('retry_dictionary_init').then(refresh).catch(() => setError({ id: pack.id, key: 'failed' })); }}>{t('common.retry')}</button>}
+      </details>
     </section>)}
     {error && !error.id && <p role="alert">{t(`dictionaryPacks.${error.key}`)}</p>}
   </div>;

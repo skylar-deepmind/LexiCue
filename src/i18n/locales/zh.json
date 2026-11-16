@@ -1998,5 +1998,26 @@
       "missing": "没有在线释义，点击重试",
       "error": "在线查询失败，点击重试"
     }
+  },
+  "approved": {
+    "light": "切换亮色模式",
+    "dark": "切换暗色模式",
+    "manage": "管理材料",
+    "chooseTag": "选择标签",
+    "noNew": "未找到新的用法",
+    "moreUses": "其他用法",
+    "supplement": "补查其他用法",
+    "savedCount": "{{count}} 个词条",
+    "startDate": "开始日期",
+    "endDate": "结束日期",
+    "allDates": "全部日期",
+    "preferences": "偏好",
+    "data": "资料与设备",
+    "tools": "工具",
+    "updates": "软件更新",
+    "dictionary": "词典",
+    "more": "更多",
+    "loadFailed": "暂时无法加载收藏，请重试。",
+    "manageSaved": "管理收藏"
   }
 }

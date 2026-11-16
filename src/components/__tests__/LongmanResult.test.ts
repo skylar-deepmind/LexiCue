@@ -91,7 +91,7 @@ describe('dictionary reference presentation', () => {
       group.senses.forEach(sense => sense.meaning.zh = null);
     });
     const markup = renderToStaticMarkup(createElement(LongmanResult, { result: value }));
-    expect(markup).toContain('longman.englishOnly');
+    expect(markup).not.toContain('longman.englishOnly');
     expect(markup).toContain('noun definition 1');
     expect(markup).not.toContain('class="longman-ipa"');
   });

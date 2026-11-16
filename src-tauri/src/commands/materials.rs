@@ -26,6 +26,8 @@ pub fn create_tables(conn: &Connection) -> rusqlite::Result<()> {
 }
 #[derive(Serialize, Deserialize)]
 pub struct MaterialInput {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tag_ids: Vec<i64>,
     pub operation_id: String,
     pub name: String,
     pub content: String,
@@ -190,6 +192,18 @@ pub fn import_material(conn: &Connection, input: &MaterialInput) -> Result<Impor
             .map_err(|e| e.to_string())?
         )
     );
+    // Preserve legacy receipt hashes for tag-free imports. A tagged batch
+    // freezes its selection into the idempotency identity before writing.
+    let request_hash = if input.tag_ids.is_empty() {
+        request_hash
+    } else {
+        format!(
+            "{:x}",
+            Sha256::digest(
+                serde_json::to_vec(&(&request_hash, &input.tag_ids)).map_err(|e| e.to_string())?
+            )
+        )
+    };
     let hash = format!("{:x}", Sha256::digest(input.content.as_bytes()))[..16].to_string();
     let tx = Transaction::new_unchecked(conn, TransactionBehavior::Immediate)
         .map_err(|e| e.to_string())?;
@@ -244,7 +258,7 @@ pub fn import_material(conn: &Connection, input: &MaterialInput) -> Result<Impor
     } else {
         tx.execute("INSERT INTO files(name,type,content,content_hash,imported_at,language,media_source,media_identity,document_source,document_identity) VALUES(?1,?2,?3,?4,?5,'en',?6,?7,?8,?9)",params![input.name,kind,input.content,hash,super::saved::now_ms(),input.source.as_ref().map(|s|serde_json::to_string(s).unwrap()),input.source.as_ref().map(|s|&s.key),input.document.as_ref().map(|s|serde_json::to_string(s).unwrap()),input.document.as_ref().map(|s|&s.identity)]).map_err(|e|e.to_string())?;
         let id = tx.last_insert_rowid();
-        super::tags::replace_file_tags(&tx, id, &[], &[])?;
+        super::tags::replace_file_tags(&tx, id, &input.tag_ids, &[])?;
         let mut statement=tx.prepare_cached("INSERT INTO segments(file_id,index_num,en_text,zh_text,start_time,end_time) VALUES(?1,?2,?3,?4,?5,?6)").map_err(|e|e.to_string())?;
         for segment in &input.segments {
             statement
@@ -474,6 +488,7 @@ pub struct Material {
     pub content_hash: String,
     pub imported_at: i64,
     pub segment_count: i64,
+    pub character_count: i64,
     pub preview: String,
     pub tags: Vec<TagInfo>,
     pub source_kind: &'static str,
@@ -483,7 +498,7 @@ pub struct Material {
 }
 pub fn list(conn: &Connection, tag_ids: &[i64], untagged: bool) -> Result<Vec<Material>, String> {
     let ids = serde_json::to_string(tag_ids).unwrap();
-    let mut stmt=conn.prepare("SELECT f.id,f.name,f.content_hash,f.imported_at,(SELECT COUNT(*) FROM segments s WHERE s.file_id=f.id),COALESCE((SELECT en_text FROM segments s WHERE s.file_id=f.id ORDER BY index_num LIMIT 1),''), f.media_source,f.document_source,f.type,s.index_num,p.revision FROM files f
+    let mut stmt=conn.prepare("SELECT f.id,f.name,f.content_hash,f.imported_at,(SELECT COUNT(*) FROM segments s WHERE s.file_id=f.id),COALESCE((SELECT en_text FROM segments s WHERE s.file_id=f.id ORDER BY index_num LIMIT 1),''), f.media_source,f.document_source,f.type,s.index_num,p.revision,COALESCE((SELECT SUM(length(s.en_text)) FROM segments s WHERE s.file_id=f.id),0) FROM files f
         LEFT JOIN reader_positions p ON p.file_id=f.id AND p.content_hash=f.content_hash
         LEFT JOIN segments s ON s.id=p.segment_id AND s.file_id=f.id
         WHERE f.language='en' AND f.type IN ('srt','txt') AND (?2=0 OR NOT EXISTS(SELECT 1 FROM file_tags ft WHERE ft.file_id=f.id))
@@ -523,6 +538,7 @@ pub fn list(conn: &Connection, tag_ids: &[i64], untagged: bool) -> Result<Vec<Ma
                 content_hash: r.get(2)?,
                 imported_at: r.get(3)?,
                 segment_count: r.get(4)?,
+                character_count: r.get(11)?,
                 preview: r.get(5)?,
                 tags: super::tags::file_tags(conn, r.get(0)?)?,
                 source_kind,
@@ -1005,8 +1021,58 @@ mod tests {
             imported.file_id
         );
     }
+    #[test]
+    fn tagged_import_is_atomic_portable_and_does_not_retag_duplicates() {
+        let dir = tempfile::tempdir().unwrap();
+        let conn = crate::db::init_db(&dir.path().join("tags-before.db")).unwrap();
+        let mut draft = input("tagged-original", "The air smelled of salt.");
+        draft.tag_ids = vec![999_999];
+        assert!(import_material(&conn, &draft).is_err());
+        assert_eq!(
+            conn.query_row("SELECT COUNT(*) FROM files", [], |r| r.get::<_, i64>(0))
+                .unwrap(),
+            0
+        );
+        assert_eq!(
+            conn.query_row("SELECT COUNT(*) FROM material_import_actions", [], |r| r
+                .get::<_, i64>(0))
+                .unwrap(),
+            0
+        );
+        let first = super::super::tags::ensure_tag(&conn, "Coast").unwrap();
+        let second = super::super::tags::ensure_tag(&conn, "Notes").unwrap();
+        draft.tag_ids = vec![first];
+        let imported = import_material(&conn, &draft).unwrap();
+        assert_eq!(
+            list(&conn, &[first], false).unwrap()[0].id,
+            imported.file_id
+        );
+        assert_eq!(
+            import_material(&conn, &draft).unwrap().file_id,
+            imported.file_id
+        );
+        let mut changed_receipt = input("tagged-original", "The air smelled of salt.");
+        changed_receipt.tag_ids = vec![second];
+        assert!(import_material(&conn, &changed_receipt).is_err());
+        changed_receipt.operation_id = "tagged-duplicate".into();
+        assert_eq!(
+            import_material(&conn, &changed_receipt).unwrap().outcome,
+            "duplicate"
+        );
+        assert!(list(&conn, &[second], false).unwrap().is_empty());
+        let backup = super::super::export::backup_payload(&conn).unwrap();
+        let restored = crate::db::init_db(&dir.path().join("tags-after.db")).unwrap();
+        super::super::export::restore_backup(&restored, &backup).unwrap();
+        assert_eq!(
+            open(&restored, imported.file_id).unwrap().segments[0].en_text,
+            "The air smelled of salt."
+        );
+        assert_eq!(list(&restored, &[first], false).unwrap().len(), 1);
+    }
+
     fn input(op: &str, text: &str) -> MaterialInput {
         MaterialInput {
+            tag_ids: Vec::new(),
             document: None,
             normalized_kind: None,
             source: None,
@@ -1199,6 +1265,7 @@ mod acceptance {
         let path = dir.path().join("import.db");
         let c = crate::db::init_db(&path).unwrap();
         let make = |op: &str| MaterialInput {
+            tag_ids: Vec::new(),
             document: None,
             normalized_kind: None,
             source: None,

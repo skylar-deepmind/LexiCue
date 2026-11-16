@@ -52,9 +52,9 @@ export default function AppFirstUseGuide() {
   let target='',title='',body='',action:string|undefined,progress=1,onNext=()=>{};
   switch(guide.tour){
     case 'import':
-      target=importing?'[data-guide="import-sources"]':'[data-guide="import"]';
-      title=importing?'从喜欢的内容开始':'把想读的内容带进来';
-      body=importing?'粘贴英文正文、网页或 YouTube 链接，也能选择英语文件。导入前可以先检查。':'点这里打开导入。先不用准备材料，我们也备好了一篇英语体验文章。';
+      target=importing?'[data-guide="import-sources"]':document.querySelector('.approved-card[data-desk-active="true"]')?'.approved-card[data-desk-active="true"]':'[data-guide="import"]';
+      title=importing?'从喜欢的内容开始':document.querySelector('.approved-card[data-desk-active="true"]')?'从这里继续阅读':'把想读的内容带进来';
+      body=importing?'粘贴英文正文、网页或 YouTube 链接，也能选择英语文件。导入前可以先检查。':document.querySelector('.approved-card[data-desk-active="true"]')?'点中央卡回到上次读到的句子。右上的托盘可以导入新的内容。':'点这里打开导入。先不用准备材料，我们也备好了一篇英语体验文章。';
       action='先用体验材料';onNext=startExample;break;
     case 'lookup':
       progress=2;target='.reading-sentence .reading-word';title='不懂的词，点一下！';
@@ -66,7 +66,7 @@ export default function AppFirstUseGuide() {
       if(!document.querySelector('.context-panel')){target='.reading-sentence .reading-word';title='再点开一个词试试';body=`在查词卡底部点「${saveLabel}」，就能保留原句。也可以稍后再试。`;}
       break;
     case 'tools':
-      progress=4;target='[data-guide="tools"]';title='听一听，也能看译文';body=mobile?'底部的耳机开启听读，翻译按钮切换中文。按自己的节奏试试看。':'左侧的耳机开启听读，翻译按钮切换中文。试着点一下，正文会同步变化。';
+      progress=4;target='[data-guide="tools"]';title='听一听，也能看译文';body=mobile?'底部的耳机开启听读，翻译按钮切换中文。按自己的节奏试试看。':'右上的耳机开启听读，翻译按钮切换中文。试着点一下，正文会同步变化。';
       action=guide.records.length?'看看记忆提示':'开始自己的阅读';onNext=()=>guide.records.length?guide.setTour('recall'):finish();break;
     case 'recall':{
       progress=5;

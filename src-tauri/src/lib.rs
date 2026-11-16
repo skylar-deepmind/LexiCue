@@ -199,6 +199,7 @@ pub fn run() {
             commands::export::restore_all,
             commands::saved::list_saved_records,
             commands::saved::list_saved_groups,
+            commands::saved::saved_date_histogram,
             commands::saved::saved_group_contexts,
             commands::saved::mutate_saved_record,
             commands::saved::undo_saved_mutation,

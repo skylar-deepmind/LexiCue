@@ -1566,6 +1566,15 @@ fn build_archive(
     query: &str,
     catalog: &std::sync::Arc<super::longman::RelationCatalog>,
 ) -> Result<Archive, String> {
+    build_archive_range(conn, query, catalog, None, None)
+}
+fn build_archive_range(
+    conn: &Connection,
+    query: &str,
+    catalog: &std::sync::Arc<super::longman::RelationCatalog>,
+    start_ms: Option<i64>,
+    end_ms: Option<i64>,
+) -> Result<Archive, String> {
     #[derive(Clone)]
     struct Row {
         id: String,
@@ -1582,9 +1591,9 @@ fn build_archive(
             .replace('%', "!%")
             .replace('_', "!_")
     );
-    let mut stmt = conn.prepare("SELECT record_id,json_extract(snapshot_json,'$.expression'),saved_at,(normalized_expression LIKE ?1 ESCAPE '!' OR json_extract(snapshot_json,'$.explanation') LIKE ?1 ESCAPE '!' OR json_extract(snapshot_json,'$.sentence') LIKE ?1 ESCAPE '!' OR json_extract(snapshot_json,'$.source.file_name') LIKE ?1 ESCAPE '!' OR json_extract(snapshot_json,'$.dictionary_reference') LIKE ?1 ESCAPE '!'),CASE WHEN json_type(snapshot_json,'$.dictionary_reference')='object' THEN json_extract(snapshot_json,'$.dictionary_reference') END,CASE WHEN json_type(snapshot_json,'$.dictionary_snapshot')='object' THEN json_extract(snapshot_json,'$.dictionary_snapshot') END FROM saved_records WHERE deleted_at IS NULL ORDER BY saved_at IS NULL,saved_at DESC,record_id").map_err(|e| e.to_string())?;
+    let mut stmt = conn.prepare("SELECT record_id,json_extract(snapshot_json,'$.expression'),saved_at,(normalized_expression LIKE ?1 ESCAPE '!' OR json_extract(snapshot_json,'$.explanation') LIKE ?1 ESCAPE '!' OR json_extract(snapshot_json,'$.sentence') LIKE ?1 ESCAPE '!' OR json_extract(snapshot_json,'$.source.file_name') LIKE ?1 ESCAPE '!' OR json_extract(snapshot_json,'$.dictionary_reference') LIKE ?1 ESCAPE '!'),CASE WHEN json_type(snapshot_json,'$.dictionary_reference')='object' THEN json_extract(snapshot_json,'$.dictionary_reference') END,CASE WHEN json_type(snapshot_json,'$.dictionary_snapshot')='object' THEN json_extract(snapshot_json,'$.dictionary_snapshot') END FROM saved_records WHERE deleted_at IS NULL AND (?2 IS NULL OR saved_at>=?2) AND (?3 IS NULL OR saved_at<?3) ORDER BY saved_at IS NULL,saved_at DESC,record_id").map_err(|e| e.to_string())?;
     let rows = stmt
-        .query_map([pattern], |r| {
+        .query_map(params![pattern, start_ms, end_ms], |r| {
             Ok(Row {
                 id: r.get(0)?,
                 expression: r.get(1)?,
@@ -1773,7 +1782,27 @@ pub fn groups(
     limit: i64,
     offset: i64,
 ) -> Result<SavedGroupPage, String> {
-    let archive = archive(conn, query)?;
+    groups_in_range(conn, query, limit, offset, None, None)
+}
+pub fn groups_in_range(
+    conn: &Connection,
+    query: &str,
+    limit: i64,
+    offset: i64,
+    start_ms: Option<i64>,
+    end_ms: Option<i64>,
+) -> Result<SavedGroupPage, String> {
+    let archive = if start_ms.is_none() && end_ms.is_none() {
+        archive(conn, query)?
+    } else {
+        std::sync::Arc::new(build_archive_range(
+            conn,
+            query,
+            &super::dictionary_packs::relation_catalog_configured(),
+            start_ms,
+            end_ms,
+        )?)
+    };
     let mut matching: Vec<_> = archive.groups.values().filter(|g| g.search_hit).collect();
     matching.sort_by(|a, b| {
         b.latest_saved_at
@@ -1809,7 +1838,27 @@ pub fn group_contexts(
     limit: i64,
     offset: i64,
 ) -> Result<SavedContextPage, String> {
-    let archive = archive(conn, "")?;
+    contexts_in_range(conn, group_id, limit, offset, None, None)
+}
+pub fn contexts_in_range(
+    conn: &Connection,
+    group_id: &str,
+    limit: i64,
+    offset: i64,
+    start_ms: Option<i64>,
+    end_ms: Option<i64>,
+) -> Result<SavedContextPage, String> {
+    let archive = if start_ms.is_none() && end_ms.is_none() {
+        archive(conn, "")?
+    } else {
+        std::sync::Arc::new(build_archive_range(
+            conn,
+            "",
+            &super::dictionary_packs::relation_catalog_configured(),
+            start_ms,
+            end_ms,
+        )?)
+    };
     context_page(conn, archive.groups.get(group_id), limit, offset)
 }
 pub fn context_page(
@@ -1836,20 +1885,55 @@ pub fn context_page(
         total: group.record_ids.len(),
     })
 }
+#[derive(Serialize)]
+pub struct SavedDateBin {
+    pub day: i64,
+    pub count: i64,
+}
+pub fn date_histogram(conn: &Connection, offset_minutes: i64) -> Result<Vec<SavedDateBin>, String> {
+    let offset = offset_minutes.clamp(-840, 840) * 60_000;
+    let mut stmt = conn.prepare("SELECT (saved_at-?1)/86400000 AS day,COUNT(*) FROM saved_records WHERE deleted_at IS NULL AND saved_at IS NOT NULL GROUP BY day ORDER BY day").map_err(|e|e.to_string())?;
+    let result = stmt
+        .query_map([offset], |r| {
+            Ok(SavedDateBin {
+                day: r.get(0)?,
+                count: r.get(1)?,
+            })
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<rusqlite::Result<Vec<_>>>()
+        .map_err(|e| e.to_string());
+    result
+}
+#[tauri::command]
+pub async fn saved_date_histogram(
+    state: State<'_, DbState>,
+    offset_minutes: Option<i64>,
+) -> Result<Vec<SavedDateBin>, String> {
+    state
+        .read("saved_date_histogram", move |conn| {
+            date_histogram(conn, offset_minutes.unwrap_or(0))
+        })
+        .await
+}
 #[tauri::command]
 pub async fn list_saved_groups(
     state: State<'_, DbState>,
     query: Option<String>,
     limit: Option<i64>,
     offset: Option<i64>,
+    start_ms: Option<i64>,
+    end_ms: Option<i64>,
 ) -> Result<SavedGroupPage, String> {
     state
         .read("list_saved_groups", move |conn| {
-            groups(
+            groups_in_range(
                 conn,
                 &query.unwrap_or_default(),
                 limit.unwrap_or(50),
                 offset.unwrap_or(0),
+                start_ms,
+                end_ms,
             )
         })
         .await
@@ -1860,10 +1944,19 @@ pub async fn saved_group_contexts(
     group_id: String,
     limit: Option<i64>,
     offset: Option<i64>,
+    start_ms: Option<i64>,
+    end_ms: Option<i64>,
 ) -> Result<SavedContextPage, String> {
     state
         .read("saved_group_contexts", move |conn| {
-            group_contexts(conn, &group_id, limit.unwrap_or(10), offset.unwrap_or(0))
+            contexts_in_range(
+                conn,
+                &group_id,
+                limit.unwrap_or(10),
+                offset.unwrap_or(0),
+                start_ms,
+                end_ms,
+            )
         })
         .await
 }
@@ -2046,6 +2139,60 @@ mod tests {
             INSERT INTO segments(id,file_id,index_num,en_text) VALUES(2,1,1,'We take off at noon.');").unwrap();
         (dir, conn)
     }
+    #[test]
+    fn archive_date_range_filters_contexts_before_search_and_keeps_boundaries() {
+        let (_dir, conn) = db();
+        let mut first = mutate(&conn, "date-first", &input(1)).unwrap().record;
+        let mut second = mutate(&conn, "date-second", &input(2)).unwrap().record;
+        first.saved_at = Some(1_000);
+        second.saved_at = Some(2_000);
+        second.explanation = Some("needle in a later note".into());
+        for record in [&first, &second] {
+            conn.execute(
+                "UPDATE saved_records SET saved_at=?1,snapshot_json=?2 WHERE record_id=?3",
+                params![
+                    record.saved_at,
+                    serde_json::to_string(record).unwrap(),
+                    record.record_id
+                ],
+            )
+            .unwrap();
+        }
+        let page = groups_in_range(&conn, "", 200, 0, Some(1_000), Some(2_000)).unwrap();
+        assert_eq!(page.total_groups, 1);
+        assert_eq!(page.total_records, 1);
+        let contexts = contexts_in_range(
+            &conn,
+            &page.groups[0].group_id,
+            50,
+            0,
+            Some(1_000),
+            Some(2_000),
+        )
+        .unwrap();
+        assert_eq!(contexts.records[0].record_id, first.record_id);
+        assert_eq!(contexts.total, 1);
+        assert_eq!(
+            groups_in_range(&conn, "needle", 200, 0, Some(1_000), Some(2_000))
+                .unwrap()
+                .total_groups,
+            0
+        );
+        assert_eq!(
+            groups_in_range(&conn, "needle", 200, 0, Some(2_000), Some(3_000))
+                .unwrap()
+                .total_records,
+            1
+        );
+        assert_eq!(date_histogram(&conn, -480).unwrap()[0].count, 2);
+        let before = serde_json::to_string(&get(&conn, &first.record_id).unwrap()).unwrap();
+        let _ = groups_in_range(&conn, "take off", 50, 0, None, None).unwrap();
+        assert_eq!(
+            serde_json::to_string(&get(&conn, &first.record_id).unwrap()).unwrap(),
+            before
+        );
+    }
+
     fn input(segment: i64) -> Mutation {
         Mutation::Save {
             input: SaveInput {

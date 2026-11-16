@@ -1,3 +1,4 @@
+import { dictionarySupplement } from '../lib/dictionarySupplement';
 import { LoadingSkeleton } from './LoadingFeedback';
 import LookupSourceSwitch, { type LookupSourceState } from './LookupSourceSwitch';
 import './lookup-controls.css';
@@ -252,17 +253,19 @@ function LookupContent({ query, scope, onSkip, drafts, session, onReady, onRecor
         drafts.set(key, { value: draft, personal: personal.current, provider: next });
     };
     const continueOnline = () => {
-        if (onlineState === 'loading') { switchSource(requestedProvider.current); return; }
-        switchSource(preferredOnline);
-        if (onlineResults[preferredOnline]?.entries.length) return;
+        if (onlineState === 'loading') return;
+        switchSource('local');
+        if (dictionarySupplement(localResult, onlineResults[preferredOnline] ?? null)?.entries.length && onlineState !== 'failed') return;
         requestedProvider.current = preferredOnline;
         setOnlineRequest(value => value + 1);
     };
     const retryLocal = () => { setLoading(true); setRetry(value => value + 1); };
     const localState: LookupSourceState = loading ? 'loading' : localResult?.entries.length ? 'ready' : lookupError || localResult?.status === 'unavailable' ? 'error' : 'missing';
     const displayedOnline = provider === 'local' || provider === 'longman' ? preferredOnline : provider;
+    const supplemental = dictionarySupplement(localResult, onlineResults[displayedOnline] ?? null);
     const onlineStateLabel: LookupSourceState = onlineState === 'loading' ? 'loading'
-        : onlineResults[displayedOnline]?.entries.length ? 'ready'
+        : onlineState === 'ready' && !supplemental?.entries.length ? 'missing'
+        : supplemental?.entries.length ? 'ready'
         : onlineState === 'failed' ? onlineError === 'not_found' ? 'missing' : 'error' : 'idle';
     const validSelection = query.start >= 0 && query.end > query.start && query.end <= query.segment.en_text.length
         && query.segment.en_text.slice(query.start, query.end).trim() === query.expression.trim() && /[a-z]/i.test(query.expression);
@@ -376,8 +379,10 @@ function LookupContent({ query, scope, onSkip, drafts, session, onReady, onRecor
       {example && guideActive && !guidedTour && <div className="example-card-hint"><small role="status">{t(guideStep === 3 ? 'onboarding.step3' : 'onboarding.step2')}</small><button className="ui-button" onClick={onSkip}>{t('onboarding.skip')}</button></div>}
       {(loading && activeProvider === 'local' || onlineState === 'loading' && activeProvider !== 'local') && !result?.entries.length && <LoadingSkeleton kind="text" label={t('common.loading')}/>}
       {result && (activeProvider === 'local' || !!result.entries.length) && (!loading || !!result.entries.length) && <LongmanResult result={result} onInteract={touch} compact/>}
+      {activeProvider === 'local' && !!supplemental?.entries.length && <section className="approved-supplement"><h3>{t('approved.moreUses')}</h3><LongmanResult result={supplemental} onInteract={touch} compact/></section>}
+      {activeProvider === 'local' && onlineState === 'ready' && !supplemental?.entries.length && <p className="longman-notice" role="status">{t('approved.noNew')}</p>}
       {!loading && activeProvider === 'local' && !localResult?.entries.length && (lookupError || !localResult?.notices.length) && <p className="longman-notice" role="status">{t(lookupError ? 'reader.failed' : 'dictionarySwitch.local.missing')}</p>}
-      {onlineState === 'failed' && activeProvider !== 'local' && <p className="longman-notice" role="status">{t(`dictionary.issues.${onlineError ?? 'unavailable'}`)}</p>}
+      {onlineState === 'failed' && <p className="longman-notice" role="status">{t(`dictionary.issues.${onlineError ?? 'unavailable'}`)}</p>}
 
       {!loading && (lookupError || localResult?.status === 'unavailable') && activeProvider === 'local' && <button className="ui-button" onClick={retryLocal}>{t('common.retry')}</button>}
       {showRecall && <p className="lookup-note" role="status">{t('recall.previous')}</p>}

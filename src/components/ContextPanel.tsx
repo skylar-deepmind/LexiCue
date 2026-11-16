@@ -6,7 +6,6 @@ import { associatedGuide } from '../lib/guideFocus';
 import { backNavigation } from '../lib/backNavigation';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 import { useQuietScrollbars } from './useQuietScrollbars';
-import { createLookupScrollMotion } from '../lib/lookupMotion';
 
 /** Modeless: unused space dismisses the card without covering reading or controls.
  * Dragging, selection, scrolling and other dialogs retain their normal behavior. */
@@ -29,29 +28,6 @@ export default function ContextPanel({ view, label, children, onClose, canClose 
   const [expanded, setExpanded] = useState(view?.expanded ?? false);
   const restored=useRef(!!view?.seen);
   if(view)view.expanded=expanded;
-  // Only move the original when the half sheet would cover the selected sentence.
-  useLayoutEffect(() => {
-    if (restored.current || !layoutSlot || expanded || closing || !matchMedia('(max-width: 767px)').matches) return;
-    const scroll=layoutSlot.current?.closest<HTMLElement>('.reader-scroll');
-    if(!scroll)return;
-    const motion=createLookupScrollMotion(scroll);
-    const frame = requestAnimationFrame(() => {
-      const word=scroll.querySelector<HTMLElement>('.reading-word[aria-pressed="true"]');
-      const sentence = word?.closest<HTMLElement>('.reading-sentence');
-      const panel = panelRef.current;
-      if (!sentence || !word || !panel || !layerRef.current) return;
-      const top = scroll.getBoundingClientRect().top + 12;
-      // Measure the final sheet edge, independently of its entering transform.
-      const bottom = Math.min(scroll.getBoundingClientRect().bottom,layerRef.current.getBoundingClientRect().bottom-panel.offsetHeight)-16;
-      const sentenceRect=sentence.getBoundingClientRect();
-      const rect=sentenceRect.height<=bottom-top ? sentenceRect : word.getBoundingClientRect();
-      const delta=rect.top<top ? rect.top-top : rect.bottom>bottom ? rect.bottom-bottom : 0;
-      if(delta)motion.move(scroll.scrollTop+delta,matchMedia('(prefers-reduced-motion: reduce)').matches);
-    });
-    const cancel=()=>motion.cancel();
-    scroll.addEventListener('touchmove',cancel,{passive:true});scroll.addEventListener('wheel',cancel,{passive:true});
-    return () => {cancelAnimationFrame(frame);motion.cancel();scroll.removeEventListener('touchmove',cancel);scroll.removeEventListener('wheel',cancel);};
-  }, [interactionKey, expanded, closing, layoutSlot]);
   useLayoutEffect(()=>{
     const panel=panelRef.current;if(!panel || !view)return;
     const nodes=()=>[panel,...['.lookup-content','.soft-refresh-current','.lookup-body'].map(selector=>panel.querySelector<HTMLElement>(selector))];

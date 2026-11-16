@@ -269,7 +269,7 @@ export default function SavedPage() {
     const current = liveView.current;
     const view: SavedViewSnapshot = { query: current.query, pageNumber:current.pageNumber, loadedGroups: current.page.groups.length, expandedGroupId: current.selected?.group_id ?? null, loadedContexts: current.loadedContexts, scrollTop: scroll?.scrollTop ?? 0,
       anchor: row && scroll ? { recordId: record.record_id, offset: row.getBoundingClientRect().top - scroll.getBoundingClientRect().top } : undefined, focusRecordId: record.record_id };
-    const token = readerNavigation.create({kind:'saved', path:'/saved', view}, target);
+    const token = readerNavigation.create({kind:'saved', path:'/saved?view=manage', view}, target);
     sessionPage=capture();savedViews.set(key,sessionPage);
     navigate(`/files/${target.fileId}?segment=${target.segmentIndex}`, {state:{sourceVisitToken:token,...visitState(location)}});
   };

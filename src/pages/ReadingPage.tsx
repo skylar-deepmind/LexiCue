@@ -1,3 +1,7 @@
+import { bookmarkTitle } from '../lib/bookmarkDesk';
+import { materialCover } from '../lib/materialCover';
+import MaterialCover from '../components/MaterialCover';
+import { finishReadingEntrance, prepareReadingReturn } from '../lib/readingMotion';
 import { useRestoreGuard } from '../stores/restoreGuard';
 import { readerViews } from '../lib/readerViewMemory';
 import { usePageReturn, viewKey, visitState } from '../lib/pageNavigation';
@@ -61,7 +65,9 @@ export default function ReadingPage({ data, scope }: {
     const [viewGeneration]=useState(()=>useRestoreGuard.getState().generation);
     const [memory]=useState(()=>readerViews.get(memoryKey));
     const memoryView=memory?.view.contentHash===material.content_hash ? memory.view : undefined;
-    const {back:pageBack,origin:pageOrigin}=usePageReturn(readingReturnPath(location.state));
+    const {back:originBack,origin:pageOrigin}=usePageReturn(readingReturnPath(location.state));
+    const pageBack = useCallback(() => { if (location.state?.readingMotion) prepareReadingReturn(material.id); originBack(); }, [originBack, material.id, location.state]);
+    useLayoutEffect(() => finishReadingEntrance(material.id), [material.id]);
     const visitToken = location.state?.sourceVisitToken;
     const visit = readerNavigation.get(visitToken);
     const [returnContext] = useState(() => readerNavigation.get(location.state?.restoreVisitToken));
@@ -79,6 +85,8 @@ export default function ReadingPage({ data, scope }: {
     const preserveTranslationPosition = useRef<() => void>(() => {});
     const translationState = useReadingTranslation({ materialId: material.id, contentHash: material.content_hash, segments: data.segments, allowGenerate: !example, initial: memory?.translation }, () => preserveTranslationPosition.current());
     const { generated: generatedTranslations, enabled: translation, status: translationStatus } = translationState;
+    const [translationToast, setTranslationToast] = useState(true);
+    useEffect(() => { setTranslationToast(true); if (translationStatus !== 'error' && translationStatus !== 'partial') return; const timer = setTimeout(() => setTranslationToast(false), 4200); return () => clearTimeout(timer); }, [translationStatus]);
     const segments = useMemo(() => data.segments.map(segment => segment.zh_text?.trim() || !generatedTranslations[segment.id] ? segment : {...segment, zh_text: generatedTranslations[segment.id]}), [data.segments, generatedTranslations]);
     const mediaIdentity = material.source?.key ?? material.document?.identity ?? material.content_hash;
     const sourceBlocks = useMemo(() => {
@@ -106,6 +114,7 @@ export default function ReadingPage({ data, scope }: {
     });
     const progressIntent = useRef(false);
     const lastPosition = useRef(initial.segment);
+    const rememberPickedSegment = useRef<(index: number) => void>(() => {});
     const positionRevision = useRef(material.position?.revision);
     const positionWrites = useRef(Promise.resolve());
     const initialIndex = Math.max(0, segments.findIndex(segment => segment.index_num === initial.segment));
@@ -292,8 +301,16 @@ export default function ReadingPage({ data, scope }: {
         const positions = visible.current;
         let frame = 0;
         let idle: ReturnType<typeof setTimeout> | undefined;
+        let picked: number | null = null;
+        const currentAnchor = () => {
+            if (picked !== null && positions.has(picked)) return [picked, positions.get(picked)!] as const;
+            const entries = [...positions.entries()];
+            if (node.scrollTop + node.clientHeight >= node.scrollHeight - 3) return entries.sort((a,b)=>b[0]-a[0])[0];
+            const y = node.getBoundingClientRect().top + node.clientHeight * .37;
+            return entries.sort((a,b)=>Math.abs(a[1].getBoundingClientRect().top-y)-Math.abs(b[1].getBoundingClientRect().top-y))[0];
+        };
         const write = () => {
-            const segment = [...positions.keys()].sort((a,b)=>a-b)[0];
+            const segment = currentAnchor()?.[0];
             if (example || !progressIntent.current || !restored.current || segment === undefined) return;
             progressIntent.current=false;
             if(lastPosition.current===segment) return;
@@ -302,18 +319,22 @@ export default function ReadingPage({ data, scope }: {
             positionWrites.current = positionWrites.current.then(async () => {
                 const next = await invoke<string|null>('remember_reading_position', {fileId:material.id,contentHash:material.content_hash,
                     segment,back,legacy:false,parent:positionRevision.current ?? null});
-                if (next) positionRevision.current = next;
+                if (next) {
+                    positionRevision.current = next;
+                    try { const stored=JSON.parse(localStorage.getItem(positionKey)??'null'); if(stored?.hash===material.content_hash && stored.segment===segment) localStorage.setItem(positionKey,JSON.stringify({...stored,revision:next})); } catch { /* Best-effort local recovery metadata. */ }
+                }
             }).catch(() => { /* Local scroll recovery is still available. */ });
         };
-        const markIntent = () => { progressIntent.current = true; };
+        const markIntent = () => { picked = null; progressIntent.current = true; };
         const markKey = (event:KeyboardEvent) => { if (['ArrowUp','ArrowDown','PageUp','PageDown','Home','End',' '].includes(event.key)) markIntent(); };
         const persist = () => {
-            const item = [...positions.entries()].sort((a, b) => a[0] - b[0])[0];
+            const item = currentAnchor();
             if (!example && restored.current && item && node.isConnected) {
                 const offset = node.getBoundingClientRect().top - item[1].getBoundingClientRect().top;
                 try { localStorage.setItem(positionKey, JSON.stringify({segment:item[0],offset,hash:material.content_hash,revision:positionRevision.current})); } catch { /* Best-effort local reading position. */ }
             }
         };
+        rememberPickedSegment.current = index => { picked=index; progressIntent.current=true; persist(); write(); };
         const remember = () => {
             cancelAnimationFrame(frame); frame=requestAnimationFrame(persist);
             clearTimeout(idle); idle=setTimeout(write,300);
@@ -336,11 +357,12 @@ export default function ReadingPage({ data, scope }: {
         node.addEventListener('touchmove',markIntent,{passive:true});
         node.addEventListener('keydown',markKey);
         return () => {
-            clearTimeout(idle); write(); persist();
+            clearTimeout(idle); write(); persist(); rememberPickedSegment.current=()=>{};
             node.removeEventListener('wheel',markIntent); node.removeEventListener('touchmove',markIntent); node.removeEventListener('keydown',markKey);
             observer.disconnect(); nextObserver.disconnect(); cancelAnimationFrame(frame); node.removeEventListener('scroll', remember); };
     }, [first, last, positionKey, segments.length, example, material.content_hash, material.id]);
     const choose = (segment: Segment, start: number, end: number) => {
+        rememberPickedSegment.current(segment.index_num);
         followAllowed.current=false;
         pauseForLookup('lookup');
         lookupView.current={tab:'meaning',provider:undefined};
@@ -508,7 +530,7 @@ export default function ReadingPage({ data, scope }: {
     };
     const previous = () => { const node = scroll.current; if (!node)
         return; const height = node.scrollHeight; setFirst(value => Math.max(0, value - 60)); requestAnimationFrame(() => { node.scrollTop += node.scrollHeight - height; }); };
-    return <div className="reading-page" style={fontScaleStyle} data-listening={listening}><nav className="reading-breadcrumb" aria-label={t('materials.path')}>{visit || pageOrigin ? <button className="reader-return-origin page-back" aria-label={`${t('common.back')} · ${t(visit?.origin.kind === 'saved' ? 'savedRecords.title' : 'reader.title', { defaultValue: '阅读' })}`} data-testid="source-return" onClick={returnToOrigin}><ChevronLeft className="mobile-reader-back" size={22} aria-hidden="true"/></button> : <button className="page-back" onClick={pageBack} aria-label={t(location.state?.readingOrigin === 'library' ? 'readingDesk.backLibrary' : 'readingDesk.backMaterials')}><ChevronLeft className="mobile-reader-back" size={22} aria-hidden="true"/></button>}<span aria-hidden="true">/</span><span>{material.name}</span><span className="mobile-reading-path">{t(location.state?.readingOrigin === 'library' ? 'readingDesk.library' : 'materials.title')}</span><DisplaySettingsMenu dock className="mobile-reader-display" showRecall={!example}/></nav><div className="reader-scroll" ref={scroll}><div className="reading-layout" ref={readingLayout.layout} data-query-open={!!query}><div className="workspace-paper reading-paper" data-recall-state={recall.status} data-font={size} data-lines={lineHeight} data-aux-font={auxiliaryFont} data-definition-font={definitionFont}><h1 className="reading-title" lang="en">{material.name}</h1>{sourceError && <p className="saved-error" role="status">{sourceError}</p>}
+    return <div className="reading-page" style={fontScaleStyle} data-listening={listening} data-reading-material={material.id}><nav className="reading-breadcrumb" aria-label={t('materials.path')}>{visit || pageOrigin ? <button className="reader-return-origin page-back" aria-label={`${t('common.back')} · ${t(visit?.origin.kind === 'saved' ? 'savedRecords.title' : 'reader.title', { defaultValue: '阅读' })}`} data-testid="source-return" onClick={returnToOrigin}><ChevronLeft className="mobile-reader-back" size={22} aria-hidden="true"/></button> : <button className="page-back" onClick={pageBack} aria-label={t(location.state?.readingOrigin === 'library' ? 'readingDesk.backLibrary' : 'readingDesk.backMaterials')}><ChevronLeft className="mobile-reader-back" size={22} aria-hidden="true"/></button>}<span aria-hidden="true">/</span><span>{material.name}</span><span className="mobile-reading-path">{t(location.state?.readingOrigin === 'library' ? 'readingDesk.library' : 'materials.title')}</span><DisplaySettingsMenu dock className="mobile-reader-display" showRecall={!example}/></nav><div className="reader-scroll" ref={scroll}><div className="reading-layout" ref={readingLayout.layout} data-query-open={!!query}><div className="workspace-paper reading-paper" data-recall-state={recall.status} data-font={size} data-lines={lineHeight} data-aux-font={auxiliaryFont} data-definition-font={definitionFont}><div className="approved-reader-title"><h1 className="reading-title" lang="en">{bookmarkTitle(material.name)}</h1><MaterialCover src={materialCover(material)} identity={material.content_hash} className="folio-print"/></div>{sourceError && <p className="saved-error" role="status">{sourceError}</p>}
     {example && <section className="example-intro" aria-label={t('onboarding.sample')}>
       <div><h1>{t('onboarding.sample')}</h1>{guide.active && !guide.tour && !query && <button className="ui-button" onClick={skip}>{t('onboarding.skip')}</button>}</div>
       <p>{t('onboarding.privacy')}</p>
@@ -524,7 +546,7 @@ export default function ReadingPage({ data, scope }: {
         {material.document.origin && <details className="reading-document-code"><summary>{t('documents.fullPreview')}</summary>{material.document.blocks.map(block => <p key={block.id} style={{whiteSpace:'pre-wrap'}}>{block.text}</p>)}</details>}
         {material.document.blocks.some(block => block.kind === 'code') && <details className="reading-document-code"><summary>{t('documents.codeBlocks')}</summary>{material.document.blocks.filter(block => block.kind === 'code').map(block => <pre key={block.id}>{block.text}</pre>)}</details>}
     </div>}
-    {!example && (translationStatus === 'loading' || translationStatus === 'error' || translationStatus === 'partial') && <div className="reading-translation-status" role="status">
+    {!example && (translationStatus === 'loading' || translationToast && (translationStatus === 'error' || translationStatus === 'partial')) && <div className="reading-translation-status" role="status">
         <span>{t(translationStatus === 'loading' ? 'reader.translationProgress' : translationStatus === 'error' ? 'reader.translationError' : 'documents.translationFailed', translationState.progress ?? {})}</span>
         <button className="ui-button" onClick={() => translationStatus === 'loading' ? translationState.cancel() : void requestTranslations()}>{t(translationStatus === 'loading' ? 'common.cancel' : 'common.retry')}</button>
     </div>}

@@ -6,6 +6,7 @@ export interface Material {
     content_hash: string;
     imported_at: number;
     segment_count: number;
+    character_count?: number;
     preview: string;
     tags: TagInfo[];
     position?: { segment: number; revision: string } | null;

@@ -7,6 +7,7 @@ import { ArrowLeft, Check, ClipboardPaste, FileText, Upload, X } from 'lucide-re
 import Overlay from './Overlay';
 import MotionChange from './MotionChange';
 import { takeImportFocus } from './importFocus';
+import { useFileStore } from '../stores/fileStore';
 import { useImportStore } from '../stores/importStore';
 import YouTubeImport from './YouTubeImport';
 import ImportPaper from './ImportPaper';
@@ -59,6 +60,18 @@ export default function ImportPanel() {
             useImportStore.getState().changeSource('youtube');
         } else await useImportStore.getState().fromContent(result.kind === 'text' ? 'clipboard' : 'webpage', result.kind === 'text' ? result.text : result.url);
     };
+    useEffect(() => {
+        const accept = (event: Event) => {
+            const text = (event as CustomEvent<string | null>).detail;
+            if (text === null) { setInputError('clipboardFailed'); setManualInput(''); }
+            else void acceptContent(text);
+        };
+        window.addEventListener('lexicue-import-content', accept);
+        return () => window.removeEventListener('lexicue-import-content', accept);
+    });
+    const tags = useFileStore(s => s.tags);
+    const loadTags = useFileStore(s => s.loadTags);
+    useEffect(() => { if (open) void loadTags(); }, [open, loadTags]);
     const pasteLink = async () => {
         if (reading.current) return;
         const owner = useImportStore.getState();
@@ -142,7 +155,8 @@ export default function ImportPanel() {
                 {state.items[0]?.kind === 'webpage' && <button className="ui-button" onClick={() => void openUrl(state.items[0].url!).catch(() => setInputError('openFailed'))}>{t('materials.importDialog.openPage')}</button>}
             </div>}
             {state.pickerError && <p className="lc-import-error" role="alert">{t('materials.importDialog.pickerFailed')}</p>}
-            {(preparing || preview && selected) && <ImportPaper item={preparing ? active : selected} loading={preparing} />}
+            {preparing && <ImportPaper item={active} loading/>}
+            {preview && selected && <><section className="approved-import-tags"><h2>{t('approved.chooseTag')}</h2><div>{tags.map(tag => <button className="ui-button" key={tag.id} disabled={!!state.selectionBusy} onClick={() => { state.setImportTagIds([tag.id]); void useImportStore.getState().confirm(); }}>{tag.name}</button>)}<button className="ui-button" disabled={!!state.selectionBusy} onClick={() => { state.setImportTagIds([]); void useImportStore.getState().confirm(); }}>{t('tags.untagged')}</button></div></section><details className="approved-import-preview"><summary>{t('materials.importDialog.preview')}</summary><ImportPaper item={selected} loading={false}/></details></>}
             {(preview || result || committing) && <>
                 <p className="lc-import-summary" role="status">{committing ? t(state.stopping ? 'materials.stopping' : 'materials.processing', { done: processed, total: state.items.length }) : result ? t('materials.finished', { count: state.items.filter(item => item.stage === 'created').length }) : t('materials.importDialog.readyCount', { count: valid.length, total: state.items.length })}</p>
                 {(state.items.length > 1 || !preview || !selected) && <ul className="lc-import-items">{state.items.map(item => <li key={item.id}>

@@ -38,6 +38,7 @@ fn input(n: i32) -> materials::MaterialInput {
         })
         .collect();
     materials::MaterialInput {
+        tag_ids: Vec::new(),
         operation_id: Uuid::new_v4().to_string(),
         name: "长字幕.srt".into(),
         content,

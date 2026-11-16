@@ -1,14 +1,11 @@
-import VisitLink from '../components/VisitLink';
-import { createViewCache } from '../lib/pageNavigation';
-import { useEffect, useLayoutEffect, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Archive, AudioLines, BookOpen, Captions, Check, ChevronLeft, ChevronRight, Compass, Languages, MonitorSmartphone, RefreshCw, Search } from 'lucide-react';
-import { useTheme } from '../components/useTheme';
-import { THEMES } from '../lib/themes';
-import { SELF_NAMES, UI_LANGUAGES } from '../lib/languages';
+import { Archive, AudioLines, BookOpen, Captions, Check, ChevronLeft, ChevronRight, Compass, Languages, MonitorSmartphone, RefreshCw, Settings, Wrench } from 'lucide-react';
 import { backNavigation } from '../lib/backNavigation';
-import { SETTINGS_LABELS, SETTINGS_GROUPS, useSettingsNavigation, type SettingsEntry } from '../lib/settingsNavigation';
+import { SETTINGS_LABELS, useSettingsNavigation, type SettingsEntry } from '../lib/settingsNavigation';
+import { visitState, usePageReturn } from '../lib/pageNavigation';
+import { SELF_NAMES, UI_LANGUAGES } from '../lib/languages';
 import { usePreferencesStore } from '../stores/preferencesStore';
 import BackupSettings from '../components/BackupSettings';
 import DictionaryPacks from '../components/DictionaryPacks';
@@ -19,99 +16,55 @@ import DictionaryPreferences from '../components/DictionaryPreferences';
 import SoftwareUpdateSettings from '../components/SoftwareUpdateSettings';
 import './materials-settings.css';
 import './settings-directory.css';
-
-const icons = { language: Languages, speech: AudioLines, lookup: Search, guide: Compass, sync: MonitorSmartphone, backup: Archive, dictionary: BookOpen, youtube: Captions, updates: RefreshCw };
-const preview = import.meta.env.VITE_SLICE_PREVIEW === '1';
-
-function ThemeChoices() {
-  const { t } = useTranslation();
-  const { theme, setTheme } = useTheme();
-  return <section className="settings-themes" aria-labelledby="themes-label">
-    <div className="settings-theme-heading"><h2 id="themes-label">{t('settings.theme.title')}</h2><span>{t(`themes.${theme}Label`)}</span></div>
-    <div className="theme-choices" role="group" aria-labelledby="themes-label">
-      {THEMES.map(({ id }) => <button key={id} aria-label={t(`themes.${id}Label`)} aria-pressed={id === theme} className={`theme-choice theme-preview--${id}`} onClick={() => setTheme(id)}>
-        <span className="settings-theme-sample" aria-hidden="true"><span className="settings-book"><em>Aa</em><i/><i/></span></span>
-        <span className="settings-theme-name">{t(`themes.${id}Label`)}</span>
-        {id === theme && <span className="settings-theme-tick"><Check size={12} aria-hidden="true"/></span>}
-      </button>)}
-    </div>
-  </section>;
-}
-
-function EntrySummary({entry}: {entry: SettingsEntry}) {
-  const { t } = useTranslation();
-  const { uiLanguage, speech } = usePreferencesStore();
+const icons = { language: Languages, speech: AudioLines, lookup: BookOpen, guide: Compass, sync: MonitorSmartphone, backup: Archive, dictionary: BookOpen, youtube: Captions, updates: RefreshCw };
+const categories = [
+  { key: 'preferences', icon: Settings, entries: ['language', 'speech', 'lookup', 'guide'] },
+  { key: 'data', icon: Archive, entries: ['sync', 'backup'] },
+  { key: 'tools', icon: Wrench, entries: ['youtube'] },
+  { key: 'updates', icon: RefreshCw, entries: ['updates'] },
+] as const;
+function Detail({ entry }: { entry: SettingsEntry }) {
+  const { t } = useTranslation(), { uiLanguage, setUiLanguage } = usePreferencesStore();
   switch (entry) {
-    case 'language': return SELF_NAMES[uiLanguage];
-    case 'speech': return t(`speech.accents.${speech.accent}`) + ' · ' + t(`speech.speeds.${speech.speed}`);
-    case 'sync': return <DeviceSyncSummary/>;
-    default: return null;
-  }
-}
-
-function SettingsDetail({ entry }: {entry: SettingsEntry}) {
-  const { t } = useTranslation();
-  const { uiLanguage, setUiLanguage } = usePreferencesStore();
-  switch (entry) {
-    case 'language': return <div className="settings-list">{UI_LANGUAGES.map(language => <button className="settings-row" key={language} aria-pressed={uiLanguage === language} onClick={() => setUiLanguage(language)}>{SELF_NAMES[language]}{uiLanguage === language && <Check size={18} aria-hidden="true"/>}</button>)}</div>;
+    case 'language': return <div className="settings-list">{UI_LANGUAGES.map(language => <button className="settings-row" key={language} aria-pressed={uiLanguage === language} onClick={() => setUiLanguage(language)}>{SELF_NAMES[language]}{uiLanguage === language && <Check size={18}/>}</button>)}</div>;
     case 'speech': return <SpeechSettings/>;
-    case 'lookup': return <DictionaryPreferences/>;
+    case 'lookup': case 'dictionary': return <div className="approved-dictionary-detail"><div className="approved-dict-online"><h2>{t('dictionaryPreferences.title')}</h2><DictionaryPreferences/></div><h2>{t('settings.dictionary.title')}</h2><DictionaryPacks/></div>;
     case 'sync': return <DeviceSyncSettings/>;
     case 'backup': return <BackupSettings/>;
-    case 'dictionary': return <DictionaryPacks/>;
     case 'youtube': return <YouTubeDownloadSettings/>;
     case 'updates': return <SoftwareUpdateSettings/>;
-    case 'guide': return <VisitLink className="ui-button" to="/files?guide=1">{t('onboarding.replay')}</VisitLink>;
+    case 'guide': return <button className="ui-button" onClick={() => { location.href = '/files?guide=1'; }}>{t('onboarding.replay')}</button>;
   }
 }
-
-const directoryScroll = createViewCache<number>();
 export default function SettingsPage() {
-  const { t } = useTranslation();
-  const { state } = useLocation();
+  const { t } = useTranslation(), location = useLocation(), navigate = useNavigate();
   const { section, back } = useSettingsNavigation();
-  const page = useRef<HTMLDivElement>(null);
-  const previous = useRef(section);
-  const heading = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
-    if (previous.current === section) { page.current?.scrollTo(0, directoryScroll.get(section ?? 'home') ?? 0); return; }
-    if (section) {
-      page.current?.scrollTo(0, directoryScroll.get(section) ?? 0);
-      heading.current?.focus({ preventScroll: true });
-    } else {
-      page.current?.querySelector<HTMLElement>(`[data-entry="${previous.current}"]`)?.focus({preventScroll:true});
-      page.current?.scrollTo(0, directoryScroll.get('home') ?? 0);
-    }
-    previous.current = section;
-  }, [section]);
-  useEffect(() => backNavigation.setPage(() => { back(); return true; }, 1), [back]);
-  return <div className="materials-scroll settings-scroll" ref={page} onScroll={()=>directoryScroll.set(section ?? 'home', page.current?.scrollTop ?? 0)}>
+  const { back: close } = usePageReturn('/files');
+  const [category, setCategory] = useState(() => Math.max(0, categories.findIndex(group => group.entries.some(entry => entry === section || section === 'dictionary' && entry === 'lookup'))));
+  const heading = useRef<HTMLHeadingElement>(null), page = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (section) setCategory(Math.max(0, categories.findIndex(group => group.entries.some(entry => entry === section || section === 'dictionary' && entry === 'lookup')))); }, [section]);
+  useLayoutEffect(() => { page.current?.scrollTo(0, 0); if (section) heading.current?.focus({ preventScroll: true }); }, [section, category]);
+  useEffect(() => backNavigation.setPage(() => { if (section) back(); else close(); return true; }, 2), [section, back, close]);
+  const choose = (index: number) => {
+    setCategory(index);
+    navigate(index === 3 ? '/settings?section=updates' : '/settings', { replace: true, state: location.state });
+  };
+  const open = (entry: SettingsEntry) => {
+    if (entry === 'guide') navigate('/files?guide=1');
+    else navigate(`/settings?section=${entry}`, { state: { ...visitState(location), fromSettingsHome: true } });
+  };
+  return <div className="materials-scroll settings-scroll approved-settings" data-detail={section || undefined} ref={page}>
     <div className="system-settings settings-directory">
-      <div className="settings-heading" ref={heading} tabIndex={-1} aria-label={t(section ? SETTINGS_LABELS[section] : 'settings.title')}>
-        <button className="settings-back" onClick={back} aria-label={t('common.back')}><ChevronLeft size={22} aria-hidden="true"/></button>
-        <h1>{t(section ? SETTINGS_LABELS[section] : 'settings.title')}</h1>
+      <button className="approved-icon approved-settings-back" aria-label={t('common.back')} onClick={section ? back : close}><ChevronLeft size={22}/></button>
+      <div className="approved-settings-columns">
+        <nav className="approved-settings-tabs" aria-label={t('settings.title')}>{categories.map((group, index) => <button key={group.key} aria-current={index === category ? 'page' : undefined} onClick={() => choose(index)}><group.icon size={20}/><span>{t(`approved.${group.key}`)}</span></button>)}</nav>
+        <section className="approved-settings-paper">
+          <h1 ref={heading} tabIndex={-1}>{t(section ? section === 'lookup' || section === 'dictionary' ? 'approved.dictionary' : SETTINGS_LABELS[section] : `approved.${categories[category].key}`)}</h1>
+          {section ? <div className="settings-detail"><Detail entry={section}/></div> : <div className="settings-list">{categories[category].entries.map(entry => {
+            const Icon = icons[entry]; return <button key={entry} data-entry={entry} className="settings-row" onClick={() => open(entry)}><Icon className="settings-row-icon" size={20}/><span className="settings-row-label">{t(entry === 'lookup' ? 'approved.dictionary' : SETTINGS_LABELS[entry])}</span><span className="settings-value">{entry === 'language' ? SELF_NAMES[usePreferencesStore.getState().uiLanguage] : entry === 'sync' ? <DeviceSyncSummary/> : null}</span><ChevronRight size={18} className="settings-chevron"/></button>;
+          })}</div>}
+        </section>
       </div>
-      {section ? <div className="settings-detail"><SettingsDetail entry={section}/></div> : <>
-        <ThemeChoices/>
-        <div className="settings-groups">
-          {SETTINGS_GROUPS.map(group => {
-            const entries = group.entries.filter(entry => !preview || (entry !== 'sync' && entry !== 'updates'));
-            return entries.length > 0 && <section key={group.key}>
-              <h2>{t(`settings.directory.${group.key}`)}</h2>
-              <div className="settings-list">{entries.map(entry => {
-                const Icon = icons[entry];
-                return <VisitLink className="settings-row" key={entry} data-entry={entry}
-                  to={entry === 'guide' ? '/files?guide=1' : `/settings?section=${entry}`} state={{...state, fromSettingsHome: true}}>
-                  <Icon className="settings-row-icon" size={21} aria-hidden="true"/>
-                  <span className="settings-row-label">{t(SETTINGS_LABELS[entry])}</span>
-                  <span className="settings-value"><EntrySummary entry={entry}/></span>
-                  <ChevronRight className="settings-chevron" size={16} aria-hidden="true"/>
-                </VisitLink>;
-              })}</div>
-            </section>;
-          })}
-        </div>
-      </>}
     </div>
   </div>;
 }
