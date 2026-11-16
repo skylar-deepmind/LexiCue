@@ -2,11 +2,12 @@ import { bookmarkTitle } from '../lib/bookmarkDesk';
 import { dissolvePage } from '../lib/pageDissolve';
 import { captureSavedEntrance, finishSavedReturn } from '../lib/savedEntrance';
 import SavedPocketPreview from '../components/SavedPocketPreview';
+import TagNamesDialog from '../components/TagNamesDialog';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
-import { ArrowLeft, ChevronLeft, ChevronRight, Pencil, Settings } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Settings } from 'lucide-react';
 import { useMaterialStore } from '../stores/materialStore';
 import { useReadingDeskStore } from '../stores/readingDeskStore';
 import { useFileStore } from '../stores/fileStore';
@@ -105,13 +106,14 @@ function MaterialDesk() {
       const text = await readImportClipboard();
       if(!alive.current||intent!==pasteIntent.current)return;
       const content = inspectClipboardContent(text);
-      if (content.kind === 'error') { if(text?.trim()){useImportStore.getState().show();window.dispatchEvent(new CustomEvent('lexicue-import-content',{detail:text}));}else useFeedbackStore.getState().show(t(`materials.importDialog.${content.error}`),'error');return; }
-      useImportStore.getState().show();
-      window.dispatchEvent(new CustomEvent('lexicue-import-content', { detail: text }));
+      if (content.kind === 'error') { useFeedbackStore.getState().show(t(content.error==='clipboardEmpty'?'approved.clipboardEmpty':`materials.importDialog.${content.error}`),'error',4500,undefined,'top');return; }
+      if(content.kind==='youtube'){
+        useImportStore.getState().showScene();
+        window.dispatchEvent(new CustomEvent('lexicue-import-content',{detail:text}));
+      } else await useImportStore.getState().fromContent(content.kind==='text'?'clipboard':'webpage',content.kind==='text'?content.text:content.url,true);
     } catch {
       if(!alive.current||intent!==pasteIntent.current)return;
-      useImportStore.getState().show();
-      window.dispatchEvent(new CustomEvent('lexicue-import-content', { detail: null }));
+      useFeedbackStore.getState().show(t('approved.clipboardUnavailable'),'error',6000,undefined,'top');
     } finally { if(alive.current&&intent===pasteIntent.current){pastePending.current=false;setPasting(false);} }
   };
   const wallTag = params.get('tag');
@@ -130,9 +132,9 @@ function MaterialDesk() {
           <button className="approved-icon home-settings-action" aria-label={t('sidebar.settings')} onClick={() => navigate('/settings', { state: visitState(location) })}><Settings size={23}/></button>
         </div>
       </header>
-      {catalog.loading && !catalog.hasLoaded ? <div className="approved-desk-status" role="status"><BusyRing/>{t('common.loading')}</div> : catalog.error ? <div className="approved-desk-status" role="alert"><p>{t('materials.loadFailed')}</p><button className="ui-button" onClick={() => void catalog.load()}>{t('common.retry')}</button></div> : selected ? <div ref={card} className="approved-deck desk-stack" tabIndex={0} aria-label={t('readingDesk.desktop')} data-turning={turning || undefined}
+      {catalog.loading && !catalog.hasLoaded ? <div className="approved-desk-status" role="status"><BusyRing/>{t('approved.loadingLibrary')}</div> : catalog.error ? <div className="approved-desk-status" role="alert"><p>{t('materials.loadFailed')}</p><button className="ui-button" onClick={() => void catalog.load()}>{t('common.retry')}</button></div> : selected ? <div ref={card} className="approved-deck desk-stack" tabIndex={0} aria-label={t('readingDesk.desktop')} data-turning={turning || undefined}
         onKeyDown={event => { if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); turn(event.key === 'ArrowRight' ? 1 : -1); } }}
-        onPointerDown={event => { if (event.button === 0 && !(event.target as Element).closest('.approved-card-tag')) gesture.current = { x: event.clientX, y: event.clientY, locked: false }; }}
+        onPointerDown={event => { if (event.button === 0 && !(event.target as Element).closest('.approved-tag-edit')) gesture.current = { x: event.clientX, y: event.clientY, locked: false }; }}
         onPointerMove={event => { if(isTrashDragging()){gesture.current=null;return;}const g = gesture.current; if (!g) return; const dx = event.clientX - g.x, dy = event.clientY - g.y; if (Math.abs(dy) > Math.abs(dx) * 1.25 && !g.locked) gesture.current = null; else if (Math.abs(dx) > 8) g.locked = true; }}
         onPointerUp={event => { const g = gesture.current; gesture.current = null; if (!g) return; const dx = event.clientX - g.x, dy = event.clientY - g.y; if (Math.abs(dx) > 34 && Math.abs(dx) > Math.abs(dy) * 1.25) { turn(dx < 0 ? 1 : -1); suppress.current = performance.now() + 350; } }} onPointerCancel={() => { gesture.current = null; }}>
         {recent.map((file, i) => <TrashMaterial key={`${file.id}:${file.content_hash}`} file={file} enabled={i===index}><article className="approved-card desk-paper" key={`${file.id}:${file.content_hash}`} data-desk-active={i === index} data-desk-position={i - index} data-motion-file={file.id} aria-hidden={Math.abs(i - index) > 1 || undefined} inert={Math.abs(i - index) > 1}>
@@ -140,8 +142,7 @@ function MaterialDesk() {
             if (performance.now() < suppress.current) return;
             if (i !== index) { turn(i - index); return; }
             open(file, event.currentTarget.closest('article')!, 'desk');
-          }}><MaterialCover src={materialCover(file)} identity={file.content_hash} className="approved-card-cover"/><span className="approved-card-copy"><span className="approved-card-category">{file.tags[0]?.name ?? t('tags.untagged')}</span><strong className="approved-card-title" lang="en">{bookmarkTitle(file.name)}</strong><span className="approved-card-quote" lang="en">{readingMotionExcerpt(file) ?? quotes[`${file.id}:${file.content_hash}:${readingPosition(file)}`] ?? file.preview}</span></span></button>
-          {i === index && <button className="approved-card-tag" aria-label={t('tags.edit')} data-no-trash onClick={() => setEditing(file)}><Pencil size={16}/></button>}
+          }}><MaterialCover src={materialCover(file)} identity={file.content_hash} className="approved-card-cover"/></button><div className="approved-card-copy"><button className="approved-card-category approved-tag-edit" data-no-trash disabled={i !== index} aria-label={t('tags.edit')} onClick={() => setEditing(file)}>{file.tags[0]?.name ?? t('tags.untagged')}</button><strong className="approved-card-title" lang="en">{bookmarkTitle(file.name)}</strong><span className="approved-card-quote" lang="en">{readingMotionExcerpt(file) ?? quotes[`${file.id}:${file.content_hash}:${readingPosition(file)}`] ?? file.preview}</span></div>
         </article></TrashMaterial>)}
         <div className="approved-dots" data-visible={turning} aria-label={`${index + 1} / ${recent.length}`}>{recent.map((file, i) => <i key={file.id} data-current={i === index}/>)}</div>
         <button className="approved-edge approved-edge-prev" aria-label={t('history.previous')} disabled={index === 0} onClick={() => turn(-1)}><ChevronLeft size={18}/></button><button className="approved-edge approved-edge-next" aria-label={t('history.next')} disabled={index === recent.length - 1} onClick={() => turn(1)}><ChevronRight size={18}/></button>
@@ -159,6 +160,7 @@ function MaterialDesk() {
 }
 function TagRail({ files, tags, returnFocus, onClose, onSelect }: { files: Material[]; tags: Material['tags']; returnFocus: () => HTMLElement | null; onClose: () => void; onSelect: (id: string) => void }) {
   const { t } = useTranslation();
+  const [naming,setNaming] = useState<{id?:number}|null>(null);
   const panel = useRef<HTMLDivElement>(null), rail = useRef<HTMLDivElement>(null), flight = useRef<ReturnType<typeof playTagFlight> | null>(null), closing = useRef(false), mounted = useRef(true);
   const items = [{ id: 'all', name: t('readingDesk.library'), files }, ...tags.map(tag => ({ id: String(tag.id), name: tag.name, files: files.filter(file => file.tags.some(value => value.id === tag.id)) })), ...files.some(file => !file.tags.length) ? [{ id: 'untagged', name: t('tags.untagged'), files: files.filter(file => !file.tags.length) }] : []];
   useLayoutEffect(() => {
@@ -181,7 +183,7 @@ function TagRail({ files, tags, returnFocus, onClose, onSelect }: { files: Mater
     const viewport = rail.current?.getBoundingClientRect();
     panel.current?.querySelectorAll<HTMLElement>('.approved-tag-group').forEach(node => { const r = node.getBoundingClientRect(); const distance = Math.abs((x ?? ((viewport?.left ?? 0) + (viewport?.width ?? innerWidth) / 2)) - r.left - r.width / 2); node.style.setProperty('--magnify', String(1 + .13 * Math.max(0, 1 - distance / (r.width * 1.35)))); });
   };
-  return <Overlay label={t('readingDesk.library')} onClose={close} panelRef={panel} returnFocus={returnFocus} className="approved-tag-panel" layerClassName="approved-tag-layer"><button className="approved-icon approved-rail-back" aria-label={t('common.back')} onClick={() => void close()}><ArrowLeft size={22}/></button><div ref={rail} className="approved-tag-rail" onPointerMove={event => { if (event.pointerType === 'mouse') magnify(event.clientX); }} onPointerLeave={() => magnify()} onScroll={() => magnify()}><div className="approved-tag-track">{items.map(item => <button key={item.id} className="approved-tag-group" data-tag-id={item.id} aria-label={`${item.name} · ${item.files.length}`} onClick={() => onSelect(item.id)}><span className="approved-tag-stack" style={{ '--sheets': Math.min(8, item.files.length) } as React.CSSProperties}><MaterialCover src={item.files[0] ? materialCover(item.files[0]) : '/design/prints/16339.jpg'} identity={item.files[0]?.content_hash ?? item.id}/><strong>{item.name}</strong></span></button>)}</div></div></Overlay>;
+  return <><Overlay label={t('readingDesk.library')} onClose={close} panelRef={panel} returnFocus={returnFocus} className="approved-tag-panel" layerClassName="approved-tag-layer"><button className="approved-icon approved-back approved-rail-back" aria-label={t('common.back')} onClick={() => void close()}><ChevronLeft size={22}/></button><div ref={rail} className="approved-tag-rail" onPointerMove={event => { if (event.pointerType === 'mouse') magnify(event.clientX); }} onPointerLeave={() => magnify()} onScroll={() => magnify()}><div className="approved-tag-track">{items.map(item => <div key={item.id} className="approved-tag-group" data-tag-id={item.id} tabIndex={-1}><div className="approved-tag-stack" style={{ '--sheets': Math.min(8, item.files.length) } as React.CSSProperties}><button className="approved-tag-open" aria-label={`${item.name} · ${item.files.length}`} onClick={() => onSelect(item.id)}><MaterialCover src={item.files[0] ? materialCover(item.files[0]) : '/design/prints/16339.jpg'} identity={item.files[0]?.content_hash ?? item.id}/></button><button className="approved-tag-name" aria-label={t(tags.some(tag => String(tag.id) === item.id) ? 'tags.renameNamed' : 'tags.manage', {name:item.name})} onClick={() => setNaming({id:tags.find(tag=>String(tag.id)===item.id)?.id})}><strong>{item.name}</strong></button></div></div>)}</div></div></Overlay>{naming && <TagNamesDialog tagId={naming.id} onClose={() => setNaming(null)}/>}</>;
 }
 
 /** The normal card remains the only navigation control; the wrapper owns hold/drag. */

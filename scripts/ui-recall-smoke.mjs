@@ -26,6 +26,14 @@ const openRecords=async page=>{
   });
 };
 const ready=page=>page.locator('.reading-paper[data-recall-state="ready"]').waitFor();
+async function revealEarlierTarget(page){
+  for(let pass=0;pass<8&&!await page.locator('[data-sentence="8"]').count();pass++){
+    const first=await page.locator('[data-sentence]').first().getAttribute('data-sentence');
+    await page.locator('.reader-scroll').evaluate(node=>{node.scrollTop=0;});
+    await page.locator('.reading-original').first().hover();await page.mouse.wheel(0,-110);
+    await page.waitForFunction(first=>document.querySelector('[data-sentence]')?.getAttribute('data-sentence')!==first,first);
+  }
+}
 const matched=(page,index,expression)=>page.locator(`[data-sentence="${index}"] .reading-word--recalled`).evaluateAll((nodes,expression)=>nodes.some(node=>node.dataset.recall===expression),expression);
 const marked=(page,index,expression)=>page.locator(`[data-sentence="${index}"] .reading-word--recalled`).evaluateAll((nodes,expression)=>nodes.findIndex(node=>node.dataset.recall===expression),expression);
 async function clickMatch(page,index,expression){const n=await marked(page,index,expression);assert.ok(n>=0,`${index}: ${expression}`);await page.locator(`[data-sentence="${index}"] .reading-word--recalled`).nth(n).click();}
@@ -83,7 +91,7 @@ try{
   // Toggle uses the real persisted preference, without mutating saved records.
   await hintSwitch(page,false);eq(await page.locator('.reading-word--recalled').count(),0,'off clears marks');eq((await call('test_counts')).saved_records,10001,'toggle keeps active and tombstoned snapshots');await page.reload();await page.locator('.reading-paper[data-recall-state="off"]').waitFor();eq(await page.evaluate(()=>window.__uiCalls.filter(v=>v.command==='saved_recall_catalog').length),0,'disabled preference survives reload and skips index work');await hintSwitch(page,true);await ready(page);
   // Restored reading position can window out earlier rows; test mutations on a rendered row.
-  while (!await page.locator('[data-sentence="8"]').count()) await page.getByRole('button',{name:'前面的原文',exact:true}).click();
+  await revealEarlierTarget(page);
   await ready(page);eq(await page.locator('[data-sentence="8"]').count(),1,'mutation target is rendered after position restoration');
   // Unknown receipt, edit/remove/undo and restore changes are re-read from SQLite.
   const curiosity=(await call('saved_recall_contexts',{expression:'curiosity',offset:0,limit:10})).records[0];const removed=await call('mutate_saved_record',{operationId:`remove-${theme}`,mutation:{kind:'remove',record_id:curiosity.record_id,expected_revision:curiosity.revision}});await page.evaluate(()=>window.dispatchEvent(new Event('lexicue-saved-changed')));await ready(page);eq(await matched(page,8,'curiosity'),false,'removed expression no longer marked');await call('undo_saved_mutation',{operationId:removed.operation_id});await page.evaluate(()=>window.dispatchEvent(new Event('lexicue-saved-changed')));await ready(page);await page.locator('[data-sentence="8"] .reading-word--recalled[data-recall="curiosity"]').waitFor();ok(await matched(page,8,'curiosity'),'undo restores hints');
@@ -128,7 +136,7 @@ try{
   await page.locator('.approved-saved-search button').click();await page.getByRole('searchbox').fill('curiosity');await page.waitForFunction(()=>document.querySelectorAll('.approved-saved-word').length===1);eq(await page.locator('.approved-saved-word > span').innerText(),'curiosity','10k archive search returns correct word');
   await page.locator('.approved-folio-note').click();await page.getByRole('textbox',{name:'个人解释',exact:true}).fill('个人修订：好奇心');await page.getByRole('button',{name:'保存解释',exact:true}).click();await page.getByRole('textbox',{name:'个人解释',exact:true}).waitFor({state:'detached'});
   await keyboardTrash(page,page.locator('.approved-folio-sentence'));await page.locator('.approved-saved-folio').waitFor({state:'detached'});await page.getByRole('button',{name:'撤销',exact:true}).click();await page.locator('.approved-saved-folio').waitFor();ok((await page.locator('.approved-folio-note').innerText()).includes('个人修订：好奇心'),'remove/undo preserves the individual personal explanation');
-  await page.goto(`${url}/files/${current.file_id}`);await ready(page);while(!await page.locator('[data-sentence="8"]').count())await page.getByRole('button',{name:'前面的原文',exact:true}).click();await page.locator('[data-sentence="8"] .reading-word--recalled').first().waitFor();await clickMatch(page,8,'curiosity');await page.locator('.lookup-fixed-header [data-testid=lookup-records-tab]').waitFor();await openRecords(page);eq(await page.locator('.soft-refresh-current:not([inert]) .saved-sentence-note').first().innerText(),'个人修订：好奇心','returning to reading sees historical personal revision');await close(page);
+  await page.goto(`${url}/files/${current.file_id}`);await ready(page);await revealEarlierTarget(page);await page.locator('[data-sentence="8"] .reading-word--recalled').first().waitFor();await clickMatch(page,8,'curiosity');await page.locator('.lookup-fixed-header [data-testid=lookup-records-tab]').waitFor();await openRecords(page);eq(await page.locator('.soft-refresh-current:not([inert]) .saved-sentence-note').first().innerText(),'个人修订：好奇心','returning to reading sees historical personal revision');await close(page);
   // Cold full reload includes DB index transport, Worker compilation and clickable decoration.
   for(let i=0;i<20;i++){await page.reload();await ready(page);await page.waitForFunction(()=>window.__recallPerf.mark);const sample=await page.evaluate(()=>({duration:window.__recallPerf.mark-window.__recallPerf.text,tasks:window.__recallTasks.filter(e=>e.start>=window.__recallPerf.text&&e.start<=window.__recallPerf.mark)}));timings.push({theme,ms:sample.duration});longTasks.push(...sample.tasks);}
   // Capture browser paint directly: Playwright selector polling can observe a

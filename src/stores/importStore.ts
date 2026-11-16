@@ -178,7 +178,7 @@ let generation = 0;
 let pickerGeneration = 0;
 let rangeGeneration = 0;
 let jobSequence = Date.now();
-const empty = { importTagIds: [] as number[], items: [] as ImportItem[], phase: 'source' as ImportPhase, source: 'choose' as 'choose' | 'file' | 'youtube', selectedId: null as string | null,
+const empty = { presentation: 'panel' as 'panel'|'scene', importTagIds: [] as number[], items: [] as ImportItem[], phase: 'source' as ImportPhase, source: 'choose' as 'choose' | 'file' | 'youtube', selectedId: null as string | null,
     running: false, stopping: false, destination: null as number | 'materials' | null, pickerError: false, picking: false, selectionBusy: null as string | null };
 function abandonPreparation() {
     generation++;
@@ -189,6 +189,8 @@ function abandonPreparation() {
 }
 export const useImportStore = create<{
     open: boolean;
+    presentation: 'panel'|'scene';
+    showScene: () => void;
     items: ImportItem[];
     phase: ImportPhase;
     source: 'choose' | 'file' | 'youtube';
@@ -209,7 +211,7 @@ export const useImportStore = create<{
     clearDestination: () => void;
     start: (sources: ImportSource[]) => Promise<void>;
     choose: () => Promise<void>;
-    fromContent: (kind: 'clipboard' | 'webpage', value: string) => Promise<void>;
+    fromContent: (kind: 'clipboard' | 'webpage', value: string, scene?:boolean) => Promise<void>;
     renameDraft: (id: string, title: string) => void;
     cancel: () => void;
     retry: () => Promise<void>;
@@ -248,8 +250,9 @@ export const useImportStore = create<{
     };
     return {
         open: false, ...empty,
-        setImportTagIds: ids => { if (!get().running && get().phase === 'preview') set({ importTagIds: [...new Set(ids)] }); },
+        setImportTagIds: ids => { if (!get().running && get().phase === 'preview') set({ importTagIds: [...new Set(ids)].slice(0,1) }); },
         show: () => set({ open: true }),
+        showScene: () => set({open:true,presentation:'scene'}),
         clearDestination: () => set({ destination: null }),
         hide: () => {
             if (get().phase === 'committing' || get().phase === 'result' && get().items.some(item => item.draft && ['failed', 'cancelled'].includes(item.stage))) set({ open: false, destination: null });
@@ -281,10 +284,13 @@ export const useImportStore = create<{
         },
         start: async sources => {
             if (get().phase === 'committing' || !sources.length) return;
+            set({presentation:'panel'});
             await prepare(sources.map(source => ({ ...source, id: crypto.randomUUID(), stage: 'queued' })));
         },
-        fromContent: async (kind, value) => {
-            await get().start([{kind, name: kind === 'clipboard' ? clipboardTitle(value) : value, capturedText: kind === 'clipboard' ? value : undefined, url: kind === 'webpage' ? value : undefined, read: async () => value}]);
+        fromContent: async (kind, value, scene=false) => {
+            if(get().running)return;
+            set({presentation:scene?'scene':'panel',importTagIds:[]});
+            await prepare([{id:crypto.randomUUID(),stage:'queued',kind, name: kind === 'clipboard' ? clipboardTitle(value) : value, capturedText: kind === 'clipboard' ? value : undefined, url: kind === 'webpage' ? value : undefined, read: async () => value}]);
         },
         renameDraft: (id, title) => {
             if (get().phase !== 'preview' || get().running) return;
@@ -308,7 +314,7 @@ export const useImportStore = create<{
         fromYouTube: async input => {
             if (get().running) return;
             const name = input.title.replace(/[\\/:*?"<>|]/g, '_').slice(0, 100) + '.srt';
-            await get().start([{ name, title: input.title, url: input.url, kind: 'youtube',
+            await prepare([{ id:crypto.randomUUID(),stage:'queued',name, title: input.title, url: input.url, kind: 'youtube',
                 youtubeSelection: { primary: trackLanguage(input.primary), secondary: input.secondary ? trackLanguage(input.secondary) : null },
                 read: async signal => {
                     const job = ++jobSequence;

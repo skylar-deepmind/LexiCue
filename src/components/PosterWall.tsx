@@ -1,6 +1,6 @@
 import { bookmarkTitle } from '../lib/bookmarkDesk';
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Material } from '../lib/materials';
 import { materialCover } from '../lib/materialCover';
@@ -88,9 +88,9 @@ export default function PosterWall({ files, title, identity, onBack, onOpen }: {
     if (performance.now() < suppression.current) return;
     memory.current.focus = file.id; memory.current.y = viewport.current?.scrollTop ?? 0; positions.set(identity, memory.current);
     onOpen(file, event.currentTarget.closest('article')!);
-  }}><MaterialCover src={materialCover(file)} identity={file.content_hash}/><span><small>{file.tags[0]?.name ?? title}</small><strong lang="en">{bookmarkTitle(file.name)}</strong></span></button></article></RemovablePoster>;
+  }}><MaterialCover src={materialCover(file)} identity={file.content_hash}/><span><strong lang="en">{bookmarkTitle(file.name)}</strong></span></button></article></RemovablePoster>;
   return <section className="approved-wall" aria-label={title}>
-    <header><button className="approved-icon" onClick={onBack} aria-label={t('readingDesk.backLibrary')}><ArrowLeft size={23}/></button><h1>{title}</h1></header>
+    <header><button className="approved-icon approved-back" onClick={onBack} aria-label={t('readingDesk.backLibrary')}><ChevronLeft size={22}/></button><h1>{title}</h1></header>
     {!files.length ? <p className="approved-wall-empty" role="status">{t('materials.noMatches')}</p> : <div ref={viewport} className="approved-wall-viewport" tabIndex={0} aria-label={title} onScroll={() => { if (restoring.current) return; memory.current.y = viewport.current?.scrollTop ?? 0; positions.set(identity, memory.current); }}><div ref={wall} className="approved-poster-plane">
       {mobile ? columns.map((column, i) => <div className="approved-phone-column" key={i}>{column.map(item => poster(files.find(file => file.id === item.id)!, item.units))}</div>) : Array.from({ length: Math.ceil(files.length / 3) * 2 }, (_, i) => {
         const start = Math.floor(i / 2) * 3 + (i % 2 ? 1 : 0), chunk = files.slice(start, start + (i % 2 ? 2 : 1));

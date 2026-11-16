@@ -1,15 +1,22 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { listen } from '@tauri-apps/api/event';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import MobileStartup from './components/MobileStartup';
 import Layout from './components/Layout';
 import FilesPage from './pages/FilesPage';
-import FileDetailPage from './pages/FileDetailPage';
-import SettingsPage from './pages/SettingsPage';
-import SavedArchivePage from './pages/SavedArchivePage';
-import LegacyPage from './pages/LegacyPage';
+import { BusyRing } from './components/LoadingFeedback';
+const FileDetailPage = lazy(() => import('./pages/FileDetailPage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const SavedArchivePage = lazy(() => import('./pages/SavedArchivePage'));
+const LegacyPage = lazy(() => import('./pages/LegacyPage'));
 import { ThemeProvider } from './components/ThemeProvider';
 import { legacyReadingRoute } from './lib/fileProgress';
+
+function RouteLoading() {
+  const {t}=useTranslation();
+  return <div className="approved-route-loading" role="status" aria-label={t('common.loading')}><BusyRing/></div>;
+}
 
 function LegacyReadingRedirect() {
   const location = useLocation();
@@ -27,7 +34,7 @@ export default function App() {
     <ThemeProvider>
       <MobileStartup>
       <BrowserRouter useTransitions={false}>
-        <Routes>
+        <Suspense fallback={<RouteLoading/>}><Routes>
           <Route element={<Layout />}>
             <Route path="/" element={<Navigate to="/files" replace/>} />
             <Route path="/example" element={<Navigate to="/files" replace />} />
@@ -42,7 +49,7 @@ export default function App() {
             <Route path="/saved" element={<SavedArchivePage />} />
             <Route path="/legacy" element={<LegacyPage />} />
           </Route>
-        </Routes>
+        </Routes></Suspense>
       </BrowserRouter>
       </MobileStartup>
     </ThemeProvider>

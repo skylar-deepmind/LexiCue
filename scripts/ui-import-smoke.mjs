@@ -16,7 +16,7 @@ const writes=()=>page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='impor
 const drop=files=>page.evaluate(files=>{const dataTransfer=new DataTransfer();for(const[name,text]of files)dataTransfer.items.add(new File([text],name));window.dispatchEvent(new DragEvent('drop',{dataTransfer,bubbles:true,cancelable:true}));},files);
 const preview=async()=>{await page.locator('.approved-import-preview').waitFor();if(!await page.locator('.approved-import-preview').evaluate(n=>n.open))await page.locator('.approved-import-preview > summary').click();await page.locator('.lc-import-preview').waitFor();};
 const settle=()=>page.locator('.lc-import-modal').evaluate(node=>Promise.all(node.getAnimations({subtree:true}).filter(a=>a.effect.getComputedTiming().iterations!==Infinity).map(a=>a.finished.catch(()=>{}))));
-const close=async()=>{if(await page.locator('.lc-import-modal').count()){await page.keyboard.press('Escape');await page.locator('.lc-import-modal').waitFor({state:'detached'});}};
+const close=async()=>{if(await page.locator('.lc-import-modal,.clipboard-scene').count()){await page.keyboard.press('Escape');await page.locator('.lc-import-modal,.clipboard-scene').waitFor({state:'detached'});}};
 const open=async()=>{
  if(new URL(page.url()).pathname!=='/files'){await page.locator('.reading-breadcrumb .page-back').click();await page.locator('.approved-desk').waitFor();}
  if(await page.locator('.approved-tag-panel').count()){await page.keyboard.press('Escape');await page.locator('.approved-tag-panel').waitFor({state:'detached'});}
@@ -143,12 +143,12 @@ try{
   eq(await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='plugin:clipboard-manager|read_text').length),clipBefore+1,'double paste reads once');
   eq(await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='youtube_list_subs').length),listBefore+1,'valid clipboard starts one lookup');
   await close();
-  for(const [text,fail,message]of [['https://',false,'链接格式不完整，请修改或重新粘贴。'],[null,false,'未读到文字，请先复制英文或链接；图片或文件请使用选择文件。'],[null,true,'无法读取剪贴板，请在下方手动粘贴。']]){
+  for(const [text,fail,message]of [['https://',false,'链接格式不完整，请修改或重新粘贴。'],[null,false,'剪贴板为空，请先复制英文或链接。'],[null,true,'无法读取剪贴板，请允许访问后重试。']]){
    await page.evaluate(({text,fail})=>{window.__clipboardText=text;window.__clipboardFail=fail;},{text,fail});
    const before=await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='youtube_list_subs').length);
    await open();await page.getByRole('button',{name:'读取剪贴板',exact:true}).click();await page.getByText(message,{exact:true}).waitFor();
    eq(await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='youtube_list_subs').length),before,'invalid or unavailable clipboard stays local');
-   if(text||fail)ok(await page.getByLabel('英文正文或链接',{exact:true}).isVisible(),'manual fallback remains available');await close();
+   eq(await page.locator('.lc-import-modal,.clipboard-scene').count(),0,'clipboard errors never open a dialog');ok(await page.locator('.notification-host--top').isVisible(),'clipboard errors appear above the desk');await close();
   }
   await page.evaluate(()=>{window.__clipboardFail=false;window.__clipboardHold=true;window.__clipboardText='https://youtu.be/abcdefghijk';});
   await open();await page.getByRole('button',{name:'读取剪贴板',exact:true}).click();await page.locator('.clipboard-import[aria-busy=true]').waitFor();ok(await page.locator('.clipboard-import').isDisabled(),'pending clipboard action cannot be submitted twice');

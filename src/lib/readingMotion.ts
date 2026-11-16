@@ -1,10 +1,10 @@
 import { playWallExposure } from './wallExposure';
-import { restoreScroll } from './visualSnapshot';
+import { restoreScroll, visualCopy } from './visualSnapshot';
 import type { Material } from './materials';
 
 export type Box = { x: number; y: number; width: number; height: number };
 export type Piece = { box: Box; node: HTMLElement; image?: HTMLImageElement; fit?: string };
-export type Entrance = { id: number; hash: string; origin: 'desk' | 'wall'; card: Box; cover?: Piece; title?: Piece; quote?: Piece; text: string; segment: number | null; background?: HTMLElement; wall?: Box; plate?: {box:Box;color:string} };
+export type Entrance = { id: number; hash: string; origin: 'desk' | 'wall'; card: Box; cover?: Piece; title?: Piece; quote?: Piece; back?:Piece; text: string; segment: number | null; background?: HTMLElement; wall?: Box; plate?: {box:Box;color:string} };
 let entrance: Entrance | null = null;
 let returning: { title?: Piece; quote?: Piece; cover?: Piece; words?: Piece[]; background?: HTMLElement } | null = null;
 let pending = false, cleanup = () => {};
@@ -14,6 +14,9 @@ function clearHold(){clearTimeout(holdTimer);hold?.remove();hold=null;}
 function pageCopy(source:HTMLElement){
  const copy=source.cloneNode(true) as HTMLElement,r=box(source);
  const cs=getComputedStyle(source);for(const key of cs)copy.style.setProperty(key,cs.getPropertyValue(key));
+ // Computed WebKit text-fill resolves currentColor at the root. Freezing that
+ // resolved value would recolor every descendant, including pale poster titles.
+ copy.style.setProperty('-webkit-text-fill-color','currentColor');
  if(copy.classList.contains('reading-page')){copy.classList.remove('reading-page');copy.classList.add('approved-reader-snapshot');}
  copy.querySelectorAll<HTMLElement>('*').forEach(n=>{n.style.animation='none';n.style.transition='none';});
  Object.assign(copy.style,{position:'absolute',left:`${r.x}px`,top:`${r.y}px`,width:`${r.width}px`,height:`${r.height}px`,margin:'0'});
@@ -46,7 +49,8 @@ export function captureReadingEntrance(material: Material, card: HTMLElement, or
   const page=card.closest<HTMLElement>('.approved-desk');
   const background=!reduced()&&page?holdPage(page):undefined;
   const wall=card.closest<HTMLElement>('.approved-wall-viewport'),plate=card.querySelector<HTMLElement>('.approved-poster > button > span');
-  entrance = { background, wall:wall?box(wall):undefined,plate:plate?{box:box(plate),color:getComputedStyle(plate).backgroundColor}:undefined, id: material.id, hash: material.content_hash, origin, card: box(card), cover: piece(card.querySelector('img')), title: piece(title), quote: piece(quote), text: quote?.textContent ?? '', segment: material.position?.segment ?? null };
+  const back=page?.querySelector<HTMLElement>('.approved-wall > header > button');
+  entrance = { back:back?{box:box(back),node:visualCopy(back)}:undefined, background, wall:wall?box(wall):undefined,plate:plate?{box:box(plate),color:getComputedStyle(plate).backgroundColor}:undefined, id: material.id, hash: material.content_hash, origin, card: box(card), cover: piece(card.querySelector('img')), title: piece(title), quote: piece(quote), text: quote?.textContent ?? '', segment: material.position?.segment ?? null };
 }
 export function prepareReadingReturn(id: number) {
   if (!entrance || entrance.id !== id) return;
@@ -145,7 +149,7 @@ function run(reverse: boolean) {
   if (data.origin === 'desk') {
     const background = reverse ? document.querySelector<HTMLElement>('.approved-desk') : source.background;
     if (background) {
-      if (!reverse) { const clone=background;clone.querySelector<HTMLElement>(`[data-motion-file="${data.id}"]`)?.style.setProperty('visibility','hidden');clone.querySelector('.approved-card-tag')?.remove();place(clone,{x:0,y:0,width:innerWidth,height:innerHeight});animate(clone,[{opacity:1},{opacity:0,offset:.47},{opacity:0}]); }
+      if (!reverse) { const clone=background;clone.querySelector<HTMLElement>(`[data-motion-file="${data.id}"]`)?.style.setProperty('visibility','hidden');place(clone,{x:0,y:0,width:innerWidth,height:innerHeight});animate(clone,[{opacity:1},{opacity:0,offset:.47},{opacity:0}]); }
       else animate(background,[{opacity:1},{opacity:0,offset:.47},{opacity:0}]);
     }
     if (paper) {

@@ -889,7 +889,7 @@
     "returnToImport": "YouTube インポートに戻る",
     "downloadSettings": {
       "publicTracks": "iPhone と iPad では、動画リンクから公開されている英語字幕を検索できます。",
-      "installTool": "yt-dlp が見つかりません。インストール後にこのページを開き直してください。",
+      "installTool": "yt-dlp が見つかりません。",
       "browserTitle": "ブラウザーセッション支援",
       "browserEnable": "ログイン済みブラウザーセッションを使用",
       "browserHint": "初期設定はオフです。有効にすると yt-dlp が選択したブラウザーセッションを端末内で読み、YouTube へのリクエストに使用します。Cookie は書き出し・同期されません。まずそのブラウザーで動画を開き、必要な自動翻訳字幕を表示してください。",
@@ -903,11 +903,13 @@
       "missing": "未検出",
       "unknown": "未確認",
       "checking": "字幕ツールを確認中…",
-      "checkFailed": "確認に失敗しました。設定で再確認してください。",
+      "checkFailed": "確認できませんでした。再試行してください。",
       "cacheHint": "字幕は端末内に 24 時間、最大 100 MiB 保存され、アプリ再起動後も再利用できます。",
       "clearCache": "字幕キャッシュを削除",
       "cacheCleared": "字幕キャッシュを削除しました。",
-      "cacheFailed": "削除できません。再試行してください。"
+      "cacheFailed": "削除できません。再試行してください。",
+      "missingRuntime": "YouTube 字幕の完全なサポートには JavaScript 実行環境も必要です。Deno を推奨します。",
+      "missingEjs": "EJS が見つかりません。設定手順に従って追加してください。"
     }
   },
   "importLang": {
@@ -2024,6 +2026,21 @@
     "youtubePrivacy": "ログイン情報はこの端末内でのみ読み取ります。Cookieは書き出し・同期しません。",
     "youtubeAdvanced": "詳細設定",
     "dragToTrash": "ドラッグして削除",
-    "releaseDelete": "離して削除"
+    "releaseDelete": "離して削除",
+    "recognizing": "クリップボードを解析中…",
+    "subtitleTools": "字幕ツール",
+    "recheckTools": "字幕ツールを再確認",
+    "installAndDiagnostics": "インストールと診断",
+    "youtubeExternalTools": "デスクトップ版はシステムの yt-dlp を使用し、同梱していません。インストール後に再確認してください。見つからない場合はアプリを再起動してください。",
+    "copyInstallCommand": "インストールコマンドをコピー",
+    "commandCopied": "コピーしました。ターミナルで実行してください。",
+    "commandCopyFailed": "コピーできません。コマンドを手動で選択してください。",
+    "officialInstall": "公式インストール手順",
+    "runtimeHelp": "Deno / EJS の設定",
+    "requiresBrew": "このコマンドには Homebrew が必要です。",
+    "clipboardEmpty": "クリップボードは空です。英語の文章かリンクをコピーしてください。",
+    "clipboardUnavailable": "クリップボードを読み取れません。アクセスを許可して再試行してください。",
+    "toolsNeedSetup": "設定が必要",
+    "loadingLibrary": "資料を読み込み中…"
   }
 }

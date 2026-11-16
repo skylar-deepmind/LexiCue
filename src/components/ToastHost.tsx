@@ -29,5 +29,5 @@ function Notice({ item }: { item: FeedbackMessage }) {
 }
 export default function ToastHost() {
   const messages = useFeedbackStore(state => state.messages);
-  return createPortal(<div className="notification-host" data-notification-host="">{messages.map(item => <Notice key={item.id} item={item}/>)}</div>,document.body);
+  return createPortal(<><div className="notification-host" data-notification-host="">{messages.filter(item=>item.placement!=='top').map(item => <Notice key={item.id} item={item}/>)}</div>{messages.some(item=>item.placement==='top')&&<div className="notification-host notification-host--top" data-notification-host="top">{messages.filter(item=>item.placement==='top').map(item=><Notice key={item.id} item={item}/>)}</div>}</>,document.body);
 }

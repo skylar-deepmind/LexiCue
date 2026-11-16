@@ -889,7 +889,7 @@
     "returnToImport": "返回 YouTube 导入",
     "downloadSettings": {
       "publicTracks": "iPhone 和 iPad 可通过视频链接查找公开的英语字幕。",
-      "installTool": "未找到 yt-dlp。安装后请重新打开此页检查。",
+      "installTool": "未检测到 yt-dlp。",
       "browserTitle": "浏览器会话辅助",
       "browserEnable": "使用浏览器登录会话",
       "browserHint": "默认关闭。启用后 yt-dlp 在本机读取所选浏览器会话，用于请求 YouTube；不导出或同步 Cookie。请先在浏览器打开该视频并显示需要的自动翻译字幕。",
@@ -903,11 +903,13 @@
       "missing": "未检测到",
       "unknown": "尚未确认",
       "checking": "正在检查字幕工具…",
-      "checkFailed": "字幕工具检查失败，请在设置页重新检测。",
+      "checkFailed": "检测失败，请重试。",
       "cacheHint": "成功下载的字幕仅在本机缓存 24 小时，最多占用 100 MiB，可在应用重启后复用。",
       "clearCache": "清除字幕缓存",
       "cacheCleared": "字幕缓存已清除。",
-      "cacheFailed": "无法清除缓存，请重试。"
+      "cacheFailed": "无法清除缓存，请重试。",
+      "missingRuntime": "YouTube 完整字幕支持还需要 JavaScript 环境，推荐安装 Deno。",
+      "missingEjs": "未检测到 EJS 组件，请按配置说明补齐。"
     }
   },
   "importLang": {
@@ -2022,6 +2024,21 @@
     "youtubePrivacy": "仅在本机读取登录会话，不导出或同步 Cookie。",
     "youtubeAdvanced": "高级选项",
     "dragToTrash": "拖入删除",
-    "releaseDelete": "松手删除"
+    "releaseDelete": "松手删除",
+    "recognizing": "正在识别剪贴板…",
+    "subtitleTools": "字幕工具",
+    "recheckTools": "重新检测字幕工具",
+    "installAndDiagnostics": "安装与诊断",
+    "youtubeExternalTools": "桌面版使用系统中的 yt-dlp，不随应用内置。安装后点“重新检测”；仍未找到时请重启应用。",
+    "copyInstallCommand": "复制安装命令",
+    "commandCopied": "安装命令已复制，请在终端中运行。",
+    "commandCopyFailed": "无法复制，请手动选择安装命令。",
+    "officialInstall": "官方安装说明",
+    "runtimeHelp": "Deno / EJS 配置",
+    "requiresBrew": "这条命令需要 Homebrew。",
+    "clipboardEmpty": "剪贴板为空，请先复制英文或链接。",
+    "clipboardUnavailable": "无法读取剪贴板，请允许访问后重试。",
+    "toolsNeedSetup": "待配置",
+    "loadingLibrary": "正在读取材料…"
   }
 }

@@ -23,6 +23,23 @@ export function playWallExposure(data:Entrance,paper:HTMLElement,layer:HTMLEleme
  const left=Math.max(r.x,wall.x),right=Math.min(r.x+r.width,wall.x+wall.width),cx=Math.max(left+2,Math.min(right-2,art.x+art.width*.5)),cy=art.y+art.height*.5;
  const jobs:Animation[]=[],options:KeyframeAnimationOptions={duration:1320,fill:'both',easing:'linear',direction:reverse?'reverse':'normal'},samples=Array.from({length:81},(_,i)=>i/80);
  const animate=(node:Element,frames:Keyframe[])=>{const job=node.animate(frames,options);jobs.push(job);};
+ // The wall and reader share one moving back arrow throughout the exposure.
+ // Their snapshots must not paint two different arrows through the light mask.
+ const backRestores:(()=>void)[]=[];
+ const paperBack=paper.querySelector<HTMLElement>('.reading-breadcrumb .page-back');
+ const wallBack=document.querySelector<HTMLElement>('.app-layout .approved-wall > header > button');
+ const from=reverse&&wallBack?wallBack.getBoundingClientRect():data.back?.box;
+ const to=paperBack?.getBoundingClientRect();
+ layer.querySelectorAll<HTMLElement>('.approved-wall > header > button').forEach(node=>{node.style.visibility='hidden';});
+ if(paperBack)paperBack.style.visibility='hidden';
+ if(wallBack){const visibility=wallBack.style.visibility;wallBack.style.visibility='hidden';backRestores.push(()=>{wallBack.style.visibility=visibility;});}
+ if(data.back&&from&&to){
+  const arrow=data.back.node.cloneNode(true) as HTMLElement;arrow.dataset.motionPiece='shared-back';
+  Object.assign(arrow.style,{position:'absolute',left:`${from.x}px`,top:`${from.y}px`,width:`${from.width}px`,height:`${from.height}px`,margin:'0',translate:'none',transform:'none',zIndex:'6',visibility:'visible'});layer.append(arrow);
+  arrow.querySelectorAll<SVGElement>('svg,svg *').forEach(node=>{node.style.color='inherit';node.style.stroke='currentColor';});
+  const rgb=(value:string)=>(value.match(/[\d.]+/g)??['0','0','0']).slice(0,3).map(Number),a=rgb(data.back.node.style.color),b=rgb(getComputedStyle(paperBack!).color);
+  animate(arrow,samples.map(t=>{const p=ease(.6,.94,t);return {offset:t,color:`rgb(${a.map((v,i)=>Math.round(v+(b[i]-v)*p)).join(',')})`,transform:`translate(${(to.x-from.x)*p}px,${(to.y-from.y)*p}px)`};}));
+ }
  const ink=texture(data);if(ink){ink.dataset.motionPiece='contours';Object.assign(ink.style,{position:'absolute',left:`${r.x}px`,top:`${r.y}px`,width:`${r.width}px`,height:`${r.height}px`,zIndex:'1',clipPath:`inset(${Math.max(0,wall.y-r.y)}px ${Math.max(0,r.x+r.width-wall.x-wall.width)}px ${Math.max(0,r.y+r.height-wall.y-wall.height)}px ${Math.max(0,wall.x-r.x)}px)`});layer.append(ink);
   animate(ink,samples.map(t=>{const radius=32+85*ease(0,.36,t);return {offset:t,opacity:ease(0,.22,t)*(1-ease(.51,.88,t)),maskImage:`radial-gradient(ellipse ${.64*r.width}px ${.68*r.height}px at ${cx-r.x}px ${cy-r.y}px,black 0%,rgba(0,0,0,.94) ${radius*.28}%,rgba(0,0,0,.68) ${radius*.64}%,transparent ${radius*1.30}%)`};}));
  }
@@ -39,6 +56,6 @@ export function playWallExposure(data:Entrance,paper:HTMLElement,layer:HTMLEleme
  const secondary=[...paper.querySelectorAll<HTMLElement>('.reading-title,.reading-breadcrumb'),...controls.map(c=>c.copy)];
  secondary.forEach(node=>animate(node,samples.map(t=>({offset:t,opacity:ease(.64,.94,t)}))));
  const now=document.timeline.currentTime;if(typeof now==='number')jobs.forEach(job=>job.startTime=now);
- let disposed=false;const dispose=()=>{if(disposed)return;disposed=true;jobs.forEach(job=>job.cancel());delete paper.dataset.motionPiece;controls.forEach(c=>c.node.style.visibility=c.visibility);onFinish();layer.remove();window.removeEventListener('resize',dispose);window.removeEventListener('pagehide',dispose);};
+ let disposed=false;const dispose=()=>{if(disposed)return;disposed=true;jobs.forEach(job=>job.cancel());delete paper.dataset.motionPiece;controls.forEach(c=>c.node.style.visibility=c.visibility);backRestores.forEach(restore=>restore());onFinish();layer.remove();window.removeEventListener('resize',dispose);window.removeEventListener('pagehide',dispose);};
  window.addEventListener('resize',dispose,{once:true});window.addEventListener('pagehide',dispose,{once:true});void Promise.allSettled(jobs.map(job=>job.finished)).then(dispose);return dispose;
 }

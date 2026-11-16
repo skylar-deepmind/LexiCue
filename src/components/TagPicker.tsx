@@ -15,13 +15,14 @@ interface Props {
   error?: boolean;
   onRetry: () => void;
   compact?: boolean;
+  single?: boolean;
   query?: string;
   onQueryChange?: (query:string)=>void;
   colors?: TagColors;
   onColorChange?: (name:string,tone:TagTone)=>void;
 }
 
-export default function TagPicker({ tags, value, onChange, disabled, loading, error, onRetry, compact = false, query:controlledQuery,onQueryChange,colors:stagedColors,onColorChange }: Props) {
+export default function TagPicker({ tags, value, onChange, disabled, loading, error, onRetry, compact = false, single = false, query:controlledQuery,onQueryChange,colors:stagedColors,onColorChange }: Props) {
   const { t } = useTranslation();
   const id = useId();
   const [localQuery, setLocalQuery] = useState('');
@@ -34,10 +35,10 @@ export default function TagPicker({ tags, value, onChange, disabled, loading, er
   const normalized = key(query);
   const visible = tags.filter(tag => key(tag.name).includes(normalized));
   const selected = (tag: TagInfo) => value.tagIds.includes(tag.id) || value.newTagNames.some(name => key(name) === key(tag.name));
-  const toggle = (tag: TagInfo) => onChange({
-    tagIds: selected(tag) ? value.tagIds.filter(id => id !== tag.id) : [...value.tagIds, tag.id],
-    newTagNames: value.newTagNames.filter(name => key(name) !== key(tag.name)),
-  });
+  const toggle = (tag: TagInfo) => { if(single)setQuery(''); onChange({
+    tagIds: selected(tag) ? value.tagIds.filter(id => id !== tag.id) : single ? [tag.id] : [...value.tagIds, tag.id],
+    newTagNames: single ? [] : value.newTagNames.filter(name => key(name) !== key(tag.name)),
+  }); };
   const add = () => {
     const name = query.trim();
     if (!name || disabled) return;
@@ -45,7 +46,7 @@ export default function TagPicker({ tags, value, onChange, disabled, loading, er
     if (existing) {
       if (!selected(existing)) toggle(existing);
     } else if (!value.newTagNames.some(item => key(item) === key(name))) {
-      onChange({ ...value, newTagNames: [...value.newTagNames, name] });
+      onChange(single ? {tagIds:[],newTagNames:[name]} : { ...value, newTagNames: [...value.newTagNames, name] });
     }
     setQuery('');
   };

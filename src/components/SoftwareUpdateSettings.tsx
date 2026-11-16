@@ -1,4 +1,5 @@
 import { BusyRing } from './LoadingFeedback';
+import { BadgeInfo } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { getIdentifier, getVersion } from '@tauri-apps/api/app';
 import { openUrl } from '@tauri-apps/plugin-opener';
@@ -18,7 +19,7 @@ export default function SoftwareUpdateSettings() {
   const localInstall = isIOSPlatform() && identifier === 'com.lexicue.dev.lansyncqa';
   return <>
     <dl className="settings-facts">
-      <div><dt>{t('settings.directory.version')}</dt><dd>{version || '—'}</dd></div>
+      <div><dt><BadgeInfo size={20} aria-hidden="true"/>{t('settings.directory.version')}</dt><dd>{version || '—'}</dd></div>
       {localInstall && <div><dt>{t('settings.directory.method')}</dt><dd>{t('settings.directory.local')}</dd></div>}
     </dl>
     {isMobilePlatform()

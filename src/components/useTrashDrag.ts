@@ -14,23 +14,48 @@ function lift(node: HTMLElement, spec: Removal, x: number, y: number, keyboard=f
   const rect=node.getBoundingClientRect(),visibility=node.style.visibility,copy=visualCopy(node);
   const layer=document.createElement('div');layer.className='trash-drag-layer figma-shell';
   const ghost=document.createElement('div');ghost.className='trash-drag-ghost';ghost.setAttribute('aria-hidden','true');
-  Object.assign(ghost.style,{left:`${rect.left}px`,top:`${rect.top}px`,width:`${rect.width}px`,height:`${rect.height}px`});
+  Object.assign(ghost.style,{left:`${rect.left}px`,top:`${rect.top}px`,width:`${rect.width}px`,height:`${rect.height}px`,transformOrigin:'0 0'});
   Object.assign(copy.style,{position:'relative',inset:'auto',width:'100%',height:'100%',margin:'0',transform:'none',visibility:'visible'});ghost.append(copy);
   const basket=document.createElement('button');basket.type='button';basket.className='trash-drop-target';basket.setAttribute('aria-label',`${i18n.t('common.delete')} · ${spec.label}`);
-  basket.innerHTML='<svg viewBox="0 0 48 56" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><g class="trash-lid"><path d="M7 13h34M18 12V6h12v6"/></g><path d="m10 16 3 32q0 3 3 3h16q3 0 3-3l3-32M19 24v19M29 24v19"/></svg><span></span>';
+  basket.innerHTML='<svg viewBox="0 0 64 72" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path class="trash-paper" d="m25 24-3-13 12-3 7 14"/><g class="trash-bin-body"><path class="trash-body" d="M13 27q19-7 38 0l-5 33q-1 7-14 7T18 60Z"/><path class="trash-rim" d="M13 27q19 8 38 0"/><path class="trash-ridge" d="m22 37 2 21m18-21-2 21"/><path d="M27 46h.1m9.8 0h.1m-7 6q2 3 4 0"/></g><g class="trash-lid"><path class="trash-cap" d="M10 25q0-9 22-9t22 9q-22 8-44 0Z"/><path d="M25 16v-3q7-5 14 0v3"/></g></svg><span></span>';
   const caption=basket.querySelector('span')!,status=document.createElement('p');status.className='sr-only';status.setAttribute('role','status');status.textContent=i18n.t('approved.dragToTrash');
   layer.append(ghost,basket,status);document.body.append(layer);node.style.visibility='hidden';node.dataset.trashLifted='true';
-  let disposed=false,over=false,moved=false;
+  const bin=basket.getBoundingClientRect(),cx=bin.left+bin.width/2,cy=bin.top+bin.height*.4;
+  const startDistance=Math.max(180,Math.hypot(x-cx,y-cy)),grabX=x-rect.left,grabY=y-rect.top;
+  const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let disposed=false,over=false,moved=false,sealing:ReturnType<typeof setTimeout>|undefined;
   const paint=(hot:boolean)=>{over=hot;basket.dataset.open=String(hot);caption.textContent=i18n.t(hot?'approved.releaseDelete':'approved.dragToTrash');};
   paint(false);
   const inside=(px:number,py:number)=>{const r=basket.getBoundingClientRect();return px>=r.left-12&&px<=r.right+12&&py>=r.top-12&&py<=r.bottom+12;};
-  const close=()=>{if(disposed)return;disposed=true;node.style.visibility=visibility;delete node.dataset.trashLifted;const restoreFocus=layer.contains(document.activeElement);layer.remove();if(restoreFocus&&previousFocus?.isConnected)previousFocus.focus({preventScroll:true});window.removeEventListener('keydown',key,true);window.removeEventListener('resize',cancel);window.removeEventListener('pagehide',cancel);window.removeEventListener('blur',cancel);document.removeEventListener('pointerdown',outside,true);if(current===session)current=null;};
-  const cancel=()=>{close();};
-  const commit=()=>{if(disposed||session.busy)return;session.busy=true;basket.disabled=true;basket.setAttribute('aria-busy','true');paint(true);void spec.remove().then(close,close);};
-  const key=(e:KeyboardEvent)=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();cancel();}};
+  const close=()=>{if(disposed)return;disposed=true;clearTimeout(sealing);node.style.visibility=visibility;delete node.dataset.trashLifted;const restoreFocus=layer.contains(document.activeElement);layer.remove();if(restoreFocus&&previousFocus?.isConnected)previousFocus.focus({preventScroll:true});window.removeEventListener('keydown',key,true);window.removeEventListener('resize',cancel);window.removeEventListener('pagehide',cancel);window.removeEventListener('blur',cancel);document.removeEventListener('pointerdown',outside,true);if(current===session)current=null;};
+  const cancel=()=>{if(!session.busy)close();};
+  const commit=()=>{
+    if(disposed||session.busy)return;
+    session.busy=true;basket.disabled=true;basket.setAttribute('aria-busy','true');paint(true);basket.dataset.dropping='true';caption.textContent=i18n.t('common.loading');
+    const r=basket.getBoundingClientRect(),tx=r.left+r.width/2-rect.left,ty=r.top+27-rect.top;
+    const at=(scale:number,dy:number,angle:number)=>`translate3d(${tx-rect.width*scale/2}px,${ty-rect.height*scale/2+dy}px,0) rotate(${angle}deg) scale(${scale})`;
+    const frames=reduced?[{opacity:.92},{opacity:0}]:[
+      {transform:ghost.style.transform||'none',opacity:.92,offset:0},
+      {transform:at(.16,-18,-9),opacity:1,offset:.4},
+      {transform:at(.065,15,7),opacity:.7,offset:.76},
+      {transform:at(.012,32,11),opacity:0,offset:1},
+    ];
+    const motion=ghost.animate(frames,{duration:reduced?100:560,easing:'cubic-bezier(.32,.05,.6,1)',fill:'forwards'});
+    sealing=setTimeout(()=>{basket.dataset.sealed='true';},reduced?80:430);
+    // Deletion starts exactly at release. Its snapshot survives source unmount,
+    // and a rejected write restores the real card after the visible toss.
+    let removal:Promise<boolean>;try{removal=spec.remove();}catch{removal=Promise.resolve(false);}
+    void Promise.allSettled([motion.finished,removal]).then(close);
+  };
+  const key=(e:KeyboardEvent)=>{if(e.key==='Escape'&&!session.busy){e.preventDefault();e.stopPropagation();cancel();}};
   const outside=(e:PointerEvent)=>{if(!layer.contains(e.target as Node)&&e.target!==node&&!node.contains(e.target as Node)){e.preventDefault();e.stopPropagation();cancel();}};
-  const session:Session={node,busy:false,cancel,commit,move:(px,py)=>{if(disposed||session.busy)return;moved ||= Math.hypot(px-x,py-y)>8;ghost.style.transform=`translate3d(${px-x}px,${py-y-12}px,0) scale(.96)`;paint(inside(px,py));},release:(px,py)=>{if(disposed)return;if(inside(px,py)&&over){commit();}else if(moved){cancel();}else{basket.focus({preventScroll:true});}}};
-  basket.onclick=commit;window.addEventListener('keydown',key,true);window.addEventListener('resize',cancel,{once:true});window.addEventListener('pagehide',cancel,{once:true});window.addEventListener('blur',cancel,{once:true});document.addEventListener('pointerdown',outside,true);current=session;
+  const session:Session={node,busy:false,cancel,commit,move:(px,py)=>{
+    if(disposed||session.busy)return;moved ||= Math.hypot(px-x,py-y)>8;
+    const proximity=Math.max(0,Math.min(1,1-Math.hypot(px-cx,py-cy)/startDistance)),scale=.96-.69*proximity*proximity;
+    ghost.style.transform=`translate3d(${px-x+(1-scale)*grabX}px,${py-y+(1-scale)*grabY-12}px,0) scale(${scale})`;
+    ghost.dataset.proximity=String(proximity);paint(inside(px,py));
+  },release:(px,py)=>{if(disposed)return;if(inside(px,py)&&over){commit();}else if(moved){cancel();}else{basket.focus({preventScroll:true});}}};
+  basket.onclick=commit;window.addEventListener('keydown',key,true);window.addEventListener('resize',cancel);window.addEventListener('pagehide',cancel);window.addEventListener('blur',cancel);document.addEventListener('pointerdown',outside,true);current=session;
   if(keyboard)basket.focus({preventScroll:true});return session;
 }
 
@@ -54,6 +79,6 @@ export default function useTrashDrag(ref: RefObject<HTMLElement|null>, spec: Rem
     const context=(e:Event)=>{e.preventDefault();};
     const key=(e:KeyboardEvent)=>{if(!current?.busy&&!latest.current.disabled&&['Delete','Backspace'].includes(e.key)&&!(e.target as Element).closest('input,textarea')){e.preventDefault();e.stopPropagation();const r=node.getBoundingClientRect();session=lift(node,latest.current,r.left+r.width/2,r.top+r.height/2,true);}};
     node.addEventListener('pointerdown',down);node.addEventListener('pointermove',pointerMove);node.addEventListener('pointerup',up);node.addEventListener('pointercancel',up);node.addEventListener('touchstart',touchStart,{passive:true});node.addEventListener('touchmove',touchMove,{passive:false});node.addEventListener('touchend',touchEnd);node.addEventListener('touchcancel',touchEnd);node.addEventListener('click',click,true);node.addEventListener('contextmenu',context);node.addEventListener('dragstart',context);node.addEventListener('keydown',key);
-    return()=>{clear();delete node.dataset.trashSource;if(current?.node===node)current.cancel();node.removeEventListener('pointerdown',down);node.removeEventListener('pointermove',pointerMove);node.removeEventListener('pointerup',up);node.removeEventListener('pointercancel',up);node.removeEventListener('touchstart',touchStart);node.removeEventListener('touchmove',touchMove);node.removeEventListener('touchend',touchEnd);node.removeEventListener('touchcancel',touchEnd);node.removeEventListener('click',click,true);node.removeEventListener('contextmenu',context);node.removeEventListener('dragstart',context);node.removeEventListener('keydown',key);};
+    return()=>{clear();delete node.dataset.trashSource;if(current?.node===node&&!current.busy)current.cancel();node.removeEventListener('pointerdown',down);node.removeEventListener('pointermove',pointerMove);node.removeEventListener('pointerup',up);node.removeEventListener('pointercancel',up);node.removeEventListener('touchstart',touchStart);node.removeEventListener('touchmove',touchMove);node.removeEventListener('touchend',touchEnd);node.removeEventListener('touchcancel',touchEnd);node.removeEventListener('click',click,true);node.removeEventListener('contextmenu',context);node.removeEventListener('dragstart',context);node.removeEventListener('keydown',key);};
   },[ref,spec.id]);
 }

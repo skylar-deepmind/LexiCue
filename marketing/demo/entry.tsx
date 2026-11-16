@@ -5,8 +5,8 @@ import '../../src/index.css';
 import './demo.css';
 import {configureBrowserSpeechPreferences} from './speech';
 async function start(){
- const [{default:App},{createRoot},{initI18n},{usePreferencesStore},{useReadingDeskStore},{useMaterialStore}]=await Promise.all([
-  import('../../src/App'),import('react-dom/client'),import('../../src/i18n'),import('../../src/stores/preferencesStore'),import('../../src/stores/readingDeskStore'),import('../../src/stores/materialStore'),
+ const [{default:App},{createRoot},{initI18n},{usePreferencesStore},{useReadingDeskStore}]=await Promise.all([
+  import('../../src/App'),import('react-dom/client'),import('../../src/i18n'),import('../../src/stores/preferencesStore'),import('../../src/stores/readingDeskStore'),
  ]);
  configureBrowserSpeechPreferences(()=>usePreferencesStore.getState().speech);
  const allowedLocales=['en','zh','ja','de'],allowedThemes=['ocean','sage','amber','twilight','midnight'];
@@ -26,6 +26,13 @@ async function start(){
   de:{sync:'Geräte werden in den installierten Mac- und iPhone-Apps gekoppelt. Diese Browser-Demo nutzt getrennte temporäre Daten.',online:'Online-Wörterbücher sind in der Demo nicht verbunden. Du kannst eine eigene Erklärung speichern.',translation:'Die Demo erzeugt keine neuen Übersetzungen. Lies Englisch weiter oder importiere vorhandene zweisprachige Inhalte.'},
  };
  for(const [l,c]of Object.entries(boundaries)){i18n.addResource(l,'translation','settings.deviceSync.unsupported',c.sync);i18n.addResource(l,'translation','dictionary.issues.unavailable',c.online);i18n.addResource(l,'translation','documents.translationFailed',c.translation);i18n.addResource(l,'translation','materials.errors.translation_partial',c.translation);}
+ const toolBoundaries={
+  en:['Subtitle tools · installed-app example','This browser demo does not inspect this computer’s tools. The instructions below apply to the desktop app.','The demo does not check local yt-dlp.'],
+  zh:['字幕工具 · 安装版示例','浏览器演示不检测电脑上的工具。下面的安装说明适用于桌面安装版。','演示不检测本机 yt-dlp。'],
+  ja:['字幕ツール · インストール版の例','ブラウザ体験はこの端末のツールを検出しません。以下の手順はデスクトップ版向けです。','この体験は端末の yt-dlp を検出しません。'],
+  de:['Untertitel-Werkzeuge · App-Beispiel','Diese Browser-Demo prüft keine lokalen Werkzeuge. Die folgenden Anleitungen gelten für die Desktop-App.','Die Demo prüft kein lokales yt-dlp.'],
+ };
+ for(const [l,[title,boundary,missing]]of Object.entries(toolBoundaries)){i18n.addResource(l,'translation','approved.subtitleTools',title);i18n.addResource(l,'translation','approved.youtubeExternalTools',boundary);i18n.addResource(l,'translation','youtube.downloadSettings.installTool',missing);}
  const speechCopy={
   en:{description:'The demo uses available browser voices. Installed-app named voices are not used here. Accent and speed apply to your next playback.',voice:'Browser voice',automatic:'Available English voice · automatic',boundary:'Voice availability and any network use are controlled by your browser. This demo does not connect to Edge speech or the installed-app audio cache.'},
   zh:{description:'演示使用浏览器可用声音，不使用安装版的命名音色。口音与速度在下次朗读时生效。',voice:'浏览器声音',automatic:'可用英语声音 · 自动选择',boundary:'声音可用性与是否联网由浏览器决定。演示不连接 Edge 朗读或安装版音频缓存。'},
@@ -33,8 +40,7 @@ async function start(){
   de:{description:'Die Demo nutzt verfügbare Browserstimmen statt der benannten Stimmen der installierten App. Akzent und Tempo gelten für die nächste Wiedergabe.',voice:'Browserstimme',automatic:'Verfügbare englische Stimme · automatisch',boundary:'Verfügbare Stimmen und mögliche Netzwerkzugriffe bestimmt der Browser. Die Demo verbindet weder Edge-Sprachausgabe noch den Audiocache der installierten App.'},
  };
  for(const [l,c]of Object.entries(speechCopy)){for(const [key,value]of Object.entries({description:c.description,voice:c.voice,browserVoice:c.automatic,browserBoundary:c.boundary}))i18n.addResource(l,'translation','speech.'+key,value);}
- await useMaterialStore.getState().load();
- if(firstSession){for(const data of [...engine.materials].reverse())useReadingDeskStore.getState().keep(data.material);useReadingDeskStore.getState().select(engine.materials[0].material);useReadingDeskStore.getState().clearNotice();persist();}
+ if(firstSession){useReadingDeskStore.getState().reconcile(engine.materials.map(data=>data.material));for(const data of [...engine.materials].reverse())useReadingDeskStore.getState().keep(data.material);useReadingDeskStore.getState().select(engine.materials[0].material);useReadingDeskStore.getState().clearNotice();persist();}
  createRoot(document.getElementById('root')!).render(<App/>);
  const apply=(data:any)=>{
   if(allowedLocales.includes(data.locale))usePreferencesStore.getState().setUiLanguage(data.locale);

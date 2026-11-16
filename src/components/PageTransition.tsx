@@ -9,7 +9,7 @@ export default function PageTransition({ pageKey, children }: { pageKey: string;
     if (previous.current === pageKey) return;
     previous.current = pageKey;
     const root = live.current;
-    if (document.documentElement.dataset.dissolve || root?.querySelector('.approved-desk,.reading-page,.approved-saved')) return;
+    if (document.documentElement.dataset.dissolve || root?.querySelector('.approved-desk,.reading-page,.approved-saved,.approved-settings')) return;
     if (!root || matchMedia('(prefers-reduced-motion: reduce)').matches || root.querySelector('[data-library-restored="true"]')) return;
     const content = root.querySelector<HTMLElement>('.reader-scroll,.saved-workspace,.system-settings,.legacy-paper,.reading-desk') ?? root;
     const motion = content.animate([{ translate: `${navigation === 'POP' ? -6 : 6}px 0` }, { translate: '0px 0' }],

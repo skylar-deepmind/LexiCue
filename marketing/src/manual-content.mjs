@@ -25,8 +25,8 @@ export const manualContent={
           "title": "Import and open a material",
           "body": [],
           "steps": [
-            "Open Import from Materials. Choose a file, or paste English text, a webpage link or a YouTube link.",
-            "Check the extracted text and selected pages or chapters where available, then confirm. Open the material card to read."
+            "Use the file button to choose a document, or the clipboard button for copied English text or a link.",
+            "Check the extracted text and range, then choose one tag or leave it untagged and confirm. Click the card image to read."
           ],
           "related": [
             "files"
@@ -56,7 +56,7 @@ export const manualContent={
           "title": "Supported materials",
           "body": [
             "File import supports PDF, DOCX, EPUB, Markdown, TXT, SRT and VTT. Scanned PDFs without extractable text, encrypted files and protected books may not import; inspect the preview before saving.",
-            "Use the clipboard button for English text, webpage links or YouTube links. The separate file button opens the system file picker directly. If a webpage cannot be extracted, copy its visible English text instead. Learning is English only; interface language is a separate setting."
+            "Use the clipboard button for English text, webpage links or YouTube links. Empty content shows a notice near the top; recognition uses a full-page loading state and then a preview before confirmation. The separate file button opens the system picker directly."
           ],
           "steps": []
         },
@@ -64,7 +64,7 @@ export const manualContent={
           "id": "tags",
           "title": "Desk, library and tags",
           "body": [
-            "Keep current reading on the desk. Open the library and choose a tag to browse its poster wall. Opening a poster brings the material back to the desk.",
+            "Click a material’s image to resume reading; click its tag text to edit its single category. In the library, category artwork opens the poster wall and category text manages names. Older multi-tag records stay intact until you explicitly edit them.",
             "To delete a material, hold its card, drag it over the trash basket and release when the lid opens. Release elsewhere to cancel. Saved sentences, meanings and notes remain available; a deleted source can no longer be opened."
           ],
           "steps": [],
@@ -268,7 +268,7 @@ export const manualContent={
           "id": "youtube",
           "title": "Tools: subtitles",
           "body": [
-            "Desktop includes browser-session preferences and dependency diagnostics. iPhone uses public English tracks and offers subtitle-cache clearing. An old desktop session preference does not enable authenticated iPhone downloads."
+            "Desktop uses system-installed yt-dlp, not a bundled copy. Settings → Tools → YouTube subtitles shows missing tools even when browser sessions are off. Open Install and diagnose for official instructions, copy the install command where offered, then check again. iPhone uses public English subtitles without installing yt-dlp."
           ],
           "steps": []
         },
@@ -372,8 +372,8 @@ export const manualContent={
           "title": "导入并打开材料",
           "body": [],
           "steps": [
-            "在“材料”页打开导入，选择文件，或粘贴英文正文、网页链接、YouTube 链接。",
-            "检查提取的正文；若提供页码或章节选择，按需调整后确认。点击材料卡开始阅读。"
+            "使用文件按钮选择文档，或使用剪贴板按钮识别复制的英文正文或链接。",
+            "核对提取内容和范围，选择一个标签或保留未打标签，再确认导入。点击卡片的图片进入阅读。"
           ],
           "related": [
             "files"
@@ -403,7 +403,7 @@ export const manualContent={
           "title": "支持的材料",
           "body": [
             "支持 PDF、DOCX、EPUB、Markdown、TXT、SRT、VTT。无可提取文字的扫描 PDF、加密文件和受保护书籍可能无法导入，保存前请检查预览。",
-            "剪贴板按钮用于英文正文、网页或 YouTube 链接；独立的文件按钮直接打开系统文件管理。网页无法提取时，可复制可见英文正文。学习目标仅为英语，界面语言另行设置。"
+            "剪贴板按钮识别英文正文、网页或 YouTube 链接；空内容在中上方提示，识别时显示整页加载状态，完成后核对预览并确认。独立的文件按钮直接打开系统文件管理。"
           ],
           "steps": []
         },
@@ -411,7 +411,7 @@ export const manualContent={
           "id": "tags",
           "title": "桌面、材料库与标签",
           "body": [
-            "正在读的材料留在桌面。打开材料库、选择标签后，可在海报墙浏览材料；打开海报会把材料放回桌面。",
+            "点击材料图片接着上次位置阅读；点击标签文字编辑分类，每份材料新选择一个标签。材料库中，点击分类图片进入海报墙，点击分类文字管理名字；旧资料的多个标签保留到明确编辑时才改变。",
             "长按材料卡片，拖到垃圾篓，盖子打开后松手即删除；在其他位置松手则取消。已保存的原句、释义和笔记仍保留，但无法再打开已删除的来源。"
           ],
           "steps": [],
@@ -615,7 +615,7 @@ export const manualContent={
           "id": "youtube",
           "title": "工具：字幕",
           "body": [
-            "桌面提供浏览器会话偏好与依赖诊断；iPhone 使用公开英文字幕并提供清缓存。旧桌面会话偏好不会让 iPhone 获得登录态下载能力。"
+            "桌面使用系统安装的 yt-dlp，应用不内置该工具。“设置 → 工具 → YouTube 字幕”会提示缺失的工具，不需要先开启浏览器会话。打开“安装与诊断”查看官方说明、复制可用的安装命令，完成后点“重新检测”。iPhone 使用公开英文字幕，无需安装 yt-dlp。"
           ],
           "steps": []
         },
@@ -719,8 +719,8 @@ export const manualContent={
           "title": "素材を取り込んで開く",
           "body": [],
           "steps": [
-            "「素材」から取り込みを開き、ファイル、英語の本文、WebページやYouTubeのリンクを指定します。",
-            "抽出された本文を確認し、必要ならページや章を選んで確定します。素材カードから読み始めます。"
+            "ファイルボタンで文書を選ぶか、クリップボードボタンでコピーした英語やリンクを読み込みます。",
+            "抽出した内容と範囲を確認し、タグを1つ選ぶか未分類のまま取り込みます。カードの画像を押すと読書を再開できます。"
           ],
           "related": [
             "files"
@@ -750,7 +750,7 @@ export const manualContent={
           "title": "対応する素材",
           "body": [
             "PDF、DOCX、EPUB、Markdown、TXT、SRT、VTTに対応。文字抽出できないスキャンPDF、暗号化ファイル、保護された書籍は取り込めない場合があります。保存前にプレビューを確認してください。",
-            "クリップボードボタンは英語本文、Web・YouTubeリンク用です。別のファイルボタンでシステムのファイル選択を直接開きます。抽出できないページは表示された英文をコピーしてください。学習対象は英語で、表示言語は別設定です。"
+            "クリップボードは英語の本文、Webページ、YouTubeリンクを読み込みます。空の場合は画面上部に通知し、解析中は画面全体に進行状態を表示します。プレビューを確認して取り込みます。別のファイルボタンはシステムのファイル選択を直接開きます。"
           ],
           "steps": []
         },
@@ -758,7 +758,7 @@ export const manualContent={
           "id": "tags",
           "title": "デスク・ライブラリ・タグ",
           "body": [
-            "今読む素材はデスクに置きます。ライブラリでタグを選ぶとポスター一覧が開きます。ポスターを開くと素材がデスクに戻ります。",
+            "資料の画像で前回の位置から読み、タグの文字で分類を変更します。新しく選べるタグは資料ごとに1つです。ライブラリの分類画像はポスター一覧、文字は名前管理を開きます。既存の複数タグは明示的に編集するまで保持します。",
             "素材のカードを長押ししてごみ箱へドラッグし、ふたが開いたら離すと削除します。それ以外の場所で離すとキャンセルします。保存した文・意味・メモは残りますが、削除した出典は開けなくなります。"
           ],
           "steps": [],
@@ -962,7 +962,7 @@ export const manualContent={
           "id": "youtube",
           "title": "ツール：字幕",
           "body": [
-            "デスクトップはブラウザセッションと依存ツール診断、iPhoneは公開英語字幕とキャッシュ削除を提供します。以前のデスクトップ設定でiPhoneが認証付き取得をできるわけではありません。"
+            "デスクトップ版はシステムの yt-dlp を使用し、同梱していません。「設定 → ツール → YouTube 字幕」ではブラウザセッションを有効にせず不足ツールを確認できます。「インストールと診断」の公式手順やコマンドを利用し、完了後に再確認してください。iPhone は公開英語字幕を使用し、yt-dlp のインストールは不要です。"
           ],
           "steps": []
         },
@@ -1066,8 +1066,8 @@ export const manualContent={
           "title": "Ein Material importieren und öffnen",
           "body": [],
           "steps": [
-            "Öffne den Import unter Materialien. Wähle eine Datei oder füge englischen Text, einen Webseiten- oder YouTube-Link ein.",
-            "Prüfe den extrahierten Text und gegebenenfalls die Seiten- oder Kapitelauswahl. Bestätige und öffne die Materialkarte."
+            "Ein Dokument über die Datei-Schaltfläche wählen oder kopierten englischen Text bzw. einen Link über die Zwischenablage erkennen lassen.",
+            "Inhalt und Bereich prüfen, ein Tag wählen oder ohne Tag bestätigen. Das Kartenbild öffnet den Lesetext."
           ],
           "related": [
             "files"
@@ -1097,7 +1097,7 @@ export const manualContent={
           "title": "Unterstützte Materialien",
           "body": [
             "Unterstützt werden PDF, DOCX, EPUB, Markdown, TXT, SRT und VTT. Gescannte PDFs ohne auslesbaren Text, verschlüsselte Dateien und geschützte Bücher lassen sich unter Umständen nicht importieren. Prüfe die Vorschau.",
-            "Die Zwischenablage-Schaltfläche übernimmt englischen Text sowie Web- oder YouTube-Links. Die separate Dateischaltfläche öffnet direkt die System-Dateiauswahl. Scheitert die Extraktion einer Webseite, kopiere den sichtbaren englischen Text. Gelernt wird Englisch; die Oberflächensprache ist unabhängig."
+            "Die Zwischenablage erkennt englischen Text, Webseiten- und YouTube-Links. Bei leerem Inhalt erscheint oben ein Hinweis; während der Erkennung zeigt die ganze Seite den Ladezustand. Danach die Vorschau prüfen und bestätigen. Die separate Datei-Schaltfläche öffnet direkt die Systemauswahl."
           ],
           "steps": []
         },
@@ -1105,7 +1105,7 @@ export const manualContent={
           "id": "tags",
           "title": "Lesetisch, Bibliothek und Tags",
           "body": [
-            "Lass aktuelle Lektüre auf dem Lesetisch. Wähle in der Bibliothek einen Tag für die Posteransicht. Beim Öffnen eines Posters kommt das Material zurück auf den Lesetisch.",
+            "Das Materialbild setzt das Lesen fort; der Tag-Text bearbeitet die einzelne Kategorie. In der Bibliothek öffnet das Kategorienbild die Posterwand, der Text verwaltet Namen. Bestehende Mehrfach-Tags bleiben bis zu einer ausdrücklichen Bearbeitung erhalten.",
             "Halte eine Materialkarte gedrückt, ziehe sie zum Papierkorb und lasse los, sobald sich der Deckel öffnet. Loslassen an anderer Stelle bricht ab. Gespeicherte Sätze, Bedeutungen und Notizen bleiben erhalten; die gelöschte Quelle lässt sich nicht mehr öffnen."
           ],
           "steps": [],
@@ -1309,7 +1309,7 @@ export const manualContent={
           "id": "youtube",
           "title": "Werkzeuge: Untertitel",
           "body": [
-            "Desktop bietet Browser-Sitzungen und Abhängigkeitsdiagnosen. Das iPhone nutzt öffentliche englische Spuren und kann den Untertitelcache leeren. Alte Desktop-Einstellungen ermöglichen keine authentifizierten iPhone-Downloads."
+            "Die Desktop-App nutzt das systemweit installierte yt-dlp, keine mitgelieferte Kopie. Einstellungen → Werkzeuge → YouTube-Untertitel zeigt fehlende Werkzeuge auch ohne Browsersitzung. Unter Installation und Diagnose stehen offizielle Anleitungen und gegebenenfalls ein kopierbarer Installationsbefehl; danach erneut prüfen. Auf dem iPhone sind für öffentliche englische Untertitel keine yt-dlp-Installationen nötig."
           ],
           "steps": []
         },

@@ -13,7 +13,8 @@ export default function TagEditDialog({ file, onClose }: { file: Pick<FileRecord
   const loading = useFileStore(state => state.loadingTags);
   const tagsError = useFileStore(state => state.tagsError);
   const loadTags = useFileStore(state => state.loadTags);
-  const [value, setValue] = useState<TagSelection>({ tagIds: file.tags.map(tag => tag.id), newTagNames: [] });
+  // Historical multi-tag associations are retained until the user explicitly saves an edit.
+  const [value, setValue] = useState<TagSelection>({ tagIds: file.tags.slice(0,1).map(tag => tag.id), newTagNames: [] });
   const [query,setQuery]=useState('');
   const [colors,setColors]=useState<TagColors>({});
   const [saving, setSaving] = useState(false);
@@ -24,14 +25,14 @@ export default function TagEditDialog({ file, onClose }: { file: Pick<FileRecord
     if (pending.current) return;
     pending.current = true; setSaving(true); setError('');
     try {
-      await useFileStore.getState().setFileTags(file.id, includeTagQuery(value,query,tags), colors);
+      await useFileStore.getState().setFileTags(file.id, query.trim() ? includeTagQuery({tagIds:[],newTagNames:[]},query,tags) : value, colors);
       onClose();
     } catch (error) { setError(t(tagErrorMessage(error, 'tags.saveFailed'))); }
     finally { pending.current = false; setSaving(false); }
   };
   return <Overlay label={t('tags.edit')} onClose={close} className="tag-dialog">
     <header className="tag-dialog__header"><h2>{t('tags.edit')}</h2></header>
-    <div className="tag-dialog__body"><TagPicker compact tags={tags} value={value} onChange={setValue} disabled={saving}
+    <div className="tag-dialog__body"><TagPicker compact single tags={tags} value={value} onChange={setValue} disabled={saving}
       query={query} onQueryChange={setQuery} colors={colors} onColorChange={(name,tone)=>setColors(previous=>({...previous,[tagNameKey(name)]:tone}))}
       loading={loading} error={tagsError} onRetry={() => void loadTags(true)} />
       {error && <p className="tag-error" role="alert">{error}</p>}

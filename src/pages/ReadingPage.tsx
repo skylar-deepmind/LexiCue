@@ -527,8 +527,40 @@ export default function ReadingPage({ data, scope }: {
         } catch { if (sourceRequest.current === generation) setSourceError(t('savedRecords.sourceError')); }
         finally { if (sourceRequest.current === generation) setSourceBusy(false); }
     };
-    const previous = () => { const node = scroll.current; if (!node)
-        return; const height = node.scrollHeight; setFirst(value => Math.max(0, value - 60)); requestAnimationFrame(() => { node.scrollTop += node.scrollHeight - height; }); };
+    const prepending = useRef<{index:number;top:number}|null>(null);
+    useLayoutEffect(()=>{
+        const saved=prepending.current,node=scroll.current;
+        if(!saved||!node)return;
+        const anchor=node.querySelector<HTMLElement>(`[data-sentence="${saved.index}"]`);
+        if(anchor)node.scrollTop+=anchor.getBoundingClientRect().top-saved.top;
+        prepending.current=null;
+    },[first]);
+    useEffect(()=>{
+        const node=scroll.current;if(!node||!first)return;
+        let distance=0,touchY:number|null=null,frame=0;
+        const earlier=(amount:number)=>{
+            if(!restored.current||prepending.current)return;
+            distance=amount>0?distance+amount:0;
+            if(distance<64||frame)return;
+            // Measure after this input's native scroll. Restoring a pre-input
+            // anchor would cancel the user's final wheel/touch movement.
+            frame=requestAnimationFrame(()=>{
+                frame=0;if(prepending.current||node.scrollTop>Math.max(280,node.clientHeight*.5))return;
+                const top=node.getBoundingClientRect().top;
+                const anchor=[...node.querySelectorAll<HTMLElement>('[data-sentence]')].find(item=>item.getBoundingClientRect().bottom>top);
+                if(!anchor)return;
+                prepending.current={index:Number(anchor.dataset.sentence),top:anchor.getBoundingClientRect().top};
+                setFirst(value=>Math.max(0,value-60));distance=0;
+            });
+        };
+        const wheel=(event:WheelEvent)=>earlier(-event.deltaY);
+        const start=(event:TouchEvent)=>{touchY=event.touches.length===1?event.touches[0].clientY:null;};
+        const move=(event:TouchEvent)=>{if(touchY===null||event.touches.length!==1)return;const y=event.touches[0].clientY;earlier(y-touchY);touchY=y;};
+        const end=()=>{touchY=null;};
+        const key=(event:KeyboardEvent)=>{if((event.target as Element).closest('input,textarea,[contenteditable="true"]'))return;if(['ArrowUp','PageUp','Home'].includes(event.key))earlier(event.key==='ArrowUp'?32:80);};
+        node.addEventListener('wheel',wheel,{passive:true});node.addEventListener('touchstart',start,{passive:true});node.addEventListener('touchmove',move,{passive:true});node.addEventListener('touchend',end);node.addEventListener('touchcancel',end);node.addEventListener('keydown',key);
+        return()=>{cancelAnimationFrame(frame);node.removeEventListener('wheel',wheel);node.removeEventListener('touchstart',start);node.removeEventListener('touchmove',move);node.removeEventListener('touchend',end);node.removeEventListener('touchcancel',end);node.removeEventListener('keydown',key);};
+    },[first]);
     return <div className="reading-page" style={fontScaleStyle} data-listening={listening} data-reading-material={material.id}><nav className="reading-breadcrumb" aria-label={t('materials.path')}>{visit || pageOrigin ? <button className="reader-return-origin page-back" aria-label={`${t('common.back')} · ${t(visit?.origin.kind === 'saved' ? 'savedRecords.title' : 'reader.title', { defaultValue: '阅读' })}`} data-testid="source-return" onClick={returnToOrigin}><ChevronLeft className="mobile-reader-back" size={22} aria-hidden="true"/></button> : <button className="page-back" onClick={pageBack} aria-label={t(location.state?.readingOrigin === 'library' ? 'readingDesk.backLibrary' : 'readingDesk.backMaterials')}><ChevronLeft className="mobile-reader-back" size={22} aria-hidden="true"/></button>}<span aria-hidden="true">/</span><span>{material.name}</span><span className="mobile-reading-path">{t(location.state?.readingOrigin === 'library' ? 'readingDesk.library' : 'materials.title')}</span></nav><div className="reader-scroll" ref={scroll}><div className="reading-layout" ref={readingLayout.layout} data-query-open={!!query}><div className="workspace-paper reading-paper" data-recall-state={recall.status} data-font={size} data-lines={lineHeight} data-aux-font={auxiliaryFont} data-definition-font={definitionFont}><div className="approved-reader-title"><h1 className="reading-title" lang="en">{bookmarkTitle(material.name)}</h1><MaterialCover src={materialCover(material)} identity={material.content_hash} className="folio-print"/></div>{sourceError && <p className="saved-error" role="status">{sourceError}</p>}{recall.status === 'failed' && <div className="reading-recall-error saved-error" role="status"><span>{t('recall.indexFailed')}</span><button type="button" className="ui-button" onClick={() => void useRecallStore.getState().refresh()}>{t('common.retry')}</button></div>}
     {example && <section className="example-intro" aria-label={t('onboarding.sample')}>
       <div><h1>{t('onboarding.sample')}</h1>{guide.active && !guide.tour && !query && <button className="ui-button" onClick={skip}>{t('onboarding.skip')}</button>}</div>
@@ -549,7 +581,6 @@ export default function ReadingPage({ data, scope }: {
         <button className="ui-button" onClick={() => translationStatus === 'loading' ? translationState.cancel() : void requestTranslations()}>{t(translationStatus === 'loading' ? 'common.cancel' : 'common.retry')}</button>
     </div>}
     {!segments.length && <p className="lookup-note" role="status">{t('reader.emptyContent')}</p>}
-    {first > 0 && <button className="ui-button" onClick={previous}>{t('reader.previousSentences')}</button>}
     {segments.slice(first, last).map((segment, offset) => {
       const key = speechItems[first + offset].key;
       const continuous = speech.playbackMode==='source-continuous' && speech.continuousFileId===material.id && speech.continuousSourceKey===mediaIdentity;

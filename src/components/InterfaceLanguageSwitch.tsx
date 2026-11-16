@@ -1,11 +1,12 @@
 import { useTranslation } from 'react-i18next';
+import { Languages } from 'lucide-react';
 import { SELF_NAMES, UI_LANGUAGES } from '../lib/languages';
 import { usePreferencesStore } from '../stores/preferencesStore';
 
 export default function InterfaceLanguageSwitch() {
   const { t } = useTranslation();
   const language = usePreferencesStore(state => state.uiLanguage), choose = usePreferencesStore(state => state.setUiLanguage);
-  return <fieldset className="approved-interface-language"><legend>{t('settings.uiLanguage.title')}</legend>
+  return <fieldset className="approved-interface-language"><legend><Languages size={20} aria-hidden="true"/>{t('settings.uiLanguage.title')}</legend>
     <div role="radiogroup" aria-label={t('settings.uiLanguage.title')} className="approved-language-slider" style={{ '--language-index': UI_LANGUAGES.indexOf(language) } as React.CSSProperties}>
       <span className="approved-language-selection" aria-hidden="true"/>
       {UI_LANGUAGES.map((value, i) => <button key={value} type="button" role="radio" aria-checked={language === value} tabIndex={language === value ? 0 : -1} onClick={() => choose(value)} onKeyDown={event => {
