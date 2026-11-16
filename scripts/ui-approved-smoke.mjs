@@ -17,7 +17,7 @@ try{
  for(const theme of ['sage','midnight'])for(const width of [1360,390,320,430]){
   const height=width===1360?880:width===320?668:width===430?932:844;
   const context=await browser.newContext({viewport:{width,height},hasTouch:width<768});const page=await context.newPage();current=page;await fixture(page,theme);
-  await page.goto(`${url}/files`);await page.locator('.approved-card[data-desk-active="true"]').waitFor();
+  await page.goto(`${url}/files`);await page.evaluate(async()=>{const {useMaterialStore:m}=await window.__uiStoreModule('materialStore');await m.getState().load();const {useReadingDeskStore:d}=await window.__uiStoreModule('readingDeskStore');for(const file of m.getState().files.slice(0,5).reverse())d.getState().keepAndOpen(file);});await page.locator('.approved-card[data-desk-active="true"]').waitFor();
   await page.evaluate(()=>document.fonts.ready);
   const rect=await page.locator('.approved-card[data-desk-active="true"]').boundingBox();ok(rect.x>=0&&rect.x+rect.width<=width,'home card stays within viewport');
   eq(Math.round(rect.width),width===1360?560:Math.round(Math.min(width*.79,370)),'approved card width');
@@ -27,8 +27,11 @@ try{
   await page.getByRole('button',{name:'Coast · 14',exact:true}).click();await page.locator('.approved-poster').first().waitFor();
   if(width<768){eq(await page.locator('.approved-phone-column').count(),2,'two vertical poster columns');await page.locator('.approved-wall-viewport').evaluate(node=>{node.scrollTop=420;});}
   await page.screenshot({path:`${output}/${theme}-${width}-wall.png`});
-  const poster=page.locator('.approved-poster').first(),fileId=Number(await poster.getAttribute('data-motion-file'));
+  const wallPosition=await page.locator('.approved-wall-viewport').evaluate(n=>({x:n.scrollLeft,y:n.scrollTop}));
+  const visibleId=await page.locator('.approved-poster').evaluateAll(nodes=>nodes.find(n=>{const r=n.getBoundingClientRect();return r.top>=90&&r.bottom<=innerHeight-50;})?.getAttribute('data-motion-file'));
+  const poster=visibleId?page.locator(`[data-motion-file="${visibleId}"]`):page.locator('.approved-poster').first(),fileId=Number(await poster.getAttribute('data-motion-file'));
   await poster.locator('button').click();await page.waitForURL(/\/files\/\d+/);await page.locator('.reading-original').first().waitFor();
+  await page.locator('.approved-handoff').waitFor();ok(await page.locator('.approved-handoff').evaluate(n=>n.getAnimations({subtree:true}).some(a=>a.effect.getTiming().duration===1320)),'wall transition uses its 1320 ms timeline');
   await page.waitForFunction(()=>!document.querySelector('.approved-handoff'));
   eq(await page.locator('.reading-title').count(),1,'one material title');
   const word=page.locator('.reading-word').filter({hasText:/^air$/}).first();
@@ -39,6 +42,7 @@ try{
   await page.keyboard.press('Escape');await page.locator('.context-panel').waitFor({state:'detached'});
   await page.locator('.reading-breadcrumb .page-back').click();await page.locator('.approved-wall').waitFor();await page.waitForFunction(()=>!document.querySelector('.approved-handoff'));
   ok(await page.locator(`[data-motion-file="${fileId}"]`).count(),'return retains source poster');
+  const restored=await page.locator('.approved-wall-viewport').evaluate(n=>({x:n.scrollLeft,y:n.scrollTop}));ok(Math.abs(restored.x-wallPosition.x)<2&&Math.abs(restored.y-wallPosition.y)<2,'wall returns to exact scroll position');
   await page.getByRole('button',{name:'返回材料库',exact:true}).click();await page.locator('.approved-tag-panel').waitFor();await page.keyboard.press('Escape');await page.locator('.approved-tag-panel').waitFor({state:'detached'});
   await page.getByRole('button',{name:'已保存',exact:true}).click();await page.locator('.approved-saved-folio').waitFor();await page.waitForFunction(()=>!document.documentElement.dataset.dissolve);
   eq(await page.locator('.approved-saved-folio').count(),1,'only current sentence is presented');

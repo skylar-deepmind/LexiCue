@@ -102,7 +102,7 @@
 /* Reading keeps its existing scalable typography and selection geometry. */
 .figma-shell[data-approved-page="reader"] { background:var(--approved-paper); }
 .figma-shell .reading-page { background:var(--approved-paper); color:var(--approved-ink); }
-.figma-shell .reading-breadcrumb { padding:22px 40px; min-height:76px; background:transparent; }
+.figma-shell .reading-breadcrumb { padding:22px 40px; height:auto; min-height:88px; background:transparent; }
 .figma-shell .reading-breadcrumb > span,.figma-shell .reading-breadcrumb .mobile-reader-display { display:none; }
 .figma-shell .reading-breadcrumb .page-back { display:inline-flex; align-items:center; justify-content:center; min-height:44px; min-width:44px; }
 .figma-shell .reading-breadcrumb .page-back svg { display:block; }
@@ -150,10 +150,10 @@
 }
 @media(prefers-reduced-motion:reduce) { .approved-settings *, .approved-voices * { transition:none!important; animation:none!important; } }
 .approved-lookup-map.lookup-source-switch { border:0; padding:0; background:transparent; width:44px; }
-.approved-lookup-map > button { position:relative; width:44px; height:44px; border:0!important; background:transparent!important; color:var(--accent-700); padding:8px; box-shadow:none!important; }
+.approved-lookup-map.lookup-source-switch > button { position:relative; width:44px; min-width:44px; max-width:44px; height:44px; flex:none; border:0!important; background:transparent!important; color:var(--accent-700); padding:3px; box-shadow:none!important; }
 .approved-lookup-map > button > span { position:absolute; bottom:7px; right:3px; display:grid; place-items:center; width:18px; height:18px; border-radius:50%; background:var(--surface); color:var(--approved-warm); }
 .lookup-fixed-header { position:relative; }.lookup-fixed-header .lookup-source-host { position:absolute; top:0; right:54px; }.lookup-fixed-header .lookup-heading > div { padding-right:112px; }.approved-supplement { margin-top:18px; }.approved-supplement > h3 { font-size:13px; font-weight:500; color:var(--text-muted); margin-bottom:10px; }
-.approved-saved.saved-workspace { display:flex; flex-direction:column; height:100%; max-width:none; padding:26px 48px 32px; background:var(--approved-desk); color:var(--approved-ink); overflow:hidden; }
+.approved-saved.saved-workspace { display:flex; flex-direction:column; width:100%; height:100%; max-width:none; padding:26px 48px 32px; background:var(--approved-desk); color:var(--approved-ink); overflow:hidden; }
 .approved-saved-header { display:flex; justify-content:space-between; align-items:center; flex:none; }
 .approved-saved-search { display:flex; justify-content:flex-end; align-items:center; gap:8px; }.approved-saved-search input { width:0; padding:0; border:0; border-bottom:1px solid var(--approved-secondary); background:none; color:var(--approved-ink); opacity:0; transition:width 220ms ease,opacity 170ms; }.approved-saved-search[data-open="true"] input { width:240px; padding:7px 2px; opacity:1; }.approved-saved-search input:focus { outline:0; border-bottom:2px solid var(--approved-focus); }
 .approved-timeline { flex:none; width:100%; margin:25px 0 32px; position:relative; }.approved-histogram { display:flex; align-items:end; gap:3px; height:60px; }.approved-histogram i { flex:1; min-width:1px; max-width:20px; background:var(--approved-dot); border-radius:2px 2px 0 0; opacity:.7; }.approved-histogram i[data-selected="true"] { background:var(--approved-warm); opacity:.85; }
@@ -209,3 +209,20 @@
 @media(max-width:767px) { .approved-settings[data-detail] .approved-settings-paper { width:100%; }.approved-settings[data-detail] .approved-settings-back { margin-bottom:12px; }.approved-dict-online { display:block; margin:32px 0 29px; }.approved-dict-online > h2 { font-size:20px; margin-bottom:12px; }.approved-dictionary-detail > h2 { font-size:20px; }.approved-settings[data-detail] .dictionary-packs { gap:22px; justify-content:flex-start; padding:22px 20px 24px 0; width:calc(100% + 20px); }.approved-settings[data-detail] .dictionary-pack { width:155px; }.approved-settings[data-detail] .approved-dictionary-book { width:145px; height:193px; padding:24px 10px 18px 17px; margin-left:0; }.approved-settings[data-detail] .approved-dictionary-book h2 { font-size:22px; }.approved-book-device { width:64px; height:64px; margin-top:8px; }.approved-settings[data-detail] .dictionary-pack > p { font-size:13px; text-align:left; margin-top:16px; }.approved-book-status { font-size:12px; }.approved-dictionary-book::after { inset:9px 8px 9px 19px; }.approved-dict-online .dictionary-preference-row { padding:10px 18px; } }
 .approved-folio-menu > a { opacity:0; font-size:12px; }.approved-folio-menu:hover > a,.approved-folio-menu:focus-within > a { opacity:1; }
 @media(hover:none) { .approved-folio-menu > a { opacity:1; } }
+/* Reserve the map's own hit target beside, rather than over, the records tab. */
+.lookup-fixed-header .lookup-tabs { margin-right:68px; }
+.lookup-fixed-header .lookup-tabs button { min-width:0; padding-inline:6px; }
+@media(max-width:767px) {
+ .figma-shell .reading-breadcrumb { height:auto; min-height:calc(max(12px,env(safe-area-inset-top)) + 44px); grid-template-rows:44px; margin:0 12px; }
+ .figma-shell .reading-breadcrumb > .page-back { grid-row:1; }
+}
+@media(max-width:767px) {
+ .figma-shell.b-shell .mobile-reading-tools { position:fixed; left:0; right:0; z-index:12; background:transparent; padding:0; pointer-events:none; }
+ .figma-shell.b-shell .mobile-reading-bar { display:flex; justify-content:center; gap:0; margin:0 auto; padding:7px 9px; border-radius:18px; background:var(--approved-card); box-shadow:0 5px 24px #17352b14; pointer-events:auto; transition:width 300ms cubic-bezier(.22,1,.36,1); }
+ .figma-shell .mobile-listen-cluster { width:44px; flex:none; transition:width 300ms cubic-bezier(.22,1,.36,1); }
+ .figma-shell [data-listening="true"] .mobile-listen-cluster { width:132px; }
+ .figma-shell .mobile-headphone-mode { width:44px; }
+ .figma-shell .mobile-playback-mode { width:132px; column-gap:0; }
+}
+@media(max-width:767px) { .figma-shell .mobile-reading-bar .b-dock-control { width:44px; height:44px; min-width:44px; min-height:44px; flex:none; padding:0; } }
+.context-panel.context-panel--lookup .lookup-fixed-header .lookup-tabs { margin-right:68px; }

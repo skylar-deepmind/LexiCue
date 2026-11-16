@@ -294,7 +294,10 @@ pub fn query(packs: &[Pack], query: &str, context: Option<&str>) -> R<Value> {
             json!({"id":sid,"source_path":format!("/records/{line}/senses/{ordinal}"),"content_kind":"definition","ancestors":ancestors,"meaning":{"en":sense["definition"],"zh":null},"labels":labels(&sense["labels"]),"patterns":[],"examples":examples,"notes":[]})
         }).collect::<Vec<_>>());
     }
-    let entries = records.into_values().collect::<Vec<_>>();
+    let mut entries = records.into_values().collect::<Vec<_>>();
+    // An exact spelling must lead the overview ahead of unrelated heads that
+    // list this spelling as a historical/pronunciation variant (air → be).
+    entries.sort_by_key(|entry| entry["match"]["type"] != "exact");
     if entries.is_empty() {
         return Ok(empty(query, context, None));
     }
@@ -367,6 +370,18 @@ pub fn valid_sense(source: &Value, sense: &Value) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn exact_headword_precedes_earlier_source_aliases() {
+        let result = query(&[daily()], "air", None).unwrap();
+        let entries = result["entries"].as_array().unwrap();
+        let primary = entries
+            .iter()
+            .find(|entry| entry["id"] == result["default_entry_id"])
+            .unwrap();
+        assert_eq!(primary["headword"], "air");
+        assert_eq!(primary["match"]["type"], "exact");
+        assert!(entries.iter().any(|entry| entry["headword"] == "be"));
+    }
     fn daily() -> Pack {
         Pack::open(
             &Path::new(env!("CARGO_MANIFEST_DIR"))

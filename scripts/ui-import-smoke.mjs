@@ -14,14 +14,12 @@ const flight=await readFile(`${root}/docs/implementation/fixtures/v31-reading.sr
 const srt=(text,zh='')=>`1\n00:00:01,000 --> 00:00:03,000\n${text}${zh?'\n'+zh:''}\n`;
 const writes=()=>page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='import_reading_material'));
 const drop=files=>page.evaluate(files=>{const dataTransfer=new DataTransfer();for(const[name,text]of files)dataTransfer.items.add(new File([text],name));window.dispatchEvent(new DragEvent('drop',{dataTransfer,bubbles:true,cancelable:true}));},files);
-const preview=()=>page.locator('.lc-import-preview').waitFor();
+const preview=async()=>{await page.locator('.approved-import-preview').waitFor();if(!await page.locator('.approved-import-preview').evaluate(n=>n.open))await page.locator('.approved-import-preview > summary').click();await page.locator('.lc-import-preview').waitFor();};
 const settle=()=>page.locator('.lc-import-modal').evaluate(node=>Promise.all(node.getAnimations({subtree:true}).filter(a=>a.effect.getComputedTiming().iterations!==Infinity).map(a=>a.finished.catch(()=>{}))));
 const close=async()=>{await page.keyboard.press('Escape');await page.locator('.lc-import-modal').waitFor({state:'detached'});};
 const open=async()=>{
- if(new URL(page.url()).pathname.replace(/\/+$/,'')!=='/files'){await page.locator('.b-dock a[href="/files"]').click();await page.locator('.materials-paper').waitFor();}
- const library = page.locator('.library-overlay-panel');
- if (await library.isVisible()) { await page.keyboard.press('Escape'); await library.waitFor({state:'detached'}); }
- await page.locator('.b-dock [data-guide="import"]').click();
+ if(new URL(page.url()).pathname!=='/files'){await page.locator('.reading-breadcrumb .page-back').click();await page.locator('.approved-desk').waitFor();}
+ await page.evaluate(async()=>{const {useImportStore}=await window.__uiStoreModule('importStore');useImportStore.getState().show();});
 };
 const confirm=()=>page.getByRole('button',{name:/^确认导入/}).click();
 async function contrast(locator,label){const value=await locator.evaluate(async node=>{
@@ -30,10 +28,10 @@ async function contrast(locator,label){const value=await locator.evaluate(async 
  const rgb=v=>v.match(/[\d.]+/g).map(Number),lum=c=>c.slice(0,3).map(n=>{n/=255;return n<=.04045?n/12.92:((n+.055)/1.055)**2.4;}).reduce((v,n,i)=>v+n*[.2126,.7152,.0722][i],0);
  let p=node,bg;do{bg=rgb(getComputedStyle(p).backgroundColor);p=p.parentElement;}while(p&&(bg[3]??1)===0);const a=lum(rgb(getComputedStyle(node).color)),b=lum(bg);return(Math.max(a,b)+.05)/(Math.min(a,b)+.05);
 });contrasts.push({label,ratio:value});ok(value>=4.5,`${label}: ${value.toFixed(2)}:1`);}
-async function youtube(info,prepared){await page.evaluate(({info,prepared})=>{window.__youtube={info,prepared};window.__clipboardText='https://www.youtube.com/watch?v=abcdefghijk';},{info,prepared});await open();await page.getByRole('button',{name:'读取剪贴板',exact:true}).click();}
+async function youtube(info,prepared){await page.evaluate(({info,prepared})=>{window.__youtube={info,prepared};window.__clipboardText='https://www.youtube.com/watch?v=abcdefghijk';},{info,prepared});await open();await page.locator('.lc-import-modal').getByRole('button',{name:'读取剪贴板',exact:true}).click();}
 
 try{
- for(const theme of ['ocean','midnight']){
+ for(const theme of ['sage','midnight']){
   await call('test_reset');const context=await browser.newContext({viewport:{width:1440,height:900}});page=await context.newPage();await page.routeWebSocket('**',socket=>socket.close());await fixture(page,theme);
   await page.addInitScript(()=>{
    window.isTauri=true;
@@ -72,7 +70,7 @@ try{
     return value;
    };
   });
-  await page.goto(`${url}/files`);await page.locator('.materials-paper').waitFor();
+  await page.goto(`${url}/files`);await page.locator('.approved-desk').waitFor();
   await open();await settle();eq(await page.locator('#root').evaluate(n=>n.inert),true,'modal background inert');
   eq(await page.locator('.context-panel').count(),0,'import does not use context panel');eq(await page.locator('.b-shell').getAttribute('data-context-open'),'false','import never shifts reading workspace');
   eq(await page.locator('.lc-import-modal textarea').count(),0,'entry starts with two actions, not a text form');
@@ -89,7 +87,7 @@ try{
    n.click();return new Promise(resolve=>requestAnimationFrame(()=>{const panel=document.querySelector('.lc-import-modal');resolve({mounted:!!panel,animated:panel?.getAnimations().some(a=>a.playState==='running'),inert:document.querySelector('#root').inert});}));
   });
   eq(exiting,{mounted:true,animated:true,inert:true},'close animates before unmount and retains focus ownership');
-  await page.locator('.lc-import-modal').waitFor({state:'detached'});ok(await page.locator('.b-dock [data-guide="import"]').evaluate(n=>n===document.activeElement),'focus restored');
+  await page.locator('.lc-import-modal').waitFor({state:'detached'});ok(await page.evaluate(()=>!document.querySelector('#root').inert),'background interaction restored');
   await open();eq(await page.evaluate(()=>window.__lexicueBack()),true,'system back handled');await page.locator('.lc-import-modal').waitFor({state:'detached'});
   await page.evaluate(text=>window.__uiFiles={'/fixture/真实英语.srt':text},flight);await open();await page.getByRole('button',{name:'选择文件',exact:true}).click();await preview();await settle();
   eq((await writes()).length,0,'native picker boundary has zero writes before confirmation');eq((await call('test_counts')).files,0,'no material before confirmation');
@@ -130,7 +128,7 @@ try{
   eq(workerCancel,{terminated:1,open:false,items:0},'closing terminates the actual parsing Worker and releases drafts');eq((await call('test_counts')).files,3,'aborted Worker has no write');
   // Stop is a boundary between transactions; a committed in-flight item stays successful.
   await drop([['background-one.srt',srt('First background transaction.')],['background-two.srt',srt('Second background transaction.')]]);await preview();await page.evaluate(()=>window.__holdWrite=true);await confirm();await page.waitForFunction(()=>typeof window.__releaseWrite==='function');await close();
-  await page.locator('.b-dock a[href="/files"]').click();await page.locator('.materials-paper').waitFor();await page.getByRole('button',{name:'导入处理中，打开进度',exact:true}).click();await page.getByRole('button',{name:'取消余下导入'}).click();await contrast(page.getByRole('button',{name:'取消余下导入'}),`${theme} disabled`);await page.evaluate(()=>window.__releaseWrite());await page.getByText('已导入 1 份材料',{exact:true}).waitFor();ok(!(await page.locator('.lc-import-modal').evaluate(n => !!n.closest('[inert]'))),'batch results retain keyboard ownership');
+  if(new URL(page.url()).pathname!=='/files')await page.locator('.reading-breadcrumb .page-back').click();await page.locator('.approved-desk').waitFor();await page.getByRole('button',{name:'导入处理中，打开进度',exact:true}).click();await page.getByRole('button',{name:'取消余下导入'}).click();await contrast(page.getByRole('button',{name:'取消余下导入'}),`${theme} disabled`);await page.evaluate(()=>window.__releaseWrite());await page.getByText('已导入 1 份材料',{exact:true}).waitFor();ok(!(await page.locator('.lc-import-modal').evaluate(n => !!n.closest('[inert]'))),'batch results retain keyboard ownership');
   eq(await page.locator('.lc-import-modal > .motion-change > .motion-live .lc-import-items small').allTextContents(),['已导入','未导入'],'stop waits for actual receipt');await page.getByRole('button',{name:'重试未完成项'}).click();await page.getByText('已导入 2 份材料',{exact:true}).waitFor();eq((await call('test_counts')).files,5,'retry remaining draft succeeds');await close();
   // YouTube network outcomes are deterministic, but parsing and saving remain real.
   const info={title:'A real preview from downloaded subtitles',manual:[{lang:'en',is_auto:false},{lang:'zh-Hans',is_auto:false}],automatic:[{lang:'en-orig',language:'en',is_auto:true}],duration:20,thumbnail:null};
@@ -149,12 +147,12 @@ try{
   while(shown<95){await page.locator('.lc-document-preview').evaluate(n=>{n.scrollTop=n.scrollHeight;});await page.waitForFunction(count=>document.querySelectorAll('.lc-document-preview [data-block]').length>count,shown);shown=await page.locator('.lc-document-preview [data-block]').count();}
   ok((await page.locator('.lc-document-preview').innerText()).includes('paragraph 95'),'scroll reaches final original paragraph');
   await page.locator('.lc-document-preview').focus();ok(await page.locator('.lc-document-preview').evaluate(n=>n===document.activeElement),'preview retains keyboard access');await close();
-  await page.evaluate(value=>{window.__youtube={info:value,hold:true};window.__clipboardText='https://youtu.be/abcdefghijk';},info);await open();await page.getByRole('button',{name:'读取剪贴板',exact:true}).click();await page.waitForFunction(()=>typeof window.__releaseYouTube==='function');await close();await open();await page.evaluate(()=>window.__releaseYouTube());await page.waitForTimeout(80);await page.locator('.lc-import-sources').waitFor();eq(await page.locator('.lc-import-tracks').count(),0,'late query never revives its closed source');await close();
+  await page.evaluate(value=>{window.__youtube={info:value,hold:true};window.__clipboardText='https://youtu.be/abcdefghijk';},info);await open();await page.locator('.lc-import-modal').getByRole('button',{name:'读取剪贴板',exact:true}).click();await page.waitForFunction(()=>typeof window.__releaseYouTube==='function');await close();await open();await page.evaluate(()=>window.__releaseYouTube());await page.waitForTimeout(80);await page.locator('.lc-import-sources').waitFor();eq(await page.locator('.lc-import-tracks').count(),0,'late query never revives its closed source');await close();
   // Explicit clipboard action: one native read and one lookup, no import before confirmation.
   await page.evaluate(info=>{window.__clipboardText='https://youtu.be/abcdefghijk';window.__youtube={info};},info);
   const clipBefore=await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='plugin:clipboard-manager|read_text').length);
   const listBefore=await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='youtube_list_subs').length);
-  await open();await page.getByRole('button',{name:'读取剪贴板',exact:true}).evaluate(n=>{n.click();n.click();});await page.locator('.lc-import-tracks').waitFor();
+  await open();await page.locator('.lc-import-modal').getByRole('button',{name:'读取剪贴板',exact:true}).evaluate(n=>{n.click();n.click();});await page.locator('.lc-import-tracks').waitFor();
   eq(await page.getByLabel('链接',{exact:true}).inputValue(),'https://youtu.be/abcdefghijk','clipboard link is used automatically');
   eq(await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='plugin:clipboard-manager|read_text').length),clipBefore+1,'double paste reads once');
   eq(await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='youtube_list_subs').length),listBefore+1,'valid clipboard starts one lookup');
@@ -162,12 +160,12 @@ try{
   for(const [text,fail,message]of [['https://',false,'链接格式不完整，请修改或重新粘贴。'],[null,false,'未读到文字，请先复制英文或链接；图片或文件请使用选择文件。'],[null,true,'无法读取剪贴板，请在下方手动粘贴。']]){
    await page.evaluate(({text,fail})=>{window.__clipboardText=text;window.__clipboardFail=fail;},{text,fail});
    const before=await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='youtube_list_subs').length);
-   await open();await page.getByRole('button',{name:'读取剪贴板',exact:true}).click();await page.getByText(message,{exact:true}).waitFor();
+   await open();await page.locator('.lc-import-modal').getByRole('button',{name:'读取剪贴板',exact:true}).click();await page.getByText(message,{exact:true}).waitFor();
    eq(await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='youtube_list_subs').length),before,'invalid or unavailable clipboard stays local');
    if(text||fail)ok(await page.getByLabel('英文正文或链接',{exact:true}).isVisible(),'manual fallback remains available');await close();
   }
   await page.evaluate(()=>{window.__clipboardFail=false;window.__clipboardHold=true;window.__clipboardText='https://youtu.be/abcdefghijk';});
-  await open();await page.getByRole('button',{name:'读取剪贴板',exact:true}).click();await page.getByRole('button',{name:'读取中…',exact:true}).waitFor();await contrast(page.getByRole('button',{name:'读取中…',exact:true}),`${theme} clipboard disabled`);
+  await open();await page.locator('.lc-import-modal').getByRole('button',{name:'读取剪贴板',exact:true}).click();await page.getByRole('button',{name:'读取中…',exact:true}).waitFor();await contrast(page.getByRole('button',{name:'读取中…',exact:true}),`${theme} clipboard disabled`);
   await close();await open();await page.evaluate(()=>{window.__clipboardHold=false;window.__releaseClipboard();});await page.waitForTimeout(70);
   eq(await page.locator('.lc-import-sources').count(),1,'late clipboard result cannot replace a reopened entry');await close();
   // Import finishes the entire translation before the frozen preview is ready.
@@ -199,7 +197,7 @@ try{
   await page.evaluate(()=>{window.__translationHold=true;window.__releaseTranslation=undefined;});await translationToggle().click();await page.locator('.translation-dialog').getByRole('button',{name:'开始翻译',exact:true}).click();await page.waitForFunction(()=>typeof window.__releaseTranslation==='function');
   await contrast(page.locator('.reading-translation-status span'),`${theme} translation status`);await page.screenshot({path:`${output}/${theme}-translating.png`});
   const fillsBeforeCancel=await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='fill_reading_translations').length);
-  await page.locator('.reading-breadcrumb .page-back').click();await page.locator('.materials-paper').waitFor();await page.evaluate(()=>{window.__translationHold=false;window.__releaseTranslation();});
+  await page.locator('.reading-breadcrumb .page-back').click();await page.locator('.approved-desk').waitFor();await page.evaluate(()=>{window.__translationHold=false;window.__releaseTranslation();});
   await page.waitForTimeout(80);eq(await page.locator('.reading-page:not(.page-ghost *),.lc-import-modal').count(),0,'late translation cannot reopen a departed material');
   ok(await page.evaluate(()=>window.__uiCalls.some(c=>c.command==='cancel_import_translation')),'navigation cancels full translation');
   eq(await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='fill_reading_translations').length),fillsBeforeCancel,'cancelled late translation cannot write back');
@@ -217,5 +215,5 @@ try{
   await page.evaluate(()=>document.documentElement.style.fontSize='100%');await page.setViewportSize({width:1440,height:900});await close();await page.emulateMedia({reducedMotion:'reduce'});await open();eq(await page.locator('.lc-import-modal').evaluate(n=>getComputedStyle(n).animationName),'none','reduced motion modal');await close();
   await page.evaluate(async()=>{const{useImportStore}=await window.__uiStoreModule('importStore');void useImportStore.getState().start([{name:'reduced.srt',read:()=>new Promise(done=>window.__reducedRead=done)}]);});await page.locator('.lc-import-paper-character').waitFor();eq(await page.locator('.lc-import-paper-character').evaluate(n=>getComputedStyle(n).animationName),'none','reduced motion paper');await close();await page.evaluate(()=>window.__reducedRead(''));await context.close();
  }
- eq(errors,[],'no browser exceptions');await writeFile(`${output}/evidence.json`,JSON.stringify({checks,themes:['ocean','midnight'],contrasts,errors,nativeBoundary:'simulated OS picker/drop/chunked FS IPC, YouTube and translation-service responses; actual document/SRT Workers, Rust transactions, explicit reading translation writeback and temporary SQLite'},null,2));console.log(`Import UI: ${checks} checks passed. Evidence: ${output}`);
+ eq(errors,[],'no browser exceptions');await writeFile(`${output}/evidence.json`,JSON.stringify({checks,themes:['sage','midnight'],contrasts,errors,nativeBoundary:'simulated OS picker/drop/chunked FS IPC, YouTube and translation-service responses; actual document/SRT Workers, Rust transactions, explicit reading translation writeback and temporary SQLite'},null,2));console.log(`Import UI: ${checks} checks passed. Evidence: ${output}`);
 }catch(error){if(page){await page.screenshot({path:`${output}/failure.png`}).catch(()=>{});await writeFile(`${output}/failure.json`,JSON.stringify(await page.evaluate(async()=>{const{useImportStore}=await window.__uiStoreModule('importStore');const s=useImportStore.getState();return {text:document.body.innerText,calls:window.__uiCalls,trace:window.__importTrace,state:{open:s.open,phase:s.phase,running:s.running,items:s.items.map(i=>({name:i.name,stage:i.stage,error:i.error}))}};}),null,2)).catch(()=>{});}throw error;}finally{await h.dispose();}

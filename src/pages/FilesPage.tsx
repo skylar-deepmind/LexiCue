@@ -38,7 +38,7 @@ function MaterialDesk() {
   const { t } = useTranslation(), navigate = useNavigate(), location = useLocation();
   const [params, setParams] = useSearchParams();
   const catalog = useMaterialStore(), desk = useReadingDeskStore();
-  const picking = useImportStore(s => s.picking);
+  const picking = useImportStore(s => s.picking), importing = useImportStore(s => s.running), importOpen = useImportStore(s => s.open);
   const tags = useFileStore(s => s.tags), loadTags = useFileStore(s => s.loadTags);
   const { theme, setTheme } = useTheme();
   const [editing, setEditing] = useState<Material | null>(null);
@@ -58,7 +58,7 @@ function MaterialDesk() {
   }, []);
   const recent = useMemo(() => {
     const kept = desk.desk.items.map(ref => catalog.files.find(file => matchesMaterial(ref, file))).filter((file): file is Material => !!file);
-    return kept.length ? kept : catalog.files.slice(0, 5);
+    return kept;
   }, [catalog.files, desk.desk.items]);
   const [fallback, setFallback] = useState<number | null>(null);
   const selected = recent.find(file => desk.desk.selected && matchesMaterial(desk.desk.selected, file)) ?? recent.find(file => file.id === fallback) ?? recent[0];
@@ -86,11 +86,13 @@ function MaterialDesk() {
     timer.current = setTimeout(() => setTurning(false), 430);
   };
   const open = (file: Material, node: HTMLElement, origin: 'desk' | 'wall') => {
+    if (origin === 'wall') desk.keepAndOpen(file);
     captureReadingEntrance(file, node, origin);
     navigate(`/files/${file.id}`, { state: { ...visitState(location), readingOrigin: origin === 'wall' ? 'library' : 'desk', readingMotion: true } });
   };
   const paste = async () => {
-    if (pasting || useImportStore.getState().running) return;
+    if (pasting) return;
+    if (useImportStore.getState().running) { useImportStore.getState().show(); return; }
     setPasting(true);
     try {
       const text = await readImportClipboard();
@@ -115,7 +117,7 @@ function MaterialDesk() {
     {wallTag !== null ? <PosterWall files={wallFiles} title={tagName} identity={wallTag} onBack={() => { setParams({ view: 'library' }); setGroups(true); }} onOpen={(file, node) => open(file, node, 'wall')} onManage={() => navigate('/files?view=manage')}/> : <>
       <header className="approved-home-header">
         <button className="approved-brand" aria-label={t(theme === 'midnight' ? 'approved.light' : 'approved.dark')} aria-pressed={theme === 'midnight'} onClick={() => setTheme(theme === 'midnight' ? 'sage' : 'midnight')}><img src={`/design/wordmark${theme === 'midnight' ? '-night' : ''}.png`} alt="LexiCue"/></button>
-        <div><button data-guide="import" className="approved-icon import-tray" aria-label={t('materials.importDialog.pasteLink')} aria-busy={pasting} disabled={pasting} onClick={() => void paste()}>{pasting ? <BusyRing/> : <svg width="30" height="30" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><path className="tray-paper" d="M10 14V3h9l4 4v7M19 3v5h4M16 10v10m-4-4 4 4 4-4"/><path className="tray-bowl" d="m8 15-5 11h26l-5-11M4 23h8l2 3h4l2-3h8"/></svg>}</button>
+        <div><button data-guide="import" className="approved-icon import-tray" aria-label={t(importing ? 'materials.importRunning' : 'materials.importDialog.pasteLink')} aria-busy={pasting || importing} disabled={pasting} onClick={() => void paste()}>{pasting || importing ? <BusyRing/> : <svg width="30" height="30" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><path className="tray-paper" d="M10 14V3h9l4 4v7M19 3v5h4M16 10v10m-4-4 4 4 4-4"/><path className="tray-bowl" d="m8 15-5 11h26l-5-11M4 23h8l2 3h4l2-3h8"/></svg>}</button>
           <button className="approved-icon home-file-picker" aria-label={t('materials.choose')} aria-busy={picking} onClick={() => { useImportStore.getState().show(); void useImportStore.getState().choose(); }}><FolderOpen size={23}/></button>
           <button className="approved-icon" aria-label={t('sidebar.settings')} onClick={() => navigate('/settings', { state: visitState(location) })}><Settings size={23}/></button>
         </div>
@@ -135,12 +137,12 @@ function MaterialDesk() {
         </article>)}
         <div className="approved-dots" data-visible={turning} aria-label={`${index + 1} / ${recent.length}`}>{recent.map((file, i) => <i key={file.id} data-current={i === index}/>)}</div>
         <button className="approved-edge approved-edge-prev" aria-label={t('history.previous')} disabled={index === 0} onClick={() => turn(-1)}><ChevronLeft size={18}/></button><button className="approved-edge approved-edge-next" aria-label={t('history.next')} disabled={index === recent.length - 1} onClick={() => turn(1)}><ChevronRight size={18}/></button>
-      </div> : <div className="approved-desk-empty"><h1>{t('readingDesk.noMaterials')}</h1><button className="desk-primary" onClick={() => useImportStore.getState().show()}>{t('materials.import')}</button></div>}
+      </div> : <div className="approved-desk-empty"><h1>{t(catalog.files.length ? 'readingDesk.clear' : 'readingDesk.noMaterials')}</h1><button className="desk-primary" onClick={() => { if (catalog.files.length) { setGroups(true); setParams({ view:'library' }); } else useImportStore.getState().show(); }}>{t(catalog.files.length ? 'readingDesk.library' : 'materials.import')}</button></div>}
       <footer className="approved-home-footer"><button ref={libraryButton} className="approved-library-entry desk-library-dock" aria-label={t('readingDesk.library')} aria-expanded={groups} onClick={() => { setGroups(true); setParams({ view: 'library' }); }}><span className="approved-stock" aria-hidden="true">{(catalog.files.length ? catalog.files.slice(0, 3) : [null, null, null]).map((file, i) => <MaterialCover key={i} src={file ? materialCover(file) : `/design/prints/${['16388','16398','16339'][i]}.jpg`} identity={file?.content_hash ?? String(i)}/>)}</span></button>
         <button className="approved-saved-entry" aria-label={t('savedRecords.title')} onClick={() => dissolvePage(() => navigate('/saved', { state: { ...visitState(location), dissolve: 'in' } }))}><span className="approved-word-pocket" aria-hidden="true"><i/><span><b>{pocket}</b><em/></span><i/></span></button>
       </footer>
     </>}
-    {groups && wallTag === null && <TagRail files={catalog.files} tags={tags} returnFocus={() => libraryButton.current} onClose={() => { setGroups(false); setParams({}); }} onSelect={tag => { lastLibraryTag = tag; setGroups(false); setParams({ view: 'library', tag }); }} onManage={() => { setGroups(false); navigate('/files?view=manage'); }}/ >}
+    {groups && !importOpen && wallTag === null && <TagRail files={catalog.files} tags={tags} returnFocus={() => libraryButton.current} onClose={() => { setGroups(false); setParams({}); }} onSelect={tag => { lastLibraryTag = tag; setGroups(false); setParams({ view: 'library', tag }); }} onManage={() => { setGroups(false); navigate('/files?view=manage'); }}/ >}
     {editing && <TagEditDialog file={editing} onClose={() => { setEditing(null); catalog.changed(); }}/ >}
   </div>;
 }
