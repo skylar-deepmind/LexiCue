@@ -1776,6 +1776,7 @@ fn group_preview(mut record: SavedRecord) -> SavedRecord {
     // selected sense, this source-labelled excerpt is useful on the word card.
     record
 }
+#[cfg(test)]
 pub fn groups(
     conn: &Connection,
     query: &str,
@@ -1832,6 +1833,7 @@ pub fn groups_in_range(
         total_records,
     })
 }
+#[cfg(test)]
 pub fn group_contexts(
     conn: &Connection,
     group_id: &str,
