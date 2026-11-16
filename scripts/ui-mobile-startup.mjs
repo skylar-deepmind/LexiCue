@@ -48,8 +48,8 @@ try{
  const firstUse=await browser.newContext({userAgent,viewport:{width:375,height:812},isMobile:true,hasTouch:true});
  const firstPage=await firstUse.newPage();current=firstPage;await fixture(firstPage,'ocean');await firstPage.routeWebSocket('**',socket=>socket.close());await firstPage.goto(url);
  await firstPage.locator('.mobile-startup').waitFor();eq(await firstPage.locator('.app-guide').count(),0,'onboarding never paints or captures focus above the launch');
- await firstPage.locator('.mobile-startup').waitFor({state:'detached',timeout:4000});await firstPage.locator('.app-guide[data-stage=import]').waitFor();
- ok(await firstPage.locator('.app-guide__next').isEnabled(),'onboarding is interactive after launch removal');await firstUse.close();
+ await firstPage.locator('.mobile-startup').waitFor({state:'detached',timeout:4000});await firstPage.locator('.approved-desk').waitFor();
+ eq(await firstPage.locator('.app-guide').count(),0,'fresh installation opens the desk without the retired guide');ok(!new URL(firstPage.url()).searchParams.has('guide'),'first launch has no guide route');await firstUse.close();
  const desktop=await browser.newContext({viewport:{width:1280,height:800}}),page=await desktop.newPage();current=page;await seed(page,'ocean');await page.goto(url);await page.locator('.approved-desk').waitFor();eq(await page.locator('.mobile-startup').count(),0,'desktop startup unchanged');await desktop.close();
  eq(errors,[],'no application errors');await writeFile(`${output}/report.json`,JSON.stringify({checks,errors,navigationMs:{max:Math.max(...timings),samples:timings},scope:'Cold document React application using real Rust cores and temporary SQLite; Chrome mobile emulation, not physical WebKit'},null,2));console.log(`Mobile startup: ${checks} checks passed; max navigation ${Math.round(Math.max(...timings))}ms; ${output}`);
 }catch(error){await current?.screenshot({path:`${output}/failure.png`}).catch(()=>{});throw error;}finally{await h.dispose();}

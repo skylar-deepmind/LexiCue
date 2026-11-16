@@ -17,7 +17,6 @@ export default function SoftwareUpdateSettings() {
   }, []);
   const localInstall = isIOSPlatform() && identifier === 'com.lexicue.dev.lansyncqa';
   return <>
-    <h2>{t('settings.directory.versionInfo')}</h2>
     <dl className="settings-facts">
       <div><dt>{t('settings.directory.version')}</dt><dd>{version || '—'}</dd></div>
       {localInstall && <div><dt>{t('settings.directory.method')}</dt><dd>{t('settings.directory.local')}</dd></div>}

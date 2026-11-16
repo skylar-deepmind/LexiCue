@@ -2,9 +2,9 @@ import type { Material } from './materials';
 
 type Box = { x: number; y: number; width: number; height: number };
 type Piece = { box: Box; node: HTMLElement; image?: HTMLImageElement; fit?: string };
-type Entrance = { id: number; hash: string; origin: 'desk' | 'wall'; card: Box; cover?: Piece; title?: Piece; quote?: Piece; text: string; segment: number | null };
+type Entrance = { id: number; hash: string; origin: 'desk' | 'wall'; card: Box; cover?: Piece; title?: Piece; quote?: Piece; text: string; segment: number | null; background?: HTMLElement };
 let entrance: Entrance | null = null;
-let returning: { title?: Piece; quote?: Piece; cover?: Piece; words?: Piece[] } | null = null;
+let returning: { title?: Piece; quote?: Piece; cover?: Piece; words?: Piece[]; background?: HTMLElement } | null = null;
 let pending = false, cleanup = () => {};
 let returnFrame = 0;
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -14,7 +14,7 @@ function piece(node: HTMLElement | null): Piece | undefined {
   const style = getComputedStyle(node), clone = node.cloneNode(true) as HTMLElement;
   clone.removeAttribute('id'); clone.removeAttribute('class');
   clone.querySelectorAll('[id]').forEach(child => child.removeAttribute('id'));
-  Object.assign(clone.style, { margin: '0', padding: '0', border: '0', boxSizing: 'border-box', color: style.color, font: style.font, letterSpacing: style.letterSpacing, lineHeight: style.lineHeight, background: 'transparent', overflow: 'hidden', objectFit: style.objectFit });
+  Object.assign(clone.style, { margin: '0', padding: '0', border: '0', boxSizing: 'border-box', color: style.color, font: style.font, letterSpacing: style.letterSpacing, lineHeight: style.lineHeight, textWrap: style.textWrap, whiteSpace: style.whiteSpace, overflowWrap: style.overflowWrap, background: 'transparent', overflow: 'hidden', objectFit: style.objectFit });
   return { box: box(node), node: clone, image: node instanceof HTMLImageElement ? node : undefined, fit: style.objectFit };
 }
 function findSentence(text: string): HTMLElement | null {
@@ -27,7 +27,9 @@ export function captureReadingEntrance(material: Material, card: HTMLElement, or
   cleanup(); returning = null; pending = true;
   const title = card.querySelector<HTMLElement>('.approved-card-title,.approved-poster strong');
   const quote = card.querySelector<HTMLElement>('.approved-card-quote');
-  entrance = { id: material.id, hash: material.content_hash, origin, card: box(card), cover: piece(card.querySelector('img')), title: piece(title), quote: piece(quote), text: quote?.textContent ?? '', segment: material.position?.segment ?? null };
+  const background = origin === 'desk' ? card.closest<HTMLElement>('.approved-desk')?.cloneNode(true) as HTMLElement | undefined : undefined;
+  if (background) { background.querySelector<HTMLElement>(`[data-motion-file="${material.id}"]`)?.style.setProperty('visibility','hidden'); background.querySelector('.approved-card-tag')?.remove(); }
+  entrance = { background, id: material.id, hash: material.content_hash, origin, card: box(card), cover: piece(card.querySelector('img')), title: piece(title), quote: piece(quote), text: quote?.textContent ?? '', segment: material.position?.segment ?? null };
 }
 export function prepareReadingReturn(id: number) {
   if (!entrance || entrance.id !== id) return;
@@ -36,7 +38,11 @@ export function prepareReadingReturn(id: number) {
   const nodes = [...document.querySelectorAll<HTMLElement>('.reading-original')];
   const target = nodes.filter(node => { const r = node.getBoundingClientRect(); return r.bottom > (viewport?.top ?? 0) && r.top < (viewport?.bottom ?? innerHeight); }).sort((a, b) => Math.abs(box(a).y - (viewport?.top ?? 0) - (viewport?.height ?? innerHeight) * .37) - Math.abs(box(b).y - (viewport?.top ?? 0) - (viewport?.height ?? innerHeight) * .37))[0];
   if (target) { entrance.text = target.textContent ?? ''; entrance.segment = Number(target.closest<HTMLElement>('[data-sentence]')?.dataset.sentence ?? 0); }
-  returning = { title: piece(document.querySelector('.reading-title')), cover: piece(document.querySelector('.folio-print')), quote: piece(target ?? null), words: [...(target?.querySelectorAll<HTMLElement>('.reading-word') ?? [])].slice(0,3).map(node=>piece(node)!).filter(Boolean) };
+  const background = document.querySelector<HTMLElement>('.reading-page')?.cloneNode(true) as HTMLElement | undefined;
+  background?.querySelectorAll<HTMLElement>('.reading-title,.folio-print').forEach(node=>{node.style.visibility='hidden';});
+  if (target) background?.querySelector<HTMLElement>(`[data-sentence="${entrance.segment}"] .reading-original`)?.style.setProperty('visibility','hidden');
+  background?.querySelectorAll('.context-panel').forEach(node=>node.remove());
+  returning = { background, title: piece(document.querySelector('.reading-title')), cover: piece(document.querySelector('.folio-print')), quote: piece(target ?? null), words: [...(target?.querySelectorAll<HTMLElement>('.reading-word') ?? [])].slice(0,3).map(node=>piece(node)!).filter(Boolean) };
 }
 function contours(source: Piece | undefined, origin: Entrance['origin']): HTMLCanvasElement | null {
   const image = source?.image;
@@ -74,7 +80,7 @@ function run(reverse: boolean) {
   const cover = reverse ? returning?.cover : piece(document.querySelector('.folio-print'));
   const sentenceNode = findSentence(data.text) ?? document.querySelector<HTMLElement>(`[data-sentence="${data.segment ?? 0}"] .reading-original`);
   const quote = reverse ? returning?.quote : piece(sentenceNode);
-  const layer = document.createElement('div'); layer.className = 'approved-handoff'; layer.setAttribute('aria-hidden', 'true'); layer.inert = true;
+  const layer = document.createElement('div'); layer.className = 'approved-handoff figma-shell'; layer.style.background='transparent'; layer.setAttribute('aria-hidden', 'true'); layer.inert = true;
   document.body.append(layer);
   const jobs: Animation[] = [], hidden: { node: HTMLElement; visibility: string }[] = [];
   const hide = (node: HTMLElement | null) => { if (!node) return; hidden.push({ node, visibility: node.style.visibility }); node.style.visibility = 'hidden'; };
@@ -84,26 +90,48 @@ function run(reverse: boolean) {
   const place = (node: HTMLElement, r: Box) => { Object.assign(node.style, { position: 'absolute', left: `${r.x}px`, top: `${r.y}px`, width: `${r.width}px`, height: `${r.height}px`, transformOrigin: '0 0' }); layer.append(node); };
   const travel = (from: Piece | undefined, to: Piece | undefined, start: number, end: number) => {
     if (!from || !to || !from.box.width || !from.box.height) return;
-    const clone = from.node.cloneNode(true) as HTMLElement; place(clone, from.box);
+    const clone = from.node.cloneNode(true) as HTMLElement; clone.dataset.motionPiece=from.node instanceof HTMLImageElement?'cover':from===source.title?'title':'quote'; place(clone, from.box);
     if (!(from.node instanceof HTMLImageElement)) {
       // Text changes its measure and type size independently. Scaling its box
       // on two axes flattens glyphs when a two-line quote lands on one line.
-      const frame = (p: Piece): Keyframe => ({ left:`${p.box.x}px`, top:`${p.box.y}px`, width:`${p.box.width}px`, height:`${p.box.height}px`, fontSize:p.node.style.fontSize, lineHeight:p.node.style.lineHeight, opacity:1 });
-      animate(clone, [{ ...frame(from), offset:0 }, { ...frame(from), offset:start }, { ...frame(to), offset:end }, { ...frame(to), opacity:0, offset:1 }]);
+      const frame = (p: Piece): Keyframe => ({ left:`${p.box.x}px`, top:`${p.box.y}px`, width:`${p.box.width}px`, height:`${p.box.height}px`, fontSize:p.node.style.fontSize, lineHeight:p.node.style.lineHeight, letterSpacing:p.node.style.letterSpacing, color:p.node.style.color, opacity:1 });
+      animate(clone, [{ ...frame(from), offset:0 }, { ...frame(from), offset:start }, { ...frame(to), offset:end }, { ...frame(to), offset:1 }]);
       return;
     }
     const target = `translate(${to.box.x - from.box.x}px,${to.box.y - from.box.y}px) scale(${to.box.width / from.box.width},${to.box.height / from.box.height})`;
-    animate(clone, [{ transform: 'none', opacity: 1, offset: 0 }, { transform: 'none', opacity: 1, offset: start }, { transform: target, opacity: 1, offset: end }, { transform: target, opacity: 0, offset: 1 }]);
+    animate(clone, [{ transform: 'none', opacity: 1, borderRadius:'16px 16px 0 0', offset: 0 }, { transform: 'none', opacity: 1, offset: start }, { transform: target, opacity: 1, borderRadius:'4px', offset: end }, { transform: target, opacity: 1, borderRadius:'4px', offset: 1 }]);
   };
+  const clip = (r: Box, c: Box) => `inset(${Math.max(0,c.y-r.y)}px ${Math.max(0,r.x+r.width-c.x-c.width)}px ${Math.max(0,r.y+r.height-c.y-c.height)}px ${Math.max(0,c.x-r.x)}px round 16px)`;
+  const paper = reverse ? returning?.background : reader;
   if (!reverse) {
     hide(document.querySelector('.reading-title')); hide(document.querySelector('.folio-print')); hide(sentenceNode);
-    const r = box(reader!), c = source.card;
-    animate(reader!, [{ clipPath: `inset(${Math.max(0,c.y-r.y)}px ${Math.max(0,r.x+r.width-c.x-c.width)}px ${Math.max(0,r.y+r.height-c.y-c.height)}px ${Math.max(0,c.x-r.x)}px round 16px)`, opacity: .2 }, { clipPath: 'inset(0px round 0px)', opacity: 1, offset: data.origin === 'wall' ? .65 : .66 }, { clipPath: 'inset(0px round 0px)', opacity: 1 }]);
   } else hide(card);
-  const ink = contours(source.cover, data.origin);
-  if (ink && source.cover) { place(ink, source.cover.box); animate(ink, [{ opacity: 0 }, { opacity: .76, offset: data.origin === 'wall' ? .22 : .43 }, { opacity: 0, offset: data.origin === 'wall' ? .88 : .8 }, { opacity: 0 }]); }
   if (data.origin === 'desk') {
-    travel(source.cover, cover, 0, .66); travel(source.title, title, 0, .66);
+    const background = reverse ? document.querySelector<HTMLElement>('.approved-desk') : source.background;
+    if (background) {
+      if (!reverse) { const clone=background.cloneNode(true) as HTMLElement;place(clone,{x:0,y:0,width:innerWidth,height:innerHeight});animate(clone,[{opacity:1},{opacity:0,offset:.47},{opacity:0}]); }
+      else animate(background,[{opacity:1},{opacity:0,offset:.47},{opacity:0}]);
+    }
+    if (paper) {
+      if (reverse) place(paper,{x:0,y:0,width:innerWidth,height:innerHeight});
+      animate(paper,[{clipPath:clip({x:0,y:0,width:innerWidth,height:innerHeight},source.card)},{clipPath:'inset(0px round 0px)'}]);
+      paper.querySelectorAll<HTMLElement>('.reading-layout,.reading-breadcrumb').forEach(node=>animate(node,[{opacity:0},{opacity:0,offset:.62},{opacity:1}]));
+      if(!reverse){const controls=document.querySelector<HTMLElement>('.mobile-reading-tools');if(controls)animate(controls,[{opacity:0},{opacity:0,offset:.62},{opacity:1}]);}
+    }
+  } else if (!reverse) {
+    animate(reader!,[{clipPath:clip(box(reader!),source.card),opacity:.2},{clipPath:'inset(0px round 0px)',opacity:1,offset:.65},{clipPath:'inset(0px round 0px)',opacity:1}]);
+  }
+  const ink = contours(source.cover, data.origin);
+  if (ink && source.cover) {
+    place(ink, source.cover.box); ink.style.zIndex='2'; ink.dataset.motionPiece='contours';
+    if (data.origin === 'desk' && cover) {
+      const from=source.cover.box,to=cover.box;
+      animate(ink,[{transform:'none',borderRadius:'16px 16px 0 0'},{transform:`translate(${to.x-from.x}px,${to.y-from.y}px) scale(${to.width/from.width},${to.height/from.height})`,borderRadius:'4px'}]);
+    }
+    animate(ink,[{opacity:0},{opacity:.76,offset:data.origin==='wall'?.22:.43},{opacity:0}]);
+  }
+  if (data.origin === 'desk') {
+    travel(source.cover, cover, 0, 1); travel(source.title, title, 0, 1);
     if (source.quote && quote) travel(source.quote, quote, 0, .66);
     else if (source.quote) { place(source.quote.node, source.quote.box); animate(source.quote.node, [{ opacity: 1 }, { opacity: 0, offset: .34 }, { opacity: 0 }]); }
   } else {

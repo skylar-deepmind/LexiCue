@@ -9,17 +9,12 @@ import SettingsPage from './pages/SettingsPage';
 import SavedPage from './pages/SavedArchivePage';
 import LegacyPage from './pages/LegacyPage';
 import ExamplePage from './pages/ExamplePage';
-import { useOnboardingStore } from './stores/onboardingStore';
 import { ThemeProvider } from './components/ThemeProvider';
 import { legacyReadingRoute } from './lib/fileProgress';
 
 function LegacyReadingRedirect() {
   const location = useLocation();
   return <Navigate to={legacyReadingRoute(location.search)} replace />;
-}
-function FirstLaunch() {
-  const outcome = useOnboardingStore(state => state.outcome);
-  return <Navigate to={outcome === 'unseen' ? '/files?guide=1' : '/files'} replace/>;
 }
 
 export default function App() {
@@ -35,7 +30,7 @@ export default function App() {
       <BrowserRouter useTransitions={false}>
         <Routes>
           <Route element={<Layout />}>
-            <Route path="/" element={<FirstLaunch />} />
+            <Route path="/" element={<Navigate to="/files" replace/>} />
             <Route path="/example" element={<ExamplePage />} />
             <Route path="/files" element={<FilesPage />} />
             <Route path="/files/:fileId" element={<FileDetailPage />} />

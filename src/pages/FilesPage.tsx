@@ -1,10 +1,12 @@
 import { bookmarkTitle } from '../lib/bookmarkDesk';
 import { dissolvePage } from '../lib/pageDissolve';
+import { captureSavedEntrance, finishSavedReturn } from '../lib/savedEntrance';
+import SavedPocketPreview from '../components/SavedPocketPreview';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
-import { ArrowLeft, ChevronLeft, ChevronRight, FolderOpen, MoreHorizontal, Pencil, Settings } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, MoreHorizontal, Pencil, Settings } from 'lucide-react';
 import { useMaterialStore } from '../stores/materialStore';
 import { useReadingDeskStore } from '../stores/readingDeskStore';
 import { useFileStore } from '../stores/fileStore';
@@ -17,15 +19,17 @@ import { readImportClipboard } from '../lib/importLink';
 import { inspectClipboardContent } from '../lib/clipboardContent';
 import { backNavigation } from '../lib/backNavigation';
 import type { Material, ReadingMaterial } from '../lib/materials';
-import type { SavedGroupPage } from '../lib/savedRecords';
+import type { SavedGroupPage, SavedRecord } from '../lib/savedRecords';
 import { useTheme } from '../components/useTheme';
 import MaterialCover from '../components/MaterialCover';
 import Overlay from '../components/Overlay';
 import TagEditDialog from '../components/TagEditDialog';
 import { BusyRing } from '../components/LoadingFeedback';
+import { ClipboardImportIcon, FileImportIcon } from '../components/HomeActionIcons';
 import MaterialManager from './MaterialManager';
 import PosterWall from '../components/PosterWall';
 import { captureReadingEntrance, finishReadingReturn, readingMotionExcerpt } from '../lib/readingMotion';
+import { playTagFlight } from '../lib/tagFlight';
 import './approved-ui.css';
 
 let lastLibraryTag = 'all';
@@ -43,7 +47,7 @@ function MaterialDesk() {
   const { theme, setTheme } = useTheme();
   const [editing, setEditing] = useState<Material | null>(null);
   const [quotes, setQuotes] = useState<Record<string, string>>({});
-  const [pocket, setPocket] = useState('');
+  const [pocket, setPocket] = useState<SavedRecord | null>(null);
   const [pasting, setPasting] = useState(false), [turning, setTurning] = useState(false);
   const [groups, setGroups] = useState(params.get('view') === 'library' && !params.has('tag'));
   const card = useRef<HTMLDivElement>(null), libraryButton = useRef<HTMLButtonElement>(null);
@@ -52,10 +56,11 @@ function MaterialDesk() {
   useEffect(() => { void useMaterialStore.getState().load(); void loadTags(); }, [catalog.revision, loadTags]);
   useEffect(() => {
     let alive = true;
-    const load = () => void invoke<SavedGroupPage>('list_saved_groups', { query: '', limit: 1, offset: 0 }).then(page => { if (alive) setPocket(page.groups[0]?.expression ?? ''); }).catch(() => {});
+    const load = () => void invoke<SavedGroupPage>('list_saved_groups', { query: '', limit: 1, offset: 0 }).then(page => { if (alive) setPocket(page.groups[0]?.preview ?? null); }).catch(() => {});
     load(); window.addEventListener('lexicue-saved-changed', load);
     return () => { alive = false; window.removeEventListener('lexicue-saved-changed', load); };
   }, []);
+  useLayoutEffect(() => { finishSavedReturn(pocket?.record_id); }, [pocket]);
   const recent = useMemo(() => {
     const kept = desk.desk.items.map(ref => catalog.files.find(file => matchesMaterial(ref, file))).filter((file): file is Material => !!file);
     return kept;
@@ -117,9 +122,9 @@ function MaterialDesk() {
     {wallTag !== null ? <PosterWall files={wallFiles} title={tagName} identity={wallTag} onBack={() => { setParams({ view: 'library' }); setGroups(true); }} onOpen={(file, node) => open(file, node, 'wall')} onManage={() => navigate('/files?view=manage')}/> : <>
       <header className="approved-home-header">
         <button className="approved-brand" aria-label={t(theme === 'midnight' ? 'approved.light' : 'approved.dark')} aria-pressed={theme === 'midnight'} onClick={() => setTheme(theme === 'midnight' ? 'sage' : 'midnight')}><img src={`/design/wordmark${theme === 'midnight' ? '-night' : ''}.png`} alt="LexiCue"/></button>
-        <div><button data-guide="import" className="approved-icon import-tray" aria-label={t(importing ? 'materials.importRunning' : 'materials.importDialog.pasteLink')} aria-busy={pasting || importing} disabled={pasting} onClick={() => void paste()}>{pasting || importing ? <BusyRing/> : <svg width="30" height="30" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><path className="tray-paper" d="M10 14V3h9l4 4v7M19 3v5h4M16 10v10m-4-4 4 4 4-4"/><path className="tray-bowl" d="m8 15-5 11h26l-5-11M4 23h8l2 3h4l2-3h8"/></svg>}</button>
-          <button className="approved-icon home-file-picker" aria-label={t('materials.choose')} aria-busy={picking} onClick={() => { useImportStore.getState().show(); void useImportStore.getState().choose(); }}><FolderOpen size={23}/></button>
-          <button className="approved-icon" aria-label={t('sidebar.settings')} onClick={() => navigate('/settings', { state: visitState(location) })}><Settings size={23}/></button>
+        <div><button data-guide="import" className="approved-icon clipboard-import" aria-label={t(importing ? 'materials.importRunning' : 'materials.importDialog.pasteLink')} aria-busy={pasting || importing} disabled={pasting} onClick={() => void paste()}>{pasting || importing ? <BusyRing/> : <ClipboardImportIcon/>}</button>
+          <button className="approved-icon home-file-picker import-tray" aria-label={t('materials.choose')} aria-busy={picking} disabled={picking} onClick={() => { useImportStore.getState().show(); void useImportStore.getState().choose(); }}>{picking ? <BusyRing/> : <FileImportIcon/>}</button>
+          <button className="approved-icon home-settings-action" aria-label={t('sidebar.settings')} onClick={() => navigate('/settings', { state: visitState(location) })}><Settings size={23}/></button>
         </div>
       </header>
       {catalog.loading && !catalog.hasLoaded ? <div className="approved-desk-status" role="status"><BusyRing/>{t('common.loading')}</div> : catalog.error ? <div className="approved-desk-status" role="alert"><p>{t('materials.loadFailed')}</p><button className="ui-button" onClick={() => void catalog.load()}>{t('common.retry')}</button></div> : selected ? <div ref={card} className="approved-deck desk-stack" tabIndex={0} aria-label={t('readingDesk.desktop')} data-turning={turning || undefined}
@@ -138,8 +143,11 @@ function MaterialDesk() {
         <div className="approved-dots" data-visible={turning} aria-label={`${index + 1} / ${recent.length}`}>{recent.map((file, i) => <i key={file.id} data-current={i === index}/>)}</div>
         <button className="approved-edge approved-edge-prev" aria-label={t('history.previous')} disabled={index === 0} onClick={() => turn(-1)}><ChevronLeft size={18}/></button><button className="approved-edge approved-edge-next" aria-label={t('history.next')} disabled={index === recent.length - 1} onClick={() => turn(1)}><ChevronRight size={18}/></button>
       </div> : <div className="approved-desk-empty"><h1>{t(catalog.files.length ? 'readingDesk.clear' : 'readingDesk.noMaterials')}</h1><button className="desk-primary" onClick={() => { if (catalog.files.length) { setGroups(true); setParams({ view:'library' }); } else useImportStore.getState().show(); }}>{t(catalog.files.length ? 'readingDesk.library' : 'materials.import')}</button></div>}
-      <footer className="approved-home-footer"><button ref={libraryButton} className="approved-library-entry desk-library-dock" aria-label={t('readingDesk.library')} aria-expanded={groups} onClick={() => { setGroups(true); setParams({ view: 'library' }); }}><span className="approved-stock" aria-hidden="true">{(catalog.files.length ? catalog.files.slice(0, 3) : [null, null, null]).map((file, i) => <MaterialCover key={i} src={file ? materialCover(file) : `/design/prints/${['16388','16398','16339'][i]}.jpg`} identity={file?.content_hash ?? String(i)}/>)}</span></button>
-        <button className="approved-saved-entry" aria-label={t('savedRecords.title')} onClick={() => dissolvePage(() => navigate('/saved', { state: { ...visitState(location), dissolve: 'in' } }))}><span className="approved-word-pocket" aria-hidden="true"><i/><span><b>{pocket}</b><em/></span><i/></span></button>
+      <footer className="approved-home-footer"><button ref={libraryButton} className="approved-library-entry" aria-label={t('readingDesk.library')} aria-expanded={groups} onClick={() => { setGroups(true); setParams({ view: 'library' }); }}><span className="approved-stock" aria-hidden="true">{(catalog.files.length ? catalog.files.slice(0, 3) : [null, null, null]).map((file, i) => <MaterialCover key={i} src={file ? materialCover(file) : `/design/prints/${['16388','16398','16339'][i]}.jpg`} identity={file?.content_hash ?? String(i)}/>)}</span></button>
+        <button className="approved-saved-entry" aria-label={t('savedRecords.title')} onClick={event => {
+          const open=()=>navigate('/saved',{state:{...visitState(location),pocketRecordId:pocket?.record_id}});
+          if(captureSavedEntrance(pocket?.record_id,event.currentTarget.querySelector<HTMLElement>('.approved-pocket-sheet')))open();else dissolvePage(open);
+        }}><span className="approved-word-pocket" aria-hidden="true"><i/><SavedPocketPreview record={pocket}/><i/></span></button>
       </footer>
     </>}
     {groups && !importOpen && wallTag === null && <TagRail files={catalog.files} tags={tags} returnFocus={() => libraryButton.current} onClose={() => { setGroups(false); setParams({}); }} onSelect={tag => { lastLibraryTag = tag; setGroups(false); setParams({ view: 'library', tag }); }} onManage={() => { setGroups(false); navigate('/files?view=manage'); }}/ >}
@@ -148,23 +156,23 @@ function MaterialDesk() {
 }
 function TagRail({ files, tags, returnFocus, onClose, onSelect, onManage }: { files: Material[]; tags: Material['tags']; returnFocus: () => HTMLElement | null; onClose: () => void; onSelect: (id: string) => void; onManage: () => void }) {
   const { t } = useTranslation();
-  const panel = useRef<HTMLDivElement>(null), rail = useRef<HTMLDivElement>(null), animations = useRef<Animation[]>([]);
+  const panel = useRef<HTMLDivElement>(null), rail = useRef<HTMLDivElement>(null), flight = useRef<ReturnType<typeof playTagFlight> | null>(null), closing = useRef(false), mounted = useRef(true);
   const items = [{ id: 'all', name: t('readingDesk.library'), files }, ...tags.map(tag => ({ id: String(tag.id), name: tag.name, files: files.filter(file => file.tags.some(value => value.id === tag.id)) })), ...files.some(file => !file.tags.length) ? [{ id: 'untagged', name: t('tags.untagged'), files: files.filter(file => !file.tags.length) }] : []];
   useLayoutEffect(() => {
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const target = panel.current?.querySelector<HTMLElement>(`[data-tag-id="${lastLibraryTag}"]`);
     if (target && rail.current) { rail.current.scrollLeft = target.offsetLeft - (rail.current.clientWidth - target.offsetWidth) / 2; target.focus({ preventScroll: true }); }
-    const nodes = [...panel.current!.querySelectorAll<HTMLElement>('.approved-tag-group')].filter(node => { const r=node.getBoundingClientRect(); return r.right>0 && r.left<innerWidth; });
-    animations.current = nodes.map((node, i) => { const r = node.getBoundingClientRect(); return node.animate([{ opacity: .18, transform: `translate(${50-r.x}px,${innerHeight-70-r.y}px) scale(.24) rotate(-13deg)` }, { opacity: 1, offset: .2 }, { transform: 'none', opacity: 1 }], { duration: 430, delay: i * 32, fill: 'both', easing: 'cubic-bezier(.22,.68,.22,1)' }); });
-    return () => animations.current.forEach(animation => animation.cancel());
+    mounted.current=true;
+    const anchor=returnFocus()?.querySelector<HTMLElement>('.approved-stock img:last-child')??returnFocus();
+    flight.current=playTagFlight(panel.current,anchor);
+    return () => { mounted.current=false;flight.current?.dispose(); };
   }, []);
   const close = async () => {
-    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      const jobs = animations.current;
-      jobs.forEach(animation => { animation.playbackRate = -430 / 310; animation.play(); });
-      await Promise.allSettled(jobs.map(animation => animation.finished));
-    }
-    onClose();
+    if(closing.current)return;closing.current=true;flight.current?.dispose();
+    const anchor=returnFocus()?.querySelector<HTMLElement>('.approved-stock img:last-child')??returnFocus();
+    const next=flight.current=playTagFlight(panel.current,anchor,true);
+    await Promise.allSettled(next.jobs.map(job=>job.finished));
+    if(mounted.current)onClose();
   };
   const magnify = (x?: number) => {
     const viewport = rail.current?.getBoundingClientRect();

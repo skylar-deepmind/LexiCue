@@ -2020,6 +2020,8 @@
     "dictionary": "辞書",
     "more": "もっと見る",
     "loadFailed": "保存した項目を読み込めません。もう一度お試しください。",
-    "manageSaved": "保存した項目を管理"
+    "manageSaved": "保存した項目を管理",
+    "youtubePrivacy": "ログイン情報はこの端末内でのみ読み取ります。Cookieは書き出し・同期しません。",
+    "youtubeAdvanced": "詳細設定"
   }
 }

@@ -30,16 +30,17 @@ function DesktopSubtitleTools({ status }: { status?: YtDlpStatus | null }) {
     return () => { active = false; };
   }, [status]);
   return <>
-    <h4>{t('youtube.downloadSettings.browserTitle')}</h4>
     <button type="button" className="youtube-ai" role="switch" aria-checked={session.enabled}
       onClick={() => setSession({ ...session, enabled: !session.enabled })}>
       {t('youtube.downloadSettings.browserEnable')}<span>{t(session.enabled ? 'youtube.aiOn' : 'youtube.aiOff')}</span>
     </button>
-    <p className="youtube-muted">{t('youtube.downloadSettings.browserHint')}</p>
+    <p className="youtube-muted">{t('approved.youtubePrivacy')}</p>
+    {session.enabled && <>
     <label htmlFor="youtube-browser">{t('youtube.downloadSettings.browser')}</label>
     <AppSelect id="youtube-browser" value={session.browser} disabled={!session.enabled}
       onChange={browser => { setProfile(null); setSession({ ...session, browser, profile: '' }); }}
       options={YOUTUBE_BROWSERS.map(browser => ({ value: browser, label: browser === 'edge' ? 'Microsoft Edge' : browser[0].toUpperCase() + browser.slice(1) }))} />
+    <details className="youtube-advanced"><summary>{t('approved.youtubeAdvanced')}</summary>
     <label htmlFor="youtube-browser-profile">{t('youtube.downloadSettings.profile')}</label>
     <input id="youtube-browser-profile" className="youtube-input" value={profile} aria-invalid={invalidProfile} disabled={!session.enabled}
       placeholder={t('youtube.downloadSettings.defaultProfile')} onChange={event => { const value = event.target.value; setProfile(value); if (!/[\n\r\0:]/.test(value) && value.length <= 1024) setSession({ ...session, profile: value }); }} />
@@ -53,6 +54,7 @@ function DesktopSubtitleTools({ status }: { status?: YtDlpStatus | null }) {
       <dt>ffmpeg</dt><dd>{diagnostics.ffmpeg ?? t('youtube.downloadSettings.missing')}</dd>
     </dl>}
     {checkFailed && <p role="status">{t('youtube.downloadSettings.checkFailed')}</p>}
+    </details></>}
     {diagnostics?.available === false && <p className="youtube-warning">{t('youtube.downloadSettings.installTool')}
       {/Macintosh|Mac OS X/.test(navigator.userAgent) && <><br /><code>brew install yt-dlp deno</code></>}
     </p>}
@@ -71,7 +73,6 @@ export default function YouTubeDownloadSettings({ status }: { status?: YtDlpStat
   };
   return <div className="youtube-download-settings">
     {isIOSPlatform() ? <p>{t('youtube.downloadSettings.publicTracks')}</p> : <DesktopSubtitleTools status={status} />}
-    <p className="youtube-muted">{t('youtube.downloadSettings.cacheHint')}</p>
     <button type="button" className="ui-button" disabled={clearing} aria-busy={clearing} onClick={() => void clearCache()}>{clearing && <BusyRing />}<span>{t('youtube.downloadSettings.clearCache')}</span></button>
     {notice && <p className="youtube-notice" role="status">{notice}</p>}
   </div>;

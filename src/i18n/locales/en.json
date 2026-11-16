@@ -2038,6 +2038,8 @@
     "dictionary": "Dictionary",
     "more": "More",
     "loadFailed": "Saved entries could not be loaded. Please try again.",
-    "manageSaved": "Manage saved entries"
+    "manageSaved": "Manage saved entries",
+    "youtubePrivacy": "Reads the sign-in session on this device. Cookies are never exported or synced.",
+    "youtubeAdvanced": "Advanced options"
   }
 }

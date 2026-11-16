@@ -2,7 +2,7 @@ import { ActivityTrack } from './LoadingFeedback';
 import { normalizeNavigationPath } from './NavigationItems';
 import { backNavigation } from '../lib/backNavigation';
 import { useEffect, useRef, useLayoutEffect } from 'react';
-import AppFirstUseGuide from './AppFirstUseGuide';
+import MobileReadingTools from './MobileReadingTools';
 import WorkspaceHeader from './WorkspaceHeader';
 import ImportPanel from './ImportPanel';
 import useMaterialDrop from './useMaterialDrop';
@@ -22,7 +22,6 @@ import { listen } from '@tauri-apps/api/event';
 import { isTauri } from '@tauri-apps/api/core';
 import { invalidateCaches } from '../lib/cacheInvalidation';
 import { prepareSpeechVoices } from '../lib/tts';
-import { useOnboardingStore } from '../stores/onboardingStore';
 import { readingReturnPath, retainImportedReading } from '../lib/readingEntry';
 import { DESK_KEY } from '../lib/readingDesk';
 import { useReadingDeskStore } from '../stores/readingDeskStore';
@@ -150,8 +149,6 @@ export default function Layout() {
     const initializeYoutube = useYoutubeStore((state) => state.initialize);
     const checkUpdate = useUpdateStore((state) => state.check);
     const showFeedback = useFeedbackStore((state) => state.show);
-    const persistError = useOnboardingStore(state => state.persistError);
-    useEffect(() => { if (persistError) showFeedback(t('onboarding.rememberFailed'), 'error'); }, [persistError, showFeedback, t]);
     const startupChecked = useRef(false);
     useEffect(() => {
         prepareSpeechVoices();
@@ -226,7 +223,7 @@ export default function Layout() {
       <ImportPanel />
       <ToastHost />
       <ConfirmationHost />
-      <AppFirstUseGuide />
+      <MobileReadingTools />
       {restoring && <Overlay className="restore-progress" label={t('fileStore.restoring')} onClose={() => false}><p role="status">{t('fileStore.restoring')}</p><ActivityTrack /></Overlay>}
     </div>);
 }

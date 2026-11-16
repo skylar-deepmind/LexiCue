@@ -2038,6 +2038,8 @@
     "dictionary": "Wörterbücher",
     "more": "Mehr",
     "loadFailed": "Gespeicherte Einträge konnten nicht geladen werden. Bitte erneut versuchen.",
-    "manageSaved": "Gespeicherte Einträge verwalten"
+    "manageSaved": "Gespeicherte Einträge verwalten",
+    "youtubePrivacy": "Liest die Anmeldung nur auf diesem Gerät. Cookies werden weder exportiert noch synchronisiert.",
+    "youtubeAdvanced": "Erweiterte Optionen"
   }
 }

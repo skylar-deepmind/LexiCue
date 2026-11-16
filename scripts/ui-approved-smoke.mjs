@@ -44,7 +44,7 @@ try{
   ok(await page.locator(`[data-motion-file="${fileId}"]`).count(),'return retains source poster');
   const restored=await page.locator('.approved-wall-viewport').evaluate(n=>({x:n.scrollLeft,y:n.scrollTop}));ok(Math.abs(restored.x-wallPosition.x)<2&&Math.abs(restored.y-wallPosition.y)<2,'wall returns to exact scroll position');
   await page.getByRole('button',{name:'返回材料库',exact:true}).click();await page.locator('.approved-tag-panel').waitFor();await page.keyboard.press('Escape');await page.locator('.approved-tag-panel').waitFor({state:'detached'});
-  await page.getByRole('button',{name:'已保存',exact:true}).click();await page.locator('.approved-saved-folio').waitFor();await page.waitForFunction(()=>!document.documentElement.dataset.dissolve);
+  await page.getByRole('button',{name:'已保存',exact:true}).click();await page.locator('.approved-saved-folio').waitFor();await page.waitForFunction(()=>!document.documentElement.dataset.dissolve&&!document.querySelector('.approved-saved-flight'));
   eq(await page.locator('.approved-saved-folio').count(),1,'only current sentence is presented');
   ok((await page.locator('.approved-folio-translation').textContent()).length>0,'translation is visible by default');
   await page.screenshot({path:`${output}/${theme}-${width}-saved.png`});

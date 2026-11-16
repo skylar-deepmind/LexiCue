@@ -1,7 +1,9 @@
 import SavedManager from './SavedPage';
 import { bookmarkTitle } from '../lib/bookmarkDesk';
+import SavedExcerpt from '../components/SavedExcerpt';
+import { finishSavedEntrance, prepareSavedReturn } from '../lib/savedEntrance';
 import { dissolvePage } from '../lib/pageDissolve';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
@@ -36,10 +38,11 @@ function SavedArchive() {
   const { t } = useTranslation(), location = useLocation(), navigate = useNavigate(), key = viewKey(location);
   const { back } = usePageReturn('/files');
   const generation = useRestoreGuard(s => s.generation);
+  const pocketRecordId = (location.state as {pocketRecordId?:string}|null)?.pocketRecordId;
   const [initial] = useState(() => views.get(key));
   const [query, setQuery] = useState(initial?.query ?? ''), [searching, setSearching] = useState(!!initial?.query);
   const [start, setStart] = useState(initial?.start ?? ''), [end, setEnd] = useState(initial?.end ?? '');
-  const [selected, setSelected] = useState<string | null>(initial?.selected ?? null), [recordId, setRecordId] = useState<string | null>(initial?.record ?? null);
+  const [selected, setSelected] = useState<string | null>(initial?.selected ?? null), [recordId, setRecordId] = useState<string | null>(initial?.record ?? pocketRecordId ?? null);
   const [expanded, setExpanded] = useState(initial?.expanded ?? false);
   const [groups, setGroups] = useState<SavedGroupPage>({ groups: [], total_groups: 0, total_records: 0 });
   const [contexts, setContexts] = useState<SavedContextPage>({ records: [], total: 0 });
@@ -57,7 +60,6 @@ function SavedArchive() {
   useEffect(() => () => { views.set(key, snapshot.current); }, [key]);
   useEffect(() => { alive.current = true; return () => { alive.current = false; sourceRequest.current++; }; }, []);
   useEffect(() => { if (searching) input.current?.focus(); }, [searching]);
-  useEffect(() => backNavigation.setPage(() => { if (expanded) setExpanded(false); else dissolvePage(back, true); return true; }, 3), [expanded, back]);
   useEffect(() => {
     const changed = () => setRevision(value => value + 1);
     window.addEventListener('lexicue-saved-changed', changed); window.addEventListener('lexicue-sync-applied', changed);
@@ -73,11 +75,11 @@ function SavedArchive() {
     const timer = setTimeout(() => {
       void invoke<SavedGroupPage>('list_saved_groups', { query, limit: 200, offset: 0, ...bounds(start, end) }).then(next => {
         if (token !== request.current) return;
-        setGroups(next); setSelected(previous => next.groups.some(group => group.group_id === previous) ? previous : next.groups[0]?.group_id ?? null); setLoading(false);
+        setGroups(next); setSelected(previous => next.groups.some(group => group.group_id === previous) ? previous : next.groups.find(group=>group.preview.record_id===pocketRecordId)?.group_id ?? next.groups[0]?.group_id ?? null); setLoading(false);
       }).catch(() => { if (token === request.current) { setFailure(true); setLoading(false); } });
     }, query ? 160 : 0);
     return () => { clearTimeout(timer); request.current++; };
-  }, [query, start, end, revision, generation]);
+  }, [query, start, end, revision, generation, pocketRecordId]);
   useEffect(() => {
     const token = ++contextRequest.current; sourceRequest.current++; setSourceError(''); setSourceBusy(false);
     if (!selected) { setContexts({ records: [], total: 0 }); return; }
@@ -91,14 +93,18 @@ function SavedArchive() {
   useLayoutEffect(() => { if (list.current && !loading) list.current.scrollTop = initial?.listScroll ?? 0; }, [loading, initial]);
   const index = Math.max(0, contexts.records.findIndex(record => record.record_id === recordId));
   const record = contexts.records[index];
+  const currentRecordId=record?.record_id;
+  const leave = useCallback(() => { if (prepareSavedReturn(currentRecordId)) back(); else dissolvePage(back,true); },[back,currentRecordId]);
+  useEffect(() => backNavigation.setPage(() => { if(expanded)setExpanded(false);else leave();return true; },3),[expanded,leave]);
   const previousFolio = useRef<string | null>(null);
   useLayoutEffect(() => {
+    if(currentRecordId)finishSavedEntrance(currentRecordId);
     const previous = previousFolio.current;
-    previousFolio.current = record?.record_id ?? null;
+    previousFolio.current = currentRecordId ?? null;
     const node = detail.current; if (!node) return;
     node.scrollTop = 0;
-    if (previous && record && previous !== record.record_id && !matchMedia('(prefers-reduced-motion: reduce)').matches) node.animate([{ transform: `translateX(${direction * 22}px)`, opacity: .45 }, { transform: 'none', opacity: 1 }], { duration: 185, easing: 'ease-out' });
-  }, [record?.record_id, direction]);
+    if (previous && currentRecordId && previous !== currentRecordId && !matchMedia('(prefers-reduced-motion: reduce)').matches) node.animate([{ transform: `translateX(${direction * 22}px)`, opacity: .45 }, { transform: 'none', opacity: 1 }], { duration: 185, easing: 'ease-out' });
+  }, [currentRecordId, direction]);
   const choose = (id: string) => { if (performance.now() < suppress.current) return; setSelected(id); setRecordId(null); setExpanded(false); };
   const turn = (step: number) => { if (contexts.records[index + step]) { setDirection(step); setRecordId(contexts.records[index + step].record_id); } };
   const openSource = async () => {
@@ -131,7 +137,7 @@ function SavedArchive() {
   const histogram = Array.from({ length: slots }, (_, i) => { const low = firstDay + (lastDay - firstDay + 1) * i / slots, high = firstDay + (lastDay - firstDay + 1) * (i + 1) / slots; return { day: Math.floor(low), count: bins.filter(bin => bin.day >= low && bin.day < high).reduce((n, bin) => n + bin.count, 0) }; });
   const peak = Math.max(1, ...histogram.map(bin => bin.count));
   return <section className="approved-saved saved-workspace" aria-label={t('savedRecords.title')} onKeyDown={event => { if (event.key === 'Escape' && expanded) { event.preventDefault(); event.stopPropagation(); setExpanded(false); } }}>
-    <header className="approved-saved-header"><button className="approved-icon" aria-label={t('common.back')} onClick={() => dissolvePage(back, true)}><ArrowLeft size={22}/></button><div className="approved-saved-search" data-open={searching}><input ref={input} type="search" aria-label={t('savedRecords.search')} value={query} onChange={event => setQuery(event.target.value)} onKeyDown={event => { if (event.key === 'Escape') { setSearching(false); input.current?.blur(); } }}/><button className="approved-icon" aria-label={t('savedRecords.search')} aria-expanded={searching} onClick={() => setSearching(value => !value)}><Search size={21}/></button></div></header>
+    <header className="approved-saved-header"><button className="approved-icon" aria-label={t('common.back')} onClick={leave}><ArrowLeft size={22}/></button><div className="approved-saved-search" data-open={searching}><input ref={input} type="search" aria-label={t('savedRecords.search')} value={query} onChange={event => setQuery(event.target.value)} onKeyDown={event => { if (event.key === 'Escape') { setSearching(false); input.current?.blur(); } }}/><button className="approved-icon" aria-label={t('savedRecords.search')} aria-expanded={searching} onClick={() => setSearching(value => !value)}><Search size={21}/></button></div></header>
     <div className="approved-timeline"><div className="approved-histogram" aria-hidden="true">{histogram.map((bin, i) => <i key={i} style={{ height: `${6 + 48 * bin.count / peak}px` }} data-selected={bin.day >= fromDay && bin.day <= toDay}/>)}</div><div className="approved-date-handles"><input type="range" min={firstDay} max={lastDay} value={fromDay} disabled={!bins.length} aria-label={t('approved.startDate')} onChange={event => { setStart(dateString(Math.min(Number(event.target.value), toDay))); if (!end) setEnd(dateString(lastDay)); }}/><input type="range" min={firstDay} max={lastDay} value={toDay} disabled={!bins.length} aria-label={t('approved.endDate')} onChange={event => { setEnd(dateString(Math.max(Number(event.target.value), fromDay))); if (!start) setStart(dateString(firstDay)); }}/></div><div className="approved-date-summary"><label><span className="sr-only">{t('approved.startDate')}</span><input type="date" value={start} max={end || undefined} onChange={event => setStart(event.target.value)}/></label><span>—</span><label><span className="sr-only">{t('approved.endDate')}</span><input type="date" value={end} min={start || undefined} onChange={event => setEnd(event.target.value)}/></label><span>· {t('approved.savedCount', { count: groups.total_groups })}</span>{(start || end) && <button onClick={() => { setStart(''); setEnd(''); }}>{t('approved.allDates')}</button>}</div></div>
     <div className="approved-saved-columns" data-expanded={expanded}>
       <div ref={list} className="approved-saved-index" onKeyDown={event=>{
@@ -166,15 +172,14 @@ function SavedFolio({ record, sourceBusy, onSource, onChange, onRemove, removing
   const revision=useRef(initial.current?.revision??record.revision),operation=useRef(initial.current?.operationId),[menu,setMenu]=useState(false);
   const media = record.source?.media;
   const ready = useSourceMediaStore(s=>!!media && s.entries[media.source.key]?.status==='ready');
-  const sentence=record.sentence??t('savedRecords.missingOriginal'),start=record.source?.start_offset,end=record.source?.end_offset;
-  const valid=start!=null&&end!=null&&start>=0&&end>start&&end<=sentence.length;
+  const sentence=record.sentence??t('savedRecords.missingOriginal');
   const save=async()=>{if(busy)return;setBusy(true);setError('');operation.current??=crypto.randomUUID();savedNoteDrafts.set(record.record_id,{text:draft,revision:revision.current,operationId:operation.current,editing:true});try{const result=await mutateSaved({kind:'edit',record_id:record.record_id,expected_revision:revision.current,explanation:draft},operation.current);onChange(result.record);savedNoteDrafts.delete(record.record_id);revision.current=result.record.revision;operation.current=undefined;setEditing(false);}catch(cause){setError(t(savedErrorKey(cause)));}finally{setBusy(false);}};
   useEffect(()=>{if(!editing&&!savedNoteDrafts.has(record.record_id)){revision.current=record.revision;setDraft(record.explanation_source==='personal'?record.explanation??'':'');}},[record,editing]);
   useLayoutEffect(()=>{const node=paragraph.current;if(!node)return;const resize=()=>{const width=node.clientWidth;let size=sentence.length>100?48:sentence.length>56?57:72;while(size>32){node.style.fontSize=`${innerWidth<768?Math.min(45,Math.max(30,size*.63)):size}px`;if(node.scrollHeight<Math.max(160,innerHeight*.39)&&node.scrollWidth<=width)break;size-=2;}};resize();const observer=new ResizeObserver(resize);observer.observe(node.parentElement!);return()=>observer.disconnect();},[sentence]);
   const speechKey=`saved-folio:${record.record_id}`;
   return <article className="approved-saved-folio" data-record={record.record_id}>
     <header><button className="approved-source-cover" disabled={!record.source||sourceBusy} onClick={onSource} aria-label={t('savedRecords.returnToSource')}><MaterialCover src={savedCover(record)} identity={record.source?.content_hash??record.source_key}/></button><button className="approved-source-title" disabled={!record.source||sourceBusy} onClick={onSource} aria-label={t('savedRecords.returnToSource')}>{record.source?.file_name?bookmarkTitle(record.source.file_name):t('savedRecords.sourceMissing')}</button><SpeechButton className="approved-folio-speech" text={sentence} speechKey={speechKey} kind="sentence" label={t(ready&&media?.source.audio?'sourceAudio.playOriginal':'sourceAudio.read')} media={ready&&media?.source.audio?bindMediaTarget(media,{record_id:record.record_id}):undefined} idleIcon={<Volume2 size={39} strokeWidth={1.5}/>}/></header>
-    <p ref={paragraph} className="approved-folio-sentence" lang="en">{valid?<>{sentence.slice(0,start)}<strong>{sentence.slice(start,end)}</strong>{sentence.slice(end)}</>:sentence}</p>
+    <p ref={paragraph} className="approved-folio-sentence" lang="en"><SavedExcerpt record={record} fallback={t('savedRecords.missingOriginal')}/></p>
     {record.sentence_translation&&<p className="approved-folio-translation">{record.sentence_translation}</p>}
     {editing?<form className="approved-folio-editor" onSubmit={event=>{event.preventDefault();void save();}}><label className="sr-only" htmlFor={`note-${record.record_id}`}>{t('dictionaryFlow.personalMeaning')}</label><textarea autoFocus id={`note-${record.record_id}`} value={draft} disabled={busy} onChange={event=>{setDraft(event.target.value);operation.current=undefined;savedNoteDrafts.set(record.record_id,{text:event.target.value,revision:revision.current,editing:true});}}/><div><button className="ui-button" type="submit" disabled={busy}>{t('savedRecords.saveExplanation')}</button><button className="ui-button" type="button" disabled={busy} onClick={()=>{savedNoteDrafts.set(record.record_id,{text:draft,revision:revision.current,editing:false});setEditing(false);}}>{t('common.cancel')}</button></div></form>:<button className="approved-folio-note" onClick={()=>setEditing(true)}><span>{t('dictionaryFlow.personalMeaning')}：</span>{record.explanation_source==='personal'&&record.explanation?record.explanation:t('reader.personalExplanation')}</button>}
     {error&&<p className="saved-error" role="alert">{error}</p>}<SpeechFeedback speechKeys={[speechKey]}/>
