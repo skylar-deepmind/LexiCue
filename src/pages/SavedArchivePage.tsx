@@ -91,10 +91,13 @@ function SavedArchive() {
   useLayoutEffect(() => { if (list.current && !loading) list.current.scrollTop = initial?.listScroll ?? 0; }, [loading, initial]);
   const index = Math.max(0, contexts.records.findIndex(record => record.record_id === recordId));
   const record = contexts.records[index];
+  const previousFolio = useRef<string | null>(null);
   useLayoutEffect(() => {
+    const previous = previousFolio.current;
+    previousFolio.current = record?.record_id ?? null;
     const node = detail.current; if (!node) return;
     node.scrollTop = 0;
-    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) node.animate([{ transform: `translateX(${direction * 22}px)`, opacity: .45 }, { transform: 'none', opacity: 1 }], { duration: 185, easing: 'ease-out' });
+    if (previous && record && previous !== record.record_id && !matchMedia('(prefers-reduced-motion: reduce)').matches) node.animate([{ transform: `translateX(${direction * 22}px)`, opacity: .45 }, { transform: 'none', opacity: 1 }], { duration: 185, easing: 'ease-out' });
   }, [record?.record_id, direction]);
   const choose = (id: string) => { if (performance.now() < suppress.current) return; setSelected(id); setRecordId(null); setExpanded(false); };
   const turn = (step: number) => { if (contexts.records[index + step]) { setDirection(step); setRecordId(contexts.records[index + step].record_id); } };
