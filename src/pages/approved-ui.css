@@ -226,3 +226,14 @@
 }
 @media(max-width:767px) { .figma-shell .mobile-reading-bar .b-dock-control { width:44px; height:44px; min-width:44px; min-height:44px; flex:none; padding:0; } }
 .context-panel.context-panel--lookup .lookup-fixed-header .lookup-tabs { margin-right:68px; }
+.approved-source-cover { display:grid; place-items:center; width:144px; height:81px; min-height:44px; flex:none; padding:0; border:0; border-radius:4px; background:transparent; cursor:pointer; }
+.approved-source-cover > img { width:100%; height:100%; object-fit:contain; border-radius:4px; }
+.approved-source-cover:disabled { opacity:.6; cursor:default; }
+.approved-source-title { min-height:44px; }
+.approved-date-summary input { min-height:44px; }
+.approved-date-handles input { height:44px; bottom:-14px; }
+.approved-date-handles input::-webkit-slider-thumb { width:44px; height:44px; border:0; background:radial-gradient(circle,var(--approved-card) 0 3px,var(--approved-warm) 3px 5px,transparent 5.5px); }
+.approved-date-handles input::-moz-range-thumb { width:44px; height:44px; border:0; background:radial-gradient(circle,var(--approved-card) 0 3px,var(--approved-warm) 3px 5px,transparent 5.5px); }
+@media(max-width:1023px) and (min-width:768px) { .approved-source-cover { width:100px; height:56px; } }
+@media(max-width:767px) { .approved-source-cover { width:72px; height:44px; }.approved-source-cover > img { height:40.5px; } }
+.approved-source-cover:focus-visible,.approved-source-title:focus-visible { outline:2px solid var(--approved-focus); outline-offset:4px; }
