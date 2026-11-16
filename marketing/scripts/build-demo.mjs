@@ -9,6 +9,7 @@ const tests=spawnSync(process.execPath,['--experimental-strip-types','--test',re
 await build({configFile:resolve(root,'vite.demo.config.mjs')});
 const out=resolve(project,'docs/_demo');
 await rename(resolve(out,'demo.html'),resolve(out,'index.html'));
+await cp(resolve(project,'public/design'),resolve(out,'design'),{recursive:true});
 // PDF.js workers use these local support resources, exactly as in the app build.
 for(const folder of ['cmaps','standard_fonts','wasm']){await mkdir(resolve(out,'pdfjs',folder),{recursive:true});await cp(resolve(project,'node_modules/pdfjs-dist',folder),resolve(out,'pdfjs',folder),{recursive:true});}
 console.log('Built real-component browser demo in docs/_demo/index.html');

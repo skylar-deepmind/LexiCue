@@ -113,3 +113,22 @@ test('whole-expression removal and undo preserve all independent contexts and ma
  assert.deepEqual(e.active('take off').map(r=>[r.record_id,r.sentence,r.explanation,r.source]),before);
  assert.equal(e.invoke('undo_saved_group',{operationId:'remove-group'}).changed,false);
 });
+
+test('approved archive date limits precede grouping and contexts; histogram uses local day',()=>{
+ const e=new DemoEngine(),first=e.records[0];first.saved_at=Date.UTC(2026,10,15,23,30);
+ const second=structuredClone(first);second.record_id='demo-saved-9000';second.saved_at=first.saved_at+86400000;e.records.push(second);
+ const args={startMs:second.saved_at,endMs:second.saved_at+1};
+ const page=e.invoke('list_saved_groups',args);assert.equal(page.total_records,1);assert.equal(page.groups[0].preview.record_id,second.record_id);
+ assert.deepEqual(e.invoke('saved_group_contexts',{groupId:page.groups[0].group_id,...args}).records.map(r=>r.record_id),[second.record_id]);
+ const bins=e.invoke('saved_date_histogram',{offsetMinutes:-480});assert.equal(bins.length,2);assert.equal(bins[0].day,Math.floor((first.saved_at+480*60000)/86400000));
+ second.deleted_at=Date.now();assert.equal(e.invoke('saved_date_histogram',{}).length,1);
+});
+
+test('approved material wall measures actual text and import tags are validated atomically',()=>{
+ const e=new DemoEngine(),before=e.materials.length;
+ const input={operation_id:'tagged',name:'tagged.txt',content:'A new story.',segments:[{en_text:'A new story.',zh_text:null}],tag_ids:[2]};
+ assert.throws(()=>e.importMaterial({...input,tag_ids:[999]}),/tag_missing/);assert.equal(e.materials.length,before);
+ const result=e.importMaterial(input),material=e.invoke('list_materials',{}).find(m=>m.id===result.file_id);
+ assert.equal(material.character_count,12);assert.deepEqual(material.tags.map(t=>t.id),[2]);
+ assert.equal(e.importMaterial({...input,operation_id:'another',tag_ids:[1]}).outcome,'duplicate');assert.deepEqual(e.invoke('list_materials',{}).find(m=>m.id===result.file_id).tags.map(t=>t.id),[2]);
+});
