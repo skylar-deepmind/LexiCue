@@ -221,8 +221,8 @@ export const manualContent={
           "id": "language",
           "title": "Preferences and appearance",
           "body": [
-            "Choose English, Chinese, Japanese or German for the interface; English remains the learning language. Pick ocean, sage, amber, twilight or midnight on the settings home. Reading font controls stay in the reader.",
-            "The Preferences group also contains speech preferences and replaying the first-use guide."
+            "Choose English, Chinese, Japanese or German directly in Preferences; English remains the learning language. Pick ocean, sage, amber, twilight or midnight on the settings home.",
+            "The Preferences group also contains speech and dictionary preferences."
           ],
           "steps": [],
           "image": "settings"
@@ -568,8 +568,8 @@ export const manualContent={
           "id": "language",
           "title": "偏好与外观",
           "body": [
-            "界面可选英语、中文、日语或德语，学习目标仍为英语。设置首页可选海湾蓝、鼠尾草绿、琥珀暖光、暮光紫、深夜墨色；字号控制放在阅读页。",
-            "“偏好”组还包含朗读偏好与重新查看首次引导。"
+            "在“偏好”中直接切换英语、中文、日语或德语，学习目标仍为英语。设置首页可选海湾蓝、鼠尾草绿、琥珀暖光、暮光紫、深夜墨色。",
+            "“偏好”组还包含朗读与词典设置。"
           ],
           "steps": [],
           "image": "settings"
@@ -915,8 +915,8 @@ export const manualContent={
           "id": "language",
           "title": "表示と環境設定",
           "body": [
-            "表示言語は英語・中国語・日本語・ドイツ語。学習対象は英語のままです。設定の最初の画面で5つのテーマを選び、文字サイズは読書画面で調整します。",
-            "環境設定には、読み上げの設定と初回ガイドの再表示もあります。"
+            "環境設定で英語・中国語・日本語・ドイツ語を直接切り替えます。学習対象は英語のままです。設定の最初の画面で5つのテーマを選べます。",
+            "環境設定には、読み上げと辞書の設定もあります。"
           ],
           "steps": [],
           "image": "settings"
@@ -1262,8 +1262,8 @@ export const manualContent={
           "id": "language",
           "title": "Darstellung und Einstellungen",
           "body": [
-            "Wähle Englisch, Chinesisch, Japanisch oder Deutsch als Oberflächensprache. Gelernt wird Englisch. Fünf Themen stehen auf der Einstellungsstartseite; Schriftgrößen stellst du beim Lesen ein.",
-            "Die Einstellungsgruppe enthält außerdem Sprachausgabe und das erneute Öffnen der Einführung."
+            "Wähle Englisch, Chinesisch, Japanisch oder Deutsch direkt in den Einstellungen. Gelernt wird Englisch. Fünf Themen stehen auf der Einstellungsstartseite.",
+            "Die Einstellungsgruppe enthält außerdem Sprachausgabe und Wörterbuchoptionen."
           ],
           "steps": [],
           "image": "settings"
