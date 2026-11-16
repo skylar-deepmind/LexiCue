@@ -182,7 +182,7 @@ try{
   // Existing untranslated materials require explicit full-material confirmation.
   for(const segment of (await call('open_reading_material',{fileId:bookId})).segments)await call('test_edit_segment',{segmentId:segment.id,zhText:null});
   await page.goto(`${url}/files/${bookId}`);await page.locator('.reading-word').first().waitFor();
-  const translationToggle=()=>page.locator('.dock-reading-tools button[aria-label="显示中文译文"]');
+  const translationToggle=()=>page.locator('.mobile-reading-tools button[aria-label="显示中文译文"]');
   const callsBeforePrompt=await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='translate_import_sentences').length);
   await translationToggle().click();await page.locator('.translation-dialog').waitFor();
   eq(await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='translate_import_sentences').length),callsBeforePrompt,'opening confirmation makes no translation request');
