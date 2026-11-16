@@ -38,6 +38,7 @@ const boundary=()=>({
     }`;
    if(id===resolve(project,'src/lib/documentPdf.ts'))return code.replace("new URL('/pdfjs/', typeof location !== 'undefined' ? location.href : 'http://localhost/')","new URL('../pdfjs/', import.meta.url)");
    if(id.endsWith('.css')&&id.includes('/src/'))return code.replaceAll('url(/fonts/','url(../fonts/').replaceAll('url("/fonts/','url("../fonts/').replaceAll("url('/fonts/","url('../fonts/");
+   if(id.startsWith(project+'/src/'))return code;
   },
 });
 export default defineConfig({
