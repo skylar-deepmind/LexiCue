@@ -2040,6 +2040,8 @@
     "loadFailed": "Gespeicherte Einträge konnten nicht geladen werden. Bitte erneut versuchen.",
     "manageSaved": "Gespeicherte Einträge verwalten",
     "youtubePrivacy": "Liest die Anmeldung nur auf diesem Gerät. Cookies werden weder exportiert noch synchronisiert.",
-    "youtubeAdvanced": "Erweiterte Optionen"
+    "youtubeAdvanced": "Erweiterte Optionen",
+    "dragToTrash": "Zum Löschen ziehen",
+    "releaseDelete": "Zum Löschen loslassen"
   }
 }

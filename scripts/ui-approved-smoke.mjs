@@ -30,9 +30,9 @@ try{
   const wallPosition=await page.locator('.approved-wall-viewport').evaluate(n=>({x:n.scrollLeft,y:n.scrollTop}));
   const visibleId=await page.locator('.approved-poster').evaluateAll(nodes=>nodes.find(n=>{const r=n.getBoundingClientRect();return r.top>=90&&r.bottom<=innerHeight-50;})?.getAttribute('data-motion-file'));
   const poster=visibleId?page.locator(`[data-motion-file="${visibleId}"]`):page.locator('.approved-poster').first(),fileId=Number(await poster.getAttribute('data-motion-file'));
-  await poster.locator('button').click();await page.waitForURL(/\/files\/\d+/);await page.locator('.reading-original').first().waitFor();
+  await poster.locator('button').click();await page.waitForURL(/\/files\/\d+/);
   await page.locator('.approved-handoff').waitFor();ok(await page.locator('.approved-handoff').evaluate(n=>n.getAnimations({subtree:true}).some(a=>a.effect.getTiming().duration===1320)),'wall transition uses its 1320 ms timeline');
-  await page.waitForFunction(()=>!document.querySelector('.approved-handoff'));
+  await page.waitForFunction(()=>!document.querySelector('.approved-handoff'));await page.locator('.reading-original').first().waitFor();
   eq(await page.locator('.reading-title').count(),1,'one material title');
   const word=page.locator('.reading-word').filter({hasText:/^air$/}).first();
   const prose=await page.locator('.reading-original').first().evaluate(n=>({width:n.getBoundingClientRect().width,font:getComputedStyle(n).fontSize,line:getComputedStyle(n).lineHeight}));
@@ -40,6 +40,7 @@ try{
   if(width<768){const after=await page.locator('.reading-original').first().evaluate(n=>({width:n.getBoundingClientRect().width,font:getComputedStyle(n).fontSize,line:getComputedStyle(n).lineHeight}));eq(after,prose,'opening dictionary preserves prose geometry');}
   await page.screenshot({path:`${output}/${theme}-${width}-lookup.png`});
   await page.keyboard.press('Escape');await page.locator('.context-panel').waitFor({state:'detached'});
+  if(width<768)await page.evaluate(()=>{const focus=HTMLElement.prototype.focus;HTMLElement.prototype.focus=function(options){focus.call(this,options);const view=this.closest('.approved-wall-viewport');if(view&&options?.preventScroll)requestAnimationFrame(()=>view.scrollTop+=65);};});
   await page.locator('.reading-breadcrumb .page-back').click();await page.locator('.approved-wall').waitFor();await page.waitForFunction(()=>!document.querySelector('.approved-handoff'));
   ok(await page.locator(`[data-motion-file="${fileId}"]`).count(),'return retains source poster');
   const restored=await page.locator('.approved-wall-viewport').evaluate(n=>({x:n.scrollLeft,y:n.scrollTop}));ok(Math.abs(restored.x-wallPosition.x)<2&&Math.abs(restored.y-wallPosition.y)<2,'wall returns to exact scroll position');

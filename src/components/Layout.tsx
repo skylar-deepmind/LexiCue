@@ -3,14 +3,11 @@ import { normalizeNavigationPath } from './NavigationItems';
 import { backNavigation } from '../lib/backNavigation';
 import { useEffect, useRef, useLayoutEffect } from 'react';
 import MobileReadingTools from './MobileReadingTools';
-import WorkspaceHeader from './WorkspaceHeader';
 import ImportPanel from './ImportPanel';
 import useMaterialDrop from './useMaterialDrop';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import Sidebar from './Sidebar';
-import MobileNav from './MobileNav';
 import ConfirmationHost from './ConfirmationHost';
 import ToastHost from './ToastHost';
 import { useDictionaryStore } from '../stores/dictionaryStore';
@@ -88,7 +85,7 @@ export default function Layout() {
     }, []);
     useEffect(() => { retainImportedReading(routeState?.importReadingToken); }, [rawPathname, routeState]);
     useMaterialDrop();
-    useEffect(()=>{const restore=()=>useImportStore.getState().show();window.addEventListener('lexicue-return-import',restore);return()=>window.removeEventListener('lexicue-return-import',restore);},[]);
+    useEffect(()=>{const restore=()=>{const state=useImportStore.getState();if(state.phase==='source')void state.choose();else state.show();};window.addEventListener('lexicue-return-import',restore);return()=>window.removeEventListener('lexicue-return-import',restore);},[]);
     useEffect(() => { document.body.classList.add('lexicue-b'); return () => document.body.classList.remove('lexicue-b'); }, []);
     const panels = useWorkspaceStore(state => state.panels);
     const stageRef = useRef<HTMLDivElement>(null);
@@ -185,7 +182,7 @@ export default function Layout() {
             void subscription.then(stop => stop()).catch(() => {});
         };
     }, []);
-    return (<div className={`app-layout b-shell${new URLSearchParams(search).get('view') === 'manage' || routeState?.returnOrigin?.path?.includes('view=manage') ? '' : ' figma-shell'}`} data-approved-page={pathname.startsWith('/files/') || pathname === '/example' ? 'reader' : pathname.slice(1)} data-context-open={panels.length > 0}
+    return (<div className="app-layout b-shell figma-shell" data-approved-page={pathname.startsWith('/files/') || pathname === '/example' ? 'reader' : pathname.slice(1)} data-context-open={panels.length > 0}
         onPointerDownCapture={event => {
             const link = event.target instanceof Element ? event.target.closest('a[href]') : null;
             linkPress.current = link && event.isPrimary && event.button === 0
@@ -212,14 +209,11 @@ export default function Layout() {
             // Leave text selection and incoming material file drops alone.
             if (event.target instanceof Element && event.target.closest('a[href]')) event.preventDefault();
         }}>
-      <WorkspaceHeader />
-      <Sidebar />
       <main className="app-main b-main">
         <div className="app-page workspace-stage" ref={stageRef}>
           <PageTransition pageKey={pathname === '/settings' ? pathname + search : pathname}><Outlet /></PageTransition>
         </div>
-        <MobileNav />
-      </main>
+        </main>
       <ImportPanel />
       <ToastHost />
       <ConfirmationHost />

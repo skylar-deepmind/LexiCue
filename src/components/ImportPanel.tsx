@@ -3,7 +3,7 @@ import { BusyRing } from './LoadingFeedback';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Check, ClipboardPaste, FileText, Upload, X } from 'lucide-react';
+import { Check, ClipboardPaste, FileText, X } from 'lucide-react';
 import Overlay from './Overlay';
 import MotionChange from './MotionChange';
 import { takeImportFocus } from './importFocus';
@@ -24,16 +24,16 @@ export default function ImportPanel() {
     const location=useLocation();
     const live = useImportStore();
     const panelRef = useRef<HTMLDivElement>(null);
-    const present = useImportPresence(live.open, panelRef);
     const previous = useRef(live);
     if (live.open) previous.current = live;
     const state = live.open ? live : previous.current;
-    const { open } = live;
     const { destination, running, hide, clearDestination, phase, source } = state;
     const [readingClipboard, setReadingClipboard] = useState(false);
     const [linkDraft, setLinkDraft] = useState<{ url: string; autoSearch: boolean; id: number } | null>(null);
     const [inputError, setInputError] = useState<string | null>(null);
     const [manualInput, setManualInput] = useState<string | null>(null);
+    const open = live.open && (phase !== 'source' || source !== 'choose' || manualInput !== null || !!inputError);
+    const present = useImportPresence(open, panelRef);
     const clipboardRequest = useRef(0);
     const reading = useRef(false);
     const invalidateClipboard = useCallback((refresh = true) => {
@@ -41,7 +41,7 @@ export default function ImportPanel() {
         if (refresh) setReadingClipboard(false);
     }, []);
     useEffect(() => {
-        if (!present && !open) { previous.current = live; setLinkDraft(null); setInputError(null); setManualInput(null); }
+        if (!present && !live.open) { previous.current = live; setLinkDraft(null); setInputError(null); setManualInput(null); }
     }, [present, open, live]);
     useEffect(() => {
         const unsubscribe = useImportStore.subscribe((next, before) => {
@@ -110,7 +110,7 @@ export default function ImportPanel() {
         if (open && panel && !panel.contains(document.activeElement)) panel.focus({ preventScroll: true });
     }, [open, phase, source]);
     if (!present) return null;
-    const compact = phase === 'source' && source === 'choose';
+    const compact = false;
     const preparing = phase === 'preparing';
     const committing = phase === 'committing';
     const preview = phase === 'preview';
@@ -127,21 +127,9 @@ export default function ImportPanel() {
             <button className="ui-button ui-button--icon lc-import-close" aria-label={t(committing ? 'materials.importDialog.minimize' : 'common.close')} onClick={hide}><X size={20} aria-hidden="true" /></button>
         </header>
         <MotionChange changeKey={`${phase}:${source}`} resizeContainer=".lc-import-modal"><div className="lc-import-body">
-            {phase === 'source' && (source === 'choose' ? <>
-                <div data-guide="import-sources" className="lc-import-sources">
-                    <button type="button" className="lc-import-source lc-import-source--clipboard" aria-busy={readingClipboard} disabled={readingClipboard || state.picking || running} onClick={() => void pasteLink()}>
-                        {readingClipboard ? <BusyRing /> : <ClipboardPaste aria-hidden="true" size={17} />}<strong>{t(readingClipboard ? 'materials.importDialog.readingClipboard' : 'materials.importDialog.pasteLink')}</strong>
-                    </button>
-                    <button type="button" className="lc-import-source" aria-busy={state.picking} disabled={readingClipboard || state.picking || running} onClick={() => { setInputError(null); setManualInput(null); void state.choose(); }}>
-                        {state.picking ? <BusyRing /> : <FileText aria-hidden="true" size={17} />}<strong>{t('materials.importDialog.file')}</strong>
-                    </button>
-                </div>
-                <p className="lc-import-summary">{t('materials.importDialog.contentHint')}</p>
-            </> : <>
-                <button className="ui-button ui-button--icon lc-import-back" aria-label={t('common.back')} title={t('common.back')} onClick={() => state.changeSource()}><ArrowLeft size={20} aria-hidden="true" /></button>
-                {source === 'youtube' ? <YouTubeImport key={linkDraft?.id ?? 'manual'} initialUrl={linkDraft?.url} autoSearch={linkDraft?.autoSearch} active={open} /> : <div className="lc-import-drop"><Upload size={32} aria-hidden="true" /><h3>{t('materials.drop')}</h3><p>{t('materials.srtOnly')}</p><button className="ui-button lc-import-primary" disabled={state.picking} aria-busy={state.picking} onClick={() => void state.choose()}>{state.picking && <BusyRing />}<span>{t('materials.choose')}</span></button><small>{t('materials.importDialog.fileLimit')}</small></div>}
-            </>)}
+            {phase === 'source' && source === 'youtube' && <YouTubeImport key={linkDraft?.id ?? 'manual'} initialUrl={linkDraft?.url} autoSearch={linkDraft?.autoSearch} active={open} />}
             {(inputError || manualInput !== null) && (phase === 'source' || preview && !selected) && <div className="lc-content-input">
+                <button type="button" className="ui-button" disabled={readingClipboard} aria-busy={readingClipboard} onClick={() => void pasteLink()}><ClipboardPaste size={18} aria-hidden="true"/>{t('materials.importDialog.pasteLink')}</button>
                 {inputError && <p className="lc-import-error" role="alert">{t(`materials.importDialog.${inputError}`)}</p>}
                 {manualInput !== null && <form onSubmit={event => {event.preventDefault(); void acceptContent(manualInput);}}>
                     <label htmlFor="lc-manual-content">{t('materials.importDialog.manualContent')}</label>
@@ -169,7 +157,7 @@ export default function ImportPanel() {
             </>}
         </div></MotionChange>
         {(preparing || preview || committing || result) && <footer className="lc-import-footer">
-            {preparing ? <><p>{t('materials.importDialog.confirmHint')}</p><button className="ui-button" onClick={state.cancel}>{t('common.cancel')}</button></> : committing ? <><p>{t('materials.importDialog.backgroundHint')}</p><button className="ui-button" disabled={state.stopping} onClick={state.cancel}>{t('materials.cancelRemaining')}</button></> : preview ? <><button className="ui-button ui-button--icon" aria-label={t('materials.importDialog.changeSource')} title={t('materials.importDialog.changeSource')} onClick={() => state.changeSource()}><ArrowLeft size={20} aria-hidden="true" /></button>{valid.length > 0 && <button className="ui-button lc-import-primary" disabled={!valid.length || !!state.selectionBusy} onClick={() => void state.confirm()}>{t(valid.some(item => item.draft?.document?.extraction_status === 'partial') ? 'documents.importPartial' : 'materials.importDialog.confirm', { count: valid.length })}</button>}</> : <><button className="ui-button" onClick={() => state.changeSource()}>{t('materials.importDialog.importMore')}</button><button className="ui-button ui-button--icon lc-import-primary" aria-label={t('common.close')} title={t('common.close')} onClick={hide}><X size={20} aria-hidden="true" /></button></>}
+            {preparing ? <><p>{t('materials.importDialog.confirmHint')}</p><button className="ui-button" onClick={state.cancel}>{t('common.cancel')}</button></> : committing ? <><p>{t('materials.importDialog.backgroundHint')}</p><button className="ui-button" disabled={state.stopping} onClick={state.cancel}>{t('materials.cancelRemaining')}</button></> : preview ? <><button className="ui-button ui-button--icon" aria-label={t('materials.importDialog.changeSource')} title={t('materials.importDialog.changeSource')} onClick={() => void state.choose()}><FileText size={20} aria-hidden="true" /></button>{valid.length > 0 && <button className="ui-button lc-import-primary" disabled={!valid.length || !!state.selectionBusy} onClick={() => void state.confirm()}>{t(valid.some(item => item.draft?.document?.extraction_status === 'partial') ? 'documents.importPartial' : 'materials.importDialog.confirm', { count: valid.length })}</button>}</> : <><button className="ui-button" onClick={() => void state.choose()}>{t('materials.importDialog.importMore')}</button><button className="ui-button ui-button--icon lc-import-primary" aria-label={t('common.close')} title={t('common.close')} onClick={hide}><X size={20} aria-hidden="true" /></button></>}
         </footer>}
     </Overlay>;
 }

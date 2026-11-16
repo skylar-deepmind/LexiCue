@@ -1,13 +1,13 @@
-import SavedManager from './SavedPage';
+import useTrashDrag, { isTrashDragging } from '../components/useTrashDrag';
 import { bookmarkTitle } from '../lib/bookmarkDesk';
 import SavedExcerpt from '../components/SavedExcerpt';
 import { finishSavedEntrance, prepareSavedReturn } from '../lib/savedEntrance';
 import { dissolvePage } from '../lib/pageDissolve';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
-import { ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, MoreHorizontal, Search, Trash2, Undo2, Volume2 } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, Search, Undo2, Volume2 } from 'lucide-react';
 import { createViewCache, usePageReturn, viewKey, visitState } from '../lib/pageNavigation';
 import { backNavigation } from '../lib/backNavigation';
 import { readerNavigation, resolveSavedSource, savedNoteDrafts } from '../lib/readerNavigation';
@@ -31,11 +31,11 @@ function bounds(start: string, end: string) {
   return { startMs: first, endMs: last?.getTime() ?? null };
 }
 export default function SavedArchivePage() {
-  const location = useLocation();
-  return new URLSearchParams(location.search).get('view') === 'manage' ? <SavedManager/> : <SavedArchive/>;
+  return <SavedArchive/>;
 }
 function SavedArchive() {
   const { t } = useTranslation(), location = useLocation(), navigate = useNavigate(), key = viewKey(location);
+  useEffect(()=>{if(new URLSearchParams(location.search).get('view')==='manage')navigate('/saved',{replace:true,state:location.state});},[location.search,navigate,location.state]);
   const { back } = usePageReturn('/files');
   const generation = useRestoreGuard(s => s.generation);
   const pocketRecordId = (location.state as {pocketRecordId?:string}|null)?.pocketRecordId;
@@ -121,10 +121,10 @@ function SavedArchive() {
     finally { if (alive.current && token === sourceRequest.current) setSourceBusy(false); }
   };
   const remove = async () => {
-    if (!record || undoing) return;
+    if (!record || undoing) return false;
     const intent = removeIntents.current.get(record.record_id) ?? { operation: crypto.randomUUID(), revision: record.revision }; removeIntents.current.set(record.record_id, intent); setUndoing(true);
-    try { await mutateSaved({ kind: 'remove', record_id: record.record_id, expected_revision: intent.revision }, intent.operation); setReceipt(intent.operation); removeIntents.current.delete(record.record_id); }
-    catch (cause) { setSourceError(t(savedErrorKey(cause))); } finally { setUndoing(false); }
+    try { await mutateSaved({ kind: 'remove', record_id: record.record_id, expected_revision: intent.revision }, intent.operation); setReceipt(intent.operation);setContexts(p=>({...p,records:p.records.filter(r=>r.record_id!==record.record_id),total:p.records.some(r=>r.record_id===record.record_id)?Math.max(0,p.total-1):p.total})); removeIntents.current.delete(record.record_id); return true; }
+    catch (cause) { setSourceError(t(savedErrorKey(cause))); return false; } finally { setUndoing(false); }
   };
   const loadMore = async () => {
     const token = request.current; setLoading(true);
@@ -154,8 +154,8 @@ function SavedArchive() {
       <div className="approved-saved-detail">
         {failure ? <div className="saved-error" role="alert"><p>{t('approved.loadFailed')}</p><button className="ui-button" onClick={() => setRevision(value => value+1)}>{t('common.retry')}</button></div> : loading && !groups.groups.length || contextLoading ? <div role="status"><BusyRing/><span className="sr-only">{t('common.loading')}</span></div> : record ? <>
           {contexts.total > 1 && <nav className="approved-context-pager" aria-label={t('dictionaryFlow.moreContexts', { count:contexts.total })}><button className="approved-icon" disabled={index===0} aria-label={t('history.previous')} onClick={() => turn(-1)}><ChevronLeft size={18}/></button><span>{index+1} / {contexts.total}</span><button className="approved-icon" disabled={index>=contexts.records.length-1} aria-label={t('history.next')} onClick={() => turn(1)}><ChevronRight size={18}/></button>{contexts.records.length<contexts.total && <button className="ui-button" onClick={() => { const token=contextRequest.current; void invoke<SavedContextPage>('saved_group_contexts',{groupId:selected,limit:50,offset:contexts.records.length,...bounds(start,end)}).then(next=>{if(token===contextRequest.current)setContexts(previous=>({...next,records:[...previous.records,...next.records]}));}).catch(()=>setSourceError(t('approved.loadFailed'))); }}>{t('approved.more')}</button>}</nav>}
-          <div ref={detail} className="approved-folio-scroll" onPointerDown={event => { if (!(event.target as Element).closest('button,input,textarea,summary')) gesture.current={x:event.clientX,y:event.clientY,direction:null}; }} onPointerMove={event=>{const g=gesture.current;if(!g)return;const x=event.clientX-g.x,y=event.clientY-g.y;if(!g.direction&&Math.hypot(x,y)>8)g.direction=Math.abs(x)>Math.abs(y)*1.25?'x':'y';}} onPointerUp={event=>{const g=gesture.current;gesture.current=null;if(!g)return;const x=event.clientX-g.x,y=event.clientY-g.y;if(g.direction==='x'&&Math.abs(x)>=36&&Math.abs(x)>Math.abs(y)*1.25){turn(x<0?1:-1);suppress.current=performance.now()+350;}}}>
-            <SavedFolio key={record.record_id} record={record} sourceBusy={sourceBusy} onSource={() => { if(performance.now()>=suppress.current)void openSource(); }} onChange={next=>setContexts(previous=>({...previous,records:previous.records.map(value=>value.record_id===next.record_id?next:value)}))} onRemove={()=>void remove()} removing={undoing}/>
+          <div ref={detail} className="approved-folio-scroll" onPointerDown={event => { if (!(event.target as Element).closest('button,input,textarea,summary')) gesture.current={x:event.clientX,y:event.clientY,direction:null}; }} onPointerMove={event=>{if(isTrashDragging()){gesture.current=null;return;}const g=gesture.current;if(!g)return;const x=event.clientX-g.x,y=event.clientY-g.y;if(!g.direction&&Math.hypot(x,y)>8)g.direction=Math.abs(x)>Math.abs(y)*1.25?'x':'y';}} onPointerUp={event=>{const g=gesture.current;gesture.current=null;if(!g)return;const x=event.clientX-g.x,y=event.clientY-g.y;if(g.direction==='x'&&Math.abs(x)>=36&&Math.abs(x)>Math.abs(y)*1.25){turn(x<0?1:-1);suppress.current=performance.now()+350;}}}>
+            <SavedFolio key={record.record_id} record={record} sourceBusy={sourceBusy} onSource={() => { if(performance.now()>=suppress.current)void openSource(); }} onChange={next=>setContexts(previous=>({...previous,records:previous.records.map(value=>value.record_id===next.record_id?next:value)}))} onRemove={remove} removing={undoing}/>
           </div>
         </> : <p role="status" className="approved-saved-empty">{t(query || start || end ? 'materials.noMatches' : 'savedRecords.empty')}</p>}
         {sourceError && <p className="saved-error" role="alert">{sourceError}</p>}
@@ -164,12 +164,12 @@ function SavedArchive() {
     </div>
   </section>;
 }
-function SavedFolio({ record, sourceBusy, onSource, onChange, onRemove, removing }: { record: SavedRecord; sourceBusy: boolean; onSource:()=>void; onChange:(record:SavedRecord)=>void; onRemove:()=>void; removing:boolean }) {
-  const location=useLocation();
+function SavedFolio({ record, sourceBusy, onSource, onChange, onRemove, removing }: { record: SavedRecord; sourceBusy: boolean; onSource:()=>void; onChange:(record:SavedRecord)=>void; onRemove:()=>Promise<boolean>; removing:boolean }) {
   const { t } = useTranslation(), paragraph = useRef<HTMLParagraphElement>(null);
   const initial = useRef(savedNoteDrafts.get(record.record_id));
   const [editing,setEditing]=useState(!!initial.current?.editing),[draft,setDraft]=useState(initial.current?.text??(record.explanation_source==='personal'?record.explanation??'':'')),[busy,setBusy]=useState(false),[error,setError]=useState('');
-  const revision=useRef(initial.current?.revision??record.revision),operation=useRef(initial.current?.operationId),[menu,setMenu]=useState(false);
+  const revision=useRef(initial.current?.revision??record.revision),operation=useRef(initial.current?.operationId);
+  useTrashDrag(paragraph,{id:`saved:${record.record_id}`,label:record.sentence??record.expression,disabled:removing,remove:onRemove});
   const media = record.source?.media;
   const ready = useSourceMediaStore(s=>!!media && s.entries[media.source.key]?.status==='ready');
   const sentence=record.sentence??t('savedRecords.missingOriginal');
@@ -179,10 +179,10 @@ function SavedFolio({ record, sourceBusy, onSource, onChange, onRemove, removing
   const speechKey=`saved-folio:${record.record_id}`;
   return <article className="approved-saved-folio" data-record={record.record_id}>
     <header><button className="approved-source-cover" disabled={!record.source||sourceBusy} onClick={onSource} aria-label={t('savedRecords.returnToSource')}><MaterialCover src={savedCover(record)} identity={record.source?.content_hash??record.source_key}/></button><button className="approved-source-title" disabled={!record.source||sourceBusy} onClick={onSource} aria-label={t('savedRecords.returnToSource')}>{record.source?.file_name?bookmarkTitle(record.source.file_name):t('savedRecords.sourceMissing')}</button><SpeechButton className="approved-folio-speech" text={sentence} speechKey={speechKey} kind="sentence" label={t(ready&&media?.source.audio?'sourceAudio.playOriginal':'sourceAudio.read')} media={ready&&media?.source.audio?bindMediaTarget(media,{record_id:record.record_id}):undefined} idleIcon={<Volume2 size={39} strokeWidth={1.5}/>}/></header>
-    <p ref={paragraph} className="approved-folio-sentence" lang="en"><SavedExcerpt record={record} fallback={t('savedRecords.missingOriginal')}/></p>
+    <p ref={paragraph} className="approved-folio-sentence" lang="en" tabIndex={0} aria-label={sentence}><SavedExcerpt record={record} fallback={t('savedRecords.missingOriginal')}/></p>
     {record.sentence_translation&&<p className="approved-folio-translation">{record.sentence_translation}</p>}
     {editing?<form className="approved-folio-editor" onSubmit={event=>{event.preventDefault();void save();}}><label className="sr-only" htmlFor={`note-${record.record_id}`}>{t('dictionaryFlow.personalMeaning')}</label><textarea autoFocus id={`note-${record.record_id}`} value={draft} disabled={busy} onChange={event=>{setDraft(event.target.value);operation.current=undefined;savedNoteDrafts.set(record.record_id,{text:event.target.value,revision:revision.current,editing:true});}}/><div><button className="ui-button" type="submit" disabled={busy}>{t('savedRecords.saveExplanation')}</button><button className="ui-button" type="button" disabled={busy} onClick={()=>{savedNoteDrafts.set(record.record_id,{text:draft,revision:revision.current,editing:false});setEditing(false);}}>{t('common.cancel')}</button></div></form>:<button className="approved-folio-note" onClick={()=>setEditing(true)}><span>{t('dictionaryFlow.personalMeaning')}：</span>{record.explanation_source==='personal'&&record.explanation?record.explanation:t('reader.personalExplanation')}</button>}
     {error&&<p className="saved-error" role="alert">{error}</p>}<SpeechFeedback speechKeys={[speechKey]}/>
-    <div className="approved-folio-menu"><Link className="ui-button" to="/saved?view=manage" state={visitState(location)}>{t('approved.manageSaved')}</Link><button className="approved-icon" aria-expanded={menu} aria-label={t('materials.more',{name:record.expression})} onClick={()=>setMenu(value=>!value)}><MoreHorizontal size={22}/></button>{menu&&<button className="ui-button ui-button--danger" disabled={removing} onClick={onRemove}><Trash2 size={17}/>{t('dictionaryFlow.removeSentence')}</button>}</div>
+
   </article>;
 }

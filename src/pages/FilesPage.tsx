@@ -6,7 +6,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
-import { ArrowLeft, ChevronLeft, ChevronRight, MoreHorizontal, Pencil, Settings } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Pencil, Settings } from 'lucide-react';
 import { useMaterialStore } from '../stores/materialStore';
 import { useReadingDeskStore } from '../stores/readingDeskStore';
 import { useFileStore } from '../stores/fileStore';
@@ -26,7 +26,7 @@ import Overlay from '../components/Overlay';
 import TagEditDialog from '../components/TagEditDialog';
 import { BusyRing } from '../components/LoadingFeedback';
 import { ClipboardImportIcon, FileImportIcon } from '../components/HomeActionIcons';
-import MaterialManager from './MaterialManager';
+import useTrashDrag, { isTrashDragging } from '../components/useTrashDrag';
 import PosterWall from '../components/PosterWall';
 import { captureReadingEntrance, finishReadingReturn, readingMotionExcerpt } from '../lib/readingMotion';
 import { playTagFlight } from '../lib/tagFlight';
@@ -35,8 +35,7 @@ import './approved-ui.css';
 let lastLibraryTag = 'all';
 
 export default function FilesPage() {
-  const [params] = useSearchParams();
-  return params.get('view') === 'manage' ? <MaterialManager/> : <MaterialDesk/>;
+  return <MaterialDesk/>;
 }
 function MaterialDesk() {
   const { t } = useTranslation(), navigate = useNavigate(), location = useLocation();
@@ -53,6 +52,9 @@ function MaterialDesk() {
   const card = useRef<HTMLDivElement>(null), libraryButton = useRef<HTMLButtonElement>(null);
   const gesture = useRef<{ x: number; y: number; locked: boolean } | null>(null), suppress = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const pasteIntent=useRef(0),pastePending=useRef(false),alive=useRef(true);
+  useEffect(()=>{alive.current=true;return()=>{alive.current=false;pasteIntent.current++;};},[]);
+  useEffect(() => { if(params.get('view')==='manage')setParams({view:'library'},{replace:true}); },[params,setParams]);
   useEffect(() => { void useMaterialStore.getState().load(); void loadTags(); }, [catalog.revision, loadTags]);
   useEffect(() => {
     let alive = true;
@@ -79,7 +81,7 @@ function MaterialDesk() {
     }).catch(() => {});
     return () => { alive = false; };
   }, [quoteKey, selected]);
-  useLayoutEffect(() => { if (!selected || readingPosition(selected) === null || quotes[quoteKey]) finishReadingReturn(); }, [catalog.hasLoaded, selected, quotes, quoteKey]);
+  useLayoutEffect(() => { if (!selected || readingPosition(selected) === null || quotes[quoteKey]) finishReadingReturn('desk'); }, [catalog.hasLoaded, selected, quotes, quoteKey]);
   useEffect(() => () => clearTimeout(timer.current), []);
   useEffect(() => {
     if (params.get('view') === 'library' && !params.has('tag')) setGroups(true);
@@ -96,20 +98,21 @@ function MaterialDesk() {
     navigate(`/files/${file.id}`, { state: { ...visitState(location), readingOrigin: origin === 'wall' ? 'library' : 'desk', readingMotion: true } });
   };
   const paste = async () => {
-    if (pasting) return;
+    if (pastePending.current) return;
     if (useImportStore.getState().running) { useImportStore.getState().show(); return; }
-    setPasting(true);
+    const intent=++pasteIntent.current;pastePending.current=true;setPasting(true);
     try {
       const text = await readImportClipboard();
+      if(!alive.current||intent!==pasteIntent.current)return;
       const content = inspectClipboardContent(text);
-      if (content.kind === 'error') { useFeedbackStore.getState().show(t(`materials.importDialog.${content.error}`), 'error'); return; }
+      if (content.kind === 'error') { if(text?.trim()){useImportStore.getState().show();window.dispatchEvent(new CustomEvent('lexicue-import-content',{detail:text}));}else useFeedbackStore.getState().show(t(`materials.importDialog.${content.error}`),'error');return; }
       useImportStore.getState().show();
       window.dispatchEvent(new CustomEvent('lexicue-import-content', { detail: text }));
     } catch {
-      useFeedbackStore.getState().show(t('materials.importDialog.clipboardFailed'), 'error');
+      if(!alive.current||intent!==pasteIntent.current)return;
       useImportStore.getState().show();
       window.dispatchEvent(new CustomEvent('lexicue-import-content', { detail: null }));
-    } finally { setPasting(false); }
+    } finally { if(alive.current&&intent===pasteIntent.current){pastePending.current=false;setPasting(false);} }
   };
   const wallTag = params.get('tag');
   const wallFiles = wallTag === 'all' ? catalog.files : wallTag === 'untagged' ? catalog.files.filter(file => !file.tags.length) : catalog.files.filter(file => file.tags.some(tag => String(tag.id) === wallTag));
@@ -119,30 +122,30 @@ function MaterialDesk() {
     return false;
   }, 2), [wallTag, setParams]);
   return <div className="approved-desk" data-library-open={groups || undefined}>
-    {wallTag !== null ? <PosterWall files={wallFiles} title={tagName} identity={wallTag} onBack={() => { setParams({ view: 'library' }); setGroups(true); }} onOpen={(file, node) => open(file, node, 'wall')} onManage={() => navigate('/files?view=manage')}/> : <>
+    {wallTag !== null ? <PosterWall files={wallFiles} title={tagName} identity={wallTag} onBack={() => { setParams({ view: 'library' }); setGroups(true); }} onOpen={(file, node) => open(file, node, 'wall')}/> : <>
       <header className="approved-home-header">
         <button className="approved-brand" aria-label={t(theme === 'midnight' ? 'approved.light' : 'approved.dark')} aria-pressed={theme === 'midnight'} onClick={() => setTheme(theme === 'midnight' ? 'sage' : 'midnight')}><img src={`/design/wordmark${theme === 'midnight' ? '-night' : ''}.png`} alt="LexiCue"/></button>
         <div><button data-guide="import" className="approved-icon clipboard-import" aria-label={t(importing ? 'materials.importRunning' : 'materials.importDialog.pasteLink')} aria-busy={pasting || importing} disabled={pasting} onClick={() => void paste()}>{pasting || importing ? <BusyRing/> : <ClipboardImportIcon/>}</button>
-          <button className="approved-icon home-file-picker import-tray" aria-label={t('materials.choose')} aria-busy={picking} disabled={picking} onClick={() => { useImportStore.getState().show(); void useImportStore.getState().choose(); }}>{picking ? <BusyRing/> : <FileImportIcon/>}</button>
+          <button className="approved-icon home-file-picker import-tray" aria-label={t('materials.choose')} aria-busy={picking || importing} disabled={picking || importing || pasting} onClick={() => void useImportStore.getState().choose()}>{picking ? <BusyRing/> : <FileImportIcon/>}</button>
           <button className="approved-icon home-settings-action" aria-label={t('sidebar.settings')} onClick={() => navigate('/settings', { state: visitState(location) })}><Settings size={23}/></button>
         </div>
       </header>
       {catalog.loading && !catalog.hasLoaded ? <div className="approved-desk-status" role="status"><BusyRing/>{t('common.loading')}</div> : catalog.error ? <div className="approved-desk-status" role="alert"><p>{t('materials.loadFailed')}</p><button className="ui-button" onClick={() => void catalog.load()}>{t('common.retry')}</button></div> : selected ? <div ref={card} className="approved-deck desk-stack" tabIndex={0} aria-label={t('readingDesk.desktop')} data-turning={turning || undefined}
         onKeyDown={event => { if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); turn(event.key === 'ArrowRight' ? 1 : -1); } }}
         onPointerDown={event => { if (event.button === 0 && !(event.target as Element).closest('.approved-card-tag')) gesture.current = { x: event.clientX, y: event.clientY, locked: false }; }}
-        onPointerMove={event => { const g = gesture.current; if (!g) return; const dx = event.clientX - g.x, dy = event.clientY - g.y; if (Math.abs(dy) > Math.abs(dx) * 1.25 && !g.locked) gesture.current = null; else if (Math.abs(dx) > 8) g.locked = true; }}
+        onPointerMove={event => { if(isTrashDragging()){gesture.current=null;return;}const g = gesture.current; if (!g) return; const dx = event.clientX - g.x, dy = event.clientY - g.y; if (Math.abs(dy) > Math.abs(dx) * 1.25 && !g.locked) gesture.current = null; else if (Math.abs(dx) > 8) g.locked = true; }}
         onPointerUp={event => { const g = gesture.current; gesture.current = null; if (!g) return; const dx = event.clientX - g.x, dy = event.clientY - g.y; if (Math.abs(dx) > 34 && Math.abs(dx) > Math.abs(dy) * 1.25) { turn(dx < 0 ? 1 : -1); suppress.current = performance.now() + 350; } }} onPointerCancel={() => { gesture.current = null; }}>
-        {recent.map((file, i) => <article className="approved-card desk-paper" key={`${file.id}:${file.content_hash}`} data-desk-active={i === index} data-desk-position={i - index} data-motion-file={file.id} aria-hidden={Math.abs(i - index) > 1 || undefined} inert={Math.abs(i - index) > 1}>
+        {recent.map((file, i) => <TrashMaterial key={`${file.id}:${file.content_hash}`} file={file} enabled={i===index}><article className="approved-card desk-paper" key={`${file.id}:${file.content_hash}`} data-desk-active={i === index} data-desk-position={i - index} data-motion-file={file.id} aria-hidden={Math.abs(i - index) > 1 || undefined} inert={Math.abs(i - index) > 1}>
           <button className="approved-card-open" data-testid={i === index ? 'desk-continue' : undefined} aria-label={t('readingDesk.openNamed', { name: file.name })} onClick={event => {
             if (performance.now() < suppress.current) return;
             if (i !== index) { turn(i - index); return; }
             open(file, event.currentTarget.closest('article')!, 'desk');
           }}><MaterialCover src={materialCover(file)} identity={file.content_hash} className="approved-card-cover"/><span className="approved-card-copy"><span className="approved-card-category">{file.tags[0]?.name ?? t('tags.untagged')}</span><strong className="approved-card-title" lang="en">{bookmarkTitle(file.name)}</strong><span className="approved-card-quote" lang="en">{readingMotionExcerpt(file) ?? quotes[`${file.id}:${file.content_hash}:${readingPosition(file)}`] ?? file.preview}</span></span></button>
-          {i === index && <button className="approved-card-tag" aria-label={t('tags.edit')} onClick={() => setEditing(file)}><Pencil size={16}/></button>}
-        </article>)}
+          {i === index && <button className="approved-card-tag" aria-label={t('tags.edit')} data-no-trash onClick={() => setEditing(file)}><Pencil size={16}/></button>}
+        </article></TrashMaterial>)}
         <div className="approved-dots" data-visible={turning} aria-label={`${index + 1} / ${recent.length}`}>{recent.map((file, i) => <i key={file.id} data-current={i === index}/>)}</div>
         <button className="approved-edge approved-edge-prev" aria-label={t('history.previous')} disabled={index === 0} onClick={() => turn(-1)}><ChevronLeft size={18}/></button><button className="approved-edge approved-edge-next" aria-label={t('history.next')} disabled={index === recent.length - 1} onClick={() => turn(1)}><ChevronRight size={18}/></button>
-      </div> : <div className="approved-desk-empty"><h1>{t(catalog.files.length ? 'readingDesk.clear' : 'readingDesk.noMaterials')}</h1><button className="desk-primary" onClick={() => { if (catalog.files.length) { setGroups(true); setParams({ view:'library' }); } else useImportStore.getState().show(); }}>{t(catalog.files.length ? 'readingDesk.library' : 'materials.import')}</button></div>}
+      </div> : <div className="approved-desk-empty"><h1>{t(catalog.files.length ? 'readingDesk.clear' : 'readingDesk.noMaterials')}</h1><button className="desk-primary" onClick={() => { if (catalog.files.length) { setGroups(true); setParams({ view:'library' }); } else void useImportStore.getState().choose(); }}>{t(catalog.files.length ? 'readingDesk.library' : 'materials.import')}</button></div>}
       <footer className="approved-home-footer"><button ref={libraryButton} className="approved-library-entry" aria-label={t('readingDesk.library')} aria-expanded={groups} onClick={() => { setGroups(true); setParams({ view: 'library' }); }}><span className="approved-stock" aria-hidden="true">{(catalog.files.length ? catalog.files.slice(0, 3) : [null, null, null]).map((file, i) => <MaterialCover key={i} src={file ? materialCover(file) : `/design/prints/${['16388','16398','16339'][i]}.jpg`} identity={file?.content_hash ?? String(i)}/>)}</span></button>
         <button className="approved-saved-entry" aria-label={t('savedRecords.title')} onClick={event => {
           const open=()=>navigate('/saved',{state:{...visitState(location),pocketRecordId:pocket?.record_id}});
@@ -150,11 +153,11 @@ function MaterialDesk() {
         }}><span className="approved-word-pocket" aria-hidden="true"><i/><SavedPocketPreview record={pocket}/><i/></span></button>
       </footer>
     </>}
-    {groups && !importOpen && wallTag === null && <TagRail files={catalog.files} tags={tags} returnFocus={() => libraryButton.current} onClose={() => { setGroups(false); setParams({}); }} onSelect={tag => { lastLibraryTag = tag; setGroups(false); setParams({ view: 'library', tag }); }} onManage={() => { setGroups(false); navigate('/files?view=manage'); }}/ >}
+    {groups && !importOpen && wallTag === null && <TagRail files={catalog.files} tags={tags} returnFocus={() => libraryButton.current} onClose={() => { setGroups(false); setParams({}); }} onSelect={tag => { lastLibraryTag = tag; setGroups(false); setParams({ view: 'library', tag }); }}/ >}
     {editing && <TagEditDialog file={editing} onClose={() => { setEditing(null); catalog.changed(); }}/ >}
   </div>;
 }
-function TagRail({ files, tags, returnFocus, onClose, onSelect, onManage }: { files: Material[]; tags: Material['tags']; returnFocus: () => HTMLElement | null; onClose: () => void; onSelect: (id: string) => void; onManage: () => void }) {
+function TagRail({ files, tags, returnFocus, onClose, onSelect }: { files: Material[]; tags: Material['tags']; returnFocus: () => HTMLElement | null; onClose: () => void; onSelect: (id: string) => void }) {
   const { t } = useTranslation();
   const panel = useRef<HTMLDivElement>(null), rail = useRef<HTMLDivElement>(null), flight = useRef<ReturnType<typeof playTagFlight> | null>(null), closing = useRef(false), mounted = useRef(true);
   const items = [{ id: 'all', name: t('readingDesk.library'), files }, ...tags.map(tag => ({ id: String(tag.id), name: tag.name, files: files.filter(file => file.tags.some(value => value.id === tag.id)) })), ...files.some(file => !file.tags.length) ? [{ id: 'untagged', name: t('tags.untagged'), files: files.filter(file => !file.tags.length) }] : []];
@@ -178,5 +181,12 @@ function TagRail({ files, tags, returnFocus, onClose, onSelect, onManage }: { fi
     const viewport = rail.current?.getBoundingClientRect();
     panel.current?.querySelectorAll<HTMLElement>('.approved-tag-group').forEach(node => { const r = node.getBoundingClientRect(); const distance = Math.abs((x ?? ((viewport?.left ?? 0) + (viewport?.width ?? innerWidth) / 2)) - r.left - r.width / 2); node.style.setProperty('--magnify', String(1 + .13 * Math.max(0, 1 - distance / (r.width * 1.35)))); });
   };
-  return <Overlay label={t('readingDesk.library')} onClose={close} panelRef={panel} returnFocus={returnFocus} className="approved-tag-panel" layerClassName="approved-tag-layer"><button className="approved-icon approved-rail-back" aria-label={t('common.back')} onClick={() => void close()}><ArrowLeft size={22}/></button><div ref={rail} className="approved-tag-rail" onPointerMove={event => { if (event.pointerType === 'mouse') magnify(event.clientX); }} onPointerLeave={() => magnify()} onScroll={() => magnify()}><div className="approved-tag-track">{items.map(item => <button key={item.id} className="approved-tag-group" data-tag-id={item.id} aria-label={`${item.name} · ${item.files.length}`} onClick={() => onSelect(item.id)}><span className="approved-tag-stack" style={{ '--sheets': Math.min(8, item.files.length) } as React.CSSProperties}><MaterialCover src={item.files[0] ? materialCover(item.files[0]) : '/design/prints/16339.jpg'} identity={item.files[0]?.content_hash ?? item.id}/><strong>{item.name}</strong></span></button>)}</div></div><button className="approved-icon approved-manage" aria-label={t('approved.manage')} title={t('approved.manage')} onClick={onManage}><MoreHorizontal size={24}/></button></Overlay>;
+  return <Overlay label={t('readingDesk.library')} onClose={close} panelRef={panel} returnFocus={returnFocus} className="approved-tag-panel" layerClassName="approved-tag-layer"><button className="approved-icon approved-rail-back" aria-label={t('common.back')} onClick={() => void close()}><ArrowLeft size={22}/></button><div ref={rail} className="approved-tag-rail" onPointerMove={event => { if (event.pointerType === 'mouse') magnify(event.clientX); }} onPointerLeave={() => magnify()} onScroll={() => magnify()}><div className="approved-tag-track">{items.map(item => <button key={item.id} className="approved-tag-group" data-tag-id={item.id} aria-label={`${item.name} · ${item.files.length}`} onClick={() => onSelect(item.id)}><span className="approved-tag-stack" style={{ '--sheets': Math.min(8, item.files.length) } as React.CSSProperties}><MaterialCover src={item.files[0] ? materialCover(item.files[0]) : '/design/prints/16339.jpg'} identity={item.files[0]?.content_hash ?? item.id}/><strong>{item.name}</strong></span></button>)}</div></div></Overlay>;
+}
+
+/** The normal card remains the only navigation control; the wrapper owns hold/drag. */
+function TrashMaterial({file,enabled,children}:{file:Material;enabled:boolean;children:React.ReactNode}) {
+ const ref=useRef<HTMLDivElement>(null),deleting=useFileStore(s=>!!s.deletingFiles[file.id]);
+ useTrashDrag(ref,{id:`material:${file.id}`,label:file.name,disabled:!enabled||deleting,remove:()=>useFileStore.getState().deleteFile(file.id,file.name,'trash-drop')});
+ return <div ref={ref} className="approved-trash-material">{children}</div>;
 }

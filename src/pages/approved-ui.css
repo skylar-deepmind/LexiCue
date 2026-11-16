@@ -318,3 +318,27 @@
 /* Hidden playback buttons must not widen the collapsed grid track. */
 .figma-shell .mobile-listen-cluster { grid-template-columns:minmax(0,1fr); }
 .figma-shell .mobile-headphone-mode,.figma-shell .mobile-playback-mode { justify-self:center; }
+
+/* Product workflows share the approved shell; retired managers have no route. */
+.approved-trash-material,.approved-trash-poster { display:contents; }
+.approved-phone-column > .approved-trash-poster:last-child > .approved-poster { flex-grow:1; }
+[data-trash-source] { -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; }
+.trash-drag-layer { position:fixed; inset:0; z-index:950; pointer-events:none; background:transparent!important; }
+.trash-drag-ghost { position:fixed; transform-origin:center; pointer-events:none; opacity:.92; filter:drop-shadow(0 14px 22px #0004); }
+.trash-drag-ghost * { pointer-events:none!important; }
+.trash-drop-target { position:absolute; pointer-events:auto; bottom:max(26px,calc(env(safe-area-inset-bottom) + 18px)); left:50%; transform:translateX(-50%); width:112px; min-height:110px; border:0; border-radius:24px; background:var(--approved-card); color:var(--approved-ink); box-shadow:0 8px 32px #0003; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:7px; font:14px/1.2 system-ui; cursor:pointer; }
+.trash-drop-target svg { height:55px; width:48px; overflow:visible; }
+.trash-lid { transform-origin:9px 13px; transition:transform 130ms ease; }
+.trash-drop-target[data-open="true"] { background:var(--approved-selected); color:var(--approved-selected-ink); }
+.trash-drop-target[data-open="true"] .trash-lid { transform:translateY(-3px) rotate(-35deg); }
+.trash-drop-target:focus-visible { outline:3px solid var(--approved-focus); outline-offset:5px; }
+.trash-drop-target:disabled { cursor:wait; opacity:.8; }
+.approved-settings-paper .settings-facts { background:transparent; border:0; box-shadow:none; padding:0; }
+.approved-settings-paper .settings-facts > div { background:none; border:0; }
+@media(max-width:767px) {
+ .approved-settings-tabs { width:calc(100% + 16px); align-items:stretch; }
+ .approved-settings-tabs > button { flex:1 1 0; min-width:0; padding:8px 4px; justify-content:center; text-align:center; line-height:1.3; white-space:normal; }
+ .approved-settings-tabs > button > span { display:block; text-align:center; width:100%; }
+}
+@media(prefers-reduced-motion:reduce) { .trash-lid { transition:none; } }
+.approved-reading-hold { position:fixed; inset:0; z-index:799; background:transparent!important; pointer-events:none; overflow:hidden; }

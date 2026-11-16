@@ -2020,6 +2020,8 @@
     "loadFailed": "暂时无法加载收藏，请重试。",
     "manageSaved": "管理收藏",
     "youtubePrivacy": "仅在本机读取登录会话，不导出或同步 Cookie。",
-    "youtubeAdvanced": "高级选项"
+    "youtubeAdvanced": "高级选项",
+    "dragToTrash": "拖入删除",
+    "releaseDelete": "松手删除"
   }
 }

@@ -302,7 +302,7 @@ export const useImportStore = create<{
                 const paths = await open(materialPickerOptions());
                 if (token !== pickerGeneration || !paths) return;
                 await get().start((Array.isArray(paths) ? paths : [paths]).map(path => pickedMaterialSource(path, readDocumentFile)));
-            } catch { if (token === pickerGeneration) set({ pickerError: true }); }
+            } catch { if (token === pickerGeneration) { set({ pickerError: true }); useFeedbackStore.getState().show(i18n.t('materials.importDialog.pickerFailed'),'error'); } }
             finally { if (token === pickerGeneration) set({ picking: false }); }
         },
         fromYouTube: async input => {
@@ -337,7 +337,7 @@ export const useImportStore = create<{
         },
         cancel: () => {
             if (get().phase === 'committing') { set({ stopping: true }); controller?.abort(); }
-            else { abandonPreparation(); set({ ...empty, open: true }); }
+            else { abandonPreparation(); set({ ...empty, open: false }); }
         },
         retry: async () => {
             if (get().running) return;

@@ -6,9 +6,8 @@ import Layout from './components/Layout';
 import FilesPage from './pages/FilesPage';
 import FileDetailPage from './pages/FileDetailPage';
 import SettingsPage from './pages/SettingsPage';
-import SavedPage from './pages/SavedArchivePage';
+import SavedArchivePage from './pages/SavedArchivePage';
 import LegacyPage from './pages/LegacyPage';
-import ExamplePage from './pages/ExamplePage';
 import { ThemeProvider } from './components/ThemeProvider';
 import { legacyReadingRoute } from './lib/fileProgress';
 
@@ -31,7 +30,7 @@ export default function App() {
         <Routes>
           <Route element={<Layout />}>
             <Route path="/" element={<Navigate to="/files" replace/>} />
-            <Route path="/example" element={<ExamplePage />} />
+            <Route path="/example" element={<Navigate to="/files" replace />} />
             <Route path="/files" element={<FilesPage />} />
             <Route path="/files/:fileId" element={<FileDetailPage />} />
             <Route path="/words" element={<Navigate to="/legacy?kind=words" replace />} />
@@ -40,7 +39,7 @@ export default function App() {
             <Route path="/review" element={<Navigate to="/legacy?kind=reviews" replace />} />
             <Route path="/insights" element={<Navigate to="/legacy?kind=review_logs" replace />} />
             <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/saved" element={<SavedPage />} />
+            <Route path="/saved" element={<SavedArchivePage />} />
             <Route path="/legacy" element={<LegacyPage />} />
           </Route>
         </Routes>

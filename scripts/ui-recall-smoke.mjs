@@ -1,3 +1,4 @@
+import {keyboardTrash} from './ui-trash-support.mjs';
 /** Real isolated SQLite and compiled matching Worker; 10k synthetic source records, no user data. */
 import assert from 'node:assert/strict';
 import { readFile,writeFile } from 'node:fs/promises';
@@ -91,7 +92,7 @@ try{
   await clickMatch(page,40,'take off'); await openRecords(page);
   const multiHistory=page.locator('.soft-refresh-current:not([inert])');
   const previousContexts=await call('saved_recall_contexts',{expression:'take off',offset:0,limit:50});
-  await multiHistory.getByRole('button',{name:'移除这句',exact:true}).first().click();
+  await keyboardTrash(page,multiHistory.locator('.saved-sentence-original').first());
   await multiHistory.locator('.recall-undo').waitFor();
   eq((await call('saved_recall_contexts',{expression:'take off',offset:0,limit:50})).total,previousContexts.total-1,'lookup removal keeps the other original sentences');
   await multiHistory.locator('.recall-undo').getByRole('button',{name:'撤销',exact:true}).click();
@@ -101,7 +102,7 @@ try{
   // The lookup itself can remove one historical sentence and undo even the final context.
   await clickMatch(page,8,'curiosity'); await openRecords(page);
   const lookupHistory=page.locator('.soft-refresh-current:not([inert])');
-  await lookupHistory.getByRole('button',{name:'移除这句',exact:true}).click();
+  await keyboardTrash(page,lookupHistory.locator('.saved-sentence-original').first());
   await lookupHistory.locator('.recall-undo').waitFor();
   await lookupHistory.locator('.saved-sentence').waitFor({state:'detached'});
   eq((await call('saved_recall_contexts',{expression:'curiosity',offset:0,limit:10})).total,0,'lookup removes only its final saved sentence');
@@ -110,9 +111,9 @@ try{
   await lookupHistory.locator('.saved-sentence').waitFor();
   eq((await call('saved_recall_contexts',{expression:'curiosity',offset:0,limit:10})).records[0].sentence,curiosity.sentence,'lookup undo restores exact original');
   await page.evaluate(()=>window.__uiFailure={command:'mutate_saved_record',afterCommit:true,remaining:1});
-  await lookupHistory.getByRole('button',{name:'移除这句',exact:true}).click();
+  await keyboardTrash(page,lookupHistory.locator('.saved-sentence-original').first());
   await page.locator('.lookup-write-error.saved-error').waitFor();
-  await lookupHistory.getByRole('button',{name:'移除这句',exact:true}).click();
+  await keyboardTrash(page,lookupHistory.locator('.saved-sentence-original').first());
   await lookupHistory.locator('.recall-undo').waitFor();
   await lookupHistory.locator('.recall-undo').getByRole('button',{name:'撤销',exact:true}).click();
   await lookupHistory.locator('.saved-sentence').waitFor();
@@ -121,8 +122,13 @@ try{
   // A failed index/Worker disables stale decoration and exposes a real retry.
   await page.evaluate(()=>{window.__uiFailure={command:'saved_recall_catalog',afterCommit:false,remaining:1};window.dispatchEvent(new Event('lexicue-saved-changed'));});await page.locator('.reading-paper[data-recall-state="failed"]').waitFor();eq(await page.locator('.reading-word--recalled').count(),0,'index failure has no stale marks');await page.locator('.reading-recall-error').getByRole('button',{name:'重试',exact:true}).click();await ready(page);
   await page.evaluate(async()=>{const {usePreferencesStore}=await window.__uiStoreModule('preferencesStore');usePreferencesStore.getState().setReencounterHints(false);});await page.evaluate(()=>{window.__NativeWorker=window.Worker;window.Worker=class extends window.Worker{constructor(url,options){if(String(url).includes('recallWorker'))throw Error('fixture unavailable worker');super(url,options);}};});await page.evaluate(async()=>{const {usePreferencesStore}=await window.__uiStoreModule('preferencesStore');usePreferencesStore.getState().setReencounterHints(true);});await page.locator('.reading-paper[data-recall-state="failed"]').waitFor();eq(await page.locator('.reading-word--recalled').count(),0,'worker failure does not block plain reading');await page.evaluate(()=>{window.Worker=window.__NativeWorker;});await page.locator('.reading-recall-error').getByRole('button',{name:'重试',exact:true}).click();await ready(page);
-  // Existing saved management archives before paging and preserves individual edits/removal.
-  await page.locator('.reading-breadcrumb .page-back').click();await page.locator('.approved-saved-entry').click();await page.locator('.approved-saved-folio').waitFor();await page.locator('.approved-folio-menu').hover();await page.getByRole('link',{name:'管理收藏',exact:true}).click();await page.locator('.saved-record-row').first().waitFor();ok(await page.locator('.saved-record-row').count()<=50,'10k archive renders a bounded word page');await page.getByRole('searchbox').fill('curiosity');await page.waitForFunction(()=>document.querySelectorAll('.saved-record-row').length===1);eq(await page.locator('.saved-record-term').innerText(),'curiosity','10k archive search returns correct word');await page.locator('.saved-record-open').click();await page.locator('.saved-context-entry').waitFor();await page.getByRole('button',{name:'补充个人解释',exact:true}).click();await page.getByRole('textbox',{name:'个人解释',exact:true}).fill('个人修订：好奇心');await page.getByRole('button',{name:'保存解释',exact:true}).click();await page.getByRole('textbox',{name:'个人解释',exact:true}).waitFor({state:'detached'});await page.getByRole('button',{name:'移除这句',exact:true}).click();await page.locator('.saved-record-row').waitFor({state:'detached'});await page.getByRole('button',{name:'撤销',exact:true}).click();await page.locator('.saved-record-row').waitFor();const curiosityCard=page.locator('.saved-record-open');if(await curiosityCard.getAttribute('aria-expanded')!=='true') await curiosityCard.click();eq(await page.locator('.saved-disclosure[data-open=true] .saved-sentence-note').innerText(),'个人修订：好奇心','remove/undo preserves the individual personal explanation');await page.goto(`${url}/files/${current.file_id}`);await ready(page);while(!await page.locator('[data-sentence="8"]').count()) await page.getByRole('button',{name:'前面的原文',exact:true}).click();await page.locator('[data-sentence="8"] .reading-word--recalled').first().waitFor();await clickMatch(page,8,'curiosity');await page.locator('.lookup-fixed-header [data-testid=lookup-records-tab]').waitFor();await openRecords(page);eq(await page.locator('.soft-refresh-current:not([inert]) .saved-sentence-note').first().innerText(),'个人修订：好奇心','returning to reading sees historical personal revision');await close(page);
+  // The approved archive owns bounded paging, searching, editing, deletion and undo.
+  await page.locator('.reading-breadcrumb .page-back').click();await page.locator('.approved-saved-entry').click();await page.locator('.approved-saved-folio').waitFor();await page.waitForFunction(()=>!document.querySelector('.approved-saved-flight'));
+  ok(await page.locator('.approved-saved-word').count()<=200,'10k archive renders a bounded word page');
+  await page.locator('.approved-saved-search button').click();await page.getByRole('searchbox').fill('curiosity');await page.waitForFunction(()=>document.querySelectorAll('.approved-saved-word').length===1);eq(await page.locator('.approved-saved-word > span').innerText(),'curiosity','10k archive search returns correct word');
+  await page.locator('.approved-folio-note').click();await page.getByRole('textbox',{name:'个人解释',exact:true}).fill('个人修订：好奇心');await page.getByRole('button',{name:'保存解释',exact:true}).click();await page.getByRole('textbox',{name:'个人解释',exact:true}).waitFor({state:'detached'});
+  await keyboardTrash(page,page.locator('.approved-folio-sentence'));await page.locator('.approved-saved-folio').waitFor({state:'detached'});await page.getByRole('button',{name:'撤销',exact:true}).click();await page.locator('.approved-saved-folio').waitFor();ok((await page.locator('.approved-folio-note').innerText()).includes('个人修订：好奇心'),'remove/undo preserves the individual personal explanation');
+  await page.goto(`${url}/files/${current.file_id}`);await ready(page);while(!await page.locator('[data-sentence="8"]').count())await page.getByRole('button',{name:'前面的原文',exact:true}).click();await page.locator('[data-sentence="8"] .reading-word--recalled').first().waitFor();await clickMatch(page,8,'curiosity');await page.locator('.lookup-fixed-header [data-testid=lookup-records-tab]').waitFor();await openRecords(page);eq(await page.locator('.soft-refresh-current:not([inert]) .saved-sentence-note').first().innerText(),'个人修订：好奇心','returning to reading sees historical personal revision');await close(page);
   // Cold full reload includes DB index transport, Worker compilation and clickable decoration.
   for(let i=0;i<20;i++){await page.reload();await ready(page);await page.waitForFunction(()=>window.__recallPerf.mark);const sample=await page.evaluate(()=>({duration:window.__recallPerf.mark-window.__recallPerf.text,tasks:window.__recallTasks.filter(e=>e.start>=window.__recallPerf.text&&e.start<=window.__recallPerf.mark)}));timings.push({theme,ms:sample.duration});longTasks.push(...sample.tasks);}
   // Capture browser paint directly: Playwright selector polling can observe a

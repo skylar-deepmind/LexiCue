@@ -16,10 +16,10 @@ const writes=()=>page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='impor
 const drop=files=>page.evaluate(files=>{const dataTransfer=new DataTransfer();for(const[name,text]of files)dataTransfer.items.add(new File([text],name));window.dispatchEvent(new DragEvent('drop',{dataTransfer,bubbles:true,cancelable:true}));},files);
 const preview=async()=>{await page.locator('.approved-import-preview').waitFor();if(!await page.locator('.approved-import-preview').evaluate(n=>n.open))await page.locator('.approved-import-preview > summary').click();await page.locator('.lc-import-preview').waitFor();};
 const settle=()=>page.locator('.lc-import-modal').evaluate(node=>Promise.all(node.getAnimations({subtree:true}).filter(a=>a.effect.getComputedTiming().iterations!==Infinity).map(a=>a.finished.catch(()=>{}))));
-const close=async()=>{await page.keyboard.press('Escape');await page.locator('.lc-import-modal').waitFor({state:'detached'});};
+const close=async()=>{if(await page.locator('.lc-import-modal').count()){await page.keyboard.press('Escape');await page.locator('.lc-import-modal').waitFor({state:'detached'});}};
 const open=async()=>{
  if(new URL(page.url()).pathname!=='/files'){await page.locator('.reading-breadcrumb .page-back').click();await page.locator('.approved-desk').waitFor();}
- await page.evaluate(async()=>{const {useImportStore}=await window.__uiStoreModule('importStore');useImportStore.getState().show();});
+ if(await page.locator('.approved-tag-panel').count()){await page.keyboard.press('Escape');await page.locator('.approved-tag-panel').waitFor({state:'detached'});}
 };
 const confirm=()=>page.getByRole('button',{name:/^确认导入/}).click();
 async function contrast(locator,label){const value=await locator.evaluate(async node=>{
@@ -28,7 +28,7 @@ async function contrast(locator,label){const value=await locator.evaluate(async 
  const rgb=v=>v.match(/[\d.]+/g).map(Number),lum=c=>c.slice(0,3).map(n=>{n/=255;return n<=.04045?n/12.92:((n+.055)/1.055)**2.4;}).reduce((v,n,i)=>v+n*[.2126,.7152,.0722][i],0);
  let p=node,bg;do{bg=rgb(getComputedStyle(p).backgroundColor);p=p.parentElement;}while(p&&(bg[3]??1)===0);const a=lum(rgb(getComputedStyle(node).color)),b=lum(bg);return(Math.max(a,b)+.05)/(Math.min(a,b)+.05);
 });contrasts.push({label,ratio:value});ok(value>=4.5,`${label}: ${value.toFixed(2)}:1`);}
-async function youtube(info,prepared){await page.evaluate(({info,prepared})=>{window.__youtube={info,prepared};window.__clipboardText='https://www.youtube.com/watch?v=abcdefghijk';},{info,prepared});await open();await page.locator('.lc-import-modal').getByRole('button',{name:'读取剪贴板',exact:true}).click();}
+async function youtube(info,prepared){await page.evaluate(({info,prepared})=>{window.__youtube={info,prepared};window.__clipboardText='https://www.youtube.com/watch?v=abcdefghijk';},{info,prepared});await open();await page.getByRole('button',{name:'读取剪贴板',exact:true}).click();}
 
 try{
  for(const theme of ['sage','midnight']){
@@ -71,25 +71,11 @@ try{
    };
   });
   await page.goto(`${url}/files`);await page.locator('.approved-desk').waitFor();
-  await open();await settle();eq(await page.locator('#root').evaluate(n=>n.inert),true,'modal background inert');
-  eq(await page.locator('.context-panel').count(),0,'import does not use context panel');eq(await page.locator('.b-shell').getAttribute('data-context-open'),'false','import never shifts reading workspace');
-  eq(await page.locator('.lc-import-modal textarea').count(),0,'entry starts with two actions, not a text form');
-  const sources=page.locator('.lc-import-source');await contrast(sources.first().locator('strong'),`${theme} source default`);await sources.first().hover();await contrast(sources.first().locator('strong'),`${theme} source hover`);
-  await page.keyboard.press('Tab');await sources.first().focus();eq(await sources.first().evaluate(n=>getComputedStyle(n).boxShadow.includes('inset')),true,'keyboard focus visible');
-  await page.locator('.lc-import-close').focus();await page.keyboard.press('Shift+Tab');ok(await sources.last().evaluate(n=>n===document.activeElement),'reverse focus loop');await page.keyboard.press('Tab');ok(await page.locator('.lc-import-close').evaluate(n=>n===document.activeElement),'forward focus loop');
-  eq(await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='plugin:clipboard-manager|read_text').length),0,'opening never reads clipboard');
-  ok(!(await page.locator('.lc-import-modal').innerText()).includes('TXT'),'compact entry has no type or marketing copy');
-  ok((await page.locator('.lc-import-modal').innerText()).includes('支持英文文本、网页和 YouTube 链接'),'entry explains supported content without a type-selection flow');
-  ok(await page.locator('.lc-import-modal').evaluate(n=>{const r=n.getBoundingClientRect();return r.width<=356&&r.height<230;}),'symmetric compact entry dimensions');
-  ok(await page.locator('.lc-import-close').evaluate(n=>{const r=n.getBoundingClientRect();return r.width===r.height&&r.height<=36;}),'desktop close control remains compact and square');
-  await page.screenshot({path:`${output}/${theme}-sources.png`});
-  const exiting=await page.locator('.lc-import-close').evaluate(n=>{
-   n.click();return new Promise(resolve=>requestAnimationFrame(()=>{const panel=document.querySelector('.lc-import-modal');resolve({mounted:!!panel,animated:panel?.getAnimations().some(a=>a.playState==='running'),inert:document.querySelector('#root').inert});}));
-  });
-  eq(exiting,{mounted:true,animated:true,inert:true},'close animates before unmount and retains focus ownership');
-  await page.locator('.lc-import-modal').waitFor({state:'detached'});ok(await page.evaluate(()=>!document.querySelector('#root').inert),'background interaction restored');
-  await open();eq(await page.evaluate(()=>window.__lexicueBack()),true,'system back handled');await page.locator('.lc-import-modal').waitFor({state:'detached'});
-  await page.evaluate(text=>window.__uiFiles={'/fixture/真实英语.srt':text},flight);await open();await page.locator('.lc-import-modal').getByRole('button',{name:'选择文件',exact:true}).click();await preview();await settle();
+  await page.getByRole('button',{name:'选择文件',exact:true}).click();eq(await page.locator('.lc-import-modal').count(),0,'cancelled direct file picker leaves no old source chooser');eq(await page.locator('#root').evaluate(n=>n.inert),false,'cancelled picker leaves the workspace interactive');
+  eq(await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='plugin:clipboard-manager|read_text').length),0,'file entry never reads clipboard');
+  await page.evaluate(text=>window.__uiFiles={'/fixture/真实英语.srt':text},flight);await page.getByRole('button',{name:'选择文件',exact:true}).click();await preview();await settle();
+  eq(await page.locator('#root').evaluate(n=>n.inert),true,'prepared-content modal owns focus');eq(await page.locator('.context-panel').count(),0,'import does not use context panel');eq(await page.locator('.b-shell').getAttribute('data-context-open'),'false','import never shifts reading workspace');
+  await page.locator('.lc-import-close').focus();await page.keyboard.press('Tab');ok(await page.locator('.lc-import-modal').evaluate(n=>n.contains(document.activeElement)),'prepared-content dialog retains keyboard ownership');
   eq((await writes()).length,0,'native picker boundary has zero writes before confirmation');eq((await call('test_counts')).files,0,'no material before confirmation');
   ok((await page.locator('.lc-import-preview').innerText()).includes('take off'),'real English excerpt');eq((await page.locator('.lc-import-excerpts').innerText()).split('飞机很快就要起飞了。').length-1,1,'existing Chinese appears once in the original source block');ok((await page.locator('.lc-import-excerpts').innerText()).includes('Curiosity helps us make sense of new ideas.'),'full local preview includes the final cue, beyond the former three-sentence excerpt');
   await contrast(page.locator('.lc-import-preview-source'),`${theme} source metadata`);await contrast(page.getByRole('button',{name:/^确认导入/}),`${theme} primary default`);await page.getByRole('button',{name:/^确认导入/}).hover();await contrast(page.getByRole('button',{name:/^确认导入/}),`${theme} primary hover`);
@@ -101,7 +87,7 @@ try{
   await page.getByRole('button',{name:/^确认导入/}).evaluate(n=>{n.click();n.click();});await page.waitForURL(/\/files\/\d+$/);await page.locator('.reading-word').first().waitFor();
   eq((await writes()).length,1,'double confirmation invokes write once');eq((await writes())[0].args.input.content,beforeDraft.content,'submitted normalized content exactly matches frozen preview');eq((await writes())[0].args.input.segments,beforeDraft.segments,'submitted sentences exactly match frozen preview');eq((await writes())[0].args.input.document.source_sha256,createHash('sha256').update(flight).digest('hex'),'original file byte identity retained separately');eq((await writes())[0].args.input.document.original_format,'srt','original format retained despite normalized storage');eq((await call('test_counts')).files,1,'one material committed');
   await page.evaluate(async () => { await document.fonts.ready; await Promise.all(document.getAnimations().filter(a => a.effect?.getComputedTiming().iterations !== Infinity).map(a => a.finished.catch(() => {}))); });
-  const readingBounds=await page.locator('.reading-original').first().boundingBox();eq(await page.locator('.reading-page').getByRole('button',{name:'导入',exact:true}).count(),0,'reading content has no import button');await page.evaluate(async()=>{const {useImportStore}=await window.__uiStoreModule('importStore');useImportStore.getState().show();});await settle();eq(await page.locator('.reading-original').first().boundingBox(),readingBounds,'reader dimensions unchanged while import open');await close();
+  const readingBounds=await page.locator('.reading-original').first().boundingBox();eq(await page.locator('.reading-page').getByRole('button',{name:'导入',exact:true}).count(),0,'reading content has no import button');await page.evaluate(async()=>{window.dispatchEvent(new CustomEvent('lexicue-import-content',{detail:null}));const {useImportStore}=await window.__uiStoreModule('importStore');useImportStore.getState().show();});await settle();eq(await page.locator('.reading-original').first().boundingBox(),readingBounds,'reader dimensions unchanged while manual clipboard recovery is open');await close();
   await drop([['duplicate.srt',flight],['empty.srt',''],['second.srt',srt('A second material is ready.','第二份材料已经准备好了。')]]);await preview();
   eq((await writes()).length,1,'browser drop prepares without writing');eq((await call('test_counts')).files,1,'browser drop does not mutate database');
   await page.locator('.lc-import-item-select').last().click();ok((await page.locator('.lc-import-preview').innerText()).includes('A second material is ready.'),'each valid file has its own real preview');
@@ -147,12 +133,12 @@ try{
   while(shown<95){await page.locator('.lc-document-preview').evaluate(n=>{n.scrollTop=n.scrollHeight;});await page.waitForFunction(count=>document.querySelectorAll('.lc-document-preview [data-block]').length>count,shown);shown=await page.locator('.lc-document-preview [data-block]').count();}
   ok((await page.locator('.lc-document-preview').innerText()).includes('paragraph 95'),'scroll reaches final original paragraph');
   await page.locator('.lc-document-preview').focus();ok(await page.locator('.lc-document-preview').evaluate(n=>n===document.activeElement),'preview retains keyboard access');await close();
-  await page.evaluate(value=>{window.__youtube={info:value,hold:true};window.__clipboardText='https://youtu.be/abcdefghijk';},info);await open();await page.locator('.lc-import-modal').getByRole('button',{name:'读取剪贴板',exact:true}).click();await page.waitForFunction(()=>typeof window.__releaseYouTube==='function');await close();await open();await page.evaluate(()=>window.__releaseYouTube());await page.waitForTimeout(80);await page.locator('.lc-import-sources').waitFor();eq(await page.locator('.lc-import-tracks').count(),0,'late query never revives its closed source');await close();
+  await page.evaluate(value=>{window.__youtube={info:value,hold:true};window.__clipboardText='https://youtu.be/abcdefghijk';},info);await open();await page.getByRole('button',{name:'读取剪贴板',exact:true}).click();await page.waitForFunction(()=>typeof window.__releaseYouTube==='function');await close();await open();await page.evaluate(()=>window.__releaseYouTube());await page.waitForTimeout(80);eq(await page.locator('.lc-import-modal').count(),0,'late query never revives its closed source');
   // Explicit clipboard action: one native read and one lookup, no import before confirmation.
   await page.evaluate(info=>{window.__clipboardText='https://youtu.be/abcdefghijk';window.__youtube={info};},info);
   const clipBefore=await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='plugin:clipboard-manager|read_text').length);
   const listBefore=await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='youtube_list_subs').length);
-  await open();await page.locator('.lc-import-modal').getByRole('button',{name:'读取剪贴板',exact:true}).evaluate(n=>{n.click();n.click();});await page.locator('.lc-import-tracks').waitFor();
+  await open();await page.getByRole('button',{name:'读取剪贴板',exact:true}).evaluate(n=>{n.click();n.click();});await page.locator('.lc-import-tracks').waitFor();
   eq(await page.getByLabel('链接',{exact:true}).inputValue(),'https://youtu.be/abcdefghijk','clipboard link is used automatically');
   eq(await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='plugin:clipboard-manager|read_text').length),clipBefore+1,'double paste reads once');
   eq(await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='youtube_list_subs').length),listBefore+1,'valid clipboard starts one lookup');
@@ -160,14 +146,14 @@ try{
   for(const [text,fail,message]of [['https://',false,'链接格式不完整，请修改或重新粘贴。'],[null,false,'未读到文字，请先复制英文或链接；图片或文件请使用选择文件。'],[null,true,'无法读取剪贴板，请在下方手动粘贴。']]){
    await page.evaluate(({text,fail})=>{window.__clipboardText=text;window.__clipboardFail=fail;},{text,fail});
    const before=await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='youtube_list_subs').length);
-   await open();await page.locator('.lc-import-modal').getByRole('button',{name:'读取剪贴板',exact:true}).click();await page.getByText(message,{exact:true}).waitFor();
+   await open();await page.getByRole('button',{name:'读取剪贴板',exact:true}).click();await page.getByText(message,{exact:true}).waitFor();
    eq(await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='youtube_list_subs').length),before,'invalid or unavailable clipboard stays local');
    if(text||fail)ok(await page.getByLabel('英文正文或链接',{exact:true}).isVisible(),'manual fallback remains available');await close();
   }
   await page.evaluate(()=>{window.__clipboardFail=false;window.__clipboardHold=true;window.__clipboardText='https://youtu.be/abcdefghijk';});
-  await open();await page.locator('.lc-import-modal').getByRole('button',{name:'读取剪贴板',exact:true}).click();await page.getByRole('button',{name:'读取中…',exact:true}).waitFor();await contrast(page.getByRole('button',{name:'读取中…',exact:true}),`${theme} clipboard disabled`);
-  await close();await open();await page.evaluate(()=>{window.__clipboardHold=false;window.__releaseClipboard();});await page.waitForTimeout(70);
-  eq(await page.locator('.lc-import-sources').count(),1,'late clipboard result cannot replace a reopened entry');await close();
+  await open();await page.getByRole('button',{name:'读取剪贴板',exact:true}).click();await page.locator('.clipboard-import[aria-busy=true]').waitFor();ok(await page.locator('.clipboard-import').isDisabled(),'pending clipboard action cannot be submitted twice');
+  await page.getByRole('button',{name:'设置',exact:true}).click();await page.locator('.approved-settings-back').click();await page.evaluate(()=>{window.__clipboardHold=false;window.__releaseClipboard();});await page.waitForTimeout(70);
+  eq(await page.locator('.lc-import-modal').count(),0,'late clipboard result cannot replace a departed home entry');
   // Import finishes the entire translation before the frozen preview is ready.
   const translationRequestsBeforeLocal=await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='translate_import_sentences').length);
   await drop([['book.txt','Dr. Smith bought a book. She read it yesterday.']]);await preview();
@@ -212,7 +198,7 @@ try{
    ok(await page.locator('.lc-import-body').evaluate(n=>n.scrollWidth<=n.clientWidth+1),'body has no horizontal overflow');
    await page.screenshot({path:`${output}/${theme}-${width}x${height}-${scale}x.png`});
   }
-  await page.evaluate(()=>document.documentElement.style.fontSize='100%');await page.setViewportSize({width:1440,height:900});await close();await page.emulateMedia({reducedMotion:'reduce'});await open();eq(await page.locator('.lc-import-modal').evaluate(n=>getComputedStyle(n).animationName),'none','reduced motion modal');await close();
+  await page.evaluate(()=>document.documentElement.style.fontSize='100%');await page.setViewportSize({width:1440,height:900});await close();await page.emulateMedia({reducedMotion:'reduce'});await open();await page.getByRole('button',{name:'选择文件',exact:true}).click();eq(await page.locator('.lc-import-modal').count(),0,'reduced motion also uses the direct picker without a source modal');
   await page.evaluate(async()=>{const{useImportStore}=await window.__uiStoreModule('importStore');void useImportStore.getState().start([{name:'reduced.srt',read:()=>new Promise(done=>window.__reducedRead=done)}]);});await page.locator('.lc-import-paper-character').waitFor();eq(await page.locator('.lc-import-paper-character').evaluate(n=>getComputedStyle(n).animationName),'none','reduced motion paper');await close();await page.evaluate(()=>window.__reducedRead(''));await context.close();
  }
  eq(errors,[],'no browser exceptions');await writeFile(`${output}/evidence.json`,JSON.stringify({checks,themes:['sage','midnight'],contrasts,errors,nativeBoundary:'simulated OS picker/drop/chunked FS IPC, YouTube and translation-service responses; actual document/SRT Workers, Rust transactions, explicit reading translation writeback and temporary SQLite'},null,2));console.log(`Import UI: ${checks} checks passed. Evidence: ${output}`);

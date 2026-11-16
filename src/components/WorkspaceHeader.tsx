@@ -27,7 +27,7 @@ export default function WorkspaceHeader() {
         {!isTauri() && <header className="b-header"><span className="workspace-title">LexiCue</span></header>}
         <header className="mobile-workspace-header">
             {sourceBack ? <PageBack fallback={pathname==='/legacy'?'/settings?section=backup':'/files'}/> : <span>LexiCue</span>}
-            <div>{importing && !empty && <button data-guide="import" type="button" aria-label={t('materials.import')} title={t('materials.import')} onClick={event => { rememberImportFocus(event.currentTarget); useImportStore.getState().show(); }}><Plus size={22} aria-hidden="true"/></button>}
+            <div>{importing && !empty && <button data-guide="import" type="button" aria-label={t('materials.import')} title={t('materials.import')} onClick={event => { rememberImportFocus(event.currentTarget); if(useImportStore.getState().running)useImportStore.getState().show();else void useImportStore.getState().choose(); }}><Plus size={22} aria-hidden="true"/></button>}
                 <VisitLink className="mobile-settings-link" to="/settings" aria-label={t('sidebar.settings')} title={t('sidebar.settings')} onClick={() => useImportStore.getState().hide()}><span className="mobile-settings-icon" aria-hidden="true"/></VisitLink>
             </div>
         </header>

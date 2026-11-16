@@ -56,7 +56,7 @@ export const manualContent={
           "title": "Supported materials",
           "body": [
             "File import supports PDF, DOCX, EPUB, Markdown, TXT, SRT and VTT. Scanned PDFs without extractable text, encrypted files and protected books may not import; inspect the preview before saving.",
-            "Paste English text or a webpage link through the same import entry. If a webpage cannot be extracted, copy its visible English text and paste that instead. Learning is English only; interface language is a separate setting."
+            "Use the clipboard button for English text, webpage links or YouTube links. The separate file button opens the system file picker directly. If a webpage cannot be extracted, copy its visible English text instead. Learning is English only; interface language is a separate setting."
           ],
           "steps": []
         },
@@ -64,8 +64,8 @@ export const manualContent={
           "id": "tags",
           "title": "Desk, library and tags",
           "body": [
-            "Keep current reading on the desk. Put a material away to the library, bring it back later, search by title or filter with tags. Tag colors help identify groups; removing a tag does not remove its materials. Choose Delete material in a material’s More menu to remove its reading content after confirmation. Saved sentences, meanings and notes remain available.",
-            "The library shows 20 items per page. Search titles or sources, filter by tags and change sorting from the heading. Enter a page number to jump. Deleting a material preserves saved sentences, meanings and notes; returning to its deleted original is unavailable."
+            "Keep current reading on the desk. Open the library and choose a tag to browse its poster wall. Opening a poster brings the material back to the desk.",
+            "To delete a material, hold its card, drag it over the trash basket and release when the lid opens. Release elsewhere to cancel. Saved sentences, meanings and notes remain available; a deleted source can no longer be opened."
           ],
           "steps": [],
           "image": "files"
@@ -149,8 +149,8 @@ export const manualContent={
           "id": "organize",
           "title": "Edit a context",
           "body": [
-            "Update your note or explanation on the relevant saved record. Choose “Remove this sentence” beside a context in Saved or in the lookup card’s My records tab, then Undo to restore it. Other contexts for the same expression remain separate.",
-            "After scrolling Saved, use the floating page control at the bottom to jump directly to a page. Expressions and their contexts are paged separately. Swipe an expression left, then tap the trash icon to delete the expression and all its sentences, meanings and notes. Undo in the small floating notice restores them together. The original material remains. Removing one sentence keeps the others."
+            "Edit your personal explanation on the relevant context. Search Saved by expression or narrow it with the date chart, then browse the expression’s contexts.",
+            "To remove one saved sentence, hold the sentence and drag it to the trash basket. Release when the lid opens; release elsewhere to cancel. Undo restores that context. Other contexts and the original material remain. You can also hold and then tap the basket, or focus the sentence and press Delete followed by Enter; Escape cancels."
           ],
           "steps": []
         },
@@ -403,7 +403,7 @@ export const manualContent={
           "title": "支持的材料",
           "body": [
             "支持 PDF、DOCX、EPUB、Markdown、TXT、SRT、VTT。无可提取文字的扫描 PDF、加密文件和受保护书籍可能无法导入，保存前请检查预览。",
-            "同一导入入口可粘贴英文正文或网页链接；网页无法提取时，可复制可见英文正文再粘贴。学习目标仅为英语，界面语言另行设置。"
+            "剪贴板按钮用于英文正文、网页或 YouTube 链接；独立的文件按钮直接打开系统文件管理。网页无法提取时，可复制可见英文正文。学习目标仅为英语，界面语言另行设置。"
           ],
           "steps": []
         },
@@ -411,8 +411,8 @@ export const manualContent={
           "id": "tags",
           "title": "桌面、材料库与标签",
           "body": [
-            "正在读的材料留在桌面，暂时不读的收进材料库，之后可以重新放回。按标题搜索或用标签筛选，颜色帮助区分材料组；删除标签不会删除材料。材料的“更多”菜单提供“删除材料”，确认后删除阅读内容，已保存的原句、释义和笔记仍保留。",
-            "材料库每页显示 20 项，可搜索标题或来源、按标签筛选，并从标题栏调整排序。点击页码可直接跳页。删除材料会保留已保存的原句、释义和笔记，但无法再返回被删除的原文。"
+            "正在读的材料留在桌面。打开材料库、选择标签后，可在海报墙浏览材料；打开海报会把材料放回桌面。",
+            "长按材料卡片，拖到垃圾篓，盖子打开后松手即删除；在其他位置松手则取消。已保存的原句、释义和笔记仍保留，但无法再打开已删除的来源。"
           ],
           "steps": [],
           "image": "files"
@@ -496,8 +496,8 @@ export const manualContent={
           "id": "organize",
           "title": "编辑一条语境",
           "body": [
-            "在对应收藏记录修改注释或解释。在“已保存”或查词卡片的“我的记录”中，点击原句旁的“移除这句”，可用“撤销”恢复。同一表达的其他语境各自独立。",
-            "下滑后，底部圆角悬浮页码可直接跳页。词条和词条内的语境分别分页。左滑整个词条，再点垃圾桶，可删除这个词条及其全部例句、释义和笔记；小型浮动通知中的“撤销”可一起恢复。原材料不会被删除。只移除一条例句时，其他例句仍保留。"
+            "在对应语境修改个人解释。可搜索表达或用日期图缩小范围，再翻阅同一表达的各条语境。",
+            "长按原句并拖到垃圾篓，盖子打开后松手即可移除这一句；在其他位置松手则取消。“撤销”可恢复这条语境，其他语境和原材料仍保留。也可长按后点击垃圾篓；键盘聚焦原句后，按 Delete 再按 Enter 确认，Esc 取消。"
           ],
           "steps": []
         },
@@ -750,7 +750,7 @@ export const manualContent={
           "title": "対応する素材",
           "body": [
             "PDF、DOCX、EPUB、Markdown、TXT、SRT、VTTに対応。文字抽出できないスキャンPDF、暗号化ファイル、保護された書籍は取り込めない場合があります。保存前にプレビューを確認してください。",
-            "同じ入口から英語の本文やWebリンクを貼り付けられます。抽出できないページは、表示された英文をコピーして取り込みます。学習対象は英語で、表示言語は別設定です。"
+            "クリップボードボタンは英語本文、Web・YouTubeリンク用です。別のファイルボタンでシステムのファイル選択を直接開きます。抽出できないページは表示された英文をコピーしてください。学習対象は英語で、表示言語は別設定です。"
           ],
           "steps": []
         },
@@ -758,8 +758,8 @@ export const manualContent={
           "id": "tags",
           "title": "デスク・ライブラリ・タグ",
           "body": [
-            "今読む素材はデスクに置き、後で読むものはライブラリにしまいます。タイトル検索や色付きタグで探せます。タグを削除しても素材は残ります。",
-            "ライブラリは1ページ20件です。タイトルや出典の検索、タグの絞り込み、見出しからの並び替え、ページ番号での移動ができます。資料を削除しても保存した原文・意味・メモは残りますが、削除した資料の原文には戻れません。"
+            "今読む素材はデスクに置きます。ライブラリでタグを選ぶとポスター一覧が開きます。ポスターを開くと素材がデスクに戻ります。",
+            "素材のカードを長押ししてごみ箱へドラッグし、ふたが開いたら離すと削除します。それ以外の場所で離すとキャンセルします。保存した文・意味・メモは残りますが、削除した出典は開けなくなります。"
           ],
           "steps": [],
           "image": "files"
@@ -843,8 +843,8 @@ export const manualContent={
           "id": "organize",
           "title": "文脈を編集する",
           "body": [
-            "該当する記録のメモや説明を編集します。必要な文脈だけを削除し、表示された取り消しで戻せます。同じ表現の別の文脈は独立しています。",
-            "保存画面をスクロールすると、下部の丸いページ操作から直接移動できます。表現と各表現の文脈は別々にページ分けされます。表現を左にスワイプし、ごみ箱を押すと、その表現と全ての例文・意味・メモを削除します。小さな通知の「取り消し」でまとめて復元できます。元の資料は残ります。1文だけ削除した場合、他の例文は残ります。"
+            "該当する文脈の個人説明を編集できます。表現の検索や日付グラフで絞り込み、同じ表現の各文脈を確認します。",
+            "原文を長押ししてごみ箱へドラッグし、ふたが開いたら離すと、その1文を削除します。それ以外の場所で離すとキャンセルします。「取り消し」で復元でき、他の文脈と元の素材は残ります。長押し後にごみ箱をタップする方法もあります。キーボードでは文にフォーカスしてDelete、Enterで確定、Escapeでキャンセルします。"
           ],
           "steps": []
         },
@@ -1097,7 +1097,7 @@ export const manualContent={
           "title": "Unterstützte Materialien",
           "body": [
             "Unterstützt werden PDF, DOCX, EPUB, Markdown, TXT, SRT und VTT. Gescannte PDFs ohne auslesbaren Text, verschlüsselte Dateien und geschützte Bücher lassen sich unter Umständen nicht importieren. Prüfe die Vorschau.",
-            "Über denselben Import kannst du englischen Text oder einen Weblink einfügen. Scheitert die Extraktion, kopiere den sichtbaren englischen Text. Gelernt wird Englisch; die Oberflächensprache ist unabhängig."
+            "Die Zwischenablage-Schaltfläche übernimmt englischen Text sowie Web- oder YouTube-Links. Die separate Dateischaltfläche öffnet direkt die System-Dateiauswahl. Scheitert die Extraktion einer Webseite, kopiere den sichtbaren englischen Text. Gelernt wird Englisch; die Oberflächensprache ist unabhängig."
           ],
           "steps": []
         },
@@ -1105,8 +1105,8 @@ export const manualContent={
           "id": "tags",
           "title": "Lesetisch, Bibliothek und Tags",
           "body": [
-            "Lass aktuelle Lektüre auf dem Lesetisch und lege andere Materialien in der Bibliothek ab. Suche nach Titel oder farbigen Tags. Das Entfernen eines Tags löscht die Materialien nicht.",
-            "Die Bibliothek zeigt 20 Einträge pro Seite. Suche nach Titel oder Quelle, filtere nach Tags und ändere die Sortierung neben der Überschrift. Über die Seitenzahl springst du direkt. Beim Löschen von Material bleiben gespeicherte Sätze, Bedeutungen und Notizen erhalten; die gelöschte Quelle kann nicht mehr geöffnet werden."
+            "Lass aktuelle Lektüre auf dem Lesetisch. Wähle in der Bibliothek einen Tag für die Posteransicht. Beim Öffnen eines Posters kommt das Material zurück auf den Lesetisch.",
+            "Halte eine Materialkarte gedrückt, ziehe sie zum Papierkorb und lasse los, sobald sich der Deckel öffnet. Loslassen an anderer Stelle bricht ab. Gespeicherte Sätze, Bedeutungen und Notizen bleiben erhalten; die gelöschte Quelle lässt sich nicht mehr öffnen."
           ],
           "steps": [],
           "image": "files"
@@ -1190,8 +1190,8 @@ export const manualContent={
           "id": "organize",
           "title": "Einen Kontext bearbeiten",
           "body": [
-            "Bearbeite Notiz oder Erklärung des betreffenden Eintrags. Entferne bei Bedarf nur diesen Kontext und nutze, falls angeboten, Rückgängig. Andere Kontexte desselben Ausdrucks bleiben getrennt.",
-            "Nach dem Scrollen erscheint unten eine abgerundete schwebende Seitenauswahl. Ausdrücke und ihre Kontexte haben getrennte Seiten. Wische einen Ausdruck nach links und tippe auf den Papierkorb, um ihn samt allen Sätzen, Bedeutungen und Notizen zu entfernen. Rückgängig in der kleinen schwebenden Mitteilung stellt alles zusammen wieder her. Das Originalmaterial bleibt erhalten. Das Entfernen eines einzelnen Satzes lässt die anderen bestehen."
+            "Bearbeite die persönliche Erklärung im jeweiligen Kontext. Suche nach Ausdrücken oder grenze sie über das Datumsdiagramm ein und blättere durch ihre Kontexte.",
+            "Halte einen Satz gedrückt und ziehe ihn zum Papierkorb. Lasse bei geöffnetem Deckel los, um nur diesen Kontext zu entfernen; an anderer Stelle wird abgebrochen. Rückgängig stellt ihn wieder her. Andere Kontexte und das Originalmaterial bleiben erhalten. Alternativ kannst du nach dem Gedrückthalten den Papierkorb antippen. Per Tastatur: Satz fokussieren, Delete und dann Enter; Escape bricht ab."
           ],
           "steps": []
         },
