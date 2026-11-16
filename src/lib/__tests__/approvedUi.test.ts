@@ -31,5 +31,11 @@ describe('supplemental meanings',()=>{
    expect(local.entries[0].groups[0].senses).toHaveLength(1);
    expect(online.entries[0].groups[0].senses).toHaveLength(2);
  });
+ it('keeps a new Chinese translation when the English definition already exists',()=>{
+   const local=result(['A useful meaning.']),online=result(['A useful meaning.']);
+   online.entries[0].groups[0].senses[0].meaning.zh='新补充的中文解释。';
+   expect(dictionarySupplement(local,online)?.entries[0].groups[0].senses[0].meaning.zh).toBe('新补充的中文解释。');
+   expect(local.entries[0].groups[0].senses[0].meaning.zh).toBeNull();
+ });
  it('represents no new uses without removing the base definition',()=>{expect(dictionarySupplement(result(['One.']),result(['one']))?.entries).toEqual([]);});
 });

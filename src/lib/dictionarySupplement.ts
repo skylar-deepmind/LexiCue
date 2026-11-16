@@ -10,7 +10,7 @@ export function dictionarySupplement(local: DictionaryResult | null, online: Dic
   }
   return { ...online, entries: online.entries.map(entry => ({ ...entry, groups: entry.groups.map(group => ({ ...group, senses: group.senses.filter(sense => {
     const keys = [sense.meaning.en, sense.meaning.zh].filter((text): text is string => !!text).map(normalize);
-    if (!keys.length || keys.some(key => known.has(key))) return false;
+    if (!keys.length || keys.every(key => known.has(key))) return false;
     keys.forEach(key => known.add(key)); return true;
   }) })).filter(group => group.senses.length) })).filter(entry => entry.groups.length) };
 }
