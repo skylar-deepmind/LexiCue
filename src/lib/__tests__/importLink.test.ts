@@ -21,12 +21,23 @@ describe('clipboard import boundary', () => {
   it.each(['https://youtube.com.example.org/watch?v=abcdefghijk', 'https://example.org/private', 'http://127.0.0.1:8080/data'])('does not send an unsupported URL to the current downloader: %s', url => {
     expect(inspectImportLink(url)).toEqual({ url, error: 'unsupportedLink' });
   });
-  it('reads native clipboard only on explicit invocation and preserves read failures for manual fallback', async () => {
+  it('reads native clipboard only on explicit invocation and keeps access failures distinct', async () => {
     expect(readText).not.toHaveBeenCalled();
     vi.mocked(readText).mockResolvedValueOnce('https://youtu.be/abcdefghijk');
     await expect(readImportClipboard()).resolves.toBe('https://youtu.be/abcdefghijk');
     vi.mocked(readText).mockRejectedValueOnce(new Error('denied'));
     await expect(readImportClipboard()).rejects.toThrow('denied');
     expect(readText).toHaveBeenCalledTimes(2);
+  });
+  it.each([
+    'The clipboard contents were not available in the requested format or the clipboard is empty.',
+    'Clipboard is empty',
+  ])('treats the native no-text response as an empty source: %s', async message => {
+    vi.mocked(readText).mockRejectedValueOnce(message);
+    await expect(readImportClipboard()).resolves.toBeNull();
+  });
+  it.each(['clipboard-manager.read_text not allowed', 'The native clipboard is not accessible due to being held by another party.'])('preserves a genuine native read failure: %s', async message => {
+    vi.mocked(readText).mockRejectedValueOnce(message);
+    await expect(readImportClipboard()).rejects.toBe(message);
   });
 });
