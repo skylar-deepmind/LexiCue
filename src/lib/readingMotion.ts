@@ -85,6 +85,13 @@ function run(reverse: boolean) {
   const travel = (from: Piece | undefined, to: Piece | undefined, start: number, end: number) => {
     if (!from || !to || !from.box.width || !from.box.height) return;
     const clone = from.node.cloneNode(true) as HTMLElement; place(clone, from.box);
+    if (!(from.node instanceof HTMLImageElement)) {
+      // Text changes its measure and type size independently. Scaling its box
+      // on two axes flattens glyphs when a two-line quote lands on one line.
+      const frame = (p: Piece): Keyframe => ({ left:`${p.box.x}px`, top:`${p.box.y}px`, width:`${p.box.width}px`, height:`${p.box.height}px`, fontSize:p.node.style.fontSize, lineHeight:p.node.style.lineHeight, opacity:1 });
+      animate(clone, [{ ...frame(from), offset:0 }, { ...frame(from), offset:start }, { ...frame(to), offset:end }, { ...frame(to), opacity:0, offset:1 }]);
+      return;
+    }
     const target = `translate(${to.box.x - from.box.x}px,${to.box.y - from.box.y}px) scale(${to.box.width / from.box.width},${to.box.height / from.box.height})`;
     animate(clone, [{ transform: 'none', opacity: 1, offset: 0 }, { transform: 'none', opacity: 1, offset: start }, { transform: target, opacity: 1, offset: end }, { transform: target, opacity: 0, offset: 1 }]);
   };
