@@ -27,18 +27,19 @@ try {
    if(width<768){const cd=await c.newCDPSession(page);await cd.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{...p,id:1}]});return {point:p,move:async q=>cd.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{...q,id:1}]}),end:async()=>{await cd.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await cd.detach();}};}
    await page.mouse.move(p.x,p.y);await page.mouse.down();return {point:p,move:q=>page.mouse.move(q.x,q.y),end:()=>page.mouse.up()};
   };
-  let gesture=await hold(caption);await group.locator('.approved-tag-name-editor input').waitFor();await gesture.end();
+  const editCaption=async locator=>{const g=await hold(locator);if(width<768){await page.waitForTimeout(480);await g.end();}else{await page.locator('.approved-tag-name-editor input').waitFor();await g.end();}};
+  await editCaption(caption);await group.locator('.approved-tag-name-editor input').waitFor();
   eq(await page.locator('.trash-drag-layer').count(),0,'holding the caption edits rather than lifting the category');
   await group.locator('input').fill('海边随记');await group.getByRole('button',{name:'保存',exact:true}).click();await group.locator('input').waitFor({state:'detached'});
   eq((await h.call('list_tags')).find(t=>t.id===tag.id).name,'海边随记','touch/mouse caption hold renames the existing category ID');
   eq((await h.call('list_materials')).filter(f=>f.tags.some(t=>t.id===tag.id)).length,4,'inline rename retains all material associations');
-  gesture=await hold(group.locator('.approved-tag-open'));await page.locator('.trash-drag-layer').waitFor();await gesture.end();await page.locator('.trash-drag-layer').waitFor({state:'detached'});
+  let gesture=await hold(group.locator('.approved-tag-open'));await page.locator('.trash-drag-layer').waitFor();await gesture.end();await page.locator('.trash-drag-layer').waitFor({state:'detached'});
   ok(await group.isVisible(),'stationary category release restores the card');
   const drop=async()=>{const drag=await hold(group.locator('.approved-tag-open'));await page.locator('.trash-drop-target').waitFor();const b=await page.locator('.trash-drop-target').boundingBox();await drag.move({x:b.x+b.width/2,y:b.y+b.height/2});await page.locator('.trash-drop-target[data-open=true]').waitFor();await drag.end();await page.locator('.trash-drag-layer').waitFor({state:'detached'});};
   await page.evaluate(()=>window.__uiFailure={command:'delete_tag',remaining:1,afterCommit:false});await drop();ok(await group.isVisible(),'failed category deletion restores the original card');eq((await h.call('list_materials')).length,4,'failed category deletion preserves materials');
   await drop();await group.waitFor({state:'detached'});eq((await h.call('list_materials')).length,4,'deleting a category never deletes its materials');ok((await h.call('list_materials')).every(f=>!f.tags.some(t=>t.id===tag.id)),'removed category assignments become untagged');ok((await h.call('list_tags')).some(t=>t.name==='Keep'),'other categories are untouched');
   // Both built-in captions are editable too, without creating tags or reassigning materials.
-  const renameBuiltin=async(id,name)=>{const box=page.locator(`[data-tag-id="${id}"]`);await box.locator('.approved-tag-name').scrollIntoViewIfNeeded();const g=await hold(box.locator('.approved-tag-name'));await box.locator('input').waitFor();await g.end();await box.locator('input').fill(name);await box.getByRole('button',{name:'保存',exact:true}).click();await box.locator('input').waitFor({state:'detached'});};
+  const renameBuiltin=async(id,name)=>{const box=page.locator(`[data-tag-id="${id}"]`);await box.locator('.approved-tag-name').scrollIntoViewIfNeeded();await editCaption(box.locator('.approved-tag-name'));await box.locator('input').waitFor();await box.locator('input').fill(name);await box.getByRole('button',{name:'保存',exact:true}).click();await box.locator('input').waitFor({state:'detached'});};
   await renameBuiltin('all','我的材料');await renameBuiltin('untagged','待整理');
   eq((await h.call('list_tags')).map(t=>t.name),['Keep'],'renaming built-in captions creates no synthetic category');
   ok((await h.call('list_materials')).every(f=>f.tags.length===0),'built-in caption changes preserve material classification');
