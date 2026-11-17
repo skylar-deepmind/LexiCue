@@ -1,3 +1,6 @@
+import { useLibraryNames } from '../components/useLibraryNames';
+import { usePreferencesStore } from '../stores/preferencesStore';
+import type { LibraryNameKey } from '../lib/libraryNames';
 import { bookmarkTitle } from '../lib/bookmarkDesk';
 import { dissolvePage } from '../lib/pageDissolve';
 import { captureSavedEntrance, finishSavedReturn } from '../lib/savedEntrance';
@@ -52,6 +55,7 @@ function MaterialDesk() {
   const picking = useImportStore(s => s.picking), importing = useImportStore(s => s.running), importOpen = useImportStore(s => s.open);
   const tags = useFileStore(s => s.tags), loadTags = useFileStore(s => s.loadTags);
   const { theme, setTheme } = useTheme();
+  const libraryNames = useLibraryNames();
   const [editing, setEditing] = useState<Material | null>(null);
   const [quotes, setQuotes] = useState<Record<string, string>>({});
   const [pocket, setPocket] = useState<SavedRecord | null>(null);
@@ -127,7 +131,7 @@ function MaterialDesk() {
   };
   const wallTag = params.get('tag');
   const wallFiles = wallTag === 'all' ? catalog.files : wallTag === 'untagged' ? catalog.files.filter(file => !file.tags.length) : catalog.files.filter(file => file.tags.some(tag => String(tag.id) === wallTag));
-  const tagName = wallTag === 'all' ? t('readingDesk.library') : wallTag === 'untagged' ? t('tags.untagged') : tags.find(tag => String(tag.id) === wallTag)?.name ?? t('readingDesk.library');
+  const tagName = wallTag === 'all' ? libraryNames.all : wallTag === 'untagged' ? libraryNames.untagged : tags.find(tag => String(tag.id) === wallTag)?.name ?? t('readingDesk.library');
   useEffect(() => backNavigation.setPage(() => {
     if (wallTag !== null) { setParams({ view: 'library' }); setGroups(true); return true; }
     return false;
@@ -152,7 +156,7 @@ function MaterialDesk() {
             if (performance.now() < suppress.current) return;
             if (i !== index) { turn(i - index); return; }
             open(file, event.currentTarget.closest('article')!, 'desk');
-          }}><MaterialCover src={materialCover(file)} identity={file.content_hash} className="approved-card-cover"/></button><button className="approved-card-category approved-tag-edit material-floating-tag" data-no-trash disabled={i !== index} aria-label={t('tags.edit')} aria-expanded={editing?.id===file.id} onClick={() => setEditing(current=>current?.id===file.id?null:file)}>{file.tags[0]?.name ?? t('tags.untagged')}</button><div className="approved-card-copy"><strong className="approved-card-title" lang="en">{bookmarkTitle(file.name)}</strong><span className="approved-card-quote" lang="en">{readingMotionExcerpt(file) ?? quotes[`${file.id}:${file.content_hash}:${readingPosition(file)}`] ?? file.preview}</span></div>
+          }}><MaterialCover src={materialCover(file)} identity={file.content_hash} className="approved-card-cover"/></button><button className="approved-card-category approved-tag-edit material-floating-tag" data-no-trash disabled={i !== index} aria-label={t('tags.edit')} aria-expanded={editing?.id===file.id} onClick={() => setEditing(current=>current?.id===file.id?null:file)}>{file.tags[0]?.name ?? libraryNames.untagged}</button><div className="approved-card-copy"><strong className="approved-card-title" lang="en">{bookmarkTitle(file.name)}</strong><span className="approved-card-quote" lang="en">{readingMotionExcerpt(file) ?? quotes[`${file.id}:${file.content_hash}:${readingPosition(file)}`] ?? file.preview}</span></div>
         </article></TrashMaterial>)}
         <div className="approved-dots" data-visible={turning} aria-label={`${index + 1} / ${recent.length}`}>{recent.map((file, i) => <i key={file.id} data-current={i === index}/>)}</div>
         <button className="approved-edge approved-edge-prev" aria-label={t('history.previous')} disabled={index === 0} onClick={() => turn(-1)}><ChevronLeft size={18}/></button><button className="approved-edge approved-edge-next" aria-label={t('history.next')} disabled={index === recent.length - 1} onClick={() => turn(1)}><ChevronRight size={18}/></button>
@@ -170,8 +174,15 @@ function MaterialDesk() {
 function TagRail({ files, tags, returnFocus, onClose, onSelect }: { files: Material[]; tags: Material['tags']; returnFocus: () => HTMLElement | null; onClose: () => void; onSelect: (id: string) => void }) {
   const { t } = useTranslation();
   const [editingId,setEditingId] = useState<string|null>(null);
+  const libraryNames = useLibraryNames();
+  const renameDefault = (key: LibraryNameKey, name: string) => {
+    const normalized = name.trim().normalize('NFC').toLowerCase();
+    const other = key === 'all' ? libraryNames.untagged : libraryNames.all;
+    if (normalized !== libraryNames[key].toLowerCase() && (tags.some(tag => tag.name.toLowerCase() === normalized) || other.toLowerCase() === normalized)) throw Error('tag name already exists');
+    usePreferencesStore.getState().setLibraryName(key, name);
+  };
   const panel = useRef<HTMLDivElement>(null), rail = useRef<HTMLDivElement>(null), flight = useRef<ReturnType<typeof playTagFlight> | null>(null), closing = useRef(false), mounted = useRef(true);
-  const items = [{ id: 'all', name: t('readingDesk.library'), files }, ...tags.map(tag => ({ id: String(tag.id), name: tag.name, files: files.filter(file => file.tags.some(value => value.id === tag.id)) })), ...files.some(file => !file.tags.length) ? [{ id: 'untagged', name: t('tags.untagged'), files: files.filter(file => !file.tags.length) }] : []];
+  const items = [{ id: 'all', name: libraryNames.all, files }, ...tags.map(tag => ({ id: String(tag.id), name: tag.name, files: files.filter(file => file.tags.some(value => value.id === tag.id)) })), ...files.some(file => !file.tags.length) ? [{ id: 'untagged', name: libraryNames.untagged, files: files.filter(file => !file.tags.length) }] : []];
   useLayoutEffect(() => {
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const target = panel.current?.querySelector<HTMLElement>(`[data-tag-id="${lastLibraryTag}"]`);
@@ -200,7 +211,7 @@ function TagRail({ files, tags, returnFocus, onClose, onSelect }: { files: Mater
     <div ref={rail} className="approved-tag-rail" onPointerMove={event => { if (event.pointerType === 'mouse'&&editingId===null) magnify(event.clientX); }} onPointerLeave={() => magnify()} onScroll={() => { if(editingId===null)magnify(); }}><div className="approved-tag-track">
       {items.map(item => {const tag=tags.find(tag=>String(tag.id)===item.id);return <div key={item.id} className="approved-tag-group" data-tag-id={item.id} tabIndex={-1}><LibraryCategoryCard tag={tag} disabled={editingId!==null}>
         <button className="approved-tag-open" aria-label={`${item.name} · ${item.files.length}`} onClick={() => { if(!panel.current?.querySelector('form[aria-busy="true"]'))onSelect(item.id); }}><LibraryCover files={item.files}/></button>
-        {tag?<InlineTagName tag={tag} editing={editingId===item.id} onEdit={() => setEditingId(item.id)} onFinish={() => setEditingId(null)}/>:<span className="approved-tag-name" data-no-trash><strong>{item.name}</strong></span>}
+        {tag?<InlineTagName tag={tag} editing={editingId===item.id} onEdit={() => setEditingId(item.id)} onFinish={() => setEditingId(null)}/>:<InlineTagName displayName={item.name} editing={editingId===item.id} onRename={name => renameDefault(item.id as LibraryNameKey,name)} onEdit={() => setEditingId(item.id)} onFinish={() => setEditingId(null)}/>}
       </LibraryCategoryCard></div>;})}
       {editingId==='new'&&<div className="approved-tag-group" data-tag-id="new"><div className="approved-tag-stack"><span className="approved-tag-open"><EmptyLibraryArtwork/></span><InlineTagName editing onEdit={() => {}} onFinish={() => setEditingId(null)}/></div></div>}
     </div></div>

@@ -1,3 +1,4 @@
+import { useLibraryNames } from './useLibraryNames';
 import { Check } from 'lucide-react';
 import { useLayoutEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -11,6 +12,7 @@ export default function CardTagChoices({ tags, selected, onSelect, disabled, loa
   disabled?: boolean; loading?: boolean; error?: boolean; onRetry?: () => void; autoFocus?: boolean;
 }) {
   const { t } = useTranslation(), strip = useRef<HTMLDivElement>(null);
+  const libraryNames = useLibraryNames();
   useLayoutEffect(() => {
     if (autoFocus && !loading) strip.current?.querySelector<HTMLElement>('[aria-selected="true"]')?.focus({ preventScroll: true });
   }, [autoFocus, loading]);
@@ -25,7 +27,7 @@ export default function CardTagChoices({ tags, selected, onSelect, disabled, loa
         const next = event.key === 'Home' ? 0 : event.key === 'End' ? options.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + options.length) % options.length;
         options[next]?.focus({ preventScroll: true }); options[next]?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
       }}>
-      {[...tags, { id: null, name: t('tags.untagged') }].map(tag => {
+      {[...tags, { id: null, name: libraryNames.untagged }].map(tag => {
         const active = tag.id === null ? !selected.length : selected.includes(tag.id);
         return <button type="button" role="option" aria-selected={active} tabIndex={active ? 0 : -1} disabled={disabled || loading} key={tag.id ?? 'untagged'}
           onClick={() => onSelect(tag.id === null ? [] : [tag.id])}>{tag.name}{active && <Check size={14} aria-hidden="true"/>}</button>;

@@ -1,3 +1,4 @@
+import { useLibraryNames } from './useLibraryNames';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { visitState } from '../lib/pageNavigation';
 import { useEffect, useState } from 'react';
@@ -21,11 +22,12 @@ export default function ImportMaterialCard({ item, items, tags, tagIds, phase, b
 }) {
   const navigate=useNavigate(), location=useLocation();
   const { t } = useTranslation();
+  const libraryNames = useLibraryNames();
   const [full,setFull]=useState(false),[identity,setIdentity]=useState<string|null>(null);
   const draft=item.draft!;
   useEffect(()=>{let current=true;setIdentity(null);void crypto.subtle.digest('SHA-256',new TextEncoder().encode(draft.content)).then(bytes=>{if(current)setIdentity([...new Uint8Array(bytes)].map(n=>n.toString(16).padStart(2,'0')).join('').slice(0,16));}).catch(()=>{if(current)setIdentity(draft.operation_id);});return()=>{current=false;};},[draft.content,draft.operation_id]);
   const cover=draft.source?.video_id?`https://i.ytimg.com/vi/${encodeURIComponent(draft.source.video_id)}/hqdefault.jpg`:allocatedCover(identity??draft.operation_id);
-  const selected=tags.find(tag=>tagIds.includes(tag.id)), tagName=selected?.name??t('tags.untagged');
+  const selected=tags.find(tag=>tagIds.includes(tag.id)), tagName=selected?.name??libraryNames.untagged;
   const index=items.findIndex(row=>row.id===item.id), selectable=items.filter(row=>!!row.draft);
   return <div className="import-card-stage" data-phase={phase}>
     <CardTagChoices tags={tags} selected={tagIds} disabled={busy} onSelect={ids=>useImportStore.getState().setImportTagIds(ids)}/>

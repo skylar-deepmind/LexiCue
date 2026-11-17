@@ -1,3 +1,4 @@
+import { normalizeLibraryNames, type LibraryNames, type LibraryNameKey } from '../lib/libraryNames';
 import { create } from 'zustand';
 import { persist, createJSONStorage, subscribeWithSelector } from 'zustand/middleware';
 import { normalizeBrowserSession, type BrowserSession } from '../lib/youtubeDownload';
@@ -16,6 +17,8 @@ const FONT_SIZES: ContentFontSize[] = ['sm', 'md', 'lg'];
 const LINE_HEIGHTS: ReadingLineHeight[] = ['compact', 'normal', 'loose'];
 
 interface PreferencesState {
+  libraryNames: LibraryNames;
+  setLibraryName: (key: LibraryNameKey, name: string) => void;
   onlineDictionary: 'cambridge' | 'wiktionary';
   setOnlineDictionary: (provider: 'cambridge' | 'wiktionary') => void;
   tagColors: TagColors;
@@ -53,6 +56,8 @@ export const usePreferencesStore = create<PreferencesState>()(
   subscribeWithSelector(
     persist(
       (set) => ({
+        libraryNames: {},
+        setLibraryName: (key, name) => set(state => ({ libraryNames: normalizeLibraryNames({ ...state.libraryNames, [key]: name }) })),
         onlineDictionary: 'cambridge',
         setOnlineDictionary: onlineDictionary => set({ onlineDictionary }),
         tagColors: {},
@@ -97,6 +102,7 @@ export const usePreferencesStore = create<PreferencesState>()(
         merge: (persisted, current) => {
           const saved = (persisted ?? {}) as {
             onlineDictionary?: unknown;
+            libraryNames?: unknown;
             tagColors?: unknown;
             speech?: unknown;
             contentFontScale?: unknown;
@@ -138,7 +144,7 @@ export const usePreferencesStore = create<PreferencesState>()(
             word: saved.annotationModes?.word === 'single' ? 'single' : 'batch',
             phrase: saved.annotationModes?.phrase === 'single' ? 'single' : 'batch',
           };
-          return { ...current, onlineDictionary: saved.onlineDictionary === 'wiktionary' ? 'wiktionary' : 'cambridge', tagColors:normalizeTagColors(saved.tagColors), contentFontScale: normalizeContentFontScale(saved.contentFontScale), speech: normalizeSpeechPreferences(saved.speech), reencounterHints: typeof saved.reencounterHints==='boolean'?saved.reencounterHints:current.reencounterHints, vocabularyKind: saved.vocabularyKind === 'phrase' ? 'phrase' : 'word', youtube: normalizeYouTubePreferences(saved.youtube), annotationModes, language, uiLanguage, learningTextFontSize, definitionFontSize, auxiliaryFontSize, readingLineHeight };
+          return { ...current, libraryNames: normalizeLibraryNames(saved.libraryNames), onlineDictionary: saved.onlineDictionary === 'wiktionary' ? 'wiktionary' : 'cambridge', tagColors:normalizeTagColors(saved.tagColors), contentFontScale: normalizeContentFontScale(saved.contentFontScale), speech: normalizeSpeechPreferences(saved.speech), reencounterHints: typeof saved.reencounterHints==='boolean'?saved.reencounterHints:current.reencounterHints, vocabularyKind: saved.vocabularyKind === 'phrase' ? 'phrase' : 'word', youtube: normalizeYouTubePreferences(saved.youtube), annotationModes, language, uiLanguage, learningTextFontSize, definitionFontSize, auxiliaryFontSize, readingLineHeight };
         },
       },
     ),
