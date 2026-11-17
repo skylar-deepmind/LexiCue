@@ -1,5 +1,7 @@
 import useTrashDrag, { isTrashDragging } from '../components/useTrashDrag';
 import { bookmarkTitle } from '../lib/bookmarkDesk';
+import SavedTimeline from '../components/SavedTimeline';
+import '../components/saved-timeline.css';
 import SavedExcerpt from '../components/SavedExcerpt';
 import { finishSavedEntrance, prepareSavedReturn } from '../lib/savedEntrance';
 import { dissolvePage } from '../lib/pageDissolve';
@@ -23,7 +25,6 @@ import './source-return.css';
 
 type View = { query: string; start: string; end: string; selected: string | null; record: string | null; expanded: boolean; listScroll: number };
 const views = createViewCache<View>();
-const dateString = (day: number) => new Date(day * 86400000).toISOString().slice(0, 10);
 function bounds(start: string, end: string) {
   const first = start ? new Date(`${start}T00:00:00`).getTime() : null;
   const last = end ? new Date(`${end}T00:00:00`) : null;
@@ -46,6 +47,7 @@ function SavedArchive() {
   const [expanded, setExpanded] = useState(initial?.expanded ?? false);
   const [groups, setGroups] = useState<SavedGroupPage>({ groups: [], total_groups: 0, total_records: 0 });
   const [contexts, setContexts] = useState<SavedContextPage>({ records: [], total: 0 });
+  const [timelineStatus, setTimelineStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [bins, setBins] = useState<{ day: number; count: number }[]>([]);
   const [loading, setLoading] = useState(true), [contextLoading, setContextLoading] = useState(false), [failure, setFailure] = useState(false), [revision, setRevision] = useState(0);
   const [sourceBusy, setSourceBusy] = useState(false), [sourceError, setSourceError] = useState('');
@@ -67,7 +69,8 @@ function SavedArchive() {
   }, []);
   useEffect(() => {
     let current = true;
-    void invoke<typeof bins>('saved_date_histogram', { offsetMinutes: new Date().getTimezoneOffset() }).then(value => { if (current) setBins(value); }).catch(() => {});
+    setTimelineStatus('loading');
+    void invoke<typeof bins>('saved_date_histogram', { offsetMinutes: new Date().getTimezoneOffset() }).then(value => { if (current) { setBins(value); setTimelineStatus('ready'); } }).catch(() => { if (current) setTimelineStatus('error'); });
     return () => { current = false; };
   }, [revision, generation]);
   useEffect(() => {
@@ -131,14 +134,9 @@ function SavedArchive() {
     try { const next = await invoke<SavedGroupPage>('list_saved_groups', { query, limit: 200, offset: groups.groups.length, ...bounds(start, end) }); if (token === request.current) setGroups(previous => ({ ...next, groups: [...previous.groups, ...next.groups] })); }
     catch { setFailure(true); } finally { if (token === request.current) setLoading(false); }
   };
-  const firstDay = bins[0]?.day ?? 0, lastDay = bins.at(-1)?.day ?? 0;
-  const fromDay = start ? Math.floor(Date.parse(`${start}T00:00:00Z`) / 86400000) : firstDay, toDay = end ? Math.floor(Date.parse(`${end}T00:00:00Z`) / 86400000) : lastDay;
-  const slots = Math.min(96, Math.max(1, lastDay - firstDay + 1));
-  const histogram = Array.from({ length: slots }, (_, i) => { const low = firstDay + (lastDay - firstDay + 1) * i / slots, high = firstDay + (lastDay - firstDay + 1) * (i + 1) / slots; return { day: Math.floor(low), count: bins.filter(bin => bin.day >= low && bin.day < high).reduce((n, bin) => n + bin.count, 0) }; });
-  const peak = Math.max(1, ...histogram.map(bin => bin.count));
   return <section className="approved-saved saved-workspace" aria-label={t('savedRecords.title')} onKeyDown={event => { if (event.key === 'Escape' && expanded) { event.preventDefault(); event.stopPropagation(); setExpanded(false); } }}>
     <header className="approved-saved-header"><button className="approved-icon approved-back" aria-label={t('common.back')} onClick={leave}><ChevronLeft size={22}/></button><div className="approved-saved-search" data-open={searching}><input ref={input} type="search" aria-label={t('savedRecords.search')} value={query} onChange={event => setQuery(event.target.value)} onKeyDown={event => { if (event.key === 'Escape') { setSearching(false); input.current?.blur(); } }}/><button className="approved-icon" aria-label={t('savedRecords.search')} aria-expanded={searching} onClick={() => setSearching(value => !value)}><Search size={21}/></button></div></header>
-    <div className="approved-timeline"><div className="approved-histogram" aria-hidden="true">{histogram.map((bin, i) => <i key={i} style={{ height: `${6 + 48 * bin.count / peak}px` }} data-selected={bin.day >= fromDay && bin.day <= toDay}/>)}</div><div className="approved-date-handles"><input type="range" min={firstDay} max={lastDay} value={fromDay} disabled={!bins.length} aria-label={t('approved.startDate')} onChange={event => { setStart(dateString(Math.min(Number(event.target.value), toDay))); if (!end) setEnd(dateString(lastDay)); }}/><input type="range" min={firstDay} max={lastDay} value={toDay} disabled={!bins.length} aria-label={t('approved.endDate')} onChange={event => { setEnd(dateString(Math.max(Number(event.target.value), fromDay))); if (!start) setStart(dateString(firstDay)); }}/></div><div className="approved-date-summary"><label><span className="sr-only">{t('approved.startDate')}</span><input type="date" value={start} max={end || undefined} onChange={event => setStart(event.target.value)}/></label><span>—</span><label><span className="sr-only">{t('approved.endDate')}</span><input type="date" value={end} min={start || undefined} onChange={event => setEnd(event.target.value)}/></label><span>· {t('approved.savedCount', { count: groups.total_groups })}</span>{(start || end) && <button onClick={() => { setStart(''); setEnd(''); }}>{t('approved.allDates')}</button>}</div></div>
+    <SavedTimeline bins={bins} recordCount={groups.total_records} start={start} end={end} status={timelineStatus} onRangeChange={(first, last) => { setStart(first); setEnd(last); }} onRetry={() => setRevision(value => value + 1)}/>
     <div className="approved-saved-columns" data-expanded={expanded}>
       <div ref={list} className="approved-saved-index" onKeyDown={event=>{
         if(!['ArrowDown','ArrowUp','ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;

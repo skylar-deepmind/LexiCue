@@ -1543,6 +1543,7 @@ button:disabled:is([class*='bg-blue-'], [class*='bg-purple-'], [class*='bg-gray-
 
 /* Figma-approved reading-room surfaces; all interaction colors have dark peers. */
 :root {
+ --approved-empty-blend:multiply; --approved-empty-filter:grayscale(1);
  --approved-desk:#e9ede5; --approved-card:#fcf9f1; --approved-card-ink:#213c34;
  --approved-ink:#213b35; --approved-secondary:#42574d; --approved-tag:#526d59;
  --approved-paper:#faf9f6; --approved-settings:#f8f9f1; --approved-hover:#dce4d9;
@@ -1552,6 +1553,7 @@ button:disabled:is([class*='bg-blue-'], [class*='bg-purple-'], [class*='bg-gray-
  --approved-reading-selected:#dce9ef; --approved-reading-selected-ink:#34596d;
 }
 :root[data-theme="midnight"] {
+ --approved-empty-blend:screen; --approved-empty-filter:grayscale(1) invert(1);
  --approved-desk:#202926; --approved-card:#28332e; --approved-card-ink:#f0eee2;
  --approved-ink:#e3e9df; --approved-secondary:#d3dcd0; --approved-tag:#b1c9b4;
  --approved-paper:#202926; --approved-settings:#2c3831; --approved-hover:#33433b;

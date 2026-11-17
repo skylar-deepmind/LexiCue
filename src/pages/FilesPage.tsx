@@ -1,6 +1,9 @@
 import { bookmarkTitle } from '../lib/bookmarkDesk';
 import { dissolvePage } from '../lib/pageDissolve';
 import { captureSavedEntrance, finishSavedReturn } from '../lib/savedEntrance';
+import EmptyMaterialGreeting from '../components/EmptyMaterialGreeting';
+import { rearmEmptyMaterialGreeting } from '../lib/emptyMaterialGreeting';
+import '../components/empty-material.css';
 import SavedPocketPreview from '../components/SavedPocketPreview';
 import TagNamesDialog from '../components/TagNamesDialog';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -68,6 +71,7 @@ function MaterialDesk() {
     const kept = desk.desk.items.map(ref => catalog.files.find(file => matchesMaterial(ref, file))).filter((file): file is Material => !!file);
     return kept;
   }, [catalog.files, desk.desk.items]);
+  useEffect(() => { if (catalog.hasLoaded && catalog.files.length) rearmEmptyMaterialGreeting(); }, [catalog.hasLoaded, catalog.files.length]);
   const [fallback, setFallback] = useState<number | null>(null);
   const selected = recent.find(file => desk.desk.selected && matchesMaterial(desk.desk.selected, file)) ?? recent.find(file => file.id === fallback) ?? recent[0];
   const index = Math.max(0, recent.findIndex(file => file.id === selected?.id));
@@ -146,7 +150,7 @@ function MaterialDesk() {
         </article></TrashMaterial>)}
         <div className="approved-dots" data-visible={turning} aria-label={`${index + 1} / ${recent.length}`}>{recent.map((file, i) => <i key={file.id} data-current={i === index}/>)}</div>
         <button className="approved-edge approved-edge-prev" aria-label={t('history.previous')} disabled={index === 0} onClick={() => turn(-1)}><ChevronLeft size={18}/></button><button className="approved-edge approved-edge-next" aria-label={t('history.next')} disabled={index === recent.length - 1} onClick={() => turn(1)}><ChevronRight size={18}/></button>
-      </div> : <div className="approved-desk-empty"><h1>{t(catalog.files.length ? 'readingDesk.clear' : 'readingDesk.noMaterials')}</h1><button className="desk-primary" onClick={() => { if (catalog.files.length) { setGroups(true); setParams({ view:'library' }); } else void useImportStore.getState().choose(); }}>{t(catalog.files.length ? 'readingDesk.library' : 'materials.import')}</button></div>}
+      </div> : catalog.files.length ? <div className="approved-desk-empty"><h1>{t('readingDesk.clear')}</h1><button className="desk-primary" onClick={() => { setGroups(true); setParams({ view:'library' }); }}>{t('readingDesk.library')}</button></div> : <EmptyMaterialGreeting/>}
       <footer className="approved-home-footer"><button ref={libraryButton} className="approved-library-entry" aria-label={t('readingDesk.library')} aria-expanded={groups} onClick={() => { setGroups(true); setParams({ view: 'library' }); }}><span className="approved-stock" aria-hidden="true">{(catalog.files.length ? catalog.files.slice(0, 3) : [null, null, null]).map((file, i) => <MaterialCover key={i} src={file ? materialCover(file) : `/design/prints/${['16388','16398','16339'][i]}.jpg`} identity={file?.content_hash ?? String(i)}/>)}</span></button>
         <button className="approved-saved-entry" aria-label={t('savedRecords.title')} onClick={event => {
           const open=()=>navigate('/saved',{state:{...visitState(location),pocketRecordId:pocket?.record_id}});

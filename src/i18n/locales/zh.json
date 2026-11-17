@@ -2002,6 +2002,11 @@
     }
   },
   "approved": {
+    "emptyMaterials": "还没有材料",
+    "filterDates": "筛选收藏日期",
+    "recordCount": "{{count}} 条记录",
+    "timelineSummary": "{{records}} 条记录，分布在 {{days}} 个收藏日",
+
     "light": "切换亮色模式",
     "dark": "切换暗色模式",
     "manage": "管理材料",

@@ -2022,6 +2022,12 @@
     }
   },
   "approved": {
+    "emptyMaterials": "No materials yet",
+    "filterDates": "Filter saved dates",
+    "recordCount_one": "{{count}} record",
+    "recordCount_other": "{{count}} records",
+    "timelineSummary": "Saved records: {{records}}; active dates: {{days}}",
+
     "light": "Switch to light mode",
     "dark": "Switch to dark mode",
     "manage": "Manage materials",

@@ -1,0 +1,26 @@
+.approved-timeline { flex:none; width:100%; position:relative; margin:8px 0 24px; }
+.approved-timeline.saved-growing-timeline { margin:8px 0 24px; }
+.saved-timeline-plot { height:120px; position:relative; width:100%; }
+.saved-timeline-plot > svg { display:block; overflow:visible; }
+.saved-timeline-axis { stroke:var(--approved-dot); stroke-width:1; opacity:.65; transition:x1 420ms ease,x2 420ms ease; }
+.saved-timeline-mark { fill:var(--approved-warm); transition:transform 420ms cubic-bezier(.2,.7,.2,1),width 420ms ease,height 420ms ease,rx 420ms ease,opacity 220ms ease; }
+.saved-timeline-date { position:absolute; top:76px; min-height:44px; min-width:44px; padding:0; border:0; background:transparent; color:var(--approved-secondary); font:12px/1.4 system-ui; cursor:pointer; white-space:nowrap; }
+.saved-timeline-date--only { transform:translateX(-50%); }
+.saved-timeline-date--last { transform:translateX(-100%); }
+.saved-timeline-date:hover { color:var(--approved-ink); text-decoration:underline; text-underline-offset:3px; }
+.saved-timeline-date:focus-visible,.saved-timeline-meta button:focus-visible { outline:2px solid var(--approved-focus); outline-offset:1px; border-radius:4px; }
+.saved-timeline-meta { display:flex; align-items:center; justify-content:flex-end; gap:12px; min-height:24px; color:var(--approved-secondary); font:12px/1.5 system-ui; font-variant-numeric:tabular-nums; }
+.saved-timeline-meta button { min-height:44px; margin:-10px 0; padding:0 4px; border:0; background:none; color:var(--approved-tag); cursor:pointer; }
+.saved-timeline-filter { display:flex; align-items:end; gap:12px; padding:12px 0 0; }
+.saved-timeline-filter label { display:flex; flex-direction:column; gap:4px; min-width:0; flex:1; max-width:200px; color:var(--approved-secondary); font:12px/1.5 system-ui; }
+.saved-timeline-filter input { display:block; box-sizing:border-box; width:100%; min-width:0; min-height:44px; border:1px solid var(--approved-dot); border-radius:7px; padding:8px; background:var(--approved-card); color:var(--approved-ink); font:14px/1.4 system-ui; color-scheme:light; }
+:root[data-theme="midnight"] .saved-timeline-filter input { color-scheme:dark; }
+.saved-timeline-filter input:focus-visible { outline:2px solid var(--approved-focus); outline-offset:2px; }
+.saved-timeline-status { min-height:56px; display:flex; align-items:center; justify-content:center; gap:12px; font-size:13px; color:var(--approved-secondary); }
+@media(max-width:767px) {
+ .approved-timeline.saved-growing-timeline { margin:0 0 20px; }
+ .saved-timeline-filter { gap:8px; }
+ .saved-timeline-filter input { font-size:16px; padding:7px 4px; }
+ .saved-timeline-filter .approved-icon { width:44px; min-width:44px; flex:none; }
+}
+@media(prefers-reduced-motion:reduce) { .saved-timeline-mark,.saved-timeline-axis { transition:none; } }

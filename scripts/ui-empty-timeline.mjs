@@ -1,0 +1,62 @@
+/** Accepted empty-state artwork and date-density statistics, with disposable SQLite. */
+import assert from 'node:assert/strict';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { createReadingHarness } from './ui-reading-support.mjs';
+const output=process.env.LEXICUE_EMPTY_TIMELINE_OUTPUT||'/tmp/lexicue-empty-timeline';
+await mkdir(output,{recursive:true});
+const h=await createReadingHarness(output);let current,checks=0;
+const ok=(value,label)=>{assert.ok(value,label);checks++;};
+const eq=(value,expected,label)=>{assert.deepEqual(value,expected,label);checks++;};
+const finish=()=>current.evaluate(()=>document.getAnimations().filter(a=>a.effect?.getTiming().iterations!==Infinity).forEach(a=>a.finish()));
+const screen=async name=>{await finish();await current.screenshot({path:`${output}/${name}.png`});};
+const base=Date.UTC(2026,9,7,12);
+const dayString=n=>new Date(base+n*86400000).toISOString().slice(0,10);
+async function seed(counts,days=counts.map((_,i)=>i)){
+ await h.call('test_reset');const records=[];
+ counts.forEach((count,i)=>{for(let j=0;j<count;j++)records.push({expression:'air',sentence:`The air smelled of salt near the old pier, memory ${i}-${j}.`,explanation:'海边空气的原句。',saved_at:days[i]===null?null:base+days[i]*86400000});});
+ await h.call('test_seed_recall',{count:records.length,records});
+ return records.length;
+}
+async function refresh(phase,total){
+ await current.evaluate(()=>window.dispatchEvent(new Event('lexicue-saved-changed')));
+ await current.waitForFunction(({phase,total})=>{const n=document.querySelector('.saved-growing-timeline');return n?.dataset.phase===phase&&Number(n.dataset.records)===total;},{phase,total});
+ await finish();
+}
+try{
+ const receipt=JSON.parse(await readFile(new URL('../public/design/empty-material/asset.json',import.meta.url),'utf8'));
+ const gif=await readFile(new URL('../public/design/empty-material/greeting-once.gif',import.meta.url));
+ ok(!gif.includes(Buffer.from('NETSCAPE2.0'))&&!gif.includes(Buffer.from('ANIMEXTS1.0')),'shipping GIF has no repeat extension');eq(receipt.durationMs,6160,'one-shot playback uses the approved duration');
+ for(const theme of ['sage','midnight'])for(const [width,height]of [[1360,880],[375,812],[320,568],[812,375]]){
+  await h.call('test_reset');const context=await h.browser.newContext({viewport:{width,height},hasTouch:width<1024,timezoneId:'UTC'});const page=await context.newPage();current=page;await h.fixture(page,theme);
+  await page.goto(h.url+'/files');const empty=page.locator('.approved-empty-material');await empty.waitFor();
+  eq(await empty.getAttribute('data-playback'),'playing','new empty episode plays the greeting');ok((await empty.locator('img').getAttribute('src')).endsWith('greeting-once.gif'),'approved GIF is used, not an improvised puppet');
+  await empty.locator('img').evaluate(n=>n.decode());const bounds=await empty.locator('img').boundingBox(),head=await page.locator('.approved-home-header').boundingBox();
+  ok(bounds.x>=0&&bounds.x+bounds.width<=width,'empty art fits the viewport');ok(bounds.y>=head.y+head.height-1,'empty art stays below the import controls');ok(bounds.y+bounds.height<height-40,'empty art clears the bottom safe area');
+  ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'empty screen has no horizontal overflow');
+  if(theme==='sage'&&width===1360){await page.waitForFunction(()=>document.querySelector('.approved-empty-material')?.dataset.playback==='waiting',{},{timeout:8500});ok((await empty.locator('img').getAttribute('src')).endsWith('waiting.png'),'completed GIF becomes the identical static final frame');}
+  await screen(`${theme}-${width}-empty`);
+  await page.getByRole('button',{name:'设置',exact:true}).click();await page.locator('.approved-settings').waitFor();await page.getByRole('button',{name:'返回',exact:true}).first().click();await empty.waitFor();eq(await empty.getAttribute('data-playback'),'waiting','SPA return does not restart the greeting');
+  await page.locator('.approved-brand').click();eq(await empty.getAttribute('data-playback'),'waiting','theme change does not restart the GIF');
+  if(width===375){const n=await seed([1]);eq(n,1,'rearm fixture contains real material');await page.evaluate(async()=>{const{useMaterialStore}=await window.__uiStoreModule('materialStore');useMaterialStore.getState().changed();});await empty.waitFor({state:'detached'});const material=(await h.call('list_materials'))[0];await h.call('test_delete_source',{fileId:material.id});await page.evaluate(async()=>{const{useMaterialStore}=await window.__uiStoreModule('materialStore');useMaterialStore.getState().changed();});await empty.waitFor();eq(await empty.getAttribute('data-playback'),'playing','a later genuinely empty library can greet once again');}
+  await context.close();
+ }
+ // Respect system motion settings on the very first render; no GIF is requested.
+ await h.call('test_reset');{
+  const c=await h.browser.newContext({viewport:{width:375,height:812},reducedMotion:'reduce'}),page=await c.newPage();current=page;await h.fixture(page,'midnight');const gifs=[];page.on('request',r=>{if(r.url().endsWith('greeting-once.gif'))gifs.push(r.url());});await page.goto(h.url+'/files');await page.locator('.approved-empty-material[data-playback=waiting]').waitFor();eq(gifs,[],'reduced motion skips the animated asset entirely');await c.close();
+ }
+ for(const theme of ['sage','midnight'])for(const width of [1360,375]){
+  await h.call('test_reset');const c=await h.browser.newContext({viewport:{width,height:width===1360?880:812},hasTouch:width<768,timezoneId:'UTC'}),page=await c.newPage();current=page;await h.fixture(page,theme);await page.goto(h.url+'/saved');await page.locator('.saved-growing-timeline[data-phase=empty]').waitFor();eq(await page.locator('.saved-timeline-date').count(),0,'zero data invents no calendar date');eq(await page.locator('svg .saved-timeline-mark').count(),0,'zero data invents no bars');
+  await seed([2],[null]);await refresh('empty',0);await page.waitForFunction(()=>document.querySelector('.saved-timeline-meta > span')?.textContent==='2 条记录');eq(await page.locator('.saved-timeline-date').count(),0,'undated legacy records retain their count without fake dates');
+  await seed([1]);await refresh('seed',1);let mark=page.locator('.saved-timeline-mark');eq(await page.locator('.saved-timeline-date').count(),1,'one date has exactly one date label');eq(await page.locator('.approved-date-handles').count(),0,'sparse data has no duplicate date handles');eq(await mark.getAttribute('height'),'8','first record stays a small dot');eq(await mark.getAttribute('width'),'8','singleton is round');
+  await seed([100]);await refresh('seed',100);eq(await mark.getAttribute('height'),'8','100 same-day records still occupy one date dot');eq(await page.locator('.saved-timeline-meta > span').textContent(),'100 条记录','count reports records, not the single vocabulary group');await screen(`${theme}-${width}-same-day`);
+  await seed([1,1,1],[0,4,9]);await refresh('dots',3);let x=await page.locator('.saved-timeline-mark').evaluateAll(nodes=>nodes.map(n=>{const b=n.getBoundingClientRect();return b.x+b.width/2;}));ok(Math.abs((x[1]-x[0])/(x[2]-x[0])-4/9)<.01,'date gaps remain chronological and proportional');eq(await page.locator('.saved-timeline-mark').count(),3,'empty days do not appear as false saved records');await screen(`${theme}-${width}-dots`);
+  await seed([1,2,3,4,5,6,7]);await refresh('stems',28);const stemHeights=await page.locator('.saved-timeline-mark').evaluateAll(nodes=>nodes.map(n=>n.getBBox().height));ok(stemHeights[6]>stemHeights[0]&&stemHeights[6]<48,'dates grow into short stems before dense bars');
+  const total=await seed(Array.from({length:28},(_,i)=>i%7+1));await refresh('band',total);eq(await page.locator('.saved-timeline-mark').count(),28,'dense dates form a band of the same marks');ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'dense dates fit the viewport');await screen(`${theme}-${width}-band`);
+  await page.locator('.saved-timeline-date--first').click();await page.locator('.saved-timeline-filter').waitFor();await page.locator('.saved-timeline-filter input').first().fill(dayString(14));await page.waitForFunction(()=>document.querySelector('.saved-timeline-meta > span')?.textContent==='56 条记录');ok((await h.call('list_saved_groups',{query:'',limit:200,offset:0,startMs:Date.UTC(2026,9,21)})).total_records===56,'date filtering agrees with actual native range counts');
+  await page.keyboard.press('Escape');await page.locator('.saved-timeline-filter').waitFor({state:'detached'});ok(await page.locator('.saved-timeline-date--first').evaluate(n=>n===document.activeElement),'filter closure returns keyboard focus to the date');await page.getByRole('button',{name:'全部日期',exact:true}).click();await page.waitForFunction(()=>document.querySelector('.saved-timeline-meta > span')?.textContent==='112 条记录');
+  // Exercise the real request's retry path without changing the test database.
+  await page.evaluate(()=>{const invoke=window.__TAURI_INTERNALS__.invoke;window.__histFailure=true;window.__TAURI_INTERNALS__.invoke=(cmd,args)=>cmd==='saved_date_histogram'&&window.__histFailure?Promise.reject(Error('controlled histogram failure')):invoke(cmd,args);window.dispatchEvent(new Event('lexicue-saved-changed'));});await page.locator('.saved-timeline-status[data-state=error]').waitFor();await page.evaluate(()=>window.__histFailure=false);await page.locator('.saved-timeline-status').getByRole('button',{name:'重试'}).click();await page.locator('.saved-growing-timeline[data-phase=band]').waitFor();
+  await c.close();
+ }
+ eq(h.errors,[],'no browser exceptions');await writeFile(`${output}/evidence.json`,JSON.stringify({passed:true,checks,source:'approved GIF, actual Rust saved_date_histogram and saved groups, disposable SQLite',themes:['sage','midnight'],viewports:[[1360,880],[375,812],[320,568],[812,375]],nativeDevice:false},null,2));console.log(`Empty material and growing timeline: ${checks} checks passed. ${output}`);
+}catch(error){if(current&&!current.isClosed()){await current.screenshot({path:`${output}/failure.png`}).catch(()=>{});await writeFile(`${output}/failure.json`,JSON.stringify({error:String(error),text:await current.locator('body').innerText(),url:current.url()},null,2));}throw error;}finally{await h.dispose();}

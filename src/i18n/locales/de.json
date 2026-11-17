@@ -2022,6 +2022,12 @@
     }
   },
   "approved": {
+    "emptyMaterials": "Noch keine Materialien",
+    "filterDates": "Speicherdatum filtern",
+    "recordCount_one": "{{count}} Eintrag",
+    "recordCount_other": "{{count}} Einträge",
+    "timelineSummary": "Gespeicherte Einträge: {{records}}; aktive Tage: {{days}}",
+
     "light": "Hellen Modus aktivieren",
     "dark": "Dunklen Modus aktivieren",
     "manage": "Material verwalten",
