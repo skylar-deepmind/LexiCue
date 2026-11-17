@@ -23,7 +23,7 @@ function lift(node: HTMLElement, spec: Removal, x: number, y: number, keyboard=f
   const bin=basket.getBoundingClientRect(),cx=bin.left+bin.width/2,cy=bin.top+bin.height*.4;
   const startDistance=Math.max(180,Math.hypot(x-cx,y-cy)),grabX=x-rect.left,grabY=y-rect.top;
   const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let disposed=false,over=false,moved=false,sealing:ReturnType<typeof setTimeout>|undefined;
+  let disposed=false,over=false,sealing:ReturnType<typeof setTimeout>|undefined;
   const paint=(hot:boolean)=>{over=hot;basket.dataset.open=String(hot);caption.textContent=i18n.t(hot?'approved.releaseDelete':'approved.dragToTrash');};
   paint(false);
   const inside=(px:number,py:number)=>{const r=basket.getBoundingClientRect();return px>=r.left-12&&px<=r.right+12&&py>=r.top-12&&py<=r.bottom+12;};
@@ -50,11 +50,11 @@ function lift(node: HTMLElement, spec: Removal, x: number, y: number, keyboard=f
   const key=(e:KeyboardEvent)=>{if(e.key==='Escape'&&!session.busy){e.preventDefault();e.stopPropagation();cancel();}};
   const outside=(e:PointerEvent)=>{if(!layer.contains(e.target as Node)&&e.target!==node&&!node.contains(e.target as Node)){e.preventDefault();e.stopPropagation();cancel();}};
   const session:Session={node,busy:false,cancel,commit,move:(px,py)=>{
-    if(disposed||session.busy)return;moved ||= Math.hypot(px-x,py-y)>8;
+    if(disposed||session.busy)return;
     const proximity=Math.max(0,Math.min(1,1-Math.hypot(px-cx,py-cy)/startDistance)),scale=.96-.69*proximity*proximity;
     ghost.style.transform=`translate3d(${px-x+(1-scale)*grabX}px,${py-y+(1-scale)*grabY-12}px,0) scale(${scale})`;
     ghost.dataset.proximity=String(proximity);paint(inside(px,py));
-  },release:(px,py)=>{if(disposed)return;if(inside(px,py)&&over){commit();}else if(moved){cancel();}else{basket.focus({preventScroll:true});}}};
+  },release:(px,py)=>{if(disposed)return;if(inside(px,py)&&over){commit();}else{cancel();}}};
   basket.onclick=commit;window.addEventListener('keydown',key,true);window.addEventListener('resize',cancel);window.addEventListener('pagehide',cancel);window.addEventListener('blur',cancel);document.addEventListener('pointerdown',outside,true);current=session;
   if(keyboard)basket.focus({preventScroll:true});return session;
 }
@@ -66,16 +66,16 @@ export default function useTrashDrag(ref: RefObject<HTMLElement|null>, spec: Rem
     const node=ref.current?.querySelector<HTMLElement>('[data-motion-file]')??ref.current;if(!node)return;node.dataset.trashSource='true';
     let pending:{x:number;y:number;id:number;touch:boolean}|null=null,timer:ReturnType<typeof setTimeout>|undefined,suppressUntil=0,session:Session|null=null;
     const clear=()=>{clearTimeout(timer);timer=undefined;pending=null;};
-    const begin=(x:number,y:number,id:number,touch:boolean,target:EventTarget|null)=>{if(current?.busy||latest.current.disabled||target instanceof Element&&target.closest('input,textarea,a,summary,[data-no-trash]'))return;clear();pending={x,y,id,touch};timer=setTimeout(()=>{if(!pending)return;const data=latest.current;session=lift(node,data,x,y);suppressUntil=performance.now()+700;if(!touch)try{node.setPointerCapture(id);}catch{/* A released pointer cannot lift a different object. */}},420);};
+    const begin=(x:number,y:number,id:number,touch:boolean,target:EventTarget|null)=>{if(current?.busy||latest.current.disabled||target instanceof Element&&target.closest('input,textarea,a,summary,[data-no-trash]'))return;if(current?.node===node)current.cancel();session=null;suppressUntil=0;clear();pending={x,y,id,touch};timer=setTimeout(()=>{if(!pending)return;const data=latest.current;session=lift(node,data,x,y);suppressUntil=performance.now()+700;if(!touch)try{node.setPointerCapture(id);}catch{/* A released pointer cannot lift a different object. */}},420);};
     const move=(x:number,y:number,e:Event)=>{if(!pending)return;if(session){if(e.cancelable)e.preventDefault();session.move(x,y);}else if(Math.hypot(x-pending.x,y-pending.y)>7)clear();};
-    const end=(x:number,y:number,cancel=false)=>{if(!pending)return;if(session){suppressUntil=performance.now()+700;if(cancel)session.cancel();else session.release(x,y);session=null;}clear();};
+    const end=(x:number,y:number,cancel=false)=>{if(!pending)return;if(session&&session===current){suppressUntil=performance.now()+700;if(cancel)session.cancel();else session.release(x,y);}session=null;clear();};
     const down=(e:PointerEvent)=>{if(e.pointerType!=='touch'&&e.button===0)begin(e.clientX,e.clientY,e.pointerId,false,e.target);};
     const pointerMove=(e:PointerEvent)=>{if(pending&&!pending.touch&&pending.id===e.pointerId)move(e.clientX,e.clientY,e);};
     const up=(e:PointerEvent)=>{if(pending&&!pending.touch&&pending.id===e.pointerId)end(e.clientX,e.clientY,e.type==='pointercancel');};
     const touchStart=(e:TouchEvent)=>{if(e.touches.length===1){const t=e.touches[0];begin(t.clientX,t.clientY,t.identifier,true,e.target);}else{session?.cancel();session=null;clear();}};
     const touchMove=(e:TouchEvent)=>{if(!pending?.touch)return;const t=[...e.touches].find(t=>t.identifier===pending?.id);if(t)move(t.clientX,t.clientY,e);};
     const touchEnd=(e:TouchEvent)=>{if(!pending?.touch)return;const t=[...e.changedTouches].find(t=>t.identifier===pending?.id);if(t)end(t.clientX,t.clientY,e.type==='touchcancel');};
-    const click=(e:MouseEvent)=>{if(performance.now()<suppressUntil){e.preventDefault();e.stopImmediatePropagation();}};
+    const click=(e:MouseEvent)=>{if(performance.now()<suppressUntil&&!(e.target instanceof Element&&e.target.closest('[data-no-trash]'))){e.preventDefault();e.stopImmediatePropagation();}};
     const context=(e:Event)=>{e.preventDefault();};
     const key=(e:KeyboardEvent)=>{if(!current?.busy&&!latest.current.disabled&&['Delete','Backspace'].includes(e.key)&&!(e.target as Element).closest('input,textarea')){e.preventDefault();e.stopPropagation();const r=node.getBoundingClientRect();session=lift(node,latest.current,r.left+r.width/2,r.top+r.height/2,true);}};
     node.addEventListener('pointerdown',down);node.addEventListener('pointermove',pointerMove);node.addEventListener('pointerup',up);node.addEventListener('pointercancel',up);node.addEventListener('touchstart',touchStart,{passive:true});node.addEventListener('touchmove',touchMove,{passive:false});node.addEventListener('touchend',touchEnd);node.addEventListener('touchcancel',touchEnd);node.addEventListener('click',click,true);node.addEventListener('contextmenu',context);node.addEventListener('dragstart',context);node.addEventListener('keydown',key);

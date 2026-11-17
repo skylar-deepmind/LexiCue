@@ -1,0 +1,74 @@
+/** Card choreography and category edits, with real disposable Rust/SQLite stores. */
+import assert from 'node:assert/strict';
+import {writeFile} from 'node:fs/promises';
+import {createReadingHarness} from './ui-reading-support.mjs';
+const out=process.env.LEXICUE_CARD_UI_OUTPUT||'/tmp/lexicue-card-interactions';
+const h=await createReadingHarness(out);let page,checks=0;
+const ok=(v,label)=>{assert.ok(v,label);checks++;},eq=(v,e,label)=>{assert.deepEqual(v,e,label);checks++;};
+const settle=()=>page.waitForFunction(()=>!document.querySelector('.approved-handoff,.approved-reading-hold,.approved-tag-flight'));
+const finish=()=>page.evaluate(()=>document.getAnimations().filter(a=>a.effect?.getTiming().iterations!==Infinity).forEach(a=>a.finish()));
+try{
+ for(const theme of ['sage','midnight'])for(const width of [1360,375]){
+  await h.call('test_reset');for(const name of ['Travel','Daily','Empty'])await h.call('create_tag',{name});const tags=await h.call('list_tags'),travel=tags.find(t=>t.name==='Travel'),daily=tags.find(t=>t.name==='Daily'),empty=tags.find(t=>t.name==='Empty');
+  const files=[];for(let i=0;i<2;i++)files.push(await h.call('import_reading_material',{input:{operation_id:crypto.randomUUID(),name:`Card journey ${i}.txt`,content:`The air is cool near the harbor. Journey ${i}.`,normalized_kind:'txt',segments:[{index:0,en_text:`The air is cool near the harbor. Journey ${i}.`,zh_text:'海港附近的空气很凉爽。'}],tag_ids:[travel.id]}}));
+  const context=await h.browser.newContext({viewport:{width,height:width===1360?880:812},hasTouch:width<768});page=await context.newPage();await h.fixture(page,theme);
+  await page.goto(h.url+'/files');await page.evaluate(async()=>{const{useMaterialStore:m}=await window.__uiStoreModule('materialStore');await m.getState().load();const{useReadingDeskStore:d}=await window.__uiStoreModule('readingDeskStore');for(const file of m.getState().files)d.getState().keepAndOpen(file);});
+  const card=page.locator('.approved-card[data-desk-active=true]');await card.waitFor();const fileId=Number(await card.getAttribute('data-motion-file'));
+  // A stationary release must restore the real card on both mouse and touch.
+  const cover=card.locator('.approved-card-open'),r=await cover.boundingBox(),point={x:r.x+r.width/2,y:r.y+r.height/2};
+  const cdp=width<768?await context.newCDPSession(page):null;
+  if(cdp)await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{...point,id:1}]});else{await page.mouse.move(point.x,point.y);await page.mouse.down();}
+  await page.locator('.trash-drag-layer').waitFor();
+  if(cdp){await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await cdp.detach();}else await page.mouse.up();
+  await page.locator('.trash-drag-layer').waitFor({state:'detached'});
+  eq(await card.evaluate(n=>getComputedStyle(n).visibility),'visible','stationary hold release restores the source');eq((await h.call('test_counts')).files,2,'cancel never deletes material');
+  await cover.focus();await page.keyboard.press('Delete');await page.locator('.trash-drop-target').waitFor();await page.keyboard.press('Escape');await page.locator('.trash-drag-layer').waitFor({state:'detached'});ok(await cover.isVisible(),'keyboard trash remains available and cancellable');
+  // The turn indicator stays through the pause between consecutive swipes.
+  const position=Number(await card.getAttribute('data-desk-position'));eq(position,0,'active card is centered');
+  const next=await page.locator('.approved-edge-next').isEnabled()?'.approved-edge-next':'.approved-edge-prev',back=next.endsWith('next')?'.approved-edge-prev':'.approved-edge-next';
+  await page.locator(next).click();await page.waitForTimeout(1100);ok(await page.locator('.approved-dots').evaluate(n=>Number(getComputedStyle(n).opacity)>.95),'turn indicator remains visible after 1.1 seconds');
+  await page.locator(back).click();await page.waitForTimeout(1100);ok(await page.locator('.approved-dots').evaluate(n=>Number(getComputedStyle(n).opacity)>.95),'a second turn renews the hold without fading');await page.waitForFunction(()=>getComputedStyle(document.querySelector('.approved-dots')).opacity==='0');
+  const drag=await cover.boundingBox();await page.mouse.move(drag.x+drag.width/2,drag.y+drag.height/2);await page.mouse.down();await page.mouse.move(drag.x+drag.width/2+20,drag.y+drag.height/2);await page.waitForTimeout(2200);ok(await page.locator('.approved-dots').evaluate(n=>Number(getComputedStyle(n).opacity)>.95),'indicator stays visible throughout a held horizontal gesture');await page.mouse.up();eq(new URL(page.url()).pathname,'/files','short horizontal gesture does not accidentally open reading');
+  eq(await card.locator('.material-floating-tag').evaluate(n=>getComputedStyle(n).backgroundColor),'rgb(251, 250, 245)','assigned tags use the same white paper in either theme');
+  await card.locator('.approved-tag-edit').click();const strip=page.locator('.home-card-tags');await strip.waitFor();
+  const bar=await strip.boundingBox(),bounds=await card.boundingBox();ok(bar.y+bar.height<=bounds.y,'tag choices sit above the home card');eq(await page.locator('.tag-dialog,.tag-color-picker').count(),0,'no retired dialog or color controls');
+  await page.evaluate(()=>window.__uiFailure={command:'set_file_tags',remaining:1,afterCommit:false});await strip.getByRole('option',{name:'Daily',exact:true}).click();await strip.getByRole('alert').waitFor();eq((await h.call('list_materials')).find(f=>f.id===fileId).tags[0].id,travel.id,'failed assignment retains the original tag');
+  await strip.getByRole('option',{name:'Daily',exact:true}).click();await strip.waitFor({state:'detached'});eq((await h.call('list_materials')).find(f=>f.id===fileId).tags.map(t=>t.id),[daily.id],'one tap persists exactly one category');
+  // Each return frame must finish the card before the tag stamp starts.
+  await cover.click();await page.locator('.reading-word').first().waitFor();await settle();await page.locator('.reading-breadcrumb .page-back').click();await page.locator('[data-motion-piece=tag]').waitFor();
+  await page.evaluate(()=>document.querySelectorAll('.approved-handoff *').forEach(n=>n.getAnimations().forEach(a=>a.pause())));
+  for(const time of [0,250,579,700,820]){
+   await page.evaluate(time=>document.querySelectorAll('.approved-handoff *').forEach(n=>n.getAnimations().forEach(a=>a.currentTime=time)),time);
+   const opacity=await page.locator('[data-motion-piece=tag]').evaluate(n=>Number(getComputedStyle(n).opacity));
+   if(time<580)eq(opacity,0,`tag remains absent while the card assembles at ${time}ms`);else if(time===700)ok(opacity>0&&opacity<1,'tag fades in after assembly');else eq(opacity,1,'tag finishes after the card is complete');
+  }
+  await finish();await settle();
+  await page.locator('.approved-library-entry').click();await settle();
+  const caption=page.locator(`[data-tag-id="${daily.id}"] .approved-tag-name`);await caption.click();eq(await page.locator('.approved-tag-name-editor').count(),0,'a short caption click does not open an old management dialog');
+  const cap=await caption.boundingBox();await page.mouse.move(cap.x+cap.width/2,cap.y+cap.height/2);await page.mouse.down();await page.locator('.approved-tag-name-editor input').waitFor();await page.mouse.up();
+  await page.locator('.approved-tag-name-editor input').fill('Voyage');await page.locator('.approved-tag-name-editor').getByRole('button',{name:'保存',exact:true}).click();await page.locator('.approved-tag-name-editor').waitFor({state:'detached'});
+  eq((await h.call('list_materials')).find(f=>f.id===fileId).tags[0].id,daily.id,'inline rename preserves the existing association and ID');eq(await page.locator(`[data-tag-id="${daily.id}"] strong`).innerText(),'Voyage','renamed caption is updated in place');
+  await page.getByRole('button',{name:'重命名 Voyage',exact:true}).focus();await page.keyboard.press('Enter');await page.locator('.approved-tag-name-editor input').fill('Travel');
+  await page.locator('.approved-tag-name-editor').getByRole('button',{name:'保存',exact:true}).click();await page.locator('.approved-tag-name-editor [role=alert]').waitFor();eq(await page.locator('.approved-tag-name-editor input').inputValue(),'Travel','a rejected duplicate name retains the draft for correction');eq((await h.call('list_tags')).find(t=>t.id===daily.id).name,'Voyage','failed inline rename leaves the original name intact');
+  await page.keyboard.press('Escape');await page.locator('.approved-tag-name-editor').waitFor({state:'detached'});eq((await h.call('list_tags')).find(t=>t.id===daily.id).name,'Voyage','Escape cancels inline renaming without saving');
+  await page.locator('.approved-tag-add').click();await page.locator('.approved-tag-name-editor input').fill('Notes');await page.locator('.approved-tag-name-editor').getByRole('button',{name:'保存',exact:true}).click();await page.locator('.approved-tag-name-editor').waitFor({state:'detached'});ok((await h.call('list_tags')).some(t=>t.name==='Notes'),'new categories can also be named in place');
+  ok(await page.locator(`[data-tag-id="${empty.id}"] .empty-library-artwork img`).isVisible(),'empty classification has the approved static comic');
+  await page.getByRole('button',{name:'Empty · 0',exact:true}).click();await page.locator('.approved-wall-empty .empty-library-artwork img').waitFor();eq(await page.locator('.approved-wall-empty img').getAttribute('src'),'/design/empty-material/waiting.png','empty wall uses a static waiting pose');
+  ok(await page.locator('.approved-wall-empty p').evaluate(n=>{const l=color=>{const rgb=color.match(/[\d.]+/g).slice(0,3).map(Number).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;});return .2126*rgb[0]+.7152*rgb[1]+.0722*rgb[2];};const a=l(getComputedStyle(n).color),b=l(getComputedStyle(n.closest('.approved-wall')).backgroundColor);return (Math.max(a,b)+.05)/(Math.min(a,b)+.05)>=4.5;}),'empty status stays readable on the dark gallery in both themes');
+  await page.locator('.approved-wall header button').click();await settle();await page.locator('.approved-rail-back').click();await settle();
+  // Preview assignment uses the same options, outside and above the artwork.
+  await page.evaluate(async()=>{const{useImportStore:i}=await window.__uiStoreModule('importStore');await i.getState().fromContent('clipboard','A new card waits beside the quiet harbor.',true);});await page.locator('.import-material-card').waitFor();
+  const options=page.locator('.import-card-stage > .card-tag-choices'),ob=await options.boundingBox(),preview=await page.locator('.import-material-card').boundingBox();ok(ob.y+ob.height<=preview.y,'import choices are above the preview card');
+  await options.getByRole('option',{name:'Voyage',exact:true}).click();eq(await page.locator('.import-card-category').innerText(),'Voyage','preview caption follows the chosen category');eq((await h.call('test_counts')).files,2,'preview tag selection never imports early');
+  ok(await page.locator('.import-card-title-input').evaluate(n=>parseFloat(getComputedStyle(n).fontSize)>=29),'editable preview title retains card typography');
+  await page.screenshot({path:`${out}/${theme}-${width}-preview.png`});await page.keyboard.press('Escape');await page.locator('.clipboard-scene').waitFor({state:'detached'});
+  if(width<768){await page.setViewportSize({width:667,height:375});await card.locator('.approved-tag-edit').click();const bar=await page.locator('.home-card-tags').boundingBox(),header=await page.locator('.approved-home-header').boundingBox(),bounds=await card.boundingBox();ok(bar.y>=header.y+header.height,'landscape tag choices clear the header');ok(bar.y+bar.height<=bounds.y,'landscape choices still sit above the card');ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'landscape choices do not widen the page');await page.screenshot({path:`${out}/${theme}-landscape.png`});await page.keyboard.press('Escape');await page.setViewportSize({width:375,height:812});}
+  // Opaque old snapshots prevent a mid-transition flash; fallback also interpolates.
+  const brand=page.locator('.approved-brand');await brand.click();await page.waitForFunction(()=>document.getAnimations().some(a=>a.animationName==='theme-soft-in'));
+  const timing=await page.evaluate(()=>({old:getComputedStyle(document.documentElement,'::view-transition-old(root)').animationName,duration:document.getAnimations().find(a=>a.animationName==='theme-soft-in').effect.getTiming().duration}));eq(timing.old,'none','old theme stays opaque underneath the new frame');eq(timing.duration,850,'theme transition has a deliberate soft duration');await page.waitForFunction(()=>!document.documentElement.dataset.themeTransition);
+  await page.evaluate(()=>{document.startViewTransition=undefined;});const oldColor=await page.locator('.approved-desk').evaluate(n=>getComputedStyle(n).backgroundColor);await brand.click();await page.waitForTimeout(250);const midColor=await page.locator('.approved-desk').evaluate(n=>getComputedStyle(n).backgroundColor);ok(midColor!==oldColor,'fallback interpolates rather than holding the old color');await page.waitForFunction(()=>!document.documentElement.dataset.themeTransition);const endColor=await page.locator('.approved-desk').evaluate(n=>getComputedStyle(n).backgroundColor);ok(midColor!==endColor,'fallback has intermediate colors rather than a hard cut');
+  await page.emulateMedia({reducedMotion:'reduce'});await brand.click();eq(await page.evaluate(()=>document.documentElement.dataset.themeTransition),undefined,'reduced motion changes theme without a forced animation');
+  await context.close();console.log(`Card interactions ${theme}/${width}: ${checks} assertions`);
+ }
+ eq(h.errors,[],'no browser exceptions');await writeFile(`${out}/evidence.json`,JSON.stringify({passed:true,checks,scope:'Both approved themes, desktop and touch-sized Chromium; real temporary SQLite. Touch cancellation uses Chromium touch input, native devices checked separately.'},null,2));console.log(`Card interactions: ${checks} checks passed`);
+}catch(e){await page?.screenshot({path:`${out}/failure.png`}).catch(()=>{});await writeFile(`${out}/failure.json`,JSON.stringify(await page?.evaluate(()=>({url:location.href,text:document.body.innerText,calls:window.__uiCalls})).catch(()=>null),null,2));throw e;}finally{await h.dispose();}

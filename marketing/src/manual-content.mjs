@@ -64,7 +64,7 @@ export const manualContent={
           "id": "tags",
           "title": "Desk, library and tags",
           "body": [
-            "Click a material’s image to resume reading; click its tag text to edit its single category. In the library, category artwork opens the poster wall and category text manages names. Older multi-tag records stay intact until you explicitly edit them.",
+            "Click a material’s image to resume reading. Click its tag to choose one category from the strip above the card; imports use the same strip. In the library, category artwork opens the poster wall; hold its caption to rename it in place. Older multi-tag records stay intact until you explicitly choose a category.",
             "To delete a material, hold its card, drag it over the trash basket and release when the lid opens. Release elsewhere to cancel. Saved sentences, meanings and notes remain available; a deleted source can no longer be opened."
           ],
           "steps": [],
@@ -411,7 +411,7 @@ export const manualContent={
           "id": "tags",
           "title": "桌面、材料库与标签",
           "body": [
-            "点击材料图片接着上次位置阅读；点击标签文字编辑分类，每份材料新选择一个标签。材料库中，点击分类图片进入海报墙，点击分类文字管理名字；旧资料的多个标签保留到明确编辑时才改变。",
+            "点击材料图片接着上次位置阅读；点击现有标签，在卡片上方选择一个分类，导入时也使用同样的标签条。材料库中，点击分类图片进入海报墙，长按下方文字原地改名；旧资料的多个标签保留到明确选择分类时才改变。",
             "长按材料卡片，拖到垃圾篓，盖子打开后松手即删除；在其他位置松手则取消。已保存的原句、释义和笔记仍保留，但无法再打开已删除的来源。"
           ],
           "steps": [],
@@ -758,7 +758,7 @@ export const manualContent={
           "id": "tags",
           "title": "デスク・ライブラリ・タグ",
           "body": [
-            "資料の画像で前回の位置から読み、タグの文字で分類を変更します。新しく選べるタグは資料ごとに1つです。ライブラリの分類画像はポスター一覧、文字は名前管理を開きます。既存の複数タグは明示的に編集するまで保持します。",
+            "資料の画像で前回の位置から読み、タグを押すとカード上の選択欄で分類を1つ選べます。取り込み時も同じ選択欄を使います。ライブラリの分類画像でポスター一覧を開き、その下の文字を長押しするとその場で名前を変更できます。既存の複数タグは分類を明示的に選ぶまで保持します。",
             "素材のカードを長押ししてごみ箱へドラッグし、ふたが開いたら離すと削除します。それ以外の場所で離すとキャンセルします。保存した文・意味・メモは残りますが、削除した出典は開けなくなります。"
           ],
           "steps": [],
@@ -1105,7 +1105,7 @@ export const manualContent={
           "id": "tags",
           "title": "Lesetisch, Bibliothek und Tags",
           "body": [
-            "Das Materialbild setzt das Lesen fort; der Tag-Text bearbeitet die einzelne Kategorie. In der Bibliothek öffnet das Kategorienbild die Posterwand, der Text verwaltet Namen. Bestehende Mehrfach-Tags bleiben bis zu einer ausdrücklichen Bearbeitung erhalten.",
+            "Das Materialbild setzt das Lesen fort. Ein Klick auf den Tag zeigt die Kategorien über der Karte; beim Import erscheint dieselbe Auswahl. In der Bibliothek öffnet das Kategorienbild die Posterwand. Halte die Beschriftung darunter gedrückt, um sie direkt umzubenennen. Bestehende Mehrfach-Tags bleiben erhalten, bis du ausdrücklich eine Kategorie wählst.",
             "Halte eine Materialkarte gedrückt, ziehe sie zum Papierkorb und lasse los, sobald sich der Deckel öffnet. Loslassen an anderer Stelle bricht ab. Gespeicherte Sätze, Bedeutungen und Notizen bleiben erhalten; die gelöschte Quelle lässt sich nicht mehr öffnen."
           ],
           "steps": [],

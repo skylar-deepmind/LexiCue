@@ -5,12 +5,14 @@ import EmptyMaterialGreeting from '../components/EmptyMaterialGreeting';
 import { rearmEmptyMaterialGreeting } from '../lib/emptyMaterialGreeting';
 import '../components/empty-material.css';
 import SavedPocketPreview from '../components/SavedPocketPreview';
-import TagNamesDialog from '../components/TagNamesDialog';
+import InlineTagName from '../components/InlineTagName';
+import HomeCardTags from '../components/HomeCardTags';
+import EmptyLibraryArtwork from '../components/EmptyLibraryArtwork';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
-import { ChevronLeft, ChevronRight, Settings } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Settings } from 'lucide-react';
 import { useMaterialStore } from '../stores/materialStore';
 import { useReadingDeskStore } from '../stores/readingDeskStore';
 import { useFileStore } from '../stores/fileStore';
@@ -27,7 +29,6 @@ import type { SavedGroupPage, SavedRecord } from '../lib/savedRecords';
 import { useTheme } from '../components/useTheme';
 import MaterialCover from '../components/MaterialCover';
 import Overlay from '../components/Overlay';
-import TagEditDialog from '../components/TagEditDialog';
 import { BusyRing } from '../components/LoadingFeedback';
 import { ClipboardImportIcon, FileImportIcon } from '../components/HomeActionIcons';
 import useTrashDrag, { isTrashDragging } from '../components/useTrashDrag';
@@ -96,7 +97,8 @@ function MaterialDesk() {
     const next = recent[index + step];
     if (!next) return;
     setFallback(next.id); desk.select(next); setTurning(true); clearTimeout(timer.current);
-    timer.current = setTimeout(() => setTurning(false), 430);
+    timer.current = setTimeout(() => setTurning(false), 2000);
+    setEditing(null);
   };
   const open = (file: Material, node: HTMLElement, origin: 'desk' | 'wall') => {
     if (origin === 'wall') desk.keepAndOpen(file);
@@ -131,7 +133,7 @@ function MaterialDesk() {
   return <div className="approved-desk" data-library-open={groups || undefined}>
     {wallTag !== null ? <PosterWall files={wallFiles} title={tagName} identity={wallTag} onBack={() => { setParams({ view: 'library' }); setGroups(true); }} onOpen={(file, node) => open(file, node, 'wall')}/> : <>
       <header className="approved-home-header">
-        <button className="approved-brand" aria-label={t(theme === 'midnight' ? 'approved.light' : 'approved.dark')} aria-pressed={theme === 'midnight'} onClick={() => setTheme(theme === 'midnight' ? 'sage' : 'midnight')}><img src={`/design/wordmark${theme === 'midnight' ? '-night' : ''}.png`} alt="LexiCue"/></button>
+        <button className="approved-brand" aria-label={t(theme === 'midnight' ? 'approved.light' : 'approved.dark')} aria-pressed={theme === 'midnight'} onClick={() => setTheme(theme === 'midnight' ? 'sage' : 'midnight')}><img className="approved-wordmark-day" src="/design/wordmark.png" alt=""/><img className="approved-wordmark-night" src="/design/wordmark-night.png" alt=""/></button>
         <div><button data-guide="import" className="approved-icon clipboard-import" aria-label={t(importing ? 'materials.importRunning' : 'materials.importDialog.pasteLink')} aria-busy={pasting || importing} disabled={pasting} onClick={() => void paste()}>{pasting || importing ? <BusyRing/> : <ClipboardImportIcon/>}</button>
           <button className="approved-icon home-file-picker import-tray" aria-label={t('materials.choose')} aria-busy={picking || importing} disabled={picking || importing || pasting} onClick={() => void useImportStore.getState().choose()}>{picking ? <BusyRing/> : <FileImportIcon/>}</button>
           <button className="approved-icon home-settings-action" aria-label={t('sidebar.settings')} onClick={() => navigate('/settings', { state: visitState(location) })}><Settings size={23}/></button>
@@ -139,15 +141,16 @@ function MaterialDesk() {
       </header>
       {catalog.loading && !catalog.hasLoaded ? <div className="approved-desk-status" role="status"><BusyRing/>{t('approved.loadingLibrary')}</div> : catalog.error ? <div className="approved-desk-status" role="alert"><p>{t('materials.loadFailed')}</p><button className="ui-button" onClick={() => void catalog.load()}>{t('common.retry')}</button></div> : selected ? <div ref={card} className="approved-deck" tabIndex={0} aria-label={t('readingDesk.desktop')} data-turning={turning || undefined}
         onKeyDown={event => { if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); turn(event.key === 'ArrowRight' ? 1 : -1); } }}
-        onPointerDown={event => { if (event.button === 0 && !(event.target as Element).closest('.approved-tag-edit')) gesture.current = { x: event.clientX, y: event.clientY, locked: false }; }}
-        onPointerMove={event => { if(isTrashDragging()){gesture.current=null;return;}const g = gesture.current; if (!g) return; const dx = event.clientX - g.x, dy = event.clientY - g.y; if (Math.abs(dy) > Math.abs(dx) * 1.25 && !g.locked) gesture.current = null; else if (Math.abs(dx) > 8) g.locked = true; }}
-        onPointerUp={event => { const g = gesture.current; gesture.current = null; if (!g) return; const dx = event.clientX - g.x, dy = event.clientY - g.y; if (Math.abs(dx) > 34 && Math.abs(dx) > Math.abs(dy) * 1.25) { turn(dx < 0 ? 1 : -1); suppress.current = performance.now() + 350; } }} onPointerCancel={() => { gesture.current = null; }}>
+        onPointerDown={event => { if (event.button === 0 && !(event.target as Element).closest('.approved-tag-edit,.home-card-tags')) { suppress.current=0; gesture.current = { x: event.clientX, y: event.clientY, locked: false }; } }}
+        onPointerMove={event => { if(isTrashDragging()){gesture.current=null;return;}const g = gesture.current; if (!g) return; const dx = event.clientX - g.x, dy = event.clientY - g.y; if (Math.abs(dy) > Math.abs(dx) * 1.25 && !g.locked) gesture.current = null; else if (Math.abs(dx) > 8&&!g.locked) { g.locked = true; setTurning(true); clearTimeout(timer.current); } }}
+        onPointerUp={event => { const g = gesture.current; gesture.current = null; if (!g) return; const dx = event.clientX - g.x, dy = event.clientY - g.y; if(g.locked)suppress.current=performance.now()+350; if (Math.abs(dx) > 34 && Math.abs(dx) > Math.abs(dy) * 1.25) { turn(dx < 0 ? 1 : -1); suppress.current = performance.now() + 350; } else if(g.locked)timer.current=setTimeout(()=>setTurning(false),2000); }} onPointerCancel={() => { if(gesture.current?.locked)timer.current=setTimeout(()=>setTurning(false),2000);gesture.current = null; }}>
+        {editing?.id===selected.id&&<HomeCardTags file={editing} onClose={() => { setEditing(null); card.current?.querySelector<HTMLElement>('[data-desk-active=true] .approved-tag-edit')?.focus({preventScroll:true}); }}/ >}
         {recent.map((file, i) => <TrashMaterial key={`${file.id}:${file.content_hash}`} file={file} enabled={i===index}><article className="approved-card" key={`${file.id}:${file.content_hash}`} data-desk-active={i === index} data-desk-position={i - index} data-motion-file={file.id} aria-hidden={Math.abs(i - index) > 1 || undefined} inert={Math.abs(i - index) > 1}>
           <button className="approved-card-open" data-testid={i === index ? 'desk-continue' : undefined} aria-label={t('readingDesk.openNamed', { name: file.name })} onClick={event => {
             if (performance.now() < suppress.current) return;
             if (i !== index) { turn(i - index); return; }
             open(file, event.currentTarget.closest('article')!, 'desk');
-          }}><MaterialCover src={materialCover(file)} identity={file.content_hash} className="approved-card-cover"/></button><button className="approved-card-category approved-tag-edit material-floating-tag" data-no-trash disabled={i !== index} aria-label={t('tags.edit')} onClick={() => setEditing(file)}>{file.tags[0]?.name ?? t('tags.untagged')}</button><div className="approved-card-copy"><strong className="approved-card-title" lang="en">{bookmarkTitle(file.name)}</strong><span className="approved-card-quote" lang="en">{readingMotionExcerpt(file) ?? quotes[`${file.id}:${file.content_hash}:${readingPosition(file)}`] ?? file.preview}</span></div>
+          }}><MaterialCover src={materialCover(file)} identity={file.content_hash} className="approved-card-cover"/></button><button className="approved-card-category approved-tag-edit material-floating-tag" data-no-trash disabled={i !== index} aria-label={t('tags.edit')} aria-expanded={editing?.id===file.id} onClick={() => setEditing(current=>current?.id===file.id?null:file)}>{file.tags[0]?.name ?? t('tags.untagged')}</button><div className="approved-card-copy"><strong className="approved-card-title" lang="en">{bookmarkTitle(file.name)}</strong><span className="approved-card-quote" lang="en">{readingMotionExcerpt(file) ?? quotes[`${file.id}:${file.content_hash}:${readingPosition(file)}`] ?? file.preview}</span></div>
         </article></TrashMaterial>)}
         <div className="approved-dots" data-visible={turning} aria-label={`${index + 1} / ${recent.length}`}>{recent.map((file, i) => <i key={file.id} data-current={i === index}/>)}</div>
         <button className="approved-edge approved-edge-prev" aria-label={t('history.previous')} disabled={index === 0} onClick={() => turn(-1)}><ChevronLeft size={18}/></button><button className="approved-edge approved-edge-next" aria-label={t('history.next')} disabled={index === recent.length - 1} onClick={() => turn(1)}><ChevronRight size={18}/></button>
@@ -160,12 +163,11 @@ function MaterialDesk() {
       </footer>
     </>}
     {groups && !importOpen && wallTag === null && <TagRail files={catalog.files} tags={tags} returnFocus={() => libraryButton.current} onClose={() => { setGroups(false); setParams({}); }} onSelect={tag => { lastLibraryTag = tag; setGroups(false); setParams({ view: 'library', tag }); }}/ >}
-    {editing && <TagEditDialog file={editing} onClose={() => { setEditing(null); catalog.changed(); }}/ >}
   </div>;
 }
 function TagRail({ files, tags, returnFocus, onClose, onSelect }: { files: Material[]; tags: Material['tags']; returnFocus: () => HTMLElement | null; onClose: () => void; onSelect: (id: string) => void }) {
   const { t } = useTranslation();
-  const [naming,setNaming] = useState<{id?:number}|null>(null);
+  const [editingId,setEditingId] = useState<string|null>(null);
   const panel = useRef<HTMLDivElement>(null), rail = useRef<HTMLDivElement>(null), flight = useRef<ReturnType<typeof playTagFlight> | null>(null), closing = useRef(false), mounted = useRef(true);
   const items = [{ id: 'all', name: t('readingDesk.library'), files }, ...tags.map(tag => ({ id: String(tag.id), name: tag.name, files: files.filter(file => file.tags.some(value => value.id === tag.id)) })), ...files.some(file => !file.tags.length) ? [{ id: 'untagged', name: t('tags.untagged'), files: files.filter(file => !file.tags.length) }] : []];
   useLayoutEffect(() => {
@@ -178,6 +180,8 @@ function TagRail({ files, tags, returnFocus, onClose, onSelect }: { files: Mater
     return () => { mounted.current=false;flight.current?.dispose(); };
   }, []);
   const close = async () => {
+    if(panel.current?.querySelector('form[aria-busy="true"]'))return false;
+    if(editingId!==null){setEditingId(null);return false;}
     if(closing.current)return;closing.current=true;flight.current?.dispose();
     const anchor=returnFocus()?.querySelector<HTMLElement>('.approved-stock img:last-child')??returnFocus();
     const next=flight.current=playTagFlight(panel.current,anchor,true);
@@ -188,7 +192,17 @@ function TagRail({ files, tags, returnFocus, onClose, onSelect }: { files: Mater
     const viewport = rail.current?.getBoundingClientRect();
     panel.current?.querySelectorAll<HTMLElement>('.approved-tag-group').forEach(node => { const r = node.getBoundingClientRect(); const distance = Math.abs((x ?? ((viewport?.left ?? 0) + (viewport?.width ?? innerWidth) / 2)) - r.left - r.width / 2); node.style.setProperty('--magnify', String(1 + .13 * Math.max(0, 1 - distance / (r.width * 1.35)))); });
   };
-  return <><Overlay label={t('readingDesk.library')} onClose={close} panelRef={panel} returnFocus={returnFocus} className="approved-tag-panel" layerClassName="approved-tag-layer"><button className="approved-icon approved-back approved-rail-back" aria-label={t('common.back')} onClick={() => void close()}><ChevronLeft size={22}/></button><div ref={rail} className="approved-tag-rail" onPointerMove={event => { if (event.pointerType === 'mouse') magnify(event.clientX); }} onPointerLeave={() => magnify()} onScroll={() => magnify()}><div className="approved-tag-track">{items.map(item => <div key={item.id} className="approved-tag-group" data-tag-id={item.id} tabIndex={-1}><div className="approved-tag-stack" style={{ '--sheets': Math.min(8, item.files.length) } as React.CSSProperties}><button className="approved-tag-open" aria-label={`${item.name} · ${item.files.length}`} onClick={() => onSelect(item.id)}><MaterialCover src={item.files[0] ? materialCover(item.files[0]) : '/design/prints/16339.jpg'} identity={item.files[0]?.content_hash ?? item.id}/></button><button className="approved-tag-name" aria-label={t(tags.some(tag => String(tag.id) === item.id) ? 'tags.renameNamed' : 'tags.manage', {name:item.name})} onClick={() => setNaming({id:tags.find(tag=>String(tag.id)===item.id)?.id})}><strong>{item.name}</strong></button></div></div>)}</div></div></Overlay>{naming && <TagNamesDialog tagId={naming.id} onClose={() => setNaming(null)}/>}</>;
+  return <Overlay label={t('readingDesk.library')} onClose={close} panelRef={panel} returnFocus={returnFocus} className="approved-tag-panel" layerClassName="approved-tag-layer">
+    <button className="approved-icon approved-back approved-rail-back" aria-label={t('common.back')} onClick={() => void close()}><ChevronLeft size={22}/></button>
+    <button className="approved-icon approved-tag-add" aria-label={t('tags.create')} onClick={() => setEditingId('new')}><Plus size={21}/></button>
+    <div ref={rail} className="approved-tag-rail" onPointerMove={event => { if (event.pointerType === 'mouse'&&editingId===null) magnify(event.clientX); }} onPointerLeave={() => magnify()} onScroll={() => { if(editingId===null)magnify(); }}><div className="approved-tag-track">
+      {items.map(item => {const tag=tags.find(tag=>String(tag.id)===item.id);return <div key={item.id} className="approved-tag-group" data-tag-id={item.id} tabIndex={-1}><div className="approved-tag-stack" style={{ '--sheets': Math.min(8, item.files.length) } as React.CSSProperties}>
+        <button className="approved-tag-open" aria-label={`${item.name} · ${item.files.length}`} onClick={() => { if(!panel.current?.querySelector('form[aria-busy="true"]'))onSelect(item.id); }}>{item.files[0]?<MaterialCover src={materialCover(item.files[0])} identity={item.files[0].content_hash}/>:<EmptyLibraryArtwork/>}</button>
+        {tag?<InlineTagName tag={tag} editing={editingId===item.id} onEdit={() => setEditingId(item.id)} onFinish={() => setEditingId(null)}/>:<span className="approved-tag-name"><strong>{item.name}</strong></span>}
+      </div></div>;})}
+      {editingId==='new'&&<div className="approved-tag-group" data-tag-id="new"><div className="approved-tag-stack"><span className="approved-tag-open"><EmptyLibraryArtwork/></span><InlineTagName editing onEdit={() => {}} onFinish={() => setEditingId(null)}/></div></div>}
+    </div></div>
+  </Overlay>;
 }
 
 /** The normal card remains the only navigation control; the wrapper owns hold/drag. */

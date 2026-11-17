@@ -82,7 +82,7 @@ try{
   await page.locator('.import-card-actions button[aria-label=关闭]').focus();await page.keyboard.press('Tab');ok(await page.locator('.lc-import-modal').evaluate(n=>n.contains(document.activeElement)),'prepared-content dialog retains keyboard ownership');
   eq((await writes()).length,0,'native picker boundary has zero writes before confirmation');eq((await call('test_counts')).files,0,'no material before confirmation');
   await full();ok((await page.locator('.lc-document-preview').innerText()).includes('take off'),'real English excerpt');eq((await page.locator('.lc-document-preview').innerText()).split('飞机很快就要起飞了。').length-1,1,'existing Chinese appears once in the original source block');ok((await page.locator('.lc-document-preview').innerText()).includes('Curiosity helps us make sense of new ideas.'),'full local preview includes the final cue, beyond the former three-sentence excerpt');
-  await closeFull();await contrast(page.locator('.import-card-tag'),`${theme} floating tag`);await contrast(page.getByRole('button',{name:/^放到桌面/}),`${theme} primary default`);await page.getByRole('button',{name:/^放到桌面/}).hover();await contrast(page.getByRole('button',{name:/^放到桌面/}),`${theme} primary hover`);
+  await closeFull();await contrast(page.locator('.import-card-category'),`${theme} card tag caption`);await contrast(page.getByRole('button',{name:/^放到桌面/}),`${theme} primary default`);await page.getByRole('button',{name:/^放到桌面/}).hover();await contrast(page.getByRole('button',{name:/^放到桌面/}),`${theme} primary hover`);
   await page.screenshot({path:`${output}/${theme}-preview.png`});
   // A cancelled picker preserves the already prepared content.
   const beforeDraft=await page.evaluate(async()=>{const {useImportStore}=await window.__uiStoreModule('importStore');return useImportStore.getState().items[0].draft;});
@@ -95,7 +95,7 @@ try{
   await drop([['duplicate.srt',flight],['empty.srt',''],['second.srt',srt('A second material is ready.','第二份材料已经准备好了。')]]);await preview();
   eq((await writes()).length,1,'browser drop prepares without writing');eq((await call('test_counts')).files,1,'browser drop does not mutate database');
   await page.locator('.import-card-pager button').last().click();ok((await page.locator('.approved-import-preview').innerText()).includes('A second material is ready.'),'each valid file has its own real preview');
-  await contrast(page.locator('.import-card-tag'),`${theme} batch tag`);
+  await contrast(page.locator('.import-card-category'),`${theme} batch tag`);
   await settle();await page.screenshot({path:`${output}/${theme}-batch-preview.png`});await confirm();await page.getByRole('button',{name:'查看已有材料',exact:true}).waitFor();
   ok(!(await page.locator('.lc-import-modal').evaluate(n=>!!n.closest('[inert]'))),'batch results retain keyboard ownership');
   eq(await itemStages(),['duplicate','failed','created'],'partial results isolated');eq((await call('test_counts')).files,2,'only valid new content is created');await close();

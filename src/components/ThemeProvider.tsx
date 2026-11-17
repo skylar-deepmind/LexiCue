@@ -20,7 +20,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const clear = () => { delete root.dataset.themeTransition; delete root.dataset.themeFallback; };
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) { clear(); updateTheme(next); return; }
     root.dataset.themeTransition = 'true';
-    const fallback = () => { root.dataset.themeFallback = 'true'; updateTheme(next); timer.current = setTimeout(clear, 360); };
+    const fallback = () => { root.dataset.themeFallback = 'true'; updateTheme(next); timer.current = setTimeout(clear, 850); };
     if (document.startViewTransition) {
       try {
       const current = document.startViewTransition(() => { flushSync(() => updateTheme(next)); });

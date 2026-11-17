@@ -96,7 +96,8 @@ function run(reverse: boolean) {
   const real = reverse ? card! : reader!;
   const caption=reverse&&data.origin==='desk'?card?.querySelector<HTMLElement>('.approved-card-copy'):null;
   const badge=reverse&&data.origin==='desk'?card?.querySelector<HTMLElement>('.material-floating-tag'):null;
-  const returnInk=[caption,badge].filter((node):node is HTMLElement=>!!node).map(node=>({node:visualCopy(node),box:box(node)}));
+  const returnInk=caption?[{node:visualCopy(caption),box:box(caption)}]:[];
+  const returnTag=badge?{node:visualCopy(badge),box:box(badge)}:null;
   if (reduced()) {
     if (data.origin === 'wall') real.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 140 });
     clearHold();returning = null; pending = false; return;
@@ -183,6 +184,11 @@ function run(reverse: boolean) {
       if (source.quote && quote) travel(source.quote, quote, 0, .66);
       else if (source.quote) { place(source.quote.node, source.quote.box); animate(source.quote.node, [{ opacity: 1 }, { opacity: 0, offset: .34 }, { opacity: 0 }]); }
     }
+  }
+  // Stamp the label only after the artwork and measured caption have reassembled.
+  if(reverse&&returnTag){
+    returnTag.node.dataset.motionPiece='tag';place(returnTag.node,returnTag.box);
+    jobs.push(returnTag.node.animate([{opacity:0},{opacity:1}],{duration:240,delay:duration,easing:'ease-in-out',fill:'both'}));
   }
   let disposed = false;
   const dispose = () => {

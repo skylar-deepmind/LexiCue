@@ -1,8 +1,15 @@
-html[data-theme-transition]::view-transition-group(root) { animation-duration:360ms; }
-html[data-theme-transition]::view-transition-old(root) { animation:theme-soft-out 360ms ease both; mix-blend-mode:normal; }
-html[data-theme-transition]::view-transition-new(root) { animation:theme-soft-in 360ms ease both; mix-blend-mode:normal; }
+html[data-theme-transition]::view-transition-group(root) { animation-duration:850ms; }
+/* Keep a fully opaque old frame underneath: fading both exposes the freshly
+   changed page between the two snapshots and makes the middle look like a flash. */
+html[data-theme-transition]::view-transition-old(root) { animation:none; opacity:1; mix-blend-mode:normal; }
+html[data-theme-transition]::view-transition-new(root) { animation:theme-soft-in 850ms cubic-bezier(.4,0,.2,1) both; mix-blend-mode:normal; }
 html[data-theme-transition]::view-transition { pointer-events:none; }
-@keyframes theme-soft-out { to { opacity:0; } }
 @keyframes theme-soft-in { from { opacity:0; } }
-html[data-theme-fallback] :is(.figma-shell,.approved-desk,.approved-card,.approved-card-copy,.approved-empty-material) { transition:background-color 360ms ease,color 360ms ease; }
-@media(prefers-reduced-motion:reduce) { html[data-theme-transition]::view-transition-group(root),html[data-theme-transition]::view-transition-old(root),html[data-theme-transition]::view-transition-new(root) { animation:none; } }
+html[data-theme-fallback] :is(.figma-shell,.approved-desk,.approved-card,.approved-card-copy,.approved-card-title,.approved-card-quote,.approved-empty-material,.approved-saved,.approved-settings) { transition:background-color 850ms ease-in-out,color 850ms ease-in-out; }
+.approved-brand { display:grid; place-items:center; }
+.approved-brand img { grid-area:1 / 1; transition:opacity 850ms ease-in-out; }
+.approved-wordmark-night { opacity:0; }
+[data-theme="midnight"] .approved-wordmark-day { opacity:0; }
+[data-theme="midnight"] .approved-wordmark-night { opacity:1; }
+html[data-theme-transition]:not([data-theme-fallback]) .approved-brand img { transition:none; }
+@media(prefers-reduced-motion:reduce) { html[data-theme-transition]::view-transition-group(root),html[data-theme-transition]::view-transition-old(root),html[data-theme-transition]::view-transition-new(root) { animation:none; } .approved-brand img { transition:none; } }

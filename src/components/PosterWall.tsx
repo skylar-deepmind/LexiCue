@@ -1,5 +1,6 @@
 import { bookmarkTitle } from '../lib/bookmarkDesk';
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import EmptyLibraryArtwork from './EmptyLibraryArtwork';
 import { ChevronLeft } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Material } from '../lib/materials';
@@ -91,7 +92,7 @@ export default function PosterWall({ files, title, identity, onBack, onOpen }: {
   }}><MaterialCover src={materialCover(file)} identity={file.content_hash}/><span><strong lang="en">{bookmarkTitle(file.name)}</strong></span></button></article></RemovablePoster>;
   return <section className="approved-wall" aria-label={title}>
     <header><button className="approved-icon approved-back" onClick={onBack} aria-label={t('readingDesk.backLibrary')}><ChevronLeft size={22}/></button><h1>{title}</h1></header>
-    {!files.length ? <p className="approved-wall-empty" role="status">{t('materials.noMatches')}</p> : <div ref={viewport} className="approved-wall-viewport" tabIndex={0} aria-label={title} onScroll={() => { if (restoring.current) return; memory.current.y = viewport.current?.scrollTop ?? 0; positions.set(identity, memory.current); }}><div ref={wall} className="approved-poster-plane">
+    {!files.length ? <div className="approved-wall-empty" role="status"><EmptyLibraryArtwork/><p>{t('materials.noMatches')}</p></div> : <div ref={viewport} className="approved-wall-viewport" tabIndex={0} aria-label={title} onScroll={() => { if (restoring.current) return; memory.current.y = viewport.current?.scrollTop ?? 0; positions.set(identity, memory.current); }}><div ref={wall} className="approved-poster-plane">
       {mobile ? columns.map((column, i) => <div className="approved-phone-column" key={i}>{column.map(item => poster(files.find(file => file.id === item.id)!, item.units))}</div>) : Array.from({ length: Math.ceil(files.length / 3) * 2 }, (_, i) => {
         const start = Math.floor(i / 2) * 3 + (i % 2 ? 1 : 0), chunk = files.slice(start, start + (i % 2 ? 2 : 1));
         return chunk.length ? <div key={i} className="approved-poster-column" data-paired={i % 2 === 1}>{chunk.map(file => poster(file))}</div> : null;
