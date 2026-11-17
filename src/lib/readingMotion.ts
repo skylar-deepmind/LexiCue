@@ -94,6 +94,9 @@ function run(reverse: boolean) {
   const newPlate=reverse?card?.querySelector<HTMLElement>('.approved-poster > button > span'):null;
   const source = reverse ? { ...data,plate:newPlate?{box:box(newPlate),color:getComputedStyle(newPlate).backgroundColor}:data.plate, card: box(card!), cover: piece(card!.querySelector('img')), title: piece(card!.querySelector('.approved-card-title,.approved-poster strong')), quote: piece(card!.querySelector('.approved-card-quote')) } : data;
   const real = reverse ? card! : reader!;
+  const caption=reverse&&data.origin==='desk'?card?.querySelector<HTMLElement>('.approved-card-copy'):null;
+  const badge=reverse&&data.origin==='desk'?card?.querySelector<HTMLElement>('.material-floating-tag'):null;
+  const returnInk=[caption,badge].filter((node):node is HTMLElement=>!!node).map(node=>({node:visualCopy(node),box:box(node)}));
   if (reduced()) {
     if (data.origin === 'wall') real.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 140 });
     clearHold();returning = null; pending = false; return;
@@ -169,9 +172,17 @@ function run(reverse: boolean) {
     animate(ink,[{opacity:0},{opacity:.76,offset:.43},{opacity:0}]);
   }
   if (data.origin === 'desk') {
-    travel(source.cover, cover, 0, 1); travel(source.title, title, 0, 1);
-    if (source.quote && quote) travel(source.quote, quote, 0, .66);
-    else if (source.quote) { place(source.quote.node, source.quote.box); animate(source.quote.node, [{ opacity: 1 }, { opacity: 0, offset: .34 }, { opacity: 0 }]); }
+    travel(source.cover, cover, 0, 1);
+    if(reverse&&returnInk.length){
+      // Return ink as one measured caption. Independent font/width interpolation
+      // can reflow the title through the excerpt, particularly after scrolling.
+      for(const ink of returnInk){const caption=ink.node;caption.dataset.motionPiece='caption';place(caption,ink.box);
+      jobs.push(caption.animate([{opacity:0,translate:'0 8px',offset:0},{opacity:0,translate:'0 8px',offset:.44},{opacity:1,translate:'0 0',offset:.88},{opacity:1,translate:'0 0',offset:1}],{...options,direction:'normal'}));}
+    } else if(!reverse) {
+      travel(source.title, title, 0, 1);
+      if (source.quote && quote) travel(source.quote, quote, 0, .66);
+      else if (source.quote) { place(source.quote.node, source.quote.box); animate(source.quote.node, [{ opacity: 1 }, { opacity: 0, offset: .34 }, { opacity: 0 }]); }
+    }
   }
   let disposed = false;
   const dispose = () => {

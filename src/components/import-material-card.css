@@ -1,0 +1,24 @@
+.import-card-modal.lc-import-modal { width:min(680px,100%); max-height:calc(var(--visual-height,100dvh) - 32px); background:transparent; border:0; box-shadow:none; padding:16px; overflow:auto; }
+.import-card-stage { display:flex; flex-direction:column; align-items:center; gap:16px; color:var(--approved-ink); padding:12px 0; min-height:0; }
+.import-material-card { --card-width:min(560px,calc(100vw - 78px)); position:relative; isolation:isolate; display:flex; flex:none; flex-direction:column; width:var(--card-width); height:477px; border-radius:16px; background:var(--approved-card); color:var(--approved-ink); box-shadow:0 12px 35px color-mix(in srgb,var(--approved-ink) 14%,transparent); text-align:left; margin:0; }
+.import-material-card .approved-card-open { display:block; width:100%; height:315px; padding:0; border:0; background:none; border-radius:16px 16px 0 0; cursor:zoom-in; }
+.import-material-card .approved-card-cover { width:100%; height:100%; display:block; object-fit:cover; }
+.import-material-card .approved-card-copy { height:162px; box-sizing:border-box; display:flex; flex-direction:column; justify-content:center; padding:20px 26px; overflow:hidden; border-radius:0 0 16px 16px; }
+.import-card-title-input { display:block; width:100%; min-width:0; padding:0; border:0; border-radius:0; background:transparent; color:inherit; text-overflow:ellipsis; }
+.import-card-title-input:focus-visible { outline:0; box-shadow:0 1px 0 currentColor; }
+.material-floating-tag { position:absolute; z-index:3; top:16px; left:16px; min-height:44px; max-width:calc(100% - 32px); padding:8px 14px; border:0; border-radius:10px; background:var(--approved-card); color:var(--approved-ink); font:13px/1.4 system-ui; box-shadow:0 2px 8px #00000012; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.import-card-tags { position:absolute; z-index:5; top:64px; left:16px; max-width:calc(100% - 32px); min-width:160px; max-height:220px; overflow:auto; border-radius:12px; padding:6px; background:var(--approved-settings); color:var(--approved-ink); box-shadow:var(--panel-shadow); }
+.import-card-tags button { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:44px; width:100%; text-align:left; padding:8px 12px; border:0; border-radius:7px; background:transparent; color:inherit; cursor:pointer; }
+.import-card-tags button[aria-selected=true],.import-card-tags button:hover { background:var(--approved-hover); }
+.import-card-actions { display:flex; align-items:center; justify-content:center; gap:16px; min-height:48px; }
+.import-card-actions .ui-button { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:46px; padding:10px 22px; }
+.import-card-pager { display:flex; align-items:center; gap:12px; font:12px/1.5 system-ui; }
+.import-card-warning,.import-card-errors { max-width:560px; font:13px/1.6 system-ui; text-align:center; }
+.import-card-errors:empty { display:none; }
+.import-document-sheet { width:min(760px,calc(100vw - 24px)); max-height:calc(var(--visual-height,100dvh) - 32px); display:flex; flex-direction:column; gap:12px; background:var(--approved-settings); color:var(--approved-ink); border-radius:18px; padding:20px; }
+.import-document-sheet > header { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.import-document-sheet h2 { margin:0; font:24px/1.2 Georgia,serif; overflow-wrap:anywhere; }
+.import-document-sheet .lc-document-preview { max-height:none; min-height:0; flex:1; overflow:auto; }
+.import-insertion-flight { position:fixed; inset:0; z-index:950; overflow:hidden; pointer-events:none; }
+@media(max-width:767px) { .import-material-card { height:calc(var(--card-width) * .5625 + 138px); } .import-material-card .approved-card-open { height:calc(var(--card-width) * .5625); } .import-material-card .approved-card-copy { height:138px; padding:18px 20px; } .material-floating-tag { top:12px; left:12px; } }
+@media(max-height:600px) { .import-card-actions { position:sticky; bottom:0; z-index:6; border-radius:14px; padding:4px 8px; background:var(--approved-settings); box-shadow:0 -4px 16px #00000012; } .import-card-stage { padding:8px 0; gap:8px; } .import-card-modal.lc-import-modal { max-height:calc(var(--visual-height,100dvh) - 16px); } }

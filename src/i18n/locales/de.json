@@ -77,7 +77,7 @@
       "data": "Daten und Geräte",
       "tools": "Werkzeuge",
       "app": "App",
-      "captions": "YouTube-Untertitel",
+      "captions": "Untertitel",
       "updates": "Softwareupdate",
       "versionInfo": "Versionsinformationen",
       "version": "Aktuelle Version",
@@ -318,7 +318,7 @@
       "gemmaModelAria": "Gemma-Modell"
     },
     "youtube": {
-      "title": "YouTube-Untertitel-Tool",
+      "title": "Untertitel-Tool",
       "description": "Das Importieren von Untertiteln von YouTube hängt von yt-dlp ab, um die Untertitel herunterzuladen. Ohne Installation können nur die Untertitelspuren aufgelistet werden; Downloads schlagen fehl.",
       "recheck": "Erneut prüfen",
       "installed": "yt-dlp installiert{{version}}",
@@ -839,7 +839,7 @@
     "downloadImport": "Herunterladen & Importieren",
     "cancel": "Abbrechen",
     "close": "Schließen",
-    "ytdlpErrorHint": "Gehen Sie zu Einstellungen → YouTube-Untertitel-Tool, um die yt-dlp-Installation zu sehen, und versuchen Sie es erneut.",
+    "ytdlpErrorHint": "Gehen Sie zu Einstellungen → Untertitel-Tool, um die yt-dlp-Installation zu sehen, und versuchen Sie es erneut.",
     "originalTrack": "Original",
     "translationTrack": "Übersetzung",
     "selectedTracks": "Ausgewählte Untertitel",
@@ -2022,6 +2022,7 @@
     }
   },
   "approved": {
+    "placeOnDesk": "Auf den Schreibtisch",
     "emptyMaterials": "Noch keine Materialien",
     "filterDates": "Speicherdatum filtern",
     "recordCount_one": "{{count}} Eintrag",

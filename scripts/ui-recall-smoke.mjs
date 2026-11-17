@@ -40,7 +40,8 @@ async function clickMatch(page,index,expression){const n=await marked(page,index
 async function hintSwitch(page,enabled){
  const readingURL=page.url();
  await page.goto(url+'/settings?section=lookup');
- await page.getByRole('checkbox',{name:'再遇提示',exact:true}).setChecked(enabled);
+ eq(await page.getByRole('checkbox',{name:'再遇提示',exact:true}).count(),0,'dictionary preferences omit the retired hint control');
+ await page.evaluate(async enabled=>{const{usePreferencesStore}=await window.__uiStoreModule('preferencesStore');usePreferencesStore.getState().setReencounterHints(enabled);},enabled);
  await page.goto(readingURL);
  await page.locator('.reading-paper').waitFor();
 }

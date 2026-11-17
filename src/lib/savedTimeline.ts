@@ -29,17 +29,15 @@ export function savedTimeline(input: readonly SavedDateBin[], width: number, fro
     if (bucket) { bucket.lastDay = bin.day; bucket.count += bin.count; bucket.selectedCount += selected; }
     else buckets.set(key, { firstDay: bin.day, lastDay: bin.day, count: bin.count, selectedCount: selected });
   }
-  // A fixed small-data scale (1–8), then whole scale tiers for large collections.
-  // A singleton always stays a dot, regardless of how many saves happened that day.
+  // Keep a compact, fixed plotting height; only the relative data scale changes.
   const peak = Math.max(1, ...[...buckets.values()].map(b => b.count));
-  const capacity = 8 * 2 ** Math.max(0, Math.ceil(Math.log2(peak / 8)));
-  const stem = smooth(4, 14, activeDays), density = smooth(12, 25, activeDays);
+  const capacity = peak, density = smooth(12, 25, activeDays);
   const pitch = plotWidth * bucketSize / Math.max(1, span);
   const markWidth = 8 + (Math.max(3, Math.min(11, pitch * .67)) - 8) * density;
   const marks: TimelineMark[] = [...buckets].map(([key, bin]) => {
     const day = (bin.firstDay + bin.lastDay) / 2;
     const x = activeDays === 1 ? width / 2 : 22 + (day - firstDay!) / Math.max(1, span) * plotWidth;
-    const height = 8 + (Math.max(8, 48 * bin.count / capacity) - 8) * stem;
+    const height = Math.max(4, 36 * bin.count / capacity);
     return { ...bin, key: firstDay! + key * bucketSize, x, width: markWidth, height };
   });
   return { bins, marks, activeDays, total, selectedTotal, phase, firstDay, lastDay, capacity,

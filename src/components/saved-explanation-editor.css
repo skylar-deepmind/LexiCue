@@ -1,0 +1,8 @@
+.approved-note-layer { top:var(--visual-top,0px); bottom:auto; height:var(--visual-height,100dvh); padding:12px; box-sizing:border-box; }
+.approved-note-dialog { width:min(560px,100%); max-height:calc(100% - 24px); padding:20px; border-radius:18px; background:var(--approved-settings); color:var(--approved-ink); overflow:auto; }
+.approved-note-dialog h2 { margin:0 0 16px; font:600 18px/1.4 system-ui; }
+.approved-note-dialog .approved-folio-editor { display:flex; min-height:0; flex-direction:column; gap:12px; }
+.approved-note-dialog .approved-folio-editor textarea { box-sizing:border-box; width:100%; min-height:80px; height:clamp(100px,28vh,240px); max-height:max(80px,calc(var(--visual-height,100dvh) - 190px)); padding:12px; resize:vertical; font:16px/1.6 system-ui; background:var(--approved-card); color:var(--approved-ink); }
+.approved-note-dialog .approved-folio-editor > div { justify-content:flex-end; margin:0; flex-wrap:wrap; }
+.approved-note-dialog .ui-button { min-height:44px; }
+.approved-note-dialog textarea:focus-visible { outline:2px solid var(--approved-focus); outline-offset:2px; }

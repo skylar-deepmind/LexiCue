@@ -77,7 +77,7 @@
       "data": "データとデバイス",
       "tools": "ツール",
       "app": "アプリ",
-      "captions": "YouTube 字幕",
+      "captions": "字幕",
       "updates": "ソフトウェアアップデート",
       "versionInfo": "バージョン情報",
       "version": "現在のバージョン",
@@ -317,7 +317,7 @@
       "gemmaModelAria": "Gemma のモデル"
     },
     "youtube": {
-      "title": "YouTube 字幕ツール",
+      "title": "字幕",
       "description": "YouTube からの字幕のインポートには yt-dlp による字幕のダウンロードが必要です。未インストールの場合は字幕トラックの一覧表示のみ可能で、ダウンロードは失敗します。",
       "recheck": "再チェック",
       "installed": "yt-dlp はインストール済み{{version}}",
@@ -825,7 +825,7 @@
     "downloadImport": "ダウンロードしてインポート",
     "cancel": "キャンセル",
     "close": "閉じる",
-    "ytdlpErrorHint": "「設定 → YouTube 字幕ツール」で yt-dlp のインストール方法を確認してから再試行してください。",
+    "ytdlpErrorHint": "「設定 → 字幕」で yt-dlp のインストール方法を確認してから再試行してください。",
     "originalTrack": "原文",
     "translationTrack": "翻訳",
     "selectedTracks": "選択中の字幕",
@@ -2004,6 +2004,7 @@
     }
   },
   "approved": {
+    "placeOnDesk": "デスクに追加",
     "emptyMaterials": "まだ教材がありません",
     "filterDates": "保存日で絞り込む",
     "recordCount": "{{count}} 件の記録",

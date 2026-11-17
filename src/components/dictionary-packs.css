@@ -12,3 +12,20 @@
 .dictionary-pack-progress progress { width: 100%; height: 8px; accent-color: var(--accent-700); }
 .dictionary-pack-progress .ui-button { justify-self: start; }
 @media (max-width: 540px) { .dictionary-pack-actions { align-items: flex-start; flex-direction: column; } }
+
+.dictionary-book-wrap { position:relative; }
+.approved-dictionary-book:disabled { opacity:1; cursor:default; }
+.approved-dictionary-book h2 { pointer-events:none; }
+.approved-book-size { position:absolute; left:20px; right:14px; bottom:24px; font:13px/1.4 system-ui; color:inherit; font-variant-numeric:tabular-nums; }
+.approved-book-state { position:absolute; top:12px; right:10px; opacity:.75; }
+.dictionary-book-control { position:absolute; z-index:3; top:-4px; right:-4px; width:44px; height:44px; display:grid; place-items:center; border:0; background:transparent; color:#fff6d9; cursor:pointer; }
+.dictionary-book-control:focus-visible,.approved-dictionary-book:focus-visible { outline:2px solid var(--approved-focus); outline-offset:3px; }
+.dictionary-cover-progress { position:absolute; bottom:12px; left:22px; right:14px; height:4px; border-radius:4px; overflow:hidden; background:#ffffff30; }
+.dictionary-cover-progress i { display:block; width:100%; height:100%; background:currentColor; transform-origin:left center; transition:transform 220ms linear; }
+.dictionary-cover-progress[data-indeterminate] i { width:35%; animation:dictionary-cover-scan 1s ease-in-out infinite; }
+.approved-book-progress-value { position:absolute; left:20px; right:14px; bottom:43px; font:12px/1.4 system-ui; }
+.approved-dictionary-book:not(:disabled):active { translate:0 2px; }
+@keyframes dictionary-cover-scan { from { transform:translateX(-110%); } to { transform:translateX(360%); } }
+@media(prefers-reduced-motion:reduce) { .dictionary-cover-progress i { transition:none; animation:none; } .dictionary-cover-progress[data-indeterminate] i { width:100%; opacity:.5; } }
+
+.approved-book-state[data-file-option] { right:54px; }

@@ -4,8 +4,6 @@ import { usePreferencesStore } from '../stores/preferencesStore';
 
 export default function DictionaryPreferences() {
   const { t } = useTranslation();
-  const hints = usePreferencesStore(state => state.reencounterHints);
-  const setHints = usePreferencesStore(state => state.setReencounterHints);
   const provider = usePreferencesStore(state => state.onlineDictionary);
   const setProvider = usePreferencesStore(state => state.setOnlineDictionary);
   return <fieldset className="dictionary-preferences">
@@ -14,7 +12,5 @@ export default function DictionaryPreferences() {
       <input type="radio" name="online-dictionary" checked={provider === value} onChange={() => setProvider(value)}/>
       <span>{t(`dictionaryPreferences.${value}`)}<small>{t(`dictionaryPreferences.${value}Provider`)}</small></span>
     </label>)}
-    <p>{t('dictionaryPreferences.onDemand')}</p>
-    <label className="dictionary-preference-row recall-preference"><input type="checkbox" checked={hints} onChange={event => setHints(event.target.checked)}/><span>{t('recall.hints')}</span></label>
   </fieldset>;
 }

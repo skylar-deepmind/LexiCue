@@ -51,11 +51,10 @@ export default function DocumentPreview({item}: {item: ImportItem}) {
             : {kind: 'chapters', section_ids: full.sections.slice(start - 1, end).map(section => section.id)});
     };
     return <>
-        {document && <p className="lc-document-stats">{t(document.original_format === 'pdf' ? 'documents.pages' : 'documents.sections', {count: document.sections.length})}{document.selection.kind !== 'all' && <> · {t('documents.selectedRange')}</>}</p>}
+
         {document?.warnings.length ? <div className="lc-document-notice" role="status"><strong>{t(document.extraction_status === 'partial' ? 'documents.partial' : 'documents.notes')}</strong><ul>{document.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul></div> : null}
         {full && ['pdf', 'epub'].includes(full.original_format) && full.sections.length > 1 && <details className="lc-document-range">
             <summary>{t('documents.range')}</summary>
-            <p>{t(full.original_format === 'pdf' ? 'documents.pageOrder' : 'documents.chapterOrder')}</p>
             <div className="lc-document-range-fields">
                 <label>{t('documents.from')}<select value={start} onChange={event => setStart(Number(event.target.value))} disabled={busy}>{full.sections.map((section, index) => <option key={section.id} value={index + 1}>{full.original_format === 'pdf' ? index + 1 : section.title || index + 1}</option>)}</select></label>
                 <label>{t('documents.to')}<select value={end} onChange={event => setEnd(Number(event.target.value))} disabled={busy}>{full.sections.map((section, index) => <option key={section.id} value={index + 1}>{full.original_format === 'pdf' ? index + 1 : section.title || index + 1}</option>)}</select></label>
@@ -79,11 +78,10 @@ export default function DocumentPreview({item}: {item: ImportItem}) {
             if (node.scrollHeight - node.scrollTop - node.clientHeight < 200) setVisibleCount(value => Math.min(entries.length, value + CHUNK_SIZE));
         }}>
             {entries.slice(0, visibleCount).map(entry => <div key={entry.id} data-block={entry.id}>
-                {entry.label && <small className="lc-document-location">{entry.label}</small>}
                 {entry.code ? <pre>{entry.text}</pre> : <p lang="en" className={entry.heading ? 'lc-document-heading' : undefined}>{entry.text}</p>}
                 {entry.zh && <p lang="zh">{entry.zh}</p>}
             </div>)}
-            {visibleCount >= entries.length && <p className="lc-document-end" role="status">{t('documents.end')}</p>}
+            {visibleCount >= entries.length && <p className="lc-document-end sr-only" role="status">{t('documents.end')}</p>}
         </div>
     </>;
 }

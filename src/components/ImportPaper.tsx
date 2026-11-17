@@ -18,6 +18,6 @@ export default function ImportPaper({ item, loading }: { item?: ImportItem; load
                 <DocumentPreview item={item} />
             </article>}
         </div>
-        {loading && <div className="lc-import-loading-copy" role="status"><strong>{t(item?.kind === 'webpage' && item.stage === 'reading' ? 'materials.importDialog.readingWebpage' : item?.kind === 'clipboard' && item.stage === 'reading' ? 'materials.stages.parsing' : `materials.stages.${item?.stage ?? 'queued'}`)}</strong><p>{item?.title ?? item?.name}</p><small>{item?.stage === 'translating' && item.translationProgress ? t('materials.importDialog.translationProgress', { ...item.translationProgress }) : t('materials.importDialog.preparingHint')}</small></div>}
+        {loading && <div className="lc-import-loading-copy" role="status"><strong>{t(item?.kind === 'webpage' && item.stage === 'reading' ? 'materials.importDialog.readingWebpage' : item?.kind === 'clipboard' && item.stage === 'reading' ? 'materials.stages.parsing' : `materials.stages.${item?.stage ?? 'queued'}`)}</strong><small>{item?.stage === 'translating' && item.translationProgress ? t('materials.importDialog.translationProgress', { ...item.translationProgress }) : ''}</small></div>}
     </div>;
 }

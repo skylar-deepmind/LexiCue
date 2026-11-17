@@ -1,0 +1,8 @@
+html[data-theme-transition]::view-transition-group(root) { animation-duration:360ms; }
+html[data-theme-transition]::view-transition-old(root) { animation:theme-soft-out 360ms ease both; mix-blend-mode:normal; }
+html[data-theme-transition]::view-transition-new(root) { animation:theme-soft-in 360ms ease both; mix-blend-mode:normal; }
+html[data-theme-transition]::view-transition { pointer-events:none; }
+@keyframes theme-soft-out { to { opacity:0; } }
+@keyframes theme-soft-in { from { opacity:0; } }
+html[data-theme-fallback] :is(.figma-shell,.approved-desk,.approved-card,.approved-card-copy,.approved-empty-material) { transition:background-color 360ms ease,color 360ms ease; }
+@media(prefers-reduced-motion:reduce) { html[data-theme-transition]::view-transition-group(root),html[data-theme-transition]::view-transition-old(root),html[data-theme-transition]::view-transition-new(root) { animation:none; } }

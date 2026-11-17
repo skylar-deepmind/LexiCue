@@ -1,6 +1,6 @@
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
 import { savedDayString, savedInputDay, savedTimeline, type SavedDateBin } from '../lib/savedTimeline';
 
 type Props = {
@@ -8,41 +8,68 @@ type Props = {
   status: 'loading' | 'ready' | 'error';
   onRangeChange: (start: string, end: string) => void; onRetry: () => void;
 };
+type Range = { from: number; to: number };
+type Drag = Range & { pointer: number; x: number; y: number; day: number; mode: 'start' | 'end' | 'new'; moved: boolean };
+
 export default function SavedTimeline({ bins, recordCount, start, end, status, onRangeChange, onRetry }: Props) {
-  const { t, i18n } = useTranslation();
-  const root = useRef<HTMLDivElement>(null), activator = useRef<HTMLButtonElement>(null), firstInput = useRef<HTMLInputElement>(null);
-  const [width, setWidth] = useState(320), [filterOpen, setFilterOpen] = useState(false);
-  const id = useId();
+  const { t, i18n } = useTranslation(), root = useRef<HTMLDivElement>(null), plot = useRef<HTMLDivElement>(null);
+  const drag = useRef<Drag | null>(null), pendingRange = useRef<Range | null>(null);
+  const [width, setWidth] = useState(320), [draft, setDraft] = useState<Range | null>(null);
   useLayoutEffect(() => {
     const node = root.current; if (!node) return;
     const resize = () => setWidth(Math.max(1, node.clientWidth));
     resize(); const observer = new ResizeObserver(resize); observer.observe(node);
     return () => observer.disconnect();
   }, []);
-  useEffect(() => { if (filterOpen) firstInput.current?.focus(); }, [filterOpen]);
-  const model = useMemo(() => savedTimeline(bins, width, savedInputDay(start), savedInputDay(end)), [bins, width, start, end]);
-  const fullDate = useMemo(() => new Intl.DateTimeFormat(i18n.language, { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' }), [i18n.language]);
-  const showYear = model.firstDay !== undefined && (new Date(model.firstDay * 86400000).getUTCFullYear() !== new Date().getFullYear() || new Date(model.firstDay * 86400000).getUTCFullYear() !== new Date(model.lastDay! * 86400000).getUTCFullYear());
-  const axisDate = useMemo(() => new Intl.DateTimeFormat(i18n.language, { ...(showYear ? { year: 'numeric' as const } : {}), month: 'short', day: 'numeric', timeZone: 'UTC' }), [i18n.language, showYear]);
-  const close = () => { setFilterOpen(false); activator.current?.focus(); };
-  const dateButton = (day: number, side: 'first' | 'last' | 'only') => <button type="button" className={`saved-timeline-date saved-timeline-date--${side}`} style={{ left: side === 'only' ? width / 2 : side === 'first' ? 22 : width - 22 }} aria-expanded={filterOpen} aria-controls={id} aria-label={`${t('approved.filterDates')} · ${fullDate.format(day * 86400000)}`} onClick={event => { activator.current = event.currentTarget; setFilterOpen(value => !value); }}>{axisDate.format(day * 86400000)}</button>;
-  if (status === 'error' || (status === 'loading' && !model.total)) return <div ref={root} className="approved-timeline saved-timeline-status" data-state={status} role={status === 'error' ? 'alert' : 'status'}><span>{t(status === 'error' ? 'approved.loadFailed' : 'common.loading')}</span>{status === 'error' && <button className="ui-button" onClick={onRetry}>{t('common.retry')}</button>}</div>;
-  return <div ref={root} className="approved-timeline saved-growing-timeline" data-phase={model.phase} aria-busy={status === 'loading' || undefined} data-active-days={model.activeDays} data-records={model.total}>
-    {model.total > 0 && <div className="saved-timeline-plot">
-      <svg width="100%" height="76" viewBox={`0 0 ${width} 76`} role="img" aria-label={t('approved.timelineSummary', { records: model.total, days: model.activeDays })}>
-        <line className="saved-timeline-axis" x1={model.axisStart} x2={model.axisEnd} y1="64" y2="64"/>
-        {model.marks.map(mark => <rect key={mark.key} className="saved-timeline-mark" x="0" y="0" width={mark.width} height={mark.height} rx={mark.width / 2} style={{ transform: `translate(${mark.x - mark.width / 2}px, ${64 - mark.height}px)`, width: mark.width, height: mark.height, opacity: mark.selectedCount ? 1 : .24 }} data-count={mark.count} data-day={mark.firstDay} data-last-day={mark.lastDay}>
-          <title>{fullDate.format(mark.firstDay * 86400000)}{mark.lastDay !== mark.firstDay ? ` – ${fullDate.format(mark.lastDay * 86400000)}` : ''} · {t('approved.recordCount', { count: mark.count })}</title>
+  const model = useMemo(() => savedTimeline(bins, width, draft?.from ?? savedInputDay(start), draft?.to ?? savedInputDay(end)), [bins, width, start, end, draft]);
+  const first = model.firstDay ?? 0, last = model.lastDay ?? first;
+  const from = Math.max(first, Math.min(last, draft?.from ?? savedInputDay(start) ?? first)), to = Math.max(from, Math.min(last, draft?.to ?? savedInputDay(end) ?? last));
+  const fullDate = new Intl.DateTimeFormat(i18n.language, {year:'numeric',month:'short',day:'numeric',timeZone:'UTC'});
+  const coarseDate = new Intl.DateTimeFormat(i18n.language, { ...(new Date(first*86400000).getUTCFullYear()!==new Date().getFullYear() || new Date(first*86400000).getUTCFullYear()!==new Date(last*86400000).getUTCFullYear() ? {year:'numeric' as const}:{}), month:'short',timeZone:'UTC' });
+  const coarseStart = coarseDate.format(first*86400000), coarseEnd = coarseDate.format(last*86400000);
+  const selected = !!start || !!end || !!draft;
+  const xFor = (day: number) => model.activeDays === 1 ? width/2 : 22+(day-first)/Math.max(1,last-first)*Math.max(1,width-44);
+  const dayAt = (x: number) => Math.round(first+Math.max(0,Math.min(1,(x-(plot.current?.getBoundingClientRect().left??0)-22)/Math.max(1,width-44)))*(last-first));
+  const commit = (range: Range) => {
+    const low=Math.max(first,Math.min(last,range.from)), high=Math.max(low,Math.min(last,range.to));
+    onRangeChange(low===first&&high===last?'':savedDayString(low),low===first&&high===last?'':savedDayString(high));
+  };
+  const stopDrag = () => { drag.current=null;pendingRange.current=null;setDraft(null); };
+  const handle = (side: 'start'|'end') => <button type="button" role="slider" className="saved-timeline-handle" data-range-handle={side}
+    style={{left:xFor(side==='start'?from:to)}} aria-label={t(side==='start'?'approved.startDate':'approved.endDate')}
+    aria-valuemin={first} aria-valuemax={last} aria-valuenow={side==='start'?from:to} aria-valuetext={fullDate.format((side==='start'?from:to)*86400000)}
+    onKeyDown={event=>{
+      if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;
+      event.preventDefault();const current=side==='start'?from:to;
+      const value=event.key==='Home'?first:event.key==='End'?last:current+(event.key==='ArrowLeft'?-1:1)*(event.shiftKey?7:1);
+      commit(side==='start'?{from:Math.min(to,value),to}:{from,to:Math.max(from,value)});
+    }}><span aria-hidden="true"/></button>;
+  if (status==='error' || status==='loading'&&!model.total) return <div ref={root} className="approved-timeline saved-timeline-status" data-state={status} role={status==='error'?'alert':'status'}><span>{t(status==='error'?'approved.loadFailed':'common.loading')}</span>{status==='error'&&<button className="ui-button" onClick={onRetry}>{t('common.retry')}</button>}</div>;
+  return <div ref={root} className="approved-timeline saved-growing-timeline" data-phase={model.phase} data-active-days={model.activeDays} data-records={model.total} data-range-active={selected||undefined} aria-busy={status==='loading'||undefined}>
+    {model.total>0&&<div ref={plot} className="saved-timeline-plot" onPointerDown={event=>{
+      if(event.button!==0||model.activeDays<2)return;
+      const mode=(event.target as Element).closest<HTMLElement>('[data-range-handle]')?.dataset.rangeHandle as 'start'|'end'|undefined;
+      drag.current={pointer:event.pointerId,x:event.clientX,y:event.clientY,day:dayAt(event.clientX),from,to,mode:mode??'new',moved:false};
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }} onPointerMove={event=>{
+      const current=drag.current;if(!current||current.pointer!==event.pointerId)return;
+      const dx=event.clientX-current.x,dy=event.clientY-current.y;
+      if(!current.moved){if(Math.abs(dy)>Math.abs(dx)&&Math.abs(dy)>6){stopDrag();return;}if(Math.abs(dx)<4)return;current.moved=true;}
+      event.preventDefault();const day=dayAt(event.clientX);
+      const next=current.mode==='start'?{from:Math.min(day,current.to),to:current.to}:current.mode==='end'?{from:current.from,to:Math.max(day,current.from)}:{from:Math.min(day,current.day),to:Math.max(day,current.day)};pendingRange.current=next;setDraft(next);
+    }} onPointerUp={event=>{const current=drag.current;if(!current||current.pointer!==event.pointerId)return;if(current.moved&&pendingRange.current)commit(pendingRange.current);stopDrag();if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId);}}
+      onPointerCancel={stopDrag} onLostPointerCapture={stopDrag} onKeyDown={event=>{if(event.key==='Escape'&&drag.current){event.preventDefault();event.stopPropagation();stopDrag();}}}>
+      <svg width="100%" height="60" viewBox={`0 0 ${width} 60`} role="img" aria-label={t('approved.timelineSummary',{records:recordCount,days:model.activeDays})}>
+        <line className="saved-timeline-axis" x1={model.axisStart} x2={model.axisEnd} y1="48" y2="48"/>
+        {selected&&<rect className="saved-timeline-selection" x={xFor(from)-5} y="8" width={Math.max(10,xFor(to)-xFor(from)+10)} height="42" rx="5"/>}
+        {model.marks.map(mark=><rect key={mark.key} className="saved-timeline-mark" width={mark.width} height={mark.height} rx={mark.width/2} style={{transform:`translate(${mark.x-mark.width/2}px,${48-mark.height}px)`,width:mark.width,height:mark.height,opacity:mark.selectedCount?1:.2}} data-count={mark.count} data-day={mark.firstDay} data-last-day={mark.lastDay}>
+          <title>{fullDate.format(mark.firstDay*86400000)} · {t('approved.recordCount',{count:mark.count})}</title>
         </rect>)}
       </svg>
-      {model.firstDay !== undefined && dateButton(model.firstDay, model.activeDays === 1 ? 'only' : 'first')}
-      {model.activeDays > 1 && dateButton(model.lastDay!, 'last')}
+      {model.activeDays>1&&<>{handle('start')}{handle('end')}</>}
     </div>}
-    <div className="saved-timeline-meta"><span>{t('approved.recordCount', { count: recordCount })}</span>{(start || end) && <button type="button" onClick={() => onRangeChange('', '')}>{t('approved.allDates')}</button>}</div>
-    {filterOpen && model.firstDay !== undefined && <div id={id} className="saved-timeline-filter" onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(); } }}>
-      <label>{t('approved.startDate')}<input ref={firstInput} type="date" value={start || savedDayString(model.firstDay)} min={savedDayString(model.firstDay)} max={end || savedDayString(model.lastDay!)} onChange={event => { const value = event.target.value, day = savedInputDay(value), last = savedInputDay(end) ?? model.lastDay!; onRangeChange(day !== undefined && day > last ? savedDayString(last) : value, end); }}/></label>
-      <label>{t('approved.endDate')}<input type="date" value={end || savedDayString(model.lastDay!)} min={start || savedDayString(model.firstDay)} max={savedDayString(model.lastDay!)} onChange={event => { const value = event.target.value, day = savedInputDay(value), first = savedInputDay(start) ?? model.firstDay!; onRangeChange(start, day !== undefined && day < first ? savedDayString(first) : value); }}/></label>
-      <button className="approved-icon" type="button" aria-label={t('common.close')} onClick={close}><X size={18}/></button>
-    </div>}
+    {last-first>=14&&model.activeDays>=5&&<span className="saved-timeline-period">{coarseStart}{coarseStart!==coarseEnd&&` – ${coarseEnd}`}</span>}
+    {(start||end)&&<button type="button" className="saved-timeline-reset approved-icon" aria-label={t('approved.allDates')} onClick={()=>onRangeChange('','')}><RotateCcw size={16}/></button>}
+    {!model.total&&<span className="sr-only">{t('approved.recordCount',{count:recordCount})}</span>}
   </div>;
 }

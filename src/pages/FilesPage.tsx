@@ -35,6 +35,7 @@ import PosterWall from '../components/PosterWall';
 import { captureReadingEntrance, finishReadingReturn, readingMotionExcerpt } from '../lib/readingMotion';
 import { playTagFlight } from '../lib/tagFlight';
 import './approved-ui.css';
+import '../components/import-material-card.css';
 
 let lastLibraryTag = 'all';
 
@@ -71,7 +72,7 @@ function MaterialDesk() {
     const kept = desk.desk.items.map(ref => catalog.files.find(file => matchesMaterial(ref, file))).filter((file): file is Material => !!file);
     return kept;
   }, [catalog.files, desk.desk.items]);
-  useEffect(() => { if (catalog.hasLoaded && catalog.files.length) rearmEmptyMaterialGreeting(); }, [catalog.hasLoaded, catalog.files.length]);
+  useEffect(() => { if (catalog.hasLoaded && recent.length) rearmEmptyMaterialGreeting(); }, [catalog.hasLoaded, recent.length]);
   const [fallback, setFallback] = useState<number | null>(null);
   const selected = recent.find(file => desk.desk.selected && matchesMaterial(desk.desk.selected, file)) ?? recent.find(file => file.id === fallback) ?? recent[0];
   const index = Math.max(0, recent.findIndex(file => file.id === selected?.id));
@@ -146,11 +147,11 @@ function MaterialDesk() {
             if (performance.now() < suppress.current) return;
             if (i !== index) { turn(i - index); return; }
             open(file, event.currentTarget.closest('article')!, 'desk');
-          }}><MaterialCover src={materialCover(file)} identity={file.content_hash} className="approved-card-cover"/></button><div className="approved-card-copy"><button className="approved-card-category approved-tag-edit" data-no-trash disabled={i !== index} aria-label={t('tags.edit')} onClick={() => setEditing(file)}>{file.tags[0]?.name ?? t('tags.untagged')}</button><strong className="approved-card-title" lang="en">{bookmarkTitle(file.name)}</strong><span className="approved-card-quote" lang="en">{readingMotionExcerpt(file) ?? quotes[`${file.id}:${file.content_hash}:${readingPosition(file)}`] ?? file.preview}</span></div>
+          }}><MaterialCover src={materialCover(file)} identity={file.content_hash} className="approved-card-cover"/></button><button className="approved-card-category approved-tag-edit material-floating-tag" data-no-trash disabled={i !== index} aria-label={t('tags.edit')} onClick={() => setEditing(file)}>{file.tags[0]?.name ?? t('tags.untagged')}</button><div className="approved-card-copy"><strong className="approved-card-title" lang="en">{bookmarkTitle(file.name)}</strong><span className="approved-card-quote" lang="en">{readingMotionExcerpt(file) ?? quotes[`${file.id}:${file.content_hash}:${readingPosition(file)}`] ?? file.preview}</span></div>
         </article></TrashMaterial>)}
         <div className="approved-dots" data-visible={turning} aria-label={`${index + 1} / ${recent.length}`}>{recent.map((file, i) => <i key={file.id} data-current={i === index}/>)}</div>
         <button className="approved-edge approved-edge-prev" aria-label={t('history.previous')} disabled={index === 0} onClick={() => turn(-1)}><ChevronLeft size={18}/></button><button className="approved-edge approved-edge-next" aria-label={t('history.next')} disabled={index === recent.length - 1} onClick={() => turn(1)}><ChevronRight size={18}/></button>
-      </div> : catalog.files.length ? <div className="approved-desk-empty"><h1>{t('readingDesk.clear')}</h1><button className="desk-primary" onClick={() => { setGroups(true); setParams({ view:'library' }); }}>{t('readingDesk.library')}</button></div> : <EmptyMaterialGreeting/>}
+      </div> : <EmptyMaterialGreeting/>}
       <footer className="approved-home-footer"><button ref={libraryButton} className="approved-library-entry" aria-label={t('readingDesk.library')} aria-expanded={groups} onClick={() => { setGroups(true); setParams({ view: 'library' }); }}><span className="approved-stock" aria-hidden="true">{(catalog.files.length ? catalog.files.slice(0, 3) : [null, null, null]).map((file, i) => <MaterialCover key={i} src={file ? materialCover(file) : `/design/prints/${['16388','16398','16339'][i]}.jpg`} identity={file?.content_hash ?? String(i)}/>)}</span></button>
         <button className="approved-saved-entry" aria-label={t('savedRecords.title')} onClick={event => {
           const open=()=>navigate('/saved',{state:{...visitState(location),pocketRecordId:pocket?.record_id}});

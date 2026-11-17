@@ -77,7 +77,7 @@
       "data": "Data & devices",
       "tools": "Tools",
       "app": "App",
-      "captions": "YouTube captions",
+      "captions": "Subtitles",
       "updates": "Software update",
       "versionInfo": "Version information",
       "version": "Current version",
@@ -318,7 +318,7 @@
       "gemmaModelAria": "Gemma model"
     },
     "youtube": {
-      "title": "YouTube Subtitle Tool",
+      "title": "Subtitles",
       "description": "Importing subtitles from YouTube relies on yt-dlp to download subtitle content. Without it installed, only the subtitle tracks can be listed and downloads will fail.",
       "recheck": "Re-check",
       "installed": "yt-dlp installed{{version}}",
@@ -839,7 +839,7 @@
     "downloadImport": "Download & Import",
     "cancel": "Cancel",
     "close": "Close",
-    "ytdlpErrorHint": "Go to Settings → YouTube Subtitle Tool to see how to install yt-dlp, then retry.",
+    "ytdlpErrorHint": "Go to Settings → Subtitles to see how to install yt-dlp, then retry.",
     "originalTrack": "Original",
     "translationTrack": "Translation",
     "selectedTracks": "Selected subtitles",
@@ -2022,6 +2022,7 @@
     }
   },
   "approved": {
+    "placeOnDesk": "Add to desk",
     "emptyMaterials": "No materials yet",
     "filterDates": "Filter saved dates",
     "recordCount_one": "{{count}} record",
