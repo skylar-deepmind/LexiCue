@@ -553,12 +553,18 @@ export default function ReadingPage({ data, scope }: {
                 setFirst(value=>Math.max(0,value-60));distance=0;
             });
         };
-        const wheel=(event:WheelEvent)=>earlier(-event.deltaY);
+        const wheel=(event:WheelEvent)=>{
+            // At the window's top this gesture reveals preceding content. Cancel
+            // its clamped native scroll so residual wheel easing cannot start
+            // scrolling again after the newly prepended space becomes available.
+            if(event.deltaY<0&&node.scrollTop<=1)event.preventDefault();
+            earlier(-event.deltaY);
+        };
         const start=(event:TouchEvent)=>{touchY=event.touches.length===1?event.touches[0].clientY:null;};
         const move=(event:TouchEvent)=>{if(touchY===null||event.touches.length!==1)return;const y=event.touches[0].clientY;earlier(y-touchY);touchY=y;};
         const end=()=>{touchY=null;};
         const key=(event:KeyboardEvent)=>{if((event.target as Element).closest('input,textarea,[contenteditable="true"]'))return;if(['ArrowUp','PageUp','Home'].includes(event.key))earlier(event.key==='ArrowUp'?32:80);};
-        node.addEventListener('wheel',wheel,{passive:true});node.addEventListener('touchstart',start,{passive:true});node.addEventListener('touchmove',move,{passive:true});node.addEventListener('touchend',end);node.addEventListener('touchcancel',end);node.addEventListener('keydown',key);
+        node.addEventListener('wheel',wheel,{passive:false});node.addEventListener('touchstart',start,{passive:true});node.addEventListener('touchmove',move,{passive:true});node.addEventListener('touchend',end);node.addEventListener('touchcancel',end);node.addEventListener('keydown',key);
         return()=>{cancelAnimationFrame(frame);node.removeEventListener('wheel',wheel);node.removeEventListener('touchstart',start);node.removeEventListener('touchmove',move);node.removeEventListener('touchend',end);node.removeEventListener('touchcancel',end);node.removeEventListener('keydown',key);};
     },[first]);
     return <div className="reading-page" style={fontScaleStyle} data-listening={listening} data-reading-material={material.id}><nav className="reading-breadcrumb" aria-label={t('materials.path')}>{visit || pageOrigin ? <button className="reader-return-origin page-back" aria-label={`${t('common.back')} · ${t(visit?.origin.kind === 'saved' ? 'savedRecords.title' : 'reader.title', { defaultValue: '阅读' })}`} data-testid="source-return" onClick={returnToOrigin}><ChevronLeft className="mobile-reader-back" size={22} aria-hidden="true"/></button> : <button className="page-back" onClick={pageBack} aria-label={t(location.state?.readingOrigin === 'library' ? 'readingDesk.backLibrary' : 'readingDesk.backMaterials')}><ChevronLeft className="mobile-reader-back" size={22} aria-hidden="true"/></button>}<span aria-hidden="true">/</span><span>{material.name}</span><span className="mobile-reading-path">{t(location.state?.readingOrigin === 'library' ? 'readingDesk.library' : 'materials.title')}</span></nav><div className="reader-scroll" ref={scroll}><div className="reading-layout" ref={readingLayout.layout} data-query-open={!!query}><div className="workspace-paper reading-paper" data-recall-state={recall.status} data-font={size} data-lines={lineHeight} data-aux-font={auxiliaryFont} data-definition-font={definitionFont}><div className="approved-reader-title"><h1 className="reading-title" lang="en">{bookmarkTitle(material.name)}</h1><MaterialCover src={materialCover(material)} identity={material.content_hash} className="folio-print"/></div>{sourceError && <p className="saved-error" role="status">{sourceError}</p>}{recall.status === 'failed' && <div className="reading-recall-error saved-error" role="status"><span>{t('recall.indexFailed')}</span><button type="button" className="ui-button" onClick={() => void useRecallStore.getState().refresh()}>{t('common.retry')}</button></div>}
