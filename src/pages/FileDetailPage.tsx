@@ -14,6 +14,19 @@ import ReadingPage from './ReadingPage';
 import { LIBRARY_SCOPE } from '../lib/readingScope';
 import { consumeImportedReading, validateImportedReading } from '../lib/readingEntry';
 import { useReadingDeskStore } from '../stores/readingDeskStore';
+import { useRestoreGuard } from '../stores/restoreGuard';
+
+const pendingReads = new Map<string, Promise<ReadingMaterial>>();
+function openMaterial(id: number) {
+    const key = `${useRestoreGuard.getState().generation}:${id}`;
+    const pending = pendingReads.get(key);
+    if (pending) return pending;
+    const request = invoke<ReadingMaterial>('open_reading_material', { fileId: id })
+        .finally(() => { pendingReads.delete(key); });
+    pendingReads.set(key, request);
+    return request;
+}
+
 export default function FileDetailPage() {
     const { fileId: raw } = useParams();
     const id = Number(raw);
@@ -40,7 +53,7 @@ function MaterialReader({ id }: { id: number }) {
             setError(true);
             return;
         }
-        void invoke<ReadingMaterial>('open_reading_material', { fileId: id }).then(async next => {
+        void openMaterial(id).then(async next => {
             const imported = await validateImportedReading(importToken, next);
             if (active) {
             if (imported && consumeImportedReading(importToken)) useReadingDeskStore.getState().keepAndOpen(next.material);

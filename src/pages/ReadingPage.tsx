@@ -7,7 +7,7 @@ import { readerViews } from '../lib/readerViewMemory';
 import { usePageReturn, viewKey, visitState } from '../lib/pageNavigation';
 import { invoke } from '@tauri-apps/api/core';
 import { positionMatchesMaterial } from '../lib/readingDesk';
-import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type PointerEvent as ReactPointerEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { readerNavigation, resolveSavedSource, sourceMatches, type ReaderViewSnapshot } from '../lib/readerNavigation';
 import type { SavedRecord } from '../lib/savedRecords';
@@ -43,6 +43,9 @@ import { useRecallStore } from '../stores/recallStore';
 import { useMaterialStore } from '../stores/materialStore';
 import { compileRecall } from '../lib/recallMatcher';
 import type { RecallMatch } from '../lib/recallMatcher';
+import ReadingSentenceTokens, { type TokenActions } from '../components/ReadingSentenceTokens';
+const noTokens: ReaderToken[] = [];
+const noMatches: RecallMatch[] = [];
 const returnLookupMemory = new Map<string, { drafts: Map<string, LookupDraft>; session: LookupSession }>();
 if (typeof window !== 'undefined') window.addEventListener('lexicue-data-restored', () => returnLookupMemory.clear());
 interface Position {
@@ -183,7 +186,7 @@ export default function ReadingPage({ data, scope }: {
     const reading = speech.reading?.key.startsWith(`reader:${mediaIdentity}:`) ? speech.reading : null;
     const currentReadingIndex = reading?.mode === 'source-continuous' && reading.status === 'playing' ? speech.queueIndex : reading?.index;
     const fontScaleStyle = useContentFontScaleStyle();
-    const readingLayout = useReadingLayout(scroll);
+    const readingLayout = useReadingLayout(scroll, !!query, size, lineHeight, translation);
     const { preservePosition, rememberViewport } = useReadingAnchor(scroll);
     preserveTranslationPosition.current = preservePosition;
     const mediaEntries = useSourceMediaStore(state => state.entries);
@@ -433,61 +436,18 @@ export default function ReadingPage({ data, scope }: {
         choose(segment, spans[Math.min(range.anchor, range.edge)].start, spans[Math.max(range.anchor, range.edge)].end);
     };
     const cancelPointerRange = () => { if (pointerRange.current) { pointerRange.current = null; setKeyboardRange(null); } };
-    const paragraph = (segment: Segment) => {
-        const spans = tokens.get(segment.index_num) ?? [];
-        const matches = recall.matches.get(segment.index_num) ?? [];
-        const pieces: ReactNode[] = [];
-        let group: { match: RecallMatch; pieces: ReactNode[] } | null = null;
-        const flushGroup = () => {
-            if (!group) return;
-            pieces.push(<span className="reading-recall" key={`recall-${group.match.start}-${group.match.end}`} data-recall-start={group.match.start} data-recall-end={group.match.end}>{group.pieces}</span>);
-            group = null;
+    const tokenActions = useRef<TokenActions>(null);
+    useLayoutEffect(() => {
+        tokenActions.current = {
+            pointerSelection,
+            keyRange,
+            choose,
+            setKeyboardRange,
+            pauseForSelection: () => {
+                if (listening) { followAllowed.current = false; pauseForLookup('selection'); }
+            },
         };
-        const append = (piece: ReactNode, match?: RecallMatch) => {
-            if (group?.match !== match) flushGroup();
-            if (match && !group) group = { match, pieces: [] };
-            (group?.pieces ?? pieces).push(piece);
-        };
-        // Decorate only characters inside the existing match. In particular,
-        // trailing punctuation stays attached to its word without being painted.
-        const gap = (start: number, end: number, match?: RecallMatch) => {
-            if (start >= end) return '';
-            lookupView.current={tab:'meaning',provider:undefined};
-        const text = segment.en_text.slice(start, end);
-            if (!match || start >= match.end || end <= match.start) return text;
-            const from = Math.max(start, match.start), to = Math.min(end, match.end);
-            return <Fragment key={`gap-${start}-${end}`}>{segment.en_text.slice(start, from)}<span className="reading-recall-ink reading-recall-gap">{segment.en_text.slice(from, to)}</span>{segment.en_text.slice(to, end)}</Fragment>;
-        };
-        const appendGap = (start: number, end: number) => {
-            let cursor = start;
-            for (const match of matches) {
-                if (match.end <= cursor || match.start >= end) continue;
-                const from = Math.max(cursor, match.start), to = Math.min(end, match.end);
-                if (cursor < from) append(segment.en_text.slice(cursor, from));
-                append(gap(from, to, match), match);
-                cursor = to;
-            }
-            if (cursor < end) append(segment.en_text.slice(cursor, end));
-        };
-        let offset = 0;
-        spans.forEach((token, index) => {
-            appendGap(offset, token.start);
-            const marked=matches.find(match=>token.start>=match.start&&token.end<=match.end);
-            const selected = keyboardRange ? keyboardRange.segment === segment.id && index >= keyboardRange.start && index <= keyboardRange.end : query?.segment.id === segment.id && token.start >= query.start && token.end <= query.end;
-            const punctuation = segment.en_text.slice(token.end, spans[index + 1]?.start ?? segment.en_text.length).match(/^[,.;:!?…’”"')\]]+/)?.[0] ?? '';
-            const word = marked ? <span className="reading-recall-ink">{segment.en_text.slice(token.start, token.end)}</span> : segment.en_text.slice(token.start, token.end);
-            const tail = gap(token.end, token.end + punctuation.length, marked);
-            append(<span key={`${token.start}-${token.end}`} className="reading-token"><button className={`reading-word${marked?' reading-word--recalled':''}`} data-word-index={index} data-recall={marked?.expression} title={marked?t('recall.marked',{expression:marked.expression}):undefined} aria-description={marked?t('recall.marked',{expression:marked.expression}):undefined} aria-pressed={!!selected} onClick={event => { if (pointerSelection.current && event.detail !== 0) { pointerSelection.current = false; return; } if (event.detail === 0 || !window.getSelection()?.toString().trim()) {
-                event.currentTarget.focus({preventScroll:true});
-                choose(segment, marked?.start??token.start, marked?.end??token.end); } }} onKeyDown={event => { if (!event.shiftKey || !['ArrowRight', 'ArrowLeft'].includes(event.key))
-                return; event.preventDefault(); if (listening) { followAllowed.current = false; pauseForLookup('selection'); } const range = keyRange.current?.segment === segment.id ? keyRange.current : { segment: segment.id, anchor: index, edge: index }; range.edge = Math.max(0, Math.min(spans.length - 1, range.edge + (event.key === 'ArrowRight' ? 1 : -1))); keyRange.current = range; setKeyboardRange({ segment: segment.id, start: Math.min(range.anchor, range.edge), end: Math.max(range.anchor, range.edge) }); }} onKeyUp={event => { if (event.key !== 'Shift' || !keyRange.current)
-                return; const range = keyRange.current; keyRange.current = null; choose(segment, spans[Math.min(range.anchor, range.edge)].start, spans[Math.max(range.anchor, range.edge)].end); }}>{word}</button>{tail}</span>, marked);
-            offset = token.end + punctuation.length;
-        });
-        appendGap(offset, segment.en_text.length);
-        flushGroup();
-        return pieces;
-    };
+    });
     const closeLookup = () => {
         const current = useSpeechStore.getState().reading;
         if (lookupInterruption.current.consume(current) && listening && pendingListen.current === null && !pendingPlayback.current) pendingPlayback.current = 'resume';
@@ -597,11 +557,14 @@ export default function ReadingPage({ data, scope }: {
       const noTiming=(continuous || !!material.source?.audio && mediaEntries[mediaIdentity]?.status==='ready') && !data.media_refs?.[segment.id];
       const active = listening && currentReadingIndex===first+offset;
       const failed = speech.errorKey === key && speech.error;
+      const matches = recall.matches.get(segment.index_num);
+      const selection = keyboardRange ? undefined : query?.segment.id === segment.id ? query : undefined;
+      const keyboardSelection = keyboardRange?.segment === segment.id ? keyboardRange : undefined;
       return <section className="reading-sentence" key={segment.id} data-sentence={segment.index_num} data-source-highlight={visit?.target.segmentIndex === segment.index_num || undefined} data-current={active} data-speech-state={active ? speech.status : failed ? 'error' : 'idle'}>
       <div className="sentence-side">{listening ? <button type="button" className="sentence-listen" disabled={noTiming} title={noTiming ? t('sourceAudio.noTiming') : undefined} aria-busy={active && speech.loading} aria-label={t(noTiming ? 'sourceAudio.noTiming' : failed ? 'speech.retry' : 'reader.listenFromSentence', { index: segment.index_num + 1 })} aria-current={active ? 'step' : undefined} onClick={event => { event.stopPropagation(); listenFrom(first + offset); }}>
         <Play className="sentence-play" size={16} aria-hidden="true"/>
       </button> : null}</div>
-      <div><p className="reading-original" lang="en" onPointerDown={event => beginPointerRange(segment, event)} onPointerMove={event => extendPointerRange(segment, event)} onPointerUp={() => finishPointerRange(segment)} onPointerCancel={cancelPointerRange} onPointerLeave={cancelPointerRange} onMouseDown={event => { if (event.button === 0) { event.preventDefault(); window.getSelection()?.removeAllRanges(); } }} onMouseUp={event => selectText(segment, event.currentTarget)} onTouchEnd={event => selectText(segment, event.currentTarget)}>{paragraph(segment)}</p>{segment.zh_text && <div className="reading-translation-disclosure" data-open={translation || undefined} aria-hidden={!translation}><div className="reading-translation-clip"><p className="reading-translation">{segment.zh_text}</p></div></div>}{listening && (active && speech.loading || failed) && <span className="sr-only" role="status">{t(active ? 'common.loading' : 'speech.retry')}</span>}{failed && <SpeechFeedback speechKeys={[key]}/>}</div>
+      <div><p className="reading-original" lang="en" onPointerDown={event => beginPointerRange(segment, event)} onPointerMove={event => extendPointerRange(segment, event)} onPointerUp={() => finishPointerRange(segment)} onPointerCancel={cancelPointerRange} onPointerLeave={cancelPointerRange} onMouseDown={event => { if (event.button === 0) { event.preventDefault(); window.getSelection()?.removeAllRanges(); } }} onMouseUp={event => selectText(segment, event.currentTarget)} onTouchEnd={event => selectText(segment, event.currentTarget)}><ReadingSentenceTokens segment={segment} spans={tokens.get(segment.index_num) ?? noTokens} matches={matches?.length ? matches : noMatches} selection={selection} keyboardSelection={keyboardSelection} actions={tokenActions}/></p>{segment.zh_text && <div className="reading-translation-disclosure" data-open={translation || undefined} aria-hidden={!translation}><div className="reading-translation-clip"><p className="reading-translation">{segment.zh_text}</p></div></div>}{listening && (active && speech.loading || failed) && <span className="sr-only" role="status">{t(active ? 'common.loading' : 'speech.retry')}</span>}{failed && <SpeechFeedback speechKeys={[key]}/>}</div>
     </section>; })}
     {last < segments.length && <button className="ui-button reader-next" data-reader-next="" onClick={() => setLast(value => Math.min(value + 60, segments.length))}>{t('reader.moreSentences')}</button>}
     {!query && <SpeechFeedback prefix="reader:"/>}

@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, type RefObject } from 'react';
 
 /** Size both desktop columns independently of lookup visibility. The paper only
  * translates between its centered and paired positions when lookup toggles. */
-export default function useReadingLayout(scroll: RefObject<HTMLDivElement | null>) {
+export default function useReadingLayout(scroll: RefObject<HTMLDivElement | null>, queryOpen: boolean, fontSize: string, lineHeight: string, translated: boolean) {
     const layout = useRef<HTMLDivElement>(null);
     const slot = useRef<HTMLDivElement>(null);
     const updateRef = useRef<() => void>(() => {});
@@ -56,6 +56,6 @@ export default function useReadingLayout(scroll: RefObject<HTMLDivElement | null
         return () => { cancelAnimationFrame(resizeFrame); observer.disconnect(); window.removeEventListener('resize', update); };
     }, [scroll]);
     // Run after React applies font preferences, translation and query changes.
-    useLayoutEffect(() => { updateRef.current(); });
+    useLayoutEffect(() => { updateRef.current(); }, [queryOpen, fontSize, lineHeight, translated]);
     return { layout, slot };
 }

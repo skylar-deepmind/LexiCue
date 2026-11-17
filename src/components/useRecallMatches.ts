@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { startTransition, useEffect, useState } from 'react';
 import { useRecallStore } from '../stores/recallStore';
 import { usePreferencesStore } from '../stores/preferencesStore';
 import type { Segment } from '../lib/types';
@@ -19,7 +19,8 @@ export default function useRecallMatches(segments: Segment[], first: number, las
   const { expressions, caseExclusions, literalOnly, revision, loaded, loading, error, refresh } = useRecallStore();
   const [state, setState] = useState<{ version: number; first: number; last: number; matches: Map<number, RecallMatch[]>; error: boolean }>({ version: -1, first: 0, last: 0, matches: empty, error: false });
   useEffect(() => {
-    if (enabled && !loaded && !loading && !error) void refresh();
+    const current = useRecallStore.getState();
+    if (enabled && !current.loaded && !current.loading && !current.error) void refresh();
   }, [enabled, loaded, loading, error, refresh]);
   useEffect(() => {
     if (!enabled) return;
@@ -49,7 +50,8 @@ export default function useRecallMatches(segments: Segment[], first: number, las
       const receive = (event: MessageEvent) => {
         if (event.data.version !== revision || (event.data.request !== current && !(event.data.error && event.data.request === null))) return;
         if (event.data.error) { failed(); return; }
-        setState({ version: revision, first, last, matches: new Map(event.data.matches.map((item: { index: number; matches: RecallMatch[] }) => [item.index, item.matches])), error: false });
+        const matches = new Map<number, RecallMatch[]>(event.data.matches.map((item: { index: number; matches: RecallMatch[] }) => [item.index, item.matches]));
+        startTransition(() => setState({ version: revision, first, last, matches, error: false }));
       };
       if (active.version !== revision) {
         active.worker.postMessage({ type: 'index', version: revision, expressions, caseExclusions, literalOnly });
