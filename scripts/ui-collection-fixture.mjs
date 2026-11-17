@@ -15,7 +15,8 @@ export function collectionFixture({theme='ocean',count=10003}={}) {
     if(command==='list_materials')return materials.slice(0,state.materialCount).filter(m=>!removedMaterials.has(m.id));
     if(command==='list_tags')return [{id:1,name:'Reading',tone:'blue',file_count:Math.floor(state.materialCount/2)}];
     if(command==='reading_material_preview')return materials.find(m=>m.id===args.fileId)?.preview??null;
-    if(command==='latest_saved_preview'){
+    if(command==='latest_saved_preview'||command==='saved_opening_context'){
+      if(args.recordId){const id=args.recordId.slice(7,-2);return removedGroups.has(`group-${id}`)?null:record(id);}
       for(let i=1;i<=state.savedCount;i++){
         const id=String(i).padStart(5,'0');
         if(!removedGroups.has(`group-${id}`))return record(id);

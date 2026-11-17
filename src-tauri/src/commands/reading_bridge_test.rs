@@ -190,6 +190,10 @@ fn route(
         "latest_saved_preview" => {
             serde_json::to_value(saved::latest_preview(c)?).map_err(|e| e.to_string())
         }
+        "saved_opening_context" => {
+            serde_json::to_value(saved::opening_context(c, a["recordId"].as_str())?)
+                .map_err(|e| e.to_string())
+        }
         "list_saved_groups" => serde_json::to_value(saved::groups_in_range(
             c,
             text("query"),

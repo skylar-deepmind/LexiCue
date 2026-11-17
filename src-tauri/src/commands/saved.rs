@@ -1995,18 +1995,25 @@ pub async fn saved_date_histogram(
         })
         .await
 }
-pub(super) fn latest_preview(conn: &Connection) -> Result<Option<SavedRecord>, String> {
+/// The initial folio reads the active original independently of its group.
+pub(super) fn opening_context(
+    conn: &Connection,
+    record_id: Option<&str>,
+) -> Result<Option<SavedRecord>, String> {
+    if let Some(id) = record_id {
+        return Ok(get(conn, id)?.filter(|record| record.deleted_at.is_none()));
+    }
     let raw: Option<String> = conn.query_row(
         "SELECT snapshot_json FROM saved_records WHERE deleted_at IS NULL ORDER BY saved_at DESC,record_id LIMIT 1",
         [],
         |r| r.get(0),
     ).optional().map_err(|e| e.to_string())?;
-    raw.map(|value| {
-        serde_json::from_str(&value)
-            .map(group_preview)
-            .map_err(|e| e.to_string())
-    })
-    .transpose()
+    raw.map(|value| serde_json::from_str(&value).map_err(|e| e.to_string()))
+        .transpose()
+}
+
+pub(super) fn latest_preview(conn: &Connection) -> Result<Option<SavedRecord>, String> {
+    Ok(opening_context(conn, None)?.map(group_preview))
 }
 
 #[tauri::command]
@@ -2014,6 +2021,18 @@ pub async fn latest_saved_preview(
     state: State<'_, DbState>,
 ) -> Result<Option<SavedRecord>, String> {
     state.read("latest_saved_preview", latest_preview).await
+}
+
+#[tauri::command]
+pub async fn saved_opening_context(
+    state: State<'_, DbState>,
+    record_id: Option<String>,
+) -> Result<Option<SavedRecord>, String> {
+    state
+        .read("saved_opening_context", move |conn| {
+            opening_context(conn, record_id.as_deref())
+        })
+        .await
 }
 
 #[tauri::command]

@@ -52,6 +52,8 @@ function SavedArchive() {
   const [start, setStart] = useState(initial?.start ?? ''), [end, setEnd] = useState(initial?.end ?? '');
   const groupKey = JSON.stringify([query, start, end]);
   const [groups, setGroups] = useState(() => savedGroupCache.peek(groupKey) ?? noGroups);
+  const [needsOpeningContext] = useState(() => !savedGroupCache.isFresh(groupKey) && !initial?.selected);
+  const [opening, setOpening] = useState<{ record: SavedRecord; revision: number; generation: number } | null>(null);
   const [selected, setSelected] = useState(() => initial?.selected
     ?? groups.groups.find(group => group.preview.record_id === pocketRecordId)?.group_id
     ?? groups.groups[0]?.group_id ?? null);
@@ -79,6 +81,14 @@ function SavedArchive() {
   useEffect(() => () => { views.set(key, snapshot.current); }, [key]);
   useEffect(() => { alive.current = true; return () => { alive.current = false; sourceRequest.current++; }; }, []);
   useEffect(() => { if (searching) input.current?.focus(); }, [searching]);
+  useEffect(() => {
+    if (!needsOpeningContext || query || start || end) return;
+    let current = true;
+    void invoke<SavedRecord | null>('saved_opening_context', { recordId: pocketRecordId ?? null })
+      .then(record => { if (current) setOpening(record ? { record, revision: savedRevision, generation } : null); })
+      .catch(() => { /* The grouped archive owns the main loading and retry state. */ });
+    return () => { current = false; };
+  }, [needsOpeningContext, pocketRecordId, query, start, end, savedRevision, generation]);
   useEffect(() => {
     let current = true;
     if (!savedTimelineCache.isFresh(timelineKey)) setTimelineStatus('loading');
@@ -132,7 +142,12 @@ function SavedArchive() {
   useLayoutEffect(() => { if (list.current && !loading) list.current.scrollTop = initial?.listScroll ?? 0; }, [loading, initial]);
   const index = Math.max(0, contexts.records.findIndex(record => record.record_id === recordId));
   const matchingContext = loadedContext === contextIdentity;
-  const record = matchingContext ? contexts.records[index] : undefined;
+  const selectedGroup = groups.groups.find(group => group.group_id === selected);
+  const openingRecord = !matchingContext && !query && !start && !end
+    && opening?.revision === savedRevision && opening.generation === generation
+    && (selected === null || selectedGroup?.preview.record_id === opening.record.record_id)
+    ? opening.record : undefined;
+  const record = matchingContext ? contexts.records[index] : openingRecord;
   const currentRecordId=record?.record_id;
   const leave = useCallback(() => { if (prepareSavedReturn(currentRecordId)) back(); else dissolvePage(back,true); },[back,currentRecordId]);
   useEffect(() => backNavigation.setPage(() => { if(expanded)setExpanded(false);else leave();return true; },3),[expanded,leave]);
@@ -187,8 +202,8 @@ function SavedArchive() {
       </div>
       <button className="approved-index-toggle approved-icon" aria-expanded={expanded} aria-label={t('savedRecords.title')} onClick={() => setExpanded(value => !value)}><ChevronDown size={19}/></button>
       <div className="approved-saved-detail">
-        {failure ? <div className="saved-error" role="alert"><p>{t('approved.loadFailed')}</p><button className="ui-button" onClick={() => setRevision(value => value+1)}>{t('common.retry')}</button></div> : loading && !groups.groups.length || contextLoading || selected && !matchingContext ? <div role="status"><BusyRing/><span className="sr-only">{t('common.loading')}</span></div> : record ? <>
-          {contexts.total > 1 && <nav className="approved-context-pager" aria-label={t('dictionaryFlow.moreContexts', { count:contexts.total })}><button className="approved-icon" disabled={index===0} aria-label={t('history.previous')} onClick={() => turn(-1)}><ChevronLeft size={18}/></button><span>{index+1} / {contexts.total}</span><button className="approved-icon" disabled={index>=contexts.records.length-1} aria-label={t('history.next')} onClick={() => turn(1)}><ChevronRight size={18}/></button>{contexts.records.length<contexts.total && <button className="ui-button" onClick={() => { const token=contextRequest.current; void invoke<SavedContextPage>('saved_group_contexts',{groupId:selected,limit:50,offset:contexts.records.length,...bounds(start,end)}).then(next=>{if(token===contextRequest.current)setContexts(previous=>({...next,records:[...previous.records,...next.records]}));}).catch(()=>setSourceError(t('approved.loadFailed'))); }}>{t('approved.more')}</button>}</nav>}
+        {failure ? <div className="saved-error" role="alert"><p>{t('approved.loadFailed')}</p><button className="ui-button" onClick={() => setRevision(value => value+1)}>{t('common.retry')}</button></div> : !record && (loading && !groups.groups.length || contextLoading || selected && !matchingContext) ? <div role="status"><BusyRing/><span className="sr-only">{t('common.loading')}</span></div> : record ? <>
+          {matchingContext && contexts.total > 1 && <nav className="approved-context-pager" aria-label={t('dictionaryFlow.moreContexts', { count:contexts.total })}><button className="approved-icon" disabled={index===0} aria-label={t('history.previous')} onClick={() => turn(-1)}><ChevronLeft size={18}/></button><span>{index+1} / {contexts.total}</span><button className="approved-icon" disabled={index>=contexts.records.length-1} aria-label={t('history.next')} onClick={() => turn(1)}><ChevronRight size={18}/></button>{contexts.records.length<contexts.total && <button className="ui-button" onClick={() => { const token=contextRequest.current; void invoke<SavedContextPage>('saved_group_contexts',{groupId:selected,limit:50,offset:contexts.records.length,...bounds(start,end)}).then(next=>{if(token===contextRequest.current)setContexts(previous=>({...next,records:[...previous.records,...next.records]}));}).catch(()=>setSourceError(t('approved.loadFailed'))); }}>{t('approved.more')}</button>}</nav>}
           <div ref={detail} className="approved-folio-scroll" onPointerDown={event => { if (!(event.target as Element).closest('button,input,textarea,summary')) gesture.current={x:event.clientX,y:event.clientY,direction:null}; }} onPointerMove={event=>{if(isTrashDragging()){gesture.current=null;return;}const g=gesture.current;if(!g)return;const x=event.clientX-g.x,y=event.clientY-g.y;if(!g.direction&&Math.hypot(x,y)>8)g.direction=Math.abs(x)>Math.abs(y)*1.25?'x':'y';}} onPointerUp={event=>{const g=gesture.current;gesture.current=null;if(!g)return;const x=event.clientX-g.x,y=event.clientY-g.y;if(g.direction==='x'&&Math.abs(x)>=36&&Math.abs(x)>Math.abs(y)*1.25){turn(x<0?1:-1);suppress.current=performance.now()+350;}}}>
             <SavedFolio key={record.record_id} record={record} sourceBusy={sourceBusy} onSource={() => { if(performance.now()>=suppress.current)void openSource(); }} onChange={next=>setContexts(previous=>({...previous,records:previous.records.map(value=>value.record_id===next.record_id?next:value)}))} onRemove={remove} removing={undoing}/>
           </div>
