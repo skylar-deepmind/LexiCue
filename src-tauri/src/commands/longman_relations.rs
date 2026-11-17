@@ -421,15 +421,18 @@ impl RelationCatalog {
     ) -> Self {
         let mut out = Self::empty(fingerprint);
         out.known = spellings;
-        for head in &heads {
-            out.identities.insert(head.clone(), head.clone());
-        }
         for (surface, target) in targets {
             if !heads.contains(&surface) && heads.contains(&target) {
-                out.identities.insert(surface, target);
+                out.identities.insert(surface.clone(), target.clone());
+                out.forms.entry(target).or_default().push(surface);
             }
         }
-        out.rebuild_forms();
+        // Literal heads already resolve through known, and singleton forms
+        // already fall back to themselves. Only actual aliases need an entry.
+        for (identity, forms) in &mut out.forms {
+            forms.push(identity.clone());
+            forms.sort_unstable();
+        }
         out.rebuild_case_reservations();
         out
     }

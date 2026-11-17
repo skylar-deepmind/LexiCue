@@ -98,7 +98,7 @@ pub fn start(app: AppHandle, status: DictionaryStatus) {
                 && worker_app
                     .try_state::<crate::db::DbState>()
                     .is_some_and(|db| {
-                        db.conn.try_lock().is_ok_and(|conn| {
+                        db.conn.lock().is_ok_and(|conn| {
                             conn.query_row(
                     "SELECT EXISTS(SELECT 1 FROM saved_records WHERE deleted_at IS NULL)",
                     [],

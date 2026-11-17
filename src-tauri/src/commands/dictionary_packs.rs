@@ -271,6 +271,7 @@ fn pack_relations(packs: &[Pack], fingerprint: String) -> R<super::longman::Rela
     let mut heads = HashSet::new();
     let mut spellings = HashSet::new();
     let mut evidence = HashMap::<String, Evidence>::new();
+    let single_pack = packs.len() == 1;
     for pack in packs {
         let sql = |e: rusqlite::Error| e.to_string();
         let mut query = pack
@@ -308,14 +309,18 @@ fn pack_relations(packs: &[Pack], fingerprint: String) -> R<super::longman::Rela
             .map_err(sql)?;
         for alias in aliases {
             let (surface, first, last, inflected) = alias.map_err(sql)?;
+            // Across packs a non-grammatical alias can still contradict a
+            // grammatical one. With one pack its aggregate is already final.
+            if single_pack && (!inflected || first != last) {
+                continue;
+            }
+            let spelling = surfaces.get(&surface).ok_or("dictionary_surface_missing")?;
+            if heads.contains(spelling) {
+                continue;
+            }
             let target = surfaces.get(&first).ok_or("dictionary_target_missing")?;
             let current = evidence
-                .entry(
-                    surfaces
-                        .get(&surface)
-                        .ok_or("dictionary_surface_missing")?
-                        .clone(),
-                )
+                .entry(spelling.clone())
                 .or_insert_with(|| Evidence {
                     target: target.clone(),
                     ambiguous: false,
