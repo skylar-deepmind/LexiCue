@@ -37,7 +37,7 @@ export function savedTimeline(input: readonly SavedDateBin[], width: number, fro
   const marks: TimelineMark[] = [...buckets].map(([key, bin]) => {
     const day = (bin.firstDay + bin.lastDay) / 2;
     const x = activeDays === 1 ? width / 2 : 22 + (day - firstDay!) / Math.max(1, span) * plotWidth;
-    const height = Math.max(4, 36 * bin.count / capacity);
+    const height = 36 * bin.count / capacity;
     return { ...bin, key: firstDay! + key * bucketSize, x, width: markWidth, height };
   });
   return { bins, marks, activeDays, total, selectedTotal, phase, firstDay, lastDay, capacity,

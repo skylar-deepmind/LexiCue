@@ -187,7 +187,6 @@
   .mobile-tool-mode { grid-area:1/1; display:flex; align-items:center; justify-content:space-between; width:100%; opacity:0; transform:scale(.94); pointer-events:none; transition:opacity 160ms ease,transform 280ms cubic-bezier(.22,1,.36,1); }
   .mobile-tool-mode[data-active='true'] { opacity:1; transform:scale(1); pointer-events:auto; }
   .mobile-playback-mode { color:var(--accent-700); }
-  .playback-gauge-needle { transform-origin:12px 13px; transition:transform 380ms cubic-bezier(.22,1,.36,1); }
 }
 /* Compact windows and touch Apple devices keep the same sheet through rotation. */
 .lexicue-b .library-overlay-layer.is-mobile-sheet {
@@ -323,3 +322,7 @@
 
 .b-shell .mobile-settings-header button:is(:hover,:active), .mobile-workspace-header .page-back:is(:hover,:active) { background:transparent; }
 .b-shell .mobile-settings-header button:active { opacity:.65; }
+
+/* Every viewport uses the same SVG pivot and interpolates only its angle. */
+.playback-gauge-needle { transition:transform 380ms cubic-bezier(.22,1,.36,1); }
+@media(prefers-reduced-motion:reduce) { .playback-gauge-needle { transition:none; } }

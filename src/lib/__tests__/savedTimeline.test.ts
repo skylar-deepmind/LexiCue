@@ -36,6 +36,10 @@ describe('saved timeline growth', () => {
     expect(model.marks.at(-1)!.height).toBe(36);
     expect(model.marks.every(mark => mark.height <= 36)).toBe(true);
   });
+  it('preserves ratios even when one day greatly exceeds another', () => {
+    const { marks } = savedTimeline([{day:1,count:1},{day:2,count:1000}],320);
+    expect(marks[0].height / marks[1].height).toBeCloseTo(.001, 8);
+  });
   it('aggregates a dense long history within the available width without losing records or range counts', () => {
     const bins = Array.from({ length: 1000 }, (_, day) => ({ day: day * 2, count: 3 }));
     const model = savedTimeline(bins, 276, 100, 120);

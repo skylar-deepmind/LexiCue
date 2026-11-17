@@ -15,7 +15,7 @@ try{
   ok(await page.locator('.approved-card[data-desk-active=true]').isVisible(),'theme crossfade cleans up and preserves desk');
   await page.locator('.approved-card[data-desk-active=true] .approved-card-open').click();await page.locator('.reading-word').first().waitFor();await settle();
   await page.evaluate(async()=>{const{useReadingToolsStore}=await window.__uiStoreModule('readingToolsStore');useReadingToolsStore.setState({listening:true});});
-  for(const rate of [.75,1,1.25,1.5]){await page.evaluate(async rate=>{const{useReadingToolsStore}=await window.__uiStoreModule('readingToolsStore');useReadingToolsStore.setState({listening:true,rate});},rate);ok(await page.locator('.playback-gauge-needle').evaluate(n=>{const point=new DOMPoint(12,13).matrixTransform(n.transform.baseVal.consolidate().matrix);return Math.abs(point.x-12)<.001&&Math.abs(point.y-13)<.001;}),'all speed positions keep the physical gauge pivot fixed');}
+  for(const rate of [.75,1,1.25,1.5]){await page.evaluate(async rate=>{const{useReadingToolsStore}=await window.__uiStoreModule('readingToolsStore');useReadingToolsStore.setState({listening:true,rate});},rate);ok(await page.locator('.playback-gauge-needle').evaluate(n=>{const point=new DOMPoint(12,13).matrixTransform(n.getScreenCTM()),center=new DOMPoint(12,13).matrixTransform(n.ownerSVGElement.getScreenCTM());return Math.abs(point.x-center.x)<.01&&Math.abs(point.y-center.y)<.01;}),'all speed positions keep the physical gauge pivot fixed');}
   await page.locator('.reading-breadcrumb .page-back').click();await page.locator('.approved-handoff').waitFor();
   await page.evaluate(()=>document.getAnimations().filter(a=>a.effect?.getTiming().duration===580).forEach(a=>a.pause()));
   for(const time of [0,80,180,290,430,570]){
