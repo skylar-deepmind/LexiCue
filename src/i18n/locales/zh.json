@@ -2002,6 +2002,7 @@
     }
   },
   "approved": {
+    "settingsTabs": {"preferences": "偏好", "data": "资料", "tools": "工具", "updates": "更新"},
     "placeOnDesk": "放到桌面",
     "emptyMaterials": "还没有材料",
     "filterDates": "筛选收藏日期",

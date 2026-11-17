@@ -2004,6 +2004,7 @@
     }
   },
   "approved": {
+    "settingsTabs": {"preferences": "基本", "data": "データ", "tools": "ツール", "updates": "更新"},
     "placeOnDesk": "デスクに追加",
     "emptyMaterials": "まだ教材がありません",
     "filterDates": "保存日で絞り込む",

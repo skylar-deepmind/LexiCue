@@ -23,7 +23,9 @@ export default function InlineTagName({ tag, editing, onEdit, onFinish }: { tag?
     catch (reason) { setError(t(tagErrorMessage(reason, 'tags.saveFailed'))); }
     finally { pending.current = false; setBusy(false); }
   };
-  return editing ? <form className="approved-tag-name-editor" aria-busy={busy} onSubmit={event => { event.preventDefault(); void save(); }}>
+  const begin = (x: number, y: number) => { clear(); start.current = { x, y }; hold.current = setTimeout(onEdit, 420); };
+  const move = (x: number, y: number) => { if (start.current && Math.hypot(x - start.current.x, y - start.current.y) > 8) clear(); };
+  return editing ? <form className="approved-tag-name-editor" data-no-trash aria-busy={busy} onSubmit={event => { event.preventDefault(); void save(); }}>
     <input ref={input} aria-label={t(tag ? 'tags.rename' : 'tags.create')} value={name} maxLength={100} disabled={busy} onChange={event => setName(event.target.value)}
       onKeyDown={event => {
         if (event.key === 'Enter' && event.nativeEvent.isComposing) { event.preventDefault(); event.stopPropagation(); }
@@ -31,9 +33,11 @@ export default function InlineTagName({ tag, editing, onEdit, onFinish }: { tag?
       }}/>
     <div><button type="button" className="approved-icon" disabled={busy} aria-label={t('common.cancel')} onClick={finish}><X size={17} aria-hidden="true"/></button><button className="approved-icon" disabled={busy || !name.trim()} aria-label={t('common.save')} aria-busy={busy}><Check size={18} aria-hidden="true"/></button></div>
     {error && <p className="tag-error" role="alert">{error}</p>}
-  </form> : <button ref={button} className="approved-tag-name" aria-label={t('tags.renameNamed', { name: tag?.name })}
-    onPointerDown={event => { if (event.button !== 0) return; clear(); start.current = { x: event.clientX, y: event.clientY }; hold.current = setTimeout(onEdit, 450); }}
-    onPointerMove={event => { if (start.current && Math.hypot(event.clientX - start.current.x, event.clientY - start.current.y) > 7) clear(); }}
-    onPointerUp={clear} onPointerCancel={clear} onPointerLeave={clear} onContextMenu={event => event.preventDefault()}
+  </form> : <button ref={button} className="approved-tag-name" data-no-trash aria-label={t('tags.renameNamed', { name: tag?.name })}
+    onPointerDown={event => { event.stopPropagation(); if (event.pointerType !== 'touch' && event.button === 0) begin(event.clientX, event.clientY); }}
+    onPointerMove={event => { event.stopPropagation(); if (event.pointerType !== 'touch') move(event.clientX, event.clientY); }}
+    onPointerUp={event => { if (event.pointerType !== 'touch') clear(); }} onPointerCancel={event => { if (event.pointerType !== 'touch') clear(); }} onPointerLeave={event => { if (event.pointerType !== 'touch') clear(); }}
+    onTouchStart={event => { event.stopPropagation(); if (event.touches.length === 1) begin(event.touches[0].clientX, event.touches[0].clientY); else clear(); }}
+    onTouchMove={event => { if (event.touches.length === 1) move(event.touches[0].clientX, event.touches[0].clientY); }} onTouchEnd={clear} onTouchCancel={clear} onContextMenu={event => event.preventDefault()}
     onClick={event => { if (event.detail === 0) onEdit(); }}><strong>{tag?.name}</strong></button>;
 }

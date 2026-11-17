@@ -2022,6 +2022,7 @@
     }
   },
   "approved": {
+    "settingsTabs": {"preferences": "Allgemein", "data": "Daten", "tools": "Tools", "updates": "Updates"},
     "placeOnDesk": "Auf den Schreibtisch",
     "emptyMaterials": "Noch keine Materialien",
     "filterDates": "Speicherdatum filtern",

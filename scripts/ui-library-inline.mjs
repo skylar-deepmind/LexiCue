@@ -1,0 +1,59 @@
+/** Native-service-backed interaction regressions; no production user library. */
+import assert from 'node:assert/strict';
+import { writeFile } from 'node:fs/promises';
+import { createReadingHarness } from './ui-reading-support.mjs';
+const out=process.env.LEXICUE_LIBRARY_UI_OUTPUT||'/tmp/lexicue-library-inline',h=await createReadingHarness(out);let page,checks=0;
+const ok=(v,s)=>{assert.ok(v,s);checks++;},eq=(v,e,s)=>{assert.deepEqual(v,e,s);checks++;};
+const settle=()=>page.waitForFunction(()=>!document.querySelector('.approved-tag-flight,.approved-handoff,.approved-saved-flight'));
+try {
+ for(const theme of ['sage','midnight']) for(const width of [1360,375]) {
+  await h.call('test_reset');await h.call('create_tag',{name:'Journey'});await h.call('create_tag',{name:'Keep'});const tag=(await h.call('list_tags')).find(t=>t.name==='Journey');
+  const c=await h.browser.newContext({viewport:{width,height:width===1360?880:812},hasTouch:width<768});page=await c.newPage();await h.fixture(page,theme);
+  for(let count=1;count<=4;count++){
+   await h.call('import_reading_material',{input:{operation_id:crypto.randomUUID(),name:`Collage ${count}.txt`,content:`The air is cool by the harbor. Cover ${count}.`,normalized_kind:'txt',segments:[{index:0,en_text:`The air is cool by the harbor. Cover ${count}.`}],tag_ids:[tag.id]}});
+   await page.goto(h.url+'/files');await page.locator(`.approved-stock[data-count="${Math.min(count,3)}"]`).waitFor();
+   const ratio=await page.locator('.approved-stock').evaluate(n=>{const boxes=[...n.querySelectorAll('img')].map(i=>i.getBoundingClientRect());const a=Math.max(...boxes.map(b=>b.right))-Math.min(...boxes.map(b=>b.left));const pocket=document.querySelector('.approved-word-pocket').getBoundingClientRect();return a/pocket.width;});
+   ok(ratio>=.85&&ratio<1.7,`${count} material thumbnail retains weight beside saved pocket`);
+   eq(await page.locator('.approved-stock img').count(),Math.min(count,3),'entry shows one, two, then three actual covers');
+   await page.screenshot({path:`${out}/${theme}-${width}-desk-${count}.png`});
+   await page.locator('.approved-library-entry').click();await settle();const group=page.locator(`[data-tag-id="${tag.id}"]`);
+   eq(await group.locator('.library-cover-collage').getAttribute('data-count'),String(count),'category collage follows its own material count');eq(await group.locator('.library-cover-collage img').count(),count,'collage contains actual material artworks');
+   await page.screenshot({path:`${out}/${theme}-${width}-collage-${count}.png`});
+   if(count<4){await page.locator('.approved-rail-back').click();await page.getByRole('dialog').waitFor({state:'detached'});}
+  }
+  const group=page.locator(`[data-tag-id="${tag.id}"]`),caption=group.locator('.approved-tag-name');await caption.scrollIntoViewIfNeeded();
+  const hold=async locator=>{
+   const b=await locator.boundingBox(),p={x:b.x+b.width/2,y:b.y+b.height/2};
+   if(width<768){const cd=await c.newCDPSession(page);await cd.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{...p,id:1}]});return {point:p,move:async q=>cd.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{...q,id:1}]}),end:async()=>{await cd.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await cd.detach();}};}
+   await page.mouse.move(p.x,p.y);await page.mouse.down();return {point:p,move:q=>page.mouse.move(q.x,q.y),end:()=>page.mouse.up()};
+  };
+  let gesture=await hold(caption);await group.locator('.approved-tag-name-editor input').waitFor();await gesture.end();
+  eq(await page.locator('.trash-drag-layer').count(),0,'holding the caption edits rather than lifting the category');
+  await group.locator('input').fill('海边随记');await group.getByRole('button',{name:'保存',exact:true}).click();await group.locator('input').waitFor({state:'detached'});
+  eq((await h.call('list_tags')).find(t=>t.id===tag.id).name,'海边随记','touch/mouse caption hold renames the existing category ID');
+  eq((await h.call('list_materials')).filter(f=>f.tags.some(t=>t.id===tag.id)).length,4,'inline rename retains all material associations');
+  gesture=await hold(group.locator('.approved-tag-open'));await page.locator('.trash-drag-layer').waitFor();await gesture.end();await page.locator('.trash-drag-layer').waitFor({state:'detached'});
+  ok(await group.isVisible(),'stationary category release restores the card');
+  const drop=async()=>{const drag=await hold(group.locator('.approved-tag-open'));await page.locator('.trash-drop-target').waitFor();const b=await page.locator('.trash-drop-target').boundingBox();await drag.move({x:b.x+b.width/2,y:b.y+b.height/2});await page.locator('.trash-drop-target[data-open=true]').waitFor();await drag.end();await page.locator('.trash-drag-layer').waitFor({state:'detached'});};
+  await page.evaluate(()=>window.__uiFailure={command:'delete_tag',remaining:1,afterCommit:false});await drop();ok(await group.isVisible(),'failed category deletion restores the original card');eq((await h.call('list_materials')).length,4,'failed category deletion preserves materials');
+  await drop();await group.waitFor({state:'detached'});eq((await h.call('list_materials')).length,4,'deleting a category never deletes its materials');ok((await h.call('list_materials')).every(f=>!f.tags.some(t=>t.id===tag.id)),'removed category assignments become untagged');ok((await h.call('list_tags')).some(t=>t.name==='Keep'),'other categories are untouched');
+  await page.locator('.approved-rail-back').click();await page.getByRole('dialog').waitFor({state:'detached'});
+  // In-place explanation: cursor in original page, real persistence and cancel.
+  await h.call('test_seed_recall',{count:1,records:[{expression:'air',sentence:'The air is cool near the harbor.',explanation:'保留的解释。',saved_at:Date.now()}]});
+  await page.goto(h.url+'/saved');await page.locator('.approved-folio-note').waitFor();await settle();await page.locator('.approved-folio-note').click();const editor=page.locator('.approved-inline-note'),input=editor.locator('textarea');await input.waitFor();
+  eq(await page.getByRole('dialog').count(),0,'personal explanation edits in the original page without a popup');ok(await input.evaluate(n=>n===document.activeElement),'inline explanation has the editing cursor');ok(await input.evaluate(n=>parseFloat(getComputedStyle(n).borderBottomWidth)>=1),'inline explanation uses an underline');
+  await input.fill('不应保存的草稿');await editor.getByRole('button',{name:'取消',exact:true}).click();eq((await h.call('list_saved_records',{query:'',limit:10,offset:0}))[0].explanation,'保留的解释。','cancel does not write a note');
+  await page.locator('.approved-folio-note').click();eq(await page.locator('.approved-inline-note textarea').inputValue(),'保留的解释。','cancel discards the inline draft');
+  await page.evaluate(()=>window.__uiFailure={command:'mutate_saved_record',remaining:1,afterCommit:false});await page.locator('.approved-inline-note textarea').fill('原地保存的解释。');await page.getByRole('button',{name:'保存解释',exact:true}).click();await page.locator('.approved-inline-note [role=alert]').waitFor();eq(await page.locator('.approved-inline-note textarea').inputValue(),'原地保存的解释。','write failure keeps the explanation draft in place');await page.getByRole('button',{name:'保存解释',exact:true}).click();await page.locator('.approved-inline-note').waitFor({state:'detached'});ok((await h.call('list_saved_records',{query:'',limit:10,offset:0})).some(r=>r.explanation==='原地保存的解释。'),'inline explanation saves through Rust/SQLite');
+  // Four real language controls, short nav labels and full accessible names.
+  await page.goto(h.url+'/settings');for(const language of ['English','Deutsch','日本語','中文']){
+   await page.getByRole('radio',{name:language,exact:true}).click();await page.getByRole('radio',{name:language,exact:true}).waitFor();
+   await page.waitForFunction(()=>[...document.querySelectorAll('.approved-settings-tabs button span')].every(n=>n.scrollWidth<=n.clientWidth+1));
+   ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'translated settings do not widen the viewport');
+   for(const label of await page.locator('.approved-settings-tabs button').all()){ok(await label.evaluate(n=>!!n.getAttribute('aria-label')),'short navigation retains its full accessible name');}
+   await page.screenshot({path:`${out}/${theme}-${width}-${language}.png`});
+  }
+  await c.close();console.log(`Library inline ${theme}/${width}: ${checks} assertions`);
+ }
+ eq(h.errors,[],'no browser exceptions');await writeFile(`${out}/evidence.json`,JSON.stringify({checks,passed:true,scope:'Real disposable Rust/SQLite; Chrome mouse and CDP touch; both themes at desktop and 375px. Native devices separate.'},null,2));console.log(`Library inline: ${checks} checks passed`);
+}catch(error){await page?.screenshot({path:`${out}/failure.png`}).catch(()=>{});if(page&&!page.isClosed())await writeFile(`${out}/failure.json`,JSON.stringify(await page.evaluate(()=>({text:document.body.innerText,calls:window.__uiCalls})),null,2)).catch(()=>{});throw error;}finally{await h.dispose();}

@@ -11,25 +11,24 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     try { saved = localStorage.getItem('lexicue-theme'); } catch { /* Storage restrictions must not prevent opening a material. */ }
     return THEMES.some((item) => item.id === saved) ? saved as ThemeId : 'ocean';
   });
-  const requested = useRef(theme), transition = useRef<ViewTransition | null>(null), timer = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const setTheme = useCallback((next: ThemeId) => {
+  const requested = useRef(theme), timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const setTheme = useCallback((value: ThemeId | ((current: ThemeId) => ThemeId)) => {
+    const next = typeof value === 'function' ? value(requested.current) : value;
     if (requested.current === next) return;
     requested.current = next;
-    transition.current?.skipTransition(); clearTimeout(timer.current);
+    clearTimeout(timer.current);
     const root = document.documentElement;
     const clear = () => { delete root.dataset.themeTransition; delete root.dataset.themeFallback; };
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) { clear(); updateTheme(next); return; }
+    // Interpolate inherited color tokens. No full-page snapshot can swallow a
+    // second click, and reversing a CSS transition starts at its current color.
+    void getComputedStyle(root).getPropertyValue('--approved-desk');
     root.dataset.themeTransition = 'true';
-    const fallback = () => { root.dataset.themeFallback = 'true'; updateTheme(next); timer.current = setTimeout(clear, 850); };
-    if (document.startViewTransition) {
-      try {
-      const current = document.startViewTransition(() => { flushSync(() => updateTheme(next)); });
-      transition.current = current;
-      void current.finished.catch(() => {}).then(() => { if (transition.current === current) { transition.current = null; clear(); } });
-      } catch { fallback(); }
-    } else { fallback(); }
+    if (!CSS.registerProperty) root.dataset.themeFallback = 'true';
+    flushSync(() => updateTheme(next));
+    timer.current = setTimeout(clear, 1000);
   }, []);
-  useLayoutEffect(() => () => { clearTimeout(timer.current); transition.current?.skipTransition(); delete document.documentElement.dataset.themeTransition; delete document.documentElement.dataset.themeFallback; }, []);
+  useLayoutEffect(() => () => { clearTimeout(timer.current); delete document.documentElement.dataset.themeTransition; delete document.documentElement.dataset.themeFallback; }, []);
 
   useLayoutEffect(() => {
     document.documentElement.dataset.theme = theme;

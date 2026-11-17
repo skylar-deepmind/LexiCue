@@ -2022,6 +2022,7 @@
     }
   },
   "approved": {
+    "settingsTabs": {"preferences": "General", "data": "Data", "tools": "Tools", "updates": "Updates"},
     "placeOnDesk": "Add to desk",
     "emptyMaterials": "No materials yet",
     "filterDates": "Filter saved dates",
