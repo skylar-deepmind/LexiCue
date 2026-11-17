@@ -17,7 +17,9 @@
 .approved-wall-empty > .empty-library-artwork { width:min(220px,50vw); height:min(280px,40vh); background:transparent; }
 .approved-wall-empty p { margin:0; font:14px/1.5 system-ui; color:inherit; }
 .approved-wall:has(.approved-wall-empty) .approved-projector { display:none; }
-.approved-tag-add { position:absolute; right:24px; top:0; color:#fbfaf5; }
+.approved-tag-panel .approved-tag-add { position:fixed; right:22px; top:max(20px,env(safe-area-inset-top)); color:var(--material-tag-paper); }
+.approved-tag-panel .approved-tag-add.approved-icon:is(:hover,:active,:focus) { background:transparent; box-shadow:none; }
+.approved-tag-add:active { translate:0 3px; }
 .approved-tag-name:disabled { opacity:1; cursor:default; }
 .approved-tag-name { touch-action:pan-x; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
 .approved-tag-name-editor { display:flex; flex:none; flex-direction:column; align-items:center; gap:4px; padding:8px; min-height:104px; background:var(--approved-wall-title); }

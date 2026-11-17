@@ -44,6 +44,7 @@ try{
   }
   await finish();await settle();
   await page.locator('.approved-library-entry').click();await settle();
+  const add=page.locator('.approved-tag-add'),backButton=page.locator('.approved-rail-back');ok(Math.abs((await add.boundingBox()).y-(await backButton.boundingBox()).y)<1,'category creation shares the back-button header row');eq(await add.evaluate(n=>getComputedStyle(n).color),'rgb(251, 250, 245)','category creation remains legible over the scrim');await add.hover();eq(await add.evaluate(n=>getComputedStyle(n).backgroundColor),'rgba(0, 0, 0, 0)','category creation hover retains contrast without a pale rectangle');
   const caption=page.locator(`[data-tag-id="${daily.id}"] .approved-tag-name`);await caption.click();eq(await page.locator('.approved-tag-name-editor').count(),0,'a short caption click does not open an old management dialog');
   const cap=await caption.boundingBox();await page.mouse.move(cap.x+cap.width/2,cap.y+cap.height/2);await page.mouse.down();await page.locator('.approved-tag-name-editor input').waitFor();await page.mouse.up();
   await page.locator('.approved-tag-name-editor input').fill('Voyage');await page.locator('.approved-tag-name-editor').getByRole('button',{name:'保存',exact:true}).click();await page.locator('.approved-tag-name-editor').waitFor({state:'detached'});
