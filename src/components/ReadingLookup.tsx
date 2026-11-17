@@ -13,7 +13,7 @@ import LookupSaveToast from './LookupSaveToast';
 import SpeechButton, { SpeechFeedback } from './SpeechButton';
 import RecallSection, {type RecallView} from './RecallSection';
 import { useRecallStore } from '../stores/recallStore';
-import { recallExpression } from '../lib/recallMatcher';
+import { indexedRecallExpression } from '../lib/recallMatcher';
 import ContextPanel, {type PanelView} from './ContextPanel';
 import SoftContentRefresh from './SoftContentRefresh';
 import type { Material } from '../lib/materials';
@@ -173,7 +173,7 @@ function LookupContent({ query, scope, onSkip, drafts, session, onReady, onRecor
     const caseExclusions = useRecallStore(state => state.caseExclusions);
     const literalOnly = useRecallStore(state => state.literalOnly);
     const reservedCases = useMemo(() => new Set(caseExclusions), [caseExclusions]);
-    const recalled = recallExpression(expressions, query.expression, reservedCases, literalOnly);
+    const recalled = !example && reminders ? indexedRecallExpression(expressions, query.expression, reservedCases, literalOnly) : undefined;
     const showRecall = !example && reminders && !!recalled;
     const selection = useMemo(() => ({ segment_id: query.segment.id, expression: query.expression, start_offset: query.start, end_offset: query.end, explanation: null, explanation_source: 'unknown' as const }), [query.segment.id, query.expression, query.start, query.end]);
     const definitionFont = usePreferencesStore(state => state.definitionFontSize);

@@ -413,23 +413,20 @@ impl RelationCatalog {
     }
     /// The installed Wiktionary packs supply exact head spellings and explicit
     /// inflections. Independent meanings and competing targets stay literal.
-    pub(crate) fn from_pack_facts(
+    pub(crate) fn from_pack_relations(
         fingerprint: String,
         heads: HashSet<String>,
         spellings: HashSet<String>,
-        targets: BTreeMap<String, BTreeSet<String>>,
+        targets: impl IntoIterator<Item = (String, String)>,
     ) -> Self {
         let mut out = Self::empty(fingerprint);
         out.known = spellings;
         for head in &heads {
             out.identities.insert(head.clone(), head.clone());
         }
-        for (surface, choices) in targets {
-            if !heads.contains(&surface) && choices.len() == 1 {
-                let target = choices.into_iter().next().unwrap();
-                if heads.contains(&target) {
-                    out.identities.insert(surface, target);
-                }
+        for (surface, target) in targets {
+            if !heads.contains(&surface) && heads.contains(&target) {
+                out.identities.insert(surface, target);
             }
         }
         out.rebuild_forms();

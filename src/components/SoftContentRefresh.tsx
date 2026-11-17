@@ -20,8 +20,6 @@ export default class SoftContentRefresh extends Component<Props> {
   private ghost = createRef<HTMLDivElement>();
   private presentedKey: string | null = null;
   private frame = 0;
-  private settleTimer: ReturnType<typeof setTimeout> | undefined;
-  private changedAt = 0;
   private cleanupTimer: ReturnType<typeof setTimeout> | undefined;
   private motion: MediaQueryList | undefined;
   private previousHeight: number | null = null;
@@ -37,7 +35,7 @@ export default class SoftContentRefresh extends Component<Props> {
   }
 
   getSnapshotBeforeUpdate(previous: Props): HTMLElement | null {
-    if (previous.contentKey === this.props.contentKey || this.presentedKey === null) return null;
+    if (previous.contentKey === this.props.contentKey || this.presentedKey === null || this.motion?.matches) return null;
     const current = this.current.current, stage = this.stage.current;
     if (!current || !stage) return null;
     const panel = this.props.resizeContainer ? stage.closest<HTMLElement>(this.props.resizeContainer) : null;
@@ -58,19 +56,20 @@ export default class SoftContentRefresh extends Component<Props> {
     frame.style.height = `${stage.getBoundingClientRect().height}px`;
     const copy = (source: HTMLElement, opacity?: string) => {
       const clone = source.cloneNode(true) as HTMLElement;
-      const sources = [source, ...source.querySelectorAll<HTMLElement>('*')];
-      const targets = [clone, ...clone.querySelectorAll<HTMLElement>('*')];
-      sources.forEach((node, index) => {
-        const target = targets[index];
-        target.classList.replace('soft-refresh-current', 'soft-refresh-snapshot');
-        target.removeAttribute('id'); target.removeAttribute('autofocus');
+      clone.classList.replace('soft-refresh-current', 'soft-refresh-snapshot');
+      for (const target of clone.querySelectorAll<HTMLElement>('[id],[autofocus],[data-user-scrolling],[data-refresh-scroll-top],[data-refresh-scroll-left]')) {
+        target.removeAttribute('id');
+        target.removeAttribute('autofocus');
         target.removeAttribute('data-user-scrolling');
-        target.removeAttribute('data-refresh-scroll-top'); target.removeAttribute('data-refresh-scroll-left');
-        target.style.animation = 'none'; target.style.transition = 'none';
-        if (node.scrollTop || node.scrollLeft) {
-          target.dataset.refreshScrollTop = String(node.scrollTop);
-          target.dataset.refreshScrollLeft = String(node.scrollLeft);
-        }
+        delete target.dataset.refreshScrollTop;
+        delete target.dataset.refreshScrollLeft;
+      }
+      const scrollable = (node: HTMLElement) => [node, ...node.querySelectorAll<HTMLElement>('.lookup-body,.lookup-tabs')];
+      const targets = scrollable(clone);
+      scrollable(source).forEach((node, index) => {
+        const { scrollTop, scrollLeft } = node;
+        if (scrollTop) targets[index].dataset.refreshScrollTop = String(scrollTop);
+        if (scrollLeft) targets[index].dataset.refreshScrollLeft = String(scrollLeft);
       });
       Object.assign(clone.style, { visibility:'visible', opacity:opacity ?? getComputedStyle(source).opacity,
         height:`${source.getBoundingClientRect().height}px` });
@@ -94,12 +93,11 @@ export default class SoftContentRefresh extends Component<Props> {
     const changed = previous.contentKey !== this.props.contentKey;
     if (changed) {
       this.cancel();
-      this.changedAt = performance.now();
       this.finishIndicator();
       if (snapshot) {
         this.holdSize();
         this.ghost.current?.replaceChildren(snapshot);
-        for (const node of [snapshot, ...snapshot.querySelectorAll<HTMLElement>('[data-refresh-scroll-top]')]) {
+        for (const node of [snapshot, ...snapshot.querySelectorAll<HTMLElement>('[data-refresh-scroll-top],[data-refresh-scroll-left]')]) {
           node.scrollTop = Number(node.dataset.refreshScrollTop ?? 0);
           node.scrollLeft = Number(node.dataset.refreshScrollLeft ?? 0);
         }
@@ -108,11 +106,10 @@ export default class SoftContentRefresh extends Component<Props> {
     }
     if (this.props.ready && (changed || !previous.ready)) {
       if (this.ghost.current?.childElementCount && !this.motion?.matches) {
-        this.settleTimer = setTimeout(() => {
-          if (!this.props.ready) return;
-          this.presentedKey = this.props.contentKey;
-          this.prepareSize(); this.prepareIndicator(); this.reveal();
-        }, Math.max(0, 140 - (performance.now() - this.changedAt)));
+        this.presentedKey = this.props.contentKey;
+        this.prepareSize();
+        this.prepareIndicator();
+        this.reveal();
       }
       else this.finish();
     } else if (changed && this.ghost.current?.childElementCount) {
@@ -131,7 +128,6 @@ export default class SoftContentRefresh extends Component<Props> {
   private cancel = () => {
     cancelAnimationFrame(this.frame);
     clearTimeout(this.cleanupTimer);
-    clearTimeout(this.settleTimer);
   };
 
   private prepareIndicator = () => {
@@ -227,7 +223,7 @@ export default class SoftContentRefresh extends Component<Props> {
 
   render() {
     const { contentKey, ready, label, pendingLabel, className = '', children } = this.props;
-    const waiting = !ready && this.presentedKey !== null;
+    const waiting = !ready && this.presentedKey !== null && !this.motion?.matches;
     return <div className={`soft-refresh ${className}`} ref={this.stage} data-content-key={contentKey}>
       <div className="soft-refresh-ghost" ref={this.ghost} aria-hidden="true" inert />
       <div className="soft-refresh-current" ref={this.current} inert={waiting} aria-hidden={waiting || undefined} style={{ visibility: waiting ? 'hidden' : undefined }}>{children}</div>

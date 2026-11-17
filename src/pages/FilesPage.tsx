@@ -29,8 +29,11 @@ import { visitState } from '../lib/pageNavigation';
 import { readImportClipboard } from '../lib/importLink';
 import { inspectClipboardContent } from '../lib/clipboardContent';
 import { backNavigation } from '../lib/backNavigation';
-import type { Material, ReadingMaterial } from '../lib/materials';
-import type { SavedGroupPage, SavedRecord } from '../lib/savedRecords';
+import type { Material } from '../lib/materials';
+import type { SavedRecord } from '../lib/savedRecords';
+import { savedPocketCache, useSavedReadRevision } from '../lib/savedReadCache';
+import { QueryCache } from '../lib/queryCache';
+import { readingRoute, savedRoute, settingsRoute } from '../lib/routeModules';
 import { useTheme } from '../components/useTheme';
 import MaterialCover from '../components/MaterialCover';
 import Overlay from '../components/Overlay';
@@ -44,6 +47,7 @@ import './approved-ui.css';
 import '../components/import-material-card.css';
 
 let lastLibraryTag = 'all';
+const quoteCache = new QueryCache<string | null>(8);
 
 export default function FilesPage() {
   return <MaterialDesk/>;
@@ -58,7 +62,8 @@ function MaterialDesk() {
   const libraryNames = useLibraryNames();
   const [editing, setEditing] = useState<Material | null>(null);
   const [quotes, setQuotes] = useState<Record<string, string>>({});
-  const [pocket, setPocket] = useState<SavedRecord | null>(null);
+  const savedRevision = useSavedReadRevision();
+  const [pocket, setPocket] = useState<SavedRecord | null>(() => savedPocketCache.peek('latest') ?? null);
   const [pasting, setPasting] = useState(false), [turning, setTurning] = useState(false);
   const [groups, setGroups] = useState(params.get('view') === 'library' && !params.has('tag'));
   const card = useRef<HTMLDivElement>(null), libraryButton = useRef<HTMLButtonElement>(null);
@@ -67,13 +72,23 @@ function MaterialDesk() {
   const pasteIntent=useRef(0),pastePending=useRef(false),alive=useRef(true);
   useEffect(()=>{alive.current=true;return()=>{alive.current=false;pasteIntent.current++;};},[]);
   useEffect(() => { if(params.get('view')==='manage')setParams({view:'library'},{replace:true}); },[params,setParams]);
-  useEffect(() => { void useMaterialStore.getState().load(); void loadTags(); }, [catalog.revision, loadTags]);
+  useEffect(() => { void useMaterialStore.getState().ensure(); void loadTags(); }, [catalog.revision, loadTags]);
   useEffect(() => {
-    let alive = true;
-    const load = () => void invoke<SavedGroupPage>('list_saved_groups', { query: '', limit: 1, offset: 0 }).then(page => { if (alive) setPocket(page.groups[0]?.preview ?? null); }).catch(() => {});
-    load(); window.addEventListener('lexicue-saved-changed', load);
-    return () => { alive = false; window.removeEventListener('lexicue-saved-changed', load); };
-  }, []);
+    let active = true;
+    void savedPocketCache.fetch('latest', () => invoke<SavedRecord | null>('latest_saved_preview'))
+      .then(record => { if (active) setPocket(record); }).catch(() => {});
+    return () => { active = false; };
+  }, [savedRevision]);
+  useEffect(() => {
+    if (!catalog.hasLoaded) return;
+    const prepare = () => { readingRoute.preload(); savedRoute.preload(); settingsRoute.preload(); };
+    if (typeof window.requestIdleCallback === 'function') {
+      const idle = window.requestIdleCallback(prepare);
+      return () => window.cancelIdleCallback(idle);
+    }
+    const timer = window.setTimeout(prepare, 160);
+    return () => window.clearTimeout(timer);
+  }, [catalog.hasLoaded]);
   useLayoutEffect(() => { finishSavedReturn(pocket?.record_id); }, [pocket]);
   const recent = useMemo(() => {
     const kept = desk.desk.items.map(ref => catalog.files.find(file => matchesMaterial(ref, file))).filter((file): file is Material => !!file);
@@ -83,18 +98,22 @@ function MaterialDesk() {
   const [fallback, setFallback] = useState<number | null>(null);
   const selected = recent.find(file => desk.desk.selected && matchesMaterial(desk.desk.selected, file)) ?? recent.find(file => file.id === fallback) ?? recent[0];
   const index = Math.max(0, recent.findIndex(file => file.id === selected?.id));
-  const quoteKey = selected ? `${selected.id}:${selected.content_hash}:${readingPosition(selected)}` : '';
+  const selectedId = selected?.id, selectedHash = selected?.content_hash;
+  const segment = selected ? readingPosition(selected) : null;
+  const quoteKey = selected ? `${selectedId}:${selectedHash}:${segment}` : '';
   useEffect(() => {
-    if (!selected) return;
-    let alive = true;
-    void invoke<ReadingMaterial>('open_reading_material', { fileId: selected.id }).then(data => {
-      if (!alive || data.material.content_hash !== selected.content_hash) return;
-      const sentence = data.segments.find(segment => segment.index_num === (data.material.position?.segment ?? readingPosition(selected))) ?? data.segments[0];
-      if (sentence) setQuotes(previous => ({ ...previous, [quoteKey]: sentence.en_text }));
+    if (selectedId === undefined || !selectedHash || segment === null) return;
+    let active = true;
+    void quoteCache.fetch(quoteKey, () => invoke<string | null>('reading_material_preview', {
+      fileId: selectedId, contentHash: selectedHash, segment,
+    })).then(quote => {
+      if (active && quote !== null) setQuotes(previous => ({ ...previous, [quoteKey]: quote }));
     }).catch(() => {});
-    return () => { alive = false; };
-  }, [quoteKey, selected]);
-  useLayoutEffect(() => { if (!selected || readingPosition(selected) === null || quotes[quoteKey]) finishReadingReturn('desk'); }, [catalog.hasLoaded, selected, quotes, quoteKey]);
+    return () => { active = false; };
+  }, [quoteKey, selectedId, selectedHash, segment]);
+  useLayoutEffect(() => {
+    if (catalog.hasLoaded && (!selectedId || segment === null || quotes[quoteKey])) finishReadingReturn('desk');
+  }, [catalog.hasLoaded, selectedId, segment, quotes, quoteKey]);
   useEffect(() => () => clearTimeout(timer.current), []);
   useEffect(() => {
     if (params.get('view') === 'library' && !params.has('tag')) setGroups(true);
@@ -142,7 +161,7 @@ function MaterialDesk() {
         <button className="approved-brand" aria-label={t(theme === 'midnight' ? 'approved.light' : 'approved.dark')} aria-pressed={theme === 'midnight'} onClick={() => setTheme(current => current === 'midnight' ? 'sage' : 'midnight')}><img className="approved-wordmark-day" src="/design/wordmark.png" alt=""/><img className="approved-wordmark-night" src="/design/wordmark-night.png" alt=""/></button>
         <div><button data-guide="import" className="approved-icon clipboard-import" aria-label={t(importing ? 'materials.importRunning' : 'materials.importDialog.pasteLink')} aria-busy={pasting || importing} disabled={pasting} onClick={() => void paste()}>{pasting || importing ? <BusyRing/> : <ClipboardImportIcon/>}</button>
           <button className="approved-icon home-file-picker import-tray" aria-label={t('materials.choose')} aria-busy={picking || importing} disabled={picking || importing || pasting} onClick={() => void useImportStore.getState().choose()}>{picking ? <BusyRing/> : <FileImportIcon/>}</button>
-          <button className="approved-icon home-settings-action" aria-label={t('sidebar.settings')} onClick={() => navigate('/settings', { state: visitState(location) })}><Settings size={23}/></button>
+          <button className="approved-icon home-settings-action" onPointerDown={settingsRoute.preload} onFocus={settingsRoute.preload} aria-label={t('sidebar.settings')} onClick={() => navigate('/settings', { state: visitState(location) })}><Settings size={23}/></button>
         </div>
       </header>
       {catalog.loading && !catalog.hasLoaded ? <div className="approved-desk-status" role="status"><BusyRing/>{t('approved.loadingLibrary')}</div> : catalog.error ? <div className="approved-desk-status" role="alert"><p>{t('materials.loadFailed')}</p><button className="ui-button" onClick={() => void catalog.load()}>{t('common.retry')}</button></div> : selected ? <div ref={card} className="approved-deck" tabIndex={0} aria-label={t('readingDesk.desktop')} data-turning={turning || undefined}
@@ -152,7 +171,7 @@ function MaterialDesk() {
         onPointerUp={event => { const g = gesture.current; gesture.current = null; if (!g) return; const dx = event.clientX - g.x, dy = event.clientY - g.y; if(g.locked)suppress.current=performance.now()+350; if (Math.abs(dx) > 34 && Math.abs(dx) > Math.abs(dy) * 1.25) { turn(dx < 0 ? 1 : -1); suppress.current = performance.now() + 350; } else if(g.locked)timer.current=setTimeout(()=>setTurning(false),2000); }} onPointerCancel={() => { if(gesture.current?.locked)timer.current=setTimeout(()=>setTurning(false),2000);gesture.current = null; }}>
         {editing?.id===selected.id&&<HomeCardTags file={editing} onClose={() => { setEditing(null); card.current?.querySelector<HTMLElement>('[data-desk-active=true] .approved-tag-edit')?.focus({preventScroll:true}); }}/ >}
         {recent.map((file, i) => <TrashMaterial key={`${file.id}:${file.content_hash}`} file={file} enabled={i===index}><article className="approved-card" key={`${file.id}:${file.content_hash}`} data-desk-active={i === index} data-desk-position={i - index} data-motion-file={file.id} aria-hidden={Math.abs(i - index) > 1 || undefined} inert={Math.abs(i - index) > 1}>
-          <button className="approved-card-open" data-testid={i === index ? 'desk-continue' : undefined} aria-label={t('readingDesk.openNamed', { name: file.name })} onClick={event => {
+          <button className="approved-card-open" onPointerDown={readingRoute.preload} onFocus={readingRoute.preload} data-testid={i === index ? 'desk-continue' : undefined} aria-label={t('readingDesk.openNamed', { name: file.name })} onClick={event => {
             if (performance.now() < suppress.current) return;
             if (i !== index) { turn(i - index); return; }
             open(file, event.currentTarget.closest('article')!, 'desk');
@@ -162,7 +181,7 @@ function MaterialDesk() {
         <button className="approved-edge approved-edge-prev" aria-label={t('history.previous')} disabled={index === 0} onClick={() => turn(-1)}><ChevronLeft size={18}/></button><button className="approved-edge approved-edge-next" aria-label={t('history.next')} disabled={index === recent.length - 1} onClick={() => turn(1)}><ChevronRight size={18}/></button>
       </div> : <EmptyMaterialGreeting/>}
       <footer className="approved-home-footer"><button ref={libraryButton} className="approved-library-entry" aria-label={t('readingDesk.library')} aria-expanded={groups} onClick={() => { setGroups(true); setParams({ view: 'library' }); }}><span className="approved-stock" data-count={Math.min(catalog.files.length,3)} aria-hidden="true">{(catalog.files.length ? catalog.files.slice(0, 3) : [null]).map((file, i) => <MaterialCover key={i} src={file ? materialCover(file) : '/design/empty-material/waiting.png'} identity={file?.content_hash ?? String(i)}/>)}</span></button>
-        <button className="approved-saved-entry" aria-label={t('savedRecords.title')} onClick={event => {
+        <button className="approved-saved-entry" onPointerDown={savedRoute.preload} onFocus={savedRoute.preload} aria-label={t('savedRecords.title')} onClick={event => {
           const open=()=>navigate('/saved',{state:{...visitState(location),pocketRecordId:pocket?.record_id}});
           if(captureSavedEntrance(pocket?.record_id,event.currentTarget.querySelector<HTMLElement>('.approved-pocket-sheet')))open();else dissolvePage(open);
         }}><span className="approved-word-pocket" aria-hidden="true"><i/><SavedPocketPreview record={pocket}/><i/></span></button>

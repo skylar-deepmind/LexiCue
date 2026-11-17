@@ -40,6 +40,7 @@ import { useOnboardingStore } from '../stores/onboardingStore';
 import useReadingTranslation from '../components/useReadingTranslation';
 import ReadingTranslationDialog from '../components/ReadingTranslationDialog';
 import { useRecallStore } from '../stores/recallStore';
+import { useMaterialStore } from '../stores/materialStore';
 import { compileRecall } from '../lib/recallMatcher';
 import type { RecallMatch } from '../lib/recallMatcher';
 const returnLookupMemory = new Map<string, { drafts: Map<string, LookupDraft>; session: LookupSession }>();
@@ -315,11 +316,14 @@ export default function ReadingPage({ data, scope }: {
             if(lastPosition.current===segment) return;
             const back = segment < lastPosition.current;
             lastPosition.current = segment;
+            const generation = useRestoreGuard.getState().generation;
             positionWrites.current = positionWrites.current.then(async () => {
+                if (useRestoreGuard.getState().generation !== generation) return;
                 const next = await invoke<string|null>('remember_reading_position', {fileId:material.id,contentHash:material.content_hash,
                     segment,back,legacy:false,parent:positionRevision.current ?? null});
-                if (next) {
+                if (next && useRestoreGuard.getState().generation === generation) {
                     positionRevision.current = next;
+                    useMaterialStore.getState().updatePosition(material.id, material.content_hash, { segment, revision: next });
                     try { const stored=JSON.parse(localStorage.getItem(positionKey)??'null'); if(stored?.hash===material.content_hash && stored.segment===segment) localStorage.setItem(positionKey,JSON.stringify({...stored,revision:next})); } catch { /* Best-effort local recovery metadata. */ }
                 }
             }).catch(() => { /* Local scroll recovery is still available. */ });

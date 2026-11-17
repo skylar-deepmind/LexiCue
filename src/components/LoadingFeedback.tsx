@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import './loading-feedback.css';
 
 /** Pair the decorative indicator with the action or status that owns it. */
@@ -16,4 +17,10 @@ export function LoadingSkeleton({ kind, label }: { kind: 'list' | 'text' | 'tags
       <i /><i /><i />{kind === 'list' && <i />}
     </div>
   </div>;
+}
+
+
+export function RouteLoading() {
+  const { t } = useTranslation();
+  return <div className="approved-route-loading" role="status" aria-label={t('common.loading')}><BusyRing/></div>;
 }

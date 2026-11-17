@@ -40,7 +40,7 @@ function MaterialReader({ id }: { id: number }) {
             setError(true);
             return;
         }
-        void Promise.all([invoke<ReadingMaterial>('open_reading_material', { fileId: id }), useMaterialStore.getState().load()]).then(async ([next]) => {
+        void invoke<ReadingMaterial>('open_reading_material', { fileId: id }).then(async next => {
             const imported = await validateImportedReading(importToken, next);
             if (active) {
             if (imported && consumeImportedReading(importToken)) useReadingDeskStore.getState().keepAndOpen(next.material);
@@ -48,6 +48,7 @@ function MaterialReader({ id }: { id: number }) {
             useReadingDeskStore.getState().use(next.material);
             setData(next);
             useMaterialStore.setState({ current: next.material });
+            void useMaterialStore.getState().ensure();
         } }).catch(() => { if (active) {
             consumeImportedReading(importToken); setError(true);
         } });

@@ -103,6 +103,13 @@ fn route(
             .map_err(|e| e.to_string())?;
             Ok(Value::Null)
         }
+        "reading_material_preview" => serde_json::to_value(materials::preview(
+            c,
+            id("fileId"),
+            text("contentHash"),
+            id("segment"),
+        )?)
+        .map_err(|e| e.to_string()),
         "open_reading_material" => {
             serde_json::to_value(materials::open(c, id("fileId"))?).map_err(|e| e.to_string())
         }
@@ -180,6 +187,9 @@ fn route(
             a["offsetMinutes"].as_i64().unwrap_or(0),
         )?)
         .map_err(|e| e.to_string()),
+        "latest_saved_preview" => {
+            serde_json::to_value(saved::latest_preview(c)?).map_err(|e| e.to_string())
+        }
         "list_saved_groups" => serde_json::to_value(saved::groups_in_range(
             c,
             text("query"),

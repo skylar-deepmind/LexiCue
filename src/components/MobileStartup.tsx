@@ -38,8 +38,9 @@ export default function MobileStartup({children}:{children:ReactNode}) {
     window.addEventListener('pageshow',foreground);document.addEventListener('visibilitychange',foreground);reduced.addEventListener('change',reduce);
     return()=>{clearTimeout(timer);window.removeEventListener('pageshow',foreground);document.removeEventListener('visibilitychange',foreground);reduced.removeEventListener('change',reduce);};
   },[starting]);
-  return <StartupContext.Provider value={starting}>
-    <div className="app-startup-content" inert={starting} aria-hidden={starting||undefined}>{children}</div>
-    {starting&&<div ref={stage} className="mobile-startup" data-exiting={leaving||undefined} role="status" aria-label={`LexiCue · ${t('common.loading')}`}><MobileLaunch/></div>}
+  const blocking = starting && !leaving;
+  return <StartupContext.Provider value={blocking}>
+    <div className="app-startup-content" inert={blocking} aria-hidden={blocking||undefined}>{children}</div>
+    {starting&&<div ref={stage} className="mobile-startup" data-exiting={leaving||undefined} role="status" aria-hidden={leaving||undefined} aria-label={`LexiCue · ${t('common.loading')}`}><MobileLaunch/></div>}
   </StartupContext.Provider>;
 }

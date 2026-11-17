@@ -14,6 +14,14 @@ export function collectionFixture({theme='ocean',count=10003}={}) {
     const state=window.__collection;state.calls.push({command,args:structuredClone(args)});
     if(command==='list_materials')return materials.slice(0,state.materialCount).filter(m=>!removedMaterials.has(m.id));
     if(command==='list_tags')return [{id:1,name:'Reading',tone:'blue',file_count:Math.floor(state.materialCount/2)}];
+    if(command==='reading_material_preview')return materials.find(m=>m.id===args.fileId)?.preview??null;
+    if(command==='latest_saved_preview'){
+      for(let i=1;i<=state.savedCount;i++){
+        const id=String(i).padStart(5,'0');
+        if(!removedGroups.has(`group-${id}`))return record(id);
+      }
+      return null;
+    }
     if(command==='open_reading_material'){const material=materials.find(m=>m.id===args.fileId);return {material,segments:[{id:1,file_id:material.id,index_num:0,en_text:material.preview,zh_text:null,start_time:null,end_time:null}],tokens:[]};}
     if(command==='list_saved_groups'){
       const groups=Array.from({length:state.savedCount},(_,i)=>{const id=String(i+1).padStart(5,'0');return {group_id:`group-${id}`,expression:`word ${id}`,context_count:state.contexts,latest_saved_at:1700000000000,preview:record(id),summary:'词典中的简短解释'};}).filter(g=>!removedGroups.has(g.group_id)&&(!args.query||g.expression.includes(args.query)));

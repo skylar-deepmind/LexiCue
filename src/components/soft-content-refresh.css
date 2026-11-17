@@ -2,6 +2,7 @@
 .soft-refresh { position:relative; isolation:isolate; overflow:clip; }
 .soft-refresh-current,.soft-refresh-snapshot { position:relative; z-index:2; background:var(--surface); }
 .soft-refresh-ghost { position:absolute; inset:0; z-index:1; display:flex; flex-direction:column; min-height:0; overflow:hidden; pointer-events:none; user-select:none; background:var(--surface); }
+.soft-refresh-ghost *, .soft-refresh-ghost *::before, .soft-refresh-ghost *::after { animation:none!important; transition:none!important; }
 .soft-refresh-ghost:empty { display:none; }
 .soft-refresh > .lookup-pending { z-index:4; }
 .lookup-action-slot { flex:none; }

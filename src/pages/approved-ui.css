@@ -355,7 +355,7 @@
 .approved-tag-names h2 { margin:0; }
 .approved-tag-names form { display:grid; gap:12px; }
 .approved-tag-names footer { display:flex; justify-content:flex-end; gap:8px; margin-top:8px; }
-.approved-route-loading { position:fixed; inset:0; display:grid; place-items:center; background:var(--approved-desk); color:var(--approved-ink); }
+.approved-route-loading { position:absolute; inset:0; display:grid; place-items:center; background:var(--approved-desk); color:var(--approved-ink); }
 .approved-interface-language legend,.approved-settings-paper .settings-facts dt { display:flex; align-items:center; gap:12px; }
 .approved-interface-language legend > svg,.approved-settings-paper .settings-facts dt > svg { flex:none; }
 .approved-interface-language { padding-inline:0; }

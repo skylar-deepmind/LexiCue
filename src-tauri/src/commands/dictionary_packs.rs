@@ -4,7 +4,7 @@
 use super::wiktionary_local::{self as local, Pack, R};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::collections::{HashMap, HashSet};
 use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -261,76 +261,132 @@ fn initialize(s: &mut Store) {
     s.initialized = true;
 }
 fn pack_relations(packs: &[Pack], fingerprint: String) -> R<super::longman::RelationCatalog> {
+    // Compare targets by integer ID inside each pack, where aliases are already
+    // sorted by surface. Cross-pack collisions still compare exact spellings.
+    struct Evidence {
+        target: String,
+        ambiguous: bool,
+        inflected: bool,
+    }
     let mut heads = HashSet::new();
     let mut spellings = HashSet::new();
-    let mut targets: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
-    let mut grammatical = HashSet::new();
+    let mut evidence = HashMap::<String, Evidence>::new();
     for pack in packs {
-        let mut q = pack.conn.prepare("SELECT word,EXISTS(SELECT 1 FROM entries e WHERE e.surface_id=s.id) FROM surfaces s").map_err(|e| e.to_string())?;
-        let rows = q
-            .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, bool>(1)?)))
-            .map_err(|e| e.to_string())?;
-        for row in rows {
-            let (word, independent) = row.map_err(|e| e.to_string())?;
-            spellings.insert(word.clone());
-            if independent {
-                heads.insert(word);
-            }
+        let sql = |e: rusqlite::Error| e.to_string();
+        let mut query = pack
+            .conn
+            .prepare("SELECT id,word FROM surfaces")
+            .map_err(sql)?;
+        let surfaces = query
+            .query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?)))
+            .map_err(sql)?
+            .collect::<rusqlite::Result<HashMap<_, _>>>()
+            .map_err(sql)?;
+        let mut query = pack
+            .conn
+            .prepare("SELECT DISTINCT surface_id FROM entries")
+            .map_err(sql)?;
+        for id in query.query_map([], |r| r.get::<_, i64>(0)).map_err(sql)? {
+            heads.insert(
+                surfaces
+                    .get(&id.map_err(sql)?)
+                    .ok_or("dictionary_surface_missing")?
+                    .clone(),
+            );
         }
-        // Only explicit grammatical relations grant history aliases. A second
-        // source target prevents folding, even when one is uncommon.
-        let mut q = pack.conn.prepare("SELECT s.word,t.word,a.kind IN (1,3) FROM aliases a JOIN surfaces s ON s.id=a.surface_id JOIN entries e ON e.source_line=a.entry_line JOIN surfaces t ON t.id=e.surface_id").map_err(|e| e.to_string())?;
-        let rows = q
+        let mut query = pack.conn.prepare("SELECT a.surface_id,min(e.surface_id),max(e.surface_id),max(a.kind IN (1,3))
+            FROM aliases a CROSS JOIN entries e ON e.source_line=a.entry_line GROUP BY a.surface_id").map_err(sql)?;
+        let aliases = query
             .query_map([], |r| {
                 Ok((
-                    r.get::<_, String>(0)?,
-                    r.get::<_, String>(1)?,
-                    r.get::<_, bool>(2)?,
+                    r.get::<_, i64>(0)?,
+                    r.get::<_, i64>(1)?,
+                    r.get::<_, i64>(2)?,
+                    r.get::<_, bool>(3)?,
                 ))
             })
-            .map_err(|e| e.to_string())?;
-        for row in rows {
-            let (surface, target, inflection) = row.map_err(|e| e.to_string())?;
-            if inflection {
-                grammatical.insert(surface.clone());
-            }
-            targets.entry(surface).or_default().insert(target);
+            .map_err(sql)?;
+        for alias in aliases {
+            let (surface, first, last, inflected) = alias.map_err(sql)?;
+            let target = surfaces.get(&first).ok_or("dictionary_target_missing")?;
+            let current = evidence
+                .entry(
+                    surfaces
+                        .get(&surface)
+                        .ok_or("dictionary_surface_missing")?
+                        .clone(),
+                )
+                .or_insert_with(|| Evidence {
+                    target: target.clone(),
+                    ambiguous: false,
+                    inflected: false,
+                });
+            current.ambiguous |= first != last || current.target != *target;
+            current.inflected |= inflected;
         }
+        spellings.extend(surfaces.into_values());
     }
-    targets.retain(|surface, _| grammatical.contains(surface));
-    Ok(super::longman::RelationCatalog::from_pack_facts(
+    let targets = evidence.into_iter().filter_map(|(surface, item)| {
+        (item.inflected && !item.ambiguous).then_some((surface, item.target))
+    });
+    Ok(super::longman::RelationCatalog::from_pack_relations(
         fingerprint,
         heads,
         spellings,
         targets,
     ))
 }
+
 pub fn relation_catalog_configured() -> Arc<super::longman::RelationCatalog> {
     #[cfg(test)]
     if let Some(catalog) = super::longman::test_relation_override() {
         return catalog;
     }
-    let mut s = store().lock().unwrap_or_else(|e| e.into_inner());
-    initialize(&mut s);
-    if let Some(catalog) = &s.relations {
-        return catalog.clone();
+    // A cold relation build runs once per configuration. Word lookups use the
+    // dictionary store's own connections while the build scans its read-only copy.
+    static BUILD: Mutex<()> = Mutex::new(());
+    let _build = BUILD.lock().unwrap_or_else(|e| e.into_inner());
+    loop {
+        let (fingerprint, packs) = {
+            let mut s = store().lock().unwrap_or_else(|e| e.into_inner());
+            initialize(&mut s);
+            if let Some(catalog) = &s.relations {
+                return catalog.clone();
+            }
+            let packs = s
+                .packs
+                .iter()
+                .map(|pack| {
+                    let path = pack.conn.path().ok_or("dictionary_path_unavailable")?;
+                    Pack::open(Path::new(path), &pack.id)
+                })
+                .collect::<R<Vec<_>>>();
+            (s.fingerprint.clone(), packs)
+        };
+        let catalog = Arc::new(
+            packs
+                .and_then(|packs| {
+                    pack_relations(
+                        &packs,
+                        format!("wiktionary-pack-relations-v1:{fingerprint}"),
+                    )
+                })
+                .unwrap_or_else(|_| {
+                    super::longman::RelationCatalog::from_pack_relations(
+                        "wiktionary-unavailable".into(),
+                        HashSet::new(),
+                        HashSet::new(),
+                        [],
+                    )
+                }),
+        );
+        let mut s = store().lock().unwrap_or_else(|e| e.into_inner());
+        if !s.initialized || s.fingerprint != fingerprint || fingerprint != self::fingerprint(&s) {
+            continue;
+        }
+        s.relations = Some(catalog.clone());
+        return catalog;
     }
-    let catalog = Arc::new(
-        pack_relations(
-            &s.packs,
-            format!("wiktionary-pack-relations-v1:{}", s.fingerprint),
-        )
-        .unwrap_or_else(|_| {
-            super::longman::RelationCatalog::from_pack_facts(
-                "wiktionary-unavailable".into(),
-                Default::default(),
-                Default::default(),
-                Default::default(),
-            )
-        }),
-    );
-    s.relations = Some(catalog.clone());
-    catalog
 }
 pub fn query_configured(expression: &str, context: Option<&str>) -> Value {
     let mut s = store().lock().unwrap_or_else(|e| e.into_inner());

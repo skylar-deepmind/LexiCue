@@ -450,6 +450,20 @@ pub fn create_tables(conn: &Connection) -> Result<(), String> {
             UNIQUE(normalized_expression,source_key)
         ) STRICT;
         CREATE INDEX IF NOT EXISTS saved_active_sort ON saved_records(deleted_at,saved_at DESC,record_id);
+        CREATE TABLE IF NOT EXISTS saved_archive_revision (
+            singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+            revision BLOB NOT NULL
+        ) STRICT;
+        INSERT OR IGNORE INTO saved_archive_revision VALUES(1, randomblob(16));
+        CREATE TRIGGER IF NOT EXISTS saved_archive_insert AFTER INSERT ON saved_records BEGIN
+            UPDATE saved_archive_revision SET revision=randomblob(16) WHERE singleton=1;
+        END;
+        CREATE TRIGGER IF NOT EXISTS saved_archive_update AFTER UPDATE ON saved_records BEGIN
+            UPDATE saved_archive_revision SET revision=randomblob(16) WHERE singleton=1;
+        END;
+        CREATE TRIGGER IF NOT EXISTS saved_archive_delete AFTER DELETE ON saved_records BEGIN
+            UPDATE saved_archive_revision SET revision=randomblob(16) WHERE singleton=1;
+        END;
         CREATE INDEX IF NOT EXISTS saved_expression ON saved_records(normalized_expression,deleted_at);
         CREATE INDEX IF NOT EXISTS saved_active_recall ON saved_records(normalized_expression,saved_at DESC,record_id) WHERE deleted_at IS NULL;
         CREATE TABLE IF NOT EXISTS saved_actions (
@@ -866,11 +880,27 @@ struct GroupBefore {
     records: Vec<SavedRecord>,
 }
 
+#[cfg(test)]
 pub fn remove_group(
     conn: &Connection,
     operation_id: &str,
     group_id: &str,
     expected_count: usize,
+) -> Result<GroupMutationResult, String> {
+    remove_group_with_catalog(
+        conn,
+        operation_id,
+        group_id,
+        expected_count,
+        super::dictionary_packs::relation_catalog_configured(),
+    )
+}
+fn remove_group_with_catalog(
+    conn: &Connection,
+    operation_id: &str,
+    group_id: &str,
+    expected_count: usize,
+    catalog: RelationCatalog,
 ) -> Result<GroupMutationResult, String> {
     if operation_id.is_empty() || operation_id.len() > 200 || expected_count == 0 {
         return Err("saved_operation_invalid".into());
@@ -898,7 +928,7 @@ pub fn remove_group(
     }
     // Read membership inside the immediate transaction, including dictionary
     // relations; never rely on a frontend page or a truncated group preview.
-    let archive = archive(&tx, "")?;
+    let archive = archive_with_catalog(&tx, catalog)?;
     let group = archive.groups.get(group_id).ok_or("saved_conflict")?;
     if group.record_ids.len() != expected_count {
         return Err("saved_conflict".into());
@@ -994,13 +1024,15 @@ pub async fn remove_saved_group(
 ) -> Result<GroupMutationResult, String> {
     // A word can have thousands of contexts. Keep the native event thread free
     // while waiting for SQLite, writing tombstones and serializing the receipt.
-    let shared = state.conn.clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        let conn = shared.lock().map_err(|e| e.to_string())?;
-        remove_group(&conn, &operation_id, &group_id, expected_count)
-    })
-    .await
-    .map_err(|e| e.to_string())?
+    state
+        .read_prepared(
+            "remove_saved_group",
+            super::dictionary_packs::relation_catalog_configured,
+            move |conn, catalog| {
+                remove_group_with_catalog(conn, &operation_id, &group_id, expected_count, catalog)
+            },
+        )
+        .await
 }
 #[tauri::command]
 pub async fn undo_saved_group(
@@ -1334,12 +1366,12 @@ pub struct ArchiveGroup {
     pub expression: String,
     pub record_ids: Vec<String>,
     pub latest_saved_at: Option<i64>,
-    pub search_hit: bool,
     summary_zh: Option<String>,
     summary_en: Option<String>,
 }
 pub struct Archive {
     index: std::sync::OnceLock<Vec<String>>,
+    case_exclusions: std::sync::OnceLock<Vec<String>>,
     catalog: std::sync::Arc<super::longman::RelationCatalog>,
     pub groups: std::collections::BTreeMap<String, ArchiveGroup>,
     aliases: std::collections::BTreeMap<String, std::collections::BTreeSet<String>>,
@@ -1418,34 +1450,31 @@ impl Archive {
         }
         self.groups.get(ids.first()?)
     }
-    pub fn expressions(&self) -> Vec<String> {
-        self.index
-            .get_or_init(|| {
-                self.aliases
-                    .iter()
-                    .filter(|&(key, ids)| {
-                        ids.len() == 1 || self.groups.contains_key(&group_identity(key))
-                    })
-                    .map(|(key, _ids)| key.split_once(':').unwrap().1.to_string())
-                    .collect::<std::collections::BTreeSet<_>>()
-                    .into_iter()
-                    .collect()
-            })
-            .clone()
+    pub fn expressions(&self) -> &[String] {
+        self.index.get_or_init(|| {
+            self.aliases
+                .iter()
+                .filter(|&(key, ids)| {
+                    ids.len() == 1 || self.groups.contains_key(&group_identity(key))
+                })
+                .map(|(key, _ids)| key.split_once(':').unwrap().1.to_string())
+                .collect::<std::collections::BTreeSet<_>>()
+                .into_iter()
+                .collect()
+        })
     }
     pub fn case_exclusions(&self) -> Vec<String> {
-        self.catalog.case_exclusions(&self.expressions())
+        self.case_exclusions
+            .get_or_init(|| self.catalog.case_exclusions(self.expressions()))
+            .clone()
     }
     pub fn literal_only(&self) -> bool {
         self.catalog.literal_only()
     }
 }
 
-#[derive(PartialEq, Eq)]
-struct ArchiveStamp {
-    changes: i64,
-    data_version: i64,
-}
+type ArchiveStamp = Vec<u8>;
+type RelationCatalog = std::sync::Arc<super::longman::RelationCatalog>;
 struct CachedArchive {
     stamp: ArchiveStamp,
     catalog_fingerprint: String,
@@ -1454,7 +1483,7 @@ struct CachedArchive {
 }
 #[derive(Default)]
 struct ArchiveCache {
-    entries: std::collections::BTreeMap<String, CachedArchive>,
+    entries: std::collections::BTreeMap<(String, Option<i64>, Option<i64>), CachedArchive>,
     clock: u64,
 }
 static ARCHIVE_CACHE: std::sync::OnceLock<std::sync::Mutex<ArchiveCache>> =
@@ -1462,8 +1491,8 @@ static ARCHIVE_CACHE: std::sync::OnceLock<std::sync::Mutex<ArchiveCache>> =
 
 /// The random token belongs to this SQLite connection's TEMP schema, so closing
 /// and reopening a connection can never accidentally reuse an old cache entry.
-/// Local writes (including sync/restore) change total_changes; commits made by a
-/// different connection change data_version. Nothing is persisted or synced.
+/// The local revision changes transactionally with saved rows, including writes
+/// made by sync, restore or another connection. It isn't part of portable data.
 fn archive_stamp(conn: &Connection) -> Result<(String, ArchiveStamp), String> {
     conn.execute_batch("CREATE TEMP TABLE IF NOT EXISTS lexicue_archive_cache_token(token TEXT PRIMARY KEY NOT NULL)").map_err(|e|e.to_string())?;
     let token = conn
@@ -1486,58 +1515,58 @@ fn archive_stamp(conn: &Connection) -> Result<(String, ArchiveStamp), String> {
             token
         }
     };
-    let changes = conn
-        .query_row("SELECT total_changes()", [], |r| r.get(0))
+    let revision = conn
+        .query_row(
+            "SELECT revision FROM main.saved_archive_revision WHERE singleton=1",
+            [],
+            |r| r.get(0),
+        )
         .map_err(|e| e.to_string())?;
-    let data_version = conn
-        .pragma_query_value(None, "data_version", |r| r.get(0))
-        .map_err(|e| e.to_string())?;
-    Ok((
-        token,
-        ArchiveStamp {
-            changes,
-            data_version,
-        },
-    ))
+    Ok((token, revision))
 }
 
 /// Share one immutable derived view between recall, archived lists and context
-/// pages. Transaction-local reads bypass caching: rollback is not represented
-/// by total_changes and must never leave uncommitted facts in a shared view.
-pub fn archive(conn: &Connection, query: &str) -> Result<std::sync::Arc<Archive>, String> {
-    archive_with_catalog(
-        conn,
-        query,
-        super::dictionary_packs::relation_catalog_configured(),
-    )
-}
-fn archive_with_catalog(
+/// pages. Transaction-local reads never enter the shared cache.
+pub(super) fn archive_with_catalog(
     conn: &Connection,
-    query: &str,
-    catalog: std::sync::Arc<super::longman::RelationCatalog>,
+    catalog: RelationCatalog,
 ) -> Result<std::sync::Arc<Archive>, String> {
-    if !query.trim().is_empty() || !conn.is_autocommit() {
-        return build_archive(conn, query, &catalog).map(std::sync::Arc::new);
+    archive_for_dates(conn, catalog, None, None)
+}
+
+fn archive_for_dates(
+    conn: &Connection,
+    catalog: RelationCatalog,
+    start_ms: Option<i64>,
+    end_ms: Option<i64>,
+) -> Result<std::sync::Arc<Archive>, String> {
+    if !conn.is_autocommit() {
+        return build_archive_range(conn, &catalog, start_ms, end_ms).map(std::sync::Arc::new);
     }
     let (token, stamp) = archive_stamp(conn)?;
+    let key = (token, start_ms, end_ms);
     let shared = ARCHIVE_CACHE.get_or_init(|| std::sync::Mutex::new(ArchiveCache::default()));
     {
         let mut cache = shared.lock().map_err(|e| e.to_string())?;
         cache.clock = cache.clock.wrapping_add(1);
         let accessed = cache.clock;
-        if let Some(entry) = cache.entries.get_mut(&token) {
+        if let Some(entry) = cache.entries.get_mut(&key) {
             if entry.stamp == stamp && entry.catalog_fingerprint == catalog.fingerprint() {
                 entry.accessed = accessed;
                 return Ok(entry.archive.clone());
             }
         }
     }
-    let archive = std::sync::Arc::new(build_archive(conn, "", &catalog)?);
+    let archive = std::sync::Arc::new(build_archive_range(conn, &catalog, start_ms, end_ms)?);
     let mut cache = shared.lock().map_err(|e| e.to_string())?;
     cache.clock = cache.clock.wrapping_add(1);
     let accessed = cache.clock;
+    // Keep the full projection and only the most recent range per connection.
+    cache.entries.retain(|(token, start, end), entry| {
+        token != &key.0 || (entry.stamp == stamp && start.is_none() && end.is_none())
+    });
     cache.entries.insert(
-        token,
+        key,
         CachedArchive {
             stamp,
             catalog_fingerprint: catalog.fingerprint().into(),
@@ -1552,7 +1581,7 @@ fn archive_with_catalog(
             .entries
             .iter()
             .min_by_key(|(_, entry)| entry.accessed)
-            .map(|(token, _)| token.clone())
+            .map(|(key, _)| key.clone())
             .unwrap();
         cache.entries.remove(&oldest);
     }
@@ -1561,52 +1590,39 @@ fn archive_with_catalog(
 /// The current offline catalog, rather than a saved default headword, proves
 /// identity. This is a rebuildable projection: records and their old reference
 /// excerpts remain byte-for-byte facts, including after a dictionary change.
-fn build_archive(
-    conn: &Connection,
-    query: &str,
-    catalog: &std::sync::Arc<super::longman::RelationCatalog>,
-) -> Result<Archive, String> {
-    build_archive_range(conn, query, catalog, None, None)
-}
 fn build_archive_range(
     conn: &Connection,
-    query: &str,
-    catalog: &std::sync::Arc<super::longman::RelationCatalog>,
+    catalog: &RelationCatalog,
     start_ms: Option<i64>,
     end_ms: Option<i64>,
 ) -> Result<Archive, String> {
-    #[derive(Clone)]
     struct Row {
         id: String,
         expression: String,
         saved_at: Option<i64>,
-        hit: bool,
         reference: Option<String>,
         snapshot: Option<String>,
     }
-    let pattern = format!(
-        "%{}%",
-        normalize(query)
-            .replace('!', "!!")
-            .replace('%', "!%")
-            .replace('_', "!_")
-    );
-    let mut stmt = conn.prepare("SELECT record_id,json_extract(snapshot_json,'$.expression'),saved_at,(normalized_expression LIKE ?1 ESCAPE '!' OR json_extract(snapshot_json,'$.explanation') LIKE ?1 ESCAPE '!' OR json_extract(snapshot_json,'$.sentence') LIKE ?1 ESCAPE '!' OR json_extract(snapshot_json,'$.source.file_name') LIKE ?1 ESCAPE '!' OR json_extract(snapshot_json,'$.dictionary_reference') LIKE ?1 ESCAPE '!'),CASE WHEN json_type(snapshot_json,'$.dictionary_reference')='object' THEN json_extract(snapshot_json,'$.dictionary_reference') END,CASE WHEN json_type(snapshot_json,'$.dictionary_snapshot')='object' THEN json_extract(snapshot_json,'$.dictionary_snapshot') END FROM saved_records WHERE deleted_at IS NULL AND (?2 IS NULL OR saved_at>=?2) AND (?3 IS NULL OR saved_at<?3) ORDER BY saved_at IS NULL,saved_at DESC,record_id").map_err(|e| e.to_string())?;
+    let mut stmt = conn.prepare("SELECT record_id,json_extract(snapshot_json,'$.expression'),saved_at,
+        CASE WHEN json_type(snapshot_json,'$.dictionary_reference')='object' THEN json_extract(snapshot_json,'$.dictionary_reference') END,
+        CASE WHEN json_type(snapshot_json,'$.dictionary_snapshot')='object' THEN json_extract(snapshot_json,'$.dictionary_snapshot') END
+        FROM saved_records WHERE deleted_at IS NULL AND (?1 IS NULL OR saved_at>=?1) AND (?2 IS NULL OR saved_at<?2)
+        ORDER BY saved_at IS NULL,saved_at DESC,record_id").map_err(|e| e.to_string())?;
     let rows = stmt
-        .query_map(params![pattern, start_ms, end_ms], |r| {
+        .query_map(params![start_ms, end_ms], |r| {
             Ok(Row {
                 id: r.get(0)?,
                 expression: r.get(1)?,
                 saved_at: r.get(2)?,
-                hit: r.get::<_, Option<bool>>(3)?.unwrap_or(false),
-                reference: r.get(4)?,
-                snapshot: r.get(5)?,
+                reference: r.get(3)?,
+                snapshot: r.get(4)?,
             })
         })
         .map_err(|e| e.to_string())?;
     let mut identities = std::collections::HashMap::new();
     let mut archive = Archive {
         index: Default::default(),
+        case_exclusions: Default::default(),
         catalog: catalog.clone(),
         groups: Default::default(),
         aliases: Default::default(),
@@ -1635,7 +1651,6 @@ fn build_archive_range(
                 archive.aliases.entry(alias).or_default().insert(id.clone());
             }
         }
-        let hit = row.hit || normalize(&display).contains(&normalize(query));
         let group = archive
             .groups
             .entry(id.clone())
@@ -1644,7 +1659,6 @@ fn build_archive_range(
                 expression: display,
                 record_ids: vec![],
                 latest_saved_at: row.saved_at,
-                search_hit: false,
                 summary_zh: None,
                 summary_en: None,
             });
@@ -1659,15 +1673,13 @@ fn build_archive_range(
             }
         }
         group.record_ids.push(row.id);
-        group.search_hit |= hit;
         group.latest_saved_at = group.latest_saved_at.max(row.saved_at);
     }
     // Expand once per live family, including safe forms never saved before.
     // Deleted contexts cannot grant identities or keep reminders alive. The
     // catalog is independent of any one saved sentence, so removing a former
     // form's last sentence does not unpredictably change the remaining family.
-    let query = normalize(query);
-    for group in archive.groups.values_mut() {
+    for group in archive.groups.values() {
         let sensitive = archive_sensitive(catalog, &group.expression);
         for form in catalog.safe_forms(&group.expression) {
             if let Some(alias) = alias_key(&form, &group.expression, sensitive) {
@@ -1676,7 +1688,6 @@ fn build_archive_range(
                     .entry(alias)
                     .or_default()
                     .insert(group.group_id.clone());
-                group.search_hit |= normalize(&form).contains(&query);
             }
         }
     }
@@ -1785,6 +1796,7 @@ pub fn groups(
 ) -> Result<SavedGroupPage, String> {
     groups_in_range(conn, query, limit, offset, None, None)
 }
+#[cfg(test)]
 pub fn groups_in_range(
     conn: &Connection,
     query: &str,
@@ -1793,18 +1805,72 @@ pub fn groups_in_range(
     start_ms: Option<i64>,
     end_ms: Option<i64>,
 ) -> Result<SavedGroupPage, String> {
-    let archive = if start_ms.is_none() && end_ms.is_none() {
-        archive(conn, query)?
+    groups_in_range_with_catalog(
+        conn,
+        query,
+        limit,
+        offset,
+        start_ms,
+        end_ms,
+        super::dictionary_packs::relation_catalog_configured(),
+    )
+}
+
+fn groups_in_range_with_catalog(
+    conn: &Connection,
+    query: &str,
+    limit: i64,
+    offset: i64,
+    start_ms: Option<i64>,
+    end_ms: Option<i64>,
+    catalog: RelationCatalog,
+) -> Result<SavedGroupPage, String> {
+    let archive = archive_for_dates(conn, catalog, start_ms, end_ms)?;
+    let query = normalize(query);
+    let mut matching: Vec<_> = if query.is_empty() {
+        archive.groups.values().collect()
     } else {
-        std::sync::Arc::new(build_archive_range(
-            conn,
-            query,
-            &super::dictionary_packs::relation_catalog_configured(),
-            start_ms,
-            end_ms,
-        )?)
+        let pattern = format!(
+            "%{}%",
+            query
+                .replace('!', "!!")
+                .replace('%', "!%")
+                .replace('_', "!_")
+        );
+        let mut stmt = conn.prepare_cached("SELECT record_id FROM saved_records
+            WHERE deleted_at IS NULL AND (?2 IS NULL OR saved_at>=?2) AND (?3 IS NULL OR saved_at<?3)
+            AND (normalized_expression LIKE ?1 ESCAPE '!' OR json_extract(snapshot_json,'$.explanation') LIKE ?1 ESCAPE '!'
+            OR json_extract(snapshot_json,'$.sentence') LIKE ?1 ESCAPE '!' OR json_extract(snapshot_json,'$.source.file_name') LIKE ?1 ESCAPE '!'
+            OR json_extract(snapshot_json,'$.dictionary_reference') LIKE ?1 ESCAPE '!')").map_err(|e| e.to_string())?;
+        let hits = stmt
+            .query_map(params![pattern, start_ms, end_ms], |r| {
+                r.get::<_, String>(0)
+            })
+            .map_err(|e| e.to_string())?
+            .collect::<rusqlite::Result<std::collections::HashSet<_>>>()
+            .map_err(|e| e.to_string())?;
+        archive
+            .groups
+            .values()
+            .filter(|group| {
+                normalize(&group.expression).contains(&query)
+                    || group.record_ids.iter().any(|id| hits.contains(id))
+                    || archive
+                        .catalog
+                        .safe_forms(&group.expression)
+                        .iter()
+                        .any(|form| {
+                            alias_key(
+                                form,
+                                &group.expression,
+                                archive_sensitive(&archive.catalog, &group.expression),
+                            )
+                            .is_some()
+                                && normalize(form).contains(&query)
+                        })
+            })
+            .collect()
     };
-    let mut matching: Vec<_> = archive.groups.values().filter(|g| g.search_hit).collect();
     matching.sort_by(|a, b| {
         b.latest_saved_at
             .cmp(&a.latest_saved_at)
@@ -1842,6 +1908,7 @@ pub fn group_contexts(
 ) -> Result<SavedContextPage, String> {
     contexts_in_range(conn, group_id, limit, offset, None, None)
 }
+#[cfg(test)]
 pub fn contexts_in_range(
     conn: &Connection,
     group_id: &str,
@@ -1850,17 +1917,27 @@ pub fn contexts_in_range(
     start_ms: Option<i64>,
     end_ms: Option<i64>,
 ) -> Result<SavedContextPage, String> {
-    let archive = if start_ms.is_none() && end_ms.is_none() {
-        archive(conn, "")?
-    } else {
-        std::sync::Arc::new(build_archive_range(
-            conn,
-            "",
-            &super::dictionary_packs::relation_catalog_configured(),
-            start_ms,
-            end_ms,
-        )?)
-    };
+    contexts_in_range_with_catalog(
+        conn,
+        group_id,
+        limit,
+        offset,
+        start_ms,
+        end_ms,
+        super::dictionary_packs::relation_catalog_configured(),
+    )
+}
+
+fn contexts_in_range_with_catalog(
+    conn: &Connection,
+    group_id: &str,
+    limit: i64,
+    offset: i64,
+    start_ms: Option<i64>,
+    end_ms: Option<i64>,
+    catalog: RelationCatalog,
+) -> Result<SavedContextPage, String> {
+    let archive = archive_for_dates(conn, catalog, start_ms, end_ms)?;
     context_page(conn, archive.groups.get(group_id), limit, offset)
 }
 pub fn context_page(
@@ -1918,6 +1995,27 @@ pub async fn saved_date_histogram(
         })
         .await
 }
+pub(super) fn latest_preview(conn: &Connection) -> Result<Option<SavedRecord>, String> {
+    let raw: Option<String> = conn.query_row(
+        "SELECT snapshot_json FROM saved_records WHERE deleted_at IS NULL ORDER BY saved_at DESC,record_id LIMIT 1",
+        [],
+        |r| r.get(0),
+    ).optional().map_err(|e| e.to_string())?;
+    raw.map(|value| {
+        serde_json::from_str(&value)
+            .map(group_preview)
+            .map_err(|e| e.to_string())
+    })
+    .transpose()
+}
+
+#[tauri::command]
+pub async fn latest_saved_preview(
+    state: State<'_, DbState>,
+) -> Result<Option<SavedRecord>, String> {
+    state.read("latest_saved_preview", latest_preview).await
+}
+
 #[tauri::command]
 pub async fn list_saved_groups(
     state: State<'_, DbState>,
@@ -1928,16 +2026,21 @@ pub async fn list_saved_groups(
     end_ms: Option<i64>,
 ) -> Result<SavedGroupPage, String> {
     state
-        .read("list_saved_groups", move |conn| {
-            groups_in_range(
-                conn,
-                &query.unwrap_or_default(),
-                limit.unwrap_or(50),
-                offset.unwrap_or(0),
-                start_ms,
-                end_ms,
-            )
-        })
+        .read_prepared(
+            "list_saved_groups",
+            super::dictionary_packs::relation_catalog_configured,
+            move |conn, catalog| {
+                groups_in_range_with_catalog(
+                    conn,
+                    &query.unwrap_or_default(),
+                    limit.unwrap_or(50),
+                    offset.unwrap_or(0),
+                    start_ms,
+                    end_ms,
+                    catalog,
+                )
+            },
+        )
         .await
 }
 #[tauri::command]
@@ -1950,16 +2053,21 @@ pub async fn saved_group_contexts(
     end_ms: Option<i64>,
 ) -> Result<SavedContextPage, String> {
     state
-        .read("saved_group_contexts", move |conn| {
-            contexts_in_range(
-                conn,
-                &group_id,
-                limit.unwrap_or(10),
-                offset.unwrap_or(0),
-                start_ms,
-                end_ms,
-            )
-        })
+        .read_prepared(
+            "saved_group_contexts",
+            super::dictionary_packs::relation_catalog_configured,
+            move |conn, catalog| {
+                contexts_in_range_with_catalog(
+                    conn,
+                    &group_id,
+                    limit.unwrap_or(10),
+                    offset.unwrap_or(0),
+                    start_ms,
+                    end_ms,
+                    catalog,
+                )
+            },
+        )
         .await
 }
 
@@ -2613,6 +2721,47 @@ mod tests {
     }
 
     #[test]
+    fn preview_and_archive_cache_only_follow_saved_writes() {
+        let (_dir, conn) = db();
+        let first = save_surface(&conn, 3, "change", None);
+        let relations = super::super::dictionary_packs::relation_catalog_configured();
+        let before = archive_with_catalog(&conn, relations.clone()).unwrap();
+        assert_eq!(
+            latest_preview(&conn).unwrap().unwrap().record_id,
+            first.record.record_id
+        );
+
+        let (file, hash, index): (i64, String, i64) = conn.query_row(
+            "SELECT f.id,f.content_hash,s.index_num FROM files f JOIN segments s ON s.file_id=f.id WHERE s.id=3",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        ).unwrap();
+        assert!(super::super::materials::write_position(
+            &conn, file, index, &hash, None, false, false
+        )
+        .unwrap()
+        .is_some());
+        let after = archive_with_catalog(&conn, relations.clone()).unwrap();
+        assert!(std::sync::Arc::ptr_eq(&before, &after));
+
+        let removed = remove(&conn, &first.record);
+        assert!(latest_preview(&conn).unwrap().is_none());
+        assert!(archive_with_catalog(&conn, relations.clone())
+            .unwrap()
+            .groups
+            .is_empty());
+        undo(&conn, &removed.operation_id).unwrap();
+        assert_eq!(
+            latest_preview(&conn).unwrap().unwrap().record_id,
+            first.record.record_id
+        );
+        assert_eq!(
+            archive_with_catalog(&conn, relations).unwrap().groups.len(),
+            1
+        );
+    }
+
+    #[test]
     fn archive_cache_detects_other_connection_commits_and_uses_a_fresh_reopen_token() {
         let (dir, conn) = db();
         let first = save_surface(&conn, 3, "change", None);
@@ -2625,8 +2774,7 @@ mod tests {
         remote.deleted_at = Some(now_ms());
         write_record(&writer, &remote).unwrap();
         let (_, after) = archive_stamp(&conn).unwrap();
-        assert_eq!(before.changes, after.changes);
-        assert_ne!(before.data_version, after.data_version);
+        assert_ne!(before, after);
         assert!(super::super::recall::index(&conn).unwrap().is_empty());
         remote.deleted_at = None;
         remote.generation += 1;
@@ -2680,9 +2828,7 @@ mod tests {
         let (_, before_rollback) = archive_stamp(&tx).unwrap();
         tx.rollback().unwrap();
         let (_, after_rollback) = archive_stamp(&conn).unwrap();
-        // total_changes does not detect rollback; explicit transaction bypass
-        // prevents its temporary view from being reused after this boundary.
-        assert_eq!(before_rollback.changes, after_rollback.changes);
+        assert_ne!(before_rollback, after_rollback);
         assert!(super::super::recall::index(&conn)
             .unwrap()
             .contains(&"change".into()));
@@ -2702,7 +2848,7 @@ mod tests {
             "fixture-release-a:v1",
             &[("went", "go")],
         ));
-        let first = archive_with_catalog(&conn, "", proven.clone()).unwrap();
+        let first = archive_with_catalog(&conn, proven.clone()).unwrap();
         assert_eq!(first.resolve("went").unwrap().record_ids.len(), 2);
         assert_eq!(first.resolve("go").unwrap().record_ids.len(), 2);
         assert_eq!(
@@ -2715,11 +2861,11 @@ mod tests {
         );
         assert!(std::sync::Arc::ptr_eq(
             &first,
-            &archive_with_catalog(&conn, "", proven).unwrap()
+            &archive_with_catalog(&conn, proven).unwrap()
         ));
         let unavailable =
             std::sync::Arc::new(RelationCatalog::test_fixture("fixture-unavailable:v1", &[]));
-        let fallback = archive_with_catalog(&conn, "", unavailable).unwrap();
+        let fallback = archive_with_catalog(&conn, unavailable).unwrap();
         assert!(!std::sync::Arc::ptr_eq(&first, &fallback));
         assert_eq!(
             fallback.resolve("went").unwrap().record_ids,
@@ -2732,7 +2878,7 @@ mod tests {
         assert_eq!(fallback.groups.len(), 4);
         let revised =
             std::sync::Arc::new(RelationCatalog::test_fixture("fixture-release-b:v2", &[]));
-        let revised = archive_with_catalog(&conn, "", revised).unwrap();
+        let revised = archive_with_catalog(&conn, revised).unwrap();
         assert!(!std::sync::Arc::ptr_eq(&fallback, &revised));
         assert_eq!(list(&conn, "", 100, 0).unwrap(), before);
         // A late source excerpt, including one arriving from sync, remains a
@@ -2742,7 +2888,6 @@ mod tests {
         write_record(&conn, &late).unwrap();
         let after = archive_with_catalog(
             &conn,
-            "",
             std::sync::Arc::new(RelationCatalog::test_fixture(
                 "fixture-release-a:v1",
                 &[("went", "go")],
@@ -2764,7 +2909,7 @@ mod tests {
         let unavailable = std::sync::Arc::new(
             super::super::longman::RelationCatalog::test_fixture("unavailable-case-test", &[]),
         );
-        let archive = archive_with_catalog(&conn, "", unavailable.clone()).unwrap();
+        let archive = archive_with_catalog(&conn, unavailable.clone()).unwrap();
         assert!(archive.resolve("US").is_none());
         assert!(archive.resolve("THE").is_none());
         assert!(archive.resolve("The").is_none());
@@ -2773,7 +2918,7 @@ mod tests {
             &[("the", "the")],
         ));
         assert_eq!(
-            archive_with_catalog(&conn, "", available)
+            archive_with_catalog(&conn, available)
                 .unwrap()
                 .resolve("The")
                 .unwrap()
@@ -2783,7 +2928,7 @@ mod tests {
         );
         save_surface(&conn, 5, "US", None);
         save_surface(&conn, 6, "I'M", None);
-        let archive = archive_with_catalog(&conn, "", unavailable).unwrap();
+        let archive = archive_with_catalog(&conn, unavailable).unwrap();
         assert_eq!(archive.resolve("US").unwrap().record_ids.len(), 1);
         assert_eq!(archive.resolve("us").unwrap().record_ids.len(), 1);
         assert_eq!(archive.resolve("I'M").unwrap().record_ids.len(), 1);
@@ -2797,7 +2942,7 @@ mod tests {
         let lower = save_surface(&conn, 3, "may", None);
         let unavailable =
             std::sync::Arc::new(RelationCatalog::test_fixture("missing-source-case-v1", &[]));
-        let single = archive_with_catalog(&conn, "", unavailable.clone()).unwrap();
+        let single = archive_with_catalog(&conn, unavailable.clone()).unwrap();
         assert!(single.literal_only());
         assert!(single.resolve("May").is_none());
         assert!(single.resolve("MAY").is_none());
@@ -2813,11 +2958,11 @@ mod tests {
             "available-source-case-v1",
             &[("may", "may"), ("May", "May"), ("went", "go")],
         ));
-        let sourced = archive_with_catalog(&conn, "", source.clone()).unwrap();
+        let sourced = archive_with_catalog(&conn, source.clone()).unwrap();
         assert!(!sourced.literal_only());
         assert_eq!(sourced.groups.len(), 3);
         assert_eq!(sourced.resolve("Went").unwrap().record_ids.len(), 2);
-        let literal = archive_with_catalog(&conn, "", unavailable.clone()).unwrap();
+        let literal = archive_with_catalog(&conn, unavailable.clone()).unwrap();
         assert!(literal.literal_only());
         assert_eq!(literal.groups.len(), 4);
         assert_eq!(
@@ -2833,12 +2978,12 @@ mod tests {
         assert_eq!(list(&conn, "", 100, 0).unwrap(), facts);
         drop(conn);
         let reopened = crate::db::init_db(&dir.path().join("test.db")).unwrap();
-        let literal = archive_with_catalog(&reopened, "", unavailable).unwrap();
+        let literal = archive_with_catalog(&reopened, unavailable).unwrap();
         assert!(literal.literal_only());
         assert_eq!(literal.groups.len(), 4);
         assert_eq!(literal.resolve("May").unwrap().record_ids.len(), 1);
         assert_eq!(literal.resolve("may").unwrap().record_ids.len(), 1);
-        let recovered = archive_with_catalog(&reopened, "", source).unwrap();
+        let recovered = archive_with_catalog(&reopened, source).unwrap();
         assert!(!recovered.literal_only());
         assert_eq!(recovered.groups.len(), 3);
         assert_eq!(recovered.resolve("Went").unwrap().record_ids.len(), 2);
@@ -3246,17 +3391,17 @@ mod tests {
         let literal =
             std::sync::Arc::new(RelationCatalog::test_fixture("literal-baseline:v1", &[]));
         let start = Instant::now();
-        let baseline = archive_with_catalog(&conn, "", literal.clone()).unwrap();
+        let baseline = archive_with_catalog(&conn, literal.clone()).unwrap();
         let baseline_build_ms = start.elapsed().as_secs_f64() * 1000.;
         let start = Instant::now();
-        let expanded = archive_with_catalog(&conn, "", catalog.clone()).unwrap();
+        let expanded = archive_with_catalog(&conn, catalog.clone()).unwrap();
         let expanded_build_ms = start.elapsed().as_secs_f64() * 1000.;
         let index = expanded.expressions();
         let start = Instant::now();
         for _ in 0..20 {
             assert!(std::sync::Arc::ptr_eq(
                 &expanded,
-                &archive_with_catalog(&conn, "", catalog.clone()).unwrap()
+                &archive_with_catalog(&conn, catalog.clone()).unwrap()
             ));
         }
         let warm_archive_ms = start.elapsed().as_secs_f64() * 1000. / 20.;

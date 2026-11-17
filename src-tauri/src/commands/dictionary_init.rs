@@ -3,7 +3,7 @@
 use rusqlite::Connection;
 use serde::Serialize;
 use std::sync::{Arc, Mutex};
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SourceStatus {
@@ -90,7 +90,30 @@ pub fn start(app: AppHandle, status: DictionaryStatus) {
                 s.sources[0].error = result.err();
                 s.sources[0].processed_rows = if s.state == "ready" { 41684 } else { 0 };
             });
-            let _ = worker_app.emit("dictionary-ready", worker_status.is_ready());
+            let ready = worker_status.is_ready();
+            let _ = worker_app.emit("dictionary-ready", ready);
+            // Returning libraries can reuse the relation catalog on their first
+            // archive or reader visit. Drop the library lock before warming it.
+            if ready
+                && worker_app
+                    .try_state::<crate::db::DbState>()
+                    .is_some_and(|db| {
+                        db.conn.try_lock().is_ok_and(|conn| {
+                            conn.query_row(
+                    "SELECT EXISTS(SELECT 1 FROM saved_records WHERE deleted_at IS NULL)",
+                    [],
+                    |row| row.get::<_, bool>(0),
+                ).unwrap_or(false)
+                        })
+                    })
+            {
+                let start = std::time::Instant::now();
+                super::dictionary_packs::relation_catalog_configured();
+                log::debug!(
+                    "[dictionary] saved relations ready in {}ms",
+                    start.elapsed().as_millis()
+                );
+            }
         })
     {
         status.update(&app, |s| {

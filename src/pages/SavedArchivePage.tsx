@@ -24,6 +24,12 @@ import { bindMediaTarget } from '../lib/sourceMedia';
 import { useSourceMediaStore } from '../stores/sourceMediaStore';
 import './source-return.css';
 
+import { savedContextCache, savedGroupCache, savedTimelineCache, useSavedReadRevision } from '../lib/savedReadCache';
+
+const noGroups: SavedGroupPage = { groups: [], total_groups: 0, total_records: 0 };
+const noContexts: SavedContextPage = { records: [], total: 0 };
+const contextKey = (id: string | null, start: string, end: string) => JSON.stringify([id, start, end]);
+
 type View = { query: string; start: string; end: string; selected: string | null; record: string | null; expanded: boolean; listScroll: number };
 const views = createViewCache<View>();
 function bounds(start: string, end: string) {
@@ -44,13 +50,20 @@ function SavedArchive() {
   const [initial] = useState(() => views.get(key));
   const [query, setQuery] = useState(initial?.query ?? ''), [searching, setSearching] = useState(!!initial?.query);
   const [start, setStart] = useState(initial?.start ?? ''), [end, setEnd] = useState(initial?.end ?? '');
-  const [selected, setSelected] = useState<string | null>(initial?.selected ?? null), [recordId, setRecordId] = useState<string | null>(initial?.record ?? pocketRecordId ?? null);
+  const groupKey = JSON.stringify([query, start, end]);
+  const [groups, setGroups] = useState(() => savedGroupCache.peek(groupKey) ?? noGroups);
+  const [selected, setSelected] = useState(() => initial?.selected
+    ?? groups.groups.find(group => group.preview.record_id === pocketRecordId)?.group_id
+    ?? groups.groups[0]?.group_id ?? null);
+  const [recordId, setRecordId] = useState<string | null>(initial?.record ?? pocketRecordId ?? null);
   const [expanded, setExpanded] = useState(initial?.expanded ?? false);
-  const [groups, setGroups] = useState<SavedGroupPage>({ groups: [], total_groups: 0, total_records: 0 });
-  const [contexts, setContexts] = useState<SavedContextPage>({ records: [], total: 0 });
-  const [timelineStatus, setTimelineStatus] = useState<'loading' | 'ready' | 'error'>('loading');
-  const [bins, setBins] = useState<{ day: number; count: number }[]>([]);
-  const [loading, setLoading] = useState(true), [contextLoading, setContextLoading] = useState(false), [failure, setFailure] = useState(false), [revision, setRevision] = useState(0);
+  const [contexts, setContexts] = useState(() => savedContextCache.peek(contextKey(selected, start, end)) ?? noContexts);
+  const timezoneOffset = new Date().getTimezoneOffset(), timelineKey = String(timezoneOffset);
+  const [bins, setBins] = useState(() => savedTimelineCache.peek(timelineKey) ?? []);
+  const [timelineStatus, setTimelineStatus] = useState<'loading' | 'ready' | 'error'>(() => savedTimelineCache.isFresh(timelineKey) ? 'ready' : 'loading');
+  const [loading, setLoading] = useState(() => !savedGroupCache.isFresh(groupKey));
+  const [contextLoading, setContextLoading] = useState(false), [failure, setFailure] = useState(false), [revision, setRevision] = useState(0);
+  const savedRevision = useSavedReadRevision();
   const [sourceBusy, setSourceBusy] = useState(false), [sourceError, setSourceError] = useState('');
   const removeIntents = useRef(new Map<string, { operation: string; revision: string }>());
   const [receipt, setReceipt] = useState<string | null>(null), [undoing, setUndoing] = useState(false);
@@ -64,36 +77,46 @@ function SavedArchive() {
   useEffect(() => { alive.current = true; return () => { alive.current = false; sourceRequest.current++; }; }, []);
   useEffect(() => { if (searching) input.current?.focus(); }, [searching]);
   useEffect(() => {
-    const changed = () => setRevision(value => value + 1);
-    window.addEventListener('lexicue-saved-changed', changed); window.addEventListener('lexicue-sync-applied', changed);
-    return () => { window.removeEventListener('lexicue-saved-changed', changed); window.removeEventListener('lexicue-sync-applied', changed); };
-  }, []);
-  useEffect(() => {
     let current = true;
-    setTimelineStatus('loading');
-    void invoke<typeof bins>('saved_date_histogram', { offsetMinutes: new Date().getTimezoneOffset() }).then(value => { if (current) { setBins(value); setTimelineStatus('ready'); } }).catch(() => { if (current) setTimelineStatus('error'); });
+    if (!savedTimelineCache.isFresh(timelineKey)) setTimelineStatus('loading');
+    void savedTimelineCache.fetch(timelineKey, () => invoke<typeof bins>('saved_date_histogram', { offsetMinutes: timezoneOffset }))
+      .then(value => { if (current) { setBins(value); setTimelineStatus('ready'); } })
+      .catch(() => { if (current) setTimelineStatus('error'); });
     return () => { current = false; };
-  }, [revision, generation]);
+  }, [revision, generation, savedRevision, timelineKey, timezoneOffset]);
   useEffect(() => {
-    const token = ++request.current; setLoading(true); setFailure(false);
-    const timer = setTimeout(() => {
-      void invoke<SavedGroupPage>('list_saved_groups', { query, limit: 200, offset: 0, ...bounds(start, end) }).then(next => {
-        if (token !== request.current) return;
-        setGroups(next); setSelected(previous => next.groups.some(group => group.group_id === previous) ? previous : next.groups.find(group=>group.preview.record_id===pocketRecordId)?.group_id ?? next.groups[0]?.group_id ?? null); setLoading(false);
-      }).catch(() => { if (token === request.current) { setFailure(true); setLoading(false); } });
-    }, query ? 160 : 0);
+    const token = ++request.current;
+    const cached = savedGroupCache.peek(groupKey);
+    setLoading(!cached); setFailure(false);
+    const load = () => void savedGroupCache.fetch(groupKey, () =>
+      invoke<SavedGroupPage>('list_saved_groups', { query, limit: 200, offset: 0, ...bounds(start, end) }),
+    ).then(next => {
+      if (token !== request.current) return;
+      setGroups(next);
+      setSelected(previous => next.groups.find(group => group.group_id === previous)?.group_id
+        ?? next.groups.find(group => group.preview.record_id === pocketRecordId)?.group_id
+        ?? next.groups[0]?.group_id ?? null);
+      setLoading(false);
+    }).catch(() => { if (token === request.current) { setFailure(true); setLoading(false); } });
+    const timer = query && !cached ? setTimeout(load, 160) : undefined;
+    if (timer === undefined) load();
     return () => { clearTimeout(timer); request.current++; };
-  }, [query, start, end, revision, generation, pocketRecordId]);
+  }, [query, start, end, revision, savedRevision, generation, pocketRecordId, groupKey]);
   useEffect(() => {
     const token = ++contextRequest.current; sourceRequest.current++; setSourceError(''); setSourceBusy(false);
-    if (!selected) { setContexts({ records: [], total: 0 }); return; }
-    setContextLoading(true);
-    void invoke<SavedContextPage>('saved_group_contexts', { groupId: selected, limit: 50, offset: 0, ...bounds(start, end) }).then(next => {
+    if (!selected) { setContexts(noContexts); setContextLoading(false); return; }
+    const key = contextKey(selected, start, end);
+    const cached = savedContextCache.peek(key);
+    setContextLoading(!cached);
+    if (cached) setContexts(cached);
+    void savedContextCache.fetch(key, () => invoke<SavedContextPage>(
+      'saved_group_contexts', { groupId: selected, limit: 50, offset: 0, ...bounds(start, end) },
+    )).then(next => {
       if (token !== contextRequest.current) return;
       setContexts(next); setRecordId(previous => next.records.some(record => record.record_id === previous) ? previous : next.records[0]?.record_id ?? null); setContextLoading(false);
-    }).catch(() => { if (token === contextRequest.current) { setContexts({ records: [], total: 0 }); setContextLoading(false); setSourceError(t('approved.loadFailed')); } });
+    }).catch(() => { if (token === contextRequest.current) { setContexts(noContexts); setContextLoading(false); setSourceError(t('approved.loadFailed')); } });
     return () => { contextRequest.current++; };
-  }, [selected, start, end, revision, generation, t]);
+  }, [selected, start, end, revision, savedRevision, generation, t]);
   useLayoutEffect(() => { if (list.current && !loading) list.current.scrollTop = initial?.listScroll ?? 0; }, [loading, initial]);
   const index = Math.max(0, contexts.records.findIndex(record => record.record_id === recordId));
   const record = contexts.records[index];

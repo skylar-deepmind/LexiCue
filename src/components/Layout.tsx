@@ -1,7 +1,7 @@
-import { ActivityTrack } from './LoadingFeedback';
+import { ActivityTrack, RouteLoading } from './LoadingFeedback';
 import { normalizeNavigationPath } from './NavigationItems';
 import { backNavigation } from '../lib/backNavigation';
-import { useEffect, useRef, useLayoutEffect } from 'react';
+import { Suspense, useEffect, useRef, useLayoutEffect } from 'react';
 import MobileReadingTools from './MobileReadingTools';
 import ImportPanel from './ImportPanel';
 import useMaterialDrop from './useMaterialDrop';
@@ -136,7 +136,7 @@ export default function Layout() {
         };
     }, [pathname, routeState, navigate]);
     useEffect(() => {
-        const refresh = () => { useMaterialStore.getState().changed(); void useMaterialStore.getState().load(); };
+        const refresh = () => { useMaterialStore.getState().changed(); void useMaterialStore.getState().ensure(); };
         const external = (event: StorageEvent) => { if (event.key === DESK_KEY) useReadingDeskStore.getState().acceptExternal(event.newValue); };
         window.addEventListener('lexicue-sync-applied', refresh);
         window.addEventListener('storage', external);
@@ -211,7 +211,7 @@ export default function Layout() {
         }}>
       <main className="app-main b-main">
         <div className="app-page workspace-stage" ref={stageRef}>
-          <PageTransition pageKey={pathname === '/settings' ? pathname + search : pathname}><Outlet /></PageTransition>
+          <PageTransition pageKey={pathname === '/settings' ? pathname + search : pathname}><Suspense fallback={<RouteLoading/>}><Outlet /></Suspense></PageTransition>
         </div>
         </main>
       <ImportPanel />

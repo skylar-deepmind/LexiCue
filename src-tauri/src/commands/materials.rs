@@ -497,14 +497,32 @@ pub struct Material {
     pub document: Option<super::document_source::DocumentSource>,
 }
 pub fn list(conn: &Connection, tag_ids: &[i64], untagged: bool) -> Result<Vec<Material>, String> {
+    list_filtered(conn, tag_ids, untagged, None)
+}
+
+fn list_filtered(
+    conn: &Connection,
+    tag_ids: &[i64],
+    untagged: bool,
+    file_id: Option<i64>,
+) -> Result<Vec<Material>, String> {
     let ids = serde_json::to_string(tag_ids).unwrap();
-    let mut stmt=conn.prepare("SELECT f.id,f.name,f.content_hash,f.imported_at,(SELECT COUNT(*) FROM segments s WHERE s.file_id=f.id),COALESCE((SELECT en_text FROM segments s WHERE s.file_id=f.id ORDER BY index_num LIMIT 1),''), f.media_source,f.document_source,f.type,s.index_num,p.revision,COALESCE((SELECT SUM(length(s.en_text)) FROM segments s WHERE s.file_id=f.id),0) FROM files f
+    // The open path uses the primary key before evaluating any segment aggregates.
+    let filter = if file_id.is_some() { "AND f.id=?3" } else { "" };
+    let sql = format!("SELECT f.id,f.name,f.content_hash,f.imported_at,(SELECT COUNT(*) FROM segments s WHERE s.file_id=f.id),COALESCE((SELECT en_text FROM segments s WHERE s.file_id=f.id ORDER BY index_num LIMIT 1),''), f.media_source,f.document_source,f.type,s.index_num,p.revision,COALESCE((SELECT SUM(length(s.en_text)) FROM segments s WHERE s.file_id=f.id),0) FROM files f
         LEFT JOIN reader_positions p ON p.file_id=f.id AND p.content_hash=f.content_hash
         LEFT JOIN segments s ON s.id=p.segment_id AND s.file_id=f.id
         WHERE f.language='en' AND f.type IN ('srt','txt') AND (?2=0 OR NOT EXISTS(SELECT 1 FROM file_tags ft WHERE ft.file_id=f.id))
-        AND NOT EXISTS(SELECT 1 FROM json_each(?1) selected WHERE NOT EXISTS(SELECT 1 FROM file_tags ft WHERE ft.file_id=f.id AND ft.tag_id=selected.value)) ORDER BY f.imported_at DESC,f.id DESC").map_err(|e|e.to_string())?;
+        AND NOT EXISTS(SELECT 1 FROM json_each(?1) selected WHERE NOT EXISTS(SELECT 1 FROM file_tags ft WHERE ft.file_id=f.id AND ft.tag_id=selected.value))
+        {filter} ORDER BY f.imported_at DESC,f.id DESC");
+    let mut stmt = conn.prepare_cached(&sql).map_err(|e| e.to_string())?;
+    let parameters: &[&dyn rusqlite::ToSql] = if let Some(id) = &file_id {
+        &[&ids, &untagged, id]
+    } else {
+        &[&ids, &untagged]
+    };
     let rows = stmt
-        .query_map(params![ids, untagged], |r| {
+        .query_map(parameters, |r| {
             let source: Option<super::source_media::SourceSummary> = r
                 .get::<_, Option<String>>(6)?
                 .and_then(|s| serde_json::from_str::<super::source_media::YoutubeSource>(&s).ok())
@@ -567,6 +585,36 @@ pub async fn list_materials(
         })
         .await
 }
+pub(super) fn preview(
+    conn: &Connection,
+    id: i64,
+    content_hash: &str,
+    segment: i64,
+) -> Result<Option<String>, String> {
+    conn.query_row(
+        "SELECT COALESCE(
+            (SELECT en_text FROM segments WHERE file_id=f.id AND index_num=?3),
+            (SELECT en_text FROM segments WHERE file_id=f.id ORDER BY index_num LIMIT 1))
+         FROM files f WHERE f.id=?1 AND f.content_hash=?2 AND f.language='en' AND f.type IN ('srt','txt')",
+        params![id, content_hash, segment],
+        |r| r.get::<_, Option<String>>(0),
+    ).optional().map(Option::flatten).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn reading_material_preview(
+    state: State<'_, DbState>,
+    file_id: i64,
+    content_hash: String,
+    segment: i64,
+) -> Result<Option<String>, String> {
+    state
+        .read("reading_material_preview", move |conn| {
+            preview(conn, file_id, &content_hash, segment)
+        })
+        .await
+}
+
 #[derive(Serialize)]
 pub struct ReadingMaterial {
     pub material: Material,
@@ -574,10 +622,19 @@ pub struct ReadingMaterial {
     pub tokens: Vec<ReaderToken>,
     pub media_refs: std::collections::HashMap<i64, super::source_media::MediaRef>,
 }
+struct ReadingRows {
+    material: Material,
+    segments: Vec<super::files::SegmentInfo>,
+    source: Option<(super::source_media::YoutubeSource, Option<String>)>,
+}
+
 pub fn open(conn: &Connection, id: i64) -> Result<ReadingMaterial, String> {
-    let material = list(conn, &[], false)?
-        .into_iter()
-        .find(|m| m.id == id)
+    Ok(read_rows(conn, id)?.into_material())
+}
+
+fn read_rows(conn: &Connection, id: i64) -> Result<ReadingRows, String> {
+    let material = list_filtered(conn, &[], false, Some(id))?
+        .pop()
         .ok_or("material_legacy_or_missing")?;
     let mut stmt=conn.prepare("SELECT id,index_num,en_text,zh_text,start_time,end_time FROM segments WHERE file_id=?1 ORDER BY index_num").map_err(|e|e.to_string())?;
     let segments = stmt
@@ -594,25 +651,6 @@ pub fn open(conn: &Connection, id: i64) -> Result<ReadingMaterial, String> {
         .map_err(|e| e.to_string())?
         .collect::<rusqlite::Result<Vec<_>>>()
         .map_err(|e| e.to_string())?;
-    let tokens = segments
-        .iter()
-        .flat_map(|segment| {
-            super::reader::latin_spans(&segment.en_text)
-                .into_iter()
-                .map(|(surface, start, end)| ReaderToken {
-                    segment_index: segment.index_num,
-                    language: "en".into(),
-                    lemma: surface.to_lowercase(),
-                    surface,
-                    start,
-                    end,
-                    legacy_position: None,
-                    builtin_position: None,
-                    word_id: None,
-                    status: None,
-                })
-        })
-        .collect();
     let source: Option<String> = conn
         .query_row("SELECT media_source FROM files WHERE id=?1", [id], |r| {
             r.get(0)
@@ -621,34 +659,69 @@ pub fn open(conn: &Connection, id: i64) -> Result<ReadingMaterial, String> {
     let source = source
         .and_then(|s| serde_json::from_str::<super::source_media::YoutubeSource>(&s).ok())
         .filter(|s| s.validate().is_ok());
-    let expected = source
-        .as_ref()
-        .map(|s| super::source_media::bound_hash(conn, &s.key))
-        .transpose()?
-        .flatten();
-    let media_refs = segments
-        .iter()
-        .filter_map(|segment| {
-            source
-                .as_ref()
-                .and_then(|s| {
-                    super::source_media::reference_for_segment(
-                        s,
-                        &segment.en_text,
-                        segment.start_time.as_deref(),
-                        segment.end_time.as_deref(),
-                        expected.clone(),
-                    )
-                })
-                .map(|r| (segment.id, r))
+    let source = source
+        .map(|source| {
+            let hash = super::source_media::bound_hash(conn, &source.key)?;
+            Ok::<_, String>((source, hash))
         })
-        .collect();
-    Ok(ReadingMaterial {
-        media_refs,
+        .transpose()?;
+    Ok(ReadingRows {
         material,
         segments,
-        tokens,
+        source,
     })
+}
+
+impl ReadingRows {
+    fn into_material(self) -> ReadingMaterial {
+        let Self {
+            material,
+            segments,
+            source,
+        } = self;
+        let tokens = segments
+            .iter()
+            .flat_map(|segment| {
+                super::reader::latin_spans(&segment.en_text)
+                    .into_iter()
+                    .map(|(surface, start, end)| ReaderToken {
+                        segment_index: segment.index_num,
+                        language: "en".into(),
+                        lemma: surface.to_lowercase(),
+                        surface,
+                        start,
+                        end,
+                        legacy_position: None,
+                        builtin_position: None,
+                        word_id: None,
+                        status: None,
+                    })
+            })
+            .collect();
+        let media_refs = segments
+            .iter()
+            .filter_map(|segment| {
+                source
+                    .as_ref()
+                    .and_then(|(source, expected)| {
+                        super::source_media::reference_for_segment(
+                            source,
+                            &segment.en_text,
+                            segment.start_time.as_deref(),
+                            segment.end_time.as_deref(),
+                            expected.clone(),
+                        )
+                    })
+                    .map(|r| (segment.id, r))
+            })
+            .collect();
+        ReadingMaterial {
+            media_refs,
+            material,
+            segments,
+            tokens,
+        }
+    }
 }
 #[tauri::command]
 pub async fn open_reading_material(
@@ -657,8 +730,11 @@ pub async fn open_reading_material(
 ) -> Result<ReadingMaterial, String> {
     let shared = state.conn.clone();
     tauri::async_runtime::spawn_blocking(move || {
-        let conn = shared.lock().map_err(|e| e.to_string())?;
-        open(&conn, file_id)
+        let rows = {
+            let conn = shared.lock().map_err(|e| e.to_string())?;
+            read_rows(&conn, file_id)?
+        };
+        Ok(rows.into_material())
     })
     .await
     .map_err(|e| e.to_string())?
