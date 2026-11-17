@@ -36,6 +36,14 @@ try{
   if(width<768)await page.setViewportSize({width:375,height:812});
   ok(await page.locator('input[type=date]').count()===0,'no precise date form');
   ok(await page.locator('.saved-timeline-period').count()===0,'single day has no date caption');
+  if(width<768){
+   const indexToggle=page.locator('.approved-index-toggle');
+   const neutralIndex=()=>indexToggle.evaluate(n=>getComputedStyle(n).backgroundColor===getComputedStyle(n.closest('.approved-saved')).backgroundColor);
+   await indexToggle.hover();ok(await neutralIndex(),'index arrow hover keeps the page background in both themes');
+   await indexToggle.click();ok(await neutralIndex(),'expanded index arrow has no selected background');
+   ok(await indexToggle.getAttribute('aria-expanded')==='true','index arrow expands without a selected surface');
+   await indexToggle.click();ok(await neutralIndex(),'collapsed index arrow has no sticky touch-hover surface');
+  }
   const halo=await page.locator('.approved-folio-speech').evaluate(n=>({overflow:getComputedStyle(n).overflow,inset:getComputedStyle(n,'::before').inset,width:n.getBoundingClientRect().width,height:n.getBoundingClientRect().height}));
   ok(halo.overflow==='visible'&&halo.width===halo.height,'speech button provides a complete square wave canvas');
   await page.goto(h.url+'/settings?section=lookup');await page.locator('.approved-dictionary-book').first().waitFor();

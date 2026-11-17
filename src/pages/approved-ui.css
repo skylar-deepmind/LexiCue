@@ -424,7 +424,7 @@
 /* Keep the complete speech halo within its touch target, including inside scroll panes. */
 .approved-folio-speech.speech-button { padding:0; aspect-ratio:1; overflow:visible; }
 .approved-folio-speech[data-speech-state="playing"]::before { inset:6px; }
-.approved-index-toggle:is(:hover,:active,:focus) { background:var(--approved-desk); box-shadow:none; }
+.approved-saved .approved-index-toggle.approved-icon:is(:hover,:active,:focus) { background:var(--approved-desk); box-shadow:none; }
 .approved-index-toggle { -webkit-tap-highlight-color:transparent; }
 .approved-index-toggle:focus:not(:focus-visible) { outline:none; }
 @media(max-width:767px) { .approved-index-toggle { width:44px; min-width:44px; } .approved-saved-index { padding-right:44px; } }
