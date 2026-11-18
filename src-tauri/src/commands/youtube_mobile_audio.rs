@@ -109,7 +109,7 @@ async fn query(
             .await
             .ok_or("visitor_missing")?,
     };
-    let player = client
+    let player: Value = client
         .post("https://www.youtube.com/youtubei/v1/player?prettyPrint=false")
         .header("User-Agent", USER_AGENT)
         .header("Origin", "https://www.youtube.com")
