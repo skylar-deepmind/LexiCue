@@ -150,6 +150,8 @@ function run(reverse: boolean) {
   const hide = (node: HTMLElement | null) => { if (!node) return; hidden.push({ node, visibility: node.style.visibility }); node.style.visibility = 'hidden'; };
   const duration = 580;
   const options: KeyframeAnimationOptions = { duration, fill: 'both', direction: reverse ? 'reverse' : 'normal', easing: 'cubic-bezier(.4,0,.2,1)' };
+  // When resuming past the cover, hand off as soon as the paper mask is gone.
+  const readerReveal = reverse || coverFlight ? .62 : .56;
 
   const animate = (node: HTMLElement, frames: Keyframe[]) => { const a = node.animate(frames, options); jobs.push(a); };
   const frame = (r: Box) => ({ left: `${r.x}px`, top: `${r.y}px`, width: `${r.width}px`, height: `${r.height}px` });
@@ -172,7 +174,7 @@ function run(reverse: boolean) {
         // In that case the whole desk card fades out together.
         if (coverFlight) selected?.querySelectorAll<HTMLElement>('.approved-card-cover,.material-floating-tag').forEach(hide);
         place(background, { x: 0, y: 0, width: innerWidth, height: innerHeight });
-        animate(background, [{ opacity: 1 }, { opacity: 0, offset: .47 }, { opacity: 0 }]);
+        animate(background, [{ opacity: 1 }, { opacity: 0, offset: coverFlight ? .47 : readerReveal }, { opacity: 0 }]);
       }
       else animate(background,[{opacity:1},{opacity:0,offset:.47},{opacity:0}]);
     }
@@ -185,8 +187,8 @@ function run(reverse: boolean) {
       animate(paper, reverse
         ? [clipped, open]
         : [clipped, { ...open, offset: .53 }, { clipPath: 'none', offset: .56 }, { clipPath: 'none' }]);
-      paper.querySelectorAll<HTMLElement>('.reading-layout,.reading-breadcrumb').forEach(node=>fadeIn(node,.62,reverse ? .9 : .76));
-      if(!reverse){const controls=document.querySelector<HTMLElement>('.mobile-reading-tools');if(controls)animate(controls,[{opacity:0},{opacity:0,offset:.62},{opacity:1}]);}
+      paper.querySelectorAll<HTMLElement>('.reading-layout,.reading-breadcrumb').forEach(node=>fadeIn(node,readerReveal,reverse ? .9 : .76));
+      if(!reverse){const controls=document.querySelector<HTMLElement>('.mobile-reading-tools');if(controls)animate(controls,[{opacity:0},{opacity:0,offset:readerReveal},{opacity:1}]);}
     }
   }
   if (coverFlight) {

@@ -156,11 +156,20 @@ try{
       desktopFade: Number(getComputedStyle(desk).opacity),
       restoredPosition: cover.bottom < viewport.top,
       flights: layer.querySelectorAll('[data-motion-piece=cover]').length };
+    const layout = reader.querySelector('.reading-layout');
+    const handoff = [];
+    for (let time = 100; time <= 500; time += 5) {
+      jobs.forEach(job => { job.currentTime = time; });
+      handoff.push([Number(getComputedStyle(desk).opacity), Number(getComputedStyle(layout).opacity)]);
+    }
     jobs.forEach(job=>job.finish());
-    return result;
+    return { ...result, handoff };
   });
   ok(resume.restoredPosition && resume.flights === 0, 'resume stays at the saved sentence with no flight to an offscreen cover');
   ok(resume.galleryCover === 'visible' && resume.tag === 'visible' && resume.desktopFade > 0, 'restored reading keeps the cover and label visible as the desk card fades');
+  ok(resume.handoff.filter(([desk, layout]) => desk < .001 && layout < .001).length <= 1
+    && resume.handoff.every(([desk, layout]) => desk < .001 || layout < .001),
+    'the restored reader starts as the desk finishes, without text overlap or a blank pause');
   await settle();
   await page.locator('.reading-breadcrumb .page-back').click();await page.locator('.approved-desk').waitFor();await settle();
   await page.getByRole('button',{name:'设置',exact:true}).click();await page.locator('.approved-language-slider').waitFor();eq(await backRect('.approved-settings-back'),railBack,'settings back shares the same position');eq(await page.getByRole('radio').count(),4,'four interface languages are immediately available');eq(await page.locator('[data-entry=guide],[data-entry=language]').count(),0,'no guide or nested language menu');
