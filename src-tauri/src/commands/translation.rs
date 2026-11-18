@@ -11,6 +11,10 @@ use std::sync::{
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, Manager};
 
+#[cfg(target_vendor = "apple")]
+#[path = "apple_translation.rs"]
+mod apple_translation;
+
 const ENDPOINT: &str = "https://translate.googleapis.com/translate_a/single";
 const MAX_BATCH_CHARS: usize = 1400;
 const CACHE_TTL: u64 = 30 * 24 * 3600;
@@ -233,6 +237,17 @@ async fn translate_batch(
     Ok(result)
 }
 
+#[cfg(target_vendor = "apple")]
+async fn translate_on_device(batch: &[Sentence], dir: &Path) -> Option<Vec<String>> {
+    let texts: Vec<&str> = batch
+        .iter()
+        .map(|sentence| sentence.text.as_str())
+        .collect();
+    let result = apple_translation::translate(&texts).await?;
+    save(dir, batch, &result);
+    Some(result)
+}
+
 #[tauri::command]
 pub async fn translate_import_sentences(
     app: AppHandle,
@@ -272,14 +287,41 @@ pub async fn translate_import_sentences(
         .map_err(|_| "translation_unavailable")?;
     let mut translations = Vec::new();
     let mut error = None;
+    #[cfg(target_vendor = "apple")]
+    let mut online_error = None;
     for range in ranges(&sentences) {
         if token.load(Ordering::Relaxed) {
             return Err("material_cancelled".into());
         }
         let batch = &sentences[range];
+        let attempt = async {
+            #[cfg(target_vendor = "apple")]
+            {
+                if let Some(result) = cached(&dir, batch) {
+                    return Ok(result);
+                }
+                if let Some(reason) = &online_error {
+                    return translate_on_device(batch, &dir)
+                        .await
+                        .ok_or_else(|| String::clone(reason));
+                }
+                match translate_batch(&client, ENDPOINT, batch, &dir).await {
+                    Ok(result) => Ok(result),
+                    Err(reason) => {
+                        let result = translate_on_device(batch, &dir)
+                            .await
+                            .ok_or_else(|| reason.clone());
+                        online_error = Some(reason);
+                        result
+                    }
+                }
+            }
+            #[cfg(not(target_vendor = "apple"))]
+            translate_batch(&client, ENDPOINT, batch, &dir).await
+        };
         let result = tokio::select! {
             _ = wait_cancel(&token) => return Err("material_cancelled".into()),
-            result = translate_batch(&client, ENDPOINT, batch, &dir) => result,
+            result = attempt => result,
         };
         match result {
             Ok(result) => {

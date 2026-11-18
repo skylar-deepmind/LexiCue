@@ -26,6 +26,9 @@ static DOWNLOAD_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(())
 #[cfg(test)]
 #[path = "source_media_import_lookup_test.rs"]
 mod import_lookup_tests;
+#[cfg(target_os = "ios")]
+#[path = "ios_source_audio.rs"]
+mod ios_source_audio;
 pub fn digest(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
@@ -656,6 +659,7 @@ pub struct Manifest {
     pub offset_ms: i64,
     pub sha256: String,
 }
+#[cfg(not(target_os = "ios"))]
 async fn probe(
     path: &Path,
     s: &YoutubeSource,
@@ -698,6 +702,15 @@ async fn probe(
         .map_err(|_| "media_timebase")?
         * 1000.)
         .round() as i64;
+    media_manifest(path, s, duration_ms, start_ms)
+}
+
+fn media_manifest(
+    path: &Path,
+    s: &YoutubeSource,
+    duration_ms: i64,
+    start_ms: i64,
+) -> Result<Manifest, String> {
     // Non-zero origins are rejected until an independently verified mapping is available.
     if start_ms.abs() > 25
         || !(1..=MAX_DURATION_MS).contains(&duration_ms)
@@ -865,6 +878,7 @@ pub async fn prepare_source_media(
         }
     }
 }
+#[cfg(not(target_os = "ios"))]
 async fn normalize_container(
     input: &Path,
     output: &Path,
@@ -913,6 +927,7 @@ async fn download(
         return Err("media_too_long".into());
     }
     session.validate()?;
+    #[cfg(not(target_os = "ios"))]
     let path = youtube::ytdlp_path().ok_or("media_missing_tool")?;
     // Recheck current metadata, subtitle revision and selected audio identity before recovery.
     let metadata =
@@ -969,9 +984,50 @@ async fn download(
     let tmp = Temp(dir.join(format!(".part-{}", uuid::Uuid::new_v4())));
     std::fs::create_dir(&tmp.0).map_err(|_| "media_io")?;
     let output = tmp.0.join("audio.m4a");
+    #[cfg(target_os = "ios")]
+    let (manifest, verified) = {
+        ios_source_audio::download(f, &output, job).await?;
+        let (duration, origin) = tokio::select! {
+            _ = job.cancel_signal() => return Err("media_cancelled".into()),
+            result = ios_source_audio::probe(&output) => result?,
+        };
+        (
+            media_manifest(&output, &r.source, duration, origin)?,
+            output,
+        )
+    };
+    #[cfg(not(target_os = "ios"))]
+    let (manifest, verified) =
+        download_desktop_track(&tmp.0, output, &path, r, a, job, &session).await?;
+    if job.cancelled() {
+        return Err("media_cancelled".into());
+    }
+    if r.expected_sha256
+        .as_deref()
+        .is_some_and(|hash| hash != manifest.sha256)
+    {
+        return Err("media_version_changed".into());
+    }
+    let final_path = asset_path(dir, &manifest.sha256)?;
+    if !final_path.exists() || file_digest(&final_path).ok().as_deref() != Some(&manifest.sha256) {
+        std::fs::rename(verified, final_path).map_err(|_| "media_io")?;
+    }
+    Ok(manifest)
+}
+
+#[cfg(not(target_os = "ios"))]
+async fn download_desktop_track(
+    temp_dir: &Path,
+    output: PathBuf,
+    path: &Path,
+    r: &MediaRef,
+    audio: &AudioTrack,
+    job: &youtube::DownloadJob,
+    session: &BrowserSession,
+) -> Result<(Manifest, PathBuf), String> {
     let mut cmd = tokio::process::Command::new(path);
     cmd.arg("--ignore-config");
-    youtube::downloads::configure_session(&mut cmd, &session)?;
+    youtube::downloads::configure_session(&mut cmd, session)?;
     cmd.args([
         "--no-playlist",
         "--no-progress",
@@ -991,14 +1047,14 @@ async fn download(
         "never",
         "-f",
     ])
-    .arg(&a.format_id)
+    .arg(&audio.format_id)
     .arg("-o")
     .arg(&output)
     .arg(&r.source.url);
     let run = youtube::run_ytdlp_capture(&mut cmd, Some(job), Duration::from_secs(180));
     tokio::pin!(run);
     let (status, _, stderr) = loop {
-        tokio::select! {r=&mut run=>break r?,_ = tokio::time::sleep(Duration::from_millis(100))=>{if size(&tmp.0)>MAX_BYTES{return Err("media_budget".into())}}}
+        tokio::select! {r=&mut run=>break r?,_ = tokio::time::sleep(Duration::from_millis(100))=>{if size(temp_dir)>MAX_BYTES{return Err("media_budget".into())}}}
     };
     if !status.success() {
         return Err(format!(
@@ -1014,7 +1070,7 @@ async fn download(
     }
     // Remux only new, unbound files. AAC packets are copied, never re-encoded.
     // A complete MP4 avoids the phantom tail WebKit exposes in some DASH files.
-    let normalized = tmp.0.join("normalized.m4a");
+    let normalized = temp_dir.join("normalized.m4a");
     normalize_container(&output, &normalized, Some(job)).await?;
     let mut manifest = probe(&normalized, &r.source, Some(job)).await?;
     let mut verified = normalized;
@@ -1034,11 +1090,7 @@ async fn download(
         manifest = raw;
         verified = output;
     }
-    let final_path = asset_path(dir, &manifest.sha256)?;
-    if !final_path.exists() || file_digest(&final_path).ok().as_deref() != Some(&manifest.sha256) {
-        std::fs::rename(verified, final_path).map_err(|_| "media_io")?;
-    }
-    Ok(manifest)
+    Ok((manifest, verified))
 }
 pub fn recover(conn: &Connection, dir: &Path) -> Result<(), String> {
     // Startup only, before accepting jobs. Partial directories never count as ready.

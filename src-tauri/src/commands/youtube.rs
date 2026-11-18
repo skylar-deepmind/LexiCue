@@ -17,6 +17,10 @@ const OPERATION_TIMEOUT: Duration = Duration::from_secs(300);
 const METADATA_TTL: Duration = Duration::from_secs(600);
 const YTDLP_VERSION_TIMEOUT: Duration = Duration::from_secs(3);
 
+#[cfg(any(test, target_os = "ios"))]
+#[path = "youtube_mobile_audio.rs"]
+pub(super) mod mobile_audio;
+
 #[path = "youtube_download.rs"]
 pub mod downloads;
 pub use downloads::{init_subtitle_cache, youtube_prepare_subtitles};
@@ -736,7 +740,10 @@ async fn fetch_http_metadata(video_id: &str) -> Result<serde_json::Value, String
     if json["playabilityStatus"]["status"].as_str() != Some("OK") {
         return Err("access_denied".into());
     }
-    Ok(http_player_metadata(&json))
+    let metadata = http_player_metadata(&json);
+    #[cfg(target_os = "ios")]
+    let metadata = mobile_audio::with_original_track(&client, video_id, metadata).await;
+    Ok(metadata)
 }
 
 fn http_player_metadata(json: &serde_json::Value) -> serde_json::Value {
