@@ -129,9 +129,26 @@
 .approved-settings-tabs > button:hover { background:var(--approved-hover); }
 .approved-settings-paper { min-height:450px; padding:40px 44px; border-radius:22px; background:var(--approved-settings); min-width:0; }
 .approved-settings-paper > h1 { margin:3px 0 29px; font-size:34px; line-height:1.2; font-weight:500; outline:none; }
-.approved-settings-paper .settings-list { background:transparent; border:0; border-radius:0; }
-.approved-settings-paper .settings-row { min-height:69px; padding:8px 3px; gap:17px; font-size:19px; }.approved-settings-paper .settings-row + .settings-row::before { display:none; }
-.approved-settings-paper .settings-row:focus-visible,.approved-settings-tabs button:focus-visible { outline:2px solid var(--approved-focus); outline-offset:0; }
+.approved-settings-paper .settings-list { background:transparent; border:0; border-radius:0; margin-inline:-12px; }
+.approved-settings-paper .settings-row {
+  min-height:69px;
+  padding:8px 12px;
+  gap:14px;
+  font-size:19px;
+  border-radius:12px;
+}
+.approved-settings-paper .settings-row + .settings-row::before { display:none; }
+@media (hover:hover) and (pointer:fine) {
+  .approved-settings .settings-row {
+    transition:background-color 150ms ease;
+  }
+  .approved-settings .settings-row:enabled:hover {
+    background:color-mix(in srgb,var(--approved-hover) 70%,var(--approved-settings));
+  }
+  .approved-settings .settings-row:enabled:active { background:var(--approved-hover); }
+}
+.approved-settings-paper .settings-row:focus-visible { outline:2px solid var(--approved-focus); outline-offset:-2px; box-shadow:none; }
+.approved-settings-tabs button:focus-visible { outline:2px solid var(--approved-focus); outline-offset:0; }
 .approved-settings-paper .dictionary-preferences { border:0; padding:0 0 28px; }.approved-settings-paper .dictionary-preferences > p { display:none; }
 .approved-settings-paper .dictionary-packs { display:flex; align-items:start; gap:26px; overflow-x:auto; padding:8px 4px 24px; scrollbar-width:none; scroll-snap-type:x proximity; }
 .approved-settings-paper .dictionary-pack { width:173px; flex:none; padding:0; margin:0; border:0; background:none; scroll-snap-align:start; }
@@ -458,7 +475,6 @@ body:has(.page-live .approved-settings[data-detail="updates"]) .notification-hos
 .figma-shell .material-reading { height:100%; min-height:0; display:flex; flex-direction:column; }
 .figma-shell .material-reading > .reading-page { flex:1; height:auto; min-height:0; }
 .youtube-install-command code { -webkit-user-select:text; user-select:text; }
-.approved-settings-paper .settings-row { padding-inline:0; gap:14px; }
 .approved-interface-language legend,.approved-settings-paper .settings-facts dt { gap:14px; }
 .trash-drop-target > span { padding:4px 8px; border-radius:9px; background:var(--approved-card); color:var(--approved-card-ink); white-space:nowrap; box-shadow:0 2px 8px #0001; }
 
