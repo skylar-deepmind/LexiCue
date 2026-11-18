@@ -51,7 +51,7 @@ try{
         desk: opacity(caption.closest('.approved-desk')),
         layout: opacity(layout),
         separateTextLayers: layer.querySelectorAll('[data-motion-piece=title],[data-motion-piece=quote]').length,
-        cover: opacity(cover),
+        cover: opacity(cover.parentElement),
         realCover: getComputedStyle(liveCover).visibility === 'visible',
         contour: opacity(contour),
         contourOffset: distance(cover, contour),
@@ -61,12 +61,12 @@ try{
     }
     return frames;
   });
-  ok(handoff[36].contourOffset < 1 && handoff[36].coverOffset > 1, 'contour travels with the moving cover');
+  ok(handoff[20].contourOffset < 1 && handoff[20].coverOffset > 1, 'contour travels with the moving cover');
   ok(handoff[36].layout < .05, 'reading text waits for the reveal phase');
   ok(handoff.every(frame => !frame.separateTextLayers && (frame.desk < .001 || frame.layout < .001)), 'desk caption and real reader text each paint as one layout in separate phases');
-  ok(handoff.some(frame => frame.cover === 1 && frame.coverOffset < .1), 'travel reaches the final rectangle with a fully painted cover');
+  ok(handoff.every(frame => frame.layout < .001 || frame.coverOffset < .1), 'the cover is already stationary when the reader text appears');
   ok(handoff.every(frame => frame.cover === 1 || frame.realCover && frame.coverOffset < .1 && frame.readerClip === 'none' && frame.layout === 1), 'the cover stays opaque through the settled handoff');
-  ok(handoff.slice(-18).every(frame => frame.cover < .001 && frame.realCover && frame.contour < .001), 'the last 90 ms show only the real, stationary cover');
+  ok(handoff.slice(-12).every(frame => frame.cover < .001 && frame.realCover && frame.contour < .001), 'the last 60 ms show only the real, stationary cover');
   const entryGeometry = () => page.evaluate(() => {
     const positions=['.reading-breadcrumb .page-back','.reading-title','.folio-print','.reading-original'].map(selector=>{
       const rect=document.querySelector(selector).getBoundingClientRect();return [rect.x,rect.y,rect.width,rect.height];

@@ -142,16 +142,10 @@ function run(reverse: boolean) {
   const hide = (node: HTMLElement | null) => { if (!node) return; hidden.push({ node, visibility: node.style.visibility }); node.style.visibility = 'hidden'; };
   const duration = 580;
   const options: KeyframeAnimationOptions = { duration, fill: 'both', direction: reverse ? 'reverse' : 'normal', easing: 'cubic-bezier(.4,0,.2,1)' };
-  const coverArrival = reverse ? 1 : .68;
 
   const animate = (node: HTMLElement, frames: Keyframe[]) => { const a = node.animate(frames, options); jobs.push(a); };
   const frame = (r: Box) => ({ left: `${r.x}px`, top: `${r.y}px`, width: `${r.width}px`, height: `${r.height}px` });
   const place = (node: HTMLElement, r: Box) => { Object.assign(node.style, { position: 'absolute', ...frame(r), transformOrigin: '0 0' }); layer.append(node); };
-  const coverFrame = (from: Piece, to: Piece) => {
-    const start = { ...frame(from.box), borderRadius: '16px 16px 0 0' };
-    const target = { ...frame(to.box), borderRadius: to.node.style.borderRadius || '4px' };
-    return [start, { ...target, offset: coverArrival }, target];
-  };
   const fadeIn = (node: HTMLElement, start: number, end: number) =>
     animate(node, [{ opacity: 0 }, { opacity: 0, offset: start }, { opacity: 1, offset: end }, { opacity: 1 }]);
   const clip = (r: Box, c: Box) => `inset(${Math.max(0,c.y-r.y)}px ${Math.max(0,r.x+r.width-c.x-c.width)}px ${Math.max(0,r.y+r.height-c.y-c.height)}px ${Math.max(0,c.x-r.x)}px round 16px)`;
@@ -181,34 +175,53 @@ function run(reverse: boolean) {
       // composited mask at cleanup can resample a fractional image edge.
       animate(paper, reverse
         ? [clipped, open]
-        : [clipped, { ...open, offset: .68 }, { clipPath: 'none', offset: .70 }, { clipPath: 'none' }]);
+        : [clipped, { ...open, offset: .53 }, { clipPath: 'none', offset: .56 }, { clipPath: 'none' }]);
       paper.querySelectorAll<HTMLElement>('.reading-layout,.reading-breadcrumb').forEach(node=>fadeIn(node,.62,reverse ? .9 : .76));
       if(!reverse){const controls=document.querySelector<HTMLElement>('.mobile-reading-tools');if(controls)animate(controls,[{opacity:0},{opacity:0,offset:.62},{opacity:1}]);}
     }
   }
-  const ink = contours(source.cover, data.origin);
-  if (ink && source.cover) {
-    place(ink, source.cover.box); ink.style.zIndex='2'; ink.dataset.motionPiece='contours';
-    if (cover) animate(ink, coverFrame(source.cover, cover));
-    animate(ink,[{opacity:0},{opacity:.76,offset:.43},{opacity:0,offset:coverArrival},{opacity:0}]);
-  }
-  if (source.cover && cover) {
-    const movingCover = (reverse ? source.cover : cover).node.cloneNode(true) as HTMLElement;
+  if (source.cover && cover?.box.width && cover.box.height && source.cover.box.width && source.cover.box.height) {
+    const from = source.cover.box, to = cover.box;
+    const ink = contours(source.cover, data.origin);
+    const movingCover = source.cover.node.cloneNode(true) as HTMLElement;
     movingCover.dataset.motionPiece = 'cover';
-    place(movingCover, source.cover.box);
-    animate(movingCover, coverFrame(source.cover, cover));
-    if (!reverse && liveCover) {
-      // The flight keeps painting at full opacity until it has arrived and
-      // the reader under it is fully painted. Swap the matched images at once.
-      animate(liveCover, [
-        { visibility: 'hidden', easing: 'steps(1, end)' },
-        { visibility: 'visible', offset: .79 },
-        { visibility: 'visible' },
-      ]);
-      animate(movingCover, [
-        { opacity: 1, easing: 'steps(1, end)' },
-        { opacity: 0, offset: .84 },
+    if (reverse) {
+      const travel = [{ ...frame(from), borderRadius: '16px 16px 0 0' }, { ...frame(to), borderRadius: '4px' }];
+      place(movingCover, from);
+      animate(movingCover, travel);
+      if (ink) {
+        place(ink, from);
+        ink.dataset.motionPiece = 'contours';
+        animate(ink, travel);
+        animate(ink, [{ opacity: 0 }, { opacity: .76, offset: .43 }, { opacity: 0 }]);
+      }
+    } else {
+      const flight = document.createElement('div');
+      flight.style.overflow = 'hidden';
+      flight.style.borderRadius = cover.node.style.borderRadius;
+      place(flight, to);
+      Object.assign(movingCover.style, { display: 'block', width: '100%', height: '100%', objectFit: cover.fit, objectPosition: cover.node.style.objectPosition });
+      flight.append(movingCover);
+      if (ink) {
+        ink.dataset.motionPiece = 'contours';
+        Object.assign(ink.style, { position: 'absolute', inset: '0', width: '100%', height: '100%' });
+        flight.append(ink);
+        animate(ink, [{ opacity: 0 }, { opacity: .76, offset: .25 }, { opacity: 0, offset: .43 }, { opacity: 0 }]);
+      }
+
+      const scaleX = from.width / to.width, scaleY = from.height / to.height;
+      // Fly the final-size box as one compositor layer. Its exact resting
+      // position is held before the reader appears and before the image swap.
+      animate(flight, [
+        { transform: `translate(${from.x - to.x}px,${from.y - to.y}px) scale(${scaleX},${scaleY})`, borderRadius: `${16 / scaleX}px ${16 / scaleX}px 0 0 / ${16 / scaleY}px ${16 / scaleY}px 0 0`, opacity: 1 },
+        { transform: 'none', borderRadius: cover.node.style.borderRadius, opacity: 1, offset: .48, easing: 'steps(1, end)' },
+        { transform: 'none', borderRadius: cover.node.style.borderRadius, opacity: 0, offset: .94 },
         { opacity: 0 },
+      ]);
+      if (liveCover) animate(liveCover, [
+        { visibility: 'hidden', easing: 'steps(1, end)' },
+        { visibility: 'visible', offset: .80 },
+        { visibility: 'visible' },
       ]);
     }
   }
