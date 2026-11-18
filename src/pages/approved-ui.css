@@ -324,6 +324,7 @@
 .youtube-advanced > label { display:block; margin-top:12px; }
 .approved-settings:is([data-detail="youtube"],[data-detail="updates"]) .approved-settings-paper { align-self:start; min-height:0; padding-block:22px; }
 .approved-settings[data-detail="youtube"] .approved-settings-paper > h1 { margin:0 0 10px; font-size:25px; }
+.approved-settings[data-detail="youtube"] .approved-settings-paper > h1:focus-visible { box-shadow:none; }
 body:has(.page-live .approved-settings[data-detail="updates"]) .notification-host--top { top:calc(var(--visual-top,0px) + var(--safe-top,0px) + 24px); }
 .approved-settings-paper .youtube-download-settings { margin-top:0; }
 @media(max-width:767px) {
