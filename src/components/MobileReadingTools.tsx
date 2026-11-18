@@ -43,41 +43,45 @@ function PlaybackSeekButton({ onTarget, onTargetEnd, onActivate, ...props }: Omi
     const activeTouch = (event: TouchEvent) => drag.current?.input === 'touch'
       ? Array.from(event.changedTouches).find(touch => touch.identifier === drag.current?.id)
       : undefined;
-    // Own the touch from start to release. A native pan or context gesture
-    // can otherwise cancel an in-flight drag on iPhone after the line moves.
+    const update = (event: TouchEvent) => {
+      const touch = activeTouch(event);
+      if (!touch) return;
+      if (event.cancelable) event.preventDefault();
+      move('touch', touch.identifier, touch.clientX, touch.clientY);
+    };
+    const removeTracking = () => {
+      document.removeEventListener('touchmove', update, true);
+      document.removeEventListener('touchend', end, true);
+      document.removeEventListener('touchcancel', end, true);
+    };
+    const end = (event: TouchEvent) => {
+      const active = drag.current;
+      if (active?.input !== 'touch' || (!activeTouch(event) && event.touches.length > 0)) return;
+      if (event.cancelable) event.preventDefault();
+      removeTracking();
+      finish('touch', active.id, event.type === 'touchend');
+    };
+    // Claim touches that start on this control so WebKit cannot take them
+    // over as a native pan. Leave ordinary reader scrolling passive.
     const start = (event: TouchEvent) => {
       if (node.disabled) return;
       if (event.touches.length !== 1) {
-        if (drag.current?.input === 'touch') finish('touch', drag.current.id, false);
+        if (drag.current?.input === 'touch') {
+          removeTracking();
+          finish('touch', drag.current.id, false);
+        }
         return;
       }
       const touch = event.changedTouches[0];
       if (!touch) return;
       event.preventDefault();
       begin('touch', touch.identifier, touch.clientX, touch.clientY);
-    };
-    const update = (event: TouchEvent) => {
-      const touch = activeTouch(event);
-      if (!touch) return;
-      event.preventDefault();
-      move('touch', touch.identifier, touch.clientX, touch.clientY);
-    };
-    const end = (event: TouchEvent) => {
-      const touch = activeTouch(event);
-      if (!touch) return;
-      event.preventDefault();
-      finish('touch', touch.identifier, event.type === 'touchend');
+      document.addEventListener('touchmove', update, { capture: true, passive: false });
+      document.addEventListener('touchend', end, { capture: true, passive: false });
+      document.addEventListener('touchcancel', end, true);
     };
     node.addEventListener('touchstart', start, { passive: false });
-    document.addEventListener('touchmove', update, { capture: true, passive: false });
-    document.addEventListener('touchend', end, { capture: true, passive: false });
-    document.addEventListener('touchcancel', end, true);
-    return () => {
-      node.removeEventListener('touchstart', start);
-      document.removeEventListener('touchmove', update, true);
-      document.removeEventListener('touchend', end, true);
-      document.removeEventListener('touchcancel', end, true);
-    };
+    return () => { node.removeEventListener('touchstart', start); removeTracking(); };
   }, [begin, finish, move]);
   return <button ref={button} type="button" className="b-dock-control playback-seek-control" {...props}
     aria-description={t('reader.pickPlaybackStart')}
