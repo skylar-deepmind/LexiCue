@@ -83,6 +83,14 @@ try{
   eq((await writes()).length,0,'native picker boundary has zero writes before confirmation');eq((await call('test_counts')).files,0,'no material before confirmation');
   await full();ok((await page.locator('.lc-document-preview').innerText()).includes('take off'),'real English excerpt');eq((await page.locator('.lc-document-preview').innerText()).split('飞机很快就要起飞了。').length-1,1,'existing Chinese appears once in the original source block');ok((await page.locator('.lc-document-preview').innerText()).includes('Curiosity helps us make sense of new ideas.'),'full local preview includes the final cue, beyond the former three-sentence excerpt');
   await closeFull();await contrast(page.locator('.import-card-category'),`${theme} card tag caption`);await contrast(page.getByRole('button',{name:/^放到桌面/}),`${theme} primary default`);await page.getByRole('button',{name:/^放到桌面/}).hover();await contrast(page.getByRole('button',{name:/^放到桌面/}),`${theme} primary hover`);
+  const newTag = page.getByRole('button',{name:'新建标签',exact:true});
+  await newTag.click();
+  const tagName = page.getByRole('textbox',{name:'输入标签名称'});
+  await tagName.fill('  Coast notes  ');
+  await page.locator('.import-tag-entry button[type=submit]').click();
+  eq(await page.locator('.import-card-category').innerText(),'Coast notes','new tag is selected in the import preview');
+  eq(await page.getByRole('option',{name:'Coast notes'}).getAttribute('aria-selected'),'true','draft tag is selected in the list');
+  eq((await call('list_tags')).length,0,'draft tag is not persisted before material confirmation');
   await page.screenshot({path:`${output}/${theme}-preview.png`});
   // A cancelled picker preserves the already prepared content.
   const beforeDraft=await page.evaluate(async()=>{const {useImportStore}=await window.__uiStoreModule('importStore');return useImportStore.getState().items[0].draft;});
@@ -90,6 +98,10 @@ try{
   eq(await page.evaluate(async()=>{const{useImportStore}=await window.__uiStoreModule('importStore');return useImportStore.getState().items[0].draft;}),beforeDraft,'cancelled picker retains preview');
   await page.getByRole('button',{name:/^放到桌面/}).evaluate(n=>{n.click();n.click();});await landed();
   eq((await writes()).length,1,'double confirmation invokes write once');eq((await writes())[0].args.input.content,beforeDraft.content,'submitted normalized content exactly matches frozen preview');eq((await writes())[0].args.input.segments,beforeDraft.segments,'submitted sentences exactly match frozen preview');eq((await writes())[0].args.input.document.source_sha256,createHash('sha256').update(flight).digest('hex'),'original file byte identity retained separately');eq((await writes())[0].args.input.document.original_format,'srt','original format retained despite normalized storage');eq((await call('test_counts')).files,1,'one material committed');
+  eq((await writes())[0].args.input.new_tag_names,['Coast notes'],'material and new tag share the import transaction');
+  const newMaterial=(await call('list_materials',{tagIds:[],untagged:false}))[0];
+  eq(newMaterial.tags.map(tag=>tag.name),['Coast notes'],'committed tag is attached to the imported material');
+  eq(await page.getByRole('button',{name:'新建标签',exact:true}).count(),0,'the normal desk has no create tag button');
   await page.evaluate(async () => { await document.fonts.ready; await Promise.all(document.getAnimations().filter(a => a.effect?.getComputedTiming().iterations !== Infinity).map(a => a.finished.catch(() => {}))); });
   await page.locator('.approved-card[data-desk-active=true] .approved-card-open').click();await page.locator('.reading-word').first().waitFor();const readingBounds=await page.locator('.reading-original').first().boundingBox();eq(await page.locator('.reading-page').getByRole('button',{name:'导入',exact:true}).count(),0,'reading content has no import button');await page.evaluate(async()=>{window.dispatchEvent(new CustomEvent('lexicue-import-content',{detail:null}));const {useImportStore}=await window.__uiStoreModule('importStore');useImportStore.getState().show();});await settle();eq(await page.locator('.reading-original').first().boundingBox(),readingBounds,'reader dimensions unchanged while manual clipboard recovery is open');await close();
   await drop([['duplicate.srt',flight],['empty.srt',''],['second.srt',srt('A second material is ready.','第二份材料已经准备好了。')]]);await preview();
@@ -103,7 +115,10 @@ try{
   await drop([['lost.srt',srt('A lost receipt can be safely recovered.')]]);await preview();await page.evaluate(()=>window.__uiFailure={command:'import_reading_material',remaining:1,afterCommit:true});await confirm();await page.getByRole('alert').filter({visible:true}).waitFor();
   const lost=(await writes()).at(-1);eq((await call('test_counts')).files,3,'lost receipt really committed');await page.getByRole('button',{name:'重试未完成项'}).click();await landed();eq((await writes()).at(-1),lost,'retry resends exact operation payload');eq((await call('test_counts')).files,3,'idempotent retry has one result');
   // Native drag event adapter routes into the same prepare/preview state.
-  await page.evaluate(text=>{window.__uiFiles={'/fixture/native-drag.srt':text};window.__nativeDrop(['/fixture/native-drag.srt']);},srt('Native paths share the same preview.'));await preview();eq((await call('test_counts')).files,3,'native event adapter does not commit');await close();
+  await page.evaluate(text=>{window.__uiFiles={'/fixture/native-drag.srt':text};window.__nativeDrop(['/fixture/native-drag.srt']);},srt('Native paths share the same preview.'));await preview();eq((await call('test_counts')).files,3,'native event adapter does not commit');
+  await newTag.click();await tagName.fill('Discarded tag');await tagName.press('Enter');await close();
+  eq((await call('list_tags')).map(tag=>tag.name),['Coast notes'],'closing discards an uncommitted tag');
+
   // Closing a slow read cancels promptly, even when the OS finishes later.
   await page.evaluate(text=>{window.__holdRead=true;window.__uiFiles={'/fixture/slow.srt':text};window.__nativeDrop(['/fixture/slow.srt']);},srt('This late file must never be saved.'));await page.locator('.lc-import-loading-copy').waitFor();await close();
   await drop([['new.srt',srt('A newer source owns the preview.')]]);await preview();await page.evaluate(()=>{window.__holdRead=false;window.__releaseRead();});await page.waitForTimeout(80);ok((await page.locator('.approved-import-preview').innerText()).includes('A newer source owns'),'late source cannot overwrite new one');await close();eq((await call('test_counts')).files,3,'cancelled and discarded previews do not write');

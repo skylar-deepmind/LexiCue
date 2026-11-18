@@ -61,6 +61,7 @@ pub(crate) fn input(op: &str, format: &str) -> materials::MaterialInput {
     };
     materials::MaterialInput {
         tag_ids: Vec::new(),
+        new_tag_names: Vec::new(),
         operation_id: op.into(),
         name: source.display_name.clone(),
         content: content.into(),

@@ -1557,6 +1557,7 @@
     "startListening": "Gesamtes Material vorlesen",
     "exitListening": "Vorlesen stoppen und beenden",
     "listenFromSentence": "Ab Satz {{index}} vorlesen",
+    "pickPlaybackStart": "Nach oben ziehen, um einen Satz zu wählen, und zum Abspielen loslassen. Mit der Tastatur über die Pfeiltasten wählen und mit Enter bestätigen.",
     "hideTranslation": "Chinesische Übersetzung ausblenden",
     "showTranslation": "Chinesische Übersetzung anzeigen",
     "noTranslation": "Keine chinesische Übersetzung vorhanden",

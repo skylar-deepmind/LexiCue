@@ -23,9 +23,11 @@ export default function useReadingFollow(scroll: RefObject<HTMLDivElement | null
     let resizeFrame = 0;
     const apply = () => {
       const state = latest.current, outer = viewport.getBoundingClientRect();
-      const controls = viewport.parentElement?.querySelector<HTMLElement>('.reading-playback:not([data-closing])');
-      // Leave the playback controls clear; center within the usable reading area.
-      const bottom = state.listening && controls ? Math.min(outer.bottom, controls.getBoundingClientRect().top - 20) : outer.bottom;
+      const controls = viewport.closest('.b-shell')?.querySelector<HTMLElement>('.mobile-reading-bar')
+        ?? viewport.parentElement?.querySelector<HTMLElement>('.reading-playback:not([data-closing])');
+      // Leave the visible playback controls clear.
+      const controlsBox = controls?.getBoundingClientRect();
+      const bottom = state.listening && controlsBox?.height ? Math.min(outer.bottom, controlsBox.top - 20) : outer.bottom;
       const available = Math.max(80, bottom - outer.top);
       if (state.listening) viewport.style.setProperty('--reading-follow-tail', `${Math.max(120, viewport.clientHeight - available / 2 + 24)}px`);
       else viewport.style.removeProperty('--reading-follow-tail');

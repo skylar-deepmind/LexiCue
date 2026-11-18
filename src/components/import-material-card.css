@@ -8,7 +8,13 @@
 .import-material-card .approved-card-title.import-card-title-input { font:400 35px/1.12 Georgia,'Songti SC',serif; flex-shrink:0; }
 .import-card-title-input:focus-visible { outline:0; box-shadow:0 1px 0 currentColor; }
 .material-floating-tag { position:absolute; z-index:3; top:16px; left:16px; min-height:44px; max-width:calc(100% - 32px); padding:8px 14px; border:0; border-radius:10px; background:var(--approved-card); color:var(--approved-ink); font:13px/1.4 system-ui; box-shadow:0 2px 8px #00000012; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.import-card-stage > .card-tag-choices { width:min(640px,100%); min-width:0; max-width:100%; }
+.import-card-tags { width:min(640px,100%); min-width:0; }
+.import-card-tag-row { display:flex; align-items:center; gap:8px; }
+.import-card-tag-row > .card-tag-choices { flex:1; min-width:0; }
+.import-new-tag { flex:none; display:inline-flex; align-items:center; gap:6px; white-space:nowrap; color:var(--approved-ink); background:var(--approved-card); }
+.import-tag-entry { position:relative; width:min(100%,320px); margin:0 0 0 auto; }
+.import-tag-entry input { margin:0; width:100%; padding-inline-end:44px; font-size:16px; }
+.import-tag-entry button { position:absolute; top:0; right:0; width:44px; height:100%; color:var(--approved-ink); }
 .import-material-card.approved-import-preview { margin:0; }
 .import-card-category { font:500 12px/18px system-ui; color:var(--approved-secondary); letter-spacing:.04em; }
 .import-card-actions { display:flex; align-items:center; justify-content:center; gap:16px; min-height:48px; }

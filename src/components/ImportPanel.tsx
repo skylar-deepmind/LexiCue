@@ -83,6 +83,8 @@ export default function ImportPanel() {
     const tags = useFileStore(s => s.tags);
     const loadTags = useFileStore(s => s.loadTags);
     useEffect(() => { if (live.open) void loadTags(); }, [live.open, loadTags]);
+    const importedNewTag = live.phase === 'result' && live.importTags.newTagNames.length > 0 && live.items.some(item => item.stage === 'created');
+    useEffect(() => { if (importedNewTag) void loadTags(true); }, [importedNewTag, loadTags]);
     const pasteLink = async () => {
         if (reading.current) return;
         const owner = useImportStore.getState();
@@ -151,7 +153,7 @@ export default function ImportPanel() {
     const retryable = state.items.some(item => item.stage === 'failed' && !['invalid_format', 'invalid_document', 'unsupported', 'password', 'encrypted', 'no_text', 'invalid_encoding', 'too_large', 'english_only', 'zip_limit'].includes(item.error ?? '') && (result ? !!item.draft : item.englishFallback === undefined || !!item.fallbackSegments) || result && item.stage === 'cancelled' && !!item.draft);
     const heading = preview ? 'previewTitle' : preparing ? 'preparingTitle' : committing ? 'writingTitle' : result ? 'resultTitle' : 'title';
     if(selected?.draft && (preview||committing||result)) {
-        const card=<ImportMaterialCard item={selected} items={state.items} tags={tags} tagIds={state.importTagIds} phase={phase} busy={running||!!state.selectionBusy} canConfirm={valid.length>0&&!state.selectionBusy} retryable={retryable} onClose={hide} onConfirm={()=>void state.confirm()} onRetry={()=>void state.retry()}/>;
+        const card=<ImportMaterialCard item={selected} items={state.items} tags={tags} tagSelection={state.importTags} phase={phase} busy={running||!!state.selectionBusy} canConfirm={valid.length>0&&!state.selectionBusy} retryable={retryable} onClose={hide} onConfirm={()=>void state.confirm()} onRetry={()=>void state.retry()}/>;
         return scene?<ClipboardScene returnFocus={takeImportFocus} label={t('materials.importDialog.previewTitle')} onClose={hide}>{card}</ClipboardScene>:<Overlay returnFocus={takeImportFocus} label={t('materials.import')} onClose={hide} className="lc-import-modal import-card-modal" layerClassName={`lc-import-layer${open?'':' lc-import-layer--closing'}`} panelRef={panelRef}>{card}</Overlay>;
     }
     if(scene)return <ClipboardScene returnFocus={takeImportFocus} label={t('approved.recognizing')} onClose={hide}>

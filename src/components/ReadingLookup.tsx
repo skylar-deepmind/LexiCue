@@ -1,3 +1,4 @@
+import { createLookupScrollMotion } from '../lib/lookupMotion';
 import { dictionarySupplement } from '../lib/dictionarySupplement';
 import { LoadingSkeleton } from './LoadingFeedback';
 import LookupSourceSwitch, { type LookupSourceState } from './LookupSourceSwitch';
@@ -117,7 +118,7 @@ export default function ReadingLookup(props: LookupProps) {
           <div className="lookup-tabs" data-tab={effectiveTab} role="tablist"><span className="lookup-tab-indicator" aria-hidden="true"/><button data-testid="lookup-meaning-tab" role="tab" aria-selected={effectiveTab==='meaning'} className={effectiveTab==='meaning'?'active':''} onClick={()=>setTab('meaning')}>{t('annotation.meaning')}</button><button data-testid="lookup-records-tab" role="tab" aria-selected={effectiveTab==='records'} className={effectiveTab==='records'?'active':''} onClick={()=>{if (effectiveTab !== 'records') {setRecordsReady(false);setTab('records');}}}>{t('reader.myRecords')} <span className="lookup-record-count">{count}</span></button></div>
         </div>
         <SoftContentRefresh className="lookup-content" contentKey={`${key}:${effectiveTab}`} ready={effectiveTab === 'meaning' ? ready : recordsReady} label={props.query.expression} pendingLabel={t('common.loading')}>
-          <LookupContent key={key} {...props} tab={effectiveTab} onProvider={onProvider} sourceHost={sourceHost} onRecordsReady={onRecordsReady} onReady={onReady} footerHost={footerHost}/>
+          <LookupContent key={key} {...props} tab={effectiveTab} onProvider={onProvider} sourceHost={sourceHost} onRecordsReady={onRecordsReady} onReady={onReady} footerHost={footerHost} onShowMeaning={() => setTab('meaning')}/>
         </SoftContentRefresh>
         <div className="lookup-action-slot" ref={setFooterHost}/>
       </div>
@@ -125,7 +126,7 @@ export default function ReadingLookup(props: LookupProps) {
 
 }
 
-function LookupContent({ query, scope, onSkip, drafts, session, onReady, onRecordsReady, footerHost, tab, initialProvider, onProvider, sourceHost, onSource, sourceBusy }: LookupProps & { sourceHost: HTMLDivElement | null; onProvider: (provider: DictionaryView) => void; onReady: (key: string) => void; onRecordsReady: () => void; footerHost: HTMLDivElement | null; tab: 'meaning' | 'records' }) {
+function LookupContent({ query, scope, onSkip, drafts, session, onReady, onRecordsReady, footerHost, tab, initialProvider, onProvider, sourceHost, onSource, sourceBusy, onShowMeaning }: LookupProps & { onShowMeaning: () => void; sourceHost: HTMLDivElement | null; onProvider: (provider: DictionaryView) => void; onReady: (key: string) => void; onRecordsReady: () => void; footerHost: HTMLDivElement | null; tab: 'meaning' | 'records' }) {
     const { t } = useTranslation();
     const preferredOnline = usePreferencesStore(state => state.onlineDictionary);
     const example = scope.kind === 'example';
@@ -144,6 +145,9 @@ function LookupContent({ query, scope, onSkip, drafts, session, onReady, onRecor
     const [provider, setProvider] = useState<DictionaryView>(initialChoice);
     const requestedProvider = useRef<OnlineProvider>(initialChoice === 'wiktionary' || initialChoice === 'cambridge' ? initialChoice : preferredOnline);
     useEffect(() => { onProvider(provider); }, [provider, onProvider]);
+    const supplementSection = useRef<HTMLElement>(null);
+    const [revealRequest, setRevealRequest] = useState(0);
+    const revealed = useRef(0);
     const [onlineRequest, setOnlineRequest] = useState(initialChoice === 'cambridge' || initialChoice === 'wiktionary' ? 1 : 0);
     const [onlineState, setOnlineState] = useState<'idle' | 'loading' | 'ready' | 'failed'>(cached?.online[requestedProvider.current]?'ready':'idle');
     const [onlineError, setOnlineError] = useState<OnlineIssue | null>(null);
@@ -256,18 +260,37 @@ function LookupContent({ query, scope, onSkip, drafts, session, onReady, onRecor
     const continueOnline = () => {
         if (onlineState === 'loading') return;
         switchSource('local');
+        onShowMeaning();
+        setRevealRequest(value => value + 1);
         if (dictionarySupplement(localResult, onlineResults[preferredOnline] ?? null)?.entries.length && onlineState !== 'failed') return;
         requestedProvider.current = preferredOnline;
         setOnlineRequest(value => value + 1);
     };
     const retryLocal = () => { setLoading(true); setRetry(value => value + 1); };
-    const localState: LookupSourceState = loading ? 'loading' : localResult?.entries.length ? 'ready' : lookupError || localResult?.status === 'unavailable' ? 'error' : 'missing';
     const displayedOnline = provider === 'local' || provider === 'longman' ? preferredOnline : provider;
     const supplemental = dictionarySupplement(localResult, onlineResults[displayedOnline] ?? null);
     const onlineStateLabel: LookupSourceState = onlineState === 'loading' ? 'loading'
         : onlineState === 'ready' && !supplemental?.entries.length ? 'missing'
         : supplemental?.entries.length ? 'ready'
         : onlineState === 'failed' ? onlineError === 'not_found' ? 'missing' : 'error' : 'idle';
+    useLayoutEffect(() => {
+        const section = supplementSection.current;
+        const viewport = section?.closest<HTMLElement>('.soft-refresh-current');
+        if (!section || !viewport || tab !== 'meaning' || loading || onlineState === 'loading' || revealed.current === revealRequest) return;
+        const frame = requestAnimationFrame(() => {
+            revealed.current = revealRequest;
+            const target = viewport.scrollTop + section.getBoundingClientRect().top - viewport.getBoundingClientRect().top - 12;
+            motion.move(target, matchMedia('(prefers-reduced-motion: reduce)').matches);
+        });
+        const motion = createLookupScrollMotion(viewport);
+        const cancel = () => { cancelAnimationFrame(frame); motion.cancel(); };
+        const input = ['wheel', 'touchmove', 'pointerdown'];
+        input.forEach(event => viewport.addEventListener(event, cancel, { passive: true }));
+        return () => {
+            cancel();
+            input.forEach(event => viewport.removeEventListener(event, cancel));
+        };
+    }, [revealRequest, supplemental?.entries.length, loading, onlineState, tab]);
     const validSelection = query.start >= 0 && query.end > query.start && query.end <= query.segment.en_text.length
         && query.segment.en_text.slice(query.start, query.end).trim() === query.expression.trim() && /[a-z]/i.test(query.expression);
     const canSave = !busy && validSelection;
@@ -373,17 +396,14 @@ function LookupContent({ query, scope, onSkip, drafts, session, onReady, onRecor
         if (action.current && !action.current.promise) void retryAction.current(action.current.mutation.kind === 'edit');
     }, [key]);
     return <>
-    {sourceHost && createPortal(<LookupSourceSwitch selected={activeProvider === 'local' ? 'local' : 'online'} local={localState} online={onlineStateLabel}
-      onLocal={() => { switchSource('local'); if(localState === 'error')retryLocal(); }} onOnline={continueOnline}/>, sourceHost)}
+    {sourceHost && createPortal(<LookupSourceSwitch online={onlineStateLabel} onOnline={continueOnline}/>, sourceHost)}
     <div className="lookup-body" data-definition-font={definitionFont} data-aux-font={auxiliaryFont} data-active-dictionary={activeProvider} data-online-state={onlineState}>
       {tab === 'records' ? <><RecallSection memory={session.recall?.get(key)} scope={scope} expression={query.expression} expanded onLoaded={onRecordsReady} onSource={onSource} sourceBusy={sourceBusy} onRemove={changeHistory} removing={busy}/>{historyReceipt && <div className="recall-undo" role="status"><span>{t('savedRecords.removed')}</span><button className="ui-button" disabled={busy} onClick={() => void changeHistory()}><Undo2 size={18} aria-hidden="true"/>{t('savedRecords.undo')}</button></div>}</> : <>
       {example && guideActive && !guidedTour && <div className="example-card-hint"><small role="status">{t(guideStep === 3 ? 'onboarding.step3' : 'onboarding.step2')}</small><button className="ui-button" onClick={onSkip}>{t('onboarding.skip')}</button></div>}
       {(loading && activeProvider === 'local' || onlineState === 'loading' && activeProvider !== 'local') && !result?.entries.length && <LoadingSkeleton kind="text" label={t('common.loading')}/>}
       {result && (activeProvider === 'local' || !!result.entries.length) && (!loading || !!result.entries.length) && <LongmanResult result={result} onInteract={touch}/>}
-      {activeProvider === 'local' && !!supplemental?.entries.length && <section className="approved-supplement"><h3>{t('approved.moreUses')}</h3><LongmanResult result={supplemental} onInteract={touch}/></section>}
-      {activeProvider === 'local' && onlineState === 'ready' && !supplemental?.entries.length && <p className="longman-notice" role="status">{t('approved.noNew')}</p>}
+      {activeProvider === 'local' && !!supplemental?.entries.length && <section className="approved-supplement" ref={supplementSection}><h3>{t('approved.moreUses')}</h3><LongmanResult result={supplemental} onInteract={touch}/></section>}
       {!loading && activeProvider === 'local' && !localResult?.entries.length && (lookupError || !localResult?.notices.length) && <p className="longman-notice" role="status">{t(lookupError ? 'reader.failed' : 'dictionarySwitch.local.missing')}</p>}
-      {onlineState === 'failed' && <p className="longman-notice" role="status">{t(`dictionary.issues.${onlineError ?? 'unavailable'}`)}</p>}
 
       {!loading && (lookupError || localResult?.status === 'unavailable') && activeProvider === 'local' && <button className="ui-button" onClick={retryLocal}>{t('common.retry')}</button>}
       {showRecall && <p className="lookup-note" role="status">{t('recall.previous')}</p>}

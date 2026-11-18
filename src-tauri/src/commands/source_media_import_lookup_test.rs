@@ -146,6 +146,7 @@ fn tail_saved_snapshot_round_trips_without_rewriting_declared_times() {
     let source = one_cue(6000, 10320);
     let input = materials::MaterialInput {
         tag_ids: Vec::new(),
+        new_tag_names: Vec::new(),
         document: None,
         normalized_kind: None,
         operation_id: "tail".into(),
@@ -221,6 +222,7 @@ fn actual_video_exact_reimport_preserves_ids_translations_and_saved_records() {
     let c = crate::db::init_db(&d.path().join("db")).unwrap();
     let mut input = materials::MaterialInput {
         tag_ids: Vec::new(),
+        new_tag_names: Vec::new(),
         document: None,
         normalized_kind: None,
         operation_id: "before".into(),
@@ -325,6 +327,7 @@ fn actual_reading_anchors_are_exported_without_guessing_unmapped_rows() {
     let source: YoutubeSource = serde_json::from_value(x["source"].clone()).unwrap();
     let input = materials::MaterialInput {
         tag_ids: Vec::new(),
+        new_tag_names: Vec::new(),
         document: None,
         normalized_kind: None,
         operation_id: "anchors".into(),

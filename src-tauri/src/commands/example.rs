@@ -79,6 +79,7 @@ impl ExampleState {
                 &conn,
                 &materials::MaterialInput {
                     tag_ids: Vec::new(),
+                    new_tag_names: Vec::new(),
                     document: None,
                     normalized_kind: None,
                     source: None,

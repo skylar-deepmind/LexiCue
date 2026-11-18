@@ -50,6 +50,7 @@ fn volume_and_foreground_writes() {
             &a,
             &materials::MaterialInput {
                 tag_ids: Vec::new(),
+                new_tag_names: Vec::new(),
                 operation_id: Uuid::new_v4().to_string(),
                 name: format!("Lecture {n}.txt"),
                 content,

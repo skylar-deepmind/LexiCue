@@ -84,7 +84,10 @@ try{
    await page.locator('.lookup-tabs [data-testid=lookup-meaning-tab]').click();
    await lookupShown(page,'take');
    const map=page.locator('.approved-lookup-map button');eq(await map.getAttribute('data-state'),'idle','supplement starts idle');await map.click();await page.waitForFunction(()=>document.querySelector('.approved-lookup-map button')?.dataset.state==='loading');eq(await map.getAttribute('aria-busy'),'true','supplement exposes real pending state');
-   await page.locator('.approved-lookup-map button[data-state="missing"]').waitFor();eq(await page.locator('.soft-refresh-current .longman-meaning').first().innerText(),baseText,'no-new reply retains the original dictionary meaning');
+   await page.locator('.approved-lookup-map button[data-state="missing"]').waitFor();
+   eq(await map.locator('img').getAttribute('src'),'/design/lookup-empty.svg','an empty response replaces the search icon with a cross');
+   eq(await page.getByText('未找到新的用法',{exact:true}).count(),0,'an empty online response has no footer notice');
+   eq(await page.locator('.soft-refresh-current .longman-meaning').first().innerText(),baseText,'no-new reply retains the original dictionary meaning');
    const beforeSizeControls=await geometry(page);
    if(phone){
     await page.locator('.context-sheet-expand').click();await page.locator('.context-panel[data-expanded="true"]').waitFor();await settled(page);eq(await geometry(page),beforeSizeControls,'expanded drawer preserves original geometry and scroll');
@@ -98,7 +101,19 @@ try{
    if(phone)await checkLookupSource(page,take,beforeReducedMotion,reducedBottom,`${theme}/${viewport.width} reduced motion`);
    eq(await drawerFrame(page),fixed,'reduced motion reveals the same fixed frame');
    await page.keyboard.press('Escape');await page.locator('.context-panel').waitFor({state:'detached'});await settled(page);
-   await page.evaluate(()=>window.__supplementMode='error');await take.click();await page.locator('.approved-lookup-map button').click();await page.locator('.approved-lookup-map button[data-state=error]').waitFor();eq(await page.locator('.soft-refresh-current .longman-meaning').first().innerText(),baseText,'supplement transport failure retains local meaning');await page.evaluate(()=>window.__supplementMode='success');await page.locator('.approved-lookup-map button').click();await page.locator('.approved-lookup-map button[data-state=ready]').waitFor();ok((await page.locator('.approved-supplement').innerText()).includes('补充的独立用法'),'success appends the additional meaning inside the same card');eq(await drawerFrame(page),fixed,'online content is added within the fixed frame');eq(await page.locator('.soft-refresh-current .longman-meaning').first().innerText(),baseText,'successful supplement also retains the original local meaning');await page.keyboard.press('Escape');await page.locator('.context-panel').waitFor({state:'detached'});
+   await page.evaluate(()=>window.__supplementMode='error');await take.click();await page.locator('.approved-lookup-map button').click();await page.locator('.approved-lookup-map button[data-state=error]').waitFor();
+   eq(await page.locator('.approved-lookup-map button img').getAttribute('src'),'/design/lookup-empty.svg','online failure also shows the cross on the globe');
+   eq(await page.locator('.lookup-body .longman-notice').count(),0,'online failure does not append an error notice');
+   eq(await page.locator('.soft-refresh-current .longman-meaning').first().innerText(),baseText,'supplement transport failure retains local meaning');await page.evaluate(()=>window.__supplementMode='success');await page.locator('.approved-lookup-map button').click();await page.locator('.approved-lookup-map button[data-state=ready]').waitFor();ok((await page.locator('.approved-supplement').innerText()).includes('补充的独立用法'),'success appends the additional meaning inside the same card');await page.waitForFunction(shouldMove=>{
+    const section=document.querySelector('.soft-refresh-current .approved-supplement');
+    const scroll=section?.closest('.soft-refresh-current');
+    if(!section||!scroll||(shouldMove&&scroll.scrollTop<1))return false;
+    const top=scroll.getBoundingClientRect().top,bottom=scroll.getBoundingClientRect().bottom;
+    const heading=section.querySelector('h3').getBoundingClientRect();
+    return heading.top>=top-1&&heading.bottom<=bottom;
+   }, viewport.width===320||viewport.width===667);
+   ok(true,'the visible drawer scrolls to the online results');
+   eq(await drawerFrame(page),fixed,'online content is added within the fixed frame');eq(await page.locator('.soft-refresh-current .longman-meaning').first().innerText(),baseText,'successful supplement also retains the original local meaning');await page.keyboard.press('Escape');await page.locator('.context-panel').waitFor({state:'detached'});
    ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${viewport.width}: no horizontal overflow with largest reading size`);
    if(viewport.width===390)await page.screenshot({path:`${output}/${theme}-large-reading.png`});
    await context.close();

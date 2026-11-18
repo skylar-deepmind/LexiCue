@@ -7,8 +7,8 @@ import { BusyRing } from './LoadingFeedback';
 import './card-tags.css';
 
 /** One horizontal strip for both the import card and the card already on the desk. */
-export default function CardTagChoices({ tags, selected, onSelect, disabled, loading, error, onRetry, autoFocus = false }: {
-  tags: TagInfo[]; selected: number[]; onSelect: (ids: number[]) => void;
+export default function CardTagChoices({ tags, selected, draftName, onSelect, disabled, loading, error, onRetry, autoFocus = false }: {
+  tags: TagInfo[]; selected: number[]; draftName?: string; onSelect: (ids: number[]) => void;
   disabled?: boolean; loading?: boolean; error?: boolean; onRetry?: () => void; autoFocus?: boolean;
 }) {
   const { t } = useTranslation(), strip = useRef<HTMLDivElement>(null);
@@ -27,8 +27,9 @@ export default function CardTagChoices({ tags, selected, onSelect, disabled, loa
         const next = event.key === 'Home' ? 0 : event.key === 'End' ? options.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + options.length) % options.length;
         options[next]?.focus({ preventScroll: true }); options[next]?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
       }}>
+      {draftName && <button type="button" role="option" aria-selected="true" disabled={disabled || loading}>{draftName}<Check size={14} aria-hidden="true"/></button>}
       {[...tags, { id: null, name: libraryNames.untagged }].map(tag => {
-        const active = tag.id === null ? !selected.length : selected.includes(tag.id);
+        const active = tag.id === null ? !selected.length && !draftName : selected.includes(tag.id);
         return <button type="button" role="option" aria-selected={active} tabIndex={active ? 0 : -1} disabled={disabled || loading} key={tag.id ?? 'untagged'}
           onClick={() => onSelect(tag.id === null ? [] : [tag.id])}>{tag.name}{active && <Check size={14} aria-hidden="true"/>}</button>;
       })}

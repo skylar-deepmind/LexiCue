@@ -13,7 +13,7 @@ import { readDocumentFile } from '../lib/readDocumentFile';
 import { extractDocument, selectDocumentRange } from '../lib/documentImport';
 import type { DocumentSource, DocumentSelection, ExtractedDocument } from '../lib/documentTypes';
 import { materialError, parseSrtInWorker, type MaterialImportResult } from '../lib/materials';
-import type { SegmentInput } from '../lib/types';
+import type { SegmentInput, TagSelection } from '../lib/types';
 import { useMaterialStore } from './materialStore';
 import { useYoutubeStore, type TrackSelection } from './youtubeStore';
 import { usePreferencesStore } from './preferencesStore';
@@ -178,7 +178,8 @@ let generation = 0;
 let pickerGeneration = 0;
 let rangeGeneration = 0;
 let jobSequence = Date.now();
-const empty = { presentation: 'panel' as 'panel'|'scene', importTagIds: [] as number[], items: [] as ImportItem[], phase: 'source' as ImportPhase, source: 'choose' as 'choose' | 'file' | 'youtube', selectedId: null as string | null,
+const noImportTags: TagSelection = { tagIds: [], newTagNames: [] };
+const empty = { presentation: 'panel' as 'panel'|'scene', importTags: noImportTags, items: [] as ImportItem[], phase: 'source' as ImportPhase, source: 'choose' as 'choose' | 'file' | 'youtube', selectedId: null as string | null,
     running: false, stopping: false, destination: null as number | 'materials' | null, pickerError: false, picking: false, selectionBusy: null as string | null };
 function abandonPreparation() {
     generation++;
@@ -201,8 +202,8 @@ export const useImportStore = create<{
     destination: number | 'materials' | null;
     pickerError: boolean;
     selectionBusy: string | null;
-    importTagIds: number[];
-    setImportTagIds: (ids: number[]) => void;
+    importTags: TagSelection;
+    setImportTags: (selection: TagSelection) => void;
     selectRange: (id: string, selection: DocumentSelection) => Promise<void>;
     show: () => void;
     hide: () => void;
@@ -239,7 +240,10 @@ export const useImportStore = create<{
         const active = new AbortController();
         controller = active;
         set({ phase: 'committing', running: true, stopping: false, picking: false, destination: null });
-        await commitImportQueue(items, active.signal, update, input => invoke('import_reading_material', { input: { ...input, ...(get().importTagIds.length ? { tag_ids: get().importTagIds } : {}) } }));
+        const { tagIds, newTagNames } = get().importTags;
+        await commitImportQueue(items, active.signal, update, input => invoke('import_reading_material', {
+            input: { ...input, ...(tagIds.length ? { tag_ids: tagIds } : {}), ...(newTagNames.length ? { new_tag_names: newTagNames } : {}) },
+        }));
         const current = get().items;
         // A hidden write still owns its receipt and refreshes the catalog, but
         // must not leave a deferred navigation that fires on the next opening.
@@ -250,7 +254,7 @@ export const useImportStore = create<{
     };
     return {
         open: false, ...empty,
-        setImportTagIds: ids => { if (!get().running && get().phase === 'preview') set({ importTagIds: [...new Set(ids)].slice(0,1) }); },
+        setImportTags: importTags => { if (!get().running && get().phase === 'preview') set({ importTags }); },
         show: () => set({ open: true }),
         showScene: () => set({open:true,presentation:'scene'}),
         clearDestination: () => set({ destination: null }),
@@ -284,12 +288,12 @@ export const useImportStore = create<{
         },
         start: async sources => {
             if (get().phase === 'committing' || !sources.length) return;
-            set({presentation:'panel'});
+            set({presentation:'panel',importTags:noImportTags});
             await prepare(sources.map(source => ({ ...source, id: crypto.randomUUID(), stage: 'queued' })));
         },
         fromContent: async (kind, value, scene=false) => {
             if(get().running)return;
-            set({presentation:scene?'scene':'panel',importTagIds:[]});
+            set({presentation:scene?'scene':'panel',importTags:noImportTags});
             await prepare([{id:crypto.randomUUID(),stage:'queued',kind, name: kind === 'clipboard' ? clipboardTitle(value) : value, capturedText: kind === 'clipboard' ? value : undefined, url: kind === 'webpage' ? value : undefined, read: async () => value}]);
         },
         renameDraft: (id, title) => {

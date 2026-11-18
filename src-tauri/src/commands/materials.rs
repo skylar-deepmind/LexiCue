@@ -28,6 +28,8 @@ pub fn create_tables(conn: &Connection) -> rusqlite::Result<()> {
 pub struct MaterialInput {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tag_ids: Vec<i64>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub new_tag_names: Vec<String>,
     pub operation_id: String,
     pub name: String,
     pub content: String,
@@ -192,17 +194,21 @@ pub fn import_material(conn: &Connection, input: &MaterialInput) -> Result<Impor
             .map_err(|e| e.to_string())?
         )
     );
-    // Preserve legacy receipt hashes for tag-free imports. A tagged batch
-    // freezes its selection into the idempotency identity before writing.
-    let request_hash = if input.tag_ids.is_empty() {
-        request_hash
+    // Keep both historical receipt formats replayable.
+    let tag_request = if !input.new_tag_names.is_empty() {
+        Some(serde_json::to_vec(&(
+            &request_hash,
+            &input.tag_ids,
+            &input.new_tag_names,
+        )))
+    } else if !input.tag_ids.is_empty() {
+        Some(serde_json::to_vec(&(&request_hash, &input.tag_ids)))
     } else {
-        format!(
-            "{:x}",
-            Sha256::digest(
-                serde_json::to_vec(&(&request_hash, &input.tag_ids)).map_err(|e| e.to_string())?
-            )
-        )
+        None
+    };
+    let request_hash = match tag_request {
+        Some(bytes) => format!("{:x}", Sha256::digest(bytes.map_err(|e| e.to_string())?)),
+        None => request_hash,
     };
     let hash = format!("{:x}", Sha256::digest(input.content.as_bytes()))[..16].to_string();
     let tx = Transaction::new_unchecked(conn, TransactionBehavior::Immediate)
@@ -258,7 +264,7 @@ pub fn import_material(conn: &Connection, input: &MaterialInput) -> Result<Impor
     } else {
         tx.execute("INSERT INTO files(name,type,content,content_hash,imported_at,language,media_source,media_identity,document_source,document_identity) VALUES(?1,?2,?3,?4,?5,'en',?6,?7,?8,?9)",params![input.name,kind,input.content,hash,super::saved::now_ms(),input.source.as_ref().map(|s|serde_json::to_string(s).unwrap()),input.source.as_ref().map(|s|&s.key),input.document.as_ref().map(|s|serde_json::to_string(s).unwrap()),input.document.as_ref().map(|s|&s.identity)]).map_err(|e|e.to_string())?;
         let id = tx.last_insert_rowid();
-        super::tags::replace_file_tags(&tx, id, &input.tag_ids, &[])?;
+        super::tags::replace_file_tags(&tx, id, &input.tag_ids, &input.new_tag_names)?;
         let mut statement=tx.prepare_cached("INSERT INTO segments(file_id,index_num,en_text,zh_text,start_time,end_time) VALUES(?1,?2,?3,?4,?5,?6)").map_err(|e|e.to_string())?;
         for segment in &input.segments {
             statement
@@ -1146,9 +1152,60 @@ mod tests {
         assert_eq!(list(&restored, &[first], false).unwrap().len(), 1);
     }
 
+    #[test]
+    fn import_creates_new_tags_with_the_material_and_preserves_retries() {
+        let dir = tempfile::tempdir().unwrap();
+        let conn = crate::db::init_db(&dir.path().join("new-import-tags.db")).unwrap();
+        let mut draft = input(
+            "new-tag-import",
+            "The afternoon train stopped at the station.",
+        );
+        draft.new_tag_names = vec!["Travel".into(), " ".into()];
+        assert!(import_material(&conn, &draft).is_err());
+        let count = |table| {
+            conn.query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| {
+                row.get::<_, i64>(0)
+            })
+            .unwrap()
+        };
+        assert_eq!(count("tags"), 0);
+        assert_eq!(count("files"), 0);
+
+        draft.new_tag_names.pop();
+        let created = import_material(&conn, &draft).unwrap();
+        assert_eq!(created.outcome, "created");
+        assert_eq!(
+            open(&conn, created.file_id).unwrap().material.tags[0].name,
+            "Travel"
+        );
+        assert_eq!(
+            import_material(&conn, &draft).unwrap().file_id,
+            created.file_id
+        );
+
+        draft.new_tag_names = vec!["Unused".into()];
+        assert_eq!(
+            import_material(&conn, &draft).unwrap_err(),
+            "material_operation_conflict"
+        );
+        draft.operation_id = "duplicate-with-new-tag".into();
+        assert_eq!(import_material(&conn, &draft).unwrap().outcome, "duplicate");
+        assert_eq!(count("tags"), 1);
+
+        let mut second = input("known-tag", "The ferry reached the port at noon.");
+        second.new_tag_names = vec![" travel ".into()];
+        let second = import_material(&conn, &second).unwrap();
+        assert_eq!(
+            open(&conn, second.file_id).unwrap().material.tags[0].name,
+            "Travel"
+        );
+        assert_eq!(count("tags"), 1);
+    }
+
     fn input(op: &str, text: &str) -> MaterialInput {
         MaterialInput {
             tag_ids: Vec::new(),
+            new_tag_names: Vec::new(),
             document: None,
             normalized_kind: None,
             source: None,
@@ -1342,6 +1399,7 @@ mod acceptance {
         let c = crate::db::init_db(&path).unwrap();
         let make = |op: &str| MaterialInput {
             tag_ids: Vec::new(),
+            new_tag_names: Vec::new(),
             document: None,
             normalized_kind: None,
             source: None,

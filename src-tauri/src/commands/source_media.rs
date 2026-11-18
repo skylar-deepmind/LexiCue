@@ -1111,6 +1111,7 @@ mod tests {
     fn input(op: &str, video: &str) -> materials::MaterialInput {
         materials::MaterialInput {
             tag_ids: Vec::new(),
+            new_tag_names: Vec::new(),
             document: None,
             normalized_kind: None,
             operation_id: op.into(),
@@ -1553,6 +1554,7 @@ mod alignment_and_portability_tests {
             &c,
             &materials::MaterialInput {
                 tag_ids: Vec::new(),
+                new_tag_names: Vec::new(),
                 document: None,
                 normalized_kind: None,
                 operation_id: "overlap".into(),
@@ -1584,6 +1586,7 @@ mod alignment_and_portability_tests {
             &c,
             &materials::MaterialInput {
                 tag_ids: Vec::new(),
+                new_tag_names: Vec::new(),
                 document: None,
                 normalized_kind: None,
                 operation_id: "a".into(),
@@ -1790,6 +1793,7 @@ mod continuous_contract_tests {
         let source = super::tests::source("abcdefghijk");
         let input = materials::MaterialInput {
             tag_ids: Vec::new(),
+            new_tag_names: Vec::new(),
             document: None,
             normalized_kind: None,
             operation_id: "reading".into(),

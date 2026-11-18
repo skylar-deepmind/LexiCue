@@ -18,9 +18,8 @@ import { useTranslation } from 'react-i18next';
 import { SpeechFeedback } from '../components/SpeechButton';
 import SourceAudioControls from '../components/SourceAudioControls';
 import ReadingPlaybackControls from '../components/ReadingPlaybackControls';
-import { useSourceMediaStore } from '../stores/sourceMediaStore';
-import { Play, ChevronLeft } from 'lucide-react';
-import { useReadingToolsStore } from '../stores/readingToolsStore';
+import { ChevronLeft } from 'lucide-react';
+import { useReadingToolsStore, type PlaybackTarget } from '../stores/readingToolsStore';
 import type { ReadingMaterial } from '../lib/materials';
 import type { Segment } from '../lib/types';
 import type { ReaderToken } from '../stores/readerStore';
@@ -188,11 +187,13 @@ export default function ReadingPage({ data, scope }: {
     const readingLayout = useReadingLayout(scroll, !!query, size, lineHeight, translation);
     const { preservePosition, rememberViewport } = useReadingAnchor(scroll);
     preserveTranslationPosition.current = preservePosition;
-    const mediaEntries = useSourceMediaStore(state => state.entries);
+    const [playbackTarget, showPlaybackTarget] = useState<number | null>(null);
+    const playbackTargetRef = useRef<number | null>(null);
+    const segmentIndices = useMemo(() => new Map(segments.map((segment, index) => [segment.index_num, index])), [segments]);
     const speechItems = useMemo(() => segments.map(segment => ({text:segment.en_text,key:`reader:${mediaIdentity}:${segment.index_num}`})), [segments,mediaIdentity]);
     const pendingListen = useRef<number | null>(null);
     const pendingPlayback = useRef<'resume' | 'replay' | null>(null);
-    const { allowed: followAllowed, recovery: followRecovery } = useReadingFollow(scroll, currentReadingIndex == null ? null : segments[currentReadingIndex]?.index_num ?? null, listening && !query && reading?.status === 'playing', listening, listening && !query && (reading?.status === 'playing' || reading?.status === 'loading'));
+    const { allowed: followAllowed, recovery: followRecovery } = useReadingFollow(scroll, currentReadingIndex == null ? null : segments[currentReadingIndex]?.index_num ?? null, listening && !query && playbackTarget === null && reading?.status === 'playing', listening, listening && !query && playbackTarget === null && (reading?.status === 'playing' || reading?.status === 'loading'));
     const lookupInterruption = useRef(createLookupPlaybackInterruption());
     const pauseForLookup = (reason: 'selection' | 'lookup') => {
         const state = useSpeechStore.getState();
@@ -248,6 +249,38 @@ export default function ReadingPage({ data, scope }: {
         if (query) { pendingPlayback.current = action; closeLookup(); return; }
         void useSpeechStore.getState()[action === 'resume' ? 'resume' : 'replayCurrent']();
     };
+    const setPlaybackTarget = (target: PlaybackTarget) => {
+        const viewport = scroll.current;
+        if (!viewport || query) return false;
+        const bounds = viewport.getBoundingClientRect();
+        const candidates = [...visible.current].flatMap(([sentence, row]) => {
+            const index = segmentIndices.get(sentence);
+            if (index === undefined || material.source?.audio && !data.media_refs?.[segments[index].id]) return [];
+            const rect = row.querySelector('.reading-original')?.getBoundingClientRect();
+            return rect && rect.bottom > bounds.top && rect.top < bounds.bottom ? [{ index, rect }] : [];
+        });
+        if (!candidates.length) return false;
+        let selected: number;
+        if ('y' in target) {
+            const y = Math.max(bounds.top, Math.min(bounds.bottom, target.y));
+            const distance = (rect: DOMRect) => Math.max(rect.top - y, y - rect.bottom, 0);
+            selected = candidates.reduce((best, candidate) => distance(candidate.rect) < distance(best.rect) ? candidate : best).index;
+        } else {
+            candidates.sort((a, b) => a.index - b.index);
+            const current = candidates.findIndex(candidate => candidate.index === (playbackTargetRef.current ?? currentReadingIndex));
+            const next = current < 0 ? 0 : Math.max(0, Math.min(candidates.length - 1, current + target.step));
+            selected = candidates[next].index;
+        }
+        playbackTargetRef.current = selected;
+        showPlaybackTarget(selected);
+        return true;
+    };
+    const finishPlaybackTarget = (commit: boolean) => {
+        const selected = playbackTargetRef.current;
+        playbackTargetRef.current = null;
+        showPlaybackTarget(null);
+        if (commit && selected !== null) listenFrom(selected);
+    };
     useLayoutEffect(() => {
         useReadingToolsStore.setState({ available: true, listening, translation, hasTranslation: translationState.available, showRecall: !example,
             translationProgress: translationStatus === 'loading' ? translationState.progress : null,
@@ -256,6 +289,7 @@ export default function ReadingPage({ data, scope }: {
             onRate:()=>{const rates=[1,1.25,1.5,.75] as const;useSpeechStore.getState().setRate(rates[(rates.indexOf(reading?.rate??speech.rate)+1)%rates.length]);},
             onListen: () => { if (listening) { pendingListen.current = null; pendingPlayback.current = null; useSpeechStore.getState().exitReading(); setListening(false); } else if (segments.length) listenFrom(readingStartIndex()); else setListening(true); },
             onTranslation: toggleTranslation,
+            onPlaybackTarget: setPlaybackTarget, onPlaybackTargetEnd: finishPlaybackTarget,
         });
     });
     useLayoutEffect(() => () => { pendingListen.current = null; useReadingToolsStore.setState({ available: false }); }, []);
@@ -554,21 +588,17 @@ export default function ReadingPage({ data, scope }: {
     {!segments.length && <p className="lookup-note" role="status">{t('reader.emptyContent')}</p>}
     {segments.slice(first, last).map((segment, offset) => {
       const key = speechItems[first + offset].key;
-      const continuous = speech.playbackMode==='source-continuous' && speech.continuousFileId===material.id && speech.continuousSourceKey===mediaIdentity;
-      const noTiming=(continuous || !!material.source?.audio && mediaEntries[mediaIdentity]?.status==='ready') && !data.media_refs?.[segment.id];
       const active = listening && currentReadingIndex===first+offset;
       const failed = speech.errorKey === key && speech.error;
       const matches = recall.matches.get(segment.index_num);
       const selection = keyboardRange ? undefined : query?.segment.id === segment.id ? query : undefined;
       const keyboardSelection = keyboardRange?.segment === segment.id ? keyboardRange : undefined;
-      return <section className="reading-sentence" key={segment.id} data-sentence={segment.index_num} data-source-highlight={visit?.target.segmentIndex === segment.index_num || undefined} data-current={active} data-speech-state={active ? speech.status : failed ? 'error' : 'idle'}>
-      <div className="sentence-side">{listening ? <button type="button" className="sentence-listen" disabled={noTiming} title={noTiming ? t('sourceAudio.noTiming') : undefined} aria-busy={active && speech.loading} aria-label={t(noTiming ? 'sourceAudio.noTiming' : failed ? 'speech.retry' : 'reader.listenFromSentence', { index: segment.index_num + 1 })} aria-current={active ? 'step' : undefined} onClick={event => { event.stopPropagation(); listenFrom(first + offset); }}>
-        <Play className="sentence-play" size={16} aria-hidden="true"/>
-      </button> : null}</div>
+      return <section className="reading-sentence" key={segment.id} data-sentence={segment.index_num} data-source-highlight={visit?.target.segmentIndex === segment.index_num || undefined} data-current={active} data-playback-target={playbackTarget === first + offset || undefined} data-speech-state={active ? speech.status : failed ? 'error' : 'idle'}>
       <div><p className="reading-original" lang="en" onPointerDown={event => beginPointerRange(segment, event)} onPointerMove={event => extendPointerRange(segment, event)} onPointerUp={() => finishPointerRange(segment)} onPointerCancel={cancelPointerRange} onPointerLeave={cancelPointerRange} onMouseDown={event => { if (event.button === 0) { event.preventDefault(); window.getSelection()?.removeAllRanges(); } }} onMouseUp={event => selectText(segment, event.currentTarget)} onTouchEnd={event => selectText(segment, event.currentTarget)}><ReadingSentenceTokens segment={segment} spans={tokens.get(segment.index_num) ?? noTokens} matches={matches?.length ? matches : noMatches} selection={selection} keyboardSelection={keyboardSelection} actions={tokenActions}/></p>{segment.zh_text && <div className="reading-translation-disclosure" data-open={translation || undefined} aria-hidden={!translation}><div className="reading-translation-clip"><p className="reading-translation">{segment.zh_text}</p></div></div>}{listening && (active && speech.loading || failed) && <span className="sr-only" role="status">{t(active ? 'common.loading' : 'speech.retry')}</span>}{failed && <SpeechFeedback speechKeys={[key]}/>}</div>
     </section>; })}
     {last < segments.length && <button className="ui-button reader-next" data-reader-next="" onClick={() => setLast(value => Math.min(value + 60, segments.length))}>{t('reader.moreSentences')}</button>}
     {!query && <SpeechFeedback prefix="reader:"/>}
+    <span className="sr-only" role="status">{playbackTarget === null ? '' : t('reader.listenFromSentence', { index: segments[playbackTarget]?.index_num + 1 })}</span>
   </div><div className="reading-query-slot" ref={readingLayout.slot} aria-hidden="true"/></div></div>
     <ReadingPlaybackControls visible={listening} playing={reading?.status === 'playing' || reading?.status === 'loading'} loading={reading?.status === 'loading'} paused={reading?.status === 'paused'} restartSentence={reading?.status === 'paused' && reading.resumeMode === 'restart-sentence'} disabled={!segments.length} rate={reading?.rate ?? speech.rate} onPlay={() => playbackAction('resume')} onPause={() => { followAllowed.current = false; useSpeechStore.getState().pause('user'); }} onReplay={() => playbackAction('replay')} onRate={() => { const rates = [1, 1.25, 1.5, .75] as const; useSpeechStore.getState().setRate(rates[(rates.indexOf(reading?.rate ?? speech.rate) + 1) % rates.length]); }} onExit={() => { pendingListen.current = null; pendingPlayback.current = null; useSpeechStore.getState().exitReading(); setListening(false); }}/>
     {queryWithMedia && <ReadingLookup layoutSlot={readingLayout.slot} query={queryWithMedia} material={material} scope={scope} onClose={closeLookup} onSkip={skip} drafts={drafts.current} session={lookupSession.current} initialTab={query?.segment.id===returnView?.query?.segmentId && query?.start===returnView?.query?.start && query?.end===returnView?.query?.end ? returnView?.query?.tab : undefined} initialProvider={query?.segment.id===returnView?.query?.segmentId && query?.start===returnView?.query?.start && query?.end===returnView?.query?.end ? returnView?.query?.provider : undefined} onViewChange={view => { lookupView.current = {tab:view.tab,provider:view.provider}; }} onSource={example ? undefined : visitSource} sourceBusy={sourceBusy}/>}

@@ -1540,6 +1540,7 @@
     "startListening": "朗读整篇材料",
     "exitListening": "停止并退出朗读",
     "listenFromSentence": "从第 {{index}} 句开始朗读",
+    "pickPlaybackStart": "按住上划选句，松手开始朗读。也可用方向键选句，按回车确认。",
     "hideTranslation": "隐藏中文译文",
     "showTranslation": "显示中文译文",
     "noTranslation": "暂无中文译文",

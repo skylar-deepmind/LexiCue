@@ -122,9 +122,6 @@
   .b-shell .reading-page .reading-layout .reading-paper { padding: 0; width: 100%; max-width: none; }
   .b-shell .reading-sentence { display: block; margin: 0 0 24px; }
   .b-shell .sentence-side, .b-shell .reading-document-location { display: none; }
-  .b-shell .reading-page[data-listening='true'] .reading-sentence { display: grid; grid-template-columns: 24px minmax(0,1fr); gap: 8px; }
-  .b-shell .reading-page[data-listening='true'] .sentence-side { display: block; }
-  .b-shell .reading-page[data-listening='true'] .sentence-listen { width: 44px; margin-left: -12px; }
   .b-shell .reading-paper[data-lines='normal'] .reading-original { line-height: 1.52381; }
   .b-shell .reading-original { color: var(--text-body); }
   .b-shell .reading-document-nav { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 24px; padding: 0; border: 0; }
