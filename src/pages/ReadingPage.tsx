@@ -1,6 +1,6 @@
 import { bookmarkTitle } from '../lib/bookmarkDesk';
-import { materialCover } from '../lib/materialCover';
-import MaterialCover from '../components/MaterialCover';
+import ReaderHeading from '../components/ReaderHeading';
+import useReaderTitleDock from '../components/useReaderTitleDock';
 import { finishReadingEntrance, prepareReadingReturn } from '../lib/readingMotion';
 import { useRestoreGuard } from '../stores/restoreGuard';
 import { readerViews } from '../lib/readerViewMemory';
@@ -329,6 +329,7 @@ export default function ReadingPage({ data, scope }: {
         else void document.fonts.ready.then(restore);
         return () => { cancelled = true; };
     }, [initial, returnView, location.state?.restoreVisitToken, segments, visit, rememberViewport]);
+    const titleDock = useReaderTitleDock(scroll);
     // Register the handoff after the layout and saved-position restoration.
     useLayoutEffect(() => finishReadingEntrance(material.id), [material.id]);
     useLayoutEffect(() => {
@@ -566,7 +567,13 @@ export default function ReadingPage({ data, scope }: {
         node.addEventListener('wheel',wheel,{passive:false});node.addEventListener('touchstart',start,{passive:true});node.addEventListener('touchmove',move,{passive:true});node.addEventListener('touchend',end);node.addEventListener('touchcancel',end);node.addEventListener('keydown',key);
         return()=>{cancelAnimationFrame(frame);node.removeEventListener('wheel',wheel);node.removeEventListener('touchstart',start);node.removeEventListener('touchmove',move);node.removeEventListener('touchend',end);node.removeEventListener('touchcancel',end);node.removeEventListener('keydown',key);};
     },[first]);
-    return <div className="reading-page" style={fontScaleStyle} data-listening={listening} data-reading-material={material.id}><nav className="reading-breadcrumb" aria-label={t('materials.path')}>{visit || pageOrigin ? <button className="reader-return-origin page-back" aria-label={`${t('common.back')} · ${t(visit?.origin.kind === 'saved' ? 'savedRecords.title' : 'reader.title', { defaultValue: '阅读' })}`} data-testid="source-return" onClick={returnToOrigin}><ChevronLeft className="mobile-reader-back" size={22} aria-hidden="true"/></button> : <button className="page-back" onClick={pageBack} aria-label={t(location.state?.readingOrigin === 'library' ? 'readingDesk.backLibrary' : 'readingDesk.backMaterials')}><ChevronLeft className="mobile-reader-back" size={22} aria-hidden="true"/></button>}<span aria-hidden="true">/</span><span>{material.name}</span><span className="mobile-reading-path">{t(location.state?.readingOrigin === 'library' ? 'readingDesk.library' : 'materials.title')}</span></nav><div className="reader-scroll" ref={scroll}><div className="reading-layout" ref={readingLayout.layout} data-query-open={!!query}><div className="workspace-paper reading-paper" data-recall-state={recall.status} data-font={size} data-lines={lineHeight} data-aux-font={auxiliaryFont} data-definition-font={definitionFont}><div className="approved-reader-title"><h1 className="reading-title" lang="en">{bookmarkTitle(material.name)}</h1><MaterialCover src={materialCover(material)} identity={material.content_hash} className="folio-print"/></div>{sourceError && <p className="saved-error" role="status">{sourceError}</p>}{recall.status === 'failed' && <div className="reading-recall-error saved-error" role="status"><span>{t('recall.indexFailed')}</span><button type="button" className="ui-button" onClick={() => void useRecallStore.getState().refresh()}>{t('common.retry')}</button></div>}
+    return <div className="reading-page reader-with-cover" style={fontScaleStyle} data-listening={listening} data-reading-material={material.id}><nav className="reading-breadcrumb" aria-label={t('materials.path')}>{visit || pageOrigin ? <button className="reader-return-origin page-back" aria-label={`${t('common.back')} · ${t(visit?.origin.kind === 'saved' ? 'savedRecords.title' : 'reader.title', { defaultValue: '阅读' })}`} data-testid="source-return" onClick={returnToOrigin}><ChevronLeft className="mobile-reader-back" size={22} aria-hidden="true"/></button> : <button className="page-back" onClick={pageBack} aria-label={t(location.state?.readingOrigin === 'library' ? 'readingDesk.backLibrary' : 'readingDesk.backMaterials')}><ChevronLeft className="mobile-reader-back" size={22} aria-hidden="true"/></button>}
+        <span className="reader-docked-title" ref={titleDock.dock} aria-hidden="true">
+          <span className="reader-docked-title-motion">
+            <span className="reader-docked-title-line" ref={titleDock.line}>{bookmarkTitle(material.name)}</span>
+          </span>
+        </span>
+    </nav><div className="reader-scroll" ref={scroll}><div className="reading-layout" ref={readingLayout.layout} data-query-open={!!query}><div className="workspace-paper reading-paper" data-recall-state={recall.status} data-font={size} data-lines={lineHeight} data-aux-font={auxiliaryFont} data-definition-font={definitionFont}><ReaderHeading material={material} titleRef={titleDock.title}/>{sourceError && <p className="saved-error" role="status">{sourceError}</p>}{recall.status === 'failed' && <div className="reading-recall-error saved-error" role="status"><span>{t('recall.indexFailed')}</span><button type="button" className="ui-button" onClick={() => void useRecallStore.getState().refresh()}>{t('common.retry')}</button></div>}
     {example && <section className="example-intro" aria-label={t('onboarding.sample')}>
       <div><h1>{t('onboarding.sample')}</h1>{guide.active && !guide.tour && !query && <button className="ui-button" onClick={skip}>{t('onboarding.skip')}</button>}</div>
       <p>{t('onboarding.privacy')}</p>

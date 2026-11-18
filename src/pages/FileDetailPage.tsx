@@ -5,7 +5,7 @@ import PageBack from '../components/PageBack';
 import { ChevronLeft } from 'lucide-react';
 import { prepareReadingReturn } from '../lib/readingMotion';
 import { readingReturnPath } from '../lib/readingEntry';
-import { bookmarkTitle } from '../lib/bookmarkDesk';
+import ReaderHeading from '../components/ReaderHeading';
 import { LoadingSkeleton } from '../components/LoadingFeedback';
 import { useEffect, useState } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
@@ -38,8 +38,8 @@ export default function FileDetailPage() {
     return <MaterialReader key={`${id}:${location.key}`} id={id}/>;
 }
 function MaterialReader({ id }: { id: number }) {
-    const title = useMaterialStore(store =>
-        store.files.find(file => file.id === id)?.name ?? (store.current?.id === id ? store.current.name : undefined));
+    const material = useMaterialStore(store =>
+        store.files.find(file => file.id === id) ?? (store.current?.id === id ? store.current : undefined));
     const location = useLocation();
     const {state} = location;
     const { back } = usePageReturn(readingReturnPath(state));
@@ -75,13 +75,13 @@ function MaterialReader({ id }: { id: number }) {
     if (error || data && visit && !sourceMatches(visit.target, data))
         return <div className="reader-load-error"><p>{t('reader.unavailable')}</p>{visit && <blockquote lang="en">{visit.target.sentence}</blockquote>}<div><PageBack fallback={visit?.origin.path ?? '/files'}/><button className="ui-button" onClick={() => setRevision(revision + 1)}>{t('common.retry')}</button><VisitLink className="ui-button" to={`/legacy?fileId=${id}`}>{t('materials.history')}</VisitLink></div></div>;
     if (!data)
-        return <div className="material-reading"><div className="reading-page"><nav className="reading-breadcrumb" aria-label={t('materials.path')}>
+        return <div className="material-reading"><div className={material ? 'reading-page reader-with-cover' : 'reading-page'}><nav className="reading-breadcrumb" aria-label={t('materials.path')}>
             <button className="page-back" type="button" aria-label={t('common.back')} onClick={() => {
                 if (state?.readingMotion) prepareReadingReturn(id);
                 back();
             }}><ChevronLeft size={22} aria-hidden="true"/></button>
         </nav><div className="reader-scroll"><div className="reading-layout"><section className="workspace-paper reading-paper" aria-busy="true">
-            {title && <div className="approved-reader-title"><h1 className="reading-title" lang="en">{bookmarkTitle(title)}</h1></div>}
+            {material && <ReaderHeading material={material}/>}
             <LoadingSkeleton kind="text" label={t('common.loading')}/>
         </section></div></div></div></div>;
     return <div className="material-reading"><ReadingPage key={`${data.material.id}:${data.material.content_hash}:${state?.sourceVisitToken ?? ""}:${state?.restoreVisitToken ?? ""}`} data={data} scope={LIBRARY_SCOPE}/></div>;

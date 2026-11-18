@@ -9,8 +9,10 @@ const settle=()=>page.waitForFunction(()=>!document.querySelector('.approved-han
 try{
  await h.call('test_reset');const tag=await h.call('create_tag',{name:'Coast'});
  for(let i=0;i<4;i++){
-  const lines=['The air smelled of salt near the old pier.','I stood at the edge of the water and waited.',`We walked along the coast. Journey ${i+1}.`];
-  const result=await h.call('import_reading_material',{input:{operation_id:crypto.randomUUID(),name:`Coast ${i+1}.txt`,content:lines.join('\n'),normalized_kind:'txt',tag_ids:[tag],segments:lines.map((en_text,index)=>({index,en_text,zh_text:'海边的空气带着盐味。'}))}});
+  const lines=['The air smelled of salt near the old pier.','I stood at the edge of the water and waited.',`We walked along the coast. Journey ${i+1}.`,
+    ...Array.from({length:24},(_,i)=>`We continued along the path until the next bend in the road. Stop ${i+1}.`)];
+  const readerTitle = `The Lighthouse at the End of the Old Coast Road ${i+1}`;
+  const result=await h.call('import_reading_material',{input:{operation_id:crypto.randomUUID(),name:`${readerTitle}.txt`,content:lines.join('\n'),normalized_kind:'txt',tag_ids:[tag],segments:lines.map((en_text,index)=>({index,en_text,zh_text:'海边的空气带着盐味。'}))}});
   if(i===0){const read=await h.call('open_reading_material',{fileId:result.file_id}),s=read.segments[0],start=s.en_text.indexOf('air');await h.call('mutate_saved_record',{operationId:crypto.randomUUID(),mutation:{kind:'save',input:{segment_id:s.id,expression:'air',start_offset:start,end_offset:start+3,explanation:'海边读到的原句。',explanation_source:'personal'}}});}
  }
  for(const theme of ['sage','midnight'])for(const width of [1360,390,320]){
@@ -52,7 +54,8 @@ try{
         layout: opacity(layout),
         separateTextLayers: layer.querySelectorAll('[data-motion-piece=title],[data-motion-piece=quote]').length,
         cover: opacity(cover.parentElement),
-        realCover: getComputedStyle(liveCover).visibility === 'visible',
+        realCover: opacity(liveCover),
+        realMask: getComputedStyle(liveCover).maskImage,
         contour: opacity(contour),
         contourOffset: distance(cover, contour),
         coverOffset: distance(cover, liveCover),
@@ -65,7 +68,8 @@ try{
   ok(handoff[36].layout < .05, 'reading text waits for the reveal phase');
   ok(handoff.every(frame => !frame.separateTextLayers && (frame.desk < .001 || frame.layout < .001)), 'desk caption and real reader text each paint as one layout in separate phases');
   ok(handoff.every(frame => frame.layout < .001 || frame.coverOffset < .1), 'the cover is already stationary when the reader text appears');
-  ok(handoff.every(frame => frame.cover === 1 || frame.realCover && frame.coverOffset < .1 && frame.readerClip === 'none' && frame.layout === 1), 'the cover stays opaque through the settled handoff');
+  ok(handoff.every(frame => frame.layout < .001 || frame.realCover > 0 && frame.realCover < 1 && frame.realMask !== 'none' && frame.readerClip === 'none'), 'the settled cover is translucent and masked when the reader appears');
+  ok(handoff.every(frame => frame.layout < .999 || frame.cover < .001), 'only the real gradient cover remains once the text is fully painted');
   ok(handoff.slice(-12).every(frame => frame.cover < .001 && frame.realCover && frame.contour < .001), 'the last 60 ms show only the real, stationary cover');
   const entryGeometry = () => page.evaluate(() => {
     const positions=['.reading-breadcrumb .page-back','.reading-title','.folio-print','.reading-original'].map(selector=>{
@@ -79,6 +83,52 @@ try{
   await page.locator('.approved-handoff').evaluate(()=>document.getAnimations().filter(a=>a.effect.getTiming().duration===580).forEach(a=>a.finish()));await settle();
   eq(await entryGeometry(),lastFrame,'the real reader has identical geometry across the final handoff frame');
   eq(await backRect('.reading-breadcrumb .page-back'),railBack,'reader back stays at the same position as saved and library');
+  const docking = await page.evaluate(async () => {
+    const viewport = document.querySelector('.reader-scroll');
+    const heading = document.querySelector('.reading-title');
+    const cover = document.querySelector('.folio-print');
+    const bar = document.querySelector('.reader-docked-title');
+    const track = bar.querySelector('.reader-docked-title-motion');
+    const line = bar.querySelector('.reader-docked-title-line');
+    const back = document.querySelector('.reading-breadcrumb .page-back');
+    const frame = () => new Promise(done => requestAnimationFrame(()=>requestAnimationFrame(done)));
+    const sample = () => ({
+      inline: Number(getComputedStyle(heading).opacity),
+      dock: Number(getComputedStyle(track).opacity),
+      size: cover.offsetHeight,
+      back: back.getBoundingClientRect().toJSON(),
+    });
+    viewport.scrollTop = 0;
+    await frame();
+    const threshold = heading.getBoundingClientRect().top - viewport.getBoundingClientRect().top;
+    const samples = [sample()];
+    for(let offset = -18; offset <= 48; offset += 6) {
+      viewport.scrollTop = threshold + offset;
+      await frame();
+      samples.push(sample());
+    }
+    const center = node => { const rect = node.getBoundingClientRect(); return rect.y + rect.height / 2; };
+    const settled = {overflow:bar.hasAttribute('data-overflow'),marquee:line.getAnimations().length,
+      aligned:Math.abs(center(back) - center(track)) < .5, docked:bar.hasAttribute('data-docked')};
+    const backwards = [];
+    for(let offset = 48; offset >= -18; offset -= 6) {
+      viewport.scrollTop = threshold + offset;
+      await frame();
+      backwards.push(sample().dock);
+    }
+    viewport.scrollTop = 0;
+    await frame();
+    return {samples,settled,backwards,final:sample(),animationReset:!line.getAnimations().length};
+  });
+  ok(docking.samples.filter(sample => sample.dock > 0 && sample.dock < 1).length >= 5, 'scroll progress gives multiple intermediate title frames');
+  ok(docking.samples.every((sample,index)=>!index||sample.dock>=docking.samples[index-1].dock), 'title docks monotonically with upward scroll');
+  ok(docking.backwards.every((opacity,index)=>!index||opacity<=docking.backwards[index-1]), 'title leaves the bar smoothly on reverse scroll');
+  ok(docking.samples.every(sample => Math.abs(sample.inline + sample.dock - 1) < .001 && sample.size === docking.samples[0].size), 'title opacity transfers continuously with a stationary cover size');
+  ok(docking.samples.every(sample => JSON.stringify(sample.back) === JSON.stringify(docking.final.back)), 'title motion leaves the back button fixed');
+  ok(docking.settled.aligned && docking.settled.docked, 'settled title is at the back arrow centerline');
+  eq(docking.settled.overflow,width < 768,'only the viewport where the long title overflows needs scrolling');
+  eq(docking.settled.marquee,width < 768 ? 1 : 0,'only an overflowing docked title moves horizontally');
+  ok(docking.final.inline === 1 && docking.final.dock === 0 && docking.animationReset, 'scrolling back fully restores the original title');
   eq(await page.locator('.reading-document-location:visible,.sentence-number:visible,.sentence-number-static:visible,.display-settings-trigger:visible').count(),0,'reader has no format/paragraph indices or font menu');
   const bar=page.locator('.mobile-reading-bar');ok(await bar.isVisible(),'floating tools are visible on both desktop and phone');ok(await bar.evaluate(n=>innerHeight-n.getBoundingClientRect().bottom>=15),'floating controls clear the bottom edge');
   ok(await bar.evaluate(n=>{const r=[...n.querySelectorAll('button')].filter(b=>!b.closest('[inert]')).map(b=>b.getBoundingClientRect()).sort((a,b)=>a.x-b.x);return r.length===2&&r[0].right<=r[1].left+1;}),'collapsed translation and headphones never overlap');

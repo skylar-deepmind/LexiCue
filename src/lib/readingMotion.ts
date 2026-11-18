@@ -76,7 +76,9 @@ export function prepareReadingReturn(id: number) {
   const page=document.querySelector<HTMLElement>('.reading-page');
   const background=!reduced()&&page?holdPage(page):undefined;
   background?.querySelectorAll('.context-panel').forEach(node=>node.remove());
-  returning = { background, title: piece(document.querySelector('.reading-title')), cover: piece(document.querySelector('.folio-print')), quote: piece(target ?? null), words: [...(target?.querySelectorAll<HTMLElement>('.reading-word') ?? [])].slice(0,3).map(node=>piece(node)!).filter(Boolean) };
+  const cover = piece(document.querySelector('.folio-print'));
+  const coverInView = cover && viewport && cover.box.y >= viewport.top && cover.box.y < viewport.bottom;
+  returning = { background, title: piece(document.querySelector('.reading-title')), cover: coverInView ? cover : undefined, quote: piece(target ?? null), words: [...(target?.querySelectorAll<HTMLElement>('.reading-word') ?? [])].slice(0,3).map(node=>piece(node)!).filter(Boolean) };
 }
 function contours(source: Piece | undefined, origin: Entrance['origin']): HTMLCanvasElement | null {
   const image = source?.image;
@@ -116,7 +118,9 @@ function run(reverse: boolean) {
     clearHold();returning = null; pending = false; return;
   }
   const liveCover = reader?.querySelector<HTMLElement>('.folio-print') ?? null;
+  const readerViewport = reader?.querySelector('.reader-scroll')?.getBoundingClientRect();
   const cover = reverse ? returning?.cover : piece(liveCover);
+  const coverInView = cover && (reverse || !readerViewport || cover.box.y >= readerViewport.top);
   const sentenceNode = reader ? findSentence(reader, data.text) ?? reader.querySelector<HTMLElement>(`[data-sentence="${data.segment ?? 0}"] .reading-original`) : null;
   const layer = document.createElement('div'); layer.className = 'approved-handoff b-shell figma-shell'; layer.style.background='transparent'; layer.setAttribute('aria-hidden', 'true'); layer.inert = true;
   document.body.append(layer);
@@ -150,7 +154,7 @@ function run(reverse: boolean) {
     animate(node, [{ opacity: 0 }, { opacity: 0, offset: start }, { opacity: 1, offset: end }, { opacity: 1 }]);
   const clip = (r: Box, c: Box) => `inset(${Math.max(0,c.y-r.y)}px ${Math.max(0,r.x+r.width-c.x-c.width)}px ${Math.max(0,r.y+r.height-c.y-c.height)}px ${Math.max(0,c.x-r.x)}px round 16px)`;
   const paper = reverse ? returning?.background : reader;
-  if(reverse&&paper){paper.querySelectorAll<HTMLElement>('.reading-title,.folio-print').forEach(hide);paper.querySelectorAll<HTMLElement>(`[data-sentence="${data.segment}"] .reading-original`).forEach(hide);}
+  if(reverse&&paper){paper.querySelectorAll<HTMLElement>('.reading-title').forEach(hide);paper.querySelectorAll<HTMLElement>(`[data-sentence="${data.segment}"] .reading-original`).forEach(hide);}
   if (reverse && card) {
     // Keep the real card's hit area alive while the snapshot paints its artwork.
     jobs.push(card.animate([{opacity:0},{opacity:0}],{duration:duration+240,fill:'both'}));
@@ -180,7 +184,7 @@ function run(reverse: boolean) {
       if(!reverse){const controls=document.querySelector<HTMLElement>('.mobile-reading-tools');if(controls)animate(controls,[{opacity:0},{opacity:0,offset:.62},{opacity:1}]);}
     }
   }
-  if (source.cover && cover?.box.width && cover.box.height && source.cover.box.width && source.cover.box.height) {
+  if (source.cover && coverInView && cover.box.width && cover.box.height && source.cover.box.width && source.cover.box.height) {
     const from = source.cover.box, to = cover.box;
     const ink = contours(source.cover, data.origin);
     const movingCover = source.cover.node.cloneNode(true) as HTMLElement;
@@ -188,7 +192,7 @@ function run(reverse: boolean) {
     if (reverse) {
       const travel = [{ ...frame(from), borderRadius: '16px 16px 0 0' }, { ...frame(to), borderRadius: '4px' }];
       place(movingCover, from);
-      animate(movingCover, travel);
+      animate(movingCover, travel.map((key, index) => ({ ...key, opacity: index === 0 ? 1 : 0 })));
       if (ink) {
         place(ink, from);
         ink.dataset.motionPiece = 'contours';
@@ -199,8 +203,8 @@ function run(reverse: boolean) {
       const flight = document.createElement('div');
       flight.style.overflow = 'hidden';
       flight.style.borderRadius = cover.node.style.borderRadius;
-      place(flight, to);
-      Object.assign(movingCover.style, { display: 'block', width: '100%', height: '100%', objectFit: cover.fit, objectPosition: cover.node.style.objectPosition });
+      place(flight, from);
+      Object.assign(movingCover.style, { display: 'block', width: '100%', height: '100%', objectFit: source.cover.fit, objectPosition: source.cover.node.style.objectPosition });
       flight.append(movingCover);
       if (ink) {
         ink.dataset.motionPiece = 'contours';
@@ -209,21 +213,26 @@ function run(reverse: boolean) {
         animate(ink, [{ opacity: 0 }, { opacity: .76, offset: .25 }, { opacity: 0, offset: .43 }, { opacity: 0 }]);
       }
 
-      const scaleX = from.width / to.width, scaleY = from.height / to.height;
-      // Fly the final-size box as one compositor layer. Its exact resting
-      // position is held before the reader appears and before the image swap.
+      // Resize only the isolated artwork layer so the crop starts at the
+      // desk's exact composition and stays proportional throughout the flight.
+      // The stationary reader supplies the actual gradient for the handoff.
+      const settled = { ...frame(to), borderRadius: cover.node.style.borderRadius };
+      const restingCrop = { objectPosition: cover.node.style.objectPosition };
+      animate(movingCover, [{ objectPosition: source.cover.node.style.objectPosition }, { ...restingCrop, offset: .48 }, restingCrop]);
       animate(flight, [
-        { transform: `translate(${from.x - to.x}px,${from.y - to.y}px) scale(${scaleX},${scaleY})`, borderRadius: `${16 / scaleX}px ${16 / scaleX}px 0 0 / ${16 / scaleY}px ${16 / scaleY}px 0 0`, opacity: 1 },
-        { transform: 'none', borderRadius: cover.node.style.borderRadius, opacity: 1, offset: .48, easing: 'steps(1, end)' },
-        { transform: 'none', borderRadius: cover.node.style.borderRadius, opacity: 0, offset: .94 },
-        { opacity: 0 },
-      ]);
-      if (liveCover) animate(liveCover, [
-        { visibility: 'hidden', easing: 'steps(1, end)' },
-        { visibility: 'visible', offset: .80 },
-        { visibility: 'visible' },
+        { ...frame(from), borderRadius: '16px 16px 0 0', opacity: 1 },
+        { ...settled, opacity: 1, offset: .48 },
+        { ...settled, opacity: 0, offset: .72 },
+        { ...settled, opacity: 0 },
       ]);
     }
+  } else if (reverse && source.cover) {
+    const restoredCover = source.cover.node;
+    restoredCover.dataset.motionPiece = 'cover';
+    place(restoredCover, source.cover.box);
+    jobs.push(restoredCover.animate([
+      { opacity: 0 }, { opacity: 0, offset: .48 }, { opacity: 1, offset: .86 }, { opacity: 1 },
+    ], { ...options, direction: 'normal' }));
   }
   if (reverse && returnInk.length) {
     // Return ink as one measured caption. Independent font/width interpolation
