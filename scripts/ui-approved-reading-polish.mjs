@@ -6,6 +6,11 @@ import { createReadingHarness } from './ui-reading-support.mjs';
 const out = process.env.LEXICUE_READING_POLISH_OUTPUT || '/tmp/lexicue-reading-polish';
 const h = await createReadingHarness(out), checks = [];
 const check = (value, label) => { assert.ok(value, label); checks.push(label); };
+const categoryGeometry = rail => rail.evaluate(node=>({
+  offset:node.scrollLeft,
+  widths:[...node.querySelectorAll('.approved-tag-stack')].map(card=>card.getBoundingClientRect().width),
+  scales:[...node.querySelectorAll('.approved-tag-stack')].map(card=>getComputedStyle(card).transform),
+}));
 const examples = [
   ['We take off our coats.', '我们脱下外套。'],
   ['As soon as we reach the cabin, we take off our wet coats and sit by the fire.', '我们一到小屋就脱下湿外套，坐到火炉边。'],
@@ -49,19 +54,14 @@ try {
     await page.locator('.approved-tag-rail').waitFor();
     await page.waitForFunction(()=>!document.querySelector('.approved-tag-flight'));
     const rail = page.locator('.approved-tag-rail');
-    const boxes = () => rail.evaluate(node=>({
-      offset:node.scrollLeft,
-      widths:[...node.querySelectorAll('.approved-tag-stack')].map(card=>card.getBoundingClientRect().width),
-      scales:[...node.querySelectorAll('.approved-tag-stack')].map(card=>getComputedStyle(card).transform),
-    }));
-    const before = await boxes();
+    const before = await categoryGeometry(rail);
     const cdp = await phone.newCDPSession(page);
     const frame = await rail.boundingBox(), y = frame.y+frame.height/2;
     await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:320,y}]});
     for (let step=1;step<=7;step++) await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:320-step*23,y}]});
     await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
     await page.waitForFunction(old=>Math.abs(document.querySelector('.approved-tag-rail').scrollLeft-old)>45,before.offset);
-    const after = await boxes();
+    const after = await categoryGeometry(rail);
     check(before.widths.length >= 4 && before.widths.every((value,index)=>Math.abs(value-after.widths[index])<.5)
       && after.scales.every(value=>value==='none'), `${theme} category sizes remain fixed through a real horizontal touch gesture`);
     await page.screenshot({path:`${out}/${theme}-category.png`});
@@ -122,6 +122,11 @@ try {
       check(reads.size===4 && sizes.join()===(mobile?'34,30,26,24':'46,38,32,28'), `${theme} ${mobile?'phone':'desktop'} bounded font sizes across four lengths`);
       check([0,1,2].every(i=>reads.get(i).extra<=1) && reads.get(3).extra>20, `${theme} ${mobile?'phone':'desktop'} only the extra-long fixture needs page scroll`);
       if (!mobile) {
+        const rail = page.locator('.approved-tag-rail');
+        const tag = page.locator('.approved-card[data-desk-active=true] .approved-tag-edit');
+        const add = page.locator('.home-create-tag-action');
+        const entry = page.locator('.home-create-tag-entry');
+        const field = page.getByRole('textbox',{name:'输入标签名称'});
         for (let index=0;index<8;index++) await h.call('create_tag',{name:`桌面分类 ${index+1}`});
         await page.goto(h.url+'/files');
         await page.evaluate(async fileId => {
@@ -133,12 +138,12 @@ try {
         await page.locator('.approved-library-entry').click();
         await rail.waitFor();
         await page.waitForFunction(()=>!document.querySelector('.approved-tag-flight'));
-        const start = await boxes();
+        const start = await categoryGeometry(rail);
         const frame = await rail.boundingBox();
         await page.mouse.move(frame.x+frame.width*.6,frame.y+frame.height/2);
         await page.mouse.wheel(240,0);
         await page.waitForFunction(offset=>document.querySelector('.approved-tag-rail').scrollLeft>offset+150,start.offset);
-        const moved = await boxes();
+        const moved = await categoryGeometry(rail);
         check(moved.widths.every((width,index)=>width===start.widths[index]) && moved.scales.every(scale=>scale==='none'),
           `${theme} desktop horizontal scrolling with a stationary pointer keeps category sizes fixed`);
         await page.locator('.approved-rail-back').click();

@@ -87,7 +87,7 @@ try{
   await newTag.click();
   const tagName = page.getByRole('textbox',{name:'输入标签名称'});
   await tagName.fill('  Coast notes  ');
-  await page.locator('.import-tag-entry button[type=submit]').click();
+  await page.locator('.import-tag-entry').getByRole('button',{name:'保存',exact:true}).click();
   eq(await page.locator('.import-card-category').innerText(),'Coast notes','new tag is selected in the import preview');
   eq(await page.getByRole('option',{name:'Coast notes'}).getAttribute('aria-selected'),'true','draft tag is selected in the list');
   eq((await call('list_tags')).length,0,'draft tag is not persisted before material confirmation');

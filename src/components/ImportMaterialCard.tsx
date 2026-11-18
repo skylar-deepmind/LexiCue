@@ -58,7 +58,7 @@ export default function ImportMaterialCard({ item, items, tags, tagSelection, ph
             if (event.key === 'Enter' && event.nativeEvent.isComposing) event.preventDefault();
             if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setTagInput(null); newTagButton.current?.focus({ preventScroll: true }); }
           }}/>
-        <button type="submit" className="approved-icon" aria-label={t('common.confirm')} disabled={busy || !tagInput.trim()}><Check size={18} aria-hidden="true"/></button>
+        <button type="submit" className="approved-icon" aria-label={t('common.save')} disabled={busy || !tagInput.trim()}><Check size={18} aria-hidden="true"/></button>
       </form>}
     </div>
     <article className="import-material-card approved-import-preview" data-import-item={item.id} data-ready={!!identity} aria-label={t('materials.importDialog.preview')}>
