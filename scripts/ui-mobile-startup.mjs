@@ -60,18 +60,48 @@ ${continuation}`,normalized_kind:'txt',segments:[{index:0,en_text:opening},{inde
  ({record}=await call('mutate_saved_record',{operationId:crypto.randomUUID(),mutation:{kind:'save',input:{segment_id:opened.segments[1].id,expression:'quiet',start_offset:4,end_offset:9,explanation:'测试保存句',explanation_source:'personal'}}}));
  for(const theme of ['sage','midnight']){
   const context=await browser.newContext({userAgent,viewport:{width:375,height:812},isMobile:true,hasTouch:true});const page=await context.newPage();current=page;await seed(page,theme);
-  await page.goto(url,{waitUntil:'domcontentloaded'});await page.locator('.mobile-startup').waitFor();const observed=await page.evaluate(()=>performance.now());
-  ok(await page.locator('.mobile-startup').evaluate(n=>{const r=n.getBoundingClientRect();return r.x===0&&r.y===0&&r.width===innerWidth&&r.height===innerHeight;}),'launch covers the actual phone viewport');
-  eq(await page.locator('.desktop-launch--mobile').getAttribute('data-contraction'),'inset','chosen mobile B contraction');
-  ok(await page.locator('.app-startup-content').evaluate(n=>n.inert),'underlying controls cannot receive early cold-start taps');
-  const rates=await page.locator('.desktop-launch').evaluate(n=>n.getAnimations({subtree:true}).map(a=>a.playbackRate));ok(rates.length>5&&rates.every(rate=>rate===1.7),'all launch animations use chosen 1.7 speed');
-  eq(await page.locator('html').getAttribute('data-theme'),theme,'saved theme applies before launch display');
+  // Collect one coherent first-frame sample. Separate automation round trips
+  // can run after the real 220 ms handoff, especially in the full suite.
+  await page.addInitScript(({recordId,excerpt})=>{
+    const observer=new MutationObserver(()=>{
+      const cover=document.querySelector('.mobile-startup:not([data-exiting])');
+      const launch=cover?.querySelector('.desktop-launch--mobile');
+      const content=document.querySelector('.app-startup-content');
+      if(!window.__launchFrame&&cover&&launch){
+        const r=cover.getBoundingClientRect();
+        window.__launchFrame={
+          at:performance.now(),
+          fillsViewport:r.x===0&&r.y===0&&r.width===innerWidth&&r.height===innerHeight,
+          contraction:launch.dataset.contraction,
+          inert:content.inert,
+          rates:launch.getAnimations({subtree:true}).map(a=>a.playbackRate),
+          theme:document.documentElement.dataset.theme,
+        };
+      }
+      const card=document.querySelector('.approved-card[data-desk-active="true"] .approved-card-quote');
+      const pocket=document.querySelector(`[data-pocket-record="${recordId}"] .pocket-preview-sentence`);
+      if(window.__launchFrame&&content&&!content.inert&&document.querySelector('[data-testid="desk-continue"]:enabled')
+          &&card?.textContent.includes(excerpt)&&pocket?.textContent.includes(excerpt)){
+        window.__homeReadyFrame=performance.now();
+        observer.disconnect();
+      }
+    });
+    observer.observe(document,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['inert','disabled','data-desk-active']});
+  },{recordId:record.record_id,excerpt:continuation});
+  await page.goto(url,{waitUntil:'domcontentloaded'});
+  const sample=await (await page.waitForFunction(()=>window.__launchFrame)).jsonValue();
+  const observed=sample.at;
+  ok(sample.fillsViewport,'launch covers the actual phone viewport');
+  eq(sample.contraction,'inset','chosen mobile B contraction');
+  ok(sample.inert,'underlying controls cannot receive early cold-start taps');
+  ok(sample.rates.length>5&&sample.rates.every(rate=>rate===1.7),'all launch animations use chosen 1.7 speed');
+  eq(sample.theme,theme,'saved theme applies before launch display');
   await page.screenshot({path:`${output}/${theme}-launch.png`});
   await homeReady(page);
-  const ready=await page.evaluate(()=>performance.now());
+  const ready=await (await page.waitForFunction(()=>window.__homeReadyFrame)).jsonValue();
   await page.locator('.mobile-startup').waitFor({state:'detached',timeout:4000});
   const released=await page.evaluate(()=>performance.now());coldLaunch.push({theme,observedMs:observed,contentInteractiveMs:ready,overlayDetachedMs:released});
-  ok(ready-observed<1000,'ready library controls are available promptly on a fresh document');
+  ok(ready-observed<1000,`ready library controls are available promptly on a fresh document (${Math.round(ready-observed)} ms)`);
   const startupCalls=await calls(page);
   ok(startupCalls.includes('latest_saved_preview')&&startupCalls.includes('reading_material_preview'),'home fetches its independent saved and reading previews');
   ok(!startupCalls.includes('list_saved_groups')&&!startupCalls.includes('open_reading_material'),'home never opens the full archive or article');
