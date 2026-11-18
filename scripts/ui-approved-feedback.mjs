@@ -7,15 +7,15 @@ const h=await createReadingHarness(out),checks=[];let page;
 const ok=(v,label)=>{assert.ok(v,label);checks.push(label);},eq=(a,b,label)=>{assert.deepEqual(a,b,label);checks.push(label);};
 const settle=()=>page.waitForFunction(()=>!document.querySelector('.approved-handoff,.approved-tag-flight,.approved-saved-flight')&&!document.documentElement.dataset.dissolve);
 try{
- await h.call('test_reset');const tag=await h.call('create_tag',{name:'Coast'});
- for(let i=0;i<4;i++){
-  const lines=['The air smelled of salt near the old pier.','I stood at the edge of the water and waited.',`We walked along the coast. Journey ${i+1}.`,
-    ...Array.from({length:24},(_,i)=>`We continued along the path until the next bend in the road. Stop ${i+1}.`)];
-  const readerTitle = `The Lighthouse at the End of the Old Coast Road ${i+1}`;
-  const result=await h.call('import_reading_material',{input:{operation_id:crypto.randomUUID(),name:`${readerTitle}.txt`,content:lines.join('\n'),normalized_kind:'txt',tag_ids:[tag],segments:lines.map((en_text,index)=>({index,en_text,zh_text:'海边的空气带着盐味。'}))}});
-  if(i===0){const read=await h.call('open_reading_material',{fileId:result.file_id}),s=read.segments[0],start=s.en_text.indexOf('air');await h.call('mutate_saved_record',{operationId:crypto.randomUUID(),mutation:{kind:'save',input:{segment_id:s.id,expression:'air',start_offset:start,end_offset:start+3,explanation:'海边读到的原句。',explanation_source:'personal'}}});}
- }
  for(const theme of ['sage','midnight'])for(const width of [1360,390,320]){
+  await h.call('test_reset');const tag=await h.call('create_tag',{name:'Coast'});
+  for(let i=0;i<4;i++){
+   const lines=['The air smelled of salt near the old pier.','I stood at the edge of the water and waited.',`We walked along the coast. Journey ${i+1}.`,
+     ...Array.from({length:24},(_,i)=>`We continued along the path until the next bend in the road. Stop ${i+1}.`)];
+   const readerTitle = `The Lighthouse at the End of the Old Coast Road ${i+1}`;
+   const result=await h.call('import_reading_material',{input:{operation_id:crypto.randomUUID(),name:`${readerTitle}.txt`,content:lines.join('\n'),normalized_kind:'txt',tag_ids:[tag],segments:lines.map((en_text,index)=>({index,en_text,zh_text:'海边的空气带着盐味。'}))}});
+   if(i===0){const read=await h.call('open_reading_material',{fileId:result.file_id}),s=read.segments[0],start=s.en_text.indexOf('air');await h.call('mutate_saved_record',{operationId:crypto.randomUUID(),mutation:{kind:'save',input:{segment_id:s.id,expression:'air',start_offset:start,end_offset:start+3,explanation:'海边读到的原句。',explanation_source:'personal'}}});}
+  }
   const context=await h.browser.newContext({viewport:{width,height:width===1360?880:844},isMobile:width<768,hasTouch:width<768});page=await context.newPage();await h.fixture(page,theme);await page.routeWebSocket('**',s=>s.close());await page.goto(h.url);await page.locator('.approved-desk').waitFor();await page.locator('.mobile-startup').waitFor({state:'detached'});
   eq(await page.locator('.app-guide').count(),0,'fresh users see no guide');
   await page.evaluate(async()=>{const {useMaterialStore:m}=await window.__uiStoreModule('materialStore');await m.getState().load();const {useReadingDeskStore:d}=await window.__uiStoreModule('readingDeskStore');for(const file of m.getState().files.slice().reverse())d.getState().keepAndOpen(file);});await page.locator('.approved-card[data-desk-active=true]').waitFor();await page.evaluate(()=>document.fonts.ready);
