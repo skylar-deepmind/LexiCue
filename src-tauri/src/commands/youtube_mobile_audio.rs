@@ -90,8 +90,25 @@ async fn watch_visitor(client: &reqwest::Client, video_id: &str) -> Option<Strin
 }
 
 #[cfg(target_os = "ios")]
-async fn query(client: &reqwest::Client, video_id: &str, duration: u64) -> Option<Value> {
-    let visitor = watch_visitor(client, video_id).await?;
+async fn query(
+    client: &reqwest::Client,
+    video_id: &str,
+    duration: u64,
+    visitor: Option<&str>,
+) -> Result<Value, &'static str> {
+    let visitor = match visitor {
+        Some(value)
+            if (16..=1024).contains(&value.len())
+                && value
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b"_=%-".contains(&b)) =>
+        {
+            value.to_owned()
+        }
+        _ => watch_visitor(client, video_id)
+            .await
+            .ok_or("visitor_missing")?,
+    };
     let player = client
         .post("https://www.youtube.com/youtubei/v1/player?prettyPrint=false")
         .header("User-Agent", USER_AGENT)
@@ -112,32 +129,36 @@ async fn query(client: &reqwest::Client, video_id: &str, duration: u64) -> Optio
         }))
         .send()
         .await
-        .ok()?
+        .map_err(|_| "player_network")?
         .error_for_status()
-        .ok()?
+        .map_err(|_| "player_http")?
         .json()
         .await
-        .ok()?;
-    original_audio(video_id, duration, &player)
+        .map_err(|_| "player_response")?;
+    if player["playabilityStatus"]["status"] != "OK" {
+        return Err("player_not_playable");
+    }
+    original_audio(video_id, duration, &player).ok_or("no_matching_original_track")
 }
 
 #[cfg(target_os = "ios")]
 pub async fn with_original_track(
     client: &reqwest::Client,
     video_id: &str,
+    visitor: Option<&str>,
     mut metadata: Value,
 ) -> Value {
     metadata["id"] = json!(video_id);
     if let Some(duration) = metadata["duration"].as_u64() {
-        let track = tokio::time::timeout(
-            std::time::Duration::from_secs(8),
-            query(client, video_id, duration),
+        match tokio::time::timeout(
+            std::time::Duration::from_secs(12),
+            query(client, video_id, duration, visitor),
         )
         .await
-        .ok()
-        .flatten();
-        if let Some(track) = track {
-            metadata["formats"] = json!([track]);
+        {
+            Ok(Ok(track)) => metadata["formats"] = json!([track]),
+            Ok(Err(reason)) => log::info!("iPhone YouTube audio unavailable: {reason}"),
+            Err(_) => log::info!("iPhone YouTube audio unavailable: player_timeout"),
         }
     }
     metadata

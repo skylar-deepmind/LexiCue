@@ -742,7 +742,13 @@ async fn fetch_http_metadata(video_id: &str) -> Result<serde_json::Value, String
     }
     let metadata = http_player_metadata(&json);
     #[cfg(target_os = "ios")]
-    let metadata = mobile_audio::with_original_track(&client, video_id, metadata).await;
+    let metadata = mobile_audio::with_original_track(
+        &client,
+        video_id,
+        json["responseContext"]["visitorData"].as_str(),
+        metadata,
+    )
+    .await;
     Ok(metadata)
 }
 
