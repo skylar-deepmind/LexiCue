@@ -96,6 +96,15 @@ try {
       await page.waitForFunction(() => window.playbackCommits.length === 2);
       check((await commits()).at(-1).index === selected, `${label} keyboard preview commits the highlighted sentence`);
     }
+    await page.locator('.mobile-playback-mode button').last().click();
+    await start.waitFor();
+    await page.waitForFunction(() => Math.round(document.querySelector('.mobile-reading-bar').getBoundingClientRect().width) === 106);
+    const beforeTap = (await commits()).length;
+    if (touch) await start.tap();
+    else await start.click();
+    await page.waitForFunction(count => window.playbackCommits.length === count + 1, beforeTap);
+    await playback.waitFor();
+    check((await commits()).length === beforeTap + 1 && await candidate.count() === 0, `${label} a normal tap starts playback once`);
     await context.close();
   }
   assert.deepEqual(h.errors, []);
