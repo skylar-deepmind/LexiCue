@@ -10,12 +10,27 @@ function PlaybackSeekButton({ onTarget, onTargetEnd, onClick, ...props }: Compon
   onTargetEnd: (commit: boolean) => void;
 }) {
   const { t } = useTranslation();
-  const pointer = useRef<{ id: number; x: number; y: number; seeking: boolean } | null>(null);
+  type Input = 'pointer' | 'touch';
+  const drag = useRef<{ input: Input; id: number; x: number; y: number; seeking: boolean } | null>(null);
   const keyboard = useRef(false), moved = useRef(false);
-  const finish = (id: number, commit: boolean, y: number) => {
-    const active = pointer.current;
-    if (!active || active.id !== id) return;
-    pointer.current = null;
+  const begin = (input: Input, id: number, x: number, y: number) => {
+    moved.current = false;
+    if (keyboard.current) { keyboard.current = false; onTargetEnd(false); }
+    drag.current = { input, id, x, y, seeking: false };
+  };
+  const move = (input: Input, id: number, x: number, y: number) => {
+    const active = drag.current;
+    if (!active || active.input !== input || active.id !== id) return;
+    const up = active.y - y;
+    if (Math.hypot(x - active.x, up) >= 10) moved.current = true;
+    if (!active.seeking && up < 10) return;
+    active.seeking = true;
+    onTarget({ y });
+  };
+  const finish = (input: Input, id: number, commit: boolean, y: number) => {
+    const active = drag.current;
+    if (!active || active.input !== input || active.id !== id) return;
+    drag.current = null;
     if (active.seeking) {
       if (commit) onTarget({ y });
       onTargetEnd(commit);
@@ -24,24 +39,31 @@ function PlaybackSeekButton({ onTarget, onTargetEnd, onClick, ...props }: Compon
   return <button type="button" className="b-dock-control playback-seek-control" {...props}
     aria-description={t('reader.pickPlaybackStart')}
     onPointerDown={event => {
-      if (event.button !== 0 || !event.isPrimary) return;
-      moved.current = false;
-      if (keyboard.current) { keyboard.current = false; onTargetEnd(false); }
-      pointer.current = { id: event.pointerId, x: event.clientX, y: event.clientY, seeking: false };
+      if (event.pointerType === 'touch' || event.button !== 0 || !event.isPrimary) return;
+      begin('pointer', event.pointerId, event.clientX, event.clientY);
       event.currentTarget.setPointerCapture(event.pointerId);
     }}
-    onPointerMove={event => {
-      const active = pointer.current;
-      if (!active || active.id !== event.pointerId) return;
-      const up = active.y - event.clientY;
-      if (Math.hypot(event.clientX - active.x, up) >= 10) moved.current = true;
-      if (!active.seeking && up < 10) return;
-      active.seeking = true;
-      onTarget({ y: event.clientY });
+    onPointerMove={event => move('pointer', event.pointerId, event.clientX, event.clientY)}
+    onPointerUp={event => finish('pointer', event.pointerId, true, event.clientY)}
+    onPointerCancel={event => finish('pointer', event.pointerId, false, event.clientY)}
+    onLostPointerCapture={event => finish('pointer', event.pointerId, false, event.clientY)}
+    onTouchStart={event => {
+      const touch = event.changedTouches[0];
+      if (touch && event.touches.length === 1) begin('touch', touch.identifier, touch.clientX, touch.clientY);
+      else if (drag.current?.input === 'touch') finish('touch', drag.current.id, false, 0);
     }}
-    onPointerUp={event => finish(event.pointerId, true, event.clientY)}
-    onPointerCancel={event => finish(event.pointerId, false, event.clientY)}
-    onLostPointerCapture={event => finish(event.pointerId, false, event.clientY)}
+    onTouchMove={event => {
+      const touch = Array.from(event.changedTouches).find(item => item.identifier === drag.current?.id);
+      if (touch) move('touch', touch.identifier, touch.clientX, touch.clientY);
+    }}
+    onTouchEnd={event => {
+      const touch = Array.from(event.changedTouches).find(item => item.identifier === drag.current?.id);
+      if (touch) finish('touch', touch.identifier, true, touch.clientY);
+    }}
+    onTouchCancel={event => {
+      const touch = Array.from(event.changedTouches).find(item => item.identifier === drag.current?.id);
+      if (touch) finish('touch', touch.identifier, false, touch.clientY);
+    }}
     onKeyDown={event => {
       if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
         event.preventDefault();
