@@ -20,6 +20,7 @@ extern "C" {
     fn lexicue_ios_probe_audio(
         id: u64,
         path: *const c_char,
+        target: *const c_char,
         callback: extern "C" fn(u64, i64, i64),
     );
 }
@@ -41,8 +42,9 @@ impl Drop for Pending {
     }
 }
 
-pub(super) async fn probe(path: &Path) -> Result<Times, String> {
+pub(super) async fn normalize(path: &Path, target: &Path) -> Result<Times, String> {
     let path = CString::new(path.to_str().ok_or("media_io")?).map_err(|_| "media_io")?;
+    let target = CString::new(target.to_str().ok_or("media_io")?).map_err(|_| "media_io")?;
     let id = NEXT.fetch_add(1, Ordering::Relaxed);
     let (sender, result) = oneshot::channel();
     CURRENT
@@ -51,8 +53,8 @@ pub(super) async fn probe(path: &Path) -> Result<Times, String> {
         .replace((id, sender));
     let _pending = Pending(id);
     // The bridge copies the path into a file URL synchronously.
-    unsafe { lexicue_ios_probe_audio(id, path.as_ptr(), completed) };
-    let (duration, origin) = tokio::time::timeout(Duration::from_secs(15), result)
+    unsafe { lexicue_ios_probe_audio(id, path.as_ptr(), target.as_ptr(), completed) };
+    let (duration, origin) = tokio::time::timeout(Duration::from_secs(25), result)
         .await
         .map_err(|_| "media_decode_failed")?
         .map_err(|_| "media_decode_failed")?;

@@ -987,13 +987,14 @@ async fn download(
     #[cfg(target_os = "ios")]
     let (manifest, verified) = {
         ios_source_audio::download(f, &output, job).await?;
+        let normalized = tmp.0.join("normalized.m4a");
         let (duration, origin) = tokio::select! {
             _ = job.cancel_signal() => return Err("media_cancelled".into()),
-            result = ios_source_audio::probe(&output) => result?,
+            result = ios_source_audio::normalize(&output, &normalized) => result?,
         };
         (
-            media_manifest(&output, &r.source, duration, origin)?,
-            output,
+            media_manifest(&normalized, &r.source, duration, origin)?,
+            normalized,
         )
     };
     #[cfg(not(target_os = "ios"))]
