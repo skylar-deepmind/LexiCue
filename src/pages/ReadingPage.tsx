@@ -225,7 +225,7 @@ export default function ReadingPage({ data, scope }: {
         playing: listening && !query && reading?.status === 'playing',
         listening,
         recoverable: listening && !query && (reading?.status === 'playing' || reading?.status === 'loading'),
-        canBrowse: !query && !importOpen && !!segments.length,
+        canBrowse: listening && !query && !importOpen && !!segments.length,
         onBrowse: previewPlaybackTarget,
         onBrowseEnd: () => selectPlaybackTarget(null),
     });

@@ -23,8 +23,9 @@ try {
     page = await context.newPage();
     await h.fixture(page, theme);
     await page.goto(`${h.url}/files/${material.file_id}`);
-    const start = page.locator('.mobile-headphone-mode button');
-    const playback = page.locator('.mobile-playback-mode button').first();
+    const start = page.locator('.mobile-headphone-mode[data-active=true] button');
+    const playback = page.locator('.mobile-playback-mode[data-active=true] button').first();
+    const exit = page.locator('.mobile-playback-mode[data-active=true] button').last();
     const guide = page.locator('.reader-playback-guide');
     const viewport = page.locator('.reader-scroll');
     const row = index => page.locator(`[data-sentence="${index}"] .reading-original`);
@@ -56,33 +57,45 @@ try {
       const bounds = await viewport.boundingBox();
       const x = bounds.x + bounds.width - 30;
       const y = bounds.y + Math.min(bounds.height - 150, 490);
+      const before = await scrollTop();
       if (!cdp) {
         await page.mouse.move(x, y);
         await page.mouse.wheel(0, distance);
-        await guide.waitFor();
-        return;
-      }
-      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{x,y}] });
-      for (let i = 1; i <= 8; i++) {
-        await cdp.send('Input.dispatchTouchEvent', { type:'touchMove',touchPoints:[{x,y:y-distance*i/8}] });
-        await page.waitForTimeout(22);
-      }
-      await page.waitForTimeout(180);
-      await cdp.send('Input.dispatchTouchEvent', { type:'touchEnd',touchPoints:[] });
-      await guide.waitFor();
-      await viewport.evaluate(async node => {
-        let previous=node.scrollTop;
-        for(let attempt=0;attempt<8;attempt++){
-          await new Promise(resolve=>setTimeout(resolve,110));
-          if(Math.abs(node.scrollTop-previous)<1)break;
-          previous=node.scrollTop;
+      } else {
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{x,y}] });
+        for (let i = 1; i <= 8; i++) {
+          await cdp.send('Input.dispatchTouchEvent', { type:'touchMove',touchPoints:[{x,y:y-distance*i/8}] });
+          await page.waitForTimeout(22);
         }
-      });
+        await page.waitForTimeout(180);
+        await cdp.send('Input.dispatchTouchEvent', { type:'touchEnd',touchPoints:[] });
+      }
+      await page.waitForFunction(old => document.querySelector('.reader-scroll').scrollTop > old + 40, before);
+      await waitForScrollToSettle();
     };
+    const waitForScrollToSettle = () => viewport.evaluate(async node => {
+      let previous = node.scrollTop, stable = 0;
+      while (stable < 4) {
+        await new Promise(requestAnimationFrame);
+        const current = node.scrollTop;
+        stable = Math.abs(current - previous) < .1 ? stable + 1 : 0;
+        previous = current;
+      }
+    });
 
     check(await guide.count() === 0, `${label} reader entry has no guide or autoplay`);
     await browse();
-    check(await guide.count() === 1 && (await commits()).length === 0, `${label} browsing exposes a single guide without starting playback`);
+    const unplayed = await scrollTop();
+    await page.waitForTimeout(2250);
+    check(await guide.count() === 0 && (await commits()).length === 0 && Math.abs((await scrollTop()) - unplayed) < 2,
+      `${label} normal browsing shows no guide, starts no audio, and keeps the scroll position`);
+    if (touch) await start.tap(); else await start.click();
+    await playback.waitFor();
+    await waitForScrollToSettle();
+    check(await guide.count() === 0 && (await commits()).length === 1, `${label} headphones enter listening mode without immediately showing a guide`);
+    await browse();
+    await guide.waitFor();
+    check(await guide.count() === 1 && (await commits()).length === 1, `${label} browsing in listening mode exposes one guide without starting another sentence`);
     const geometry = await guide.evaluate(node => {
       const p = node.closest('p');
       const line = getComputedStyle(p,'::before');
@@ -92,29 +105,28 @@ try {
     });
     check(geometry.line === '1px' && Math.abs(geometry.top - (geometry.lineHeight/2 + 2)) < 2
       && Math.abs(geometry.top-geometry.center) < 1 && geometry.fill === 'rgba(0, 0, 0, 0)', `${label} one thin first-line guide with a circle-free control`);
-    const unplayed = await scrollTop();
-    await page.waitForTimeout(2250);
-    check(Math.abs((await scrollTop()) - unplayed) < 2 && (await commits()).length === 0, `${label} idle without playback holds the browsing position`);
     await page.screenshot({ path: `${out}/${theme}-${touch ? 'touch' : 'desktop'}-guide.png` });
     const first = await chosen();
     if (touch) await guide.tap({ position: { x: 155, y: 22 } });
     else await guide.click({ position: { x: 155, y: 22 } });
-    await page.waitForFunction(() => window.playbackCommits.length === 1);
-    check(JSON.stringify(await commits()) === JSON.stringify([{ index: first, text: lines[first] }]), `${label} tapping across the line plays exactly its sentence`);
+    await page.waitForFunction(() => window.playbackCommits.length === 2);
+    assert.deepEqual((await commits()).at(-1), { index: first, text: lines[first] });
+    check(true, `${label} tapping across the line plays exactly its sentence`);
     await guide.waitFor({ state:'detached' });
     await playback.waitFor();
     await page.waitForTimeout(900);
 
     await browse();
+    await guide.waitFor();
     const whileBrowsing = await scrollTop();
-    check((await commits()).length === 1 && await page.evaluate(() => window.browsePauses.length === 0),
+    check((await commits()).length === 2 && await page.evaluate(() => window.browsePauses.length === 0),
       `${label} browsing touches neither pause the spoken sentence nor start another one`);
     await page.evaluate(index => window.advanceReading(index), first + 1);
     await page.waitForTimeout(700);
     check(Math.abs((await scrollTop())-whileBrowsing) < 35, `${label} playback advance does not interrupt browsing before the idle deadline`);
     await guide.waitFor({ state:'detached', timeout:3400 });
     await page.waitForFunction(old => Math.abs(document.querySelector('.reader-scroll').scrollTop-old)>40, whileBrowsing);
-    check((await commits()).length === 1, `${label} idle recovery follows the still-running queue without restarting it`);
+    check((await commits()).length === 2, `${label} idle recovery follows the still-running queue without restarting it`);
     await page.waitForFunction(index => {
       const node = document.querySelector(`[data-sentence="${index}"] .reading-original`);
       const inside = document.querySelector('.reader-scroll').getBoundingClientRect();
@@ -123,29 +135,31 @@ try {
     }, first + 1);
     check(await guide.count() === 0, `${label} programmatic follow never exposes its own guide`);
 
-    await page.locator('.mobile-playback-mode button').last().click();
+    await waitForScrollToSettle();
+    await browse();
+    await guide.waitFor();
+    await exit.click();
     await start.waitFor();
-    if (touch) await start.tap(); else await start.click();
-    await page.waitForFunction(() => window.playbackCommits.length === 2);
-    check(await guide.count() === 0 && await page.locator('.sentence-listen').count() === 0, `${label} the bottom button retains ordinary playback and there are no repeated inline controls`);
+    await guide.waitFor({ state:'detached' });
+    await browse();
+    check(await guide.count() === 0 && (await commits()).length === 2 && await page.locator('.sentence-listen').count() === 0,
+      `${label} leaving listening mode removes the guide and further scrolling shows no inline playback controls`);
     if (!touch) {
-      await page.locator('.mobile-playback-mode button').last().click();
-      await start.waitFor();
       await viewport.evaluate(node => { node.scrollTop = 0; node.focus({ preventScroll:true }); });
       await page.keyboard.press('PageDown');
+      await page.waitForFunction(() => document.querySelector('.reader-scroll').scrollTop > 40);
+      await waitForScrollToSettle();
+      check(await guide.count() === 0, `${label} normal keyboard scrolling also hides the guide`);
+      await start.click();
+      await playback.waitFor();
+      await waitForScrollToSettle();
+      await viewport.focus();
+      await page.keyboard.press('PageDown');
       await guide.waitFor();
-      await viewport.evaluate(async node => {
-        let previous = node.scrollTop, stable = 0;
-        while (stable < 4) {
-          await new Promise(requestAnimationFrame);
-          const current = node.scrollTop;
-          stable = Math.abs(current - previous) < .1 ? stable + 1 : 0;
-          previous = current;
-        }
-      });
+      await waitForScrollToSettle();
       const selected = await chosen();
       await page.keyboard.press('Enter');
-      await page.waitForFunction(() => window.playbackCommits.length === 3);
+      await page.waitForFunction(() => window.playbackCommits.length === 4);
       check((await commits()).at(-1).index === selected, `${label} Enter plays the preview after scrolling by keyboard`);
     }
     await context.close();
