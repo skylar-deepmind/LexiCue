@@ -17,7 +17,6 @@
 .approved-wall .approved-wall-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; position:absolute; inset:90px 24px 100px; margin:0; --approved-empty-filter:invert(1) grayscale(1); --approved-empty-blend:screen; }
 .approved-wall-empty > .empty-library-artwork { width:min(220px,50vw); height:min(280px,40vh); background:transparent; }
 .approved-wall-empty p { margin:0; font:14px/1.5 system-ui; color:inherit; }
-.approved-wall:has(.approved-wall-empty) .approved-projector { display:none; }
 .approved-tag-name { touch-action:pan-x; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
 .approved-tag-name-editor { flex:none; min-width:0; padding:5px; background:var(--approved-wall-title); }
 .approved-tag-name-field { position:relative; }

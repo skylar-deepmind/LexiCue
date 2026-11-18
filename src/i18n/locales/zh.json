@@ -373,6 +373,8 @@
       "title": "关于与更新",
       "description": "自动检测并安装 LexiCue 最新版本，更新包通过 GitHub Releases 发布。",
       "check": "检查更新",
+      "checkFailed": "暂时无法检查更新，请重试。",
+      "installFailed": "无法完成更新，请重试。",
       "checking": "检查中...",
       "currentVersion": "当前版本 v{{version}}",
       "upToDate": "已是最新版本",

@@ -176,7 +176,54 @@ try{
   ok(await page.locator('.approved-settings-paper > h1').evaluate(n=>n.getBoundingClientRect().width<=1),'category heading is not repeated in the detail paper');
   await page.getByRole('radio',{name:'Deutsch',exact:true}).click();await page.getByRole('radio',{name:'中文',exact:true}).click();eq(await page.getByRole('radio',{name:'中文',exact:true}).getAttribute('aria-checked'),'true','language changes in place without navigation');
   await page.locator('.approved-settings-tabs button').last().click();ok(await page.locator('.approved-settings-tabs').isVisible(),'software update retains the settings index');eq(await page.locator('.approved-settings-tabs button:visible').count(),4,'all settings categories remain available in update detail');
-  await page.locator('.approved-settings-tabs button').nth(2).click();await page.locator('[data-entry=youtube]').click();const youtube=page.locator('.youtube-download-settings');ok((await youtube.locator('.youtube-tool-summary').innerText()).length<120,'subtitle status stays concise');ok(await youtube.getByRole('button',{name:'官方安装说明',exact:true}).isVisible(),'missing-tool installation is visible without enabling browser sessions');eq(await youtube.locator('#youtube-browser-profile:visible').count(),0,'optional profiles and diagnostics stay out of the default flow');await page.screenshot({path:`${out}/${theme}-${width}-settings.png`});
+  if(width===1360){
+    const pane=page.locator('.update-settings');
+    const check=page.getByRole('button',{name:'检查更新',exact:true});
+    const toast=page.locator('[data-notification-host="top"] .toast-card');
+    const version=await pane.locator('.settings-facts').boundingBox(), refresh=await check.boundingBox();
+    ok(refresh.x >= version.x+version.width-1 && Math.abs(refresh.y+refresh.height/2-version.y-version.height/2)<2,'refresh icon is on the same row as the version');
+    await check.click();
+    await toast.filter({hasText:'已是最新版本'}).waitFor();
+    eq(await pane.getByText('已是最新版本').count(),0,'up-to-date result belongs only to the toast');
+    await page.waitForFunction(()=>Number(getComputedStyle(document.querySelector('[data-notification-host="top"] .toast-card')).opacity)===1);
+    await page.screenshot({path:`${out}/${theme}-update-toast.png`});
+    await toast.waitFor({state:'detached'});
+    await page.evaluate(()=>{
+      const native=window.__TAURI_INTERNALS__.invoke;
+      window.__updateResult='error';
+      window.__TAURI_INTERNALS__.invoke=(command,args)=>{
+        if(command==='plugin:updater|check')throw Error('controlled updater unavailable');
+        if(command==='check_github_release'){
+          if(window.__updateResult==='error')throw Error('controlled release failure');
+          return Promise.resolve({version:'99.0.0',url:'https://example.com/release'});
+        }
+        return native(command,args);
+      };
+    });
+    await check.click();
+    await toast.filter({hasText:'暂时无法检查更新，请重试。'}).waitFor();
+    eq(await pane.getByRole('alert').count(),0,'check failure is a concise toast without inline diagnostics');
+    await page.evaluate(()=>{window.__updateResult='available';});
+    await check.click();
+    await toast.filter({hasText:'发现新版本 v99.0.0'}).waitFor();
+    ok(await pane.getByRole('button',{name:'打开下载页面'}).isVisible() && await toast.count()===1,'a new version shows one toast and keeps the download action reachable');
+    await toast.waitFor({state:'detached'});
+  }
+  await page.locator('.approved-settings-tabs button').nth(2).click();await page.locator('[data-entry=youtube]').click();
+  const youtube=page.locator('.youtube-download-settings'), help=youtube.locator('.youtube-tool-help > summary');
+  ok((await youtube.locator('.youtube-tool-summary').innerText()).length<120,'subtitle status stays concise');
+  const installation=youtube.getByRole('button',{name:'官方安装说明',exact:true});
+  ok(!await installation.isVisible(),'installation and diagnostics start collapsed');
+  await help.click();
+  ok(await installation.isVisible(),'missing-tool installation is reachable without enabling browser sessions');
+  await help.click();
+  eq(await youtube.locator('#youtube-browser-profile:visible').count(),0,'optional profiles stay out of the default flow');
+  await page.screenshot({path:`${out}/${theme}-${width}-settings.png`});
+  const browserSwitch=youtube.getByRole('switch',{name:'使用浏览器登录会话'});
+  eq(await youtube.getByText(/仅在本机读取登录会话/).count(),0,'an off browser session keeps the privacy help out of the default view');
+  await browserSwitch.click();
+  ok(await youtube.getByText(/仅在本机读取登录会话/).isVisible(),'privacy guidance appears with the enabled browser session');
+  await browserSwitch.click();
   await page.emulateMedia({reducedMotion:'reduce'});await page.goto(`${h.url}/files`);await page.locator('.approved-desk').waitFor();await page.getByRole('button',{name:'已保存',exact:true}).click();await page.locator('.approved-saved-folio').waitFor();eq(await page.locator('.approved-saved-flight,.approved-handoff,.approved-tag-flight').count(),0,'reduced motion opens real content without flights');ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'no horizontal overflow');
   await context.close();
  }

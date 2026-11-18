@@ -11,7 +11,8 @@ try{
  for(let i=0;i<14;i++){
   const lines=['I stood at the edge of the water and waited.','The air smelled of salt near the old pier.','We finally had time to catch up on the night train.',`I will take this path again tomorrow. Material ${i+1}.`];
   if(i%2)lines.push(...Array.from({length:8},(_,n)=>`A longer paragraph number ${n+1} gives us time to read and reflect on the day.`));
-  const value=await call('import_reading_material',{input:{operation_id:`approved-fixture-${i}`,name:`${['After the Tide','Night Walk','Market Day','Shore Notes'][i%4]} ${i+1}.txt`,content:lines.join('\n'),segments:lines.map((en_text,index)=>({index,en_text,zh_text:'我们沿着海边阅读，记下句子里的想法。',start_time:null,end_time:null})),normalized_kind:'txt',tag_ids:[tag]}});
+  const title=i===1 ? 'A Very Long Title About the Lighthouse and the Story of the Old Harbor Beyond the Coastal Road' : `${['After the Tide','Night Walk','Market Day','Shore Notes'][i%4]} ${i+1}`;
+  const value=await call('import_reading_material',{input:{operation_id:`approved-fixture-${i}`,name:`${title}.txt`,content:lines.join('\n'),segments:lines.map((en_text,index)=>({index,en_text,zh_text:'我们沿着海边阅读，记下句子里的想法。',start_time:null,end_time:null})),normalized_kind:'txt',tag_ids:[tag]}});
   if(i<3){const data=await call('open_reading_material',{fileId:value.file_id});for(const [segmentIndex,expression] of [[1,'air'],[2,'catch up']]){const segment=data.segments[segmentIndex],start=segment.en_text.indexOf(expression);await call('mutate_saved_record',{operationId:`approved-save-${i}-${segmentIndex}`,mutation:{kind:'save',input:{segment_id:segment.id,expression,start_offset:start,end_offset:start+expression.length,explanation:'保留真实原句的个人解释。',explanation_source:'personal'}}});}}
  }
  for(const theme of ['sage','midnight'])for(const width of [1360,390,320,430]){
@@ -25,6 +26,24 @@ try{
   await page.screenshot({path:`${output}/${theme}-${width}-home.png`});
   await page.getByRole('button',{name:'材料库',exact:true}).click();await page.locator('.approved-tag-panel').waitFor();
   await page.getByRole('button',{name:'Coast · 14',exact:true}).click();await page.locator('.approved-poster').first().waitFor();
+  if(width>=768){
+    eq(await page.locator('.approved-projector').count(),0,'desktop poster wall omits the projector');
+    const long=page.locator('.approved-poster').filter({hasText:'A Very Long Title'});
+    ok(await long.evaluate(poster=>{
+      const title=poster.querySelector('strong'), cover=poster.querySelector('img');
+      const text=getComputedStyle(title), bounds=poster.getBoundingClientRect();
+      return text.webkitLineClamp==='2' && parseFloat(text.fontSize)<=20
+        && cover.getBoundingClientRect().height>=bounds.height*.58
+        && poster.querySelector('button').title===title.textContent;
+    }),'long desktop titles keep the cover visible and expose the full title on hover');
+    const wall=page.locator('.approved-wall-viewport');
+    await wall.hover();
+    await page.mouse.wheel(0,360);
+    await page.waitForFunction(()=>new DOMMatrix(getComputedStyle(document.querySelector('.approved-poster-plane')).transform).m41 < -40);
+    await wall.press('Home');
+    await page.waitForFunction(()=>Math.abs(new DOMMatrix(getComputedStyle(document.querySelector('.approved-poster-plane')).transform).m41)<1);
+    ok(true,'the mouse wheel and keyboard navigate the wall after removing the projector');
+  }
   if(width<768){eq(await page.locator('.approved-phone-column').count(),2,'two vertical poster columns');await page.locator('.approved-wall-viewport').evaluate(node=>{node.scrollTop=420;});}
   await page.screenshot({path:`${output}/${theme}-${width}-wall.png`});
   const wallPosition=await page.locator('.approved-wall-viewport').evaluate(n=>({x:n.scrollLeft,y:n.scrollTop}));

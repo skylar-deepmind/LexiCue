@@ -15,7 +15,7 @@ import { finishReadingReturn } from '../lib/readingMotion';
 const positions = new Map<string, { x: number; y: number; focus: number | null }>();
 export default function PosterWall({ files, title, identity, onBack, onOpen }: { files: Material[]; title: string; identity: string; onBack: () => void; onOpen: (file: Material, node: HTMLElement) => void }) {
   const { t } = useTranslation(), mobile = useMediaQuery('(max-width: 767px)');
-  const viewport = useRef<HTMLDivElement>(null), wall = useRef<HTMLDivElement>(null), projector = useRef<HTMLDivElement>(null);
+  const viewport = useRef<HTMLDivElement>(null), wall = useRef<HTMLDivElement>(null);
   const memory = useRef(positions.get(identity) ?? { x: 0, y: 0, focus: null });
   const suppression = useRef(0), restoring = useRef(true);
   const columns = useMemo(() => phonePosterLayout(files.map(file => ({ id: file.id, characters: file.character_count ?? file.document?.blocks.reduce((count, block) => count + block.text.length, 0) ?? file.preview.length * Math.max(1, file.segment_count) }))), [files]);
@@ -37,7 +37,7 @@ export default function PosterWall({ files, title, identity, onBack, onOpen }: {
     return () => cancelAnimationFrame(frame);
   }, [identity, mobile]);
   useEffect(() => {
-    const view = viewport.current, plane = wall.current, beam = projector.current;
+    const view = viewport.current, plane = wall.current;
     if (!view || !plane || mobile) return;
     let x = memory.current.x, target = x, previous = performance.now(), lastInput = -Infinity, frame = 0, energy = 0;
     let drag: { id: number; x: number; start: number; moved: boolean } | null = null;
@@ -61,8 +61,8 @@ export default function PosterWall({ files, title, identity, onBack, onOpen }: {
     };
     const wake = () => { lastInput = performance.now(); if (!frame) { previous = lastInput; frame = requestAnimationFrame(paint); } };
     const wheel = (event: WheelEvent) => {
-      const delta = event.currentTarget === beam ? event.deltaX || event.deltaY : event.deltaX;
-      if (!delta) return;
+      const delta = Math.abs(event.deltaX) >= Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+      if (!delta || event.ctrlKey || !max()) return;
       event.preventDefault(); target = clamp(target + delta * .95); wake();
     };
     const down = (event: PointerEvent) => { if (event.button !== 0) return; drag = { id: event.pointerId, x: event.clientX, start: target, moved: false }; };
@@ -80,12 +80,12 @@ export default function PosterWall({ files, title, identity, onBack, onOpen }: {
       event.preventDefault(); target = event.key === 'Home' ? 0 : event.key === 'End' ? max() : clamp(target + (event.key === 'ArrowRight' ? 1 : -1) * 260); wake();
     };
     plane.style.transform = `translate3d(${-clamp(x)}px,0,0)`;
-    view.addEventListener('wheel', wheel, { passive: false }); beam?.addEventListener('wheel', wheel, { passive: false });
+    view.addEventListener('wheel', wheel, { passive: false });
     view.addEventListener('pointerdown', down); view.addEventListener('pointermove', move); view.addEventListener('pointerup', end); view.addEventListener('pointercancel', end); view.addEventListener('keydown', key);
     const resize = () => { target = clamp(target); wake(); }; window.addEventListener('resize', resize);
-    return () => { cancelAnimationFrame(frame); view.removeEventListener('wheel', wheel); beam?.removeEventListener('wheel', wheel); view.removeEventListener('pointerdown', down); view.removeEventListener('pointermove', move); view.removeEventListener('pointerup', end); view.removeEventListener('pointercancel', end); view.removeEventListener('keydown', key); window.removeEventListener('resize', resize); };
+    return () => { cancelAnimationFrame(frame); view.removeEventListener('wheel', wheel); view.removeEventListener('pointerdown', down); view.removeEventListener('pointermove', move); view.removeEventListener('pointerup', end); view.removeEventListener('pointercancel', end); view.removeEventListener('keydown', key); window.removeEventListener('resize', resize); };
   }, [mobile, identity, files]);
-  const poster = (file: Material, units?: number) => <RemovablePoster key={file.id} file={file}><article className="approved-poster" key={file.id} data-motion-file={file.id} style={units ? { '--poster-units': units } as React.CSSProperties : undefined}><button aria-label={t('readingDesk.openNamed', { name: file.name })} onClick={event => {
+  const poster = (file: Material, units?: number) => <RemovablePoster key={file.id} file={file}><article className="approved-poster" key={file.id} data-motion-file={file.id} style={units ? { '--poster-units': units } as React.CSSProperties : undefined}><button aria-label={t('readingDesk.openNamed', { name: file.name })} title={mobile ? undefined : bookmarkTitle(file.name)} onClick={event => {
     if (performance.now() < suppression.current) return;
     memory.current.focus = file.id; memory.current.y = viewport.current?.scrollTop ?? 0; positions.set(identity, memory.current);
     onOpen(file, event.currentTarget.closest('article')!);
@@ -98,7 +98,6 @@ export default function PosterWall({ files, title, identity, onBack, onOpen }: {
         return chunk.length ? <div key={i} className="approved-poster-column" data-paired={i % 2 === 1}>{chunk.map(file => poster(file))}</div> : null;
       })}
     </div><div className="approved-projection-light" aria-hidden="true"/></div>}
-    <div ref={projector} className="approved-projector" aria-hidden="true"><div className="approved-projector-beam"/><img src="/design/optics.jpg" alt=""/><i/></div>
   </section>;
 }
 

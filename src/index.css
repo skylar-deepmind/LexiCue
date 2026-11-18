@@ -1035,9 +1035,17 @@ body { margin: 0; background: var(--app-bg); color: var(--text-body); }
 .youtube-error > .ui-button { margin-top: 8px; }
 .youtube-picker-controls > .youtube-error { margin: 0; }
 .youtube-selection-summary { display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; padding: 12px 20px; border-bottom: 1px solid var(--border); background: var(--surface); }
-.youtube-download-settings { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; color: var(--text-body); }
+.youtube-download-settings { display: flex; flex-direction: column; gap: 5px; margin-top: 12px; color: var(--text-body); }
 .youtube-download-settings h4 { color: var(--text-strong); font-weight: 600; }
-.youtube-download-settings > .ui-button { align-self: flex-start; }
+.subtitle-setting-row { display:flex; align-items:center; gap:10px; width:100%; min-height:44px; padding:5px 8px; border:0; border-radius:8px; background:transparent; color:var(--text-body); text-align:start; cursor:pointer; }
+.subtitle-setting-row > svg { flex:none; }
+.subtitle-setting-row:disabled { color:var(--text-muted); cursor:default; }
+.subtitle-setting-row:focus-visible { outline:2px solid var(--accent-700); outline-offset:-2px; }
+.subtitle-setting-row:hover:enabled { background:var(--interactive-hover); }
+.subtitle-session > i { position:relative; flex:none; width:32px; height:18px; margin-inline-start:auto; border-radius:9px; border:1px solid var(--text-muted); }
+.subtitle-session > i::after { content:''; position:absolute; inset-block-start:3px; inset-inline-start:3px; width:10px; height:10px; border-radius:50%; background:var(--text-muted); }
+.subtitle-session[aria-checked="true"] > i { background:var(--accent-700); border-color:var(--accent-700); }
+.subtitle-session[aria-checked="true"] > i::after { inset-inline-start:17px; background:var(--on-accent); }
 .youtube-download-settings label { color: var(--text-strong); font-size: 0.875rem; }
 .youtube-input:disabled { background: var(--surface-muted); color: var(--text-muted); cursor: not-allowed; }
 .youtube-diagnostics { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 16px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-muted); font-size: 0.8125rem; }

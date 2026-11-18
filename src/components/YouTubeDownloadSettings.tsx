@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
 import { openUrl } from '@tauri-apps/plugin-opener';
-import { Download, RefreshCw } from 'lucide-react';
+import { Download, Globe, RefreshCw, Trash2 } from 'lucide-react';
 import { useFeedbackStore } from '../stores/feedbackStore';
 import { useTranslation } from 'react-i18next';
 import { isIOSPlatform } from '../lib/platform';
@@ -46,23 +46,23 @@ function DesktopSubtitleTools({ status }: { status?: YtDlpStatus | null }) {
   };
   return <>
     <section className="youtube-tool-status" aria-label={t('approved.subtitleTools')}>
-      <div className="youtube-tool-summary"><Download size={20} aria-hidden="true"/><span>{t('approved.subtitleTools')}</span><span role="status">{checking?t('youtube.downloadSettings.checking'):checkFailed?t('youtube.downloadSettings.checkFailed'):diagnostics?issue?t('approved.toolsNeedSetup'):t(`youtube.downloadSettings.${diagnostics.available?'available':'missing'}`):'—'}</span><button className="approved-icon" aria-label={t('approved.recheckTools')} disabled={checking} aria-busy={checking} onClick={()=>void probe()}>{checking?<BusyRing/>:<RefreshCw size={18}/>}</button></div>
-      {issue&&<p className="youtube-warning">{t(`youtube.downloadSettings.${issue}`)}</p>}
-      <details className="youtube-tool-help" open={issue?true:undefined}>
+      <div className="youtube-tool-summary"><Download size={18} aria-hidden="true"/><span>{t('approved.subtitleTools')}</span><span role="status">{checking?t('youtube.downloadSettings.checking'):checkFailed?t('youtube.downloadSettings.checkFailed'):diagnostics?issue?t('approved.toolsNeedSetup'):t('youtube.downloadSettings.available'):'—'}</span><button type="button" className="approved-icon" aria-label={t('approved.recheckTools')} title={t('approved.recheckTools')} disabled={checking} aria-busy={checking} onClick={()=>void probe()}>{checking?<BusyRing/>:<RefreshCw size={17} aria-hidden="true"/>}</button></div>
+      <details className="youtube-tool-help">
         <summary>{t('approved.installAndDiagnostics')}</summary>
-        <p className="youtube-muted">{t('approved.youtubeExternalTools')}</p>
+        {issue&&<p className="youtube-warning">{t(`youtube.downloadSettings.${issue}`)}</p>}
+        {issue&&<p className="youtube-muted">{t('approved.youtubeExternalTools')}</p>}
         {command&&<div className="youtube-install-command"><code tabIndex={0}>{command}</code><button className="ui-button" onClick={()=>void copyInstall()}>{t('approved.copyInstallCommand')}</button></div>}
         <div className="youtube-install-links"><button className="ui-button" onClick={()=>void showInstall('https://github.com/yt-dlp/yt-dlp/wiki/Installation')}>{t('approved.officialInstall')}</button><button className="ui-button" onClick={()=>void showInstall('https://github.com/yt-dlp/yt-dlp/wiki/EJS')}>{t('approved.runtimeHelp')}</button></div>
         {command?.startsWith('brew')&&<p className="youtube-muted">{t('approved.requiresBrew')} <button className="youtube-help-link" onClick={()=>void showInstall('https://brew.sh/')}>Homebrew</button></p>}
         {diagnostics&&<dl className="youtube-diagnostics"><dt>yt-dlp</dt><dd>{diagnostics.version??t('youtube.downloadSettings.missing')}{diagnostics.path&&<><br/>{diagnostics.path}</>}</dd><dt>{t('youtube.downloadSettings.javascript')}</dt><dd>{diagnostics.javascript??t('youtube.downloadSettings.missing')}</dd><dt>EJS</dt><dd>{t(`youtube.downloadSettings.${diagnostics.ejs??'unknown'}`)}</dd><dt>ffmpeg</dt><dd>{diagnostics.ffmpeg??t('youtube.downloadSettings.missing')}</dd></dl>}
       </details>
     </section>
-    <button type="button" className="youtube-ai" role="switch" aria-checked={session.enabled}
+    <button type="button" className="subtitle-setting-row subtitle-session" role="switch" aria-checked={session.enabled}
       onClick={() => setSession({ ...session, enabled: !session.enabled })}>
-      {t('youtube.downloadSettings.browserEnable')}<span>{t(session.enabled ? 'youtube.aiOn' : 'youtube.aiOff')}</span>
+      <Globe size={18} aria-hidden="true"/><span>{t('youtube.downloadSettings.browserEnable')}</span><i aria-hidden="true"/>
     </button>
-    <p className="youtube-muted">{t('approved.youtubePrivacy')}</p>
     {session.enabled && <>
+    <p className="youtube-muted">{t('approved.youtubePrivacy')}</p>
     <label htmlFor="youtube-browser">{t('youtube.downloadSettings.browser')}</label>
     <AppSelect id="youtube-browser" value={session.browser} disabled={!session.enabled}
       onChange={browser => { setProfile(null); setSession({ ...session, browser, profile: '' }); }}
@@ -80,16 +80,17 @@ function DesktopSubtitleTools({ status }: { status?: YtDlpStatus | null }) {
 export default function YouTubeDownloadSettings({ status }: { status?: YtDlpStatus | null }) {
   const { t } = useTranslation();
   const [clearing, setClearing] = useState(false);
-  const [notice, setNotice] = useState('');
   const clearCache = async () => {
-    setClearing(true); setNotice('');
-    try { await invoke('youtube_clear_subtitle_cache'); setNotice(t('youtube.downloadSettings.cacheCleared')); }
-    catch { setNotice(t('youtube.downloadSettings.cacheFailed')); }
+    setClearing(true);
+    const { show } = useFeedbackStore.getState();
+    try { await invoke('youtube_clear_subtitle_cache'); show(t('youtube.downloadSettings.cacheCleared'), 'success', 3200, undefined, 'top', { passive: true }); }
+    catch { show(t('youtube.downloadSettings.cacheFailed'), 'error', 4800, undefined, 'top', { passive: true }); }
     finally { setClearing(false); }
   };
   return <div className="youtube-download-settings">
     {isIOSPlatform() ? <p>{t('youtube.downloadSettings.publicTracks')}</p> : <DesktopSubtitleTools status={status} />}
-    <button type="button" className="ui-button" disabled={clearing} aria-busy={clearing} onClick={() => void clearCache()}>{clearing && <BusyRing />}<span>{t('youtube.downloadSettings.clearCache')}</span></button>
-    {notice && <p className="youtube-notice" role="status">{notice}</p>}
+    <button type="button" className="subtitle-setting-row" disabled={clearing} aria-busy={clearing} onClick={() => void clearCache()}>
+      {clearing ? <BusyRing/> : <Trash2 size={18} aria-hidden="true"/>}<span>{t('youtube.downloadSettings.clearCache')}</span>
+    </button>
   </div>;
 }

@@ -373,6 +373,8 @@
       "title": "バージョン情報と更新",
       "description": "LexiCue の最新版を自動的に検出してインストールします。更新は GitHub Releases から配布されます。",
       "check": "更新を確認",
+      "checkFailed": "アップデートを確認できませんでした。もう一度お試しください。",
+      "installFailed": "アップデートを完了できませんでした。もう一度お試しください。",
       "checking": "確認中...",
       "currentVersion": "現在のバージョン v{{version}}",
       "upToDate": "最新バージョンです",

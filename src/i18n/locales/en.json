@@ -376,6 +376,8 @@
       "title": "About & Updates",
       "description": "Automatically detect and install the latest LexiCue version, distributed via GitHub Releases.",
       "check": "Check for Updates",
+      "checkFailed": "Could not check for updates. Try again.",
+      "installFailed": "Could not complete the update. Try again.",
       "checking": "Checking...",
       "currentVersion": "Current version v{{version}}",
       "upToDate": "You are up to date",
