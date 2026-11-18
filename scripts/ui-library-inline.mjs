@@ -17,6 +17,7 @@ try {
    eq(await page.locator('.approved-stock img').count(),Math.min(count,3),'entry shows one, two, then three actual covers');
    await page.screenshot({path:`${out}/${theme}-${width}-desk-${count}.png`});
    await page.locator('.approved-library-entry').click();await settle();const group=page.locator(`[data-tag-id="${tag.id}"]`);
+   eq(await page.locator('.approved-tag-panel').getByRole('button',{name:'新建标签',exact:true}).count(),0,'library has no create-tag control');
    eq(await group.locator('.library-cover-collage').getAttribute('data-count'),String(count),'category collage follows its own material count');eq(await group.locator('.library-cover-collage img').count(),count,'collage contains actual material artworks');
    await page.screenshot({path:`${out}/${theme}-${width}-collage-${count}.png`});
    if(count<4){await page.locator('.approved-rail-back').click();await page.getByRole('dialog').waitFor({state:'detached'});}

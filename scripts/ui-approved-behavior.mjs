@@ -55,6 +55,22 @@ try{
     await page.mouse.down();await page.mouse.move(start.x+75,start.y,{steps:6});await page.mouse.up();
   }
   eq(await voices.locator('[data-voice-slot="0"]').getAttribute('aria-label'),previousVoice,'dragging the carousel advances to the previous voice');
+  if(width>=768){
+    const centered=voices.locator('[data-voice-slot="0"]');
+    const next=await voices.locator('[data-voice-slot="1"]').getAttribute('aria-label');
+    await page.mouse.move(start.x,start.y);
+    await page.mouse.wheel(0,45);
+    eq(await centered.getAttribute('aria-label'),previousVoice,'vertical wheel motion leaves the voice unchanged');
+    await page.mouse.wheel(20,0);
+    await page.mouse.wheel(24,0);
+    await centered.and(page.getByRole('button',{name:next,exact:true})).waitFor();
+    await page.mouse.wheel(85,0);
+    eq(await centered.getAttribute('aria-label'),next,'horizontal motion and its momentum select exactly one neighboring voice');
+    await page.waitForTimeout(240);
+    await page.mouse.wheel(-75,0);
+    await centered.and(page.getByRole('button',{name:previousVoice,exact:true})).waitFor();
+    ok(true,'a second horizontal gesture can select the other neighbor');
+  }
   await page.locator('.approved-clear-voice').click();
   const toast=page.locator('[data-notification-host="top"] [data-type="success"]');
   await toast.waitFor();

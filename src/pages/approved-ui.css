@@ -67,10 +67,10 @@
 .approved-tag-rail { overflow:auto hidden; scrollbar-width:none; max-width:1236px; margin:auto; }
 .approved-tag-track { display:flex; align-items:center; justify-content:center; width:max-content; min-width:100%; gap:8px; padding:42px 36px; }
 .approved-tag-group { width:194px; height:300px; flex:none; display:grid; place-items:center; padding:0; background:none; border:0; cursor:pointer; }
-.approved-tag-stack { position:relative; display:flex; flex-direction:column; width:164px; height:250px; background:var(--approved-wall-title); border-radius:8px; border:1px solid #efeddb; box-shadow:calc(var(--sheets) * -1px) calc(var(--sheets) * -1px) 0 #d9d8c2,0 5px 9px #15221c2a; transform:scale(var(--magnify,1)); transition:transform 160ms ease-out; overflow:hidden; }
+.approved-tag-stack { position:relative; display:flex; flex-direction:column; width:164px; height:250px; background:var(--approved-wall-title); border-radius:8px; border:1px solid #efeddb; box-shadow:calc(var(--sheets) * -1px) calc(var(--sheets) * -1px) 0 #d9d8c2,0 5px 9px #15221c2a; overflow:hidden; }
 .approved-tag-stack img { width:100%; height:195px; object-fit:cover; }
 .approved-tag-stack strong { text-align:center; font-size:19px; line-height:54px; color:#fbfaf5; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:0 8px; }
-.approved-rail-back { position:fixed; z-index:2; top:var(--approved-back-top); left:var(--approved-back-inset); color:#f8f7ea; }.approved-manage { position:fixed; bottom:max(24px,env(safe-area-inset-bottom)); right:28px; color:#f8f7ea; }
+.approved-rail-back { position:fixed; z-index:2; top:var(--approved-back-top); left:var(--approved-back-inset); color:#f8f7ea; }
 .approved-wall { position:absolute; inset:0; overflow:hidden; color:#eee9dc; background:var(--approved-wall); }
 .approved-wall > header { position:absolute; z-index:5; top:var(--approved-back-top); left:var(--approved-back-inset); right:var(--approved-back-inset); display:flex; gap:0; align-items:center; }
 .approved-wall h1 { font-size:30px; font-weight:600; }.approved-wall > header > :last-child { margin-left:auto; }
@@ -560,8 +560,4 @@
   }
   .reader-docked-title[data-overflow] .reader-docked-title-line { display:inline; margin-inline-start:0; }
   .reader-docked-title[data-overflow][data-docked] .reader-docked-title-line { animation:none; }
-}
-
-@media (max-width:767px),(pointer:coarse) {
-  .approved-tag-stack { transform:none; transition:none; }
 }

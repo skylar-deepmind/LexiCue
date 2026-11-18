@@ -128,6 +128,17 @@ try {
     if (touch) await start.tap(); else await start.click();
     await page.waitForFunction(() => window.playbackCommits.length === 2);
     check(await guide.count() === 0 && await page.locator('.sentence-listen').count() === 0, `${label} the bottom button retains ordinary playback and there are no repeated inline controls`);
+    if (!touch) {
+      await page.locator('.mobile-playback-mode button').last().click();
+      await start.waitFor();
+      await viewport.evaluate(node => { node.scrollTop = 0; node.focus({ preventScroll:true }); });
+      await page.keyboard.press('PageDown');
+      await guide.waitFor();
+      const selected = await chosen();
+      await page.keyboard.press('Enter');
+      await page.waitForFunction(() => window.playbackCommits.length === 3);
+      check((await commits()).at(-1).index === selected, `${label} Enter plays the preview after scrolling by keyboard`);
+    }
     await context.close();
   }
   assert.deepEqual(h.errors, []);

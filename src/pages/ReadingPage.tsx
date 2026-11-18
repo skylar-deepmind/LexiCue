@@ -576,7 +576,14 @@ export default function ReadingPage({ data, scope }: {
             <span className="reader-docked-title-line" ref={titleDock.line}>{bookmarkTitle(material.name)}</span>
           </span>
         </span>
-    </nav><div className="reader-scroll" ref={scroll} tabIndex={0}><div className="reading-layout" ref={readingLayout.layout} data-query-open={!!query}><div className="workspace-paper reading-paper" data-recall-state={recall.status} data-font={size} data-lines={lineHeight} data-aux-font={auxiliaryFont} data-definition-font={definitionFont}><ReaderHeading material={material} titleRef={titleDock.title}/>{sourceError && <p className="saved-error" role="status">{sourceError}</p>}{recall.status === 'failed' && <div className="reading-recall-error saved-error" role="status"><span>{t('recall.indexFailed')}</span><button type="button" className="ui-button" onClick={() => void useRecallStore.getState().refresh()}>{t('common.retry')}</button></div>}
+    </nav><div className="reader-scroll" ref={scroll} tabIndex={0}
+      aria-keyshortcuts={playbackTarget === null ? undefined : 'Enter'}
+      onKeyDown={event => {
+        if (event.currentTarget !== event.target || event.key !== 'Enter' || event.repeat
+          || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || playbackTarget === null) return;
+        event.preventDefault();
+        listenFrom(playbackTarget);
+      }}><div className="reading-layout" ref={readingLayout.layout} data-query-open={!!query}><div className="workspace-paper reading-paper" data-recall-state={recall.status} data-font={size} data-lines={lineHeight} data-aux-font={auxiliaryFont} data-definition-font={definitionFont}><ReaderHeading material={material} titleRef={titleDock.title}/>{sourceError && <p className="saved-error" role="status">{sourceError}</p>}{recall.status === 'failed' && <div className="reading-recall-error saved-error" role="status"><span>{t('recall.indexFailed')}</span><button type="button" className="ui-button" onClick={() => void useRecallStore.getState().refresh()}>{t('common.retry')}</button></div>}
     {example && <section className="example-intro" aria-label={t('onboarding.sample')}>
       <div><h1>{t('onboarding.sample')}</h1>{guide.active && !guide.tour && !query && <button className="ui-button" onClick={skip}>{t('onboarding.skip')}</button>}</div>
       <p>{t('onboarding.privacy')}</p>

@@ -121,6 +121,51 @@ try {
       const sizes=[...reads.entries()].sort(([a],[b])=>a-b).map(([,row])=>row.size);
       check(reads.size===4 && sizes.join()===(mobile?'34,30,26,24':'46,38,32,28'), `${theme} ${mobile?'phone':'desktop'} bounded font sizes across four lengths`);
       check([0,1,2].every(i=>reads.get(i).extra<=1) && reads.get(3).extra>20, `${theme} ${mobile?'phone':'desktop'} only the extra-long fixture needs page scroll`);
+      if (!mobile) {
+        for (let index=0;index<8;index++) await h.call('create_tag',{name:`桌面分类 ${index+1}`});
+        await page.goto(h.url+'/files');
+        await page.evaluate(async fileId => {
+          const { useMaterialStore } = await window.__uiStoreModule('materialStore');
+          const { useReadingDeskStore } = await window.__uiStoreModule('readingDeskStore');
+          await useMaterialStore.getState().load();
+          useReadingDeskStore.getState().keepAndOpen(useMaterialStore.getState().files.find(file=>file.id===fileId));
+        },file.file_id);
+        await page.locator('.approved-library-entry').click();
+        await rail.waitFor();
+        await page.waitForFunction(()=>!document.querySelector('.approved-tag-flight'));
+        const start = await boxes();
+        const frame = await rail.boundingBox();
+        await page.mouse.move(frame.x+frame.width*.6,frame.y+frame.height/2);
+        await page.mouse.wheel(240,0);
+        await page.waitForFunction(offset=>document.querySelector('.approved-tag-rail').scrollLeft>offset+150,start.offset);
+        const moved = await boxes();
+        check(moved.widths.every((width,index)=>width===start.widths[index]) && moved.scales.every(scale=>scale==='none'),
+          `${theme} desktop horizontal scrolling with a stationary pointer keeps category sizes fixed`);
+        await page.locator('.approved-rail-back').click();
+        await rail.waitFor({state:'detached'});
+        await tag.click();
+        await add.scrollIntoViewIfNeeded();
+        const plus = await add.boundingBox();
+        await add.click();
+        const name = '一段用于桌面验收的中文长分类标签';
+        await field.fill(name);
+        const expanded = await entry.boundingBox();
+        const save = entry.getByRole('button',{name:'保存'});
+        const button = await save.boundingBox();
+        check(Math.abs(plus.y-expanded.y)<2 && button.x+button.width<=1280 && await save.isEnabled(),
+          `${theme} desktop long tag stays in the same row with a reachable checkmark`);
+        await page.locator('.approved-home-header').click();
+        await entry.waitFor({state:'detached'});
+        check(!(await h.call('list_tags')).some(tag=>tag.name===name),`${theme} clicking outside discards the desktop draft`);
+        await tag.click();
+        await add.scrollIntoViewIfNeeded();
+        await add.click();
+        await field.fill(name);
+        await save.click();
+        await entry.waitFor({state:'detached'});
+        check((await h.call('list_materials')).find(item=>item.id===file.file_id).tags[0]?.name===name,
+          `${theme} desktop checkmark creates and applies the long tag`);
+      }
       await context.close();
     }
   }
