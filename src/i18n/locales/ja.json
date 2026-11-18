@@ -1789,7 +1789,10 @@
   "dictionaryFlow": {
     "prototype": "原形の候補",
     "overview": "辞書の意味",
-    "more": "辞書の詳細",
+    "more": "他の意味と用法",
+    "collocations": "語の組み合わせ",
+    "forms": "語形変化",
+    "source": "辞書の出典",
     "savedCurrent": "この文は保存済み",
     "savedNew": "保存しました",
     "savedAdded": "この文を追加しました",

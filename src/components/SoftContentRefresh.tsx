@@ -1,4 +1,4 @@
-// One quiet replacement timeline for the lookup card and its pinned footer.
+// Fade lookup content in place within the fixed card.
 import React, { Component, createRef, type ReactNode } from 'react';
 import './soft-content-refresh.css';
 
@@ -8,7 +8,6 @@ interface Props {
   label: string;
   pendingLabel: string;
   className?: string;
-  resizeContainer?: string;
   children: ReactNode;
 }
 
@@ -22,11 +21,6 @@ export default class SoftContentRefresh extends Component<Props> {
   private frame = 0;
   private cleanupTimer: ReturnType<typeof setTimeout> | undefined;
   private motion: MediaQueryList | undefined;
-  private previousHeight: number | null = null;
-  private previousIndicator: { left: number; width: number } | null = null;
-  private indicatorMotion: { nodes: HTMLElement[]; from: { left: number; width: number }; to: { left: number; width: number } } | null = null;
-  private sizing: { panel: HTMLElement; from: number; to: number } | null = null;
-
   componentDidMount() {
     this.motion = window.matchMedia('(prefers-reduced-motion: reduce)');
     this.motion.addEventListener('change', this.finish);
@@ -38,19 +32,6 @@ export default class SoftContentRefresh extends Component<Props> {
     if (previous.contentKey === this.props.contentKey || this.presentedKey === null || this.motion?.matches) return null;
     const current = this.current.current, stage = this.stage.current;
     if (!current || !stage) return null;
-    const panel = this.props.resizeContainer ? stage.closest<HTMLElement>(this.props.resizeContainer) : null;
-    this.previousHeight = panel?.getBoundingClientRect().height ?? null;
-    if (panel && !panel.hasAttribute('data-refresh-transition')) {
-      const body = current.querySelector<HTMLElement>('.lookup-body');
-      if (body) {
-        panel.style.setProperty('--lookup-scrollbar-width', `${body.offsetWidth - body.clientWidth}px`);
-        panel.style.setProperty('--lookup-body-padding', getComputedStyle(body).paddingRight);
-      }
-      const reader = [...document.querySelectorAll<HTMLElement>('.reader-scroll')].find(n=>!n.closest('[inert],[aria-hidden="true"]'));
-      if (reader) reader.style.setProperty('--lookup-reader-padding', `${parseFloat(getComputedStyle(reader).paddingRight) + reader.offsetWidth - reader.clientWidth}px`);
-    }
-    const indicator = current.querySelector<HTMLElement>('.lookup-tab-indicator');
-    this.previousIndicator = indicator ? { left: indicator.offsetLeft, width: indicator.getBoundingClientRect().width } : null;
     const frame = document.createElement('div');
     frame.className = 'soft-refresh-frame';
     frame.style.height = `${stage.getBoundingClientRect().height}px`;
@@ -93,9 +74,7 @@ export default class SoftContentRefresh extends Component<Props> {
     const changed = previous.contentKey !== this.props.contentKey;
     if (changed) {
       this.cancel();
-      this.finishIndicator();
       if (snapshot) {
-        this.holdSize();
         this.ghost.current?.replaceChildren(snapshot);
         for (const node of [snapshot, ...snapshot.querySelectorAll<HTMLElement>('[data-refresh-scroll-top],[data-refresh-scroll-left]')]) {
           node.scrollTop = Number(node.dataset.refreshScrollTop ?? 0);
@@ -107,8 +86,6 @@ export default class SoftContentRefresh extends Component<Props> {
     if (this.props.ready && (changed || !previous.ready)) {
       if (this.ghost.current?.childElementCount && !this.motion?.matches) {
         this.presentedKey = this.props.contentKey;
-        this.prepareSize();
-        this.prepareIndicator();
         this.reveal();
       }
       else this.finish();
@@ -119,8 +96,6 @@ export default class SoftContentRefresh extends Component<Props> {
 
   componentWillUnmount() {
     this.cancel();
-    this.finishSize();
-    this.finishIndicator();
     this.motion?.removeEventListener('change', this.finish);
     window.removeEventListener('resize', this.finish);
   }
@@ -130,59 +105,11 @@ export default class SoftContentRefresh extends Component<Props> {
     clearTimeout(this.cleanupTimer);
   };
 
-  private prepareIndicator = () => {
-    this.finishIndicator();
-    const target = this.current.current?.querySelector<HTMLElement>('.lookup-tabs button.active');
-    const indicator = this.current.current?.querySelector<HTMLElement>('.lookup-tab-indicator');
-    if (!target || !indicator || !this.previousIndicator) return;
-    // The incoming header owns its pill; snapshots never receive live styles.
-    this.indicatorMotion = { nodes: [indicator], from: this.previousIndicator, to: { left: target.getBoundingClientRect().left - target.parentElement!.getBoundingClientRect().left, width: target.getBoundingClientRect().width } };
-  };
-
-  private finishIndicator = () => {
-    this.indicatorMotion?.nodes.forEach(node => { node.style.removeProperty('left'); node.style.removeProperty('width'); });
-    this.indicatorMotion = null;
-  };
-
-  private holdSize = () => {
-    const panel = this.props.resizeContainer ? this.stage.current?.closest<HTMLElement>(this.props.resizeContainer) : null;
-    if (!panel || this.previousHeight === null) return;
-    this.finishSize();
-    this.sizing = { panel, from: this.previousHeight, to: this.previousHeight };
-    panel.dataset.refreshSizing = 'true';
-    panel.dataset.refreshTransition = 'true';
-    panel.style.height = `${this.previousHeight}px`;
-  };
-
-  private prepareSize = () => {
-    const panel = this.props.resizeContainer ? this.stage.current?.closest<HTMLElement>(this.props.resizeContainer) : null;
-    if (!panel || this.previousHeight === null) return;
-    panel.style.removeProperty('height');
-    delete panel.dataset.refreshSizing;
-    // Measure the real new content and the existing viewport height cap.
-    const to = panel.getBoundingClientRect().height;
-    const from = this.previousHeight;
-    this.sizing = { panel, from, to };
-    panel.dataset.refreshSizing = 'true';
-    panel.dataset.refreshTransition = 'true';
-    panel.style.height = `${from}px`;
-  };
-
-  private finishSize = () => {
-    if (!this.sizing) return;
-    this.sizing.panel.style.removeProperty('height');
-    delete this.sizing.panel.dataset.refreshSizing;
-    delete this.sizing.panel.dataset.refreshTransition;
-    this.sizing = null;
-  };
-
   private finish = () => {
     this.cancel();
-    this.finishIndicator();
-    // Keep the old view and its height until the new content is ready.
+    // Keep the old view until the new content is ready.
     if (!this.props.ready) return;
     this.presentedKey = this.props.contentKey;
-    this.finishSize();
     this.stage.current?.style.removeProperty('--refresh-opacity');
     this.ghost.current?.replaceChildren();
     if (this.stage.current) this.stage.current.dataset.refreshState = 'ready';
@@ -192,27 +119,14 @@ export default class SoftContentRefresh extends Component<Props> {
     this.cancel();
     const stage = this.stage.current!;
     stage.dataset.refreshState = 'revealing';
-    const shrinking = !!this.sizing && this.sizing.to < this.sizing.from;
-    const paint = (progress: number, sizeProgress: number) => {
+    const paint = (progress: number) => {
       stage.style.setProperty('--refresh-opacity', String(progress * progress * (3 - 2 * progress)));
-      if (this.indicatorMotion) {
-        const { nodes, from, to } = this.indicatorMotion;
-        nodes.forEach(node => {
-          node.style.left = `${from.left + (to.left - from.left) * progress}px`;
-          node.style.width = `${from.width + (to.width - from.width) * progress}px`;
-        });
-      }
-      if (this.sizing) {
-        const { panel, from, to } = this.sizing;
-        panel.style.height = `${from + (to - from) * sizeProgress}px`;
-      }
     };
-    paint(0, 0);
+    paint(0);
     const started = performance.now();
     const tick = (now: number) => {
       const progress = Math.max(0, Math.min(1, (now - started) / 300));
-      const sizeProgress = Math.max(0, Math.min(1, (now - started) / (shrinking ? 220 : 300)));
-      paint(progress, 1 - (1 - sizeProgress) ** 3);
+      paint(progress);
       if (progress < 1) this.frame = requestAnimationFrame(tick);
       else this.finish();
     };

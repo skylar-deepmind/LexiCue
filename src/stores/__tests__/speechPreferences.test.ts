@@ -21,7 +21,7 @@ describe('English speech preference compatibility', () => {
     }
   });
 
-  it('remembers one voice per accent and rehydrates it without a network catalog', async () => {
+  it('restores connection defaults while keeping the saved voices, accent and speed', async () => {
     prefs().setSpeechVoice('us', 'en-US-GuyNeural');
     prefs().setSpeech({ accent: 'gb' });
     prefs().setSpeechVoice('gb', 'en-GB-RyanNeural');
@@ -32,7 +32,7 @@ describe('English speech preference compatibility', () => {
     usePreferencesStore.setState({ speech: normalizeSpeechPreferences(null) });
     values.set('lexicue-preferences', saved);
     await usePreferencesStore.persist.rehydrate();
-    expect(prefs().speech).toEqual(expected);
+    expect(prefs().speech).toEqual({ ...expected, onlineEnabled: true, allowDeviceFallback: true });
     prefs().setSpeech({ accent: 'us' });
     expect(prefs().speech.voices.us).toBe('en-US-GuyNeural');
     expect(prefs().speech.voices.gb).toBe('en-GB-RyanNeural');

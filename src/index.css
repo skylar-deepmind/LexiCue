@@ -1,22 +1,39 @@
 @import "tailwindcss";
 @import "./reading.css";
 
-/* Dictionary overview and word archives share semantic colors in both themes. */
-.dictionary-overview h3 { font-size: .8125rem; font-weight: 500; color: var(--text-muted); margin-bottom: 12px; }
-.dictionary-overview-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
-.dictionary-overview-line > div { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; }
-.dictionary-overview-line p { margin-top: 4px; line-height: 1.65; }
-.dictionary-overview-headword { color: var(--text-strong); font-size: .9375rem; font-weight: 600; overflow-wrap: anywhere; }
-.dictionary-inflection-relation { color: var(--text-body); font-size: .875rem; line-height: 1.65; overflow-wrap: anywhere; }
-.dictionary-overview-ipa { color: var(--text-body); font-size: .875rem; display: inline-flex; flex-wrap: wrap; gap: 6px; }
-.dictionary-overview-ipa small { color: var(--text-muted); }
-.dictionary-more { margin-top: 12px; border-bottom: 1px solid var(--border-soft); padding-bottom: 8px; }
-.dictionary-more > summary, .recall-history > summary { cursor: pointer; min-height: 44px; padding-block: 10px; color: var(--text-body); font-size: .875rem; border-radius: 4px; }
-.dictionary-more > summary:hover, .recall-history > summary:hover { background: var(--interactive-hover); color: var(--text-strong); }
-.dictionary-more > summary:active, .recall-history > summary:active { background: var(--interactive-pressed); }
-.dictionary-more[open] > summary, .recall-history[open] > summary { color: var(--accent-700); }
-.dictionary-more .longman-sense-content { padding-left: 0; }
-.longman-definition { padding-block: 6px; }
+/* Dictionary meanings and details share the same list and typography. */
+.dictionary-meanings { margin:0; padding-inline-start:22px; list-style:decimal; }
+.dictionary-meaning { padding-inline-start:4px; margin-bottom:6px; }
+.dictionary-meaning::marker { color:var(--text-muted); font-size:.8125rem; }
+.dictionary-meaning-line { display:flex; flex-wrap:wrap; align-items:baseline; column-gap:10px; }
+.dictionary-meaning-line .longman-meaning { flex:1 1 11ch; min-width:0; margin:0; line-height:1.6; overflow-wrap:anywhere; }
+.dictionary-meaning-pos, .dictionary-meaning-labels { font-size:.8125rem; color:var(--text-muted); }
+.dictionary-meaning-labels { margin-inline-start:5px; }
+.dictionary-overview-headword { display:block; color:var(--text-strong); font-size:.9375rem; font-weight:600; overflow-wrap:anywhere; }
+.dictionary-more { margin-top:10px; border-top:1px solid var(--border-soft); }
+.dictionary-more > summary, .recall-history > summary { cursor:pointer; min-height:44px; padding-block:10px; color:var(--text-body); font-size:.875rem; border-radius:4px; }
+.longman-result .dictionary-more > summary { display:flex; align-items:center; justify-content:space-between; gap:8px; list-style:none; color:var(--accent-700); }
+.dictionary-more > summary::-webkit-details-marker { display:none; }
+.dictionary-more > summary > svg { flex:none; }
+.dictionary-more[open] > summary > svg { transform:rotate(180deg); }
+.dictionary-more > summary:hover, .recall-history > summary:hover { background:var(--interactive-hover); color:var(--text-strong); }
+.dictionary-more > summary:active, .recall-history > summary:active { background:var(--interactive-pressed); }
+.recall-history[open] > summary { color:var(--accent-700); }
+.dictionary-extra { margin-top:10px; padding-top:8px; border-top:1px solid var(--border-soft); overflow-wrap:anywhere; }
+.dictionary-extra h3 { flex:none; color:var(--text-muted); font-size:.8125rem; font-weight:550; }
+.dictionary-collocations { margin:3px 0 0; }
+.dictionary-collocations > div { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,2fr); gap:10px; align-items:baseline; }
+.dictionary-collocations dt, .dictionary-forms p { font-family:'Source Serif 4',Georgia,serif; color:var(--text-strong); }
+.dictionary-collocations dd { margin:0; }
+.dictionary-forms { display:flex; flex-wrap:wrap; gap:4px 12px; align-items:baseline; }
+.dictionary-forms > div { flex:1 1 24ch; min-width:0; }
+.dictionary-attribution { margin-top:8px; border-top:1px solid var(--border-soft); }
+.dictionary-attribution > summary { font-size:.8125rem; }
+.dictionary-attribution .dictionary-source + .dictionary-source { margin-top:12px; }
+.lookup-body[data-definition-font] .dictionary-meaning-line .longman-meaning { font-size:calc(var(--dictionary-meaning-size, 1rem) * var(--definition-font-scale, 1)); }
+.lookup-body[data-definition-font='sm'] { --dictionary-meaning-size:.9375rem; }
+.lookup-body[data-definition-font='lg'] { --dictionary-meaning-size:1.1875rem; }
+.lookup-body[data-aux-font] :is(.dictionary-meaning-pos, .dictionary-meaning-labels, .dictionary-extra h3) { font-size:calc(var(--aux-font-base) * var(--auxiliary-font-scale, 1)); }
 .lookup-footer .lookup-note { margin-top: 8px; text-align: center; }
 .saved-group-row { padding-right: 0; }
 .saved-context-count { color: var(--text-muted); font-size: .8125rem; }

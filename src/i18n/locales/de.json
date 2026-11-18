@@ -1806,7 +1806,10 @@
   "dictionaryFlow": {
     "prototype": "Mögliche Grundform",
     "overview": "Wörterbuchbedeutungen",
-    "more": "Mehr aus dem Wörterbuch",
+    "more": "Weitere Bedeutungen und Verwendung",
+    "collocations": "Wortverbindungen",
+    "forms": "Wortformen",
+    "source": "Wörterbuchquellen",
     "savedCurrent": "Dieser Satz ist gespeichert",
     "savedNew": "Gespeichert",
     "savedAdded": "Diesen Satz hinzugefügt",

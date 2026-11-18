@@ -1789,7 +1789,10 @@
   "dictionaryFlow": {
     "prototype": "原型候选",
     "overview": "词典释义",
-    "more": "更多词典内容",
+    "more": "更多释义与用法",
+    "collocations": "搭配",
+    "forms": "词形变化",
+    "source": "词典来源",
     "savedCurrent": "本句已记下",
     "savedNew": "已记下",
     "savedAdded": "已加入这句原文",

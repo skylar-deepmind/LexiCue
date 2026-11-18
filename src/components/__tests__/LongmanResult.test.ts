@@ -2,9 +2,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import type { DictionaryResult } from '../../lib/dictionaryResult';
-const state = vi.hoisted(() => ({ accent: 'us' as 'us' | 'gb' }));
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ i18n: { language: 'zh' }, t: (key: string, options?: { defaultValue?: string }) => options?.defaultValue ?? key }) }));
-vi.mock('../../stores/preferencesStore', () => ({ usePreferencesStore: (selector: (value: { speech: { accent: 'us' | 'gb' } }) => unknown) => selector({ speech: { accent: state.accent } }) }));
 vi.mock('@tauri-apps/plugin-opener', () => ({ openUrl: vi.fn() }));
 import LongmanResult from '../LongmanResult';
 
@@ -28,19 +26,15 @@ function result(): DictionaryResult {
 }
 
 describe('dictionary reference presentation', () => {
-  it('keeps go headword IPA in the overview and labels gone/goes pronunciations only in details', () => {
-    const value = result(); value.query.text = 'go'; value.entries[0].headword = 'go';
-    value.entries[0].groups = [value.entries[0].groups[1]];
-    value.entries[0].groups[0].pronunciations = [
-      { region:'us',ipa:'ɡoʊ',audio:null,form_label:null },
-      { region:'us',ipa:'ɡɒːn',audio:null,form_label:'past participle: gone' },
-      { region:'us',ipa:'ɡoʊz',audio:null,form_label:'third person singular: goes' },
-    ];
+  it('keeps word forms while omitting regular and variant pronunciations and example sentences', () => {
+    const value = result();
+    const group = value.entries[0].groups[0];
+    group.pronunciations.push({ region: 'us', ipa: '-ɔrd', audio: null, form_label: 'source US variant of ˈrekɔːd' });
+    group.forms = [{ text: 'records', label: 'plural' }, { text: 'recorded', label: 'past tense' }, { text: 'records', label: 'source table' }];
+    group.senses[0].patterns[0].examples = [{ id: 'pattern-example', english: 'A collocation example.', chinese: null, audio: null }];
     const markup = renderToStaticMarkup(createElement(LongmanResult, { result: value }));
-    const [overview,details] = markup.split('<details class="dictionary-more">');
-    expect(overview).toContain('/ɡoʊ/'); expect(overview).not.toContain('/ɡɒːn/'); expect(overview).not.toContain('/ɡoʊz/');
-    expect(details).toContain('/ɡɒːn/'); expect(details).toContain('past participle: gone');
-    expect(details).toContain('/ɡoʊz/'); expect(details).toContain('third person singular: goes');
+    expect(markup).toContain('records · recorded');
+    expect(markup).not.toMatch(/ˈrekɔːd|ˈrekərd|-ɔrd|longman-ipa|example 1|例句译文|A collocation example/u);
   });
   it('labels independent form meanings and related parent meanings without requiring a meaning choice', () => {
     const value = result(); value.query.text = 'running';
@@ -54,57 +48,38 @@ describe('dictionary reference presentation', () => {
     expect(overview).toContain('data-overview-headword="running"');
     expect(overview).toContain('data-overview-headword="run"');
     expect(overview).toContain('running → run');
-    expect(details).toContain('<h3 lang="en">running</h3>'); expect(details).toContain('<h3 lang="en">run</h3>');
+    expect(details).toContain('lang="en">running</strong>'); expect(details).toContain('running → run');
     expect(markup).not.toContain('type="radio"');
   });
-  it('shows a short cross-POS overview with one initially collapsed full-content entrance and no sense-selection controls', () => {
-    const markup = renderToStaticMarkup(createElement(LongmanResult, { result: result() }));
-    expect((markup.match(/data-overview-sense=/g) ?? [])).toHaveLength(3);
-    expect(markup).toContain('data-overview-sense="noun:1"');
-    expect(markup).toContain('data-overview-sense="verb:1"');
-    expect(markup).toContain('<details class="dictionary-more"><summary>dictionaryFlow.more</summary>');
-    expect(markup).not.toContain('type="radio"');
-    expect(markup).not.toContain('data-selected');
-    expect(markup).not.toContain('longman.chooseSense');
-    // The full structured data is retained even though its parent is closed.
-    for (const part of ['noun', 'verb']) for (const number of [1, 2, 3, 4]) {
-      expect(markup).toContain(`data-sense-id="${part}:${number}"`);
-      expect(markup).toContain(`${part} example ${number}.`);
-      expect(markup).toContain(`${part} pattern ${number}`);
-    }
-  });
-  it('uses the same preference for overview and full POS groups without mixing noun and verb pronunciations', () => {
-    state.accent = 'us';
-    let markup = renderToStaticMarkup(createElement(LongmanResult, { result: result() }));
-    expect(markup).toContain('/ˈrekərd/'); expect(markup).toContain('/rɪˈkɔːrd/');
-    expect(markup).not.toContain('/ˈrekɔːd/'); expect(markup).not.toContain('/rɪˈkɔːd/');
-    state.accent = 'gb';
-    markup = renderToStaticMarkup(createElement(LongmanResult, { result: result() }));
-    expect(markup).toContain('/ˈrekɔːd/'); expect(markup).toContain('/rɪˈkɔːd/');
-    expect(markup).not.toContain('/ˈrekərd/'); expect(markup).not.toContain('/rɪˈkɔːrd/');
-    state.accent = 'us';
-  });
-  it('labels valid English-only meanings and omits an absent accent instead of borrowing the other one', () => {
+  it('shows a cross-POS overview and continues with just the remaining definitions', () => {
     const value = result();
-    value.entries[0].groups.forEach(group => {
-      group.pronunciations = group.pronunciations.filter(item => item.region === 'uk');
-      group.senses.forEach(sense => sense.meaning.zh = null);
-    });
-    const markup = renderToStaticMarkup(createElement(LongmanResult, { result: value }));
-    expect(markup).not.toContain('longman.englishOnly');
-    expect(markup).toContain('noun definition 1');
-    expect(markup).not.toContain('class="longman-ipa"');
-  });
-  it('keeps incomplete source variants inside labelled details while leaving them out of the overview', () => {
-    const value = result();
-    value.entries[0].groups.forEach(group => group.pronunciations = [
-      { region: 'us', ipa: '-ɔrd', audio: null, form_label: 'source US variant of ˈrekɔːd' },
-    ]);
+    const pattern = value.entries[0].groups[0].senses[0].patterns[0];
+    pattern.explanation = { en: 'A pattern gloss', zh: '搭配释义' };
+    value.entries[0].related_expressions = [{ text: pattern.text, expression_type: null, scope_id: 'noun:1', target_query: 'record' }];
     const markup = renderToStaticMarkup(createElement(LongmanResult, { result: value }));
     const [overview, details] = markup.split('<details class="dictionary-more">');
-    expect(overview).not.toContain('/-ɔrd/');
-    expect(details).toContain('/-ɔrd/');
-    expect(details).toContain('longman.usVariant');
-    expect(markup).not.toContain('/ˈrekɔːrd/');
+    expect(overview.match(/data-overview-sense=/g)).toHaveLength(3);
+    expect(overview).toContain('data-overview-sense="noun:1"');
+    expect(overview).toContain('data-overview-sense="verb:1"');
+    expect(details).toContain('<summary>dictionaryFlow.more');
+    expect(details).toContain('start="4"');
+    expect(details).not.toContain('noun释义1');
+    expect(details).not.toContain('verb释义1');
+    expect(details).toContain('verb释义2');
+    expect(details).toContain('搭配释义');
+    expect(details.match(/noun pattern 1/g)).toHaveLength(1);
+    expect(markup.match(/data-sense-id=/g)).toHaveLength(8);
+    expect(markup).not.toContain('type="radio"');
+  });
+  it('shows English-only meanings and skips the expansion when there is nothing more to read', () => {
+    const value = result();
+    const group = value.entries[0].groups[0];
+    value.entries[0].groups = [group];
+    group.senses = [group.senses[0]];
+    group.senses[0].meaning.zh = null;
+    group.senses[0].patterns = [];
+    const markup = renderToStaticMarkup(createElement(LongmanResult, { result: value }));
+    expect(markup).toContain('lang="en">noun definition 1');
+    expect(markup).not.toContain('class="dictionary-more"');
   });
 });

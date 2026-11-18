@@ -1806,7 +1806,10 @@
   "dictionaryFlow": {
     "prototype": "Possible phrase",
     "overview": "Dictionary meanings",
-    "more": "More dictionary content",
+    "more": "More meanings and usage",
+    "collocations": "Collocations",
+    "forms": "Word forms",
+    "source": "Dictionary sources",
     "savedCurrent": "This sentence is saved",
     "savedNew": "Saved",
     "savedAdded": "Added this sentence",

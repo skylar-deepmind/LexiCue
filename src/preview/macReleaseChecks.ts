@@ -227,7 +227,7 @@ export async function installMacReleaseMotionObserver() {
     pending.add(timer);
   };
   const observer = new MutationObserver(schedule);
-  observer.observe(document.body, {subtree:true, childList:true, attributes:true, attributeFilter:['data-lookup-moving','data-resizing','data-page-moving','data-refresh-state','data-closing','data-refresh-sizing']});
+  observer.observe(document.body, {subtree:true, childList:true, attributes:true, attributeFilter:['data-lookup-moving','data-resizing','data-page-moving','data-refresh-state','data-closing']});
   media.addEventListener('change', onChange);
   record('observer-installed', true);
   await write();
