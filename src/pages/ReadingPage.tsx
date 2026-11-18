@@ -383,7 +383,7 @@ export default function ReadingPage({ data, scope }: {
         const trigger = document.activeElement;
         lookupTrigger.current = trigger instanceof HTMLElement && trigger.matches('.reading-word') && trigger.closest('[data-sentence]')?.getAttribute('data-sentence') === String(segment.index_num)
             ? { node: trigger, segment: segment.index_num, index: Number(trigger.dataset.wordIndex) } : null;
-        setQuery({ segment, start, end, expression: text.trim() });
+        setQuery({ segment, start, end, expression: text.trim(), revealInReader: true });
     };
     const selectText = (segment: Segment, paragraph: HTMLElement) => {
         const selection = window.getSelection();

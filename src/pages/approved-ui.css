@@ -190,7 +190,11 @@
 :root[data-dissolve="out"]::view-transition-new(approved-page) { animation:approved-dissolve-in 205ms 85ms cubic-bezier(.25,.65,.3,1) both; }
 @keyframes approved-dissolve-in { from { opacity:0; } to { opacity:1; } }@keyframes approved-dissolve-out { to { opacity:0; } }
 .figma-shell.app-layout { padding-top:0; padding-bottom:0; }
-@media(max-width:767px) { .figma-shell .approved-deck { height:var(--card-height); padding:0; }.reading-layout[data-desktop='false'][data-query-open='true'],.reading-layout[data-desktop='false'] { padding-bottom:0; }}
+@media (max-width:767px) {
+ .figma-shell .approved-deck { height:var(--card-height); padding:0; }
+ .reading-layout[data-desktop='false'] { padding-bottom:0; transition-property:none; }
+ .reading-layout[data-desktop='false'][data-query-open='true'] { padding-bottom:var(--lookup-reader-tail,0px); }
+}
 .figma-shell .approved-deck::before,.figma-shell .approved-deck::after { display:none!important; }
 .approved-edge:disabled { opacity:0!important; visibility:hidden; }
 .figma-shell .reading-breadcrumb .mobile-reading-path { display:none!important; }

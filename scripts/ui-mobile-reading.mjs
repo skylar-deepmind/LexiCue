@@ -12,6 +12,15 @@ const drawerFrame=page=>page.locator('.context-panel').evaluate(node=>{
  const {x,y,width,height}=node.getBoundingClientRect();
  return [x,y,width,height];
 });
+const sourceBottom=word=>word.evaluate(n=>n.getBoundingClientRect().bottom);
+async function checkLookupSource(page,word,before,beforeBottom,label){
+ const after=await geometry(page), [,sheetTop]=await drawerFrame(page);
+ const offset=after.scroll-before.scroll;
+ eq([after.x,after.width,after.font,after.line],[before.x,before.width,before.font,before.line],`${label}: preserves source measure and typography`);
+ ok(Math.abs(after.y+offset-before.y)<.5,`${label}: only the scroller changes the source position`);
+ if(beforeBottom<=sheetTop)eq(offset,0,`${label}: an already visible word stays in place`);
+ else ok(offset>0 && await sourceBottom(word)<=sheetTop,`${label}: a covered word scrolls into view`);
+}
 const lookupShown=(page,term)=>page.waitForFunction(term=>{
  const heading=document.querySelector('.lookup-heading h2');
  const stage=heading?.closest('.lookup-stage');
@@ -32,8 +41,8 @@ try{
    await page.evaluate(()=>new Promise(done=>requestAnimationFrame(()=>requestAnimationFrame(done))));await page.waitForFunction(()=>!document.querySelector('[data-reading-anchoring]'));
    ok(await page.locator('.reading-title').evaluate(n=>n.getBoundingClientRect().top>=document.querySelector('.reading-breadcrumb').getBoundingClientRect().bottom),'reading title clears the back control and safe area');
    const bar=page.locator('.mobile-reading-bar');ok(await bar.evaluate(n=>{const r=n.getBoundingClientRect();const b=[...n.querySelectorAll('button')].filter(b=>!b.closest('[inert]')).map(b=>b.getBoundingClientRect());return Math.round(r.width)===106&&b.length===2&&b.every(b=>b.left>=r.left&&b.right<=r.right+1&&b.width>=44);}), 'floating reading controls fit their 106 px capsule');
-   const take=page.locator('.reading-word').filter({hasText:/^take$/}).first();await take.scrollIntoViewIfNeeded();const clickedGeometry=await geometry(page);await take.click();await page.locator('.context-panel').waitFor();await settled(page);
-   if(phone)eq(await geometry(page),clickedGeometry,`${theme}/${viewport.width}: half drawer preserves original width, type, position and scroll`);
+   const take=page.locator('.reading-word').filter({hasText:/^take$/}).first();await take.scrollIntoViewIfNeeded();const clickedGeometry=await geometry(page),clickedBottom=await sourceBottom(take);await take.click();await page.locator('.context-panel').waitFor();await settled(page);
+   if(phone)await checkLookupSource(page,take,clickedGeometry,clickedBottom,`${theme}/${viewport.width} half drawer`);
    await page.locator('.soft-refresh-current .longman-meaning').first().waitFor();const baseText=await page.locator('.soft-refresh-current .longman-meaning').first().innerText();
    const fixed=await drawerFrame(page);
    const details=page.locator('.soft-refresh-current .dictionary-more');
@@ -81,9 +90,9 @@ try{
    await page.keyboard.press('Escape');await page.locator('.context-panel').waitFor({state:'detached'});await settled(page);if(phone)eq(await geometry(page),beforeSizeControls,'closed drawer preserves original geometry and scroll');
    await page.emulateMedia({reducedMotion:'reduce'});
    await take.scrollIntoViewIfNeeded();
-   const beforeReducedMotion=await geometry(page);
+   const beforeReducedMotion=await geometry(page),reducedBottom=await sourceBottom(take);
    await take.click();await page.locator('.context-panel').waitFor();await settled(page);
-   if(phone)eq(await geometry(page),beforeReducedMotion,'reduced-motion drawer preserves original geometry');
+   if(phone)await checkLookupSource(page,take,beforeReducedMotion,reducedBottom,`${theme}/${viewport.width} reduced motion`);
    eq(await drawerFrame(page),fixed,'reduced motion reveals the same fixed frame');
    await page.keyboard.press('Escape');await page.locator('.context-panel').waitFor({state:'detached'});await settled(page);
    await page.evaluate(()=>window.__supplementMode='error');await take.click();await page.locator('.approved-lookup-map button').click();await page.locator('.approved-lookup-map button[data-state=error]').waitFor();eq(await page.locator('.soft-refresh-current .longman-meaning').first().innerText(),baseText,'supplement transport failure retains local meaning');await page.evaluate(()=>window.__supplementMode='success');await page.locator('.approved-lookup-map button').click();await page.locator('.approved-lookup-map button[data-state=ready]').waitFor();ok((await page.locator('.approved-supplement').innerText()).includes('补充的独立用法'),'success appends the additional meaning inside the same card');eq(await drawerFrame(page),fixed,'online content is added within the fixed frame');eq(await page.locator('.soft-refresh-current .longman-meaning').first().innerText(),baseText,'successful supplement also retains the original local meaning');await page.keyboard.press('Escape');await page.locator('.context-panel').waitFor({state:'detached'});

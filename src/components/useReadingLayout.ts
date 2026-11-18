@@ -37,7 +37,10 @@ export default function useReadingLayout(scroll: RefObject<HTMLDivElement | null
             }
             grid.dataset.desktop = String(desktop);
             grid.dataset.layout = desktop && grid.dataset.queryOpen === 'true' ? 'columns' : 'single';
-            if (grid.dataset.queryOpen !== 'true') delete grid.dataset.queryClosing;
+            if (grid.dataset.queryOpen !== 'true') {
+                delete grid.dataset.queryClosing;
+                grid.style.removeProperty('--lookup-reader-tail');
+            }
             grid.style.width = `${Math.max(0, width)}px`;
             grid.style.setProperty('--reading-gap', `${gap}px`);
             grid.style.setProperty('--reading-panel-width', `${panel}px`);
