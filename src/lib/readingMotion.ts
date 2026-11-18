@@ -121,6 +121,10 @@ function run(reverse: boolean) {
   const readerViewport = reader?.querySelector('.reader-scroll')?.getBoundingClientRect();
   const cover = reverse ? returning?.cover : piece(liveCover);
   const coverInView = cover && (reverse || !readerViewport || cover.box.y >= readerViewport.top);
+  const coverFlight = source.cover && coverInView && cover.box.width && cover.box.height
+    && source.cover.box.width && source.cover.box.height
+    ? { departing: source.cover, arriving: cover }
+    : null;
   const sentenceNode = reader ? findSentence(reader, data.text) ?? reader.querySelector<HTMLElement>(`[data-sentence="${data.segment ?? 0}"] .reading-original`) : null;
   const layer = document.createElement('div'); layer.className = 'approved-handoff b-shell figma-shell'; layer.style.background='transparent'; layer.setAttribute('aria-hidden', 'true'); layer.inert = true;
   document.body.append(layer);
@@ -164,8 +168,9 @@ function run(reverse: boolean) {
     if (background) {
       if (!reverse) {
         const selected = background.querySelector<HTMLElement>(`[data-motion-file="${data.id}"]`);
-        // The card caption keeps its original wrapping as it leaves with the desk.
-        selected?.querySelectorAll<HTMLElement>('.approved-card-cover,.material-floating-tag').forEach(hide);
+        // A restored position can put the target artwork above the viewport.
+        // In that case the whole desk card fades out together.
+        if (coverFlight) selected?.querySelectorAll<HTMLElement>('.approved-card-cover,.material-floating-tag').forEach(hide);
         place(background, { x: 0, y: 0, width: innerWidth, height: innerHeight });
         animate(background, [{ opacity: 1 }, { opacity: 0, offset: .47 }, { opacity: 0 }]);
       }
@@ -184,10 +189,11 @@ function run(reverse: boolean) {
       if(!reverse){const controls=document.querySelector<HTMLElement>('.mobile-reading-tools');if(controls)animate(controls,[{opacity:0},{opacity:0,offset:.62},{opacity:1}]);}
     }
   }
-  if (source.cover && coverInView && cover.box.width && cover.box.height && source.cover.box.width && source.cover.box.height) {
-    const from = source.cover.box, to = cover.box;
-    const ink = contours(source.cover, data.origin);
-    const movingCover = source.cover.node.cloneNode(true) as HTMLElement;
+  if (coverFlight) {
+    const { departing, arriving } = coverFlight;
+    const from = departing.box, to = arriving.box;
+    const ink = contours(departing, data.origin);
+    const movingCover = departing.node.cloneNode(true) as HTMLElement;
     movingCover.dataset.motionPiece = 'cover';
     if (reverse) {
       const travel = [{ ...frame(from), borderRadius: '16px 16px 0 0' }, { ...frame(to), borderRadius: '4px' }];
@@ -202,9 +208,9 @@ function run(reverse: boolean) {
     } else {
       const flight = document.createElement('div');
       flight.style.overflow = 'hidden';
-      flight.style.borderRadius = cover.node.style.borderRadius;
+      flight.style.borderRadius = arriving.node.style.borderRadius;
       place(flight, from);
-      Object.assign(movingCover.style, { display: 'block', width: '100%', height: '100%', objectFit: source.cover.fit, objectPosition: source.cover.node.style.objectPosition });
+      Object.assign(movingCover.style, { display: 'block', width: '100%', height: '100%', objectFit: departing.fit, objectPosition: departing.node.style.objectPosition });
       flight.append(movingCover);
       if (ink) {
         ink.dataset.motionPiece = 'contours';
@@ -216,9 +222,9 @@ function run(reverse: boolean) {
       // Resize only the isolated artwork layer so the crop starts at the
       // desk's exact composition and stays proportional throughout the flight.
       // The stationary reader supplies the actual gradient for the handoff.
-      const settled = { ...frame(to), borderRadius: cover.node.style.borderRadius };
-      const restingCrop = { objectPosition: cover.node.style.objectPosition };
-      animate(movingCover, [{ objectPosition: source.cover.node.style.objectPosition }, { ...restingCrop, offset: .48 }, restingCrop]);
+      const settled = { ...frame(to), borderRadius: arriving.node.style.borderRadius };
+      const restingCrop = { objectPosition: arriving.node.style.objectPosition };
+      animate(movingCover, [{ objectPosition: departing.node.style.objectPosition }, { ...restingCrop, offset: .48 }, restingCrop]);
       animate(flight, [
         { ...frame(from), borderRadius: '16px 16px 0 0', opacity: 1 },
         { ...settled, opacity: 1, offset: .48 },

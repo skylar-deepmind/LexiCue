@@ -135,6 +135,34 @@ try{
   await page.locator('.mobile-headphone-mode button').click();await page.waitForFunction(()=>document.querySelector('.mobile-reading-bar')?.dataset.listening==='true');eq(await page.locator('.mobile-playback-mode button').count(),3,'headphones split into three working listening controls');await page.waitForFunction(()=>Math.round(document.querySelector('.mobile-reading-bar').getBoundingClientRect().width)===194);ok(await bar.evaluate(n=>{const r=[...n.querySelectorAll('button')].filter(b=>!b.closest('[inert]')).map(b=>b.getBoundingClientRect()).sort((a,b)=>a.x-b.x);return r.length===4&&r.slice(1).every((b,i)=>r[i].right<=b.left+1);}),'expanded listening controls keep independent hit targets');
   const before=await page.evaluate(async()=>{const {useSpeechStore:s}=await window.__uiStoreModule('speechStore');return s.getState().rate;});await page.locator('.mobile-rate-control').click();const after=await page.evaluate(async()=>{const {useSpeechStore:s}=await window.__uiStoreModule('speechStore');return s.getState().rate;});ok(before!==after,'speed control changes actual speech store rate');await page.locator('.mobile-playback-mode button').last().click();await page.waitForFunction(()=>document.querySelector('.mobile-reading-bar')?.dataset.listening==='false');
   await page.waitForFunction(()=>Math.round(document.querySelector('.mobile-reading-bar').getBoundingClientRect().width)===106);await page.screenshot({path:`${out}/${theme}-${width}-reading.png`});await page.locator('.reading-breadcrumb .page-back').click();await page.locator('.approved-desk').waitFor();await settle();
+  const active = page.locator('.approved-card[data-desk-active=true]');
+  const activeId = Number(await active.getAttribute('data-motion-file'));
+  const { content_hash, position } = (await h.call('list_materials')).find(file => file.id === activeId);
+  await h.call('remember_reading_position', { fileId:activeId, contentHash:content_hash, segment:14, back:false, legacy:false, parent:position?.revision ?? null });
+  await page.reload();
+  await active.locator('.approved-card-open').click();
+  const restored = page.locator('.approved-handoff .approved-desk');
+  await restored.waitFor({state:'attached'});
+  const resume = await restored.evaluate(desk => {
+    const layer = desk.closest('.approved-handoff');
+    const reader = document.querySelector('.reading-page');
+    const active = desk.querySelector('[data-desk-active=true]');
+    const jobs = document.getAnimations().filter(job => job.effect.getTiming().duration === 580);
+    jobs.forEach(job => { job.pause(); job.currentTime = 65; });
+    const cover = reader.querySelector('.folio-print').getBoundingClientRect();
+    const viewport = reader.querySelector('.reader-scroll').getBoundingClientRect();
+    const result = { galleryCover: getComputedStyle(active.querySelector('.approved-card-cover')).visibility,
+      tag: getComputedStyle(active.querySelector('.material-floating-tag')).visibility,
+      desktopFade: Number(getComputedStyle(desk).opacity),
+      restoredPosition: cover.bottom < viewport.top,
+      flights: layer.querySelectorAll('[data-motion-piece=cover]').length };
+    jobs.forEach(job=>job.finish());
+    return result;
+  });
+  ok(resume.restoredPosition && resume.flights === 0, 'resume stays at the saved sentence with no flight to an offscreen cover');
+  ok(resume.galleryCover === 'visible' && resume.tag === 'visible' && resume.desktopFade > 0, 'restored reading keeps the cover and label visible as the desk card fades');
+  await settle();
+  await page.locator('.reading-breadcrumb .page-back').click();await page.locator('.approved-desk').waitFor();await settle();
   await page.getByRole('button',{name:'设置',exact:true}).click();await page.locator('.approved-language-slider').waitFor();eq(await backRect('.approved-settings-back'),railBack,'settings back shares the same position');eq(await page.getByRole('radio').count(),4,'four interface languages are immediately available');eq(await page.locator('[data-entry=guide],[data-entry=language]').count(),0,'no guide or nested language menu');
   ok(await page.locator('.approved-settings-paper > h1').evaluate(n=>n.getBoundingClientRect().width<=1),'category heading is not repeated in the detail paper');
   await page.getByRole('radio',{name:'Deutsch',exact:true}).click();await page.getByRole('radio',{name:'中文',exact:true}).click();eq(await page.getByRole('radio',{name:'中文',exact:true}).getAttribute('aria-checked'),'true','language changes in place without navigation');
