@@ -1,4 +1,5 @@
 /* Reading lookup and saved sentences follow the reviewed Figma content hierarchy. */
+.context-panel--lookup:not([data-reading-layout]) { visibility:hidden; }
 .context-panel.context-panel--lookup .lookup-stage { display:flex; flex:1; flex-direction:column; min-height:0; }
 .context-panel--lookup .lookup-fixed-header { flex:none; background:var(--surface); }
 .context-panel.context-panel--lookup .lookup-heading { flex:none; height:60px; padding:12px 16px 0; border:0; }
@@ -69,7 +70,7 @@
 .sentence-note-dialog textarea { width:100%; min-height:112px; padding:12px; border:1px solid var(--accent-600); border-radius:8px; color:var(--text-strong); background:var(--surface-muted); font:inherit; font-size:16px; line-height:22px; resize:vertical; }
 .sentence-note-dialog form > .saved-primary { width:100%; min-height:48px; margin-top:auto; }
 @media (max-width:767px) {
-  .lexicue-b .context-panel.context-panel--lookup[data-reading-layout] { height:min(500px,54%,calc(100% - max(104px,var(--safe-top)))); border:0; border-radius:21px 21px 0 0; }
+  .lexicue-b .context-panel.context-panel--lookup { height:min(500px,54%,calc(100% - max(104px,var(--safe-top)))); border:0; border-radius:21px 21px 0 0; }
   .lexicue-b .context-panel.context-panel--lookup[data-expanded='true'] { height:calc(100% - max(20px,var(--safe-top))); }
   .context-panel--lookup::before { content:''; position:absolute; z-index:5; top:4px; left:calc(50% - 18px); width:36px; height:3px; border-radius:2px; background:var(--border); pointer-events:none; }
   .overlay-layer--sheet:has(.sentence-note-dialog) { align-items:flex-end; padding:var(--safe-top) 0 0; }
@@ -88,7 +89,7 @@
 
 /* Viewport and the explicit expand control set the outer geometry. Only the body scrolls. */
 @media (min-width:768px) {
-  .lexicue-b .context-panel.context-panel--lookup[data-reading-layout] {
+  .lexicue-b .context-panel.context-panel--lookup {
     top:50%;
     bottom:auto;
     height:min(520px, calc(var(--visual-height, 100dvh) - 48px));
@@ -97,7 +98,7 @@
   }
 }
 @media (max-width:767px) and (max-height:480px) {
-  .lexicue-b .context-panel.context-panel--lookup[data-reading-layout='overlay'][data-expanded='false'] {
+  .lexicue-b .context-panel.context-panel--lookup[data-expanded='false'] {
     height:max(54%, min(250px, calc(100% - 116px)));
   }
 }

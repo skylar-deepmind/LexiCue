@@ -47,7 +47,7 @@ export interface LookupDraft {
     provider?: DictionaryView;
 }
 interface LookupProps {
-    layoutSlot?: RefObject<HTMLDivElement | null>;
+    layoutSlot: RefObject<HTMLDivElement | null>;
     query: ReadingQuery;
     material: Material;
     scope: ReadingScope;

@@ -79,7 +79,12 @@ try{
     await page.locator('.context-sheet-expand').click();await page.locator('.context-panel[data-expanded="false"]').waitFor();await settled(page);eq(await geometry(page),beforeSizeControls,'return to half drawer preserves original geometry and scroll');
    }
    await page.keyboard.press('Escape');await page.locator('.context-panel').waitFor({state:'detached'});await settled(page);if(phone)eq(await geometry(page),beforeSizeControls,'closed drawer preserves original geometry and scroll');
-   await page.emulateMedia({reducedMotion:'reduce'});await take.click();await page.locator('.context-panel').waitFor();await settled(page);eq(await geometry(page),clickedGeometry,'reduced-motion drawer preserves original geometry');
+   await page.emulateMedia({reducedMotion:'reduce'});
+   await take.scrollIntoViewIfNeeded();
+   const beforeReducedMotion=await geometry(page);
+   await take.click();await page.locator('.context-panel').waitFor();await settled(page);
+   if(phone)eq(await geometry(page),beforeReducedMotion,'reduced-motion drawer preserves original geometry');
+   eq(await drawerFrame(page),fixed,'reduced motion reveals the same fixed frame');
    await page.keyboard.press('Escape');await page.locator('.context-panel').waitFor({state:'detached'});await settled(page);
    await page.evaluate(()=>window.__supplementMode='error');await take.click();await page.locator('.approved-lookup-map button').click();await page.locator('.approved-lookup-map button[data-state=error]').waitFor();eq(await page.locator('.soft-refresh-current .longman-meaning').first().innerText(),baseText,'supplement transport failure retains local meaning');await page.evaluate(()=>window.__supplementMode='success');await page.locator('.approved-lookup-map button').click();await page.locator('.approved-lookup-map button[data-state=ready]').waitFor();ok((await page.locator('.approved-supplement').innerText()).includes('补充的独立用法'),'success appends the additional meaning inside the same card');eq(await drawerFrame(page),fixed,'online content is added within the fixed frame');eq(await page.locator('.soft-refresh-current .longman-meaning').first().innerText(),baseText,'successful supplement also retains the original local meaning');await page.keyboard.press('Escape');await page.locator('.context-panel').waitFor({state:'detached'});
    ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${viewport.width}: no horizontal overflow with largest reading size`);
