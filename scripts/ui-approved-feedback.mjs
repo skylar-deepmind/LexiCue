@@ -48,7 +48,7 @@ try{
     for (let time = 0; time < 580; time += 5) {
       jobs.forEach(job => { job.currentTime = time; });
       frames.push({
-        desk: opacity(caption.closest('.approved-reading-hold')),
+        desk: opacity(caption.closest('.approved-desk')),
         layout: opacity(layout),
         separateTextLayers: layer.querySelectorAll('[data-motion-piece=title],[data-motion-piece=quote]').length,
         cover: opacity(cover),
