@@ -34,7 +34,7 @@ function piece(node: HTMLElement | null): Piece | undefined {
   const style = getComputedStyle(node), clone = node.cloneNode(true) as HTMLElement;
   clone.removeAttribute('id'); clone.removeAttribute('class');
   clone.querySelectorAll('[id]').forEach(child => child.removeAttribute('id'));
-  Object.assign(clone.style, { margin: '0', padding: '0', border: '0', boxSizing: 'border-box', color: style.color, font: style.font, letterSpacing: style.letterSpacing, lineHeight: style.lineHeight, textWrap: style.textWrap, whiteSpace: style.whiteSpace, overflowWrap: style.overflowWrap, background: 'transparent', overflow: 'hidden', objectFit: style.objectFit });
+  Object.assign(clone.style, { margin: '0', padding: '0', border: '0', boxSizing: 'border-box', color: style.color, font: style.font, letterSpacing: style.letterSpacing, lineHeight: style.lineHeight, textWrap: style.textWrap, whiteSpace: style.whiteSpace, overflowWrap: style.overflowWrap, background: 'transparent', overflow: 'hidden', objectFit: style.objectFit, objectPosition: style.objectPosition, borderRadius: style.borderRadius });
   return { box: box(node), node: clone, image: node instanceof HTMLImageElement ? node : undefined, fit: style.objectFit };
 }
 function findSentence(reader: HTMLElement, text: string): HTMLElement | null {
@@ -115,12 +115,9 @@ function run(reverse: boolean) {
     if (data.origin === 'wall') real.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 140 });
     clearHold();returning = null; pending = false; return;
   }
-  const liveTitle = reader?.querySelector<HTMLElement>('.reading-title') ?? null;
   const liveCover = reader?.querySelector<HTMLElement>('.folio-print') ?? null;
-  const title = reverse ? returning?.title : piece(liveTitle);
   const cover = reverse ? returning?.cover : piece(liveCover);
   const sentenceNode = reader ? findSentence(reader, data.text) ?? reader.querySelector<HTMLElement>(`[data-sentence="${data.segment ?? 0}"] .reading-original`) : null;
-  const quote = reverse ? returning?.quote : piece(sentenceNode);
   const layer = document.createElement('div'); layer.className = 'approved-handoff b-shell figma-shell'; layer.style.background='transparent'; layer.setAttribute('aria-hidden', 'true'); layer.inert = true;
   document.body.append(layer);
   returningMotion = reverse;
@@ -145,38 +142,18 @@ function run(reverse: boolean) {
   const hide = (node: HTMLElement | null) => { if (!node) return; hidden.push({ node, visibility: node.style.visibility }); node.style.visibility = 'hidden'; };
   const duration = 580;
   const options: KeyframeAnimationOptions = { duration, fill: 'both', direction: reverse ? 'reverse' : 'normal', easing: 'cubic-bezier(.4,0,.2,1)' };
-  const coverArrival = reverse ? 1 : .76;
+  const coverArrival = reverse ? 1 : .68;
 
   const animate = (node: HTMLElement, frames: Keyframe[]) => { const a = node.animate(frames, options); jobs.push(a); };
   const frame = (r: Box) => ({ left: `${r.x}px`, top: `${r.y}px`, width: `${r.width}px`, height: `${r.height}px` });
   const place = (node: HTMLElement, r: Box) => { Object.assign(node.style, { position: 'absolute', ...frame(r), transformOrigin: '0 0' }); layer.append(node); };
-  const travel = (from: Piece | undefined, to: Piece | undefined, kind: 'cover' | 'title' | 'quote', end: number) => {
-    if (!from || !to || !from.box.width || !from.box.height || !to.box.width || !to.box.height) return;
-    const clone = from.node.cloneNode(true) as HTMLElement;
-    clone.dataset.motionPiece = kind;
-    place(clone, from.box);
-    const textFrame = (p: Piece) => ({ ...frame(p.box), fontSize: p.node.style.fontSize, lineHeight: p.node.style.lineHeight, letterSpacing: p.node.style.letterSpacing, color: p.node.style.color });
-    // The cover arrives at its layout size. A scaled bitmap can rasterize a
-    // point away from the real image on WebKit even with equivalent bounds.
-    const start = kind === 'cover' ? { ...frame(from.box), borderRadius: '16px 16px 0 0' } : textFrame(from);
-    const target = kind === 'cover' ? { ...frame(to.box), borderRadius: '4px' } : textFrame(to);
-    animate(clone, [{ ...start, offset: 0 }, { ...target, offset: end }, { ...target, offset: 1 }]);
-    return clone;
+  const coverFrame = (from: Piece, to: Piece) => {
+    const start = { ...frame(from.box), borderRadius: '16px 16px 0 0' };
+    const target = { ...frame(to.box), borderRadius: to.node.style.borderRadius || '4px' };
+    return [start, { ...target, offset: coverArrival }, target];
   };
-  const fadeOut = (node: HTMLElement, start: number, end: number) =>
-    animate(node, [{ opacity: 1 }, { opacity: 1, offset: start }, { opacity: 0, offset: end }, { opacity: 0 }]);
   const fadeIn = (node: HTMLElement, start: number, end: number) =>
     animate(node, [{ opacity: 0 }, { opacity: 0, offset: start }, { opacity: 1, offset: end }, { opacity: 1 }]);
-  const travelText = (from: Piece | undefined, to: Piece | undefined, live: HTMLElement | null,
-      kind: 'title' | 'quote', arrival: number, handoff: number, reveal: number) => {
-    const moving = travel(from, to, kind, arrival);
-    if (!moving || !live) return false;
-    // The card and page can wrap the same text differently. Retire the card
-    // copy before painting any of the final text.
-    fadeOut(moving, arrival, handoff);
-    fadeIn(live, handoff, reveal);
-    return true;
-  };
   const clip = (r: Box, c: Box) => `inset(${Math.max(0,c.y-r.y)}px ${Math.max(0,r.x+r.width-c.x-c.width)}px ${Math.max(0,r.y+r.height-c.y-c.height)}px ${Math.max(0,c.x-r.x)}px round 16px)`;
   const paper = reverse ? returning?.background : reader;
   if(reverse&&paper){paper.querySelectorAll<HTMLElement>('.reading-title,.folio-print').forEach(hide);paper.querySelectorAll<HTMLElement>(`[data-sentence="${data.segment}"] .reading-original`).forEach(hide);}
@@ -187,7 +164,13 @@ function run(reverse: boolean) {
   if (data.origin === 'desk') {
     const background = reverse ? document.querySelector<HTMLElement>('.approved-desk') : source.background;
     if (background) {
-      if (!reverse) { const clone=background;clone.querySelector<HTMLElement>(`[data-motion-file="${data.id}"]`)?.style.setProperty('visibility','hidden');place(clone,{x:0,y:0,width:innerWidth,height:innerHeight});animate(clone,[{opacity:1},{opacity:0,offset:.47},{opacity:0}]); }
+      if (!reverse) {
+        const selected = background.querySelector<HTMLElement>(`[data-motion-file="${data.id}"]`);
+        // The card caption keeps its original wrapping as it leaves with the desk.
+        selected?.querySelectorAll<HTMLElement>('.approved-card-cover,.material-floating-tag').forEach(hide);
+        place(background, { x: 0, y: 0, width: innerWidth, height: innerHeight });
+        animate(background, [{ opacity: 1 }, { opacity: 0, offset: .47 }, { opacity: 0 }]);
+      }
       else animate(background,[{opacity:1},{opacity:0,offset:.47},{opacity:0}]);
     }
     if (paper) {
@@ -199,39 +182,44 @@ function run(reverse: boolean) {
       animate(paper, reverse
         ? [clipped, open]
         : [clipped, { ...open, offset: .68 }, { clipPath: 'none', offset: .70 }, { clipPath: 'none' }]);
-      paper.querySelectorAll<HTMLElement>('.reading-layout,.reading-breadcrumb').forEach(node=>fadeIn(node,.62,reverse ? .9 : .80));
+      paper.querySelectorAll<HTMLElement>('.reading-layout,.reading-breadcrumb').forEach(node=>fadeIn(node,.62,reverse ? .9 : .76));
       if(!reverse){const controls=document.querySelector<HTMLElement>('.mobile-reading-tools');if(controls)animate(controls,[{opacity:0},{opacity:0,offset:.62},{opacity:1}]);}
     }
   }
   const ink = contours(source.cover, data.origin);
   if (ink && source.cover) {
     place(ink, source.cover.box); ink.style.zIndex='2'; ink.dataset.motionPiece='contours';
-    if (data.origin === 'desk' && cover) {
-      const from = { ...frame(source.cover.box), borderRadius: '16px 16px 0 0' };
-      const to = { ...frame(cover.box), borderRadius: '4px' };
-      animate(ink, [from, { ...to, offset: coverArrival }, { ...to, offset: 1 }]);
-    }
+    if (cover) animate(ink, coverFrame(source.cover, cover));
     animate(ink,[{opacity:0},{opacity:.76,offset:.43},{opacity:0,offset:coverArrival},{opacity:0}]);
   }
-  if (data.origin === 'desk') {
-    const movingCover = travel(source.cover, cover, 'cover', coverArrival);
-    if (!reverse && movingCover && liveCover) {
-      // Present one raster at a time and make the real image the only
-      // visible cover well before the animation layer is removed.
-      fadeOut(movingCover, coverArrival, .82);
-      fadeIn(liveCover, .82, .90);
+  if (source.cover && cover) {
+    const movingCover = (reverse ? source.cover : cover).node.cloneNode(true) as HTMLElement;
+    movingCover.dataset.motionPiece = 'cover';
+    place(movingCover, source.cover.box);
+    animate(movingCover, coverFrame(source.cover, cover));
+    if (!reverse && liveCover) {
+      // The flight keeps painting at full opacity until it has arrived and
+      // the reader under it is fully painted. Swap the matched images at once.
+      animate(liveCover, [
+        { visibility: 'hidden', easing: 'steps(1, end)' },
+        { visibility: 'visible', offset: .79 },
+        { visibility: 'visible' },
+      ]);
+      animate(movingCover, [
+        { opacity: 1, easing: 'steps(1, end)' },
+        { opacity: 0, offset: .84 },
+        { opacity: 0 },
+      ]);
     }
-    if(reverse&&returnInk.length){
-      // Return ink as one measured caption. Independent font/width interpolation
-      // can reflow the title through the excerpt, particularly after scrolling.
-      for(const ink of returnInk){const caption=ink.node;caption.dataset.motionPiece='caption';place(caption,ink.box);
-      jobs.push(caption.animate([{opacity:0,translate:'0 8px',offset:0},{opacity:0,translate:'0 8px',offset:.44},{opacity:1,translate:'0 0',offset:.88},{opacity:1,translate:'0 0',offset:1}],{...options,direction:'normal'}));}
-    } else if(!reverse) {
-      travelText(source.title, title, liveTitle, 'title', .75, .82, .94);
-      if (source.quote && !travelText(source.quote, quote, sentenceNode, 'quote', .66, .73, .87)) {
-        place(source.quote.node, source.quote.box);
-        fadeOut(source.quote.node, 0, .34);
-      }
+  }
+  if (reverse && returnInk.length) {
+    // Return ink as one measured caption. Independent font/width interpolation
+    // can reflow the title through the excerpt, particularly after scrolling.
+    for (const ink of returnInk) {
+      const caption = ink.node;
+      caption.dataset.motionPiece = 'caption';
+      place(caption, ink.box);
+      jobs.push(caption.animate([{opacity:0,translate:'0 8px',offset:0},{opacity:0,translate:'0 8px',offset:.44},{opacity:1,translate:'0 0',offset:.88},{opacity:1,translate:'0 0',offset:1}],{...options,direction:'normal'}));
     }
   }
   // Stamp the label only after the artwork and measured caption have reassembled.
