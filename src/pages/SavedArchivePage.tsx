@@ -225,7 +225,31 @@ function SavedFolio({ record, sourceBusy, onSource, onChange, onRemove, removing
   const sentence=record.sentence??t('savedRecords.missingOriginal');
   const save=async()=>{if(busy)return;setBusy(true);setError('');operation.current??=crypto.randomUUID();savedNoteDrafts.set(record.record_id,{text:draft,revision:revision.current,operationId:operation.current,editing:true});try{const result=await mutateSaved({kind:'edit',record_id:record.record_id,expected_revision:revision.current,explanation:draft},operation.current);onChange(result.record);savedNoteDrafts.delete(record.record_id);revision.current=result.record.revision;operation.current=undefined;setEditing(false);}catch(cause){setError(t(savedErrorKey(cause)));}finally{setBusy(false);}};
   useEffect(()=>{if(!editing&&!savedNoteDrafts.has(record.record_id)){revision.current=record.revision;setDraft(record.explanation_source==='personal'?record.explanation??'':'');}},[record,editing]);
-  useLayoutEffect(()=>{const node=paragraph.current;if(!node)return;let measuredWidth=-1;const resize=()=>{const width=node.clientWidth;if(width===measuredWidth)return;measuredWidth=width;let size=sentence.length>100?48:sentence.length>56?57:72;while(size>32){node.style.fontSize=`${innerWidth<768?Math.min(45,Math.max(30,size*.63)):size}px`;if(node.scrollHeight<Math.max(160,innerHeight*.39)&&node.scrollWidth<=width)break;size-=2;}};resize();const observer=new ResizeObserver(resize);observer.observe(node.parentElement!);return()=>observer.disconnect();},[sentence]);
+  useLayoutEffect(() => {
+    const node = paragraph.current;
+    const article = node?.parentElement;
+    const viewport = node?.closest('.approved-folio-scroll');
+    if (!node || !article || !viewport) return;
+    const mobile = matchMedia('(max-width: 767px)');
+    const fit = () => {
+      const padding = getComputedStyle(viewport);
+      const available = viewport.clientHeight - parseFloat(padding.paddingTop) - parseFloat(padding.paddingBottom)
+        - (article.getBoundingClientRect().height - node.getBoundingClientRect().height);
+      const floor = mobile.matches ? 24 : 28;
+      const ceiling = sentence.length > 120 ? (mobile.matches ? 26 : 32)
+        : sentence.length > 56 ? (mobile.matches ? 30 : 38) : (mobile.matches ? 34 : 46);
+      for (let size = ceiling; size >= floor; size -= 1) {
+        node.style.fontSize = `${size}px`;
+        if (node.getBoundingClientRect().height <= available + 1) break;
+      }
+    };
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(viewport);
+    for (const child of article.children) if (child !== node) observer.observe(child);
+    mobile.addEventListener('change', fit);
+    return () => { observer.disconnect(); mobile.removeEventListener('change', fit); };
+  }, [sentence, editing, record.sentence_translation, record.explanation]);
   const speechKey=`saved-folio:${record.record_id}`;
   return <article className="approved-saved-folio" data-record={record.record_id}>
     <header><button className="approved-source-cover" disabled={!record.source||sourceBusy} onClick={onSource} aria-label={t('savedRecords.returnToSource')}><MaterialCover src={savedCover(record)} identity={record.source?.content_hash??record.source_key}/></button><button className="approved-source-title" disabled={!record.source||sourceBusy} onClick={onSource} aria-label={t('savedRecords.returnToSource')}>{record.source?.file_name?bookmarkTitle(record.source.file_name):t('savedRecords.sourceMissing')}</button><SpeechButton className="approved-folio-speech" text={sentence} speechKey={speechKey} kind="sentence" label={t(ready&&media?.source.audio?'sourceAudio.playOriginal':'sourceAudio.read')} media={ready&&media?.source.audio?bindMediaTarget(media,{record_id:record.record_id}):undefined} idleIcon={<Volume2 size={39} strokeWidth={1.5}/>}/></header>

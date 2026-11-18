@@ -7,7 +7,7 @@ interface FrameClock {
 
 /** Only real scroll input arms recovery; ensuing momentum extends the idle
  * deadline. Auto-follow frames never arm or postpone their own recovery. */
-export function createReadingFollowRecovery(recover: () => void, delay = 3000) {
+export function createReadingFollowRecovery(recover: () => void, delay = 2000) {
   let suspended = false, held = false, timer: ReturnType<typeof setTimeout> | undefined;
   const clear = () => { clearTimeout(timer); timer = undefined; };
   const schedule = () => {

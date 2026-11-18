@@ -1557,7 +1557,6 @@
     "startListening": "Read the whole material",
     "exitListening": "Stop and exit reading aloud",
     "listenFromSentence": "Read from sentence {{index}}",
-    "pickPlaybackStart": "Drag up to choose a sentence and release to play. Use arrow keys and Enter with a keyboard.",
     "hideTranslation": "Hide Chinese translation",
     "showTranslation": "Show Chinese translation",
     "noTranslation": "No Chinese translation available",

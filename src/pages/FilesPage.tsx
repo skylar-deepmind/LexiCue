@@ -266,13 +266,15 @@ function TagRail({ files, tags, returnFocus, onClose, onSelect }: { files: Mater
     await Promise.allSettled(next.jobs.map(job=>job.finished));
     if(mounted.current)onClose();
   };
+  const canMagnify = useRef(matchMedia('(min-width: 768px) and (hover: hover) and (pointer: fine)'));
   const magnify = (x?: number) => {
+    if (!canMagnify.current.matches || editingId !== null) return;
     const viewport = rail.current?.getBoundingClientRect();
     panel.current?.querySelectorAll<HTMLElement>('.approved-tag-group').forEach(node => { const r = node.getBoundingClientRect(); const distance = Math.abs((x ?? ((viewport?.left ?? 0) + (viewport?.width ?? innerWidth) / 2)) - r.left - r.width / 2); node.style.setProperty('--magnify', String(1 + .13 * Math.max(0, 1 - distance / (r.width * 1.35)))); });
   };
   return <Overlay label={t('readingDesk.library')} onClose={close} panelRef={panel} returnFocus={returnFocus} className="approved-tag-panel" layerClassName="approved-tag-layer">
     <button className="approved-icon approved-back approved-rail-back" aria-label={t('common.back')} onClick={() => void close()}><ChevronLeft size={22}/></button>
-    <div ref={rail} className="approved-tag-rail" onPointerMove={event => { if (event.pointerType === 'mouse'&&editingId===null) magnify(event.clientX); }} onPointerLeave={() => magnify()} onScroll={() => { if(editingId===null)magnify(); }}><div className="approved-tag-track">
+    <div ref={rail} className="approved-tag-rail" onPointerMove={event => { if (event.pointerType === 'mouse') magnify(event.clientX); }} onPointerLeave={() => magnify()} onScroll={() => magnify()}><div className="approved-tag-track">
       {items.map(item => {
         const tag = tags.find(tag => String(tag.id) === item.id);
         const saving = () => !!panel.current?.querySelector('.approved-tag-name-editor[aria-busy="true"]');

@@ -1540,7 +1540,6 @@
     "startListening": "教材全体を読み上げる",
     "exitListening": "読み上げを停止して終了",
     "listenFromSentence": "{{index}} 文目から読み上げる",
-    "pickPlaybackStart": "上にドラッグして文を選び、指を離すと再生します。キーボードでは矢印キーで選び、Enterで確定します。",
     "hideTranslation": "中国語訳を非表示",
     "showTranslation": "中国語訳を表示",
     "noTranslation": "中国語訳はありません",
