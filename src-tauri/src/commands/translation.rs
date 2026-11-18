@@ -16,6 +16,8 @@ use tauri::{AppHandle, Emitter, Manager};
 mod apple_translation;
 
 const ENDPOINT: &str = "https://translate.googleapis.com/translate_a/single";
+// The web client is rate-limited on some iOS connections.
+const GOOGLE_CLIENT: &str = if cfg!(target_os = "ios") { "it" } else { "gtx" };
 const MAX_BATCH_CHARS: usize = 1400;
 const CACHE_TTL: u64 = 30 * 24 * 3600;
 const CACHE_LIMIT: u64 = 20 * 1024 * 1024;
@@ -177,7 +179,7 @@ async fn request(
     let response = client
         .get(endpoint)
         .query(&[
-            ("client", "gtx"),
+            ("client", GOOGLE_CLIENT),
             ("sl", "en"),
             ("tl", "zh-CN"),
             ("dt", "t"),
