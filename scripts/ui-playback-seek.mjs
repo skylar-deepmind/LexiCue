@@ -134,6 +134,15 @@ try {
       await viewport.evaluate(node => { node.scrollTop = 0; node.focus({ preventScroll:true }); });
       await page.keyboard.press('PageDown');
       await guide.waitFor();
+      await viewport.evaluate(async node => {
+        let previous = node.scrollTop, stable = 0;
+        while (stable < 4) {
+          await new Promise(requestAnimationFrame);
+          const current = node.scrollTop;
+          stable = Math.abs(current - previous) < .1 ? stable + 1 : 0;
+          previous = current;
+        }
+      });
       const selected = await chosen();
       await page.keyboard.press('Enter');
       await page.waitForFunction(() => window.playbackCommits.length === 3);
