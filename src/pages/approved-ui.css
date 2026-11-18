@@ -131,6 +131,8 @@
 .approved-settings-paper > h1 { margin:3px 0 29px; font-size:34px; line-height:1.2; font-weight:500; outline:none; }
 .approved-settings-paper .settings-list { background:transparent; border:0; border-radius:0; margin-inline:-12px; }
 .approved-settings-paper .settings-row {
+  --interactive-hover:color-mix(in srgb,var(--approved-hover) 70%,var(--approved-settings));
+  --interactive-pressed:var(--approved-hover);
   min-height:69px;
   padding:8px 12px;
   gap:14px;
@@ -142,10 +144,6 @@
   .approved-settings .settings-row {
     transition:background-color 150ms ease;
   }
-  .approved-settings .settings-row:enabled:hover {
-    background:color-mix(in srgb,var(--approved-hover) 70%,var(--approved-settings));
-  }
-  .approved-settings .settings-row:enabled:active { background:var(--approved-hover); }
 }
 .approved-settings-paper .settings-row:focus-visible { outline:2px solid var(--approved-focus); outline-offset:-2px; box-shadow:none; }
 .approved-settings-tabs button:focus-visible { outline:2px solid var(--approved-focus); outline-offset:0; }

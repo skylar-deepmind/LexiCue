@@ -55,9 +55,9 @@
   -webkit-touch-callout:none;
 }
 @media(hover:hover) and (pointer:fine) {
-  .settings-directory .settings-row:hover { background:var(--interactive-hover); }
+  .settings-directory .settings-row:enabled:hover { background:var(--interactive-hover); }
   .settings-directory .theme-choice:hover { border-color:var(--text-muted); }
-  .settings-directory :is(.settings-row,.theme-choice):active { background:var(--interactive-pressed); }
+  .settings-directory :is(.settings-row,.theme-choice):enabled:active { background:var(--interactive-pressed); }
 }
 @media(hover:none), (pointer:coarse) {
   .settings-directory :is(.settings-row,.theme-choice,.settings-back):active { opacity:.65; transition:opacity 100ms ease 120ms; }
