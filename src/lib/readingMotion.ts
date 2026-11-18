@@ -54,6 +54,9 @@ export function cancelReadingReturn() {
 export function captureReadingEntrance(material: Material, card: HTMLElement, origin: 'desk' | 'wall') {
   cancelReadingReturn();
   cleanup(); pending = true;
+  // Start the reader font while navigation and native material loading run.
+  void document.fonts.load('1em "Source Serif 4"').catch(() => {});
+
   const title = card.querySelector<HTMLElement>('.approved-card-title,.approved-poster strong');
   const quote = card.querySelector<HTMLElement>('.approved-card-quote');
   const page=card.closest<HTMLElement>('.approved-desk');
@@ -127,28 +130,40 @@ function run(reverse: boolean) {
     if(!reverse&&data.background)layer.append(data.background);
     const paperBox=reverse?{x:0,y:0,width:innerWidth,height:innerHeight}:box(paper);
     Object.assign(paper.style,{position:'absolute',left:'0',top:'0',width:`${innerWidth}px`,height:`${innerHeight}px`});layer.append(paper);
-    const readerVisibility=reader?.style.visibility??'';if(!reverse&&reader){restoreScroll(reader,paper);reader.style.visibility='hidden';}
+    if (!reverse && reader) restoreScroll(reader, paper);
     const index=reverse?data.segment:Number(sentenceNode?.closest<HTMLElement>('[data-sentence]')?.dataset.sentence??0);
     const paragraph=paper.querySelector<HTMLElement>(`[data-sentence="${index}"] .reading-original`)??paper.querySelector<HTMLElement>('.reading-original');
     const nodes=[...paragraph?.querySelectorAll<HTMLElement>('.reading-word')??[]].slice(0,3);
     let destinations=reverse?returning?.words??[]:nodes.map(node=>piece(node)!).filter(Boolean);
     if(destinations[0])destinations=destinations.filter(p=>Math.abs(p.box.y-destinations[0].box.y)<3);
-    const dispose=playWallExposure({...source,wall:wallBounds},paper,layer,reverse,destinations,nodes.slice(0,destinations.length),paperBox,()=>{if(!reverse&&reader)reader.style.visibility=readerVisibility;});
+    const dispose=playWallExposure({...source,wall:wallBounds},paper,layer,reverse,destinations,nodes.slice(0,destinations.length),paperBox,reverse ? null : reader);
     clearHold();cleanup=()=>{dispose();returningMotion=false;};returning=null;pending=false;return;
   }
   const jobs: Animation[] = [], hidden: { node: HTMLElement; visibility: string }[] = [];
   const hide = (node: HTMLElement | null) => { if (!node) return; hidden.push({ node, visibility: node.style.visibility }); node.style.visibility = 'hidden'; };
   const duration = 580;
   const options: KeyframeAnimationOptions = { duration, fill: 'both', direction: reverse ? 'reverse' : 'normal', easing: 'cubic-bezier(.4,0,.2,1)' };
+  const liveTitle = !reverse ? reader?.querySelector<HTMLElement>('.reading-title') : null;
+  const liveCover = !reverse ? reader?.querySelector<HTMLElement>('.folio-print') : null;
+  const animatedCover = source.cover && cover && source.cover.box.width && cover.box.width;
+  const animatedTitle = source.title && title && source.title.box.width && title.box.width;
+  const animatedQuote = source.quote && quote && source.quote.box.width && quote.box.width;
+
   const animate = (node: HTMLElement, frames: Keyframe[]) => { const a = node.animate(frames, options); jobs.push(a); };
   const place = (node: HTMLElement, r: Box) => { Object.assign(node.style, { position: 'absolute', left: `${r.x}px`, top: `${r.y}px`, width: `${r.width}px`, height: `${r.height}px`, transformOrigin: '0 0' }); layer.append(node); };
   const travel = (from: Piece | undefined, to: Piece | undefined, start: number, end: number) => {
     if (!from || !to || !from.box.width || !from.box.height) return;
-    const clone = from.node.cloneNode(true) as HTMLElement; clone.dataset.motionPiece=from.node instanceof HTMLImageElement?'cover':from===source.title?'title':'quote'; place(clone, from.box);
-    if (!(from.node instanceof HTMLImageElement)) {
+    const clone = from.node.cloneNode(true) as HTMLElement;
+    const isCover = from.node instanceof HTMLImageElement;
+    clone.dataset.motionPiece = isCover ? 'cover' : from === source.title ? 'title' : 'quote';
+    place(clone, from.box);
+    // Fade the traveling copy into the rendered destination before the last frame.
+    // Wrapped excerpts and fitted images can paint differently at the same bounds.
+    if (!reverse) animate(clone, [{ opacity:1 }, { opacity:1, offset:.92 }, { opacity:0 }]);
+    if (!isCover) {
       // Text changes its measure and type size independently. Scaling its box
       // on two axes flattens glyphs when a two-line quote lands on one line.
-      const frame = (p: Piece): Keyframe => ({ left:`${p.box.x}px`, top:`${p.box.y}px`, width:`${p.box.width}px`, height:`${p.box.height}px`, fontSize:p.node.style.fontSize, lineHeight:p.node.style.lineHeight, letterSpacing:p.node.style.letterSpacing, color:p.node.style.color, opacity:1 });
+      const frame = (p: Piece): Keyframe => ({ left:`${p.box.x}px`, top:`${p.box.y}px`, width:`${p.box.width}px`, height:`${p.box.height}px`, fontSize:p.node.style.fontSize, lineHeight:p.node.style.lineHeight, letterSpacing:p.node.style.letterSpacing, color:p.node.style.color });
       animate(clone, [{ ...frame(from), offset:0 }, { ...frame(from), offset:start }, { ...frame(to), offset:end }, { ...frame(to), offset:1 }]);
       return;
     }
@@ -159,7 +174,9 @@ function run(reverse: boolean) {
   const paper = reverse ? returning?.background : reader;
   if(reverse&&paper){paper.querySelectorAll<HTMLElement>('.reading-title,.folio-print').forEach(hide);paper.querySelectorAll<HTMLElement>(`[data-sentence="${data.segment}"] .reading-original`).forEach(hide);}
   if (!reverse) {
-    hide(document.querySelector('.reading-title')); hide(document.querySelector('.folio-print')); hide(sentenceNode);
+    for (const target of [animatedTitle && liveTitle, animatedCover && liveCover, animatedQuote && sentenceNode]) {
+      if (target) animate(target, [{ opacity:0 }, { opacity:0, offset:.88 }, { opacity:1 }]);
+    }
   } else if (card) {
     // Keep the real card's hit area alive while the snapshot paints its artwork.
     jobs.push(card.animate([{opacity:0},{opacity:0}],{duration:duration+240,fill:'both'}));
@@ -173,7 +190,7 @@ function run(reverse: boolean) {
     if (paper) {
       if (reverse) place(paper,{x:0,y:0,width:innerWidth,height:innerHeight});
       animate(paper,[{clipPath:clip({x:0,y:0,width:innerWidth,height:innerHeight},source.card)},{clipPath:'inset(0px round 0px)'}]);
-      paper.querySelectorAll<HTMLElement>('.reading-layout,.reading-breadcrumb').forEach(node=>animate(node,[{opacity:0},{opacity:0,offset:.62},{opacity:1}]));
+      paper.querySelectorAll<HTMLElement>('.reading-layout,.reading-breadcrumb').forEach(node=>animate(node,[{opacity:0},{opacity:0,offset:.62},{opacity:1,offset:.9},{opacity:1}]));
       if(!reverse){const controls=document.querySelector<HTMLElement>('.mobile-reading-tools');if(controls)animate(controls,[{opacity:0},{opacity:0,offset:.62},{opacity:1}]);}
     }
   }
@@ -220,7 +237,7 @@ function run(reverse: boolean) {
 }
 export function finishReadingEntrance(id: number): () => void {
   if (!pending || entrance?.id !== id || returning) return () => {};
-  const reader=document.querySelector<HTMLElement>('.reading-page'),visibility=reader?.style.visibility??'';
+  const reader=document.querySelector<HTMLElement>(`.page-live .reading-page[data-reading-material="${id}"]`),visibility=reader?.style.visibility??'';
   if(reader)reader.style.visibility='hidden';
   let frame=0,alive=true;
   void document.fonts.ready.then(()=>{if(!alive)return;frame=requestAnimationFrame(()=>{if(reader)reader.style.visibility=visibility;run(false);});});

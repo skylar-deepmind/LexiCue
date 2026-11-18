@@ -17,23 +17,19 @@
 .approved-wall-empty > .empty-library-artwork { width:min(220px,50vw); height:min(280px,40vh); background:transparent; }
 .approved-wall-empty p { margin:0; font:14px/1.5 system-ui; color:inherit; }
 .approved-wall:has(.approved-wall-empty) .approved-projector { display:none; }
-.approved-tag-panel .approved-tag-add { position:fixed; right:22px; top:max(20px,env(safe-area-inset-top)); color:var(--material-tag-paper); }
-.approved-tag-panel .approved-tag-add.approved-icon:is(:hover,:active,:focus) { background:transparent; box-shadow:none; }
-.approved-tag-add:active { translate:0 3px; }
-.approved-tag-name:disabled { opacity:1; cursor:default; }
 .approved-tag-name { touch-action:pan-x; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
-.approved-tag-name-editor { display:flex; flex:none; flex-direction:column; align-items:center; gap:4px; padding:8px; min-height:104px; background:var(--approved-wall-title); }
-.approved-tag-name-editor input { width:100%; min-width:0; min-height:44px; padding:6px 8px; border:1px solid #ffffff50; border-radius:7px; color:#fbfaf5; background:transparent; font:16px/1.3 system-ui; }
-.approved-tag-name-editor > div { display:flex; justify-content:flex-end; width:100%; }
-.approved-tag-name-editor .approved-icon { color:#fbfaf5; }
-.approved-tag-name-editor .tag-error { margin:4px 0; font:12px/1.4 system-ui; color:#ffe1d2; }
-.approved-tag-stack:has(.approved-tag-name-editor) { height:auto; min-height:250px; transform:none; }
-.approved-tag-stack:has(.approved-tag-name-editor) > .approved-tag-open { height:195px; flex:none; }
-.approved-tag-rail:has(.approved-tag-name-editor) { max-height:calc(var(--visual-height,100dvh) - 110px); overflow:auto; }
-.approved-tag-track:has(.approved-tag-name-editor) { height:auto; min-height:326px; }
-.approved-tag-group:has(.approved-tag-name-editor) { height:auto; min-height:300px; }
+.approved-tag-name-editor { flex:none; min-width:0; padding:5px; background:var(--approved-wall-title); }
+.approved-tag-name-field { position:relative; }
+.approved-tag-name-editor input { display:block; width:100%; min-width:0; height:44px; padding:6px 44px 6px 8px; border:1px solid #ffffff60; border-radius:7px; color:#fbfaf5; background:transparent; font:16px/1.3 system-ui; }
+.approved-tag-name-editor .approved-icon { position:absolute; top:0; right:0; width:44px; height:44px; color:#fbfaf5; }
+.approved-tag-name-editor .approved-icon:hover:not(:disabled) { background:#ffffff19; }
+.approved-tag-name-editor :is(input,button):focus-visible { outline:2px solid #fbfaf5; outline-offset:-3px; }
+.approved-tag-name-editor .tag-error { margin:4px 2px; font:12px/1.4 system-ui; color:#ffe1d2; }
+.approved-tag-rail:has(.approved-tag-name-editor) { max-height:calc(var(--visual-height,100dvh) - 72px); overflow:auto; }
+:root[data-keyboard-open="true"] .approved-tag-layer:has(.approved-tag-name-editor) { padding-top:calc(var(--approved-back-top) + 44px)!important; }
+:root[data-keyboard-open="true"] .approved-tag-rail:has(.approved-tag-name-editor) { max-height:calc(var(--visual-height,100dvh) - var(--approved-back-top) - 44px); }
 @keyframes card-tags-in { from { opacity:0; translate:0 6px; } to { opacity:1; translate:0 0; } }
-@media(max-width:767px) { .card-tag-options { gap:8px; } .card-tag-options > button { padding:10px 14px; font-size:13px; } .approved-tag-stack:has(.approved-tag-name-editor) > .approved-tag-open { height:174px; } }
+@media(max-width:767px) { .card-tag-options { gap:8px; } .card-tag-options > button { padding:10px 14px; font-size:13px; } }
 @media(min-width:768px) and (max-height:800px),(max-width:767px) and (max-height:600px) { .approved-desk:has(.home-card-tags) { overflow-y:auto; } .approved-deck:has(.home-card-tags) { top:170px; } }
 @media(prefers-reduced-motion:reduce) { .home-card-tags { animation:none; } }
 /* A single card keeps the same visual weight as the saved pocket. */

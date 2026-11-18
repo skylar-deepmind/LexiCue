@@ -11,14 +11,13 @@ import '../components/empty-material.css';
 import SavedPocketPreview from '../components/SavedPocketPreview';
 import InlineTagName from '../components/InlineTagName';
 import HomeCardTags from '../components/HomeCardTags';
-import EmptyLibraryArtwork from '../components/EmptyLibraryArtwork';
 import LibraryCover from '../components/LibraryCover';
 import LibraryCategoryCard from '../components/LibraryCategoryCard';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
-import { ChevronLeft, ChevronRight, Plus, Settings } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Settings } from 'lucide-react';
 import { useMaterialStore } from '../stores/materialStore';
 import { useReadingDeskStore } from '../stores/readingDeskStore';
 import { useFileStore } from '../stores/fileStore';
@@ -203,7 +202,7 @@ function MaterialDesk() {
   return <div className="approved-desk" ref={home} data-library-open={groups || undefined}>
     {wallTag !== null ? <PosterWall files={wallFiles} title={tagName} identity={wallTag} onBack={() => { setParams({ view: 'library' }); setGroups(true); }} onOpen={(file, node) => open(file, node, 'wall')}/> : <>
       <header className="approved-home-header">
-        <button className="approved-brand" aria-label={t(theme === 'midnight' ? 'approved.light' : 'approved.dark')} aria-pressed={theme === 'midnight'} onClick={() => setTheme(current => current === 'midnight' ? 'sage' : 'midnight')}><img className="approved-wordmark-day" src="/design/wordmark.png" alt=""/><img className="approved-wordmark-night" src="/design/wordmark-night.png" alt=""/></button>
+        <button className="approved-brand" aria-label={t(theme === 'midnight' ? 'approved.light' : 'approved.dark')} aria-pressed={theme === 'midnight'} onClick={() => setTheme(current => current === 'midnight' ? 'sage' : 'midnight')}><span className="approved-wordmark" aria-hidden="true"/></button>
         <div><button data-guide="import" className="approved-icon clipboard-import" aria-label={t(importing ? 'materials.importRunning' : 'materials.importDialog.pasteLink')} aria-busy={pasting || importing} disabled={pasting} onClick={() => void paste()}>{pasting || importing ? <BusyRing/> : <ClipboardImportIcon/>}</button>
           <button className="approved-icon home-file-picker import-tray" aria-label={t('materials.choose')} aria-busy={picking || importing} disabled={picking || importing || pasting} onClick={() => void useImportStore.getState().choose()}>{picking ? <BusyRing/> : <FileImportIcon/>}</button>
           <button className="approved-icon home-settings-action" onPointerDown={settingsRoute.preload} onFocus={settingsRoute.preload} aria-label={t('sidebar.settings')} onClick={() => navigate('/settings', { state: visitState(location) })}><Settings size={23}/></button>
@@ -259,7 +258,7 @@ function TagRail({ files, tags, returnFocus, onClose, onSelect }: { files: Mater
     return () => { mounted.current=false;flight.current?.dispose(); };
   }, []);
   const close = async () => {
-    if(panel.current?.querySelector('form[aria-busy="true"]'))return false;
+    if(panel.current?.querySelector('.approved-tag-name-editor[aria-busy="true"]'))return false;
     if(editingId!==null){setEditingId(null);return false;}
     if(closing.current)return;closing.current=true;flight.current?.dispose();
     const anchor=returnFocus()?.querySelector<HTMLElement>('.approved-stock img:last-child')??returnFocus();
@@ -273,13 +272,24 @@ function TagRail({ files, tags, returnFocus, onClose, onSelect }: { files: Mater
   };
   return <Overlay label={t('readingDesk.library')} onClose={close} panelRef={panel} returnFocus={returnFocus} className="approved-tag-panel" layerClassName="approved-tag-layer">
     <button className="approved-icon approved-back approved-rail-back" aria-label={t('common.back')} onClick={() => void close()}><ChevronLeft size={22}/></button>
-    <button className="approved-icon approved-tag-add" aria-label={t('tags.create')} onClick={() => setEditingId('new')}><Plus size={21}/></button>
     <div ref={rail} className="approved-tag-rail" onPointerMove={event => { if (event.pointerType === 'mouse'&&editingId===null) magnify(event.clientX); }} onPointerLeave={() => magnify()} onScroll={() => { if(editingId===null)magnify(); }}><div className="approved-tag-track">
-      {items.map(item => {const tag=tags.find(tag=>String(tag.id)===item.id);return <div key={item.id} className="approved-tag-group" data-tag-id={item.id} tabIndex={-1}><LibraryCategoryCard tag={tag} disabled={editingId!==null}>
-        <button className="approved-tag-open" aria-label={`${item.name} · ${item.files.length}`} onClick={() => { if(!panel.current?.querySelector('form[aria-busy="true"]'))onSelect(item.id); }}><LibraryCover files={item.files}/></button>
-        {tag?<InlineTagName tag={tag} editing={editingId===item.id} onEdit={() => setEditingId(item.id)} onFinish={() => setEditingId(null)}/>:<InlineTagName displayName={item.name} editing={editingId===item.id} onRename={name => renameDefault(item.id as LibraryNameKey,name)} onEdit={() => setEditingId(item.id)} onFinish={() => setEditingId(null)}/>}
-      </LibraryCategoryCard></div>;})}
-      {editingId==='new'&&<div className="approved-tag-group" data-tag-id="new"><div className="approved-tag-stack"><span className="approved-tag-open"><EmptyLibraryArtwork/></span><InlineTagName editing onEdit={() => {}} onFinish={() => setEditingId(null)}/></div></div>}
+      {items.map(item => {
+        const tag = tags.find(tag => String(tag.id) === item.id);
+        const saving = () => !!panel.current?.querySelector('.approved-tag-name-editor[aria-busy="true"]');
+        const rename = (name: string) => tag
+          ? useFileStore.getState().renameTag(tag.id, name)
+          : renameDefault(item.id as LibraryNameKey, name);
+        return <div key={item.id} className="approved-tag-group" data-tag-id={item.id} tabIndex={-1}>
+          <LibraryCategoryCard tag={tag} disabled={editingId!==null}>
+            <button className="approved-tag-open" aria-label={`${item.name} · ${item.files.length}`} onClick={() => {
+              if (!saving()) onSelect(item.id);
+            }}><LibraryCover files={item.files}/></button>
+            <InlineTagName name={item.name} editing={editingId===item.id} onRename={rename}
+              onEdit={() => { if (!saving()) setEditingId(item.id); }}
+              onFinish={() => setEditingId(current => current === item.id ? null : current)}/>
+          </LibraryCategoryCard>
+        </div>;
+      })}
     </div></div>
   </Overlay>;
 }

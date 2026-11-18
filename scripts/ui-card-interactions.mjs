@@ -44,15 +44,31 @@ try{
   }
   await finish();await settle();
   await page.locator('.approved-library-entry').click();await settle();
-  const add=page.locator('.approved-tag-add'),backButton=page.locator('.approved-rail-back');ok(Math.abs((await add.boundingBox()).y-(await backButton.boundingBox()).y)<1,'category creation shares the back-button header row');eq(await add.evaluate(n=>getComputedStyle(n).color),'rgb(251, 250, 245)','category creation remains legible over the scrim');await add.hover();eq(await add.evaluate(n=>getComputedStyle(n).backgroundColor),'rgba(0, 0, 0, 0)','category creation hover retains contrast without a pale rectangle');
-  const caption=page.locator(`[data-tag-id="${daily.id}"] .approved-tag-name`);await caption.click();eq(await page.locator('.approved-tag-name-editor').count(),0,'a short caption click does not open an old management dialog');
-  const cap=await caption.boundingBox();await page.mouse.move(cap.x+cap.width/2,cap.y+cap.height/2);await page.mouse.down();await page.locator('.approved-tag-name-editor input').waitFor();await page.mouse.up();
+  eq(await page.locator('.approved-tag-add').count(),0,'the library has no category creation button');
+  const caption=page.locator(`[data-tag-id="${daily.id}"] .approved-tag-name`);
+  await caption.click();
+  const rename=page.locator('.approved-tag-name-editor');
+  await rename.locator('input').waitFor();
+  eq(await rename.getByRole('button').count(),1,'the input has one confirmation control');
+  await rename.locator('input').fill('A long draft name '.repeat(6));
+  await page.waitForFunction(()=>{
+    const editor=document.querySelector('.approved-tag-name-field'),field=editor.querySelector('input'),button=editor.querySelector('button');
+    const input=field.getBoundingClientRect(),confirm=button.getBoundingClientRect(),visible=editor.closest('.approved-tag-rail').getBoundingClientRect();
+    return input.left>=visible.left-1&&input.right<=visible.right+1&&confirm.right<=input.right+1&&
+      Math.abs(confirm.top-input.top)<1&&confirm.width>=44&&
+      button.contains(document.elementFromPoint(confirm.x+confirm.width/2,confirm.y+confirm.height/2));
+  });
+  ok(true,'confirmation keeps a visible hit target inside the right end of a long input');
+  await page.keyboard.press('Enter');
+  eq(await rename.count(),1,'typing Enter in the field never commits the draft');
+  await page.locator('[data-tag-id="all"] .approved-tag-name').click();
+  eq((await h.call('list_tags')).find(t=>t.id===daily.id).name,daily.name,'switching fields without confirming discards the draft');
+  await caption.click();
   await page.locator('.approved-tag-name-editor input').fill('Voyage');await page.locator('.approved-tag-name-editor').getByRole('button',{name:'保存',exact:true}).click();await page.locator('.approved-tag-name-editor').waitFor({state:'detached'});
   eq((await h.call('list_materials')).find(f=>f.id===fileId).tags[0].id,daily.id,'inline rename preserves the existing association and ID');eq(await page.locator(`[data-tag-id="${daily.id}"] strong`).innerText(),'Voyage','renamed caption is updated in place');
   await page.getByRole('button',{name:'重命名 Voyage',exact:true}).focus();await page.keyboard.press('Enter');await page.locator('.approved-tag-name-editor input').fill('Travel');
   await page.locator('.approved-tag-name-editor').getByRole('button',{name:'保存',exact:true}).click();await page.locator('.approved-tag-name-editor [role=alert]').waitFor();eq(await page.locator('.approved-tag-name-editor input').inputValue(),'Travel','a rejected duplicate name retains the draft for correction');eq((await h.call('list_tags')).find(t=>t.id===daily.id).name,'Voyage','failed inline rename leaves the original name intact');
   await page.keyboard.press('Escape');await page.locator('.approved-tag-name-editor').waitFor({state:'detached'});eq((await h.call('list_tags')).find(t=>t.id===daily.id).name,'Voyage','Escape cancels inline renaming without saving');
-  await page.locator('.approved-tag-add').click();await page.locator('.approved-tag-name-editor input').fill('Notes');await page.locator('.approved-tag-name-editor').getByRole('button',{name:'保存',exact:true}).click();await page.locator('.approved-tag-name-editor').waitFor({state:'detached'});ok((await h.call('list_tags')).some(t=>t.name==='Notes'),'new categories can also be named in place');
   ok(await page.locator(`[data-tag-id="${empty.id}"] .empty-library-artwork img`).isVisible(),'empty classification has the approved static comic');
   await page.getByRole('button',{name:'Empty · 0',exact:true}).click();await page.locator('.approved-wall-empty .empty-library-artwork img').waitFor();eq(await page.locator('.approved-wall-empty img').getAttribute('src'),'/design/empty-material/waiting.png','empty wall uses a static waiting pose');
   ok(await page.locator('.approved-wall-empty p').evaluate(n=>{const l=color=>{const rgb=color.match(/[\d.]+/g).slice(0,3).map(Number).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;});return .2126*rgb[0]+.7152*rgb[1]+.0722*rgb[2];};const a=l(getComputedStyle(n).color),b=l(getComputedStyle(n.closest('.approved-wall')).backgroundColor);return (Math.max(a,b)+.05)/(Math.min(a,b)+.05)>=4.5;}),'empty status stays readable on the dark gallery in both themes');
@@ -68,6 +84,7 @@ try{
   const brand=page.locator('.approved-brand'),color=()=>page.locator('.approved-desk').evaluate(n=>getComputedStyle(n).backgroundColor);
   const oldColor=await color(),oldTheme=await page.evaluate(()=>document.documentElement.dataset.theme);
   await brand.click();await page.waitForTimeout(240);const midColor=await color();ok(midColor!==oldColor,'live palette leaves the old color gradually');
+  ok(await brand.locator('.approved-wordmark').evaluate(n=>{const letters=getComputedStyle(n,'::after'),book=getComputedStyle(n,'::before');return letters.maskImage.includes('wordmark-night')&&letters.clipPath!=='none'&&book.clipPath!=='none'&&getComputedStyle(n.parentElement).backgroundColor==='rgba(0, 0, 0, 0)';}),'the wordmark paints transparent glyphs throughout the color transition');
   const nextTheme=await page.evaluate(()=>document.documentElement.dataset.theme);ok(nextTheme!==oldTheme,'first click changes the semantic theme immediately');
   await brand.click();eq(await page.evaluate(()=>document.documentElement.dataset.theme),oldTheme,'a second click during motion reverses the theme');
   await brand.click();eq(await page.evaluate(()=>document.documentElement.dataset.theme),nextTheme,'a third click during motion is also delivered');

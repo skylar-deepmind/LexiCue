@@ -64,7 +64,7 @@ export const manualContent={
           "id": "tags",
           "title": "Desk, library and tags",
           "body": [
-            "Click a material’s image to resume reading. Click its tag to choose one category from the strip above the card; imports use the same strip. In the library, category artwork opens the poster wall; hold its caption to rename it in place. Built-in captions can also be renamed without reassigning materials. Covers combine the materials inside; hold a custom category cover and drag it to the basket to remove just that category, keeping its materials. Older multi-tag records stay intact until you explicitly choose a category.",
+            "Click a material’s image to resume reading. Click its tag to choose one category from the strip above the card; imports use the same strip. In the library, category artwork opens the poster wall; click its caption to rename it in place and use the check mark to save. New categories are created during import. Built-in captions can also be renamed without reassigning materials. Covers combine the materials inside; hold a custom category cover and drag it to the basket to remove just that category, keeping its materials. Older multi-tag records stay intact until you explicitly choose a category.",
             "To delete a material, hold its card, drag it over the trash basket and release when the lid opens. Release elsewhere to cancel. Saved sentences, meanings and notes remain available; a deleted source can no longer be opened."
           ],
           "steps": [],
@@ -411,7 +411,7 @@ export const manualContent={
           "id": "tags",
           "title": "桌面、材料库与标签",
           "body": [
-            "点击材料图片接着上次位置阅读；点击现有标签，在卡片上方选择一个分类，导入时也使用同样的标签条。材料库中，点击分类图片进入海报墙，长按下方文字原地改名；两个默认名称也能原地修改，不改变材料归属；封面由分类内材料拼成，长按自建分类封面下拖到纸篓可移除分类，材料保留；旧资料的多个标签保留到明确选择分类时才改变。",
+            "点击材料图片接着上次位置阅读；点击现有标签，在卡片上方选择一个分类，导入时也使用同样的标签条。材料库中，点击分类图片进入海报墙，单击下方文字原地改名，点输入框右侧的勾保存；新标签在导入时创建；两个默认名称也能原地修改，不改变材料归属；封面由分类内材料拼成，长按自建分类封面下拖到纸篓可移除分类，材料保留；旧资料的多个标签保留到明确选择分类时才改变。",
             "长按材料卡片，拖到垃圾篓，盖子打开后松手即删除；在其他位置松手则取消。已保存的原句、释义和笔记仍保留，但无法再打开已删除的来源。"
           ],
           "steps": [],
@@ -758,7 +758,7 @@ export const manualContent={
           "id": "tags",
           "title": "デスク・ライブラリ・タグ",
           "body": [
-            "資料の画像で前回の位置から読み、タグを押すとカード上の選択欄で分類を1つ選べます。取り込み時も同じ選択欄を使います。ライブラリの分類画像でポスター一覧を開き、その下の文字を長押しするとその場で名前を変更できます。表紙は分類内の素材を組み合わせます。既定の分類名も、素材の所属を変えずにその場で編集できます。作成した分類の表紙を長押ししてごみ箱へ下にドラッグすると分類だけを削除し、素材は残ります。既存の複数タグは分類を明示的に選ぶまで保持します。",
+            "資料の画像で前回の位置から読み、タグを押すとカード上の選択欄で分類を1つ選べます。取り込み時も同じ選択欄を使います。ライブラリの分類画像でポスター一覧を開き、その下の文字をタップするとその場で名前を変更でき、入力欄右側のチェックマークで保存します。新しい分類は取り込み時に作成できます。表紙は分類内の素材を組み合わせます。既定の分類名も、素材の所属を変えずにその場で編集できます。作成した分類の表紙を長押ししてごみ箱へ下にドラッグすると分類だけを削除し、素材は残ります。既存の複数タグは分類を明示的に選ぶまで保持します。",
             "素材のカードを長押ししてごみ箱へドラッグし、ふたが開いたら離すと削除します。それ以外の場所で離すとキャンセルします。保存した文・意味・メモは残りますが、削除した出典は開けなくなります。"
           ],
           "steps": [],
@@ -1105,7 +1105,7 @@ export const manualContent={
           "id": "tags",
           "title": "Lesetisch, Bibliothek und Tags",
           "body": [
-            "Das Materialbild setzt das Lesen fort. Ein Klick auf den Tag zeigt die Kategorien über der Karte; beim Import erscheint dieselbe Auswahl. In der Bibliothek öffnet das Kategorienbild die Posterwand. Halte die Beschriftung darunter gedrückt, um sie direkt umzubenennen. Das Cover kombiniert die enthaltenen Materialien. Auch die Standardnamen lassen sich ohne Neuzuordnung der Materialien bearbeiten. Halte das Cover einer eigenen Kategorie gedrückt und ziehe es zum Papierkorb, um nur die Kategorie zu löschen; die Materialien bleiben erhalten. Bestehende Mehrfach-Tags bleiben erhalten, bis du ausdrücklich eine Kategorie wählst.",
+            "Das Materialbild setzt das Lesen fort. Ein Klick auf den Tag zeigt die Kategorien über der Karte; beim Import erscheint dieselbe Auswahl. In der Bibliothek öffnet das Kategorienbild die Posterwand. Klicke auf die Beschriftung, um sie direkt umzubenennen, und speichere mit dem Häkchen im Eingabefeld. Neue Kategorien kannst du beim Import erstellen. Das Cover kombiniert die enthaltenen Materialien. Auch die Standardnamen lassen sich ohne Neuzuordnung der Materialien bearbeiten. Halte das Cover einer eigenen Kategorie gedrückt und ziehe es zum Papierkorb, um nur die Kategorie zu löschen; die Materialien bleiben erhalten. Bestehende Mehrfach-Tags bleiben erhalten, bis du ausdrücklich eine Kategorie wählst.",
             "Halte eine Materialkarte gedrückt, ziehe sie zum Papierkorb und lasse los, sobald sich der Deckel öffnet. Loslassen an anderer Stelle bricht ab. Gespeicherte Sätze, Bedeutungen und Notizen bleiben erhalten; die gelöschte Quelle lässt sich nicht mehr öffnen."
           ],
           "steps": [],

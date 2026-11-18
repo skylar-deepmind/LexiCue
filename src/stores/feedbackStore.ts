@@ -9,12 +9,13 @@ export interface FeedbackMessage {
   message: string;
   type: FeedbackType;
   action?: FeedbackAction;
+  passive?: boolean;
   placement?: 'top';
 }
 
 interface FeedbackStore {
   messages: FeedbackMessage[];
-  show: (message: string, type?: FeedbackType, duration?: number, action?: FeedbackAction, placement?: 'top') => number;
+  show: (message: string, type?: FeedbackType, duration?: number, action?: FeedbackAction, placement?: 'top', options?: { passive?: boolean }) => number;
   dismiss: (id: number) => void;
   pause: (id: number) => void;
   resume: (id: number) => void;
@@ -25,9 +26,9 @@ const timers = new Map<number, {timer?:number;remaining:number;started:number}>(
 
 export const useFeedbackStore = create<FeedbackStore>((set) => ({
   messages: [],
-  show: (message, type = 'info', duration?, action?, placement?) => {
+  show: (message, type = 'info', duration?, action?, placement?, options?) => {
     const id = nextId++;
-    set((state) => ({ messages: [...state.messages, { id, message, type, action, ...(placement?{placement}:{}) }] }));
+    set((state) => ({ messages: [...state.messages, { id, message, type, action, ...(placement?{placement}:{}), ...(options?.passive ? { passive:true } : {}) }] }));
     const effectiveDuration = type === 'error' ? (duration ?? 10000) : (duration ?? 1000);
     const timerId = window.setTimeout(() => {
       timers.delete(id);

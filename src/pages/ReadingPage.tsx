@@ -70,7 +70,6 @@ export default function ReadingPage({ data, scope }: {
     const memoryView=memory?.view.contentHash===material.content_hash ? memory.view : undefined;
     const {back:originBack,origin:pageOrigin}=usePageReturn(readingReturnPath(location.state));
     const pageBack = useCallback(() => { if (location.state?.readingMotion) prepareReadingReturn(material.id); originBack(); }, [originBack, material.id, location.state]);
-    useLayoutEffect(() => finishReadingEntrance(material.id), [material.id]);
     const visitToken = location.state?.sourceVisitToken;
     const visit = readerNavigation.get(visitToken);
     const [returnContext] = useState(() => readerNavigation.get(location.state?.restoreVisitToken));
@@ -279,7 +278,7 @@ export default function ReadingPage({ data, scope }: {
     useLayoutEffect(() => {
         const node = scroll.current;
         if (!node || restored.current) return;
-        let cancelled = false, frame = 0;
+        let cancelled = false;
         const restore = () => {
             if (cancelled) return;
             const target = node.querySelector<HTMLElement>(`[data-sentence="${initial.segment}"]`);
@@ -294,8 +293,10 @@ export default function ReadingPage({ data, scope }: {
         };
         if (document.fonts.status==='loaded' || returnView) restore();
         else void document.fonts.ready.then(restore);
-        return () => { cancelled = true; cancelAnimationFrame(frame); };
+        return () => { cancelled = true; };
     }, [initial, returnView, location.state?.restoreVisitToken, segments, visit, rememberViewport]);
+    // Register the handoff after the layout and saved-position restoration.
+    useLayoutEffect(() => finishReadingEntrance(material.id), [material.id]);
     useLayoutEffect(() => {
         const node = scroll.current;
         if (!node)

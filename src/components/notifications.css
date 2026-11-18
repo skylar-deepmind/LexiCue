@@ -19,3 +19,5 @@
 @media(prefers-reduced-motion:reduce) { .toast-card { animation:none; } }
 .lexicue-b .overlay-panel.compact-prompt { width:min(380px,calc(100vw - 48px)); max-width:100%; margin-inline:auto; }
 .notification-host--top { top:calc(var(--visual-top,0px) + max(80px,16dvh)); transform:translateX(-50%); z-index:1005; }
+
+.toast-card[data-passive] { pointer-events:none; }

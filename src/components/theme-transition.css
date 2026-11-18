@@ -20,9 +20,4 @@
 @property --approved-reading-selected-ink { syntax:"<color>"; inherits:true; initial-value:#34596d; }
 html[data-theme-transition] { transition:--approved-desk 1000ms cubic-bezier(.4,0,.2,1),--approved-card 1000ms cubic-bezier(.4,0,.2,1),--approved-card-ink 1000ms cubic-bezier(.4,0,.2,1),--approved-ink 1000ms cubic-bezier(.4,0,.2,1),--approved-secondary 1000ms cubic-bezier(.4,0,.2,1),--approved-tag 1000ms cubic-bezier(.4,0,.2,1),--approved-paper 1000ms cubic-bezier(.4,0,.2,1),--approved-settings 1000ms cubic-bezier(.4,0,.2,1),--approved-hover 1000ms cubic-bezier(.4,0,.2,1),--approved-focus 1000ms cubic-bezier(.4,0,.2,1),--approved-dot 1000ms cubic-bezier(.4,0,.2,1),--approved-cover-mat 1000ms cubic-bezier(.4,0,.2,1),--approved-wall 1000ms cubic-bezier(.4,0,.2,1),--approved-wall-title 1000ms cubic-bezier(.4,0,.2,1),--approved-warm 1000ms cubic-bezier(.4,0,.2,1),--approved-selected 1000ms cubic-bezier(.4,0,.2,1),--approved-selected-ink 1000ms cubic-bezier(.4,0,.2,1),--approved-reading-selected 1000ms cubic-bezier(.4,0,.2,1),--approved-reading-selected-ink 1000ms cubic-bezier(.4,0,.2,1); }
 html[data-theme-fallback] :is(.figma-shell,.approved-desk,.approved-card,.approved-card-copy,.approved-card-title,.approved-card-quote,.approved-empty-material,.approved-saved,.approved-settings) { transition:background-color 1000ms ease-in-out,color 1000ms ease-in-out; }
-.approved-brand { display:grid; place-items:center; touch-action:manipulation; }
-.approved-brand img { grid-area:1 / 1; transition:opacity 1000ms ease-in-out; }
-.approved-wordmark-night { opacity:0; }
-[data-theme="midnight"] .approved-wordmark-day { opacity:0; }
-[data-theme="midnight"] .approved-wordmark-night { opacity:1; }
-@media(prefers-reduced-motion:reduce) { html[data-theme-transition],.approved-brand img { transition:none; } }
+@media(prefers-reduced-motion:reduce) { html[data-theme-transition] { transition:none; } }

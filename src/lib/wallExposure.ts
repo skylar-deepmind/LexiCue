@@ -18,7 +18,7 @@ function texture(data:Entrance){
 }
 
 /** Prototype exposure: contours stay on the selected print; only one short line travels. */
-export function playWallExposure(data:Entrance,paper:HTMLElement,layer:HTMLElement,reverse:boolean,words:Piece[],wordNodes:HTMLElement[],paperBox:Box,onFinish:()=>void){
+export function playWallExposure(data:Entrance,paper:HTMLElement,layer:HTMLElement,reverse:boolean,words:Piece[],wordNodes:HTMLElement[],paperBox:Box,liveReader:HTMLElement|null){
  const r=data.card,art=data.cover?.box??r,wall=data.wall??{x:0,y:0,width:innerWidth,height:innerHeight};
  const left=Math.max(r.x,wall.x),right=Math.min(r.x+r.width,wall.x+wall.width),cx=Math.max(left+2,Math.min(right-2,art.x+art.width*.5)),cy=art.y+art.height*.5;
  const jobs:Animation[]=[],options:KeyframeAnimationOptions={duration:1320,fill:'both',easing:'linear',direction:reverse?'reverse':'normal'},samples=Array.from({length:81},(_,i)=>i/80);
@@ -55,7 +55,11 @@ export function playWallExposure(data:Entrance,paper:HTMLElement,layer:HTMLEleme
  const controls=[...document.querySelectorAll<HTMLElement>('.mobile-reading-tools')].map(node=>{const r=node.getBoundingClientRect(),copy=node.cloneNode(true) as HTMLElement;Object.assign(copy.style,{position:'absolute',left:`${r.x}px`,top:`${r.y}px`,width:`${r.width}px`,height:`${r.height}px`,bottom:'auto',transform:'none',zIndex:'5'});layer.append(copy);const visibility=node.style.visibility;node.style.visibility='hidden';return {node,copy,visibility};});
  const secondary=[...paper.querySelectorAll<HTMLElement>('.reading-title,.reading-breadcrumb'),...controls.map(c=>c.copy)];
  secondary.forEach(node=>animate(node,samples.map(t=>({offset:t,opacity:ease(.64,.94,t)}))));
+ if (liveReader) {
+  animate(liveReader, [{opacity:0},{opacity:0,offset:.90},{opacity:1,offset:.97},{opacity:1}]);
+  animate(layer, [{opacity:1},{opacity:1,offset:.92},{opacity:0}]);
+ }
  const now=document.timeline.currentTime;if(typeof now==='number')jobs.forEach(job=>job.startTime=now);
- let disposed=false;const dispose=()=>{if(disposed)return;disposed=true;jobs.forEach(job=>job.cancel());delete paper.dataset.motionPiece;controls.forEach(c=>c.node.style.visibility=c.visibility);backRestores.forEach(restore=>restore());onFinish();layer.remove();window.removeEventListener('resize',dispose);window.removeEventListener('pagehide',dispose);};
+ let disposed=false;const dispose=()=>{if(disposed)return;disposed=true;jobs.forEach(job=>job.cancel());delete paper.dataset.motionPiece;controls.forEach(c=>c.node.style.visibility=c.visibility);backRestores.forEach(restore=>restore());layer.remove();window.removeEventListener('resize',dispose);window.removeEventListener('pagehide',dispose);};
  window.addEventListener('resize',dispose,{once:true});window.addEventListener('pagehide',dispose,{once:true});void Promise.allSettled(jobs.map(job=>job.finished)).then(dispose);return dispose;
 }

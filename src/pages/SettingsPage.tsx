@@ -51,8 +51,8 @@ export default function SettingsPage() {
   const open = (entry: SettingsEntry) => navigate(`/settings?section=${entry}`, { state: { ...visitState(location), fromSettingsHome: true } });
   const label = t(section ? section === 'lookup' || section === 'dictionary' ? 'approved.dictionary' : SETTINGS_LABELS[section] : `approved.${categories[category].key}`);
   return <div className="materials-scroll settings-scroll approved-settings" data-detail={section || undefined} ref={page}>
+    <button className="approved-icon approved-back approved-settings-back" aria-label={t('common.back')} onClick={section ? back : close}><ChevronLeft size={22}/></button>
     <div className="system-settings settings-directory">
-      <button className="approved-icon approved-back approved-settings-back" aria-label={t('common.back')} onClick={section ? back : close}><ChevronLeft size={22}/></button>
       <div className="approved-settings-columns">
         <nav className="approved-settings-tabs" aria-label={t('settings.title')}>{categories.map((group, index) => <button key={group.key} aria-label={t(`approved.${group.key}`)} aria-current={index === category ? 'page' : undefined} onClick={() => choose(index)}><group.icon size={20}/><span>{t(`approved.settingsTabs.${group.key}`)}</span></button>)}</nav>
         <section className="approved-settings-paper" aria-labelledby="settings-content-heading">
