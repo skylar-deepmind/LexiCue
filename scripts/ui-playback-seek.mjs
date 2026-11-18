@@ -34,10 +34,12 @@ try {
     await page.evaluate(async () => {
       const { useSpeechStore } = await window.__uiStoreModule('speechStore');
       window.playbackCommits = [];
+      window.browsePauses = [];
       window.advanceReading = index => useSpeechStore.setState(state => ({
         reading: { ...state.reading, index }, queueIndex: index,
       }));
       useSpeechStore.setState({
+        pause: reason => { window.browsePauses.push(reason); },
         startQueue: async (items, index) => {
           const key = items[index].key;
           window.playbackCommits.push({ index, text: items[index].text });
@@ -105,7 +107,8 @@ try {
 
     await browse();
     const whileBrowsing = await scrollTop();
-    check((await commits()).length === 1, `${label} releasing a scroll never starts a new sentence`);
+    check((await commits()).length === 1 && await page.evaluate(() => window.browsePauses.length === 0),
+      `${label} browsing touches neither pause the spoken sentence nor start another one`);
     await page.evaluate(index => window.advanceReading(index), first + 1);
     await page.waitForTimeout(700);
     check(Math.abs((await scrollTop())-whileBrowsing) < 35, `${label} playback advance does not interrupt browsing before the idle deadline`);

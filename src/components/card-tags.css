@@ -73,3 +73,7 @@
   border-radius:0 12px 12px 0; background:transparent; color:inherit;
 }
 .home-create-tag-entry :is(input,button):focus-visible { outline-offset:-2px; }
+
+@media (max-width:767px) {
+  .approved-deck:has(.home-create-tag-entry) { top:var(--home-tag-deck-top,170px); }
+}

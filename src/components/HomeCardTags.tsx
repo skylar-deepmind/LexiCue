@@ -18,8 +18,10 @@ export default function HomeCardTags({ file, onClose }: { file: Material; onClos
   useLayoutEffect(() => {
     if (!editing || !input.current) return;
     const strip = input.current.closest('.card-tag-options');
+    const deck = input.current.closest<HTMLElement>('.approved-deck');
     if (strip) strip.scrollLeft = strip.scrollWidth;
     input.current.focus({ preventScroll: true });
+    return () => deck?.style.removeProperty('--home-tag-deck-top');
   }, [editing]);
   const [busy, setBusy] = useState(false), [error, setError] = useState('');
   useEffect(() => {
@@ -49,7 +51,13 @@ export default function HomeCardTags({ file, onClose }: { file: Material; onClos
       disabled={busy} onChange={event => setName(event.target.value)} onKeyDown={event => event.stopPropagation()}/>
     <button type="submit" aria-label={t('common.save')} disabled={busy || !name.trim()}><Check size={18} aria-hidden="true"/></button>
   </form> : <button type="button" className="home-create-tag-action" aria-label={t('tags.create')}
-    disabled={busy || loading || tagsError} onClick={() => { setError(''); setName(''); }}><Plus size={19} aria-hidden="true"/></button>;
+    disabled={busy || loading || tagsError} onClick={() => {
+      // Keep the visible row in place when the iOS keyboard shortens the shell.
+      const deck = root.current?.closest<HTMLElement>('.approved-deck');
+      if (deck) deck.style.setProperty('--home-tag-deck-top', `${deck.offsetTop}px`);
+      setError('');
+      setName('');
+    }}><Plus size={19} aria-hidden="true"/></button>;
   return <div ref={root} className="home-card-tags" data-no-trash>
     <CardTagChoices tags={tags} selected={file.tags.slice(0, 1).map(tag => tag.id)} onSelect={ids => void choose({ tagIds: ids, newTagNames: [] })} trailing={trailing} autoFocus disabled={busy} loading={loading} error={tagsError} onRetry={() => void useFileStore.getState().loadTags(true)}/>
     {error && <p className="tag-error" role="alert">{error}</p>}

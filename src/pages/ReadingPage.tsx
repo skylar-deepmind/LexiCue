@@ -448,9 +448,8 @@ export default function ReadingPage({ data, scope }: {
     const beginPointerRange = (segment: Segment, event: ReactPointerEvent<HTMLElement>) => {
         pointerSelection.current = false;
         pointerRange.current = null;
-        if (event.pointerType !== 'touch' && event.button !== 0) return;
+        if (event.pointerType === 'touch' || event.button !== 0) return;
         if (listening) { followAllowed.current = false; pauseForLookup('selection'); }
-        if (event.pointerType === 'touch') return;
         const word = event.target instanceof Element ? event.target.closest<HTMLElement>('.reading-word') : null;
         const index = Number(word?.dataset.wordIndex);
         if (word && Number.isInteger(index)) { word.focus({ preventScroll: true }); pointerRange.current = { segment: segment.id, anchor: index, edge: index }; }
