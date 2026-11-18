@@ -1,5 +1,6 @@
 //! Rebuildable, source-bound word-form graph shared by lookup, archive and recall.
 //! No corpus-frequency ranking, stem guessing or reading-context judgment.
+use super::super::dictionary_packs::relation_reader::RelationReader;
 use super::{canonical, sentence_case_query, Match, R};
 use regex::Regex;
 use rusqlite::Connection;
@@ -43,6 +44,7 @@ pub struct RelationCatalog {
     forms: HashMap<String, Vec<String>>,
     known: HashSet<String>,
     bundled_daily: bool,
+    pack_reader: Option<Box<RelationReader>>,
     reserved_case: HashMap<String, BTreeSet<String>>,
     independent: HashSet<String>,
     expression_aliases: HashMap<String, Vec<(String, String, String)>>,
@@ -172,7 +174,7 @@ fn inflection_label(label: &str) -> bool {
 impl RelationCatalog {
     /// Without a source graph there is no evidence for case or form aliases.
     pub fn literal_only(&self) -> bool {
-        !self.bundled_daily && self.known.is_empty()
+        !self.bundled_daily && self.pack_reader.is_none() && self.known.is_empty()
     }
 
     fn knows(&self, spelling: &str) -> bool {
@@ -215,6 +217,9 @@ impl RelationCatalog {
     /// Reserve source-attested exact casing when the recall index also contains
     /// its folded spelling. This is index metadata, never another saved alias.
     pub fn case_exclusions(&self, expressions: &[String]) -> Vec<String> {
+        if let Some(reader) = &self.pack_reader {
+            return reader.full().case_exclusions(expressions);
+        }
         let mut excluded = BTreeSet::new();
         for expression in expressions {
             let folded = expression
@@ -236,6 +241,26 @@ impl RelationCatalog {
         let expression = expression.split_whitespace().collect::<Vec<_>>().join(" ");
         if !expression.chars().any(char::is_uppercase) {
             return false;
+        }
+        if let Some(reader) = &self.pack_reader {
+            if let Some(full) = reader.cached() {
+                return full.case_sensitive_identity(&expression);
+            }
+            match reader.spelling(&expression) {
+                Ok(Some(_)) => return true,
+                Err(_) => return reader.full().case_sensitive_identity(&expression),
+                Ok(None) => {}
+            }
+            let letters: Vec<_> = expression.chars().filter(|c| c.is_alphabetic()).collect();
+            if letters.is_empty() || !letters.into_iter().all(char::is_uppercase) {
+                return false;
+            }
+            if expression.is_ascii() {
+                if let Ok(reserved) = reader.reserves_ascii_case(&expression.to_lowercase()) {
+                    return reserved;
+                }
+            }
+            return reader.full().case_sensitive_identity(&expression);
         }
         if self.knows(&expression) {
             return true;
@@ -263,6 +288,26 @@ impl RelationCatalog {
         // Saved original expressions are never URL- or HTML-decoded. Query
         // normalization is a separate boundary owned by the dictionary caller.
         let surface = surface.split_whitespace().collect::<Vec<_>>().join(" ");
+        if let Some(reader) = &self.pack_reader {
+            if let Some(full) = reader.cached() {
+                return full.identity(&surface);
+            }
+            return match reader.spelling(&surface) {
+                Ok(Some(Some(identity))) => identity,
+                Ok(Some(None)) => surface,
+                Ok(None) => {
+                    if let Some(lower) = sentence_case_query(&surface) {
+                        match reader.spelling(&lower) {
+                            Ok(Some(identity)) => return identity.unwrap_or(lower),
+                            Err(_) => return reader.full().identity(&surface),
+                            Ok(None) => {}
+                        }
+                    }
+                    surface
+                }
+                Err(_) => reader.full().identity(&surface),
+            };
+        }
         if let Some(identity) = self.identities.get(&surface) {
             return identity.clone();
         }
@@ -296,6 +341,9 @@ impl RelationCatalog {
     /// Includes the literal identity itself, and only aliases resolving uniquely
     /// to that identity under this exact dictionary release/parser version.
     pub fn safe_forms(&self, identity: &str) -> Vec<String> {
+        if let Some(reader) = &self.pack_reader {
+            return reader.full().safe_forms(identity);
+        }
         let identity = self.identity(identity);
         if self.bundled_daily {
             let forms: Vec<_> = bundled::forms(&identity).map(str::to_owned).collect();
@@ -453,6 +501,26 @@ impl RelationCatalog {
             ..Self::default()
         }
     }
+    pub(crate) fn prepare_forms(&self) {
+        if let Some(reader) = &self.pack_reader {
+            reader.full();
+        }
+    }
+
+    pub(crate) fn retire_pack_reader(&self) {
+        if let Some(reader) = &self.pack_reader {
+            reader.full();
+            reader.close_indexed_sources();
+        }
+    }
+
+    pub(crate) fn from_pack_reader(fingerprint: String, reader: RelationReader) -> Self {
+        Self {
+            pack_reader: Some(Box::new(reader)),
+            ..Self::empty(fingerprint)
+        }
+    }
+
     pub(crate) fn from_bundled_daily(fingerprint: String) -> Self {
         Self {
             bundled_daily: true,

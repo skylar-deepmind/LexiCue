@@ -79,6 +79,10 @@ objc2 = "0.6"
 objc2-foundation = "0.3"
 objc2-avf-audio = { version = "0.3", default-features = false, features = ["std", "AVSpeechSynthesis", "AVAudioPlayer"] }
 
+# Use Apple's ARM SHA instructions when verifying the pinned dictionary packs.
+[target.'cfg(all(target_arch = "aarch64", target_vendor = "apple"))'.dependencies]
+sha2 = { version = "0.10", features = ["asm"] }
+
 [target.'cfg(target_vendor = "apple")'.dependencies]
 rcgen = { version = "0.13.2", default-features = false, features = ["crypto", "ring"] }
 p12 = "0.6.3"

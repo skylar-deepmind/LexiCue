@@ -14,6 +14,8 @@ use std::sync::{
 };
 use tauri::{Emitter, Manager};
 
+#[path = "dictionary_relation_reader.rs"]
+pub(super) mod relation_reader;
 #[path = "../../dictionary_relation_sql.rs"]
 mod relation_sql;
 
@@ -61,20 +63,9 @@ fn verify_file(path: &Path, expected: &Value) -> R<()> {
 fn open_verified(root: &Path, id: &str) -> R<Pack> {
     let p = item(id)?;
     verify_file(&root.join("dictionary.sqlite3"), &p["database"])?;
-    let pack = Pack::open(&root.join("dictionary.sqlite3"), id)?;
-    // The exact daily bytes have already passed quick_check while producing
-    // the embedded relation tables. A successful pinned hash proves the same
-    // bytes are present here. Supplemental packs keep the runtime check.
-    if id != "daily" {
-        let check: String = pack
-            .conn
-            .query_row("PRAGMA quick_check", [], |r| r.get(0))
-            .map_err(|e| e.to_string())?;
-        if check != "ok" {
-            return Err("dictionary_database_invalid".into());
-        }
-    }
-    Ok(pack)
+    // The catalog pins the exact bytes validated at pack build and install.
+    // Pack::open still validates schema and metadata on every open.
+    Pack::open(&root.join("dictionary.sqlite3"), id)
 }
 
 #[derive(Default)]
@@ -250,7 +241,9 @@ fn initialize(s: &mut Store) {
     }
     s.fingerprint = current;
     s.packs.clear();
-    s.relations = None;
+    if let Some(relations) = s.relations.take() {
+        relations.retire_pack_reader();
+    }
     s.errors.clear();
     for id in ["daily", "extended", "specialist"] {
         let root = if id == "daily" {
@@ -357,59 +350,49 @@ pub fn relation_catalog_configured() -> Arc<super::longman::RelationCatalog> {
     if let Some(catalog) = super::longman::test_relation_override() {
         return catalog;
     }
-    // A cold relation build runs once per configuration. Word lookups use the
-    // dictionary store's own connections while the build scans its read-only copy.
-    static BUILD: Mutex<()> = Mutex::new(());
-    let _build = BUILD.lock().unwrap_or_else(|e| e.into_inner());
-    loop {
-        let (fingerprint, packs) = {
-            let mut s = store().lock().unwrap_or_else(|e| e.into_inner());
-            initialize(&mut s);
-            if let Some(catalog) = &s.relations {
-                return catalog.clone();
-            }
-            if s.packs.len() == 1 && s.packs[0].id == "daily" {
-                let catalog = Arc::new(super::longman::RelationCatalog::from_bundled_daily(
-                    format!("wiktionary-pack-relations-v1:{}", s.fingerprint),
-                ));
-                s.relations = Some(catalog.clone());
-                return catalog;
-            }
-            let packs = s
-                .packs
+    let mut s = store().lock().unwrap_or_else(|e| e.into_inner());
+    initialize(&mut s);
+    if let Some(catalog) = &s.relations {
+        return catalog.clone();
+    }
+    let fingerprint = format!("wiktionary-pack-relations-v1:{}", s.fingerprint);
+    use super::longman::RelationCatalog;
+    let catalog = if s.packs.len() == 1 && s.packs[0].id == "daily" {
+        RelationCatalog::from_bundled_daily(fingerprint)
+    } else if s.packs.is_empty() {
+        RelationCatalog::default()
+    } else {
+        let open = || {
+            s.packs
                 .iter()
                 .map(|pack| {
                     let path = pack.conn.path().ok_or("dictionary_path_unavailable")?;
                     Pack::open(Path::new(path), &pack.id)
                 })
-                .collect::<R<Vec<_>>>();
-            (s.fingerprint.clone(), packs)
+                .collect::<R<Vec<_>>>()
         };
-        let catalog = Arc::new(
-            packs
-                .and_then(|packs| {
-                    pack_relations(
-                        &packs,
-                        format!("wiktionary-pack-relations-v1:{fingerprint}"),
-                    )
-                })
-                .unwrap_or_else(|_| {
-                    super::longman::RelationCatalog::from_pack_relations(
-                        "wiktionary-unavailable".into(),
-                        HashSet::new(),
-                        HashSet::new(),
-                        [],
-                    )
-                }),
-        );
-        let mut s = store().lock().unwrap_or_else(|e| e.into_inner());
-        if !s.initialized || s.fingerprint != fingerprint || fingerprint != self::fingerprint(&s) {
-            continue;
+        match open().and_then(|exact| open().map(|forms| (exact, forms))) {
+            Ok((exact, forms)) => RelationCatalog::from_pack_reader(
+                fingerprint,
+                relation_reader::RelationReader::new(exact, forms),
+            ),
+            Err(error) => {
+                log::warn!("[dictionary] Could not open relation sources: {error}");
+                RelationCatalog::default()
+            }
         }
-        s.relations = Some(catalog.clone());
-        return catalog;
-    }
+    };
+    let catalog = Arc::new(catalog);
+    s.relations = Some(catalog.clone());
+    catalog
 }
+
+pub(super) fn relation_catalog_with_forms() -> Arc<super::longman::RelationCatalog> {
+    let catalog = relation_catalog_configured();
+    catalog.prepare_forms();
+    catalog
+}
+
 pub fn query_configured(expression: &str, context: Option<&str>) -> Value {
     let mut s = store().lock().unwrap_or_else(|e| e.into_inner());
     initialize(&mut s);
@@ -589,7 +572,15 @@ fn extract(archive: &Path, root: &Path, id: &str, op: &Operation) -> R<Pack> {
             verify_file(&path, &files[&name])?;
         }
     }
-    open_verified(root, id)
+    let pack = open_verified(root, id)?;
+    let check: String = pack
+        .conn
+        .query_row("PRAGMA quick_check", [], |row| row.get(0))
+        .map_err(|e| e.to_string())?;
+    if check != "ok" {
+        return Err("dictionary_database_invalid".into());
+    }
+    Ok(pack)
 }
 fn activate(root: &Path, id: &str, op: &Operation) -> R<()> {
     let mut s = store().lock().map_err(|e| e.to_string())?;
@@ -601,7 +592,9 @@ fn activate(root: &Path, id: &str, op: &Operation) -> R<()> {
     fs::rename(root, &target).map_err(|e| e.to_string())?;
     match Pack::open(&target.join("dictionary.sqlite3"), id) {
         Ok(pack) => {
-            s.relations = None;
+            if let Some(relations) = s.relations.take() {
+                relations.retire_pack_reader();
+            }
             s.packs.push(pack);
             s.packs.sort_by(|a, b| a.id.cmp(&b.id));
             s.errors.retain(|(key, _)| key != id);
@@ -809,6 +802,9 @@ pub fn remove(id: &str) -> R<()> {
     let _op = Operation::begin()?;
     let mut s = store().lock().map_err(|e| e.to_string())?;
     let target = s.installed.join(id);
+    if let Some(relations) = s.relations.take() {
+        relations.retire_pack_reader();
+    }
     s.packs.retain(|p| p.id != id);
     if target.exists() {
         fs::remove_dir_all(&target).map_err(|e| {

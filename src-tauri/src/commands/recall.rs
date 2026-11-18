@@ -5,7 +5,9 @@ use rusqlite::Connection;
 use serde::Serialize;
 use tauri::State;
 
+#[cfg(test)]
 use super::dictionary_packs::relation_catalog_configured;
+use super::dictionary_packs::relation_catalog_with_forms;
 use super::longman::RelationCatalog;
 use super::saved::archive_with_catalog;
 use std::sync::Arc;
@@ -83,7 +85,7 @@ pub async fn saved_recall_index(state: State<'_, DbState>) -> Result<Vec<String>
     state
         .read_prepared(
             "saved_recall_index",
-            relation_catalog_configured,
+            relation_catalog_with_forms,
             |conn, relations| {
                 Ok(archive_with_catalog(conn, relations)?
                     .expressions()
@@ -100,7 +102,7 @@ pub async fn saved_recall_catalog(state: State<'_, DbState>) -> Result<RecallCat
     state
         .read_prepared(
             "saved_recall_catalog",
-            relation_catalog_configured,
+            relation_catalog_with_forms,
             catalog_with_relations,
         )
         .await
@@ -116,7 +118,7 @@ pub async fn saved_recall_contexts(
     state
         .read_prepared(
             "saved_recall_contexts",
-            relation_catalog_configured,
+            relation_catalog_with_forms,
             move |conn, relations| {
                 contexts_with_relations(
                     conn,

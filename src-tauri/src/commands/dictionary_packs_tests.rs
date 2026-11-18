@@ -66,6 +66,69 @@ fn bundled_relations_match_runtime_relations_for_every_daily_spelling() {
     );
 }
 
+#[test]
+fn indexed_relations_match_cross_pack_conflict_and_case_rules() {
+    use super::super::longman::RelationCatalog;
+    use rusqlite::Connection;
+    fn packs() -> Vec<Pack> {
+        let pack = |id: &str, extra: &str| {
+            let conn = Connection::open_in_memory().unwrap();
+            conn.execute_batch(
+                "CREATE TABLE surfaces(id INTEGER PRIMARY KEY, word TEXT UNIQUE, folded TEXT);
+                CREATE TABLE entries(source_line INTEGER PRIMARY KEY, surface_id INTEGER);
+                CREATE TABLE aliases(surface_id INTEGER, entry_line INTEGER, kind INTEGER);
+                INSERT INTO surfaces VALUES (1,'go','go'),(2,'went','went'),(3,'ride','ride'),
+                    (4,'rode','rode'),(5,'us','us'),(6,'US','us'),(7,'take off','take off'),
+                    (8,'took off','took off'),(9,'fly','fly');
+                INSERT INTO entries VALUES (1,1),(3,3),(5,5),(6,6),(7,7),(9,9);",
+            )
+            .unwrap();
+            conn.execute_batch(extra).unwrap();
+            Pack {
+                conn,
+                id: id.into(),
+            }
+        };
+        vec![
+            pack(
+                "daily",
+                "INSERT INTO aliases VALUES (2,1,1),(4,3,1),(8,7,1);",
+            ),
+            pack(
+                "extended",
+                "INSERT INTO aliases VALUES (4,9,2); INSERT INTO entries VALUES (2,2);",
+            ),
+        ]
+    }
+    let indexed = RelationCatalog::from_pack_reader(
+        "test".into(),
+        relation_reader::RelationReader::new(packs(), packs()),
+    );
+    let full = pack_relations(&packs(), "test".into()).unwrap();
+    for word in [
+        "go",
+        "went",
+        "rode",
+        "us",
+        "US",
+        "Us",
+        "took off",
+        "Took off",
+        "nonexistent",
+    ] {
+        assert_eq!(indexed.identity(word), full.identity(word), "{word}");
+        assert_eq!(
+            indexed.case_sensitive_identity(word),
+            full.case_sensitive_identity(word),
+            "{word}"
+        );
+        assert_eq!(indexed.safe_forms(word), full.safe_forms(word), "{word}");
+    }
+    assert_eq!(indexed.identity("went"), "went");
+    assert_eq!(indexed.identity("rode"), "rode");
+    assert_eq!(indexed.identity("Took off"), "take off");
+}
+
 fn detached() -> Operation {
     Operation(
         Arc::new(AtomicBool::new(false)),

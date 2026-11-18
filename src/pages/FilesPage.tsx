@@ -3,6 +3,7 @@ import { usePreferencesStore } from '../stores/preferencesStore';
 import type { LibraryNameKey } from '../lib/libraryNames';
 import { bookmarkTitle } from '../lib/bookmarkDesk';
 import { dissolvePage } from '../lib/pageDissolve';
+import { isIOSPlatform } from '../lib/platform';
 import { cancelSavedFlight, captureSavedEntrance, finishSavedReturn } from '../lib/savedEntrance';
 import EmptyMaterialGreeting from '../components/EmptyMaterialGreeting';
 import { rearmEmptyMaterialGreeting } from '../lib/emptyMaterialGreeting';
@@ -66,6 +67,7 @@ function MaterialDesk() {
   const [pocket, setPocket] = useState<SavedRecord | null>(() => savedPocketCache.peek('latest') ?? null);
   const [pasting, setPasting] = useState(false), [turning, setTurning] = useState(false);
   const [groups, setGroups] = useState(params.get('view') === 'library' && !params.has('tag'));
+  const home = useRef<HTMLDivElement>(null);
   const card = useRef<HTMLDivElement>(null), libraryButton = useRef<HTMLButtonElement>(null);
   const gesture = useRef<{ x: number; y: number; locked: boolean } | null>(null), suppress = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -148,6 +150,49 @@ function MaterialDesk() {
       useFeedbackStore.getState().show(t('approved.clipboardUnavailable'),'error',6000,undefined,'top');
     } finally { if(alive.current&&intent===pasteIntent.current){pastePending.current=false;setPasting(false);} }
   };
+  useLayoutEffect(() => {
+    const desk = home.current;
+    if (!desk || !isIOSPlatform()) return;
+    // WKWebView can drop the synthesized click while a return snapshot is
+    // compositing. Activate stationary taps on the two live home controls.
+    let tap: { button: HTMLButtonElement; id: number; x: number; y: number; start: number } | null = null;
+    const clearTap = () => { tap = null; };
+    const withinTap = (touch: Touch, start: { x: number; y: number }) =>
+      Math.hypot(touch.clientX - start.x, touch.clientY - start.y) <= 7;
+    const startTap = (event: TouchEvent) => {
+      clearTap();
+      const target = event.target;
+      if (!(target instanceof Element) || event.touches.length !== 1 || event.defaultPrevented) return;
+      const button = target.closest<HTMLButtonElement>('.approved-card-open,.approved-saved-entry');
+      if (!button || button.disabled) return;
+      const touch = event.touches[0];
+      tap = { button, id: touch.identifier, x: touch.clientX, y: touch.clientY, start: performance.now() };
+    };
+    const moveTap = (event: TouchEvent) => {
+      if (tap && (event.touches.length !== 1 || !withinTap(event.touches[0], tap))) clearTap();
+    };
+    const endTap = (event: TouchEvent) => {
+      const start = tap;
+      clearTap();
+      if (!start || event.touches.length || event.defaultPrevented || !event.cancelable
+          || isTrashDragging() || performance.now() - start.start >= 500) return;
+      const touch = event.changedTouches[0];
+      if (touch?.identifier !== start.id || !withinTap(touch, start)
+          || !start.button.contains(document.elementFromPoint(touch.clientX, touch.clientY))) return;
+      event.preventDefault();
+      start.button.click();
+    };
+    desk.addEventListener('touchstart', startTap, { passive: true });
+    desk.addEventListener('touchmove', moveTap, { passive: true });
+    desk.addEventListener('touchcancel', clearTap);
+    desk.addEventListener('touchend', endTap, { passive: false });
+    return () => {
+      desk.removeEventListener('touchstart', startTap);
+      desk.removeEventListener('touchmove', moveTap);
+      desk.removeEventListener('touchcancel', clearTap);
+      desk.removeEventListener('touchend', endTap);
+    };
+  }, []);
   const wallTag = params.get('tag');
   const wallFiles = wallTag === 'all' ? catalog.files : wallTag === 'untagged' ? catalog.files.filter(file => !file.tags.length) : catalog.files.filter(file => file.tags.some(tag => String(tag.id) === wallTag));
   const tagName = wallTag === 'all' ? libraryNames.all : wallTag === 'untagged' ? libraryNames.untagged : tags.find(tag => String(tag.id) === wallTag)?.name ?? t('readingDesk.library');
@@ -155,7 +200,7 @@ function MaterialDesk() {
     if (wallTag !== null) { setParams({ view: 'library' }); setGroups(true); return true; }
     return false;
   }, 2), [wallTag, setParams]);
-  return <div className="approved-desk" data-library-open={groups || undefined}>
+  return <div className="approved-desk" ref={home} data-library-open={groups || undefined}>
     {wallTag !== null ? <PosterWall files={wallFiles} title={tagName} identity={wallTag} onBack={() => { setParams({ view: 'library' }); setGroups(true); }} onOpen={(file, node) => open(file, node, 'wall')}/> : <>
       <header className="approved-home-header">
         <button className="approved-brand" aria-label={t(theme === 'midnight' ? 'approved.light' : 'approved.dark')} aria-pressed={theme === 'midnight'} onClick={() => setTheme(current => current === 'midnight' ? 'sage' : 'midnight')}><img className="approved-wordmark-day" src="/design/wordmark.png" alt=""/><img className="approved-wordmark-night" src="/design/wordmark-night.png" alt=""/></button>

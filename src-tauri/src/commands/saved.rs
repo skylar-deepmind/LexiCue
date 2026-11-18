@@ -1369,12 +1369,15 @@ pub struct ArchiveGroup {
     summary_zh: Option<String>,
     summary_en: Option<String>,
 }
+type ArchiveAliases = std::collections::BTreeMap<String, std::collections::BTreeSet<String>>;
+
 pub struct Archive {
     index: std::sync::OnceLock<Vec<String>>,
     case_exclusions: std::sync::OnceLock<Vec<String>>,
     catalog: std::sync::Arc<super::longman::RelationCatalog>,
     pub groups: std::collections::BTreeMap<String, ArchiveGroup>,
-    aliases: std::collections::BTreeMap<String, std::collections::BTreeSet<String>>,
+    saved_aliases: ArchiveAliases,
+    expanded_aliases: std::sync::OnceLock<ArchiveAliases>,
 }
 fn compact(expression: &str) -> String {
     expression.split_whitespace().collect::<Vec<_>>().join(" ")
@@ -1421,6 +1424,25 @@ fn alias_key(expression: &str, canonical: &str, sensitive: bool) -> Option<Strin
     Some(literal_key(expression, sensitive))
 }
 impl Archive {
+    fn aliases(&self) -> &ArchiveAliases {
+        self.expanded_aliases.get_or_init(|| {
+            let mut aliases = self.saved_aliases.clone();
+            // Expand only when recall needs forms never saved before.
+            for group in self.groups.values() {
+                let sensitive = archive_sensitive(&self.catalog, &group.expression);
+                for form in self.catalog.safe_forms(&group.expression) {
+                    if let Some(alias) = alias_key(&form, &group.expression, sensitive) {
+                        aliases
+                            .entry(alias)
+                            .or_default()
+                            .insert(group.group_id.clone());
+                    }
+                }
+            }
+            aliases
+        })
+    }
+
     pub fn resolve(&self, expression: &str) -> Option<&ArchiveGroup> {
         let exact = literal_key(expression, true);
         let folded = literal_key(expression, false);
@@ -1430,7 +1452,7 @@ impl Archive {
         if let Some(group) = self.groups.get(&group_identity(&exact)) {
             return Some(group);
         }
-        if let Some(ids) = self.aliases.get(&exact).filter(|ids| ids.len() == 1) {
+        if let Some(ids) = self.aliases().get(&exact).filter(|ids| ids.len() == 1) {
             return self.groups.get(ids.first()?);
         }
         // A missing uppercase card cannot borrow the lowercase card's history.
@@ -1444,7 +1466,7 @@ impl Archive {
         if let Some(group) = self.groups.get(&group_identity(&folded)) {
             return Some(group);
         }
-        let ids = self.aliases.get(&folded)?;
+        let ids = self.aliases().get(&folded)?;
         if ids.len() != 1 {
             return None;
         }
@@ -1452,7 +1474,7 @@ impl Archive {
     }
     pub fn expressions(&self) -> &[String] {
         self.index.get_or_init(|| {
-            self.aliases
+            self.aliases()
                 .iter()
                 .filter(|&(key, ids)| {
                     ids.len() == 1 || self.groups.contains_key(&group_identity(key))
@@ -1625,7 +1647,8 @@ fn build_archive_range(
         case_exclusions: Default::default(),
         catalog: catalog.clone(),
         groups: Default::default(),
-        aliases: Default::default(),
+        saved_aliases: Default::default(),
+        expanded_aliases: Default::default(),
     };
     for row in rows {
         let row = row.map_err(|e| e.to_string())?;
@@ -1648,7 +1671,11 @@ fn build_archive_range(
         let sensitive = key.starts_with("case:");
         for alias in [&row.expression, &display] {
             if let Some(alias) = alias_key(alias, &display, sensitive) {
-                archive.aliases.entry(alias).or_default().insert(id.clone());
+                archive
+                    .saved_aliases
+                    .entry(alias)
+                    .or_default()
+                    .insert(id.clone());
             }
         }
         let group = archive
@@ -1674,22 +1701,6 @@ fn build_archive_range(
         }
         group.record_ids.push(row.id);
         group.latest_saved_at = group.latest_saved_at.max(row.saved_at);
-    }
-    // Expand once per live family, including safe forms never saved before.
-    // Deleted contexts cannot grant identities or keep reminders alive. The
-    // catalog is independent of any one saved sentence, so removing a former
-    // form's last sentence does not unpredictably change the remaining family.
-    for group in archive.groups.values() {
-        let sensitive = archive_sensitive(catalog, &group.expression);
-        for form in catalog.safe_forms(&group.expression) {
-            if let Some(alias) = alias_key(&form, &group.expression, sensitive) {
-                archive
-                    .aliases
-                    .entry(alias)
-                    .or_default()
-                    .insert(group.group_id.clone());
-            }
-        }
     }
     Ok(archive)
 }
@@ -2044,22 +2055,24 @@ pub async fn list_saved_groups(
     start_ms: Option<i64>,
     end_ms: Option<i64>,
 ) -> Result<SavedGroupPage, String> {
+    let query = query.unwrap_or_default();
+    let prepare = if query.trim().is_empty() {
+        super::dictionary_packs::relation_catalog_configured
+    } else {
+        super::dictionary_packs::relation_catalog_with_forms
+    };
     state
-        .read_prepared(
-            "list_saved_groups",
-            super::dictionary_packs::relation_catalog_configured,
-            move |conn, catalog| {
-                groups_in_range_with_catalog(
-                    conn,
-                    &query.unwrap_or_default(),
-                    limit.unwrap_or(50),
-                    offset.unwrap_or(0),
-                    start_ms,
-                    end_ms,
-                    catalog,
-                )
-            },
-        )
+        .read_prepared("list_saved_groups", prepare, move |conn, catalog| {
+            groups_in_range_with_catalog(
+                conn,
+                &query,
+                limit.unwrap_or(50),
+                offset.unwrap_or(0),
+                start_ms,
+                end_ms,
+                catalog,
+            )
+        })
         .await
 }
 #[tauri::command]
