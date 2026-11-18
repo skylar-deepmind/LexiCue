@@ -15,6 +15,7 @@ function begin(id:string,element:HTMLElement,reverse:boolean){
  const timeout=setTimeout(dispose,3000);window.addEventListener('resize',dispose,{once:true});window.addEventListener('pagehide',dispose,{once:true});
  if(!reverse)state.jobs.push(node.animate([{transform:'none'},{transform:'translate(-18px,-70px) rotate(-5deg)'}],{duration:180,fill:'both',easing:'cubic-bezier(.22,.68,.22,1)'}));return true;
 }
+export function cancelSavedFlight(){active?.dispose();}
 export function captureSavedEntrance(id:string|undefined,element:HTMLElement|null){if(!id||!element)return false;lastId=id;return begin(id,element,false);}
 export function prepareSavedReturn(id:string|undefined){if(!id||id!==lastId)return false;const node=document.querySelector<HTMLElement>(`.approved-saved-folio[data-record="${CSS.escape(id)}"]`);return !!node&&begin(id,node,true);}
 export function finishSavedEntrance(id:string){

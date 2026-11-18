@@ -4,6 +4,12 @@ mod apple_sync;
 #[path = "build_dictionary.rs"]
 mod dictionary;
 
+#[path = "build_dictionary_relations.rs"]
+mod dictionary_relations;
+
+#[path = "dictionary_relation_sql.rs"]
+mod relation_sql;
+
 fn main() {
     dictionary::verify();
     apple_sync::build();

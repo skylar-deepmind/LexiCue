@@ -169,6 +169,10 @@
 }
 @media(prefers-reduced-motion:reduce) { .approved-saved *, .approved-folio-speech::before,.approved-folio-speech::after { transition:none!important; animation:none!important; }.approved-folio-speech[data-speech-state="playing"] { outline:2px solid currentColor; outline-offset:2px; } }
 .page-live { view-transition-name:approved-page; }
+::view-transition { pointer-events:none; }
+/* Snapshot descendants can carry a computed pointer-events value of their own. */
+:is(.approved-saved-flight,.approved-reading-hold,.approved-handoff) * { pointer-events:none!important; }
+:is(.approved-saved-entry,.approved-back,.page-back) { touch-action:manipulation; }
 ::view-transition-group(approved-page) { animation-duration:0s; }
 :root[data-dissolve="in"]::view-transition-old(approved-page) { animation:approved-dissolve-out 125ms cubic-bezier(.25,.65,.3,1) both; }
 :root[data-dissolve="in"]::view-transition-new(approved-page) { animation:approved-dissolve-in 170ms 75ms cubic-bezier(.25,.65,.3,1) both; }

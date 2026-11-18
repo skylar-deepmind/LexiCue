@@ -3,7 +3,7 @@ import { usePreferencesStore } from '../stores/preferencesStore';
 import type { LibraryNameKey } from '../lib/libraryNames';
 import { bookmarkTitle } from '../lib/bookmarkDesk';
 import { dissolvePage } from '../lib/pageDissolve';
-import { captureSavedEntrance, finishSavedReturn } from '../lib/savedEntrance';
+import { cancelSavedFlight, captureSavedEntrance, finishSavedReturn } from '../lib/savedEntrance';
 import EmptyMaterialGreeting from '../components/EmptyMaterialGreeting';
 import { rearmEmptyMaterialGreeting } from '../lib/emptyMaterialGreeting';
 import '../components/empty-material.css';
@@ -41,7 +41,7 @@ import { BusyRing } from '../components/LoadingFeedback';
 import { ClipboardImportIcon, FileImportIcon } from '../components/HomeActionIcons';
 import useTrashDrag, { isTrashDragging } from '../components/useTrashDrag';
 import PosterWall from '../components/PosterWall';
-import { captureReadingEntrance, finishReadingReturn, readingMotionExcerpt } from '../lib/readingMotion';
+import { cancelReadingReturn, captureReadingEntrance, finishReadingReturn, readingMotionExcerpt } from '../lib/readingMotion';
 import { playTagFlight } from '../lib/tagFlight';
 import './approved-ui.css';
 import '../components/import-material-card.css';
@@ -174,6 +174,7 @@ function MaterialDesk() {
           <button className="approved-card-open" onPointerDown={readingRoute.preload} onFocus={readingRoute.preload} data-testid={i === index ? 'desk-continue' : undefined} aria-label={t('readingDesk.openNamed', { name: file.name })} onClick={event => {
             if (performance.now() < suppress.current) return;
             if (i !== index) { turn(i - index); return; }
+            cancelSavedFlight();
             open(file, event.currentTarget.closest('article')!, 'desk');
           }}><MaterialCover src={materialCover(file)} identity={file.content_hash} className="approved-card-cover"/></button><button className="approved-card-category approved-tag-edit material-floating-tag" data-no-trash disabled={i !== index} aria-label={t('tags.edit')} aria-expanded={editing?.id===file.id} onClick={() => setEditing(current=>current?.id===file.id?null:file)}>{file.tags[0]?.name ?? libraryNames.untagged}</button><div className="approved-card-copy"><strong className="approved-card-title" lang="en">{bookmarkTitle(file.name)}</strong><span className="approved-card-quote" lang="en">{readingMotionExcerpt(file) ?? quotes[`${file.id}:${file.content_hash}:${readingPosition(file)}`] ?? file.preview}</span></div>
         </article></TrashMaterial>)}
@@ -182,6 +183,7 @@ function MaterialDesk() {
       </div> : <EmptyMaterialGreeting/>}
       <footer className="approved-home-footer"><button ref={libraryButton} className="approved-library-entry" aria-label={t('readingDesk.library')} aria-expanded={groups} onClick={() => { setGroups(true); setParams({ view: 'library' }); }}><span className="approved-stock" data-count={Math.min(catalog.files.length,3)} aria-hidden="true">{(catalog.files.length ? catalog.files.slice(0, 3) : [null]).map((file, i) => <MaterialCover key={i} src={file ? materialCover(file) : '/design/empty-material/waiting.png'} identity={file?.content_hash ?? String(i)}/>)}</span></button>
         <button className="approved-saved-entry" onPointerDown={savedRoute.preload} onFocus={savedRoute.preload} aria-label={t('savedRecords.title')} onClick={event => {
+          cancelReadingReturn();
           const open=()=>navigate('/saved',{state:{...visitState(location),pocketRecordId:pocket?.record_id}});
           if(captureSavedEntrance(pocket?.record_id,event.currentTarget.querySelector<HTMLElement>('.approved-pocket-sheet')))open();else dissolvePage(open);
         }}><span className="approved-word-pocket" aria-hidden="true"><i/><SavedPocketPreview record={pocket}/><i/></span></button>

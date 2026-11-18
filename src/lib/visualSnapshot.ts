@@ -2,7 +2,7 @@
 export function visualCopy(source: HTMLElement) {
   const copy=source.cloneNode(true) as HTMLElement;
   const originals=[source,...source.querySelectorAll<HTMLElement>('*')],copies=[copy,...copy.querySelectorAll<HTMLElement>('*')];
-  originals.forEach((node,i)=>{const style=getComputedStyle(node),target=copies[i];for(const key of style)target.style.setProperty(key,style.getPropertyValue(key));target.removeAttribute('id');target.style.animation='none';target.style.transition='none';});
+  originals.forEach((node,i)=>{const style=getComputedStyle(node),target=copies[i];for(const key of style)target.style.setProperty(key,style.getPropertyValue(key));target.removeAttribute('id');target.style.animation='none';target.style.transition='none';target.style.pointerEvents='none';});
   copy.inert=true;copy.setAttribute('aria-hidden','true');return copy;
 }
 

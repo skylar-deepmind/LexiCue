@@ -14,6 +14,9 @@ use std::sync::{
 };
 use tauri::{Emitter, Manager};
 
+#[path = "../../dictionary_relation_sql.rs"]
+mod relation_sql;
+
 const CATALOG: &str = include_str!("../../resources/dictionaries/catalog.json");
 fn catalog() -> &'static Value {
     static C: OnceLock<Value> = OnceLock::new();
@@ -59,12 +62,17 @@ fn open_verified(root: &Path, id: &str) -> R<Pack> {
     let p = item(id)?;
     verify_file(&root.join("dictionary.sqlite3"), &p["database"])?;
     let pack = Pack::open(&root.join("dictionary.sqlite3"), id)?;
-    let check: String = pack
-        .conn
-        .query_row("PRAGMA quick_check", [], |r| r.get(0))
-        .map_err(|e| e.to_string())?;
-    if check != "ok" {
-        return Err("dictionary_database_invalid".into());
+    // The exact daily bytes have already passed quick_check while producing
+    // the embedded relation tables. A successful pinned hash proves the same
+    // bytes are present here. Supplemental packs keep the runtime check.
+    if id != "daily" {
+        let check: String = pack
+            .conn
+            .query_row("PRAGMA quick_check", [], |r| r.get(0))
+            .map_err(|e| e.to_string())?;
+        if check != "ok" {
+            return Err("dictionary_database_invalid".into());
+        }
     }
     Ok(pack)
 }
@@ -295,8 +303,10 @@ fn pack_relations(packs: &[Pack], fingerprint: String) -> R<super::longman::Rela
                     .clone(),
             );
         }
-        let mut query = pack.conn.prepare("SELECT a.surface_id,min(e.surface_id),max(e.surface_id),max(a.kind IN (1,3))
-            FROM aliases a CROSS JOIN entries e ON e.source_line=a.entry_line GROUP BY a.surface_id").map_err(sql)?;
+        let mut query = pack
+            .conn
+            .prepare(relation_sql::PACK_ALIAS_EVIDENCE)
+            .map_err(sql)?;
         let aliases = query
             .query_map([], |r| {
                 Ok((
@@ -357,6 +367,13 @@ pub fn relation_catalog_configured() -> Arc<super::longman::RelationCatalog> {
             initialize(&mut s);
             if let Some(catalog) = &s.relations {
                 return catalog.clone();
+            }
+            if s.packs.len() == 1 && s.packs[0].id == "daily" {
+                let catalog = Arc::new(super::longman::RelationCatalog::from_bundled_daily(
+                    format!("wiktionary-pack-relations-v1:{}", s.fingerprint),
+                ));
+                s.relations = Some(catalog.clone());
+                return catalog;
             }
             let packs = s
                 .packs
@@ -425,7 +442,9 @@ pub fn initialize_runtime(app: &tauri::AppHandle) -> R<()> {
         }
     }
     let mut s = store().lock().map_err(|e| e.to_string())?;
-    s.initialized = false;
+    if !s.packs.iter().any(|p| p.id == "daily") {
+        s.initialized = false;
+    }
     initialize(&mut s);
     if s.packs.iter().any(|p| p.id == "daily") {
         Ok(())

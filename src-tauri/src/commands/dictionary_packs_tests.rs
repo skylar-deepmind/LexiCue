@@ -26,6 +26,46 @@ fn installed_base_proves_recall_forms_and_reserves_independent_case() {
         .contains(&"US".into()));
     assert!(catalog.safe_forms("take off").contains(&"took off".into()));
 }
+#[test]
+fn bundled_relations_match_runtime_relations_for_every_daily_spelling() {
+    use super::super::longman::RelationCatalog;
+    let pack = Pack::open(
+        &Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("resources/dictionaries/daily/dictionary.sqlite3"),
+        "daily",
+    )
+    .unwrap();
+    let words = {
+        let mut query = pack.conn.prepare("SELECT word FROM surfaces").unwrap();
+        let rows = query.query_map([], |row| row.get::<_, String>(0)).unwrap();
+        rows.collect::<rusqlite::Result<Vec<_>>>().unwrap()
+    };
+    let runtime = pack_relations(&[pack], "daily".into()).unwrap();
+    let compiled = RelationCatalog::from_bundled_daily("daily".into());
+    for word in
+        words
+            .iter()
+            .map(String::as_str)
+            .chain(["Take off", " Went ", "   ", "unknown token"])
+    {
+        assert_eq!(compiled.identity(word), runtime.identity(word), "{word}");
+        assert_eq!(
+            compiled.safe_forms(word),
+            runtime.safe_forms(word),
+            "{word}"
+        );
+        assert_eq!(
+            compiled.case_sensitive_identity(word),
+            runtime.case_sensitive_identity(word),
+            "{word}"
+        );
+    }
+    assert_eq!(
+        compiled.case_exclusions(&words),
+        runtime.case_exclusions(&words)
+    );
+}
+
 fn detached() -> Operation {
     Operation(
         Arc::new(AtomicBool::new(false)),

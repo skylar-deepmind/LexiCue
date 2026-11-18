@@ -9,6 +9,7 @@ let entrance: Entrance | null = null;
 let returning: { title?: Piece; quote?: Piece; cover?: Piece; words?: Piece[]; background?: HTMLElement } | null = null;
 let pending = false, cleanup = () => {};
 let returnFrame = 0;
+let returningMotion = false;
 let hold:HTMLElement|null=null,holdTimer:ReturnType<typeof setTimeout>|undefined;
 function clearHold(){clearTimeout(holdTimer);hold?.remove();hold=null;}
 function pageCopy(source:HTMLElement){
@@ -41,9 +42,18 @@ function findSentence(text: string): HTMLElement | null {
   const nodes = [...document.querySelectorAll<HTMLElement>('.reading-original')];
   return nodes.find(node => normalized(node.textContent ?? '') === normalized(text)) ?? null;
 }
+export function cancelReadingReturn() {
+  if (!returning && !returningMotion) return;
+  cancelAnimationFrame(returnFrame);
+  returnFrame = 0;
+  cleanup();
+  clearHold();
+  returning = null;
+  returningMotion = false;
+}
 export function captureReadingEntrance(material: Material, card: HTMLElement, origin: 'desk' | 'wall') {
-  cancelAnimationFrame(returnFrame); returnFrame = 0;
-  cleanup(); returning = null; pending = true;
+  cancelReadingReturn();
+  cleanup(); pending = true;
   const title = card.querySelector<HTMLElement>('.approved-card-title,.approved-poster strong');
   const quote = card.querySelector<HTMLElement>('.approved-card-quote');
   const page=card.closest<HTMLElement>('.approved-desk');
@@ -108,9 +118,10 @@ function run(reverse: boolean) {
   const quote = reverse ? returning?.quote : piece(sentenceNode);
   const layer = document.createElement('div'); layer.className = 'approved-handoff b-shell figma-shell'; layer.style.background='transparent'; layer.setAttribute('aria-hidden', 'true'); layer.inert = true;
   document.body.append(layer);
+  returningMotion = reverse;
   if(data.origin==='wall'){
     const paper=reverse?returning?.background:reader? pageCopy(reader):undefined;
-    if(!paper){clearHold();layer.remove();return;}
+    if(!paper){clearHold();layer.remove();returningMotion=false;return;}
     const wallNode=reverse?document.querySelector<HTMLElement>('.approved-wall-viewport'):null;
     const wallBounds=wallNode?box(wallNode):data.wall;
     if(!reverse&&data.background)layer.append(data.background);
@@ -123,7 +134,7 @@ function run(reverse: boolean) {
     let destinations=reverse?returning?.words??[]:nodes.map(node=>piece(node)!).filter(Boolean);
     if(destinations[0])destinations=destinations.filter(p=>Math.abs(p.box.y-destinations[0].box.y)<3);
     const dispose=playWallExposure({...source,wall:wallBounds},paper,layer,reverse,destinations,nodes.slice(0,destinations.length),paperBox,()=>{if(!reverse&&reader)reader.style.visibility=readerVisibility;});
-    clearHold();cleanup=dispose;returning=null;pending=false;return;
+    clearHold();cleanup=()=>{dispose();returningMotion=false;};returning=null;pending=false;return;
   }
   const jobs: Animation[] = [], hidden: { node: HTMLElement; visibility: string }[] = [];
   const hide = (node: HTMLElement | null) => { if (!node) return; hidden.push({ node, visibility: node.style.visibility }); node.style.visibility = 'hidden'; };
@@ -149,7 +160,10 @@ function run(reverse: boolean) {
   if(reverse&&paper){paper.querySelectorAll<HTMLElement>('.reading-title,.folio-print').forEach(hide);paper.querySelectorAll<HTMLElement>(`[data-sentence="${data.segment}"] .reading-original`).forEach(hide);}
   if (!reverse) {
     hide(document.querySelector('.reading-title')); hide(document.querySelector('.folio-print')); hide(sentenceNode);
-  } else hide(card);
+  } else if (card) {
+    // Keep the real card's hit area alive while the snapshot paints its artwork.
+    jobs.push(card.animate([{opacity:0},{opacity:0}],{duration:duration+240,fill:'both'}));
+  }
   if (data.origin === 'desk') {
     const background = reverse ? document.querySelector<HTMLElement>('.approved-desk') : source.background;
     if (background) {
@@ -196,7 +210,7 @@ function run(reverse: boolean) {
     disposed = true;
     jobs.forEach(a => a.cancel()); hidden.forEach(({ node, visibility }) => { node.style.visibility = visibility; }); layer.remove();
     window.removeEventListener('resize', dispose); window.removeEventListener('pagehide', dispose); document.removeEventListener('visibilitychange', visibility);
-    if (cleanup === dispose) cleanup = () => {};
+    if (cleanup === dispose) { cleanup = () => {}; returningMotion = false; }
   };
   const visibility = () => { if (document.hidden) dispose(); };
   cleanup = dispose; window.addEventListener('resize', dispose, { once: true }); window.addEventListener('pagehide', dispose, { once: true }); document.addEventListener('visibilitychange', visibility);

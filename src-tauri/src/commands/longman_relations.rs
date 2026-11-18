@@ -12,6 +12,9 @@ use std::io::Read;
 mod expressions;
 use expressions::ExpressionIndex;
 
+#[path = "bundled_relations.rs"]
+mod bundled;
+
 pub const RELATION_VERSION: &str = "longman-inflection-v2-object-patterns";
 
 #[derive(Clone, Debug, Serialize)]
@@ -39,6 +42,7 @@ pub struct RelationCatalog {
     identities: HashMap<String, String>,
     forms: HashMap<String, Vec<String>>,
     known: HashSet<String>,
+    bundled_daily: bool,
     reserved_case: HashMap<String, BTreeSet<String>>,
     independent: HashSet<String>,
     expression_aliases: HashMap<String, Vec<(String, String, String)>>,
@@ -168,8 +172,32 @@ fn inflection_label(label: &str) -> bool {
 impl RelationCatalog {
     /// Without a source graph there is no evidence for case or form aliases.
     pub fn literal_only(&self) -> bool {
-        self.known.is_empty()
+        !self.bundled_daily && self.known.is_empty()
     }
+
+    fn knows(&self, spelling: &str) -> bool {
+        if self.bundled_daily {
+            bundled::known(spelling)
+        } else {
+            self.known.contains(spelling)
+        }
+    }
+
+    fn reserved_spellings<'a>(&'a self, folded: &str) -> impl Iterator<Item = &'a str> + 'a {
+        let compiled = self.bundled_daily.then(|| bundled::case(folded));
+        self.reserved_case
+            .get(folded)
+            .into_iter()
+            .flatten()
+            .map(String::as_str)
+            .chain(
+                compiled
+                    .into_iter()
+                    .flatten()
+                    .map(|value| -> &'a str { value }),
+            )
+    }
+
     pub fn fingerprint(&self) -> &str {
         &self.fingerprint
     }
@@ -194,14 +222,12 @@ impl RelationCatalog {
                 .collect::<Vec<_>>()
                 .join(" ")
                 .to_lowercase();
-            if let Some(spellings) = self.reserved_case.get(&folded) {
-                for spelling in spellings {
-                    excluded.insert(spelling.clone());
-                    // Shouting a known independent proper head does not turn it
-                    // into its lowercase homograph. Do not invent Title Case
-                    // variants of abbreviations (US must not reserve Us).
-                    excluded.insert(spelling.to_uppercase());
-                }
+            for spelling in self.reserved_spellings(&folded) {
+                excluded.insert(spelling.to_owned());
+                // Shouting a known independent proper head does not turn it
+                // into its lowercase homograph. Do not invent Title Case
+                // variants of abbreviations (US must not reserve Us).
+                excluded.insert(spelling.to_uppercase());
             }
         }
         excluded.into_iter().collect()
@@ -211,13 +237,16 @@ impl RelationCatalog {
         if !expression.chars().any(char::is_uppercase) {
             return false;
         }
-        if self.known.contains(&expression) {
+        if self.knows(&expression) {
             return true;
         }
         let mut letters = expression.chars().filter(|c| c.is_alphabetic()).peekable();
         letters.peek().is_some()
             && letters.all(char::is_uppercase)
-            && self.reserved_case.contains_key(&expression.to_lowercase())
+            && self
+                .reserved_spellings(&expression.to_lowercase())
+                .next()
+                .is_some()
     }
     fn rebuild_case_reservations(&mut self) {
         self.reserved_case.clear();
@@ -237,7 +266,12 @@ impl RelationCatalog {
         if let Some(identity) = self.identities.get(&surface) {
             return identity.clone();
         }
-        if !self.known.contains(&surface) {
+        if self.bundled_daily {
+            if let Some(identity) = bundled::identity(&surface) {
+                return identity.to_owned();
+            }
+        }
+        if !self.knows(&surface) {
             if surface.split_whitespace().count() > 1 {
                 let matches = self.expression_matches(&surface);
                 let heads = matches
@@ -249,7 +283,7 @@ impl RelationCatalog {
                 }
             }
             if let Some(lower) = sentence_case_query(&surface) {
-                if self.known.contains(&lower)
+                if self.knows(&lower)
                     || self.candidates.contains_key(&lower)
                     || !self.expression_matches(&lower).is_empty()
                 {
@@ -263,6 +297,14 @@ impl RelationCatalog {
     /// to that identity under this exact dictionary release/parser version.
     pub fn safe_forms(&self, identity: &str) -> Vec<String> {
         let identity = self.identity(identity);
+        if self.bundled_daily {
+            let forms: Vec<_> = bundled::forms(&identity).map(str::to_owned).collect();
+            return if forms.is_empty() {
+                vec![identity]
+            } else {
+                forms
+            };
+        }
         let mut forms = self
             .forms
             .get(&identity)
@@ -411,6 +453,13 @@ impl RelationCatalog {
             ..Self::default()
         }
     }
+    pub(crate) fn from_bundled_daily(fingerprint: String) -> Self {
+        Self {
+            bundled_daily: true,
+            ..Self::empty(fingerprint)
+        }
+    }
+
     /// The installed Wiktionary packs supply exact head spellings and explicit
     /// inflections. Independent meanings and competing targets stay literal.
     pub(crate) fn from_pack_relations(

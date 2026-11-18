@@ -53,4 +53,6 @@ pub fn verify() {
             "Dictionary member checksum changed: {name}"
         );
     }
+    super::dictionary_relations::generate(&base.join("daily/dictionary.sqlite3"))
+        .expect("Cannot generate the verified daily relation index");
 }
