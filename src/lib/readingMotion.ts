@@ -145,7 +145,7 @@ function run(reverse: boolean) {
   const hide = (node: HTMLElement | null) => { if (!node) return; hidden.push({ node, visibility: node.style.visibility }); node.style.visibility = 'hidden'; };
   const duration = 580;
   const options: KeyframeAnimationOptions = { duration, fill: 'both', direction: reverse ? 'reverse' : 'normal', easing: 'cubic-bezier(.4,0,.2,1)' };
-  const coverArrival = reverse ? 1 : .86;
+  const coverArrival = reverse ? 1 : .76;
 
   const animate = (node: HTMLElement, frames: Keyframe[]) => { const a = node.animate(frames, options); jobs.push(a); };
   const frame = (r: Box) => ({ left: `${r.x}px`, top: `${r.y}px`, width: `${r.width}px`, height: `${r.height}px` });
@@ -192,8 +192,14 @@ function run(reverse: boolean) {
     }
     if (paper) {
       if (reverse) place(paper,{x:0,y:0,width:innerWidth,height:innerHeight});
-      animate(paper,[{clipPath:clip({x:0,y:0,width:innerWidth,height:innerHeight},source.card)},{clipPath:'inset(0px round 0px)'}]);
-      paper.querySelectorAll<HTMLElement>('.reading-layout,.reading-breadcrumb').forEach(node=>animate(node,[{opacity:0},{opacity:0,offset:.62},{opacity:1,offset:.9},{opacity:1}]));
+      const clipped = { clipPath: clip({x:0,y:0,width:innerWidth,height:innerHeight},source.card) };
+      const open = { clipPath: 'inset(0px round 0px)' };
+      // Drop the paper mask before the live cover is visible. Removing the
+      // composited mask at cleanup can resample a fractional image edge.
+      animate(paper, reverse
+        ? [clipped, open]
+        : [clipped, { ...open, offset: .68 }, { clipPath: 'none', offset: .70 }, { clipPath: 'none' }]);
+      paper.querySelectorAll<HTMLElement>('.reading-layout,.reading-breadcrumb').forEach(node=>fadeIn(node,.62,reverse ? .9 : .80));
       if(!reverse){const controls=document.querySelector<HTMLElement>('.mobile-reading-tools');if(controls)animate(controls,[{opacity:0},{opacity:0,offset:.62},{opacity:1}]);}
     }
   }
@@ -201,19 +207,19 @@ function run(reverse: boolean) {
   if (ink && source.cover) {
     place(ink, source.cover.box); ink.style.zIndex='2'; ink.dataset.motionPiece='contours';
     if (data.origin === 'desk' && cover) {
-      const from=source.cover.box,to=cover.box;
-      const landed = { transform: `translate(${to.x-from.x}px,${to.y-from.y}px) scale(${to.width/from.width},${to.height/from.height})`, borderRadius: '4px' };
-      animate(ink, [{ transform: 'none', borderRadius: '16px 16px 0 0' }, { ...landed, offset: coverArrival }, { ...landed, offset: 1 }]);
+      const from = { ...frame(source.cover.box), borderRadius: '16px 16px 0 0' };
+      const to = { ...frame(cover.box), borderRadius: '4px' };
+      animate(ink, [from, { ...to, offset: coverArrival }, { ...to, offset: 1 }]);
     }
     animate(ink,[{opacity:0},{opacity:.76,offset:.43},{opacity:0,offset:coverArrival},{opacity:0}]);
   }
   if (data.origin === 'desk') {
     const movingCover = travel(source.cover, cover, 'cover', coverArrival);
     if (!reverse && movingCover && liveCover) {
-      // Blend only after the moving image has landed, leaving the live image
-      // in its final place well before the animation layer is removed.
-      fadeOut(movingCover, coverArrival, .94);
-      fadeIn(liveCover, coverArrival, .95);
+      // Present one raster at a time and make the real image the only
+      // visible cover well before the animation layer is removed.
+      fadeOut(movingCover, coverArrival, .82);
+      fadeIn(liveCover, .82, .90);
     }
     if(reverse&&returnInk.length){
       // Return ink as one measured caption. Independent font/width interpolation

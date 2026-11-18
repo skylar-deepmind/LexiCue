@@ -35,7 +35,7 @@ try{
   await page.locator('.approved-card[data-desk-active=true] .approved-card-open').click();await page.locator('.approved-handoff [data-motion-piece=cover]').waitFor();
   const mid=await page.locator('.approved-handoff').evaluate(n=>{const jobs=document.getAnimations().filter(a=>a.effect.getTiming().duration===580);jobs.forEach(a=>{a.pause();a.currentTime=180;});const r=n.querySelector('[data-motion-piece=cover]').getBoundingClientRect(),c=n.querySelector('[data-motion-piece=contours]').getBoundingClientRect(),target=document.querySelector('.folio-print').getBoundingClientRect();return {same:Math.abs(r.x-c.x)<1&&Math.abs(r.y-c.y)<1&&Math.abs(r.width-c.width)<1,landed:Math.abs(r.width-target.width)<1,prose:Number(getComputedStyle(document.querySelector('.reading-layout')).opacity),count:jobs.length};});
   ok(mid.same,'contour travels with cover rather than staying on the desk');ok(!mid.landed,'cover keeps travelling after the sentence lands');ok(mid.prose<.05,'surrounding prose waits for the prototype reveal phase');
-  const landing=await page.locator('.approved-handoff').evaluate(n=>{document.getAnimations().filter(a=>a.effect.getTiming().duration===580).forEach(a=>{a.currentTime=330;});const quote=n.querySelector('[data-motion-piece=quote]').getBoundingClientRect(),paragraph=[...document.querySelectorAll('.reading-original')].find(p=>p.textContent===n.querySelector('[data-motion-piece=quote]').textContent)?.getBoundingClientRect(),cover=n.querySelector('[data-motion-piece=cover]').getBoundingClientRect(),target=document.querySelector('.folio-print').getBoundingClientRect();return {sentence:!!paragraph&&Math.abs(quote.x-paragraph.x)<1&&Math.abs(quote.y-paragraph.y)<1,cover:Math.abs(cover.width-target.width)>1};});ok(landing.sentence&&landing.cover,'the excerpt lands before the cover completes the handoff');
+  const landing=await page.locator('.approved-handoff').evaluate(n=>{document.getAnimations().filter(a=>a.effect.getTiming().duration===580).forEach(a=>{a.currentTime=260;});const quote=n.querySelector('[data-motion-piece=quote]').getBoundingClientRect(),paragraph=[...document.querySelectorAll('.reading-original')].find(p=>p.textContent===n.querySelector('[data-motion-piece=quote]').textContent)?.getBoundingClientRect(),cover=n.querySelector('[data-motion-piece=cover]').getBoundingClientRect(),target=document.querySelector('.folio-print').getBoundingClientRect();return {sentence:!!paragraph&&Math.abs(quote.x-paragraph.x)<1&&Math.abs(quote.y-paragraph.y)<1,cover:Math.abs(cover.width-target.width)>1};});ok(landing.sentence&&landing.cover,'the excerpt lands before the cover completes the handoff');
   const handoff = await page.locator('.approved-handoff').evaluate(layer => {
     const jobs = document.getAnimations().filter(animation => animation.effect.getTiming().duration === 580);
     const title = layer.querySelector('[data-motion-piece=title]');
@@ -55,6 +55,8 @@ try{
         cover: [opacity(cover), opacity(liveCover)],
         contour: opacity(contour),
         coverOffset: Math.max(...bounds(cover).map((value, axis) => Math.abs(value - bounds(liveCover)[axis]))),
+        readerClip: getComputedStyle(liveCover.closest('.reading-page')).clipPath,
+        layoutOpacity: opacity(liveCover.closest('.reading-layout')),
       });
     }
     return frames;
@@ -63,7 +65,9 @@ try{
     ok(handoff.some(frame => frame[key][0] > .5) && handoff.some(frame => frame[key][1] > .5), `both the moving and final ${key} are painted`);
     ok(handoff.every(frame => frame[key].some(opacity => opacity < .001)), `moving and final ${key} never paint together`);
   }
-  ok(handoff.some(frame => frame.cover.every(opacity => opacity > .05)) && handoff.every(frame => frame.cover.some(opacity => opacity <= .05) || frame.coverOffset < .1), 'cover blends only once it matches the final position and size');
+  ok(handoff.some(frame => frame.cover[0] > .5 && frame.coverOffset < .1), 'the moving cover reaches the final geometry before fading');
+  ok(handoff.every(frame => frame.cover.some(opacity => opacity < .001)), 'the moving and final covers never paint together');
+  ok(handoff.every(frame => frame.cover[1] < .001 || frame.readerClip === 'none' && frame.layoutOpacity === 1), 'the reader mask and layout opacity settle before the actual cover appears');
   ok(handoff.slice(-18).every(frame => frame.cover[0] < .001 && frame.cover[1] > .999 && frame.contour < .001), 'the last 90 ms show only the real, stationary cover');
   const entryGeometry = () => page.evaluate(() => {
     const positions=['.reading-breadcrumb .page-back','.reading-title','.folio-print','.reading-original'].map(selector=>{
