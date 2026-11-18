@@ -21,7 +21,7 @@ export default function HomeCardTags({ file, onClose }: { file: Material; onClos
     const deck = input.current.closest<HTMLElement>('.approved-deck');
     if (strip) strip.scrollLeft = strip.scrollWidth;
     input.current.focus({ preventScroll: true });
-    return () => deck?.style.removeProperty('--home-tag-deck-top');
+    return () => { deck?.style.removeProperty('--home-tag-deck-top'); };
   }, [editing]);
   const [busy, setBusy] = useState(false), [error, setError] = useState('');
   useEffect(() => {
