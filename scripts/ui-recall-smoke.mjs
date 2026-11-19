@@ -117,7 +117,7 @@ try{
   await lookupHistory.locator('.recall-undo').waitFor();
   await lookupHistory.locator('.saved-sentence').waitFor({state:'detached'});
   eq((await call('saved_recall_contexts',{expression:'curiosity',offset:0,limit:10})).total,0,'lookup removes only its final saved sentence');
-  ok(await page.getByRole('tab',{name:/我的记录/}).isVisible(),'zero-count records tab retains undo');
+  ok(await page.locator('.quiet-pocket[aria-expanded=true]').isVisible(),'empty pocket stays open for undo');
   await lookupHistory.locator('.recall-undo').getByRole('button',{name:'撤销',exact:true}).click();
   await lookupHistory.locator('.saved-sentence').waitFor();
   eq((await call('saved_recall_contexts',{expression:'curiosity',offset:0,limit:10})).records[0].sentence,curiosity.sentence,'lookup undo restores exact original');
