@@ -26,6 +26,16 @@ fn route(
             examples.end("test-main", text("sessionId"))?;
             Ok(Value::Null)
         }
+        "saved_source_segments" => {
+            serde_json::to_value(saved::collected_segments(c, text("contentHash"))?)
+                .map_err(|e| e.to_string())
+        }
+        "example_source_segments" => {
+            serde_json::to_value(examples.with("test-main", text("sessionId"), |conn| {
+                saved::collected_segments(conn, text("contentHash"))
+            })?)
+            .map_err(|e| e.to_string())
+        }
         "example_saved_for_selection" => {
             serde_json::to_value(examples.with("test-main", text("sessionId"), |c| {
                 saved::selection(

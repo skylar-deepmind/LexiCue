@@ -72,7 +72,7 @@ try {
   await page.waitForTimeout(380);
   equal(await page.locator('.reader-scroll').evaluate(n=>n.scrollTop),end.scroll,`${label}: switching to a visible word keeps the reading position`);
   equal(await page.locator('.context-panel').evaluate(n=>n.offsetHeight),end.height,`${label}: switching retains drawer height`);
-  await page.getByTestId('lookup-close').click();
+  await page.keyboard.press('Escape');
   await page.locator('.context-panel').waitFor({state:'detached'});
 
   // Reduced motion still reveals the final word at the end of the document.
@@ -91,7 +91,7 @@ try {
   });
   equal(lastPosition.scroll>oldLimit && lastPosition.top>=lastPosition.readerTop && lastPosition.bottom<=lastPosition.sheetTop-14,true,
         `${label}: reduced motion reveals the last word immediately despite the old scroll limit (${JSON.stringify({oldLimit,...lastPosition})})`);
-  await page.getByTestId('lookup-close').click();
+  await page.keyboard.press('Escape');
   await page.locator('.context-panel').waitFor({state:'detached'});
   equal(await page.locator('.reading-layout').evaluate(n=>n.style.getPropertyValue('--lookup-reader-tail')),'',`${label}: closing removes the temporary room below the article`);
   await context.close();

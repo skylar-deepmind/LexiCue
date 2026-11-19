@@ -1,3 +1,4 @@
+import { useSavedReadRevision } from '../lib/savedReadCache';
 import { bookmarkTitle } from '../lib/bookmarkDesk';
 import ReaderHeading from '../components/ReaderHeading';
 import useReaderTitleDock from '../components/useReaderTitleDock';
@@ -64,6 +65,17 @@ export default function ReadingPage({ data, scope }: {
     const skip = () => { guide.finish('skipped'); pageBack(); };
     const [params] = useSearchParams();
     const { material } = data;
+    const savedRevision = useSavedReadRevision();
+    const sessionId = scope.kind === 'example' ? scope.sessionId : undefined;
+    const [collectedSegments, setCollectedSegments] = useState<Set<number>>(() => new Set());
+    useEffect(() => {
+      let current = true;
+      const command = sessionId ? 'example_source_segments' : 'saved_source_segments';
+      void invoke<number[]>(command, {contentHash: material.content_hash, sessionId}).then(indices => {
+        if (current) setCollectedSegments(new Set(indices));
+      }).catch(() => { if (current) setCollectedSegments(new Set()); });
+      return () => { current = false; };
+    }, [material.content_hash, sessionId, savedRevision, guide.saved]);
     const memoryKey=viewKey(location);
     const [viewGeneration]=useState(()=>useRestoreGuard.getState().generation);
     const [memory]=useState(()=>readerViews.get(memoryKey));
@@ -609,6 +621,7 @@ export default function ReadingPage({ data, scope }: {
       const key = speechItems[first + offset].key;
       const active = listening && currentReadingIndex===first+offset;
       const failed = speech.errorKey === key && speech.error;
+      const collected = collectedSegments.has(segment.index_num);
       const matches = recall.matches.get(segment.index_num);
       const selection = keyboardRange ? undefined : query?.segment.id === segment.id ? query : undefined;
       const keyboardSelection = keyboardRange?.segment === segment.id ? keyboardRange : undefined;
@@ -621,7 +634,7 @@ export default function ReadingPage({ data, scope }: {
           onTouchEnd={event => event.stopPropagation()} onClick={() => listenFrom(first + offset)}>
           <Play size={12} fill="currentColor" strokeWidth={0} aria-hidden="true"/>
         </button>}
-        <ReadingSentenceTokens segment={segment} spans={tokens.get(segment.index_num) ?? noTokens} matches={matches?.length ? matches : noMatches} selection={selection} keyboardSelection={keyboardSelection} actions={tokenActions}/></p>{segment.zh_text && <div className="reading-translation-disclosure" data-open={translation || undefined} aria-hidden={!translation}><div className="reading-translation-clip"><p className="reading-translation">{segment.zh_text}</p></div></div>}{listening && (active && speech.loading || failed) && <span className="sr-only" role="status">{t(active ? 'common.loading' : 'speech.retry')}</span>}{failed && <SpeechFeedback speechKeys={[key]}/>}</div>
+        <span className="sheet-seat" data-collected={collected || undefined} data-sheet-active={selection?'true':undefined}><span className="sentence-sheet" data-sheet-id={segment.id} tabIndex={selection?0:undefined} aria-label={selection?t('reader.liftSentence'):undefined}><ReadingSentenceTokens segment={segment} spans={tokens.get(segment.index_num) ?? noTokens} matches={matches?.length ? matches : noMatches} selection={selection} keyboardSelection={keyboardSelection} actions={tokenActions}/>{collected && <span className="collected-bookmark" role="img" aria-label={t('dictionaryFlow.saveToast')}/>}</span></span></p>{segment.zh_text && <div className="reading-translation-disclosure" data-open={translation || undefined} aria-hidden={!translation}><div className="reading-translation-clip"><p className="reading-translation">{segment.zh_text}</p></div></div>}{listening && (active && speech.loading || failed) && <span className="sr-only" role="status">{t(active ? 'common.loading' : 'speech.retry')}</span>}{failed && <SpeechFeedback speechKeys={[key]}/>}</div>
     </section>; })}
     {last < segments.length && <button className="ui-button reader-next" data-reader-next="" onClick={() => setLast(value => Math.min(value + 60, segments.length))}>{t('reader.moreSentences')}</button>}
     {!query && <SpeechFeedback prefix="reader:"/>}

@@ -181,6 +181,8 @@ export default function ContextPanel({ view, label, children, onClose, canClose 
       if (event.key !== 'Tab' || !layerRef.current || !layerRef.current.contains(document.activeElement)&&!associatedGuide(layerRef.current)?.contains(document.activeElement)) return;
       const items = [layerRef.current,associatedGuide(layerRef.current)].filter((root):root is HTMLElement=>!!root).flatMap(root=>Array.from(root.querySelectorAll<HTMLElement>('button:not(:disabled),input,textarea,summary,a[href]')))
         .filter(item => item.getClientRects().length > 0 && !item.closest('[inert],[aria-hidden="true"]') && getComputedStyle(item).visibility !== 'hidden');
+      const sheet=document.querySelector<HTMLElement>('[data-sheet-active] .sentence-sheet');
+      if (sheet && layerRef.current?.querySelector('.context-panel--lookup')) items.push(sheet);
       if (!items.length) return;
       if (event.shiftKey && (document.activeElement === items[0] || document.activeElement === panelRef.current)) {
         event.preventDefault(); items.at(-1)?.focus();
@@ -227,7 +229,7 @@ export default function ContextPanel({ view, label, children, onClose, canClose 
   return createPortal(<div className={`context-layer${closing ? ' context-layer--closing' : ''}`} ref={layerRef}>
     <aside className={`context-panel${compactHeader ? ' context-panel--lookup' : ''}`} role="dialog" aria-label={label} tabIndex={-1} ref={panelRef} data-expanded={expanded} data-closing={closing || undefined} inert={closing} aria-hidden={closing || undefined}>
       <div className="context-sheet-controls">
-        <button data-testid={compactHeader ? 'lookup-close' : undefined} className="context-mobile-return" onClick={requestClose} disabled={!canClose} aria-label={t('savedRecords.collapse')}><ChevronDown size={20} strokeWidth={1.8} aria-hidden="true" /></button>
+        {!compactHeader&&<button data-testid={compactHeader ? 'lookup-close' : undefined} className="context-mobile-return" onClick={requestClose} disabled={!canClose} aria-label={t('savedRecords.collapse')}><ChevronDown size={20} strokeWidth={1.8} aria-hidden="true" /></button>}
         {layoutSlot && <button className="context-sheet-expand" onClick={() => setExpanded(value => !value)} aria-expanded={expanded} aria-label={t(expanded ? 'reader.halfSheet' : 'reader.fullSheet')}>{expanded ? <Minimize2 size={20} aria-hidden="true"/> : compactHeader ? <Expand size={20} strokeWidth={1.8} aria-hidden="true"/> : <Maximize2 size={18} aria-hidden="true"/>}</button>}
       </div>{layoutSlot && !compactHeader && <button data-testid="lookup-close" className="lookup-close" onClick={requestClose} disabled={!canClose} aria-label={t('common.close')}><X size={20}/></button>}
       {children}

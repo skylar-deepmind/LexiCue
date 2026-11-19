@@ -1550,6 +1550,9 @@
     }
   },
   "reader": {
+    "senseCount": "{{count}} senses",
+    "liftSentence": "Pick up sentence",
+    "discardImport": "Discard this import",
     "saveSentence": "Save sentence",
     "myRecords": "My records",
     "fontLearning": "Reading text",

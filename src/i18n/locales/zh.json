@@ -1533,6 +1533,9 @@
     }
   },
   "reader": {
+    "senseCount": "{{count}} 义",
+    "liftSentence": "拿起整句便签",
+    "discardImport": "放弃本次导入",
     "saveSentence": "保存本句",
     "myRecords": "我的记录",
     "fontLearning": "正文",

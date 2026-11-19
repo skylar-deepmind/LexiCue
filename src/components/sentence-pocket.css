@@ -1,0 +1,51 @@
+:root{--note-shade:var(--text-muted);--note-paper:#edf0ef;--note-edge:#b9c4c1;--note-shadow:#47575922;--notch:#83908e;--pocket-cover:#eceeec;--pocket-side:#cbd2ce}
+html[data-theme=midnight]{--note-paper:#343630;--note-edge:#636357;--note-shade:#b4a995;--note-shadow:#0004;--notch:#888373;--pocket-cover:#353735;--pocket-side:#494c47}
+.sheet-seat,.sentence-sheet{display:contents}
+.sheet-seat[data-sheet-active]{position:relative;display:inline-block;max-width:100%;vertical-align:top;isolation:isolate}
+.sheet-seat[data-sheet-active] .sentence-sheet{position:relative;isolation:isolate;display:block;box-sizing:border-box;width:fit-content;max-width:100%;margin:0;padding:0;border:0;color:inherit;font:inherit;background:transparent;overflow:visible;user-select:none;-webkit-user-select:none;touch-action:none;cursor:grab;outline-offset:5px}
+.sheet-seat[data-sheet-active] .reading-word{cursor:grab;touch-action:none}
+.sheet-seat[data-sheet-active] .sentence-sheet::before{content:"";position:absolute;z-index:-1;inset:-5px -10px;pointer-events:none;border-radius:3px 4px 3px 2px;background:var(--note-paper);box-shadow:0 0 0 .6px color-mix(in srgb,var(--note-edge) 62%,transparent),0 2px 4px var(--note-shadow);transition:box-shadow .2s}
+:root .sheet-seat[data-sheet-active] .sentence-sheet::before{background:linear-gradient(to bottom,transparent calc(100% - 5px),color-mix(in srgb,var(--note-edge) 38%,transparent) calc(100% - 5px),transparent calc(100% - 4px)),var(--note-paper);border-radius:5px 5px 7px 3px}
+.sheet-seat[data-empty]::before{content:"";position:absolute;inset:-4px -10px;background:color-mix(in srgb,var(--note-edge) 12%,transparent);border-radius:3px}
+.sheet-seat[data-sheet-active] .sentence-sheet[data-floating=true]{position:fixed;inset:auto;margin:0;max-width:none!important;max-height:none!important;overflow:visible;cursor:grabbing;will-change:transform,clip-path}
+.sentence-sheet[popover]::backdrop{background:none;pointer-events:none}
+.sheet-seat[data-empty] .sentence-sheet::before{box-shadow:0 calc(2px + var(--rise,0)*7px) calc(4px + var(--rise,0)*12px) var(--note-shadow),0 0 0 .6px var(--note-edge)}
+.lookup-stage{padding-left:25px}
+.context-panel--lookup .lookup-heading>div{padding-right:12px}
+.quiet-pocket{position:absolute;left:0;top:3px;bottom:3px;z-index:3;width:42px;min-height:44px;padding:0;margin:0;border:0;border-radius:0;background:transparent;cursor:pointer;isolation:isolate}
+.quiet-pocket:focus-visible,.sentence-sheet:focus-visible{outline:2px solid var(--note-shade)}
+@media(prefers-reduced-motion:no-preference){
+.sheet-seat[data-sheet-active]:not([data-empty]) .sentence-sheet::before{animation:settle-paper .25s ease-out}
+@keyframes settle-paper{from{opacity:.4}to{opacity:1}}
+}
+@media(prefers-reduced-motion:reduce){.sheet-seat[data-sheet-active] .sentence-sheet::before{transition:none}}
+@media(max-width:767px){.lookup-stage{padding-left:19px}.context-panel--lookup .lookup-heading>div{padding-right:68px}.quiet-pocket{width:37px}.sheet-seat[data-sheet-active] .sentence-sheet::before{inset:-4px -7px}}
+
+/* A record belongs to its source sentence, including when the lookup closes. */
+.sheet-seat[data-collected]{
+  --collected-paper:color-mix(in srgb,var(--approved-paper) 89%,var(--approved-ink));
+  --collected-edge:color-mix(in srgb,var(--approved-paper) 84%,var(--approved-ink));
+  --collected-ribbon:color-mix(in srgb,var(--approved-ink) 67%,var(--approved-paper));
+}
+.sheet-seat[data-collected]{position:relative;display:inline-block;vertical-align:top;max-width:100%;isolation:isolate}
+.sheet-seat[data-collected] .sentence-sheet{position:relative;display:block;isolation:isolate;max-width:100%;width:fit-content;box-sizing:border-box}
+.sheet-seat[data-collected]:not([data-empty]) .sentence-sheet{padding-inline-end:12px;color:inherit}
+.sheet-seat[data-collected]:not([data-empty]) .sentence-sheet::before{content:"";position:absolute;inset:-5px -10px;z-index:-1;pointer-events:none;border-radius:3px;background:var(--collected-paper);box-shadow:0 0 0 .6px var(--collected-edge)}
+.sheet-seat[data-collected]:not([data-empty]) :is(.reading-word,.reading-recall-ink){color:inherit;background:transparent}
+.sheet-seat[data-collected] .reading-word[aria-pressed=true]{text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:.14em}
+.collected-bookmark{position:absolute;top:-5px;right:-1px;width:12px;height:18px;background:var(--collected-ribbon);clip-path:polygon(0 0,100% 0,100% 100%,50% 74%,0 100%);pointer-events:none}
+.sheet-seat[data-empty] .collected-bookmark{visibility:hidden}
+@media(max-width:767px){.sheet-seat[data-collected]:not([data-empty]) .sentence-sheet::before{inset:-4px -7px}.collected-bookmark{top:-4px;right:0;width:11px;height:16px}}
+.paper-seam{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+
+.context-panel--lookup .lookup-action-slot:has(.quiet-pocket){position:static;border:0;min-height:0;padding:0}
+.lookup-stage:has(.quiet-pocket){position:relative}
+.word-families .dictionary-entry { display:grid; gap:14px; }
+.word-families .dictionary-entry + .dictionary-entry { margin-top:18px; }
+.word-families .pos-group summary { list-style:none; cursor:pointer; min-height:44px; }
+.word-families .pos-group summary::-webkit-details-marker { display:none; }
+.word-families summary small,.word-families summary em { color:var(--text-muted); }
+.word-families summary em { display:block; font-family:Georgia,serif; margin-top:4px; }
+.word-families summary:focus-visible { outline:2px solid var(--approved-focus); }
+.word-families .pos-rest { margin-top:8px; padding:10px 12px; border-radius:6px; background:var(--interactive-hover); }
+.word-families .pos-rest dt { font-style:italic; }

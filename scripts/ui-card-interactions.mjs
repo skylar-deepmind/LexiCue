@@ -30,10 +30,10 @@ try{
   await page.locator(back).click();await page.waitForTimeout(1100);ok(await page.locator('.approved-dots').evaluate(n=>Number(getComputedStyle(n).opacity)>.95),'a second turn renews the hold without fading');await page.waitForFunction(()=>getComputedStyle(document.querySelector('.approved-dots')).opacity==='0');
   const drag=await cover.boundingBox();await page.mouse.move(drag.x+drag.width/2,drag.y+drag.height/2);await page.mouse.down();await page.mouse.move(drag.x+drag.width/2+20,drag.y+drag.height/2);await page.waitForTimeout(2200);ok(await page.locator('.approved-dots').evaluate(n=>Number(getComputedStyle(n).opacity)>.95),'indicator stays visible throughout a held horizontal gesture');await page.mouse.up();eq(new URL(page.url()).pathname,'/files','short horizontal gesture does not accidentally open reading');
   eq(await card.locator('.material-floating-tag').evaluate(n=>getComputedStyle(n).backgroundColor),'rgb(251, 250, 245)','assigned tags use the same white paper in either theme');
-  await card.locator('.approved-tag-edit').click();const strip=page.locator('.home-card-tags');await strip.waitFor();
-  const bar=await strip.boundingBox(),bounds=await card.boundingBox();ok(bar.y+bar.height<=bounds.y,'tag choices sit above the home card');eq(await page.locator('.tag-dialog,.tag-color-picker').count(),0,'no retired dialog or color controls');
-  await page.evaluate(()=>window.__uiFailure={command:'set_file_tags',remaining:1,afterCommit:false});await strip.getByRole('option',{name:'Daily',exact:true}).click();await strip.getByRole('alert').waitFor();eq((await h.call('list_materials')).find(f=>f.id===fileId).tags[0].id,travel.id,'failed assignment retains the original tag');
-  await strip.getByRole('option',{name:'Daily',exact:true}).click();await strip.waitFor({state:'detached'});eq((await h.call('list_materials')).find(f=>f.id===fileId).tags.map(t=>t.id),[daily.id],'one tap persists exactly one category');
+  await card.locator('.approved-tag-edit').click();const strip=page.locator('.approved-desk .edge-choice[data-phase=open]');await strip.waitFor();
+  const bar=await strip.boundingBox(),initialBounds=await card.boundingBox();ok(initialBounds.width>0,'card remains present');await page.waitForTimeout(240);ok((await card.boundingBox()).y+(await card.boundingBox()).height<=bar.y+2,'tag choices clear the raised home card');eq(await page.locator('.tag-dialog,.tag-color-picker').count(),0,'no retired dialog or color controls');
+  await page.evaluate(()=>window.__uiFailure={command:'set_file_tags',remaining:1,afterCommit:false});await strip.getByRole('button',{name:'Daily',exact:true}).click();await strip.getByRole('alert').waitFor();eq((await h.call('list_materials')).find(f=>f.id===fileId).tags[0].id,travel.id,'failed assignment retains the original tag');
+  await strip.getByRole('button',{name:'Daily',exact:true}).click();await strip.waitFor({state:'detached'});eq((await h.call('list_materials')).find(f=>f.id===fileId).tags.map(t=>t.id),[daily.id],'one tap persists exactly one category');
   // Each return frame must finish the card before the tag stamp starts.
   await cover.click();await page.locator('.reading-word').first().waitFor();await settle();await page.locator('.reading-breadcrumb .page-back').click();await page.locator('[data-motion-piece=tag]').waitFor();
   await page.evaluate(()=>document.querySelectorAll('.approved-handoff *').forEach(n=>n.getAnimations().forEach(a=>a.pause())));
@@ -76,11 +76,17 @@ try{
   await page.locator('.approved-wall header button').click();await settle();await page.locator('.approved-rail-back').click();await settle();
   // Preview assignment uses the same options, outside and above the artwork.
   await page.evaluate(async()=>{const{useImportStore:i}=await window.__uiStoreModule('importStore');await i.getState().fromContent('clipboard','A new card waits beside the quiet harbor.',true);});await page.locator('.import-material-card').waitFor();
-  const options=page.locator('.import-card-stage .import-card-tag-row .card-tag-choices'),ob=await options.boundingBox(),preview=await page.locator('.import-material-card').boundingBox();ok(ob.y+ob.height<=preview.y,'import choices are above the preview card');
-  await options.getByRole('option',{name:'Voyage',exact:true}).click();eq(await page.locator('.import-card-category').innerText(),'Voyage','preview caption follows the chosen category');eq((await h.call('test_counts')).files,2,'preview tag selection never imports early');
-  ok(await page.locator('.import-card-title-input').evaluate(n=>parseFloat(getComputedStyle(n).fontSize)>=29),'editable preview title retains card typography');
-  await page.screenshot({path:`${out}/${theme}-${width}-preview.png`});await page.keyboard.press('Escape');await page.locator('.clipboard-scene').waitFor({state:'detached'});
-  if(width<768){await page.setViewportSize({width:667,height:375});await card.locator('.approved-tag-edit').click();const bar=await page.locator('.home-card-tags').boundingBox(),header=await page.locator('.approved-home-header').boundingBox(),bounds=await card.boundingBox();ok(bar.y>=header.y+header.height,'landscape tag choices clear the header');ok(bar.y+bar.height<=bounds.y,'landscape choices still sit above the card');ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'landscape choices do not widen the page');await page.screenshot({path:`${out}/${theme}-landscape.png`});await page.keyboard.press('Escape');await page.setViewportSize({width:375,height:812});}
+  ok(await page.locator('.import-card-title-input').evaluate(n=>parseFloat(getComputedStyle(n).fontSize)>=29),'editable title retains card typography');
+  await page.locator('.import-edge-label').click();
+  const options=page.locator('.import-card-stage .edge-choice[data-phase=open]');
+  await page.waitForTimeout(240);
+  const ob=await options.boundingBox(), preview=await page.locator('.import-material-card').boundingBox();
+  ok(preview.y+preview.height<=ob.y+2,'choices clear preview cover');
+  await page.screenshot({path:`${out}/${theme}-${width}-preview.png`});
+  await options.getByRole('button',{name:'Voyage',exact:true}).click();
+  await page.waitForFunction(()=>!document.querySelector('.import-material-card'));
+  eq((await h.call('test_counts')).files,3,'choosing commits exactly one card');
+  if(width<768){await page.setViewportSize({width:667,height:375});await card.locator('.approved-tag-edit').click();await page.waitForTimeout(240);const bar=await page.locator('.approved-desk .edge-choice[data-phase=open]').boundingBox(),header=await page.locator('.approved-home-header').boundingBox(),bounds=await card.boundingBox();ok(bar.y>=header.y+header.height,'landscape tag choices clear the header');ok(bar.y>=bounds.y+bounds.height-2,'landscape choices below the card');ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'landscape choices do not widen the page');await page.screenshot({path:`${out}/${theme}-landscape.png`});await page.keyboard.press('Escape');await page.setViewportSize({width:375,height:812});}
   // Real repeated clicks reverse the live colors, without a snapshot input lock.
   const brand=page.locator('.approved-brand'),color=()=>page.locator('.approved-desk').evaluate(n=>getComputedStyle(n).backgroundColor);
   const oldColor=await color(),oldTheme=await page.evaluate(()=>document.documentElement.dataset.theme);

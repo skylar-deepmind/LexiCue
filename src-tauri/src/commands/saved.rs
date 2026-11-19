@@ -449,6 +449,9 @@ pub fn create_tables(conn: &Connection) -> Result<(), String> {
             deleted_at INTEGER,
             UNIQUE(normalized_expression,source_key)
         ) STRICT;
+        CREATE INDEX IF NOT EXISTS saved_source_segments
+        ON saved_records(json_extract(snapshot_json,'$.source.content_hash'),json_extract(snapshot_json,'$.source.segment_index'))
+        WHERE deleted_at IS NULL;
         CREATE INDEX IF NOT EXISTS saved_active_sort ON saved_records(deleted_at,saved_at DESC,record_id);
         CREATE TABLE IF NOT EXISTS saved_archive_revision (
             singleton INTEGER PRIMARY KEY CHECK(singleton=1),
@@ -2025,6 +2028,31 @@ pub(super) fn opening_context(
 
 pub(super) fn latest_preview(conn: &Connection) -> Result<Option<SavedRecord>, String> {
     Ok(opening_context(conn, None)?.map(group_preview))
+}
+
+pub fn collected_segments(conn: &Connection, hash: &str) -> Result<Vec<i64>, String> {
+    let mut statement = conn.prepare(
+        "SELECT DISTINCT json_extract(snapshot_json,'$.source.segment_index') FROM saved_records
+         WHERE deleted_at IS NULL AND json_extract(snapshot_json,'$.source.content_hash') = ?1
+         AND json_type(snapshot_json,'$.source.segment_index')='integer'"
+    ).map_err(|e| e.to_string())?;
+    let rows = statement
+        .query_map([hash], |row| row.get(0))
+        .map_err(|e| e.to_string())?;
+    rows.collect::<rusqlite::Result<_>>()
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn saved_source_segments(
+    state: State<'_, DbState>,
+    content_hash: String,
+) -> Result<Vec<i64>, String> {
+    state
+        .read("saved_source_segments", move |conn| {
+            collected_segments(conn, &content_hash)
+        })
+        .await
 }
 
 #[tauri::command]

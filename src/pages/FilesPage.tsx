@@ -60,7 +60,6 @@ function MaterialDesk() {
   const tags = useFileStore(s => s.tags), loadTags = useFileStore(s => s.loadTags);
   const { theme, setTheme } = useTheme();
   const libraryNames = useLibraryNames();
-  const [editing, setEditing] = useState<Material | null>(null);
   const [quotes, setQuotes] = useState<Record<string, string>>({});
   const savedRevision = useSavedReadRevision();
   const [pocket, setPocket] = useState<SavedRecord | null>(() => savedPocketCache.peek('latest') ?? null);
@@ -124,7 +123,6 @@ function MaterialDesk() {
     if (!next) return;
     setFallback(next.id); desk.select(next); setTurning(true); clearTimeout(timer.current);
     timer.current = setTimeout(() => setTurning(false), 2000);
-    setEditing(null);
   };
   const open = (file: Material, node: HTMLElement, origin: 'desk' | 'wall') => {
     if (origin === 'wall') desk.keepAndOpen(file);
@@ -210,21 +208,23 @@ function MaterialDesk() {
       </header>
       {catalog.loading && !catalog.hasLoaded ? <div className="approved-desk-status" role="status"><BusyRing/>{t('approved.loadingLibrary')}</div> : catalog.error ? <div className="approved-desk-status" role="alert"><p>{t('materials.loadFailed')}</p><button className="ui-button" onClick={() => void catalog.load()}>{t('common.retry')}</button></div> : selected ? <div ref={card} className="approved-deck" tabIndex={0} aria-label={t('readingDesk.desktop')} data-turning={turning || undefined}
         onKeyDown={event => { if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); turn(event.key === 'ArrowRight' ? 1 : -1); } }}
-        onPointerDown={event => { if (event.button === 0 && !(event.target as Element).closest('.approved-tag-edit,.home-card-tags')) { suppress.current=0; gesture.current = { x: event.clientX, y: event.clientY, locked: false }; } }}
-        onPointerMove={event => { if(isTrashDragging()){gesture.current=null;return;}const g = gesture.current; if (!g) return; const dx = event.clientX - g.x, dy = event.clientY - g.y; if (Math.abs(dy) > Math.abs(dx) * 1.25 && !g.locked) gesture.current = null; else if (Math.abs(dx) > 8&&!g.locked) { g.locked = true; setTurning(true); clearTimeout(timer.current); } }}
+        onPointerDown={event => { if (event.button === 0 && !(event.target as Element).closest('.approved-tag-edit,.gesture-bottom-edge')) { suppress.current=0; gesture.current = { x: event.clientX, y: event.clientY, locked: false }; } }}
+        onPointerMove={event => { if(isTrashDragging()||document.documentElement.hasAttribute('data-home-scrub')){gesture.current=null;return;}const g = gesture.current; if (!g) return; const dx = event.clientX - g.x, dy = event.clientY - g.y; if (Math.abs(dy) > Math.abs(dx) * 1.25 && !g.locked) gesture.current = null; else if (Math.abs(dx) > 8&&!g.locked) { g.locked = true; setTurning(true); clearTimeout(timer.current); } }}
         onPointerUp={event => { const g = gesture.current; gesture.current = null; if (!g) return; const dx = event.clientX - g.x, dy = event.clientY - g.y; if(g.locked)suppress.current=performance.now()+350; if (Math.abs(dx) > 34 && Math.abs(dx) > Math.abs(dy) * 1.25) { turn(dx < 0 ? 1 : -1); suppress.current = performance.now() + 350; } else if(g.locked)timer.current=setTimeout(()=>setTurning(false),2000); }} onPointerCancel={() => { if(gesture.current?.locked)timer.current=setTimeout(()=>setTurning(false),2000);gesture.current = null; }}>
-        {editing?.id===selected.id&&<HomeCardTags file={editing} onClose={() => { setEditing(null); card.current?.querySelector<HTMLElement>('[data-desk-active=true] .approved-tag-edit')?.focus({preventScroll:true}); }}/ >}
+
         {recent.map((file, i) => <TrashMaterial key={`${file.id}:${file.content_hash}`} file={file} enabled={i===index}><article className="approved-card" key={`${file.id}:${file.content_hash}`} data-desk-active={i === index} data-desk-position={i - index} data-motion-file={file.id} aria-hidden={Math.abs(i - index) > 1 || undefined} inert={Math.abs(i - index) > 1}>
           <button className="approved-card-open" onPointerDown={readingRoute.preload} onFocus={readingRoute.preload} data-testid={i === index ? 'desk-continue' : undefined} aria-label={t('readingDesk.openNamed', { name: file.name })} onClick={event => {
             if (performance.now() < suppress.current) return;
             if (i !== index) { turn(i - index); return; }
             cancelSavedFlight();
             open(file, event.currentTarget.closest('article')!, 'desk');
-          }}><MaterialCover src={materialCover(file)} identity={file.content_hash} className="approved-card-cover"/></button><button className="approved-card-category approved-tag-edit material-floating-tag" data-no-trash disabled={i !== index} aria-label={t('tags.edit')} aria-expanded={editing?.id===file.id} onClick={() => setEditing(current=>current?.id===file.id?null:file)}>{file.tags[0]?.name ?? libraryNames.untagged}</button><div className="approved-card-copy"><strong className="approved-card-title" lang="en">{bookmarkTitle(file.name)}</strong><span className="approved-card-quote" lang="en">{readingMotionExcerpt(file) ?? quotes[`${file.id}:${file.content_hash}:${readingPosition(file)}`] ?? file.preview}</span></div>
+          }}><MaterialCover src={materialCover(file)} identity={file.content_hash} className="approved-card-cover"/></button><button className="approved-card-category approved-tag-edit material-floating-tag" data-no-trash disabled={i!==index} aria-label={t('tags.edit')+' · '+(file.tags[0]?.name??libraryNames.untagged)} onClick={()=>window.dispatchEvent(new Event('home-tag-picker'))}><span>{file.tags[0]?.name??libraryNames.untagged}</span></button><div className="approved-card-copy"><strong className="approved-card-title" lang="en">{bookmarkTitle(file.name)}</strong><span className="approved-card-quote" lang="en">{readingMotionExcerpt(file) ?? quotes[`${file.id}:${file.content_hash}:${readingPosition(file)}`] ?? file.preview}</span></div>
+          {i===index&&<span aria-hidden="true" data-no-trash="" className="gesture-bottom-edge"/>}
         </article></TrashMaterial>)}
         <div className="approved-dots" data-visible={turning} aria-label={`${index + 1} / ${recent.length}`}>{recent.map((file, i) => <i key={file.id} data-current={i === index}/>)}</div>
         <button className="approved-edge approved-edge-prev" aria-label={t('history.previous')} disabled={index === 0} onClick={() => turn(-1)}><ChevronLeft size={18}/></button><button className="approved-edge approved-edge-next" aria-label={t('history.next')} disabled={index === recent.length - 1} onClick={() => turn(1)}><ChevronRight size={18}/></button>
       </div> : <EmptyMaterialGreeting/>}
+        {selected&&!groups&&!importOpen&&!catalog.error&&(catalog.hasLoaded||!catalog.loading)&&<HomeCardTags key={selected.id} file={selected}/>}
       <footer className="approved-home-footer"><button ref={libraryButton} className="approved-library-entry" aria-label={t('readingDesk.library')} aria-expanded={groups} onClick={() => { setGroups(true); setParams({ view: 'library' }); }}><span className="approved-stock" data-count={Math.min(catalog.files.length,3)} aria-hidden="true">{(catalog.files.length ? catalog.files.slice(0, 3) : [null]).map((file, i) => <MaterialCover key={i} src={file ? materialCover(file) : '/design/empty-material/waiting.png'} identity={file?.content_hash ?? String(i)}/>)}</span></button>
         <button className="approved-saved-entry" onPointerDown={savedRoute.preload} onFocus={savedRoute.preload} aria-label={t('savedRecords.title')} onClick={event => {
           cancelReadingReturn();

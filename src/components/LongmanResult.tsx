@@ -45,7 +45,7 @@ function collocations(entries: DictionaryEntry[]) {
   return [...items.values()];
 }
 
-export default function LongmanResult({ result, onInteract }: { result: DictionaryResult; onInteract?: () => void }) {
+export default function LongmanResult({ result, onInteract, sentenceView=false }: { sentenceView?: boolean; result: DictionaryResult; onInteract?: () => void }) {
   const { t } = useTranslation();
   const query = result.query.text;
   const overview = dictionaryOverview(result);
@@ -70,6 +70,34 @@ export default function LongmanResult({ result, onInteract }: { result: Dictiona
     <summary>{t('dictionaryFlow.source')}</summary>
     {[...sources].map(([key, source]) => <DictionarySource key={key} source={source}/>)}
   </details>;
+  if (sentenceView) {
+
+    return <div className="longman-result word-families" data-result-status={result.status} onPointerDownCapture={onInteract} onKeyDownCapture={onInteract}>
+      {result.entries.map(entry => <div className="dictionary-entry" key={entry.id}>
+        {(multipleHeadwords || entry.headword!==query) && <strong lang="en">{entry.headword}</strong>}
+        {entry.groups.map(group => {
+          const senses = group.senses.map(sense => ({entry,group,sense}));
+          if (!senses.length) return null;
+          const uses = collocations([{...entry,match:{...entry.match,pattern:null},related_expressions:[],groups:[group]}]);
+          const more = senses.length>1 || uses.length>0 || group.forms.length>0;
+          const meaning = <MeaningList meanings={senses.slice(0,1)} query={query} overview/>;
+          if (!more) return <section key={group.id}>{meaning}</section>;
+          return <details className="pos-group" key={group.id}><summary>{meaning}
+            <small>{t('reader.senseCount',{count:senses.length})}{uses.length>0 && ' · '+t('dictionaryFlow.collocations')}</small>
+            {uses.length>0 && <em lang="en">{uses.slice(0,2).map(row=>row.text).join('　·　')}</em>}
+          </summary><div className="pos-rest">
+            {senses.length>1 && <MeaningList meanings={senses.slice(1)} query={query} start={2}/>}
+            {uses.length>0 && <dl>{uses.map(use=><div key={use.text}><dt lang="en">{use.text}</dt><dd>{use.gloss}</dd></div>)}</dl>}
+            {group.forms.length>0 && <p lang="en">{group.forms.map(form=>form.text).join(' · ')}</p>}
+          </div></details>;
+        })}
+        {entry.related_expressions.length>0 && <p lang="en">{entry.related_expressions.map(item=>item.text).join(' · ')}</p>}
+      </div>)}
+      {result.status==='partial' && result.entries[0]?.source.provider!=='wiktionary' && <p role="status">{t('longman.partial')}</p>}
+      {result.notices.filter(n=>n.code!=='online_free_english_only').map((n,i)=><p key={i} role="status">{t(`longman.notices.${n.code}`,{defaultValue:n.text})}</p>)}
+      {attribution}
+    </div>;
+  }
   return <div className="longman-result" data-result-status={result.status} onPointerDownCapture={onInteract} onKeyDownCapture={onInteract} onWheelCapture={onInteract}>
     {!!overview.length && <section className="dictionary-overview" aria-label={t('dictionaryFlow.overview')}>
       {prototypes.length ? <div className="dictionary-prototypes">{prototypes.map(prototype => <section key={prototype.headword} className="dictionary-prototype" data-prototype={prototype.headword}>

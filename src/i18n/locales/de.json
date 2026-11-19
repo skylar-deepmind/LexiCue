@@ -1550,6 +1550,9 @@
     }
   },
   "reader": {
+    "senseCount": "{{count}} Bedeutungen",
+    "liftSentence": "Satznotiz aufnehmen",
+    "discardImport": "Diesen Import verwerfen",
     "saveSentence": "Diesen Satz speichern",
     "myRecords": "Meine Einträge",
     "fontLearning": "Lesetext",

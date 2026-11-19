@@ -1533,6 +1533,9 @@
     }
   },
   "reader": {
+    "senseCount": "{{count}} 語義",
+    "liftSentence": "文のメモを持ち上げる",
+    "discardImport": "この取り込みを取り消す",
     "saveSentence": "この文を保存",
     "myRecords": "マイ記録",
     "fontLearning": "本文",
