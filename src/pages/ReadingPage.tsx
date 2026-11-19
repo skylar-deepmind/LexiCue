@@ -213,7 +213,7 @@ export default function ReadingPage({ data, scope }: {
             let selected: number | null = null, distance = Infinity;
             for (const row of rows) {
                 const index = segmentIndices.get(Number(row.dataset.sentence));
-                if (index === undefined || hasSourceAudio && !data.media_refs?.[segments[index].id]) continue;
+                if (index === undefined) continue;
                 const rect = row.querySelector('.reading-original')?.getBoundingClientRect();
                 if (!rect || rect.top < bounds.top || rect.top >= bottom) continue;
                 const next = Math.abs(rect.top - guide);
@@ -244,21 +244,19 @@ export default function ReadingPage({ data, scope }: {
         followAllowed.current=true;
         const segment=segments[index], ref=segment && data.media_refs?.[segment.id];
         const state=useSpeechStore.getState();
-        if (state.playbackMode==='source-continuous' && state.continuousFileId===material.id && state.continuousSourceKey===mediaIdentity) {
-            if (!ref) { setSourceError(t('sourceAudio.noTiming')); return; }
+        setSourceError('');
+        if (ref && state.playbackMode==='source-continuous' && state.continuousFileId===material.id && state.continuousSourceKey===mediaIdentity) {
             if (state.jumpSourceContinuous({fileId:material.id,segmentId:segment.id,sourceKey:ref.source.key,index})) {
-                setSourceError('');
                 if (state.reading?.status === 'paused') void state.resume();
                 return;
             }
             // A paused or interrupted session may need its original source resolved again.
         }
-        if (hasSourceAudio) {
-            if (!ref) { setSourceError(t('sourceAudio.noTiming')); return; }
-            setSourceError('');
-            void state.startSourceContinuous({fileId:material.id,segmentId:segment.id,sourceKey:ref.source.key,key:`reader:${mediaIdentity}:continuous`,index});
-        } else void state.startQueue(speechItems.map(({text,key})=>({text,key})),index);
-    },[segments,data.media_refs,material.id,hasSourceAudio,speechItems,mediaIdentity,t,followAllowed]);
+        const usingSynthesis = state.reading?.mode === 'tts-queue' && state.reading.key.startsWith(`reader:${mediaIdentity}:`);
+        if (hasSourceAudio && ref && !usingSynthesis) {
+            void state.startSourceContinuous({fileId:material.id,segmentId:segment.id,sourceKey:ref.source.key,key:`reader:${mediaIdentity}:continuous`,index,fallbackItems:speechItems});
+        } else void state.startQueue(speechItems,index);
+    },[segments,data.media_refs,material.id,hasSourceAudio,speechItems,mediaIdentity,followAllowed]);
     const listenFrom = (index: number) => {
         cancelBrowsing.current();
         progressIntent.current = true;

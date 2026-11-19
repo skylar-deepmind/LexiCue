@@ -321,7 +321,7 @@ export const useSpeechStore = create<SpeechState>((set, get) => {
         };
         queuePrefetch = prefetch;
     };
-    const play = async (text: string, key: string, kind: SpeechKind, queue?: { index: number; next: () => void }, media?: MediaTarget, owner?: string, ownerScope?: string | null) => {
+    const play = async (text: string, key: string, kind: SpeechKind, queue?: { index: number; next: () => void }, media?: MediaTarget, owner?: string, ownerScope?: string | null): Promise<void> => {
         const prefetched = queue && queuePrefetch?.session === readingSession && queuePrefetch.index === queue.index ? queuePrefetch : null;
         if (prefetched) queuePrefetch = null;
         cancelPlayback();
@@ -384,10 +384,15 @@ export const useSpeechStore = create<SpeechState>((set, get) => {
         set({ key, status: 'loading', loading: true, pauseReason: null, resumeMode: reading ? 'exact' : null, error: false, errorCode: null, errorKey: null, source: null, ...readingFields(), playbackMode: queue ? 'tts-queue' : 'single', continuousFileId: null, continuousSourceKey: null, continuousAssetId: null, owner:owner??null, ownerScope:ownerScope??null });
         if (media) {
             set({ source: 'source-media' });
+            const recoverMedia = (code: string) => {
+                if (!active()) return;
+                if (code === 'playback_blocked') { fail(code); return; }
+                return play(text, key, kind, queue, undefined, owner, ownerScope);
+            };
             try {
                 const result = await invoke<{ path: string; start_ms: number; end_ms: number; duration_ms: number }>('resolve_source_media', { target: media });
                 if (!active()) return;
-                if (![result.start_ms,result.end_ms,result.duration_ms].every(Number.isSafeInteger) || result.start_ms < 0 || result.start_ms >= result.end_ms || result.end_ms > result.duration_ms) { fail('media_invalid_range'); return; }
+                if (![result.start_ms,result.end_ms,result.duration_ms].every(Number.isSafeInteger) || result.start_ms < 0 || result.start_ms >= result.end_ms || result.end_ms > result.duration_ms) return recoverMedia('media_invalid_range');
                 const player = new Audio(); audio = player;
                 player.preload = 'auto';
                 const playbackRate = preferences.speed === 'slow' ? 0.75 : 1;
@@ -404,7 +409,7 @@ export const useSpeechStore = create<SpeechState>((set, get) => {
                     player.addEventListener(event, done, { once: true }); player.addEventListener('error', error, { once: true });
                 });
                 mediaCleanup = () => { stopped = true; cancelAnimationFrame(raf); cleanups.splice(0).forEach(fn => fn()); };
-                player.onerror = () => { if (active()) fail('media_decode_failed'); };
+                player.onerror = () => { void recoverMedia('media_decode_failed'); };
                 player.onended = end;
                 const metadata = wait('loadedmetadata');
                 player.src = convertFileSrc(result.path); player.load(); await metadata;
@@ -412,9 +417,9 @@ export const useSpeechStore = create<SpeechState>((set, get) => {
                 // AAC container padding can differ by one frame between
                 // ffprobe and WebKit. Never seek past the native EOF or extend
                 // a saved clip; reject larger discrepancies.
-                if (!Number.isFinite(player.duration) || result.end_ms > player.duration * 1000 + 100) { fail('media_invalid_range'); return; }
+                if (!Number.isFinite(player.duration) || result.end_ms > player.duration * 1000 + 100) return recoverMedia('media_invalid_range');
                 const playbackEnd=Math.min(result.end_ms,player.duration*1000);
-                if(result.start_ms>=playbackEnd){fail('media_invalid_range');return;}
+                if(result.start_ms>=playbackEnd) return recoverMedia('media_invalid_range');
                 if (result.start_ms > 0) { const seek = wait('seeked'); player.currentTime = result.start_ms / 1000; await seek; }
                 if (!active() || stopped) return;
                 // Apply after metadata/seek as well, before any audio can start.
@@ -427,7 +432,7 @@ export const useSpeechStore = create<SpeechState>((set, get) => {
                 };
                 player.onplaying = () => { if (active()) { set({ status: 'playing', loading: false }); cancelAnimationFrame(raf); tick(); } };
                 await player.play();
-            } catch (error) { if (active()) fail(isAutoplayBlocked(error) ? 'playback_blocked' : 'media_playback_failed'); }
+            } catch (error) { return recoverMedia(isAutoplayBlocked(error) ? 'playback_blocked' : 'media_playback_failed'); }
             return;
         }
         // Preserve spelling, case, punctuation and selected inflection. Native
@@ -513,6 +518,11 @@ export const useSpeechStore = create<SpeechState>((set, get) => {
             if (active()) await fallback('playback_failed');
         }
     };
+    const recoverSource = (request: ReadingSourceRequest, code: string) => {
+        const items = request.fallbackItems;
+        if (code === 'playback_blocked' || !items?.[request.index]) return;
+        return get().startQueue(items, request.index);
+    };
     const startSourceContinuous = async (request: ReadingSourceRequest) => {
         cancelPlayback();
         disposeRetainedAudio();
@@ -528,7 +538,9 @@ export const useSpeechStore = create<SpeechState>((set, get) => {
         const active = session.active;
         const cleared = { queueActive: false, queueIndex: null, playbackMode: null, continuousFileId: null, continuousSourceKey: null, continuousAssetId: null, owner:null,ownerScope:null };
         const fail = (code: string) => {
-            if (!active()) return;
+            if (!active() || readingSession?.mode !== 'source-continuous' || readingSession.paused) return;
+            const recovery = recoverSource(readingSession.request, code);
+            if (recovery) return recovery;
             cancelPlayback();
             setReading({ status: 'error', errorCode: code, paused: true });
             set({ ...cleared, ...readingFields(), key: null, status: 'error', loading: false, error: true, errorCode: code, errorKey: request.key });
@@ -547,12 +559,12 @@ export const useSpeechStore = create<SpeechState>((set, get) => {
             if (result.file_id !== request.fileId || result.source_key !== request.sourceKey || !/^[a-f0-9]{64}$/.test(result.asset_id)
                 || !Number.isSafeInteger(result.duration_ms) || result.duration_ms <= 0 || !Array.isArray(result.anchors)
                 || result.anchors.some(a => ![a.index,a.segment_id,a.start_ms,a.end_ms].every(Number.isSafeInteger) || a.index < 0 || a.start_ms < 0 || a.start_ms >= a.end_ms || a.end_ms > result.duration_ms)) {
-                fail('media_invalid_reading_source'); return;
+                return fail('media_invalid_reading_source');
             }
             session.anchors = Object.freeze(result.anchors.map(anchor => Object.freeze({ ...anchor })));
             const groups = readingGroups(session.anchors);
             const pendingAnchor = () => session.anchors.find(anchor => anchor.segment_id === session.pendingSegmentId);
-            if (!pendingAnchor()) { fail('media_no_reading_start'); return; }
+            if (!pendingAnchor()) return fail('media_no_reading_start');
             const player = new Audio(); audio = player; session.player = player;
             const rate = get().rate;
             player.preload = 'auto'; player.defaultPlaybackRate = rate;
@@ -593,7 +605,7 @@ export const useSpeechStore = create<SpeechState>((set, get) => {
             player.addEventListener('seeked', seeked);
             cleanups.push(() => player.removeEventListener('seeked', seeked));
             player.onended = ended;
-            player.onerror = () => fail('media_decode_failed');
+            player.onerror = () => { void fail('media_decode_failed'); };
             player.onplaying = () => {
                 if (!active() || disposed) { player.pause(); return; }
                 if (readingSession?.paused && session.player === player) { player.pause(); return; }
@@ -607,7 +619,7 @@ export const useSpeechStore = create<SpeechState>((set, get) => {
             // WKWebView can report a different container duration from ffprobe.
             // The native resolver already validates the
             // full asset; only its natural ended event defines the playback end.
-            if (!Number.isFinite(player.duration) || player.duration <= 0) { fail('media_invalid_reading_source'); return; }
+            if (!Number.isFinite(player.duration) || player.duration <= 0) return fail('media_invalid_reading_source');
             session.loaded = true;
             setReading({ pending: false });
             const target = pendingAnchor()!;
@@ -621,7 +633,7 @@ export const useSpeechStore = create<SpeechState>((set, get) => {
             if (readingSession?.paused) { set({ status: 'paused', loading: false }); return; }
             await player.play();
             if (!active() || readingSession?.paused) player.pause();
-        } catch (error) { if (active() && !readingSession?.paused) fail(isAutoplayBlocked(error) ? 'playback_blocked' : 'media_continuous_failed'); }
+        } catch (error) { return fail(isAutoplayBlocked(error) ? 'playback_blocked' : 'media_continuous_failed'); }
     };
     const jumpSourceContinuous = (request: ReadingSourceJump) => {
         const session = continuousSession;
@@ -743,7 +755,10 @@ export const useSpeechStore = create<SpeechState>((set, get) => {
                     }
                 } catch (error) {
                     if (audio === player && readingSession === session && !session.paused) {
-                        cancelPlayback(); setReading({ status: 'error', errorCode: isAutoplayBlocked(error) ? 'playback_blocked' : 'media_playback_failed' });
+                        const code = isAutoplayBlocked(error) ? 'playback_blocked' : 'media_playback_failed';
+                        const recovery = session.mode === 'source-continuous' ? recoverSource(session.request, code) : undefined;
+                        if (recovery) { await recovery; return; }
+                        cancelPlayback(); setReading({ status: 'error', errorCode: code });
                         set({ status: 'error', loading: false, error: true, errorCode: session.errorCode, errorKey: get().key });
                     }
                 }

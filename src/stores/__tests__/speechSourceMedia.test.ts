@@ -74,9 +74,20 @@ describe('single owner for original clips and synthetic speech', () => {
     await speech().speak('Second.', 'b', { media: { record_id: 'saved-b' } }); expect(a.paused).toBe(true);
     speech().stop(); expect(frames.size).toBe(0); expect(Player.all.every(p => p.paused)).toBe(true);
   });
-  it('rejects invalid native ranges without playing or silently synthesizing', async () => {
-    mocks.invoke.mockResolvedValue({ ...result, end_ms: 9000 }); await speech().speak('First.', 'a', { media: { segment_id: 1 } });
-    expect(Player.all).toHaveLength(0); expect(speech().errorCode).toBe('media_invalid_range'); expect(mocks.invoke).toHaveBeenCalledTimes(1);
+  it.each(['media_missing', 'invalid_range'])('uses Edge for a saved clip when the original returns %s', async failure => {
+    const preferences = normalizeSpeechPreferences(null);
+    mocks.invoke.mockImplementation((command: string) => {
+      if (command === 'resolve_source_media') return failure === 'media_missing'
+        ? Promise.reject(failure) : Promise.resolve({ ...result, end_ms: 9000 });
+      return Promise.resolve({data_base64:'fixture',mime:'audio/mpeg',cache_key:'tts',source:'edge-cache',
+        voice:preferences.voices[preferences.accent],speed:preferences.speed,duration_ms:1000});
+    });
+    await speech().speak('First.', 'a', { media: { record_id: 'saved' }, owner: 'saved-button' });
+    expect(Player.all).toHaveLength(1);
+    expect(speech()).toMatchObject({source:'edge-cache',status:'playing',owner:'saved-button'});
+    expect(mocks.invoke).toHaveBeenCalledWith('resolve_tts_audio',{request:expect.objectContaining({text:'First.'})});
+    speech().stopOwned('saved-button');
+    expect(speech().status).toBe('idle');
   });
   it('clamps a verified EOF clip to native AAC frame padding without expanding its saved range', async()=>{
     Player.metadataDuration=7.977333;mocks.invoke.mockResolvedValue({...result,start_ms:6800,end_ms:8000});
