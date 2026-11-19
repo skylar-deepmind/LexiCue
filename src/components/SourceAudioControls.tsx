@@ -22,7 +22,6 @@ export default function SourceAudioControls({ reference, target, text, speechKey
   if (!text.trim()) return null;
   const synthetic = (key: string) => <SpeechButton text={text} speechKey={key} kind="sentence" label={t('sourceAudio.playSynthetic')} displayLabel={t('sourceAudio.read')} showLabel={!!reference}/>;
   if (!reference) return statusOnly ? null : <div className="source-audio-controls">{synthetic(speechKey)}<SpeechFeedback speechKeys={[speechKey]} /></div>;
-  if (!reference.source.audio) return statusOnly ? null : <div className="source-audio-controls">{synthetic(`${speechKey}:synthetic`)}<SpeechFeedback speechKeys={[`${speechKey}:synthetic`]} /></div>;
   const ready = state?.status === 'ready', preparing = state?.status === 'preparing';
   const code = state?.error ?? '';
   const errorKey = /missing_tool|missing_ffmpeg|missing_ffprobe/.test(code) ? 'sourceAudio.missingTools' : /storage|budget|disk/.test(code) ? 'sourceAudio.storageFull' : /version|mismatch/.test(code) ? 'sourceAudio.versionChanged' : 'sourceAudio.failed';
