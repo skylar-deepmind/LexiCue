@@ -25,7 +25,7 @@ const open=async()=>{
  if(new URL(page.url()).pathname!=='/files'){await page.locator('.reading-breadcrumb .page-back').click();await page.locator('.approved-desk').waitFor();}
  if(await page.locator('.approved-tag-panel').count()){await page.keyboard.press('Escape');await page.locator('.approved-tag-panel').waitFor({state:'detached'});}
 };
-const confirm=()=>page.getByRole('button',{name:/^放到桌面/}).click();
+const confirm=async()=>{const batch=page.locator('.import-card-batch-confirm');if(await batch.count())return batch.click();await page.locator('.import-edge-label').click();await page.locator('.import-card-stage [data-choice][aria-pressed=true]').click();};
 async function contrast(locator,label){const value=await locator.evaluate(async node=>{
  // Measure the requested interaction state after its finite color transition.
  await Promise.all(node.getAnimations().filter(a=>a.effect.getComputedTiming().iterations!==Infinity).map(a=>a.finished.catch(()=>{})));
@@ -79,24 +79,25 @@ try{
   eq(await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='plugin:clipboard-manager|read_text').length),0,'file entry never reads clipboard');
   await page.evaluate(text=>window.__uiFiles={'/fixture/真实英语.srt':text},flight);await page.getByRole('button',{name:'选择文件',exact:true}).click();await preview();await settle();
   eq(await page.locator('#root').evaluate(n=>n.inert),true,'prepared-content modal owns focus');eq(await page.locator('.context-panel').count(),0,'import does not use context panel');eq(await page.locator('.b-shell').getAttribute('data-context-open'),'false','import never shifts reading workspace');
-  await page.locator('.import-card-actions button[aria-label=关闭]').focus();await page.keyboard.press('Tab');ok(await page.locator('.lc-import-modal').evaluate(n=>n.contains(document.activeElement)),'prepared-content dialog retains keyboard ownership');
+  await page.locator('.import-edge-label').focus();await page.keyboard.press('Tab');ok(await page.locator('.lc-import-modal').evaluate(n=>n.contains(document.activeElement)),'prepared-content dialog retains keyboard ownership');
   eq((await writes()).length,0,'native picker boundary has zero writes before confirmation');eq((await call('test_counts')).files,0,'no material before confirmation');
   await full();ok((await page.locator('.lc-document-preview').innerText()).includes('take off'),'real English excerpt');eq((await page.locator('.lc-document-preview').innerText()).split('飞机很快就要起飞了。').length-1,1,'existing Chinese appears once in the original source block');ok((await page.locator('.lc-document-preview').innerText()).includes('Curiosity helps us make sense of new ideas.'),'full local preview includes the final cue, beyond the former three-sentence excerpt');
-  await closeFull();await contrast(page.locator('.import-card-category'),`${theme} card tag caption`);await contrast(page.getByRole('button',{name:/^放到桌面/}),`${theme} primary default`);await page.getByRole('button',{name:/^放到桌面/}).hover();await contrast(page.getByRole('button',{name:/^放到桌面/}),`${theme} primary hover`);
-  const newTag = page.getByRole('button',{name:'新建标签',exact:true});
-  await newTag.click();
-  const tagName = page.getByRole('textbox',{name:'输入标签名称'});
-  await tagName.fill('  Coast notes  ');
-  await page.locator('.import-tag-entry').getByRole('button',{name:'保存',exact:true}).click();
-  eq(await page.locator('.import-card-category').innerText(),'Coast notes','new tag is selected in the import preview');
-  eq(await page.getByRole('option',{name:'Coast notes'}).getAttribute('aria-selected'),'true','draft tag is selected in the list');
-  eq((await call('list_tags')).length,0,'draft tag is not persisted before material confirmation');
-  await page.screenshot({path:`${output}/${theme}-preview.png`});
+  await closeFull();await contrast(page.locator('.import-edge-label'),theme+' label');await page.locator('.import-edge-label').hover();await contrast(page.locator('.import-edge-label'),theme+' label hover');
+  const add=async()=>{
+    await page.locator('.import-edge-label').click();
+    const rail=page.locator('.import-card-stage .draw-rail');
+    await rail.hover();await page.keyboard.down('Shift');await page.mouse.wheel(0,30000);await page.keyboard.up('Shift');
+    await page.waitForFunction(()=>{const r=document.querySelector('.import-card-stage .draw-rail');return r.scrollLeft+r.clientWidth>=r.scrollWidth-2;});
+    const outline=rail.locator('[data-add]'),a=await outline.boundingBox(),r=await rail.boundingBox();
+    assert.ok(a.x>=r.x-1 && a.x+a.width<=r.x+r.width+1,'new label remains visible at the right scroll limit');
+    await outline.click();
+  };
+  const tagName=page.locator('.write-name input');
   // A cancelled picker preserves the already prepared content.
   const beforeDraft=await page.evaluate(async()=>{const {useImportStore}=await window.__uiStoreModule('importStore');return useImportStore.getState().items[0].draft;});
   await page.evaluate(async()=>{window.__uiFiles={};const{useImportStore}=await window.__uiStoreModule('importStore');await useImportStore.getState().choose();});await preview();
   eq(await page.evaluate(async()=>{const{useImportStore}=await window.__uiStoreModule('importStore');return useImportStore.getState().items[0].draft;}),beforeDraft,'cancelled picker retains preview');
-  await page.getByRole('button',{name:/^放到桌面/}).evaluate(n=>{n.click();n.click();});await landed();
+  await add();await tagName.fill('  Coast notes  ');eq((await call('list_tags')).length,0,'typing creates no tag');await page.screenshot({path:`${output}/${theme}-preview.png`});await page.locator('.write-name button').evaluate(n=>{n.click();n.click();});await landed();
   eq((await writes()).length,1,'double confirmation invokes write once');eq((await writes())[0].args.input.content,beforeDraft.content,'submitted normalized content exactly matches frozen preview');eq((await writes())[0].args.input.segments,beforeDraft.segments,'submitted sentences exactly match frozen preview');eq((await writes())[0].args.input.document.source_sha256,createHash('sha256').update(flight).digest('hex'),'original file byte identity retained separately');eq((await writes())[0].args.input.document.original_format,'srt','original format retained despite normalized storage');eq((await call('test_counts')).files,1,'one material committed');
   eq((await writes())[0].args.input.new_tag_names,['Coast notes'],'material and new tag share the import transaction');
   const newMaterial=(await call('list_materials',{tagIds:[],untagged:false}))[0];
@@ -107,7 +108,7 @@ try{
   await drop([['duplicate.srt',flight],['empty.srt',''],['second.srt',srt('A second material is ready.','第二份材料已经准备好了。')]]);await preview();
   eq((await writes()).length,1,'browser drop prepares without writing');eq((await call('test_counts')).files,1,'browser drop does not mutate database');
   await page.locator('.import-card-pager button').last().click();ok((await page.locator('.approved-import-preview').innerText()).includes('A second material is ready.'),'each valid file has its own real preview');
-  await contrast(page.locator('.import-card-category'),`${theme} batch tag`);
+  await contrast(page.locator('.import-edge-label'),`${theme} batch tag`);
   await settle();await page.screenshot({path:`${output}/${theme}-batch-preview.png`});await confirm();await page.getByRole('button',{name:'查看已有材料',exact:true}).waitFor();
   ok(!(await page.locator('.lc-import-modal').evaluate(n=>!!n.closest('[inert]'))),'batch results retain keyboard ownership');
   eq(await itemStages(),['duplicate','failed','created'],'partial results isolated');eq((await call('test_counts')).files,2,'only valid new content is created');await close();
@@ -116,7 +117,7 @@ try{
   const lost=(await writes()).at(-1);eq((await call('test_counts')).files,3,'lost receipt really committed');await page.getByRole('button',{name:'重试未完成项'}).click();await landed();eq((await writes()).at(-1),lost,'retry resends exact operation payload');eq((await call('test_counts')).files,3,'idempotent retry has one result');
   // Native drag event adapter routes into the same prepare/preview state.
   await page.evaluate(text=>{window.__uiFiles={'/fixture/native-drag.srt':text};window.__nativeDrop(['/fixture/native-drag.srt']);},srt('Native paths share the same preview.'));await preview();eq((await call('test_counts')).files,3,'native event adapter does not commit');
-  await newTag.click();await tagName.fill('Discarded tag');await tagName.press('Enter');await close();
+  await add();await tagName.fill('Discarded tag');await tagName.press('Escape');await close();
   eq((await call('list_tags')).map(tag=>tag.name),['Coast notes'],'closing discards an uncommitted tag');
 
   // Closing a slow read cancels promptly, even when the OS finishes later.
@@ -145,7 +146,7 @@ try{
 
   // Removing page controls must keep long previews complete and keyboard reachable.
   await drop([['long-preview.txt',Array.from({length:95},(_,i)=>`The notebook in preview paragraph ${i+1} is on the table.`).join('\n\n')]]);await preview();
-  eq(await page.locator('.import-card-actions .lc-import-primary').innerText(),'放到桌面','concise card confirmation');await full();
+  eq(await page.locator('.import-card-actions .lc-import-primary').count(),0,'tag selection is the commit gesture');await full();
   eq(await page.locator('.lc-document-pagination').count(),0,'preview uses scrolling without page controls');
   eq(await page.locator('.lc-import-preview-meta').count(),0,'no duplicate full-preview caption');
   let shown=await page.locator('.lc-document-preview [data-block]').count();eq(shown,30,'large preview starts with a bounded chunk');
@@ -213,7 +214,7 @@ try{
    await page.setViewportSize({width,height});await page.evaluate(scale=>document.documentElement.style.fontSize=`${scale*100}%`,scale);await settle();await page.evaluate(()=>new Promise(done=>requestAnimationFrame(()=>requestAnimationFrame(done))));
    ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'no page horizontal overflow');
    ok(await page.locator('.lc-import-modal').evaluate(n=>{const r=n.getBoundingClientRect();return r.top>=0&&r.left>=0&&r.right<=innerWidth+1&&r.bottom<=innerHeight+1;}),'dialog inside viewport');
-   ok(await page.getByRole('button',{name:/^放到桌面/}).evaluate(n=>{const r=n.getBoundingClientRect();return r.bottom<=innerHeight&&r.top>=0;}),'confirmation reachable at zoom and keyboard height');
+   ok(await page.locator('.import-edge-label').evaluate(n=>{const r=n.getBoundingClientRect();return r.bottom<=innerHeight&&r.top>=0;}),'confirmation reachable at zoom and keyboard height');
    ok(await page.locator('.import-card-stage').evaluate(n=>n.scrollWidth<=n.clientWidth+1),'body has no horizontal overflow');
    await page.screenshot({path:`${output}/${theme}-${width}x${height}-${scale}x.png`});
   }

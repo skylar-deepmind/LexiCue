@@ -1,0 +1,35 @@
+:is(.approved-desk,.import-card-stage)>.edge-choice{position:absolute;left:var(--row-left,0);top:var(--row-top,70%);z-index:2;transform:none;visibility:hidden;--pull:0}
+:is(.approved-desk,.import-card-stage)>.edge-choice[data-phase=peek],:is(.approved-desk,.import-card-stage)>.edge-choice[data-phase=open]{visibility:visible;--pull:inherit}
+.edge-choice .draw-track{padding-inline-start:var(--rail-start,calc((var(--rail-w) - var(--mini-w)) / 2))}
+.edge-choice .draw-rail{scroll-behavior:auto;overflow-anchor:none;scroll-snap-type:none}
+.edge-choice .draw-track [data-choice]{contain:layout paint style;outline-offset:-2px}
+.approved-desk[data-edge-phase] .approved-deck{z-index:3;transform-origin:50% 0;transition:translate .19s ease-out,scale .19s ease-out}
+.approved-desk[data-edge-phase=peek] .approved-deck{translate:0 calc(-2px + var(--edge-rise)*var(--pull));scale:1 calc(.987 - .025 * var(--pull))}
+.approved-desk[data-edge-phase=open] .approved-deck{translate:0 var(--edge-rise);scale:.96 .96}
+.approved-desk[data-edge-phase=peek] [data-desk-active=true]{box-shadow:0 8px 18px #1a221d26,0 2px 4px #1a221d26}
+.approved-desk[data-edge-phase=open] .approved-card:not([data-desk-active=true]){opacity:.06}
+.approved-desk[data-edge-phase=open] .approved-edge{visibility:hidden}
+:is(.approved-desk,.import-card-stage)[data-edge-phase=peek]>.edge-choice{
+ transform:translateY(calc(var(--rise-from)*(1 - var(--pull))));
+ clip-path:inset(0 calc(var(--clip-right)*(1 - var(--pull))) calc((100% - 21px)*(1 - var(--pull))) calc(var(--clip-left)*(1 - var(--pull))) round 4px);
+ transition:transform .085s ease-out,clip-path .085s ease-out;
+ pointer-events:none
+}
+.edge-choice[data-phase=peek] .draw-rail{pointer-events:none}
+:is(.approved-desk,.import-card-stage)[data-edge-phase=open]>.edge-choice{z-index:8;clip-path:inset(-4px 0 -4px);transform:none}
+.edge-choice[data-writing=true]>.draw-rail{visibility:hidden;pointer-events:none}
+.edge-choice .write-name{position:absolute;inset:0}
+.approved-desk[data-gesture-mode=edge] .gesture-bottom-edge{cursor:grab}
+.approved-desk[data-gesture-mode=edge] .gesture-bottom-edge:active{cursor:grabbing}
+@media(prefers-reduced-motion:reduce){.approved-desk[data-edge-phase] .approved-deck,.approved-desk[data-edge-phase]>.edge-choice{transition:none}}
+.edge-choice[data-phase=open] .draw-rail{contain:layout paint;will-change:scroll-position}
+
+.import-card-stage:has(.edge-choice){position:relative;gap:16px}
+.import-card-stage .import-material-card{z-index:3;transform-origin:center top;transition:translate .19s ease-out,scale .19s ease-out}
+.import-card-stage[data-edge-phase=peek] .import-material-card{translate:0 calc(-2px + var(--edge-rise)*var(--pull));scale:1 calc(.987 - .025 * var(--pull))}
+.import-card-stage[data-edge-phase=open] .import-material-card{translate:0 var(--edge-rise);scale:.96}
+.import-card-stage[data-edge-phase=open] :is(.import-card-actions,.import-card-pager){visibility:hidden}
+.import-card-stage .gesture-bottom-edge{position:absolute;z-index:4;display:block;bottom:0;left:4%;right:4%;height:32px;touch-action:none;cursor:grab}
+.import-card-stage .gesture-bottom-edge:active{cursor:grabbing}
+.import-card-stage .import-edge-label{position:absolute;z-index:2;top:16px;left:16px;min-height:44px;margin:0;padding:8px 14px;border:0;border-radius:10px;background:var(--material-tag-paper);color:var(--material-tag-ink);cursor:pointer}
+@media(prefers-reduced-motion:reduce){.import-card-stage .import-material-card,.import-card-stage>.edge-choice{transition:none}}

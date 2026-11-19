@@ -68,16 +68,16 @@ try {
     await page.locator('.approved-rail-back').tap();
     await rail.waitFor({state:'detached'});
     await tag.tap();
-    const add = page.locator('.home-create-tag-action');
+    const add = page.locator('.edge-choice [data-add]');
     await add.waitFor();
     await add.scrollIntoViewIfNeeded();
     const plus = await add.boundingBox();
-    check(await add.evaluate(node=>getComputedStyle(node).backgroundColor!=='rgb(251, 250, 245)'),`${theme} add chip uses its green surface`);
+    check(await add.evaluate(node=>getComputedStyle(node).backgroundColor!=='rgb(251, 250, 245)'),`${theme} outline card has a transparent surface`);
     await add.tap();
     const field = page.getByRole('textbox',{name:'输入标签名称'});
     await field.waitFor();
-    const entry = page.locator('.home-create-tag-entry'), edit = await entry.boundingBox();
-    check(await add.count()===0 && Math.abs(plus.y-edit.y)<2 && Math.abs(plus.height-edit.height)<2
+    const entry = page.locator('.edge-choice .write-name'), edit = await entry.boundingBox();
+    check(!(await add.isVisible()) && Math.abs(plus.y+plus.height/2-edit.y-edit.height/2)<4
       && await field.evaluate(node=>node===document.activeElement), `${theme} the same chip becomes a focused inline editor`);
     await field.fill('未提交 QA');
     await page.keyboard.press('Escape');
@@ -88,7 +88,7 @@ try {
     await add.tap();
     await field.fill('海岸 QA');
     await page.screenshot({path:`${out}/${theme}-add.png`});
-    await entry.getByRole('button',{name:'保存'}).tap();
+    await entry.getByRole('button',{name:'新建标签'}).tap();
     await entry.waitFor({state:'detached'});
     await page.waitForFunction(()=>document.querySelector('.approved-card[data-desk-active=true] .approved-tag-edit')?.textContent==='海岸 QA');
     const persisted = (await h.call('list_materials')).find(item=>item.id===file.file_id);
@@ -124,8 +124,8 @@ try {
       if (!mobile) {
         const rail = page.locator('.approved-tag-rail');
         const tag = page.locator('.approved-card[data-desk-active=true] .approved-tag-edit');
-        const add = page.locator('.home-create-tag-action');
-        const entry = page.locator('.home-create-tag-entry');
+        const add = page.locator('.edge-choice [data-add]');
+        const entry = page.locator('.edge-choice .write-name');
         const field = page.getByRole('textbox',{name:'输入标签名称'});
         for (let index=0;index<8;index++) await h.call('create_tag',{name:`桌面分类 ${index+1}`});
         await page.goto(h.url+'/files');
@@ -155,9 +155,9 @@ try {
         const name = '一段用于桌面验收的中文长分类标签';
         await field.fill(name);
         const expanded = await entry.boundingBox();
-        const save = entry.getByRole('button',{name:'保存'});
+        const save = entry.getByRole('button',{name:'新建标签'});
         const button = await save.boundingBox();
-        check(Math.abs(plus.y-expanded.y)<2 && button.x+button.width<=1280 && await save.isEnabled(),
+        check(Math.abs(plus.y+plus.height/2-expanded.y-expanded.height/2)<4 && button.x+button.width<=1280 && await save.isEnabled(),
           `${theme} desktop long tag stays in the same row with a reachable checkmark`);
         await page.locator('.approved-home-header').click();
         await entry.waitFor({state:'detached'});

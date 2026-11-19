@@ -172,7 +172,9 @@ fn same_text_formats_and_ranges_never_cross_bind() {
         let id = materials::import_material(&c, x).unwrap().file_id;
         ids.push(id);
         let s = materials::open(&c, id).unwrap().segments[0].id;
+        assert!(saved::collected_segments(&c, id).unwrap().is_empty());
         let record = save(&c, s, "should not", &format!("save-{i}"));
+        assert_eq!(saved::collected_segments(&c, id).unwrap(), vec![0]);
         assert_eq!(
             saved::resolve_source(&c, &record.record_id)
                 .unwrap()

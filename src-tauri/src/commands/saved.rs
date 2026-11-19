@@ -449,6 +449,9 @@ pub fn create_tables(conn: &Connection) -> Result<(), String> {
             deleted_at INTEGER,
             UNIQUE(normalized_expression,source_key)
         ) STRICT;
+        CREATE INDEX IF NOT EXISTS saved_source_segments
+        ON saved_records(json_extract(snapshot_json,'$.source.content_hash'),json_extract(snapshot_json,'$.source.segment_index'))
+        WHERE deleted_at IS NULL;
         CREATE INDEX IF NOT EXISTS saved_active_sort ON saved_records(deleted_at,saved_at DESC,record_id);
         CREATE TABLE IF NOT EXISTS saved_archive_revision (
             singleton INTEGER PRIMARY KEY CHECK(singleton=1),
@@ -2025,6 +2028,44 @@ pub(super) fn opening_context(
 
 pub(super) fn latest_preview(conn: &Connection) -> Result<Option<SavedRecord>, String> {
     Ok(opening_context(conn, None)?.map(group_preview))
+}
+
+pub fn collected_segments(conn: &Connection, file_id: i64) -> Result<Vec<i64>, String> {
+    // Only read identities from this content's index. The source resolver also
+    // distinguishes independent imports of identical text and legacy sources.
+    let mut statement = conn.prepare(
+        "SELECT record_id, json_extract(snapshot_json,'$.source.segment_index') FROM saved_records
+         WHERE deleted_at IS NULL AND json_extract(snapshot_json,'$.source.content_hash') =
+             (SELECT content_hash FROM files WHERE id=?1)
+         AND json_type(snapshot_json,'$.source.segment_index')='integer'"
+    ).map_err(|e| e.to_string())?;
+    let rows = statement
+        .query_map([file_id], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
+        })
+        .map_err(|e| e.to_string())?;
+    let mut indices = std::collections::BTreeSet::new();
+    for row in rows {
+        let (record_id, index) = row.map_err(|e| e.to_string())?;
+        if !indices.contains(&index)
+            && resolve_source(conn, &record_id)?.is_some_and(|source| source.file_id == file_id)
+        {
+            indices.insert(index);
+        }
+    }
+    Ok(indices.into_iter().collect())
+}
+
+#[tauri::command]
+pub async fn saved_source_segments(
+    state: State<'_, DbState>,
+    file_id: i64,
+) -> Result<Vec<i64>, String> {
+    state
+        .read("saved_source_segments", move |conn| {
+            collected_segments(conn, file_id)
+        })
+        .await
 }
 
 #[tauri::command]

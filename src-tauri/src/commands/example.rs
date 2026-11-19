@@ -156,6 +156,24 @@ pub fn end_example_session(
     state.end(window.label(), &session_id)
 }
 #[tauri::command]
+pub async fn example_source_segments(
+    state: State<'_, ExampleState>,
+    window: tauri::Window,
+    session_id: String,
+    file_id: i64,
+) -> Result<Vec<i64>, String> {
+    let shared = state.inner().clone();
+    let owner = window.label().to_string();
+    tauri::async_runtime::spawn_blocking(move || {
+        shared.with(&owner, &session_id, |c| {
+            saved::collected_segments(c, file_id)
+        })
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
 pub async fn example_saved_for_selection(
     state: State<'_, ExampleState>,
     window: tauri::Window,

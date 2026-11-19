@@ -23,3 +23,19 @@ export function paintedCopy(source:HTMLElement) {
  Object.assign(copy.style,{position:'relative',left:'0',top:'0',right:'auto',bottom:'auto',width:`${width}px`,height:`${height}px`,margin:'0',visibility:'visible'});
  inner.append(copy);wrapper.append(inner);return wrapper;
 }
+
+/** Import previews already have self-contained styles. Keep the label's stage colours. */
+export function copyImportCard(source: HTMLElement) {
+  const copy = source.cloneNode(true) as HTMLElement;
+  const label = source.querySelector<HTMLElement>('.import-edge-label');
+  const second = copy.querySelector<HTMLElement>('.import-edge-label');
+  if (label && second) {
+    const style = getComputedStyle(label);
+    for (const key of ['background-color','color','top','left','font','padding','border-radius','height']) {
+      second.style.setProperty(key, style.getPropertyValue(key));
+    }
+  }
+  copy.inert = true;
+  copy.setAttribute('aria-hidden','true');
+  return copy;
+}
