@@ -103,6 +103,13 @@ fn route(
             .map_err(|e| e.to_string())?;
             Ok(Value::Null)
         }
+        "reading_material_preview" => serde_json::to_value(materials::preview(
+            c,
+            id("fileId"),
+            text("contentHash"),
+            id("segment"),
+        )?)
+        .map_err(|e| e.to_string()),
         "open_reading_material" => {
             serde_json::to_value(materials::open(c, id("fileId"))?).map_err(|e| e.to_string())
         }
@@ -175,18 +182,34 @@ fn route(
             &serde_json::from_value(a["input"].clone()).map_err(|e| e.to_string())?,
         )?)
         .map_err(|e| e.to_string()),
-        "list_saved_groups" => serde_json::to_value(saved::groups(
+        "saved_date_histogram" => serde_json::to_value(saved::date_histogram(
+            c,
+            a["offsetMinutes"].as_i64().unwrap_or(0),
+        )?)
+        .map_err(|e| e.to_string()),
+        "latest_saved_preview" => {
+            serde_json::to_value(saved::latest_preview(c)?).map_err(|e| e.to_string())
+        }
+        "saved_opening_context" => {
+            serde_json::to_value(saved::opening_context(c, a["recordId"].as_str())?)
+                .map_err(|e| e.to_string())
+        }
+        "list_saved_groups" => serde_json::to_value(saved::groups_in_range(
             c,
             text("query"),
             a["limit"].as_i64().unwrap_or(50),
             id("offset"),
+            a["startMs"].as_i64(),
+            a["endMs"].as_i64(),
         )?)
         .map_err(|e| e.to_string()),
-        "saved_group_contexts" => serde_json::to_value(saved::group_contexts(
+        "saved_group_contexts" => serde_json::to_value(saved::contexts_in_range(
             c,
             text("groupId"),
             a["limit"].as_i64().unwrap_or(10),
             id("offset"),
+            a["startMs"].as_i64(),
+            a["endMs"].as_i64(),
         )?)
         .map_err(|e| e.to_string()),
         "list_saved_records" => serde_json::to_value(saved::list(
@@ -327,6 +350,8 @@ fn seed_recall(c: &rusqlite::Connection, a: &Value) -> Result<Value, String> {
     let imported = materials::import_material(
         c,
         &materials::MaterialInput {
+            tag_ids: Vec::new(),
+            new_tag_names: Vec::new(),
             document: None,
             normalized_kind: None,
             source: None,

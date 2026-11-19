@@ -1,6 +1,4 @@
-import {usePreferencesStore} from '../stores/preferencesStore';
-import {tagTone} from '../lib/tagAppearance';
-export default function TagBadge({name,tone}:{name:string;tone?:string|null}) {
-  const colors=usePreferencesStore(s=>s.tagColors);
-  return <span className={`file-tag tag-colored tag-tone-${tone ?? tagTone(name,colors)}`}>{name}</span>;
+import './card-tags.css';
+export default function TagBadge({name}:{name:string;tone?:string|null}) {
+  return <span className="file-tag tag-paper">{name}</span>;
 }

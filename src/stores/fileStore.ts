@@ -114,7 +114,7 @@ interface FileStore {
   importDictionaryPack: () => Promise<void>;
   confirmImport: () => Promise<void>;
   cancelImport: () => void;
-  deleteFile: (id: number, name?: string) => Promise<boolean>;
+  deleteFile: (id: number, name?: string, confirmation?: 'trash-drop') => Promise<boolean>;
   exportAll: () => Promise<void>;
   restoreAll: (mergeBackupId?: string) => Promise<void>;
   importFromYouTube: (input: YouTubeImportInput) => Promise<boolean>;
@@ -646,10 +646,10 @@ export const useFileStore = create<FileStore>((set, get) => ({
 
   cancelImport: () => set({ pendingImport: null }),
 
-  deleteFile: async (id: number, name?: string) => {
+  deleteFile: async (id: number, name?: string, confirmation?: 'trash-drop') => {
     try {
       const file = get().files.find((item) => item.id === id);
-      const confirmed = await ask(
+      const confirmed = confirmation === 'trash-drop' || await ask(
         name || file
           ? i18n.t('fileStore.deleteAskWithContent', { name: name ?? file!.name })
           : i18n.t('fileStore.deleteAsk'),

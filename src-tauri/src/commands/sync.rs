@@ -5662,6 +5662,8 @@ mod source_media_sync_tests {
         };
         let source=source_media::source_from_subtitles(video,&track,content,&serde_json::json!({"title":"fixture","duration":3,"formats":[{"format_id":"140","ext":"m4a","acodec":"mp4a.40.2","vcodec":"none","language":"en"}]})).unwrap();
         materials::MaterialInput {
+            tag_ids: Vec::new(),
+            new_tag_names: Vec::new(),
             document: None,
             normalized_kind: None,
             operation_id: video.into(),

@@ -1,46 +1,46 @@
-import { invoke } from '@tauri-apps/api/core';
 import { useMaterialStore } from '../stores/materialStore';
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import MobileLaunch from './MobileLaunch';
-import { DESKTOP_LAUNCH_DURATION, DESKTOP_LAUNCH_SPEED } from './DesktopLaunch';
+import { DESKTOP_LAUNCH_SPEED } from './DesktopLaunch';
 import { isMobilePlatform } from '../lib/platform';
 import { StartupContext } from './StartupContext';
 import './mobile-startup.css';
 
-/** One launch per WebView lifetime. The actual app warms up beneath the cover. */
+/** One short opening per WebView. Data readiness, not animation length, owns access. */
 export default function MobileStartup({children}:{children:ReactNode}) {
-  const [starting,setStarting]=useState(isMobilePlatform);
-  const stage=useRef<HTMLDivElement>(null);
-  const materialReady=useMaterialStore(state=>state.hasLoaded);
-  const warmed=useRef(false);
+  const {t}=useTranslation();
+  const [starting,setStarting]=useState(isMobilePlatform),[leaving,setLeaving]=useState(false);
+  const stage=useRef<HTMLDivElement>(null),began=useRef(performance.now());
+  const ready=useMaterialStore(state=>state.hasLoaded||state.error);
   useEffect(()=>{
-    // Let the primary material list acquire the DB first, then warm the native
-    // archive while the existing launch plays. A real Saved visit still rereads
-    // current data, so saves/removals are never replaced by a prefetched snapshot.
-    if(!starting||!materialReady||warmed.current)return;
-    warmed.current=true;
-    void invoke('list_saved_groups',{query:'',limit:1,offset:0}).catch(()=>{});
-  },[starting,materialReady]);
+    if(!starting||!ready)return;
+    const timer=window.setTimeout(()=>setLeaving(true),Math.max(0,220-(performance.now()-began.current)));
+    return()=>clearTimeout(timer);
+  },[starting,ready]);
+  useEffect(()=>{
+    if(!leaving)return;
+    const timer=window.setTimeout(()=>setStarting(false),matchMedia('(prefers-reduced-motion: reduce)').matches?0:150);
+    return()=>clearTimeout(timer);
+  },[leaving]);
   useLayoutEffect(()=>{
     if(!starting)return;
     const reduced=matchMedia('(prefers-reduced-motion: reduce)');
-    const duration=reduced.matches?250:DESKTOP_LAUNCH_DURATION/DESKTOP_LAUNCH_SPEED;
-    const deadline=performance.now()+duration+180;
-    const root=stage.current;
-    const animations=root?.querySelector('.desktop-launch')?.getAnimations({subtree:true})??[];
+    const deadline=began.current+(reduced.matches?180:750);
+    const animations=stage.current?.querySelector('.desktop-launch')?.getAnimations({subtree:true})??[];
     const start=document.timeline.currentTime;
     for(const animation of animations){animation.playbackRate=DESKTOP_LAUNCH_SPEED;if(start!==null)animation.startTime=start;}
-    root?.style.setProperty('--startup-hold',`${duration}ms`);
-    const finish=()=>setStarting(false);
-    // Do not depend on Animation.finished: WKWebView can suspend its timeline.
-    const timer=window.setTimeout(finish,duration+180);
+    // A slow database reveals the real loading/error state, never an extended
+    // decorative cover. Background WebViews also release it on foregrounding.
+    const finish=()=>setLeaving(true),timer=window.setTimeout(finish,Math.max(0,deadline-performance.now()));
     const foreground=()=>{if(document.visibilityState==='visible'&&performance.now()>=deadline)finish();};
     const reduce=()=>{if(reduced.matches)finish();};
     window.addEventListener('pageshow',foreground);document.addEventListener('visibilitychange',foreground);reduced.addEventListener('change',reduce);
     return()=>{clearTimeout(timer);window.removeEventListener('pageshow',foreground);document.removeEventListener('visibilitychange',foreground);reduced.removeEventListener('change',reduce);};
   },[starting]);
-  return <StartupContext.Provider value={starting}>
-    <div className="app-startup-content" inert={starting} aria-hidden={starting||undefined}>{children}</div>
-    {starting&&<div ref={stage} className="mobile-startup" role="status" aria-label="LexiCue 正在启动"><MobileLaunch/></div>}
+  const blocking = starting && !leaving;
+  return <StartupContext.Provider value={blocking}>
+    <div className="app-startup-content" inert={blocking} aria-hidden={blocking||undefined}>{children}</div>
+    {starting&&<div ref={stage} className="mobile-startup" data-exiting={leaving||undefined} role="status" aria-hidden={leaving||undefined} aria-label={`LexiCue · ${t('common.loading')}`}><MobileLaunch/></div>}
   </StartupContext.Provider>;
 }

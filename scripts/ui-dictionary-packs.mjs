@@ -1,3 +1,4 @@
+import {keyboardTrash} from './ui-trash-support.mjs';
 /** Isolated UI → real Rust pack query/install/remove/save boundaries. */
 import assert from 'node:assert/strict';
 import {mkdir,writeFile} from 'node:fs/promises';
@@ -31,7 +32,7 @@ try {
   });
   await page.goto(`${h.url}/settings?section=dictionary`);await page.locator('[data-pack=daily][data-installed=true]').waitFor();
   ok(await page.locator('[data-pack]').count()===3,`${label}: exactly three packs`);
-  ok(await page.locator('[data-pack=daily] button').count()===0,`${label}: bundled base cannot be removed`);
+  ok(await page.locator('[data-pack=daily] .approved-dictionary-book').isDisabled(),`${label}: bundled base cannot be removed`);
   ok((await page.locator('[data-pack=daily]').innerText()).includes('60.69'),`${label}: data size shown`);
   await page.locator('[data-pack=specialist]').getByRole('button',{name:'从文件安装',exact:true}).focus();await page.keyboard.press('Enter');
   await page.waitForFunction(()=>!document.querySelector('[data-pack=specialist] button')?.disabled);
@@ -41,7 +42,7 @@ try {
   await page.locator('[data-pack=specialist]').getByRole('button',{name:'从文件安装',exact:true}).hover();
   ok(await page.locator('[data-pack=specialist]').getByRole('button',{name:'从文件安装',exact:true}).evaluate(n=>n.getBoundingClientRect().height>=44),`${label}: touch target`);
   await page.screenshot({path:join(output,`${label}-packs.png`),fullPage:true});
-  for(const selector of ['.dictionary-pack-heading h2','.dictionary-pack-size','.dictionary-pack-actions button']){const ratio=await contrast(page.locator(selector).first());ok(ratio>=4.5,`${label}: ${selector} contrast ${ratio.toFixed(2)}`);}
+  for(const selector of ['.approved-dictionary-book h2','.approved-book-size']){const ratio=await contrast(page.locator(selector).first());ok(ratio>=4.5,`${label}: ${selector} contrast ${ratio.toFixed(2)}`);}
   await page.evaluate(()=>document.documentElement.style.fontSize='32px');
   ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${label}: 200 percent text fits width`);
   await page.evaluate(()=>document.documentElement.style.fontSize='');
@@ -50,18 +51,18 @@ try {
   // Controlled native IPC state validates the progress/cancel UI; transport
   // cancellation and digest checks are covered by actual Rust loopback tests.
   await page.evaluate(status=>{window.__packState={...status,busy:true,operation:{id:'specialist',phase:'downloading',completed:1000000,total:55155825}};document.dispatchEvent(new Event('visibilitychange'));},status);
-  await page.locator('[data-pack=specialist] progress').waitFor();
+  await page.locator('[data-pack=specialist] [role=progressbar]').waitFor();
   ok(await page.locator('[data-pack=extended] button').first().isDisabled(),`${label}: concurrent operations disabled`);
   await page.screenshot({path:join(output,`${label}-progress.png`),fullPage:true});
   await page.locator('[data-pack=specialist]').getByRole('button',{name:'取消',exact:true}).click();
-  await page.locator('[data-pack=specialist] progress').waitFor({state:'detached'});
+  await page.locator('[data-pack=specialist] [role=progressbar]').waitFor({state:'detached'});
   await page.evaluate(()=>{window.__packState=null;document.dispatchEvent(new Event('visibilitychange'));});
   if(archives){
    await page.evaluate(path=>window.__packFile=path,join(archives,spec.filename));
    await page.locator('[data-pack=specialist]').getByRole('button',{name:'从文件安装',exact:true}).click();
    await page.locator('[data-pack=specialist][data-installed=true]').waitFor({timeout:60000});
    ok((await h.call('lookup_local_expression',{expression:'ichthyology'})).status==='found',`${label}: actual optional data becomes queryable`);
-   await page.locator('[data-pack=specialist]').getByRole('button',{name:'移除词典包',exact:true}).click();
+   await keyboardTrash(page,page.locator('[data-pack=specialist] .approved-dictionary-book'));
    await page.locator('[data-pack=specialist][data-installed=false]').waitFor();
    ok((await h.call('lookup_local_expression',{expression:'ichthyology'})).status==='not_found',`${label}: removing pack removes live coverage`);
    await page.evaluate(()=>window.__packFile='/no/such/package.zip');
@@ -74,14 +75,14 @@ try {
   const imported=await h.call('import_reading_material',{input:{operation_id:`pack-ui-${label}`,name:`${label}.txt`,content:sentence,segments:[{index:0,en_text:sentence,zh_text:null,start_time:null,end_time:null}]}});
   await page.goto(`${h.url}/files/${imported.file_id}`);
   await page.locator('.reading-word').filter({hasText:/^soliloquy$/}).click();await page.locator('.dictionary-overview').waitFor();
-  ok((await page.locator('.lookup-source-switch button[aria-pressed="true"] > span').innerText()).includes('本地'),`${label}: local source slot is distinct from online Wiktionary`);
+  ok(await page.locator('.lookup-body[data-active-dictionary=local]').count()===1,`${label}: local source slot is distinct from online Wiktionary`);
   await page.locator('[data-testid=lookup-save]').click();await page.locator('.lookup-save-toast').waitFor();
   const saved=await h.call('list_saved_records',{query:'soliloquy',limit:100,offset:0});
   ok(saved.some(r=>r.dictionary_reference?.senses[0].source.adapter_version==='wiktionary-local-v2.0.0'),`${label}: real local revision reference saved`);
   ok(await page.evaluate(()=>!window.__uiCalls.some(c=>['lookup_cambridge_expression','lookup_free_dictionary_expression'].includes(c.command))),`${label}: local reading and saving never trigger online transport`);
-  await page.locator('.lookup-source-switch button').filter({hasText:'在线'}).click();await page.locator('.lookup-body[data-online-state=failed]').waitFor();
+  await page.locator('.lookup-source-switch button').click();await page.locator('.lookup-body[data-online-state=failed]').waitFor();
   ok(await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='lookup_cambridge_expression').length===1&&!window.__uiCalls.some(c=>c.command==='lookup_free_dictionary_expression')),`${label}: explicit online uses only the preferred provider`);
-  await page.locator('.lookup-source-switch button').filter({hasText:'本地'}).click();await page.locator('.lookup-body[data-active-dictionary=local] .dictionary-overview').waitFor();
+  await page.locator('.lookup-body[data-active-dictionary=local] .dictionary-overview').waitFor();
   await page.screenshot({path:join(output,`${label}-lookup.png`)});
   await page.close();
  }

@@ -5,6 +5,8 @@ use tempfile::tempdir;
 
 fn seed(db: &Connection, sentence: &str, meaning: &str) -> saved::SavedRecord {
     let input = materials::MaterialInput {
+        tag_ids: Vec::new(),
+        new_tag_names: Vec::new(),
         operation_id: Uuid::new_v4().to_string(),
         name: "trip.srt".into(),
         content: format!("1\n00:00:01,000 --> 00:00:02,500\n{sentence}\n"),

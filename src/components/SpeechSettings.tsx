@@ -1,48 +1,67 @@
-import { BusyRing } from './LoadingFeedback';
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
-import { SPEECH_PREVIEW_TEXT, SPEECH_VOICES, type SpeechAccent, type SpeechSpeed } from '../lib/speechPreferences';
+import { Trash2 } from 'lucide-react';
+import { SPEECH_PREVIEW_TEXT, SPEECH_VOICES, type SpeechAccent, type SpeechPreferences, type SpeechSpeed } from '../lib/speechPreferences';
 import { usePreferencesStore } from '../stores/preferencesStore';
+import { useFeedbackStore } from '../stores/feedbackStore';
 import { useSpeechStore } from '../stores/speechStore';
-import AppSelect from './AppSelect';
-import SpeechButton, { SpeechFeedback } from './SpeechButton';
-
-const PREVIEW_KEY = 'settings:speech-preview';
+import { SpeechFeedback } from './SpeechButton';
+import { BusyRing } from './LoadingFeedback';
+const voices = [SPEECH_VOICES.us[0], SPEECH_VOICES.us[2], SPEECH_VOICES.us[1], SPEECH_VOICES.gb[1], SPEECH_VOICES.gb[0]];
+const voiceIndex = (speech: SpeechPreferences) => Math.max(0, voices.findIndex(voice => voice.id === speech.voices[speech.accent]));
 export default function SpeechSettings() {
-  const { t } = useTranslation();
-  const { speech, setSpeech, setSpeechVoice } = usePreferencesStore();
+  const { t } = useTranslation(), { speech, setSpeech, setSpeechVoice } = usePreferencesStore();
   const [clearing, setClearing] = useState(false);
-  const [cacheState, setCacheState] = useState<'idle' | 'cleared' | 'error'>('idle');
-  const clearCache = async () => {
-    useSpeechStore.getState().stop(); setClearing(true); setCacheState('idle');
-    try { await invoke('clear_tts_cache'); setCacheState('cleared'); }
-    catch { setCacheState('error'); }
-    finally { setClearing(false); }
+  const owner = useRef(`voice-settings:${crypto.randomUUID()}`), press = useRef<{ x: number; y: number } | null>(null), suppressed = useRef(0);
+  const carousel = useRef<HTMLDivElement>(null);
+  useEffect(() => () => useSpeechStore.getState().stopOwned(owner.current), []);
+  const index = voiceIndex(speech);
+  const select = useCallback((next: number) => {
+    const voice = voices[(next + voices.length) % voices.length];
+    const accent: SpeechAccent = voice.id.startsWith('en-GB') ? 'gb' : 'us';
+    setSpeech({ accent }); setSpeechVoice(accent, voice.id);
+    void useSpeechStore.getState().speak(SPEECH_PREVIEW_TEXT, 'settings:speech-preview', { kind: 'preview', owner: owner.current, restart: true });
+  }, [setSpeech, setSpeechVoice]);
+  useEffect(() => {
+    const node = carousel.current;
+    if (!node || clearing) return;
+    let previous = -Infinity, distance = 0, changed = false;
+    const wheel = (event: WheelEvent) => {
+      if (event.ctrlKey || Math.abs(event.deltaX) <= Math.abs(event.deltaY)) return;
+      event.preventDefault();
+      // One selection per trackpad gesture, including its momentum tail.
+      if (event.timeStamp - previous > 180) { distance = 0; changed = false; }
+      previous = event.timeStamp;
+      if (changed) return;
+      const unit = event.deltaMode === WheelEvent.DOM_DELTA_LINE ? 16 : event.deltaMode === WheelEvent.DOM_DELTA_PAGE ? node.clientWidth : 1;
+      distance += event.deltaX * unit;
+      if (Math.abs(distance) < 34) return;
+      changed = true;
+      select(voiceIndex(usePreferencesStore.getState().speech) + Math.sign(distance));
+    };
+    node.addEventListener('wheel', wheel, { passive: false });
+    return () => node.removeEventListener('wheel', wheel);
+  }, [clearing, select]);
+  const clear = async () => {
+    useSpeechStore.getState().stop();
+    setClearing(true);
+    const { show } = useFeedbackStore.getState();
+    try {
+      await invoke('clear_tts_cache');
+      show(t('speech.cacheCleared'), 'success', 2200, undefined, 'top', { passive:true });
+    } catch {
+      show(t('speech.cacheFailed'), 'error', 4200, undefined, 'top', { passive:true });
+    } finally {
+      setClearing(false);
+    }
   };
-  return <section className="speech-settings" aria-label={t('speech.title')}>
-    <p>{t('speech.description')}</p>
-    <div className="speech-settings__fields">
-      <div><label htmlFor="speech-accent">{t('speech.accent')}</label><AppSelect id="speech-accent" value={speech.accent}
-        options={(['us', 'gb'] as SpeechAccent[]).map(value => ({ value, label: t(`speech.accents.${value}`) }))}
-        onChange={value => setSpeech({ accent: value as SpeechAccent })}/></div>
-      <div><label htmlFor="speech-voice">{t('speech.voice')}</label><AppSelect id="speech-voice" value={speech.voices[speech.accent]}
-        options={SPEECH_VOICES[speech.accent].map(voice => ({ value: voice.id, label: `${voice.name} · ${t(`speech.${voice.gender}`)}` }))}
-        onChange={voice => setSpeechVoice(speech.accent, voice)}/></div>
-      <div><label htmlFor="speech-speed">{t('speech.speed')}</label><AppSelect id="speech-speed" value={speech.speed}
-        options={(['normal', 'slow'] as SpeechSpeed[]).map(value => ({ value, label: t(`speech.speeds.${value}`) }))}
-        onChange={value => setSpeech({ speed: value as SpeechSpeed })}/></div>
+  return <section className="speech-settings approved-voices" aria-label={t('speech.title')}>
+    <button className="approved-icon approved-clear-voice" aria-label={t('speech.clearCache')} title={t('speech.clearCache')} disabled={clearing} aria-busy={clearing} onClick={() => void clear()}>{clearing ? <BusyRing/> : <Trash2 size={21}/>}</button>
+    <div ref={carousel} className="approved-voice-carousel" tabIndex={0} onKeyDown={event => { if (!clearing && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) { event.preventDefault(); select(index + (event.key === 'ArrowRight' ? 1 : -1)); } }} onPointerDown={event => { if (!clearing && event.isPrimary && event.button === 0) { suppressed.current = 0; press.current = { x: event.clientX, y: event.clientY }; } }} onPointerCancel={() => { press.current = null; }} onPointerUp={event => { const p = press.current; press.current = null; if (!p || clearing) return; const x = event.clientX - p.x, y = event.clientY - p.y; if (Math.abs(x) > 34 && Math.abs(x) > Math.abs(y) * 1.25) { suppressed.current = performance.now() + 350; select(index + (x < 0 ? 1 : -1)); } }}>
+      {voices.map((voice, i) => { let slot = i - index; if (slot > 2) slot -= 5; if (slot < -2) slot += 5; return <button key={voice.id} data-voice-slot={slot} aria-label={`${voice.name} · ${t('speech.preview')}`} aria-pressed={i === index} disabled={clearing} onClick={event => { if (event.detail === 0 || performance.now() >= suppressed.current) select(i); }}><img draggable={false} src={`/design/voice/${voice.name}.jpg`} alt=""/><strong>{voice.name}</strong></button>; })}
     </div>
-    <div className="speech-settings__preview"><SpeechButton text={SPEECH_PREVIEW_TEXT} speechKey={PREVIEW_KEY} kind="preview" label={t('speech.preview')} showLabel disabled={clearing}/></div>
-    <SpeechFeedback speechKeys={[PREVIEW_KEY]}/>
-    <p>{t('speech.accuracy')}</p>
-    <details><summary>{t('speech.connection')}</summary>
-      <label className="speech-settings__toggle"><input type="checkbox" checked={speech.onlineEnabled} onChange={event => setSpeech({ onlineEnabled: event.target.checked })}/><span>{t('speech.onlineEnabled')}</span></label>
-      <p>{t('speech.privacy')}</p>
-      <label className="speech-settings__toggle"><input type="checkbox" checked={speech.allowDeviceFallback} onChange={event => setSpeech({ allowDeviceFallback: event.target.checked })}/><span>{t('speech.allowDeviceFallback')}</span></label>
-      <p>{t('speech.fallbackDescription')}</p>
-      <button type="button" className="ui-button" disabled={clearing} aria-busy={clearing} onClick={() => void clearCache()}>{clearing && <BusyRing />}<span>{t(clearing ? 'speech.clearingCache' : 'speech.clearCache')}</span></button>
-      {cacheState !== 'idle' && <p role="status">{t(cacheState === 'cleared' ? 'speech.cacheCleared' : 'speech.cacheFailed')}</p>}
-    </details>
+    <div className="approved-voice-speed" role="group" aria-label={t('speech.speed')}>{(['normal','slow'] as SpeechSpeed[]).map(speed => <button key={speed} aria-pressed={speech.speed === speed} onClick={() => setSpeech({ speed })}>{t(`speech.speeds.${speed}`)}</button>)}</div>
+    <SpeechFeedback prefix="settings:speech-preview"/>
   </section>;
 }

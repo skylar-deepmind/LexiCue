@@ -1,0 +1,5 @@
+{
+  "productName": "LexiCue UI QA",
+  "identifier": "com.lexicue.qa.approved.ios",
+  "bundle": { "createUpdaterArtifacts": false, "iOS": { "minimumSystemVersion": "15.0" } }
+}

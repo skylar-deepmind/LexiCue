@@ -1,353 +1,298 @@
-import CollectionPager from '../components/CollectionPager';
-import AppSelect from '../components/AppSelect';
-import { collectionPage } from '../lib/collectionPage';
-import { LoadingSkeleton, BusyRing } from '../components/LoadingFeedback';
-import { isMobilePlatform } from '../lib/platform';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useLibraryNames } from '../components/useLibraryNames';
+import { usePreferencesStore } from '../stores/preferencesStore';
+import type { LibraryNameKey } from '../lib/libraryNames';
+import { bookmarkTitle } from '../lib/bookmarkDesk';
+import { dissolvePage } from '../lib/pageDissolve';
+import { isIOSPlatform } from '../lib/platform';
+import { cancelSavedFlight, captureSavedEntrance, finishSavedReturn } from '../lib/savedEntrance';
+import EmptyMaterialGreeting from '../components/EmptyMaterialGreeting';
+import { rearmEmptyMaterialGreeting } from '../lib/emptyMaterialGreeting';
+import '../components/empty-material.css';
+import SavedPocketPreview from '../components/SavedPocketPreview';
+import InlineTagName from '../components/InlineTagName';
+import HomeCardTags from '../components/HomeCardTags';
+import LibraryCover from '../components/LibraryCover';
+import LibraryCategoryCard from '../components/LibraryCategoryCard';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
-import { ArrowDownWideNarrow, Archive, BookOpen, X, Check, ChevronLeft, ChevronRight, ChevronsUp, FileText, MoreHorizontal, Search, Tags, Pencil, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Settings } from 'lucide-react';
 import { useMaterialStore } from '../stores/materialStore';
+import { useReadingDeskStore } from '../stores/readingDeskStore';
 import { useFileStore } from '../stores/fileStore';
 import { useImportStore } from '../stores/importStore';
-import { useReadingDeskStore } from '../stores/readingDeskStore';
+import { useFeedbackStore } from '../stores/feedbackStore';
 import { matchesMaterial, readingPosition } from '../lib/readingDesk';
-import { readLibraryView, saveLibraryView } from '../lib/libraryView';
+import { materialCover } from '../lib/materialCover';
+import { visitState } from '../lib/pageNavigation';
+import { readImportClipboard } from '../lib/importLink';
+import { inspectClipboardContent } from '../lib/clipboardContent';
 import { backNavigation } from '../lib/backNavigation';
-import type { Material, ReadingMaterial } from '../lib/materials';
-import TagFilterBar from '../components/TagFilterBar';
-import TagManager from '../components/TagManager';
-import TagEditDialog from '../components/TagEditDialog';
-import TagBadge from '../components/TagBadge';
-import DeskFeedback from '../components/DeskFeedback';
-import { useMediaQuery } from '../components/useMediaQuery';
-import useSheetDrag from '../components/useSheetDrag';
+import type { Material } from '../lib/materials';
+import type { SavedRecord } from '../lib/savedRecords';
+import { savedPocketCache, useSavedReadRevision } from '../lib/savedReadCache';
+import { QueryCache } from '../lib/queryCache';
+import { readingRoute, savedRoute, settingsRoute } from '../lib/routeModules';
+import { useTheme } from '../components/useTheme';
+import MaterialCover from '../components/MaterialCover';
 import Overlay from '../components/Overlay';
-import { rememberImportFocus } from '../components/importFocus';
-import MotionChange from '../components/MotionChange';
-import { useQuietScrollbars } from '../components/useQuietScrollbars';
-import { deskCardTransform, useSoftCardTurn } from '../components/useSoftCardTurn';
-import useBookmarkDesk from '../components/useBookmarkDesk';
-import {bookmarkExcerpt,bookmarkTitle} from '../lib/bookmarkDesk';
-import './materials-settings.css';
-import './reading-stage.css';
-import './desktop-desk-height.css';
+import { BusyRing } from '../components/LoadingFeedback';
+import { ClipboardImportIcon, FileImportIcon } from '../components/HomeActionIcons';
+import useTrashDrag, { isTrashDragging } from '../components/useTrashDrag';
+import PosterWall from '../components/PosterWall';
+import { cancelReadingReturn, captureReadingEntrance, finishReadingReturn, readingMotionExcerpt } from '../lib/readingMotion';
+import { playTagFlight } from '../lib/tagFlight';
+import './approved-ui.css';
+import '../components/import-material-card.css';
 
-const LIBRARY_PAGE_SIZE = 20;
+let lastLibraryTag = 'all';
+const quoteCache = new QueryCache<string | null>(8);
 
 export default function FilesPage() {
-    const { t } = useTranslation();
-    const navigate = useNavigate();
-    const location = useLocation();
-    const [params, setParams] = useSearchParams();
-    const compact = useMediaQuery('(max-width: 767px)');
-    const mobileSheet = compact || isMobilePlatform();
-    const importOpen = useImportStore(s => s.open);
-    const library = params.get('view') === 'library' && !importOpen;
-    const materials = useMaterialStore();
-    const desk = useReadingDeskStore();
-    const selectedTags = useFileStore(s => s.selectedTagIds);
-    const untagged = useFileStore(s => s.untaggedOnly);
-    const loadTags = useFileStore(s => s.loadTags);
-    const deleting = useFileStore(s => s.deletingFiles);
-    const [saved] = useState(readLibraryView);
-    const [query, setQuery] = useState(saved.query);
-    const [range, setRange] = useState(saved.range);
-    const [tagsOpen, setTagsOpen] = useState(saved.tagsOpen);
-    const [libraryPresent, setLibraryPresent] = useState(library);
-    const [pageNumber, setPageNumber] = useState(saved.page ?? 1);
-    const [sort, setSort] = useState<'newest' | 'oldest' | 'title'>(saved.sort ?? 'newest');
-    const filterKey = useRef(`${saved.query}:${saved.range}:${saved.tagIds.join(',')}:${saved.untagged}:${saved.sort ?? 'newest'}`);
-    const [expanded, setExpanded] = useState<number | null>(saved.expandedId??null);
-    const [manager, setManager] = useState(false);
-    const [edit, setEdit] = useState<Material | null>(null);
-    const [menu, setMenu] = useState<number | null>(null);
-    const deletionPending = useRef(false);
-    const scroll = useRef<HTMLDivElement>(null);
-    useQuietScrollbars(scroll, libraryPresent && (!materials.loading || materials.hasLoaded));
-    useEffect(() => {
-        if (library) { setLibraryPresent(true); return; }
-        const timer = window.setTimeout(() => setLibraryPresent(false), matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : mobileSheet ? 300 : 420);
-        return () => clearTimeout(timer);
-    }, [library, mobileSheet]);
-    useEffect(() => {
-        const next = `${query}:${range}:${selectedTags.join(',')}:${untagged}:${sort}`;
-        if (filterKey.current === next) return;
-        filterKey.current = next; setPageNumber(1); setExpanded(null); setMenu(null);
-        scrollTop.current = 0; if (scroll.current) scroll.current.scrollTop = 0;
-    }, [query, range, selectedTags, untagged, sort]);
-    const dock = useRef<HTMLButtonElement>(null);
-    const shelf = useRef<HTMLDivElement>(null);
-    const emptyImport = useRef<HTMLButtonElement>(null);
-    const libraryReturnTarget = () => {
-        if (dock.current) return dock.current;
-        if (emptyImport.current?.getClientRects().length) return emptyImport.current;
-        // Compact layouts expose the header's import action instead of the desktop empty-state button.
-        return Array.from(document.querySelectorAll<HTMLButtonElement>('button[data-guide="import"]'))
-            .find(button => button.getClientRects().length > 0) ?? null;
+  return <MaterialDesk/>;
+}
+function MaterialDesk() {
+  const { t } = useTranslation(), navigate = useNavigate(), location = useLocation();
+  const [params, setParams] = useSearchParams();
+  const catalog = useMaterialStore(), desk = useReadingDeskStore();
+  const picking = useImportStore(s => s.picking), importing = useImportStore(s => s.running), importOpen = useImportStore(s => s.open);
+  const tags = useFileStore(s => s.tags), loadTags = useFileStore(s => s.loadTags);
+  const { theme, setTheme } = useTheme();
+  const libraryNames = useLibraryNames();
+  const [editing, setEditing] = useState<Material | null>(null);
+  const [quotes, setQuotes] = useState<Record<string, string>>({});
+  const savedRevision = useSavedReadRevision();
+  const [pocket, setPocket] = useState<SavedRecord | null>(() => savedPocketCache.peek('latest') ?? null);
+  const [pasting, setPasting] = useState(false), [turning, setTurning] = useState(false);
+  const [groups, setGroups] = useState(params.get('view') === 'library' && !params.has('tag'));
+  const home = useRef<HTMLDivElement>(null);
+  const card = useRef<HTMLDivElement>(null), libraryButton = useRef<HTMLButtonElement>(null);
+  const gesture = useRef<{ x: number; y: number; locked: boolean } | null>(null), suppress = useRef(0);
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const pasteIntent=useRef(0),pastePending=useRef(false),alive=useRef(true);
+  useEffect(()=>{alive.current=true;return()=>{alive.current=false;pasteIntent.current++;};},[]);
+  useEffect(() => { if(params.get('view')==='manage')setParams({view:'library'},{replace:true}); },[params,setParams]);
+  useEffect(() => { void useMaterialStore.getState().ensure(); void loadTags(); }, [catalog.revision, loadTags]);
+  useEffect(() => {
+    let active = true;
+    void savedPocketCache.fetch('latest', () => invoke<SavedRecord | null>('latest_saved_preview'))
+      .then(record => { if (active) setPocket(record); }).catch(() => {});
+    return () => { active = false; };
+  }, [savedRevision]);
+  useEffect(() => {
+    if (!catalog.hasLoaded) return;
+    const prepare = () => { readingRoute.preload(); savedRoute.preload(); settingsRoute.preload(); };
+    if (typeof window.requestIdleCallback === 'function') {
+      const idle = window.requestIdleCallback(prepare);
+      return () => window.cancelIdleCallback(idle);
+    }
+    const timer = window.setTimeout(prepare, 160);
+    return () => window.clearTimeout(timer);
+  }, [catalog.hasLoaded]);
+  useLayoutEffect(() => { finishSavedReturn(pocket?.record_id); }, [pocket]);
+  const recent = useMemo(() => {
+    const kept = desk.desk.items.map(ref => catalog.files.find(file => matchesMaterial(ref, file))).filter((file): file is Material => !!file);
+    return kept;
+  }, [catalog.files, desk.desk.items]);
+  useEffect(() => { if (catalog.hasLoaded && recent.length) rearmEmptyMaterialGreeting(); }, [catalog.hasLoaded, recent.length]);
+  const [fallback, setFallback] = useState<number | null>(null);
+  const selected = recent.find(file => desk.desk.selected && matchesMaterial(desk.desk.selected, file)) ?? recent.find(file => file.id === fallback) ?? recent[0];
+  const index = Math.max(0, recent.findIndex(file => file.id === selected?.id));
+  const selectedId = selected?.id, selectedHash = selected?.content_hash;
+  const segment = selected ? readingPosition(selected) : null;
+  const quoteKey = selected ? `${selectedId}:${selectedHash}:${segment}` : '';
+  useEffect(() => {
+    if (selectedId === undefined || !selectedHash || segment === null) return;
+    let active = true;
+    void quoteCache.fetch(quoteKey, () => invoke<string | null>('reading_material_preview', {
+      fileId: selectedId, contentHash: selectedHash, segment,
+    })).then(quote => {
+      if (active && quote !== null) setQuotes(previous => ({ ...previous, [quoteKey]: quote }));
+    }).catch(() => {});
+    return () => { active = false; };
+  }, [quoteKey, selectedId, selectedHash, segment]);
+  useLayoutEffect(() => {
+    if (catalog.hasLoaded && (!selectedId || segment === null || quotes[quoteKey])) finishReadingReturn('desk');
+  }, [catalog.hasLoaded, selectedId, segment, quotes, quoteKey]);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  useEffect(() => {
+    if (params.get('view') === 'library' && !params.has('tag')) setGroups(true);
+  }, [params]);
+  const turn = (step: number) => {
+    const next = recent[index + step];
+    if (!next) return;
+    setFallback(next.id); desk.select(next); setTurning(true); clearTimeout(timer.current);
+    timer.current = setTimeout(() => setTurning(false), 2000);
+    setEditing(null);
+  };
+  const open = (file: Material, node: HTMLElement, origin: 'desk' | 'wall') => {
+    if (origin === 'wall') desk.keepAndOpen(file);
+    captureReadingEntrance(file, node, origin);
+    navigate(`/files/${file.id}`, { state: { ...visitState(location), readingOrigin: origin === 'wall' ? 'library' : 'desk', readingMotion: true } });
+  };
+  const paste = async () => {
+    if (pastePending.current) return;
+    if (useImportStore.getState().running) { useImportStore.getState().show(); return; }
+    const intent=++pasteIntent.current;pastePending.current=true;setPasting(true);
+    try {
+      const text = await readImportClipboard();
+      if(!alive.current||intent!==pasteIntent.current)return;
+      const content = inspectClipboardContent(text);
+      if (content.kind === 'error') { useFeedbackStore.getState().show(t(content.error==='clipboardEmpty'?'approved.clipboardEmpty':`materials.importDialog.${content.error}`),'error',4500,undefined,'top');return; }
+      if(content.kind==='youtube'){
+        useImportStore.getState().showScene();
+        window.dispatchEvent(new CustomEvent('lexicue-import-content',{detail:text}));
+      } else await useImportStore.getState().fromContent(content.kind==='text'?'clipboard':'webpage',content.kind==='text'?content.text:content.url,true);
+    } catch {
+      if(!alive.current||intent!==pasteIntent.current)return;
+      useFeedbackStore.getState().show(t('approved.clipboardUnavailable'),'error',6000,undefined,'top');
+    } finally { if(alive.current&&intent===pasteIntent.current){pastePending.current=false;setPasting(false);} }
+  };
+  useLayoutEffect(() => {
+    const desk = home.current;
+    if (!desk || !isIOSPlatform()) return;
+    // WKWebView can drop the synthesized click while a return snapshot is
+    // compositing. Activate stationary taps on the two live home controls.
+    let tap: { button: HTMLButtonElement; id: number; x: number; y: number; start: number } | null = null;
+    const clearTap = () => { tap = null; };
+    const withinTap = (touch: Touch, start: { x: number; y: number }) =>
+      Math.hypot(touch.clientX - start.x, touch.clientY - start.y) <= 7;
+    const startTap = (event: TouchEvent) => {
+      clearTap();
+      const target = event.target;
+      if (!(target instanceof Element) || event.touches.length !== 1 || event.defaultPrevented) return;
+      const button = target.closest<HTMLButtonElement>('.approved-card-open,.approved-saved-entry');
+      if (!button || button.disabled) return;
+      const touch = event.touches[0];
+      tap = { button, id: touch.identifier, x: touch.clientX, y: touch.clientY, start: performance.now() };
     };
-    const libraryPanel = useRef<HTMLDivElement>(null);
-    const wasLibraryPresent = useRef(libraryPresent);
-    useEffect(() => {
-        const closed = wasLibraryPresent.current && !libraryPresent;
-        wasLibraryPresent.current = libraryPresent;
-        if (!closed || library) return;
-        // Wait until the exit overlay is removed and the dock is visible again.
-        const frame = requestAnimationFrame(() => {
-            const target = libraryReturnTarget();
-            if (target && !target.closest('[inert]')) target.focus({ preventScroll: true });
-        });
-        return () => cancelAnimationFrame(frame);
-    }, [libraryPresent, library]);
-    useLayoutEffect(() => {
-        const panel = libraryPanel.current, anchor = dock.current;
-        const layer = panel?.closest<HTMLElement>('.library-overlay-layer');
-        if (!libraryPresent || !panel || !anchor || !layer) return;
-        const align = () => {
-            // The desktop panel shares the dock's centre and baseline. A phone
-            // sheet is positioned entirely by its visual viewport and safe area.
-            if (mobileSheet) {
-                for (const property of ['padding-left', 'padding-right', 'padding-bottom', '--library-bottom-gap']) {
-                    layer.style.removeProperty(property);
-                }
-                return;
-            }
-            const rect = anchor.getBoundingClientRect();
-            const width = document.documentElement.clientWidth, height = window.innerHeight;
-            const center = Math.max(16, Math.min(width - 16, rect.left + rect.width / 2));
-            layer.style.paddingLeft = `${Math.max(16, 2 * center - width + 16)}px`;
-            layer.style.paddingRight = `${Math.max(16, width - 2 * center + 16)}px`;
-            const gap = rect.bottom > 0 && rect.top < height
-                ? Math.min(Math.max(16, height - rect.bottom), Math.max(16, height - 320)) : 16;
-            layer.style.paddingBottom = `${gap}px`;
-            layer.style.setProperty('--library-bottom-gap', `${gap}px`);
-        };
-        align();
-        const observer = new ResizeObserver(align);
-        observer.observe(anchor);
-        if (anchor.parentElement?.parentElement) observer.observe(anchor.parentElement.parentElement);
-        window.addEventListener('resize', align);
-        return () => { observer.disconnect(); window.removeEventListener('resize', align); };
-    }, [libraryPresent, materials.hasLoaded, materials.error, mobileSheet]);
-    const paper = useRef<HTMLElement>(null);
-    const search = useRef<HTMLInputElement>(null);
-    const scrollTop = useRef(saved.scroll);
-    const focusId = useRef(saved.focusId);
-    const motion = useRef<{node:HTMLElement;animation:Animation} | null>(null);
-    const lastArchive = useRef(-Infinity);
-    const previousLibrary = useRef(library);
-    const restored = useRef(false);
-    const filtersRestored = useRef(false);
-    const cancelMotion = () => { motion.current?.animation.cancel(); motion.current?.node.remove(); motion.current = null; };
-    useEffect(() => {
-        const reduced = matchMedia('(prefers-reduced-motion: reduce)');
-        window.addEventListener('resize', cancelMotion); reduced.addEventListener('change', cancelMotion);
-        return () => { cancelMotion(); window.removeEventListener('resize', cancelMotion); reduced.removeEventListener('change', cancelMotion); useReadingDeskStore.getState().clearNotice(); };
-    }, []);
-    useEffect(() => { void useMaterialStore.getState().load(); void loadTags(); }, [materials.revision, loadTags]);
-    // Session filters are restored once; subsequent filtering uses the full local metadata list.
-    useLayoutEffect(() => {
-        if (!filtersRestored.current && library) {
-            filtersRestored.current=true;
-            if (library) useFileStore.getState().setTagFilter(saved.tagIds, saved.untagged);
-        }
-    }, [library,saved.tagIds,saved.untagged]);
-    useEffect(() => {
-        saveLibraryView({query,page:pageNumber,sort,range,tagsOpen,tagIds:selectedTags,untagged,scroll:scrollTop.current,focusId:focusId.current,expandedId:expanded});
-    }, [query,pageNumber,sort,range,tagsOpen,selectedTags,untagged,expanded]);
-    useEffect(() => backNavigation.setPage(() => {
-        if (!library) return false;
-        setParams({}, {replace:true}); return true;
-    }, 1), [library,setParams]);
-    useLayoutEffect(() => {
-        if (materials.loading) { if (!materials.hasLoaded) restored.current=false; return; }
-        if (materials.error) { restored.current=false; return; }
-        if (previousLibrary.current !== library) {
-            cancelMotion(); restored.current = false; useReadingDeskStore.getState().clearNotice();
-            previousLibrary.current = library;
-        }
-        if (!restored.current) {
-            if (library) {
-                if (!scroll.current) return;
-                if (scroll.current) scroll.current.scrollTop = scrollTop.current;
-                const target = focusId.current && location.state?.restoreLibrary ? scroll.current?.querySelector<HTMLButtonElement>(`[data-open="${focusId.current}"]`) : null;
-                (target ?? (isMobilePlatform() || innerWidth < 768 ? libraryPanel.current : search.current))?.focus({preventScroll:true});
-            } else if (location.state?.restoreLibrary) dock.current?.focus({preventScroll:true});
-            restored.current = true;
-        }
-    }, [library, materials.loading, materials.hasLoaded, materials.error, location.state, libraryPresent]);
-    useEffect(() => {
-        if (menu === null || library) return;
-        const close = (event: PointerEvent) => { if (event.target instanceof Element && !event.target.closest('.desk-card-menu')) setMenu(null); };
-        document.addEventListener('pointerdown', close);
-        const unregister = backNavigation.register(() => { setMenu(null); return true; });
-        return () => { document.removeEventListener('pointerdown', close); unregister(); };
-    }, [menu,library]);
-    useLayoutEffect(() => {
-        if (menu === null || !library) return;
-        const viewport = scroll.current;
-        const popup = viewport?.querySelector<HTMLElement>(`[data-material="${menu}"] .material-actions`);
-        if (!viewport || !popup) return;
-        const bounds = viewport.getBoundingClientRect(), rect = popup.getBoundingClientRect();
-        if (rect.bottom > bounds.bottom - 8) viewport.scrollTop += rect.bottom - bounds.bottom + 8;
-        else if (rect.top < bounds.top + 8) viewport.scrollTop -= bounds.top + 8 - rect.top;
-    }, [menu, library]);
-    useEffect(() => {
-        if (menu === null || !library) return;
-        return backNavigation.register(() => { setMenu(null); scroll.current?.querySelector<HTMLButtonElement>(`[data-material="${menu}"] .library-menu > button`)?.focus({preventScroll:true}); });
-    }, [menu,library]);
-    const onDesk = useCallback((file: Material) => desk.desk.items.some(ref => matchesMaterial(ref,file)), [desk.desk.items]);
-    const desktop = desk.desk.items.map(ref => materials.files.find(file => matchesMaterial(ref,file))).filter((file): file is Material => !!file);
-    const main = desktop.find(file => desk.desk.selected && matchesMaterial(desk.desk.selected,file)) ?? desktop[0];
-    const [resumes, setResumes] = useState<Record<string,string>>({});
-    const [contexts,setContexts]=useState<Record<string,string>>({});
-    const resumePosition = main ? readingPosition(main) : null;
-    const resumeKey = main ? `${main.id}:${main.content_hash}:${resumePosition}` : '';
-    const resumeId = main?.id, resumeHash = main?.content_hash, resumeFallback = main?.preview;
-    useEffect(() => {
-        if (!resumeId || resumePosition === null || !resumeHash) return;
-        let active = true;
-        void invoke<ReadingMaterial>('open_reading_material', {fileId:resumeId}).then(data => {
-            if (active && data.material.content_hash === resumeHash) {
-                const index=data.segments.findIndex(segment=>segment.index_num===resumePosition);
-                setResumes(previous => ({...previous,[resumeKey]:data.segments[index]?.en_text??resumeFallback??''}));
-                setContexts(previous=>({...previous,[resumeKey]:data.segments[index+1]?.en_text??''}));
-            }
-        }).catch(() => {});
-        return () => { active = false; };
-    }, [resumeKey, resumeId, resumeHash, resumeFallback, resumePosition]);
-    const cardIndex = Math.max(0, desktop.findIndex(file => file.id === main?.id));
-    const cardTurn = useSoftCardTurn(!library ? main?.id : null, cardIndex, desktop.length, (step: number) => {
-        const target = desktop[cardIndex + step];
-        if (target) useReadingDeskStore.getState().select(target);
-        setMenu(null);
-    });
-    const shelfFit=useBookmarkDesk(cardTurn.stackRef,shelf,main?.id,Math.max(0,materials.files.length-1));
-    const source = useCallback((file: Material) => file.document?.origin?.kind === 'webpage' ? file.document.origin.final_url : file.source?.title ?? (file.document?.origin?.kind === 'clipboard' ? t('materials.importDialog.clipboardText') : t('readingDesk.localSource')), [t]);
-    const format = useCallback((file: Material) => {
-        const kind = file.source_kind ?? (file.source ? 'youtube' : file.document?.origin?.kind === 'webpage' ? 'webpage' : file.document?.origin?.kind === 'clipboard' ? 'clipboard' : 'file');
-        if (kind === 'youtube') return 'YouTube';
-        if (kind === 'webpage') return t('materials.importDialog.webpage');
-        if (kind === 'clipboard') return t('materials.importDialog.clipboardText');
-        return file.original_format?.toUpperCase() ?? file.document?.original_format?.toUpperCase() ?? t('readingDesk.localSource');
-    }, [t]);
-    const term = query.trim().toLocaleLowerCase();
-    const matches = useMemo(() => materials.files.filter(file => (range === 'all' || !onDesk(file)) &&
-        (!untagged || !file.tags.length) && selectedTags.every(id => file.tags.some(tag => tag.id === id)) &&
-        (!term || `${file.name} ${source(file)} ${format(file)}`.toLocaleLowerCase().includes(term))).sort((a,b) => sort === 'title' ? a.name.localeCompare(b.name, 'en', {numeric:true, sensitivity:'base'}) || b.id-a.id : sort === 'oldest' ? a.imported_at-b.imported_at || a.id-b.id : b.imported_at-a.imported_at || b.id-a.id), [materials.files, range, onDesk, untagged, selectedTags, term, source, format, sort]);
-    const pageWindow = collectionPage(matches.length, pageNumber, LIBRARY_PAGE_SIZE);
-    useEffect(() => { if (materials.hasLoaded && !materials.loading && pageWindow.page !== pageNumber) { setPageNumber(pageWindow.page); scrollTop.current=0; if(scroll.current) scroll.current.scrollTop=0; } }, [pageWindow.page,pageNumber,materials.hasLoaded,materials.loading]);
-    const changePage = (next: number) => { if(next===pageWindow.page)return; setPageNumber(next); setExpanded(null); setMenu(null); scrollTop.current=0; if(scroll.current)scroll.current.scrollTop=0; };
-    const remember = () => saveLibraryView({query,page:pageNumber,sort,range,tagsOpen,tagIds:selectedTags,untagged,scroll:scrollTop.current,focusId:focusId.current,expandedId:expanded});
-    const closeMenu = (id: number) => {
-        setMenu(null);
-        const target = scroll.current?.querySelector<HTMLButtonElement>(`[data-material="${id}"] .library-menu > button`)
-            ?? paper.current?.querySelector<HTMLButtonElement>('.desk-card-menu > button');
-        target?.focus({preventScroll:true});
+    const moveTap = (event: TouchEvent) => {
+      if (tap && (event.touches.length !== 1 || !withinTap(event.touches[0], tap))) clearTap();
     };
-    const remove = async (file: Material) => {
-        if (deletionPending.current || deleting[file.id]) return;
-        deletionPending.current = true;
-        closeMenu(file.id);
-        try {
-            if (await useFileStore.getState().deleteFile(file.id, file.name)) {
-                cancelMotion();
-                setExpanded(null);
-                // The store reloads and reconciles only after the delete job commits.
-                requestAnimationFrame(() => {
-                    const target = library ? search.current : paper.current?.querySelector<HTMLButtonElement>('.desk-card-menu > button') ?? libraryReturnTarget();
-                    target?.focus({preventScroll:true});
-                });
-            }
-        } finally { deletionPending.current = false; }
+    const endTap = (event: TouchEvent) => {
+      const start = tap;
+      clearTap();
+      if (!start || event.touches.length || event.defaultPrevented || !event.cancelable
+          || isTrashDragging() || performance.now() - start.start >= 500) return;
+      const touch = event.changedTouches[0];
+      if (touch?.identifier !== start.id || !withinTap(touch, start)
+          || !start.button.contains(document.elementFromPoint(touch.clientX, touch.clientY))) return;
+      event.preventDefault();
+      start.button.click();
     };
-    const open = (file: Material, origin: 'desk' | 'library') => {
-        cancelMotion();
-        if (origin === 'library') { focusId.current=file.id; scrollTop.current=scroll.current?.scrollTop ?? 0; remember(); }
-        desk.clearNotice(); navigate(`/files/${file.id}`, {state:{readingOrigin:origin}});
+    desk.addEventListener('touchstart', startTap, { passive: true });
+    desk.addEventListener('touchmove', moveTap, { passive: true });
+    desk.addEventListener('touchcancel', clearTap);
+    desk.addEventListener('touchend', endTap, { passive: false });
+    return () => {
+      desk.removeEventListener('touchstart', startTap);
+      desk.removeEventListener('touchmove', moveTap);
+      desk.removeEventListener('touchcancel', clearTap);
+      desk.removeEventListener('touchend', endTap);
     };
-    const archive = (file: Material) => {
-        // The replacement paper occupies the same position: one double-click must not archive it too.
-        const now=performance.now();
-        if (now-lastArchive.current<300) return;
-        lastArchive.current=now;
-        cancelMotion();
-        const original = paper.current, target = dock.current;
-        if (original && target && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
-            const from = original.getBoundingClientRect(), to = target.getBoundingClientRect();
-            const copy = original.cloneNode(true) as HTMLElement;
-            copy.classList.add('desk-flying'); copy.inert=true; copy.setAttribute('aria-hidden','true');
-            copy.querySelectorAll('[id]').forEach(node=>node.removeAttribute('id'));
-            Object.assign(copy.style,{left:`${from.left}px`,top:`${from.top}px`,width:`${from.width}px`,height:`${from.height}px`});
-            document.body.append(copy);
-            const animation=copy.animate([{transform:'translate(0,0) scale(1)',opacity:1},{transform:`translate(${to.left+32-from.left-from.width/2}px,${to.top+to.height/2-from.top-from.height/2}px) scale(.04) rotate(3deg)`,opacity:0}],{duration:460,easing:'cubic-bezier(.22,.75,.25,1)'});
-            motion.current={node:copy,animation};
-            void animation.finished.catch(()=>{}).finally(()=>{copy.remove();if(motion.current?.node===copy)motion.current=null;});
-        }
-        desk.archive(file);
-        requestAnimationFrame(()=> (paper.current?.querySelector<HTMLButtonElement>('.desk-archive') ?? dock.current)?.focus({preventScroll:true}));
-    };
-    const showLibrary = () => { cancelMotion(); setParams({view:'library'}); };
-    const closeLibrary = () => { remember(); setParams({}, {replace:true}); };
-    useSheetDrag(libraryPanel,mobileSheet && library && libraryPresent,closeLibrary);
-    // Refresh metadata in place so dialog return targets and library controls stay mounted.
-    const ready = materials.hasLoaded || (!materials.loading && !materials.error);
-    const initialLoad = materials.loading && !materials.hasLoaded;
-    const refreshIndicator = materials.loading && materials.hasLoaded &&
-        <span role="status"><BusyRing/><span className="sr-only">{t('common.loading')}</span></span>;
-    const loadError = materials.error && <div className="saved-error" role="alert"><p>{t('materials.loadFailed')}</p><button className="ui-button" onClick={() => void materials.load()}>{t('common.retry')}</button></div>;
-    return <div className="materials-page reading-stage-page" data-has-desk={!!main} data-library-open={library||undefined} data-library-restored={library&&location.state?.restoreLibrary||undefined}><div className="materials-scroll"><div className="materials-paper reading-stage-content">
-        <div className="materials-heading"><h1>{t('materials.title')}</h1>{!libraryPresent && refreshIndicator}</div>
-        {initialLoad && !libraryPresent && <LoadingSkeleton kind="list" label={t('common.loading')}/>}
-        {!libraryPresent && loadError}
-        {ready && <section className="reading-desktop" aria-label={t('readingDesk.desktop')}>
-            {main ? <><div className="desk-stack" ref={cardTurn.stackRef} tabIndex={0} aria-label={t('readingDesk.desktop')}>
-                <div className="desk-card-viewport">{desktop.map((file, index) => {
-                  const active = file.id === main.id;
-                  const position = index - cardIndex;
-                  const key=`${file.id}:${file.content_hash}:${readingPosition(file)}`;
-                  const excerpt=bookmarkExcerpt(resumes[key]??file.preview);
-                  const context=contexts[key]??excerpt.context;
-                  return <article className="desk-paper" data-desk-active={active} data-desk-position={position} aria-hidden={!active || undefined} inert={!active}
-                    style={{transform:deskCardTransform(position), opacity:Math.abs(position)<=1?1:0}}
-                    ref={active ? (node) => { paper.current=node; } : undefined} key={`${file.id}:${file.content_hash}`}>
-                    <div className="desk-paper-top"><span>{format(file)}</span><div className="desk-card-menu"><button className="desk-text-button" aria-label={t('materials.more',{name:file.name})} aria-expanded={menu===file.id} onClick={()=>setMenu(menu===file.id?null:file.id)}><MoreHorizontal size={20}/></button>{menu===file.id && <div className="material-actions"><button className="ui-button desk-archive" onClick={()=>{setMenu(null);archive(file)}} disabled={!!deleting[file.id]}><Archive size={16}/>{t('readingDesk.archive')}</button><button className="ui-button ui-button--danger" disabled={!!deleting[file.id]} onClick={()=>void remove(file)}><Trash2 size={16} aria-hidden="true"/>{t('materials.delete')}</button></div>}</div></div>
-                    <button type="button" className="desk-mobile-summary" aria-label={t('readingDesk.openNamed',{name:file.name})} disabled={!!deleting[file.id]} onClick={()=>open(file,'desk')}>
-                      <span className="desk-mobile-title" lang="en">{bookmarkTitle(file.name)}</span><span className="desk-mobile-preview" lang="en"><span className="desk-mobile-quote-text">{excerpt.quote}</span></span>{context&&context!==excerpt.quote&&<span className="desk-mobile-context" lang="en">{context}</span>}
-                    </button>
-                    <h2 className="desk-desktop-title" lang="en">{file.name}</h2><div className="desk-card-tags">{file.tags.map(tag=><TagBadge key={tag.id} name={tag.name} tone={tag.tone}/>)}<button className="desk-text-button" aria-label={t('tags.edit')} onClick={()=>setEdit(file)}><Pencil size={20} aria-hidden="true"/></button></div>
-                    <div className="desk-paper-bottom"><p lang="en">{resumes[`${file.id}:${file.content_hash}:${readingPosition(file)}`] ?? file.preview}</p><button className="desk-primary" data-testid="desk-continue" disabled={!!deleting[file.id]} onClick={()=>open(file,'desk')}>{t(readingPosition(file)===null?'readingDesk.start':'readingDesk.continueLabel')}</button></div>
-                  </article>;
-                })}</div>
-                {cardIndex>0&&<button type="button" className="desk-swipe-cue desk-swipe-cue-left" data-testid="desk-swipe-prev" aria-label={t('history.previous')} onClick={()=>cardTurn.turn(-1)}><ChevronLeft size={12} strokeWidth={1.75} aria-hidden="true"/></button>}
-                {cardIndex<desktop.length-1&&<button type="button" className="desk-swipe-cue desk-swipe-cue-right" data-testid="desk-swipe-next" aria-label={t('history.next')} onClick={()=>cardTurn.turn(1)}><ChevronRight size={12} strokeWidth={1.75} aria-hidden="true"/></button>}
-              </div><div className="desk-pager"><button className="desk-text-button" aria-label={t('history.previous')} data-testid="desk-prev" disabled={cardIndex===0} onClick={()=>cardTurn.turn(-1)}><ChevronLeft size={20}/></button><span>{cardIndex+1} / {desktop.length}</span><button className="desk-text-button" aria-label={t('history.next')} data-testid="desk-next" disabled={cardIndex>=desktop.length-1} onClick={()=>cardTurn.turn(1)}><ChevronRight size={20}/></button></div>
-            </> : <div className="desk-empty"><span className="desk-empty-symbol" aria-hidden="true">{materials.files.length?<Check size={24}/>:<FileText size={26}/>}</span><h2>{t(materials.files.length?'readingDesk.clear':'readingDesk.noMaterials')}</h2><p>{t(materials.files.length?'readingDesk.clearHint':'readingDesk.importHint')}</p><button ref={emptyImport} data-guide={!materials.files.length ? "import" : undefined} className="desk-primary" onClick={event=>{if(materials.files.length)showLibrary();else{rememberImportFocus(event.currentTarget);useImportStore.getState().show();}}}>{t(materials.files.length?'readingDesk.library':'materials.import')}</button></div>}
-        </section>}
-        {ready && materials.files.length>0 && <div ref={shelf} className={`desk-dock-wrap${library || libraryPresent ? ' library-dock-hidden' : ''}`}><button className="desk-library-dock" ref={dock} onClick={showLibrary} aria-expanded={library} aria-label={`${t('readingDesk.library')} ${t('readingDesk.materialCount',{count:materials.files.length})}`}><span className="desk-dock-art" aria-hidden="true"><Archive size={20} strokeWidth={1.75}/></span><span><strong>{t('readingDesk.library')}</strong><small>{t('readingDesk.materialCount',{count:materials.files.length})}</small></span><ChevronsUp size={20} strokeWidth={1.75} aria-hidden="true"/></button><div className="desk-shelf-previews" aria-label={t('readingDesk.library')}>
-            {materials.files.slice(0,5).map((file,index)=>{const othersBefore=materials.files.slice(0,index).filter(item=>item.id!==main?.id).length;const visible=file.id!==main?.id&&othersBefore<shelfFit.count;return <div className="desk-shelf-row" key={file.id} data-visible={visible} inert={!visible} aria-hidden={!visible||undefined}><div><button className="desk-shelf-open" disabled={!!deleting[file.id]} onClick={()=>open(file,'desk')} aria-label={t('readingDesk.openNamed',{name:file.name})}><span><strong lang="en">{bookmarkTitle(file.name)}</strong><small lang="en">{file.preview}</small></span><BookOpen size={20} strokeWidth={1.75} aria-hidden="true"/></button></div></div>;})}
-        </div><DeskFeedback beforeUndo={()=>{cancelMotion();lastArchive.current=-Infinity;}}/></div>}
-        {ready && !materials.files.length && <DeskFeedback/>}
+  }, []);
+  const wallTag = params.get('tag');
+  const wallFiles = wallTag === 'all' ? catalog.files : wallTag === 'untagged' ? catalog.files.filter(file => !file.tags.length) : catalog.files.filter(file => file.tags.some(tag => String(tag.id) === wallTag));
+  const tagName = wallTag === 'all' ? libraryNames.all : wallTag === 'untagged' ? libraryNames.untagged : tags.find(tag => String(tag.id) === wallTag)?.name ?? t('readingDesk.library');
+  useEffect(() => backNavigation.setPage(() => {
+    if (wallTag !== null) { setParams({ view: 'library' }); setGroups(true); return true; }
+    return false;
+  }, 2), [wallTag, setParams]);
+  return <div className="approved-desk" ref={home} data-library-open={groups || undefined}>
+    {wallTag !== null ? <PosterWall files={wallFiles} title={tagName} identity={wallTag} onBack={() => { setParams({ view: 'library' }); setGroups(true); }} onOpen={(file, node) => open(file, node, 'wall')}/> : <>
+      <header className="approved-home-header">
+        <button className="approved-brand" aria-label={t(theme === 'midnight' ? 'approved.light' : 'approved.dark')} aria-pressed={theme === 'midnight'} onClick={() => setTheme(current => current === 'midnight' ? 'sage' : 'midnight')}><span className="approved-wordmark" aria-hidden="true"/></button>
+        <div><button data-guide="import" className="approved-icon clipboard-import" aria-label={t(importing ? 'materials.importRunning' : 'materials.importDialog.pasteLink')} aria-busy={pasting || importing} disabled={pasting} onClick={() => void paste()}>{pasting || importing ? <BusyRing/> : <ClipboardImportIcon/>}</button>
+          <button className="approved-icon home-file-picker import-tray" aria-label={t('materials.choose')} aria-busy={picking || importing} disabled={picking || importing || pasting} onClick={() => void useImportStore.getState().choose()}>{picking ? <BusyRing/> : <FileImportIcon/>}</button>
+          <button className="approved-icon home-settings-action" onPointerDown={settingsRoute.preload} onFocus={settingsRoute.preload} aria-label={t('sidebar.settings')} onClick={() => navigate('/settings', { state: visitState(location) })}><Settings size={23}/></button>
+        </div>
+      </header>
+      {catalog.loading && !catalog.hasLoaded ? <div className="approved-desk-status" role="status"><BusyRing/>{t('approved.loadingLibrary')}</div> : catalog.error ? <div className="approved-desk-status" role="alert"><p>{t('materials.loadFailed')}</p><button className="ui-button" onClick={() => void catalog.load()}>{t('common.retry')}</button></div> : selected ? <div ref={card} className="approved-deck" tabIndex={0} aria-label={t('readingDesk.desktop')} data-turning={turning || undefined}
+        onKeyDown={event => { if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); turn(event.key === 'ArrowRight' ? 1 : -1); } }}
+        onPointerDown={event => { if (event.button === 0 && !(event.target as Element).closest('.approved-tag-edit,.home-card-tags')) { suppress.current=0; gesture.current = { x: event.clientX, y: event.clientY, locked: false }; } }}
+        onPointerMove={event => { if(isTrashDragging()){gesture.current=null;return;}const g = gesture.current; if (!g) return; const dx = event.clientX - g.x, dy = event.clientY - g.y; if (Math.abs(dy) > Math.abs(dx) * 1.25 && !g.locked) gesture.current = null; else if (Math.abs(dx) > 8&&!g.locked) { g.locked = true; setTurning(true); clearTimeout(timer.current); } }}
+        onPointerUp={event => { const g = gesture.current; gesture.current = null; if (!g) return; const dx = event.clientX - g.x, dy = event.clientY - g.y; if(g.locked)suppress.current=performance.now()+350; if (Math.abs(dx) > 34 && Math.abs(dx) > Math.abs(dy) * 1.25) { turn(dx < 0 ? 1 : -1); suppress.current = performance.now() + 350; } else if(g.locked)timer.current=setTimeout(()=>setTurning(false),2000); }} onPointerCancel={() => { if(gesture.current?.locked)timer.current=setTimeout(()=>setTurning(false),2000);gesture.current = null; }}>
+        {editing?.id===selected.id&&<HomeCardTags file={editing} onClose={() => { setEditing(null); card.current?.querySelector<HTMLElement>('[data-desk-active=true] .approved-tag-edit')?.focus({preventScroll:true}); }}/ >}
+        {recent.map((file, i) => <TrashMaterial key={`${file.id}:${file.content_hash}`} file={file} enabled={i===index}><article className="approved-card" key={`${file.id}:${file.content_hash}`} data-desk-active={i === index} data-desk-position={i - index} data-motion-file={file.id} aria-hidden={Math.abs(i - index) > 1 || undefined} inert={Math.abs(i - index) > 1}>
+          <button className="approved-card-open" onPointerDown={readingRoute.preload} onFocus={readingRoute.preload} data-testid={i === index ? 'desk-continue' : undefined} aria-label={t('readingDesk.openNamed', { name: file.name })} onClick={event => {
+            if (performance.now() < suppress.current) return;
+            if (i !== index) { turn(i - index); return; }
+            cancelSavedFlight();
+            open(file, event.currentTarget.closest('article')!, 'desk');
+          }}><MaterialCover src={materialCover(file)} identity={file.content_hash} className="approved-card-cover"/></button><button className="approved-card-category approved-tag-edit material-floating-tag" data-no-trash disabled={i !== index} aria-label={t('tags.edit')} aria-expanded={editing?.id===file.id} onClick={() => setEditing(current=>current?.id===file.id?null:file)}>{file.tags[0]?.name ?? libraryNames.untagged}</button><div className="approved-card-copy"><strong className="approved-card-title" lang="en">{bookmarkTitle(file.name)}</strong><span className="approved-card-quote" lang="en">{readingMotionExcerpt(file) ?? quotes[`${file.id}:${file.content_hash}:${readingPosition(file)}`] ?? file.preview}</span></div>
+        </article></TrashMaterial>)}
+        <div className="approved-dots" data-visible={turning} aria-label={`${index + 1} / ${recent.length}`}>{recent.map((file, i) => <i key={file.id} data-current={i === index}/>)}</div>
+        <button className="approved-edge approved-edge-prev" aria-label={t('history.previous')} disabled={index === 0} onClick={() => turn(-1)}><ChevronLeft size={18}/></button><button className="approved-edge approved-edge-next" aria-label={t('history.next')} disabled={index === recent.length - 1} onClick={() => turn(1)}><ChevronRight size={18}/></button>
+      </div> : <EmptyMaterialGreeting/>}
+      <footer className="approved-home-footer"><button ref={libraryButton} className="approved-library-entry" aria-label={t('readingDesk.library')} aria-expanded={groups} onClick={() => { setGroups(true); setParams({ view: 'library' }); }}><span className="approved-stock" data-count={Math.min(catalog.files.length,3)} aria-hidden="true">{(catalog.files.length ? catalog.files.slice(0, 3) : [null]).map((file, i) => <MaterialCover key={i} src={file ? materialCover(file) : '/design/empty-material/waiting.png'} identity={file?.content_hash ?? String(i)}/>)}</span></button>
+        <button className="approved-saved-entry" onPointerDown={savedRoute.preload} onFocus={savedRoute.preload} aria-label={t('savedRecords.title')} onClick={event => {
+          cancelReadingReturn();
+          const open=()=>navigate('/saved',{state:{...visitState(location),pocketRecordId:pocket?.record_id}});
+          if(captureSavedEntrance(pocket?.record_id,event.currentTarget.querySelector<HTMLElement>('.approved-pocket-sheet')))open();else dissolvePage(open);
+        }}><span className="approved-word-pocket" aria-hidden="true"><i/><SavedPocketPreview record={pocket}/><i/></span></button>
+      </footer>
+    </>}
+    {groups && !importOpen && wallTag === null && <TagRail files={catalog.files} tags={tags} returnFocus={() => libraryButton.current} onClose={() => { setGroups(false); setParams({}); }} onSelect={tag => { lastLibraryTag = tag; setGroups(false); setParams({ view: 'library', tag }); }}/ >}
+  </div>;
+}
+function TagRail({ files, tags, returnFocus, onClose, onSelect }: { files: Material[]; tags: Material['tags']; returnFocus: () => HTMLElement | null; onClose: () => void; onSelect: (id: string) => void }) {
+  const { t } = useTranslation();
+  const [editingId,setEditingId] = useState<string|null>(null);
+  const libraryNames = useLibraryNames();
+  const renameDefault = (key: LibraryNameKey, name: string) => {
+    const normalized = name.trim().normalize('NFC').toLowerCase();
+    const other = key === 'all' ? libraryNames.untagged : libraryNames.all;
+    if (normalized !== libraryNames[key].toLowerCase() && (tags.some(tag => tag.name.toLowerCase() === normalized) || other.toLowerCase() === normalized)) throw Error('tag name already exists');
+    usePreferencesStore.getState().setLibraryName(key, name);
+  };
+  const panel = useRef<HTMLDivElement>(null), rail = useRef<HTMLDivElement>(null), flight = useRef<ReturnType<typeof playTagFlight> | null>(null), closing = useRef(false), mounted = useRef(true);
+  const items = [{ id: 'all', name: libraryNames.all, files }, ...tags.map(tag => ({ id: String(tag.id), name: tag.name, files: files.filter(file => file.tags.some(value => value.id === tag.id)) })), ...files.some(file => !file.tags.length) ? [{ id: 'untagged', name: libraryNames.untagged, files: files.filter(file => !file.tags.length) }] : []];
+  useLayoutEffect(() => {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const target = panel.current?.querySelector<HTMLElement>(`[data-tag-id="${lastLibraryTag}"]`);
+    if (target && rail.current) { rail.current.scrollLeft = target.offsetLeft - (rail.current.clientWidth - target.offsetWidth) / 2; target.focus({ preventScroll: true }); }
+    mounted.current=true;
+    const anchor=returnFocus()?.querySelector<HTMLElement>('.approved-stock img:last-child')??returnFocus();
+    flight.current=playTagFlight(panel.current,anchor);
+    return () => { mounted.current=false;flight.current?.dispose(); };
+  }, []);
+  const close = async () => {
+    if(panel.current?.querySelector('.approved-tag-name-editor[aria-busy="true"]'))return false;
+    if(editingId!==null){setEditingId(null);return false;}
+    if(closing.current)return;closing.current=true;flight.current?.dispose();
+    const anchor=returnFocus()?.querySelector<HTMLElement>('.approved-stock img:last-child')??returnFocus();
+    const next=flight.current=playTagFlight(panel.current,anchor,true);
+    await Promise.allSettled(next.jobs.map(job=>job.finished));
+    if(mounted.current)onClose();
+  };
+  return <Overlay label={t('readingDesk.library')} onClose={close} panelRef={panel} returnFocus={returnFocus} className="approved-tag-panel" layerClassName="approved-tag-layer">
+    <button className="approved-icon approved-back approved-rail-back" aria-label={t('common.back')} onClick={() => void close()}><ChevronLeft size={22}/></button>
+    <div ref={rail} className="approved-tag-rail"><div className="approved-tag-track">
+      {items.map(item => {
+        const tag = tags.find(tag => String(tag.id) === item.id);
+        const saving = () => !!panel.current?.querySelector('.approved-tag-name-editor[aria-busy="true"]');
+        const rename = (name: string) => tag
+          ? useFileStore.getState().renameTag(tag.id, name)
+          : renameDefault(item.id as LibraryNameKey, name);
+        return <div key={item.id} className="approved-tag-group" data-tag-id={item.id} tabIndex={-1}>
+          <LibraryCategoryCard tag={tag} disabled={editingId!==null}>
+            <button className="approved-tag-open" aria-label={`${item.name} · ${item.files.length}`} onClick={() => {
+              if (!saving()) onSelect(item.id);
+            }}><LibraryCover files={item.files}/></button>
+            <InlineTagName name={item.name} editing={editingId===item.id} onRename={rename}
+              onEdit={() => { if (!saving()) setEditingId(item.id); }}
+              onFinish={() => setEditingId(current => current === item.id ? null : current)}/>
+          </LibraryCategoryCard>
+        </div>;
+      })}
     </div></div>
-        {libraryPresent && <Overlay panelRef={libraryPanel} returnFocus={libraryReturnTarget} initialFocus={()=>{const target=location.state?.restoreLibrary&&focusId.current?scroll.current?.querySelector<HTMLButtonElement>(`[data-open="${focusId.current}"]`):null;return target??(mobileSheet?libraryPanel.current:null);}} label={t('readingDesk.library')} onClose={closeLibrary} className="library-overlay-panel" layerClassName={`library-overlay-layer${materials.files.length>LIBRARY_PAGE_SIZE ? ' is-large-library' : ''}${mobileSheet ? ' is-mobile-sheet' : ''}${library ? '' : ' is-closing'}${location.state?.restoreLibrary ? ' is-restoring' : ''}`}><div className="library-sheet-grab" aria-hidden="true"><span/></div><div ref={scroll} className="library-overlay-scroll" inert={!library} onScroll={() => { scrollTop.current=scroll.current?.scrollTop ?? 0; remember(); }}><section className="reading-library" aria-label={t('readingDesk.library')}>
-            <DeskFeedback/>
-            <div className="library-heading"><h2>{t('readingDesk.library')}</h2>{refreshIndicator}<div className="library-sort-control"><ArrowDownWideNarrow size={20} aria-hidden="true"/><AppSelect aria-label={t('collection.sort')} value={sort} options={(['newest','oldest','title'] as const).map(value=>({value,label:t(`collection.${value}`)}))} onChange={value=>setSort(value as typeof sort)}/></div><button className="desk-text-button desk-icon-button" onClick={closeLibrary} aria-label={t('readingDesk.backDesk')} title={t('readingDesk.backDesk')}><X size={20} aria-hidden="true"/></button></div>
-            {initialLoad && <LoadingSkeleton kind="list" label={t('common.loading')}/>}
-            {loadError}
-            {ready && <><div className="library-browse-controls"><div className="library-tools"><div className="library-ranges" role="group" aria-label={t('readingDesk.range')}>
-                {(['all','stored'] as const).map(value=><button key={value} className="desk-text-button" aria-pressed={range===value} onClick={()=>{setRange(value);scrollTop.current=0;}}>{t(value==='all'?'readingDesk.all':'readingDesk.stored')} <span>{value==='all'?materials.files.length:materials.files.filter(file=>!onDesk(file)).length}</span></button>)}
-            </div><label className="library-search"><Search size={17} aria-hidden="true"/><input ref={search} type="search" aria-label={t('readingDesk.search')} placeholder={t('readingDesk.search')} value={query} onChange={event=>{setQuery(event.target.value);scrollTop.current=0;}}/></label><button className="desk-text-button library-tag-toggle" aria-label={t('materials.filterTags')} aria-expanded={tagsOpen} onClick={()=>setTagsOpen(!tagsOpen)}><Tags size={18} aria-hidden="true"/></button></div>
-            {tagsOpen && <TagFilterBar onManage={()=>setManager(true)}/>}
-            <div className="library-page-row"><CollectionPager label={t('readingDesk.library')} total={matches.length} page={pageWindow.page} size={LIBRARY_PAGE_SIZE} onChange={changePage}/></div></div>
-            <MotionChange className={menu !== null ? 'library-menu-open' : ''} changeKey={`${pageWindow.page}:${sort}:${query}:${range}:${selectedTags.join(',')}:${untagged}:${matches.slice(pageWindow.offset, pageWindow.offset + LIBRARY_PAGE_SIZE).map(file => file.id).join(',')}`}><div className={`library-list${menu !== null ? ' has-open-menu' : ''}`}>{matches.slice(pageWindow.offset, pageWindow.offset + LIBRARY_PAGE_SIZE).map(file=><article className="library-row" key={file.id} data-material={file.id} data-menu-open={menu===file.id}>
-                <div className="library-copy"><button className="library-preview-toggle" aria-expanded={expanded===file.id} onClick={()=>setExpanded(expanded===file.id?null:file.id)}><h3>{file.name}</h3></button>{file.tags.length>0 && <div className="material-tags">{file.tags.map(tag=><TagBadge key={tag.id} name={tag.name} tone={tag.tone}/>)}</div>}<div className="library-preview" data-open={expanded===file.id} inert={expanded!==file.id} aria-hidden={expanded!==file.id}><div><p lang="en">{file.preview}</p></div></div></div>
-                <button className="desk-text-button desk-icon-button library-open" title={t('readingDesk.openNamed',{name:file.name})} data-open={file.id} aria-label={t('readingDesk.openNamed',{name:file.name})} disabled={!!deleting[file.id]} onClick={()=>open(file,'library')}><BookOpen size={20} aria-hidden="true"/></button>
-                <div className="library-menu"><button className="desk-text-button" aria-label={t('materials.more',{name:file.name})} aria-expanded={menu===file.id} onClick={()=>setMenu(menu===file.id?null:file.id)}><MoreHorizontal size={19} aria-hidden="true"/></button>{menu===file.id && <div className="material-actions"><button className="ui-button" onClick={()=>{closeMenu(file.id);setEdit(file);}}><Tags size={16} aria-hidden="true"/>{t('tags.edit')}</button><button className="ui-button" onClick={()=>{closeMenu(file.id);if(onDesk(file)) desk.archive(file); else desk.keep(file);}}><Archive size={16} aria-hidden="true"/>{t(onDesk(file) ? 'readingDesk.archive' : 'readingDesk.keep')}</button><button className="ui-button ui-button--danger" disabled={!!deleting[file.id]} onClick={()=>void remove(file)}><Trash2 size={16} aria-hidden="true"/>{t('materials.delete')}</button></div>}</div>
-                {deleting[file.id] && <p role="status">{t('fileStore.deleting')}</p>}
-            </article>)}</div></MotionChange>
-            {!matches.length && <div className="library-no-results" role="status"><p>{t(materials.files.length?'materials.noMatches':'materials.empty')}</p>{materials.files.length > 0 ? <button className="ui-button" onClick={()=>{setQuery('');setRange('all');useFileStore.getState().setTagFilter([],false);}}>{t('readingDesk.resetFilters')}</button> : <button className="desk-primary" onClick={()=>{closeLibrary();useImportStore.getState().show();}}>{t('materials.import')}</button>}</div>}
-        </>}</section></div></Overlay>}
-        {manager && <TagManager onClose={()=>{setManager(false);materials.changed();}}/>}{edit && <TagEditDialog file={edit} onClose={()=>{setEdit(null);materials.changed();}}/>}
-    </div>;
+  </Overlay>;
+}
+
+/** The normal card remains the only navigation control; the wrapper owns hold/drag. */
+function TrashMaterial({file,enabled,children}:{file:Material;enabled:boolean;children:React.ReactNode}) {
+ const ref=useRef<HTMLDivElement>(null),deleting=useFileStore(s=>!!s.deletingFiles[file.id]);
+ useTrashDrag(ref,{id:`material:${file.id}`,label:file.name,disabled:!enabled||deleting,remove:()=>useFileStore.getState().deleteFile(file.id,file.name,'trash-drop')});
+ return <div ref={ref} className="approved-trash-material">{children}</div>;
 }

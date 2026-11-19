@@ -1,16 +1,13 @@
-import { ActivityTrack } from './LoadingFeedback';
+import { ActivityTrack, RouteLoading } from './LoadingFeedback';
 import { normalizeNavigationPath } from './NavigationItems';
 import { backNavigation } from '../lib/backNavigation';
-import { useEffect, useRef, useLayoutEffect } from 'react';
-import AppFirstUseGuide from './AppFirstUseGuide';
-import WorkspaceHeader from './WorkspaceHeader';
+import { Suspense, useEffect, useRef, useLayoutEffect } from 'react';
+import MobileReadingTools from './MobileReadingTools';
 import ImportPanel from './ImportPanel';
 import useMaterialDrop from './useMaterialDrop';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import Sidebar from './Sidebar';
-import MobileNav from './MobileNav';
 import ConfirmationHost from './ConfirmationHost';
 import ToastHost from './ToastHost';
 import { useDictionaryStore } from '../stores/dictionaryStore';
@@ -22,7 +19,6 @@ import { listen } from '@tauri-apps/api/event';
 import { isTauri } from '@tauri-apps/api/core';
 import { invalidateCaches } from '../lib/cacheInvalidation';
 import { prepareSpeechVoices } from '../lib/tts';
-import { useOnboardingStore } from '../stores/onboardingStore';
 import { readingReturnPath, retainImportedReading } from '../lib/readingEntry';
 import { DESK_KEY } from '../lib/readingDesk';
 import { useReadingDeskStore } from '../stores/readingDeskStore';
@@ -89,7 +85,7 @@ export default function Layout() {
     }, []);
     useEffect(() => { retainImportedReading(routeState?.importReadingToken); }, [rawPathname, routeState]);
     useMaterialDrop();
-    useEffect(()=>{const restore=()=>useImportStore.getState().show();window.addEventListener('lexicue-return-import',restore);return()=>window.removeEventListener('lexicue-return-import',restore);},[]);
+    useEffect(()=>{const restore=()=>{const state=useImportStore.getState();if(state.phase==='source')void state.choose();else state.show();};window.addEventListener('lexicue-return-import',restore);return()=>window.removeEventListener('lexicue-return-import',restore);},[]);
     useEffect(() => { document.body.classList.add('lexicue-b'); return () => document.body.classList.remove('lexicue-b'); }, []);
     const panels = useWorkspaceStore(state => state.panels);
     const stageRef = useRef<HTMLDivElement>(null);
@@ -140,7 +136,7 @@ export default function Layout() {
         };
     }, [pathname, routeState, navigate]);
     useEffect(() => {
-        const refresh = () => { useMaterialStore.getState().changed(); void useMaterialStore.getState().load(); };
+        const refresh = () => { useMaterialStore.getState().changed(); void useMaterialStore.getState().ensure(); };
         const external = (event: StorageEvent) => { if (event.key === DESK_KEY) useReadingDeskStore.getState().acceptExternal(event.newValue); };
         window.addEventListener('lexicue-sync-applied', refresh);
         window.addEventListener('storage', external);
@@ -150,8 +146,6 @@ export default function Layout() {
     const initializeYoutube = useYoutubeStore((state) => state.initialize);
     const checkUpdate = useUpdateStore((state) => state.check);
     const showFeedback = useFeedbackStore((state) => state.show);
-    const persistError = useOnboardingStore(state => state.persistError);
-    useEffect(() => { if (persistError) showFeedback(t('onboarding.rememberFailed'), 'error'); }, [persistError, showFeedback, t]);
     const startupChecked = useRef(false);
     useEffect(() => {
         prepareSpeechVoices();
@@ -188,7 +182,7 @@ export default function Layout() {
             void subscription.then(stop => stop()).catch(() => {});
         };
     }, []);
-    return (<div className="app-layout b-shell" data-context-open={panels.length > 0}
+    return (<div className="app-layout b-shell figma-shell" data-approved-page={pathname.startsWith('/files/') || pathname === '/example' ? 'reader' : pathname.slice(1)} data-context-open={panels.length > 0}
         onPointerDownCapture={event => {
             const link = event.target instanceof Element ? event.target.closest('a[href]') : null;
             linkPress.current = link && event.isPrimary && event.button === 0
@@ -215,18 +209,15 @@ export default function Layout() {
             // Leave text selection and incoming material file drops alone.
             if (event.target instanceof Element && event.target.closest('a[href]')) event.preventDefault();
         }}>
-      <WorkspaceHeader />
-      <Sidebar />
       <main className="app-main b-main">
         <div className="app-page workspace-stage" ref={stageRef}>
-          <PageTransition pageKey={pathname === '/settings' ? pathname + search : pathname}><Outlet /></PageTransition>
+          <PageTransition pageKey={pathname === '/settings' ? pathname + search : pathname}><Suspense fallback={<RouteLoading/>}><Outlet /></Suspense></PageTransition>
         </div>
-        <MobileNav />
-      </main>
+        </main>
       <ImportPanel />
       <ToastHost />
       <ConfirmationHost />
-      <AppFirstUseGuide />
+      <MobileReadingTools />
       {restoring && <Overlay className="restore-progress" label={t('fileStore.restoring')} onClose={() => false}><p role="status">{t('fileStore.restoring')}</p><ActivityTrack /></Overlay>}
     </div>);
 }

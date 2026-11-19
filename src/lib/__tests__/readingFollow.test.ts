@@ -59,25 +59,25 @@ describe('reading follows the spoken sentence', () => {
 
 describe('temporary manual scrolling', () => {
   afterEach(() => vi.useRealTimers());
-  it('recovers three seconds after the last scroll, including momentum', () => {
+  it('recovers two seconds after the last scroll, including momentum', () => {
     vi.useFakeTimers(); const recover = vi.fn(), idle = createReadingFollowRecovery(recover);
-    idle.intent(); vi.advanceTimersByTime(2400); idle.scroll(); vi.advanceTimersByTime(2999); expect(recover).not.toHaveBeenCalled();
+    idle.intent(); vi.advanceTimersByTime(1400); idle.scroll(); vi.advanceTimersByTime(1999); expect(recover).not.toHaveBeenCalled();
     vi.advanceTimersByTime(1); expect(recover).toHaveBeenCalledTimes(1);
   });
   it('does not count auto-follow scroll frames as new manual activity', () => {
     vi.useFakeTimers(); const recover = vi.fn(), idle = createReadingFollowRecovery(recover);
     idle.scroll(); vi.advanceTimersByTime(4000); expect(recover).not.toHaveBeenCalled();
-    idle.intent(); vi.advanceTimersByTime(3000); idle.scroll(); vi.advanceTimersByTime(4000); expect(recover).toHaveBeenCalledTimes(1);
+    idle.intent(); vi.advanceTimersByTime(2000); idle.scroll(); vi.advanceTimersByTime(4000); expect(recover).toHaveBeenCalledTimes(1);
   });
   it('waits until the scrollbar is released, then counts from its last movement', () => {
     vi.useFakeTimers(); const recover = vi.fn(), idle = createReadingFollowRecovery(recover);
     idle.hold(); vi.advanceTimersByTime(6000); idle.scroll(); expect(recover).not.toHaveBeenCalled();
-    idle.release(); vi.advanceTimersByTime(2000); idle.scroll(); vi.advanceTimersByTime(2999); expect(recover).not.toHaveBeenCalled();
+    idle.release(); vi.advanceTimersByTime(1200); idle.scroll(); vi.advanceTimersByTime(1999); expect(recover).not.toHaveBeenCalled();
     vi.advanceTimersByTime(1); expect(recover).toHaveBeenCalledTimes(1);
   });
   it('cancels recovery on pause, lookup, exit, or unmount', () => {
     vi.useFakeTimers(); const recover = vi.fn(), idle = createReadingFollowRecovery(recover);
-    idle.intent(); vi.advanceTimersByTime(2000); idle.cancel(); idle.scroll(); vi.advanceTimersByTime(5000); expect(recover).not.toHaveBeenCalled();
-    idle.intent(); vi.advanceTimersByTime(3000); expect(recover).toHaveBeenCalledTimes(1);
+    idle.intent(); vi.advanceTimersByTime(1000); idle.cancel(); idle.scroll(); vi.advanceTimersByTime(5000); expect(recover).not.toHaveBeenCalled();
+    idle.intent(); vi.advanceTimersByTime(2000); expect(recover).toHaveBeenCalledTimes(1);
   });
 });

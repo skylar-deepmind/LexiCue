@@ -78,6 +78,8 @@ impl ExampleState {
             let imported = materials::import_material(
                 &conn,
                 &materials::MaterialInput {
+                    tag_ids: Vec::new(),
+                    new_tag_names: Vec::new(),
                     document: None,
                     normalized_kind: None,
                     source: None,
@@ -215,8 +217,15 @@ pub async fn example_recall_contexts(
     let shared = state.inner().clone();
     let owner = window.label().to_string();
     tauri::async_runtime::spawn_blocking(move || {
+        let relations = super::dictionary_packs::relation_catalog_configured();
         shared.with(&owner, &session_id, |c| {
-            super::recall::contexts(c, &expression, offset.unwrap_or(0), limit.unwrap_or(10))
+            super::recall::contexts_with_relations(
+                c,
+                &expression,
+                offset.unwrap_or(0),
+                limit.unwrap_or(10),
+                relations,
+            )
         })
     })
     .await

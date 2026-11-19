@@ -17,6 +17,11 @@ const OPERATION_TIMEOUT: Duration = Duration::from_secs(300);
 const METADATA_TTL: Duration = Duration::from_secs(600);
 const YTDLP_VERSION_TIMEOUT: Duration = Duration::from_secs(3);
 
+pub mod cover;
+#[cfg(any(test, target_os = "ios"))]
+#[path = "youtube_mobile_audio.rs"]
+pub(super) mod mobile_audio;
+
 #[path = "youtube_download.rs"]
 pub mod downloads;
 pub use downloads::{init_subtitle_cache, youtube_prepare_subtitles};
@@ -537,6 +542,14 @@ fn get_cached_metadata(video_id: &str) -> Option<serde_json::Value> {
     Some(entry.json.clone())
 }
 
+pub(super) fn invalidate_metadata(video: &str, session: &downloads::BrowserSession) {
+    if let Some(cache) = METADATA_CACHE.get() {
+        if let Ok(mut entries) = cache.lock() {
+            entries.remove(&format!("{video}:{}", session.cache_identity()));
+        }
+    }
+}
+
 fn cache_metadata(video_id: &str, json: &serde_json::Value) {
     if let Ok(mut guard) = METADATA_CACHE
         .get_or_init(|| Mutex::new(HashMap::new()))
@@ -736,7 +749,16 @@ async fn fetch_http_metadata(video_id: &str) -> Result<serde_json::Value, String
     if json["playabilityStatus"]["status"].as_str() != Some("OK") {
         return Err("access_denied".into());
     }
-    Ok(http_player_metadata(&json))
+    let metadata = http_player_metadata(&json);
+    #[cfg(target_os = "ios")]
+    let metadata = mobile_audio::with_original_track(
+        &client,
+        video_id,
+        json["responseContext"]["visitorData"].as_str(),
+        metadata,
+    )
+    .await;
+    Ok(metadata)
 }
 
 fn http_player_metadata(json: &serde_json::Value) -> serde_json::Value {

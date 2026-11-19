@@ -37,7 +37,8 @@ async fn fresh_public_english_subtitle_audio_pipeline() {
         let dir=tempfile::tempdir().map_err(|e|e.to_string())?;
         let conn=crate::db::init_db(&dir.path().join("probe.db")).map_err(|e|e.to_string())?;
         let cues=youtube::parse_srt(&subtitle.content);
-        let input=materials::MaterialInput{operation_id:"fresh-public-probe".into(),name:"Public English QA.srt".into(),content:subtitle.content.clone(),segments:cues.iter().enumerate().map(|(index,c)|SegmentInput{index:index as i32,en_text:c.text.clone(),zh_text:None,start_time:Some(format!("{:02}:{:02}:{:02}.{:03}", c.start_ms/3_600_000,c.start_ms/60_000%60,c.start_ms/1000%60,c.start_ms%1000)),end_time:Some(format!("{:02}:{:02}:{:02}.{:03}", c.end_ms/3_600_000,c.end_ms/60_000%60,c.end_ms/1000%60,c.end_ms%1000))}).collect(),source:Some(source.clone()),document:None,normalized_kind:None};
+        let input=materials::MaterialInput{
+            tag_ids: Vec::new(), new_tag_names: Vec::new(),operation_id:"fresh-public-probe".into(),name:"Public English QA.srt".into(),content:subtitle.content.clone(),segments:cues.iter().enumerate().map(|(index,c)|SegmentInput{index:index as i32,en_text:c.text.clone(),zh_text:None,start_time:Some(format!("{:02}:{:02}:{:02}.{:03}", c.start_ms/3_600_000,c.start_ms/60_000%60,c.start_ms/1000%60,c.start_ms%1000)),end_time:Some(format!("{:02}:{:02}:{:02}.{:03}", c.end_ms/3_600_000,c.end_ms/60_000%60,c.end_ms/1000%60,c.end_ms%1000))}).collect(),source:Some(source.clone()),document:None,normalized_kind:None};
         let imported=materials::import_material(&conn,&input)?;
         let opened=materials::open(&conn,imported.file_id)?;
         let reference=segment_reference(&conn,opened.segments[0].id)?.ok_or("missing_imported_source")?;

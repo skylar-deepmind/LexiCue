@@ -22,6 +22,7 @@ lan-sync = []
 dictionary-native-qa = []
 
 [build-dependencies]
+rusqlite = { version = "0.31", features = ["bundled"] }
 sha2 = "0.10"
 serde_json = "1.0"
 tauri-build = { version = "2.6.3", features = [] }
@@ -51,6 +52,7 @@ tauri-plugin-log = "2"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "system-proxy"] }
 tokio = { version = "1", features = ["time", "macros", "process", "sync", "fs", "io-util"] }
 base64 = "0.22"
+image = { version = "0.25", default-features = false, features = ["jpeg"] }
 msedge-tts = { path = "vendor/msedge-tts", default-features = false, features = ["tokio-runtime"] }
 symphonia = { version = "=0.5.5", default-features = false, features = ["mp3"] }
 argon2 = "0.5"
@@ -77,6 +79,10 @@ objc2-ui-kit = "0.3"
 objc2 = "0.6"
 objc2-foundation = "0.3"
 objc2-avf-audio = { version = "0.3", default-features = false, features = ["std", "AVSpeechSynthesis", "AVAudioPlayer"] }
+
+# Use Apple's ARM SHA instructions when verifying the pinned dictionary packs.
+[target.'cfg(all(target_arch = "aarch64", target_vendor = "apple"))'.dependencies]
+sha2 = { version = "0.10", features = ["asm"] }
 
 [target.'cfg(target_vendor = "apple")'.dependencies]
 rcgen = { version = "0.13.2", default-features = false, features = ["crypto", "ring"] }

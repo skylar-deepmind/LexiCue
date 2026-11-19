@@ -55,9 +55,9 @@
   -webkit-touch-callout:none;
 }
 @media(hover:hover) and (pointer:fine) {
-  .settings-directory .settings-row:hover { background:var(--interactive-hover); }
+  .settings-directory .settings-row:enabled:hover { background:var(--interactive-hover); }
   .settings-directory .theme-choice:hover { border-color:var(--text-muted); }
-  .settings-directory :is(.settings-row,.theme-choice):active { background:var(--interactive-pressed); }
+  .settings-directory :is(.settings-row,.theme-choice):enabled:active { background:var(--interactive-pressed); }
 }
 @media(hover:none), (pointer:coarse) {
   .settings-directory :is(.settings-row,.theme-choice,.settings-back):active { opacity:.65; transition:opacity 100ms ease 120ms; }
@@ -69,6 +69,11 @@
 .settings-facts > div { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:53px; }
 .settings-facts > div + div { border-top:1px solid var(--border-soft); }
 .settings-facts dd { color:var(--text-muted); font-size:14px; }
+.update-settings-line { display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; }
+.update-settings-line .settings-facts { flex:1 1 190px; margin:0; }
+.update-settings-actions { display:flex; align-items:center; justify-content:flex-end; margin-inline-start:auto; gap:6px; }
+.update-settings progress { width:100%; height:5px; accent-color:var(--accent-700); }
+.update-settings-hint { margin:6px 0 0; color:var(--text-muted); font-size:13px; }
 @media(min-width:768px) {
   .settings-scroll.materials-scroll { padding-inline:24px; }
   .b-shell:has(.page-live .settings-directory) .b-dock-control[aria-current=page] { background:var(--accent-50); }

@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
 let request = 0;
+const same = (before: string[], after: string[]) =>
+  before.length === after.length && before.every((value, index) => value === after[index]);
 export interface RecallCatalog { expressions: string[]; case_exclusions: string[]; literal_only: boolean }
 export const useRecallStore = create<{
   expressions: string[]; caseExclusions: string[]; literalOnly: boolean; revision: number; loaded: boolean; loading: boolean; error: boolean;
@@ -19,7 +21,11 @@ export const useRecallStore = create<{
       const catalog = await invoke<RecallCatalog>('saved_recall_catalog');
       if (!Array.isArray(catalog?.expressions) || !Array.isArray(catalog.case_exclusions) || typeof catalog.literal_only !== 'boolean'
         || !catalog.expressions.every(item => typeof item === 'string') || !catalog.case_exclusions.every(item => typeof item === 'string')) throw Error('recall_catalog_invalid');
-      if (current === request) set(state => ({ expressions: catalog.expressions, caseExclusions: catalog.case_exclusions, literalOnly: catalog.literal_only, revision: state.revision + 1, loaded: true }));
+      if (current === request) set(state => {
+        if (state.loaded && state.literalOnly === catalog.literal_only
+          && same(state.expressions, catalog.expressions) && same(state.caseExclusions, catalog.case_exclusions)) return {};
+        return { expressions: catalog.expressions, caseExclusions: catalog.case_exclusions, literalOnly: catalog.literal_only, revision: state.revision + 1, loaded: true };
+      });
     } catch {
       // Fail closed on stale hints after a removal, without blocking reading.
       if (current === request) set(state => ({ error: true, expressions: [], caseExclusions: [], literalOnly: true, loaded: false, revision: state.revision + 1 }));

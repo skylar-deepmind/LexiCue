@@ -3,7 +3,7 @@ import type { ThemeId } from '../lib/themes';
 
 export interface ThemeContextValue {
   theme: ThemeId;
-  setTheme: (theme: ThemeId) => void;
+  setTheme: (theme: ThemeId | ((current: ThemeId) => ThemeId)) => void;
 }
 
 export const ThemeContext = createContext<ThemeContextValue | null>(null);

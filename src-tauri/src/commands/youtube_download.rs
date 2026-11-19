@@ -175,6 +175,8 @@ impl DownloadError {
             || lower == "browser_session"
         {
             "browser_session"
+        } else if lower == "caption_link_stale" {
+            "caption_link_stale"
         } else if lower == "access_denied"
             || lower.contains("403")
             || lower.contains("not a bot")
@@ -218,7 +220,10 @@ impl DownloadError {
             role: role.into(),
             language: language.into(),
             source,
-            retryable: matches!(code, "network" | "rate_limited" | "download_failed"),
+            retryable: matches!(
+                code,
+                "network" | "rate_limited" | "download_failed" | "caption_link_stale"
+            ),
             cooldown_seconds: if code == "rate_limited" { 60 } else { 0 },
         }
     }
@@ -527,7 +532,8 @@ async fn native_track_at(
     // Listing already extracted signed subtitle URLs. Let yt-dlp download from
     // that snapshot instead of fetching the watch page/player a second time.
     let metadata_key = format!("{video}:{}", session.cache_identity());
-    if let Some(json) = get_cached_metadata(&metadata_key) {
+    let cached_metadata = get_cached_metadata(&metadata_key);
+    if let Some(json) = &cached_metadata {
         let info = dir.0.join("info.json");
         std::fs::write(
             &info,
@@ -543,6 +549,16 @@ async fn native_track_at(
         .await
         .map_err(|message| fail(&message))?;
     if !status.success() {
+        let message = stderr.to_ascii_lowercase();
+        if cached_metadata.is_some()
+            && message.contains("unable to download video subtitles")
+            && ["http error 401", "http error 403", "http error 410"]
+                .iter()
+                .any(|status| message.contains(status))
+            && !message.contains("sign in")
+        {
+            return Err(fail("caption_link_stale"));
+        }
         return Err(fail(&stderr));
     }
     let path = find_subtitle_file(&dir.0, video, &track.lang)
@@ -615,6 +631,9 @@ async fn http_track(
             .await
             .map_err(|_| fail("network"))?;
         if !response.status().is_success() {
+            if matches!(response.status().as_u16(), 401 | 403 | 410) {
+                return Err(fail("caption_link_stale"));
+            }
             return Err(fail(&format!("HTTP error {}", response.status().as_u16())));
         }
         let mut bytes = Vec::new();
@@ -643,7 +662,9 @@ async fn http_track(
 }
 
 fn retry_allowed(error: &DownloadError, attempt: usize, remaining: Duration) -> bool {
-    attempt == 0 && error.code == "network" && remaining > Duration::from_secs(2)
+    attempt == 0
+        && matches!(error.code.as_str(), "network" | "caption_link_stale")
+        && remaining > Duration::from_secs(2)
 }
 
 async fn managed_track(
@@ -719,7 +740,33 @@ async fn managed_track(
                 ) {
                     progress(job, "retrying", role, track, Some(2));
                     tokio::select! { _ = job.cancel_signal() => return Err(DownloadError::from_message(CANCELLED_MESSAGE, role, &track.language, track.source)), _ = tokio::time::sleep(Duration::from_secs(2)) => {} }
+                    invalidate_metadata(video, session);
+                    let fresh = resolve_track(
+                        job,
+                        &format!("https://www.youtube.com/watch?v={video}"),
+                        &TrackSelection {
+                            lang: track.lang.clone(),
+                            is_auto: track.is_auto,
+                        },
+                        session,
+                        role,
+                        deadline,
+                    )
+                    .await?;
+                    if fresh.source != track.source
+                        || fresh.source_language != track.source_language
+                    {
+                        return Err(DownloadError::from_message(
+                            "no subtitles",
+                            role,
+                            &track.language,
+                            track.source,
+                        ));
+                    }
                 } else {
+                    if error.code == "caption_link_stale" {
+                        invalidate_metadata(video, session);
+                    }
                     return Err(error);
                 }
             }

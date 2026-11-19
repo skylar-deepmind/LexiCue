@@ -1,0 +1,10 @@
+{
+  "durationMs": 6160,
+  "frames": 52,
+  "width": 220,
+  "height": 280,
+  "plays": 1,
+  "artwork": "Approved tousled-hair cardigan character, pocket resting hand",
+  "source": "imagegen cels; no optical-flow interpolation",
+  "sha256": "b6b0fc187749d18e4928dfb8a54f8fbcd842b55b5a4aa942fb8bafe12795ea6a"
+}

@@ -342,6 +342,8 @@ fn youtube_input() -> materials::MaterialInput {
     };
     let source = source_media::source_from_subtitles("abcdefghijk",&track,content,&json!({"title":"fixture","duration":8,"formats":[{"vcodec":"none","ext":"m4a","acodec":"mp4a.40.2","format_id":"140","language":"en"}]})).unwrap();
     materials::MaterialInput {
+        tag_ids: Vec::new(),
+        new_tag_names: Vec::new(),
         operation_id: "youtube-v10".into(),
         name: "fixture.srt".into(),
         content: content.into(),

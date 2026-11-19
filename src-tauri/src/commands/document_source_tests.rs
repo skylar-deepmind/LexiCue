@@ -60,6 +60,8 @@ pub(crate) fn input(op: &str, format: &str) -> materials::MaterialInput {
         identity: digest(&format!("{original}\n{format}\n{{\"kind\":\"all\"}}")),
     };
     materials::MaterialInput {
+        tag_ids: Vec::new(),
+        new_tag_names: Vec::new(),
         operation_id: op.into(),
         name: source.display_name.clone(),
         content: content.into(),

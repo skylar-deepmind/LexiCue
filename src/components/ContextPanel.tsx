@@ -4,22 +4,24 @@ import { ChevronDown, Expand, Maximize2, Minimize2, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { associatedGuide } from '../lib/guideFocus';
 import { backNavigation } from '../lib/backNavigation';
+import { createLookupScrollMotion } from '../lib/lookupMotion';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 import { useQuietScrollbars } from './useQuietScrollbars';
-import { createLookupScrollMotion } from '../lib/lookupMotion';
 
 /** Modeless: unused space dismisses the card without covering reading or controls.
  * Dragging, selection, scrolling and other dialogs retain their normal behavior. */
 export interface PanelView { expanded:boolean; scroll:number; scrolls?:number[];seen?:boolean }
-export default function ContextPanel({ view, label, children, onClose, canClose = true, onClosing, interactionKey, layoutSlot, compactHeader = false }: {
+export default function ContextPanel({ view, label, children, onClose, canClose = true, onClosing, interactionKey, layoutSlot, readerSelectionKey, compactHeader = false }: {
   view?:PanelView;
   label: string; children: ReactNode; onClose: () => void; canClose?: boolean; onClosing?: () => void; interactionKey?: unknown;
   layoutSlot?: RefObject<HTMLDivElement | null>;
+  readerSelectionKey?: string;
   compactHeader?: boolean;
 }) {
   const { t } = useTranslation();
   const panelRef = useRef<HTMLElement>(null);
   const layerRef = useRef<HTMLDivElement>(null);
+  const readerRevealing = useRef(false);
   useQuietScrollbars(panelRef, !!layoutSlot);
   const previous = useRef<HTMLElement | null>(null);
   const identity = useRef(Symbol('context-panel'));
@@ -29,29 +31,6 @@ export default function ContextPanel({ view, label, children, onClose, canClose 
   const [expanded, setExpanded] = useState(view?.expanded ?? false);
   const restored=useRef(!!view?.seen);
   if(view)view.expanded=expanded;
-  // Only move the original when the half sheet would cover the selected sentence.
-  useLayoutEffect(() => {
-    if (restored.current || !layoutSlot || expanded || closing || !matchMedia('(max-width: 767px)').matches) return;
-    const scroll=layoutSlot.current?.closest<HTMLElement>('.reader-scroll');
-    if(!scroll)return;
-    const motion=createLookupScrollMotion(scroll);
-    const frame = requestAnimationFrame(() => {
-      const word=scroll.querySelector<HTMLElement>('.reading-word[aria-pressed="true"]');
-      const sentence = word?.closest<HTMLElement>('.reading-sentence');
-      const panel = panelRef.current;
-      if (!sentence || !word || !panel || !layerRef.current) return;
-      const top = scroll.getBoundingClientRect().top + 12;
-      // Measure the final sheet edge, independently of its entering transform.
-      const bottom = Math.min(scroll.getBoundingClientRect().bottom,layerRef.current.getBoundingClientRect().bottom-panel.offsetHeight)-16;
-      const sentenceRect=sentence.getBoundingClientRect();
-      const rect=sentenceRect.height<=bottom-top ? sentenceRect : word.getBoundingClientRect();
-      const delta=rect.top<top ? rect.top-top : rect.bottom>bottom ? rect.bottom-bottom : 0;
-      if(delta)motion.move(scroll.scrollTop+delta,matchMedia('(prefers-reduced-motion: reduce)').matches);
-    });
-    const cancel=()=>motion.cancel();
-    scroll.addEventListener('touchmove',cancel,{passive:true});scroll.addEventListener('wheel',cancel,{passive:true});
-    return () => {cancelAnimationFrame(frame);motion.cancel();scroll.removeEventListener('touchmove',cancel);scroll.removeEventListener('wheel',cancel);};
-  }, [interactionKey, expanded, closing, layoutSlot]);
   useLayoutEffect(()=>{
     const panel=panelRef.current;if(!panel || !view)return;
     const nodes=()=>[panel,...['.lookup-content','.soft-refresh-current','.lookup-body'].map(selector=>panel.querySelector<HTMLElement>(selector))];
@@ -88,6 +67,53 @@ export default function ContextPanel({ view, label, children, onClose, canClose 
     window.addEventListener('resize', update);
     return () => { observer.disconnect(); slot.removeEventListener('reading-layout', update); window.removeEventListener('resize', update); };
   }, [layoutSlot]);
+  useLayoutEffect(() => {
+    const layout = layoutSlot?.current?.closest<HTMLElement>('.reading-layout');
+    const viewport = layout?.closest<HTMLElement>('.reader-scroll');
+    const panel = panelRef.current, layer = layerRef.current;
+    readerRevealing.current = false;
+    if (!layout || !viewport || !panel || !layer || !readerSelectionKey || expanded || closing) return;
+
+    const phone = matchMedia('(max-width: 767px)');
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+    const motion = createLookupScrollMotion(viewport);
+    const reveal = () => {
+      motion.cancel();
+      if (!phone.matches) return;
+      const words = [...layout.querySelectorAll<HTMLElement>('.reading-word[aria-pressed="true"]')];
+      if (!words.length) return;
+
+      const bounds = viewport.getBoundingClientRect();
+      // Use the sheet's resting edge so the word can move as the sheet rises.
+      const edge = Math.min(bounds.bottom, layer.getBoundingClientRect().bottom - panel.offsetHeight);
+      const top = words[0].getBoundingClientRect().top;
+      const bottom = words.at(-1)!.getBoundingClientRect().bottom;
+      if (bottom <= edge) return;
+
+      const distance = Math.min(bottom - edge + 16, top - bounds.top - 8);
+      if (distance <= 0) return;
+      const target = Math.ceil(viewport.scrollTop + distance);
+      const missing = target - Math.max(0, viewport.scrollHeight - viewport.clientHeight);
+      if (missing > 0) {
+        const tail = parseFloat(layout.style.getPropertyValue('--lookup-reader-tail')) || 0;
+        layout.style.setProperty('--lookup-reader-tail', `${tail + missing}px`);
+      }
+      motion.move(target, reduced.matches);
+      readerRevealing.current = true;
+    };
+
+    reveal();
+    const gestures = ['pointerdown', 'touchmove', 'wheel', 'reading-anchor-start'];
+    gestures.forEach(event => viewport.addEventListener(event, motion.cancel, { passive: true }));
+    window.addEventListener('resize', reveal);
+    reduced.addEventListener('change', reveal);
+    return () => {
+      motion.cancel();
+      gestures.forEach(event => viewport.removeEventListener(event, motion.cancel));
+      window.removeEventListener('resize', reveal);
+      reduced.removeEventListener('change', reveal);
+    };
+  }, [layoutSlot, readerSelectionKey, closing, expanded]);
   // Animate the paper and card on one timeline; interrupted closes resume from the visible frame.
   useLayoutEffect(() => {
     const panel = panelRef.current, layout = layoutSlot?.current?.closest<HTMLElement>('.reading-layout');
@@ -106,7 +132,12 @@ export default function ContextPanel({ view, label, children, onClose, canClose 
     const finish = () => { paper.style.transform = desktop ? target : 'none'; panel.style.transform = target; panel.style.opacity = targetOpacity; delete layout.dataset.lookupMoving; panel.dispatchEvent(new Event('lexicue-panel-settled')); };
     if (reduced.matches || initial && restored.current) { finish(); return; }
     layout.dataset.lookupMoving = 'true';
-    const options: KeyframeAnimationOptions = { duration: desktop ? (closing ? 340 : 420) : (closing ? 300 : 360), easing:'cubic-bezier(.22,1,.36,1)', fill:'both' };
+    const options: KeyframeAnimationOptions = {
+      duration: desktop ? (closing ? 340 : 420) : (closing ? 300 : 360),
+      // Give the selected word a few frames of head start before the sheet rises.
+      delay: !desktop && !closing && readerRevealing.current ? 64 : 0,
+      easing: 'cubic-bezier(.22,1,.36,1)', fill: 'both',
+    };
     const animations = [panel.animate([{transform:fromCard,opacity},{transform:target,opacity:targetOpacity}], options)];
     if (desktop) animations.push(paper.animate([{transform:fromPaper},{transform:target}],options));
     const start = document.timeline.currentTime; if (typeof start === 'number') animations.forEach(a => { a.startTime = start; });

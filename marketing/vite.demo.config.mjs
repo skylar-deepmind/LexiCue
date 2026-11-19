@@ -9,7 +9,8 @@ const native=resolve(root,'demo/native.ts');
 const boundary=()=>({
   name:'lexicue-browser-demo-boundary',enforce:'pre',
   transform(code,id){
-   if(id===resolve(project,'src/App.tsx'))return code.replace("import { BrowserRouter,", "import { HashRouter as BrowserRouter,").replace("import MobileStartup", "import { DemoThemeBridge } from '../marketing/demo/theme';\nimport MobileStartup").replace('<BrowserRouter useTransitions={!isMobilePlatform()}>','<BrowserRouter>').replace('<MobileStartup>','<MobileStartup><DemoThemeBridge/>');
+   if(id.startsWith(project+'/src/'))code=code.replaceAll('/design/','./design/');
+   if(id===resolve(project,'src/App.tsx'))return code.replace("import { BrowserRouter,", "import { HashRouter as BrowserRouter,").replace("import MobileStartup", "import { DemoThemeBridge } from '../marketing/demo/theme';\nimport MobileStartup").replace(/<BrowserRouter useTransitions=\{[^}]+\}>/,'<BrowserRouter>').replace('<MobileStartup>','<MobileStartup><DemoThemeBridge/>');
    // The public demo keeps its original CC0 dictionary; it must never label
    // those illustrative definitions as content from a real Wiktionary pack.
    if(id===resolve(project,'src/lib/dictionaryResult.ts')){
@@ -18,13 +19,26 @@ const boundary=()=>({
     return code.slice(0,start)+'export async function lookupLocal(expression: string, context: string): Promise<DictionaryResult> { return lookupLongman(expression, context); }\n'+code.slice(end);
    }
    if(id===resolve(project,'src/components/DictionaryPacks.tsx'))return `import {useTranslation} from 'react-i18next'; export default function DictionaryPacks(){const {t}=useTranslation();return <section><p>{t('dictionaryPacks.demoBoundary')}</p></section>;}`;
-   if(id===resolve(project,'src/components/SpeechSettings.tsx')){
-    const voices="options={SPEECH_VOICES[speech.accent].map(voice => ({ value: voice.id, label: `${voice.name} · ${t(`speech.${voice.gender}`)}` }))}";
-    if(!code.includes(voices)||!code.includes("<details><summary>{t('speech.connection')}</summary>"))throw Error('Speech settings changed; update the browser demo boundary.');
-    return code.replace('id="speech-voice" value=','id="speech-voice" disabled value=').replace(voices,"options={[{value:speech.voices[speech.accent],label:t('speech.browserVoice')}] }").replace(/<details><summary>\{t\('speech.connection'\)\}<\/summary>[\s\S]*?<\/details>/,"<p>{t('speech.browserBoundary')}</p>");
-   }
+   if(id===resolve(project,'src/components/SpeechSettings.tsx'))return `
+    import {useEffect,useRef} from 'react';
+    import {useTranslation} from 'react-i18next';
+    import {SPEECH_PREVIEW_TEXT} from '../lib/speechPreferences';
+    import {usePreferencesStore} from '../stores/preferencesStore';
+    import {useSpeechStore} from '../stores/speechStore';
+    import {SpeechFeedback} from './SpeechButton';
+    export default function SpeechSettings(){
+      const {t}=useTranslation(),{speech,setSpeech}=usePreferencesStore();
+      const owner=useRef('browser-demo-voice:'+crypto.randomUUID());
+      useEffect(()=>()=>useSpeechStore.getState().stopOwned(owner.current),[]);
+      return <section className="speech-settings" aria-label={t('speech.title')}>
+        <button className="approved-action" onClick={()=>void useSpeechStore.getState().speak(SPEECH_PREVIEW_TEXT,'settings:speech-preview',{kind:'preview',owner:owner.current,restart:true})}>{t('speech.browserVoice')} · {t('speech.preview')}</button>
+        <div className="approved-voice-speed" role="group" aria-label={t('speech.speed')}>{(['normal','slow'] as const).map(speed=><button key={speed} aria-pressed={speech.speed===speed} onClick={()=>setSpeech({speed})}>{t('speech.speeds.'+speed)}</button>)}</div>
+        <SpeechFeedback prefix="settings:speech-preview"/><p>{t('speech.browserBoundary')}</p>
+      </section>;
+    }`;
    if(id===resolve(project,'src/lib/documentPdf.ts'))return code.replace("new URL('/pdfjs/', typeof location !== 'undefined' ? location.href : 'http://localhost/')","new URL('../pdfjs/', import.meta.url)");
    if(id.endsWith('.css')&&id.includes('/src/'))return code.replaceAll('url(/fonts/','url(../fonts/').replaceAll('url("/fonts/','url("../fonts/').replaceAll("url('/fonts/","url('../fonts/");
+   if(id.startsWith(project+'/src/'))return code;
   },
 });
 export default defineConfig({

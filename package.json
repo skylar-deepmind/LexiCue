@@ -11,11 +11,12 @@
     "test": "vitest run",
     "preview": "vite preview",
     "tauri": "tauri",
-    "test:ui": "node scripts/ui-import-smoke.mjs && node scripts/ui-smoke.mjs && node scripts/ui-saved-smoke.mjs && node scripts/ui-recall-smoke.mjs && node scripts/ui-onboarding-smoke.mjs && node scripts/ui-settings-directory.mjs && node scripts/ui-device-sync.mjs && node scripts/ui-device-reading.mjs && node scripts/ui-desktop-desk-height.mjs && node scripts/ui-dictionary-packs.mjs && node scripts/ui-deletion-polish.mjs && node scripts/ui-drawer-design.mjs && node scripts/ui-collection-boundaries.mjs && node scripts/ui-collection-source-return.mjs && node scripts/ui-swipe-notifications.mjs && node scripts/ui-lookup-controls.mjs && node scripts/ui-saved-feedback.mjs && node scripts/ui-navigation-return.mjs",
+    "test:ui": "node scripts/ui-library-inline.mjs && node scripts/ui-card-interactions.mjs && node scripts/ui-polish.mjs && node scripts/ui-empty-timeline.mjs && node scripts/ui-approved-refinement.mjs && node scripts/ui-approved-cleanup.mjs && node scripts/ui-approved-feedback.mjs && node scripts/ui-lookup-reader-position.mjs && node scripts/ui-playback-seek.mjs && node scripts/ui-approved-reading-polish.mjs && node scripts/ui-approved-smoke.mjs && node scripts/ui-approved-behavior.mjs && node scripts/ui-import-smoke.mjs && node scripts/ui-recall-smoke.mjs",
     "check:release": "node scripts/check-release.mjs",
     "check:release:tests": "node scripts/check-release-tests.mjs",
     "prepare:gemma": "node scripts/prepare-gemma.mjs",
-    "test:windows:native": "node scripts/ui-windows-native.mjs"
+    "test:windows:native": "node scripts/ui-windows-native.mjs",
+    "test:ui:historical": "node scripts/ui-import-smoke.mjs && node scripts/ui-smoke.mjs && node scripts/ui-saved-smoke.mjs && node scripts/ui-recall-smoke.mjs && node scripts/ui-onboarding-smoke.mjs && node scripts/ui-settings-directory.mjs && node scripts/ui-device-sync.mjs && node scripts/ui-device-reading.mjs && node scripts/ui-desktop-desk-height.mjs && node scripts/ui-dictionary-packs.mjs && node scripts/ui-deletion-polish.mjs && node scripts/ui-drawer-design.mjs && node scripts/ui-collection-boundaries.mjs && node scripts/ui-collection-source-return.mjs && node scripts/ui-swipe-notifications.mjs && node scripts/ui-lookup-controls.mjs && node scripts/ui-saved-feedback.mjs && node scripts/ui-navigation-return.mjs"
   },
   "dependencies": {
     "@mozilla/readability": "0.6.0",

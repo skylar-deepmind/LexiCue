@@ -25,8 +25,8 @@ export const manualContent={
           "title": "Import and open a material",
           "body": [],
           "steps": [
-            "Open Import from Materials. Choose a file, or paste English text, a webpage link or a YouTube link.",
-            "Check the extracted text and selected pages or chapters where available, then confirm. Open the material card to read."
+            "Use the file button to choose a document, or the clipboard button for copied English text or a link.",
+            "Check the extracted text and range, then choose one tag or leave it untagged and confirm. Click the card image to read."
           ],
           "related": [
             "files"
@@ -56,7 +56,7 @@ export const manualContent={
           "title": "Supported materials",
           "body": [
             "File import supports PDF, DOCX, EPUB, Markdown, TXT, SRT and VTT. Scanned PDFs without extractable text, encrypted files and protected books may not import; inspect the preview before saving.",
-            "Paste English text or a webpage link through the same import entry. If a webpage cannot be extracted, copy its visible English text and paste that instead. Learning is English only; interface language is a separate setting."
+            "Use the clipboard button for English text, webpage links or YouTube links. Empty content shows a notice near the top; recognition uses a full-page loading state and then a preview before confirmation. The separate file button opens the system picker directly."
           ],
           "steps": []
         },
@@ -64,8 +64,8 @@ export const manualContent={
           "id": "tags",
           "title": "Desk, library and tags",
           "body": [
-            "Keep current reading on the desk. Put a material away to the library, bring it back later, search by title or filter with tags. Tag colors help identify groups; removing a tag does not remove its materials. Choose Delete material in a material’s More menu to remove its reading content after confirmation. Saved sentences, meanings and notes remain available.",
-            "The library shows 20 items per page. Search titles or sources, filter by tags and change sorting from the heading. Enter a page number to jump. Deleting a material preserves saved sentences, meanings and notes; returning to its deleted original is unavailable."
+            "Click a material’s image to resume reading. Click its tag to choose one category from the strip above the card; imports use the same strip. In the library, category artwork opens the poster wall; click its caption to rename it in place and use the check mark to save. New categories are created during import. Built-in captions can also be renamed without reassigning materials. Covers combine the materials inside; hold a custom category cover and drag it to the basket to remove just that category, keeping its materials. Older multi-tag records stay intact until you explicitly choose a category.",
+            "To delete a material, hold its card, drag it over the trash basket and release when the lid opens. Release elsewhere to cancel. Saved sentences, meanings and notes remain available; a deleted source can no longer be opened."
           ],
           "steps": [],
           "image": "files"
@@ -149,8 +149,8 @@ export const manualContent={
           "id": "organize",
           "title": "Edit a context",
           "body": [
-            "Update your note or explanation on the relevant saved record. Choose “Remove this sentence” beside a context in Saved or in the lookup card’s My records tab, then Undo to restore it. Other contexts for the same expression remain separate.",
-            "After scrolling Saved, use the floating page control at the bottom to jump directly to a page. Expressions and their contexts are paged separately. Swipe an expression left, then tap the trash icon to delete the expression and all its sentences, meanings and notes. Undo in the small floating notice restores them together. The original material remains. Removing one sentence keeps the others."
+            "Edit your personal explanation on the relevant context. Search Saved by expression or narrow it with the date chart, then browse the expression’s contexts.",
+            "To remove one saved sentence, hold the sentence and drag it to the trash basket. Release when the lid opens; release elsewhere to cancel. Undo restores that context. Other contexts and the original material remain. You can also hold and then tap the basket, or focus the sentence and press Delete followed by Enter; Escape cancels."
           ],
           "steps": []
         },
@@ -221,8 +221,8 @@ export const manualContent={
           "id": "language",
           "title": "Preferences and appearance",
           "body": [
-            "Choose English, Chinese, Japanese or German for the interface; English remains the learning language. Pick ocean, sage, amber, twilight or midnight on the settings home. Reading font controls stay in the reader.",
-            "The Preferences group also contains speech preferences and replaying the first-use guide."
+            "Choose English, Chinese, Japanese or German directly in Preferences; English remains the learning language. Pick ocean, sage, amber, twilight or midnight on the settings home.",
+            "The Preferences group also contains speech and dictionary preferences."
           ],
           "steps": [],
           "image": "settings"
@@ -268,7 +268,7 @@ export const manualContent={
           "id": "youtube",
           "title": "Tools: subtitles",
           "body": [
-            "Desktop includes browser-session preferences and dependency diagnostics. iPhone uses public English tracks and offers subtitle-cache clearing. An old desktop session preference does not enable authenticated iPhone downloads."
+            "Desktop uses system-installed yt-dlp, not a bundled copy. Settings → Tools → YouTube subtitles shows missing tools even when browser sessions are off. Open Install and diagnose for official instructions, copy the install command where offered, then check again. iPhone uses public English subtitles without installing yt-dlp."
           ],
           "steps": []
         },
@@ -372,8 +372,8 @@ export const manualContent={
           "title": "导入并打开材料",
           "body": [],
           "steps": [
-            "在“材料”页打开导入，选择文件，或粘贴英文正文、网页链接、YouTube 链接。",
-            "检查提取的正文；若提供页码或章节选择，按需调整后确认。点击材料卡开始阅读。"
+            "使用文件按钮选择文档，或使用剪贴板按钮识别复制的英文正文或链接。",
+            "核对提取内容和范围，选择一个标签或保留未打标签，再确认导入。点击卡片的图片进入阅读。"
           ],
           "related": [
             "files"
@@ -403,7 +403,7 @@ export const manualContent={
           "title": "支持的材料",
           "body": [
             "支持 PDF、DOCX、EPUB、Markdown、TXT、SRT、VTT。无可提取文字的扫描 PDF、加密文件和受保护书籍可能无法导入，保存前请检查预览。",
-            "同一导入入口可粘贴英文正文或网页链接；网页无法提取时，可复制可见英文正文再粘贴。学习目标仅为英语，界面语言另行设置。"
+            "剪贴板按钮识别英文正文、网页或 YouTube 链接；空内容在中上方提示，识别时显示整页加载状态，完成后核对预览并确认。独立的文件按钮直接打开系统文件管理。"
           ],
           "steps": []
         },
@@ -411,8 +411,8 @@ export const manualContent={
           "id": "tags",
           "title": "桌面、材料库与标签",
           "body": [
-            "正在读的材料留在桌面，暂时不读的收进材料库，之后可以重新放回。按标题搜索或用标签筛选，颜色帮助区分材料组；删除标签不会删除材料。材料的“更多”菜单提供“删除材料”，确认后删除阅读内容，已保存的原句、释义和笔记仍保留。",
-            "材料库每页显示 20 项，可搜索标题或来源、按标签筛选，并从标题栏调整排序。点击页码可直接跳页。删除材料会保留已保存的原句、释义和笔记，但无法再返回被删除的原文。"
+            "点击材料图片接着上次位置阅读；点击现有标签，在卡片上方选择一个分类，导入时也使用同样的标签条。材料库中，点击分类图片进入海报墙，单击下方文字原地改名，点输入框右侧的勾保存；新标签在导入时创建；两个默认名称也能原地修改，不改变材料归属；封面由分类内材料拼成，长按自建分类封面下拖到纸篓可移除分类，材料保留；旧资料的多个标签保留到明确选择分类时才改变。",
+            "长按材料卡片，拖到垃圾篓，盖子打开后松手即删除；在其他位置松手则取消。已保存的原句、释义和笔记仍保留，但无法再打开已删除的来源。"
           ],
           "steps": [],
           "image": "files"
@@ -496,8 +496,8 @@ export const manualContent={
           "id": "organize",
           "title": "编辑一条语境",
           "body": [
-            "在对应收藏记录修改注释或解释。在“已保存”或查词卡片的“我的记录”中，点击原句旁的“移除这句”，可用“撤销”恢复。同一表达的其他语境各自独立。",
-            "下滑后，底部圆角悬浮页码可直接跳页。词条和词条内的语境分别分页。左滑整个词条，再点垃圾桶，可删除这个词条及其全部例句、释义和笔记；小型浮动通知中的“撤销”可一起恢复。原材料不会被删除。只移除一条例句时，其他例句仍保留。"
+            "点击个人解释，在原处直接编辑并保存。可搜索表达或用日期图缩小范围，再翻阅同一表达的各条语境。",
+            "长按原句并拖到垃圾篓，盖子打开后松手即可移除这一句；在其他位置松手则取消。“撤销”可恢复这条语境，其他语境和原材料仍保留。也可长按后点击垃圾篓；键盘聚焦原句后，按 Delete 再按 Enter 确认，Esc 取消。"
           ],
           "steps": []
         },
@@ -568,8 +568,8 @@ export const manualContent={
           "id": "language",
           "title": "偏好与外观",
           "body": [
-            "界面可选英语、中文、日语或德语，学习目标仍为英语。设置首页可选海湾蓝、鼠尾草绿、琥珀暖光、暮光紫、深夜墨色；字号控制放在阅读页。",
-            "“偏好”组还包含朗读偏好与重新查看首次引导。"
+            "在“偏好”中直接切换英语、中文、日语或德语，学习目标仍为英语。设置首页可选海湾蓝、鼠尾草绿、琥珀暖光、暮光紫、深夜墨色。",
+            "“偏好”组还包含朗读与词典设置。"
           ],
           "steps": [],
           "image": "settings"
@@ -615,7 +615,7 @@ export const manualContent={
           "id": "youtube",
           "title": "工具：字幕",
           "body": [
-            "桌面提供浏览器会话偏好与依赖诊断；iPhone 使用公开英文字幕并提供清缓存。旧桌面会话偏好不会让 iPhone 获得登录态下载能力。"
+            "桌面使用系统安装的 yt-dlp，应用不内置该工具。“设置 → 工具 → YouTube 字幕”会提示缺失的工具，不需要先开启浏览器会话。打开“安装与诊断”查看官方说明、复制可用的安装命令，完成后点“重新检测”。iPhone 使用公开英文字幕，无需安装 yt-dlp。"
           ],
           "steps": []
         },
@@ -719,8 +719,8 @@ export const manualContent={
           "title": "素材を取り込んで開く",
           "body": [],
           "steps": [
-            "「素材」から取り込みを開き、ファイル、英語の本文、WebページやYouTubeのリンクを指定します。",
-            "抽出された本文を確認し、必要ならページや章を選んで確定します。素材カードから読み始めます。"
+            "ファイルボタンで文書を選ぶか、クリップボードボタンでコピーした英語やリンクを読み込みます。",
+            "抽出した内容と範囲を確認し、タグを1つ選ぶか未分類のまま取り込みます。カードの画像を押すと読書を再開できます。"
           ],
           "related": [
             "files"
@@ -750,7 +750,7 @@ export const manualContent={
           "title": "対応する素材",
           "body": [
             "PDF、DOCX、EPUB、Markdown、TXT、SRT、VTTに対応。文字抽出できないスキャンPDF、暗号化ファイル、保護された書籍は取り込めない場合があります。保存前にプレビューを確認してください。",
-            "同じ入口から英語の本文やWebリンクを貼り付けられます。抽出できないページは、表示された英文をコピーして取り込みます。学習対象は英語で、表示言語は別設定です。"
+            "クリップボードは英語の本文、Webページ、YouTubeリンクを読み込みます。空の場合は画面上部に通知し、解析中は画面全体に進行状態を表示します。プレビューを確認して取り込みます。別のファイルボタンはシステムのファイル選択を直接開きます。"
           ],
           "steps": []
         },
@@ -758,8 +758,8 @@ export const manualContent={
           "id": "tags",
           "title": "デスク・ライブラリ・タグ",
           "body": [
-            "今読む素材はデスクに置き、後で読むものはライブラリにしまいます。タイトル検索や色付きタグで探せます。タグを削除しても素材は残ります。",
-            "ライブラリは1ページ20件です。タイトルや出典の検索、タグの絞り込み、見出しからの並び替え、ページ番号での移動ができます。資料を削除しても保存した原文・意味・メモは残りますが、削除した資料の原文には戻れません。"
+            "資料の画像で前回の位置から読み、タグを押すとカード上の選択欄で分類を1つ選べます。取り込み時も同じ選択欄を使います。ライブラリの分類画像でポスター一覧を開き、その下の文字をタップするとその場で名前を変更でき、入力欄右側のチェックマークで保存します。新しい分類は取り込み時に作成できます。表紙は分類内の素材を組み合わせます。既定の分類名も、素材の所属を変えずにその場で編集できます。作成した分類の表紙を長押ししてごみ箱へ下にドラッグすると分類だけを削除し、素材は残ります。既存の複数タグは分類を明示的に選ぶまで保持します。",
+            "素材のカードを長押ししてごみ箱へドラッグし、ふたが開いたら離すと削除します。それ以外の場所で離すとキャンセルします。保存した文・意味・メモは残りますが、削除した出典は開けなくなります。"
           ],
           "steps": [],
           "image": "files"
@@ -843,8 +843,8 @@ export const manualContent={
           "id": "organize",
           "title": "文脈を編集する",
           "body": [
-            "該当する記録のメモや説明を編集します。必要な文脈だけを削除し、表示された取り消しで戻せます。同じ表現の別の文脈は独立しています。",
-            "保存画面をスクロールすると、下部の丸いページ操作から直接移動できます。表現と各表現の文脈は別々にページ分けされます。表現を左にスワイプし、ごみ箱を押すと、その表現と全ての例文・意味・メモを削除します。小さな通知の「取り消し」でまとめて復元できます。元の資料は残ります。1文だけ削除した場合、他の例文は残ります。"
+            "該当する文脈の個人説明を編集できます。表現の検索や日付グラフで絞り込み、同じ表現の各文脈を確認します。",
+            "原文を長押ししてごみ箱へドラッグし、ふたが開いたら離すと、その1文を削除します。それ以外の場所で離すとキャンセルします。「取り消し」で復元でき、他の文脈と元の素材は残ります。長押し後にごみ箱をタップする方法もあります。キーボードでは文にフォーカスしてDelete、Enterで確定、Escapeでキャンセルします。"
           ],
           "steps": []
         },
@@ -915,8 +915,8 @@ export const manualContent={
           "id": "language",
           "title": "表示と環境設定",
           "body": [
-            "表示言語は英語・中国語・日本語・ドイツ語。学習対象は英語のままです。設定の最初の画面で5つのテーマを選び、文字サイズは読書画面で調整します。",
-            "環境設定には、読み上げの設定と初回ガイドの再表示もあります。"
+            "環境設定で英語・中国語・日本語・ドイツ語を直接切り替えます。学習対象は英語のままです。設定の最初の画面で5つのテーマを選べます。",
+            "環境設定には、読み上げと辞書の設定もあります。"
           ],
           "steps": [],
           "image": "settings"
@@ -962,7 +962,7 @@ export const manualContent={
           "id": "youtube",
           "title": "ツール：字幕",
           "body": [
-            "デスクトップはブラウザセッションと依存ツール診断、iPhoneは公開英語字幕とキャッシュ削除を提供します。以前のデスクトップ設定でiPhoneが認証付き取得をできるわけではありません。"
+            "デスクトップ版はシステムの yt-dlp を使用し、同梱していません。「設定 → ツール → YouTube 字幕」ではブラウザセッションを有効にせず不足ツールを確認できます。「インストールと診断」の公式手順やコマンドを利用し、完了後に再確認してください。iPhone は公開英語字幕を使用し、yt-dlp のインストールは不要です。"
           ],
           "steps": []
         },
@@ -1066,8 +1066,8 @@ export const manualContent={
           "title": "Ein Material importieren und öffnen",
           "body": [],
           "steps": [
-            "Öffne den Import unter Materialien. Wähle eine Datei oder füge englischen Text, einen Webseiten- oder YouTube-Link ein.",
-            "Prüfe den extrahierten Text und gegebenenfalls die Seiten- oder Kapitelauswahl. Bestätige und öffne die Materialkarte."
+            "Ein Dokument über die Datei-Schaltfläche wählen oder kopierten englischen Text bzw. einen Link über die Zwischenablage erkennen lassen.",
+            "Inhalt und Bereich prüfen, ein Tag wählen oder ohne Tag bestätigen. Das Kartenbild öffnet den Lesetext."
           ],
           "related": [
             "files"
@@ -1097,7 +1097,7 @@ export const manualContent={
           "title": "Unterstützte Materialien",
           "body": [
             "Unterstützt werden PDF, DOCX, EPUB, Markdown, TXT, SRT und VTT. Gescannte PDFs ohne auslesbaren Text, verschlüsselte Dateien und geschützte Bücher lassen sich unter Umständen nicht importieren. Prüfe die Vorschau.",
-            "Über denselben Import kannst du englischen Text oder einen Weblink einfügen. Scheitert die Extraktion, kopiere den sichtbaren englischen Text. Gelernt wird Englisch; die Oberflächensprache ist unabhängig."
+            "Die Zwischenablage erkennt englischen Text, Webseiten- und YouTube-Links. Bei leerem Inhalt erscheint oben ein Hinweis; während der Erkennung zeigt die ganze Seite den Ladezustand. Danach die Vorschau prüfen und bestätigen. Die separate Datei-Schaltfläche öffnet direkt die Systemauswahl."
           ],
           "steps": []
         },
@@ -1105,8 +1105,8 @@ export const manualContent={
           "id": "tags",
           "title": "Lesetisch, Bibliothek und Tags",
           "body": [
-            "Lass aktuelle Lektüre auf dem Lesetisch und lege andere Materialien in der Bibliothek ab. Suche nach Titel oder farbigen Tags. Das Entfernen eines Tags löscht die Materialien nicht.",
-            "Die Bibliothek zeigt 20 Einträge pro Seite. Suche nach Titel oder Quelle, filtere nach Tags und ändere die Sortierung neben der Überschrift. Über die Seitenzahl springst du direkt. Beim Löschen von Material bleiben gespeicherte Sätze, Bedeutungen und Notizen erhalten; die gelöschte Quelle kann nicht mehr geöffnet werden."
+            "Das Materialbild setzt das Lesen fort. Ein Klick auf den Tag zeigt die Kategorien über der Karte; beim Import erscheint dieselbe Auswahl. In der Bibliothek öffnet das Kategorienbild die Posterwand. Klicke auf die Beschriftung, um sie direkt umzubenennen, und speichere mit dem Häkchen im Eingabefeld. Neue Kategorien kannst du beim Import erstellen. Das Cover kombiniert die enthaltenen Materialien. Auch die Standardnamen lassen sich ohne Neuzuordnung der Materialien bearbeiten. Halte das Cover einer eigenen Kategorie gedrückt und ziehe es zum Papierkorb, um nur die Kategorie zu löschen; die Materialien bleiben erhalten. Bestehende Mehrfach-Tags bleiben erhalten, bis du ausdrücklich eine Kategorie wählst.",
+            "Halte eine Materialkarte gedrückt, ziehe sie zum Papierkorb und lasse los, sobald sich der Deckel öffnet. Loslassen an anderer Stelle bricht ab. Gespeicherte Sätze, Bedeutungen und Notizen bleiben erhalten; die gelöschte Quelle lässt sich nicht mehr öffnen."
           ],
           "steps": [],
           "image": "files"
@@ -1190,8 +1190,8 @@ export const manualContent={
           "id": "organize",
           "title": "Einen Kontext bearbeiten",
           "body": [
-            "Bearbeite Notiz oder Erklärung des betreffenden Eintrags. Entferne bei Bedarf nur diesen Kontext und nutze, falls angeboten, Rückgängig. Andere Kontexte desselben Ausdrucks bleiben getrennt.",
-            "Nach dem Scrollen erscheint unten eine abgerundete schwebende Seitenauswahl. Ausdrücke und ihre Kontexte haben getrennte Seiten. Wische einen Ausdruck nach links und tippe auf den Papierkorb, um ihn samt allen Sätzen, Bedeutungen und Notizen zu entfernen. Rückgängig in der kleinen schwebenden Mitteilung stellt alles zusammen wieder her. Das Originalmaterial bleibt erhalten. Das Entfernen eines einzelnen Satzes lässt die anderen bestehen."
+            "Bearbeite die persönliche Erklärung direkt im jeweiligen Kontext. Suche nach Ausdrücken oder grenze sie über das Datumsdiagramm ein und blättere durch ihre Kontexte.",
+            "Halte einen Satz gedrückt und ziehe ihn zum Papierkorb. Lasse bei geöffnetem Deckel los, um nur diesen Kontext zu entfernen; an anderer Stelle wird abgebrochen. Rückgängig stellt ihn wieder her. Andere Kontexte und das Originalmaterial bleiben erhalten. Alternativ kannst du nach dem Gedrückthalten den Papierkorb antippen. Per Tastatur: Satz fokussieren, Delete und dann Enter; Escape bricht ab."
           ],
           "steps": []
         },
@@ -1262,8 +1262,8 @@ export const manualContent={
           "id": "language",
           "title": "Darstellung und Einstellungen",
           "body": [
-            "Wähle Englisch, Chinesisch, Japanisch oder Deutsch als Oberflächensprache. Gelernt wird Englisch. Fünf Themen stehen auf der Einstellungsstartseite; Schriftgrößen stellst du beim Lesen ein.",
-            "Die Einstellungsgruppe enthält außerdem Sprachausgabe und das erneute Öffnen der Einführung."
+            "Wähle Englisch, Chinesisch, Japanisch oder Deutsch direkt in den Einstellungen. Gelernt wird Englisch. Fünf Themen stehen auf der Einstellungsstartseite.",
+            "Die Einstellungsgruppe enthält außerdem Sprachausgabe und Wörterbuchoptionen."
           ],
           "steps": [],
           "image": "settings"
@@ -1309,7 +1309,7 @@ export const manualContent={
           "id": "youtube",
           "title": "Werkzeuge: Untertitel",
           "body": [
-            "Desktop bietet Browser-Sitzungen und Abhängigkeitsdiagnosen. Das iPhone nutzt öffentliche englische Spuren und kann den Untertitelcache leeren. Alte Desktop-Einstellungen ermöglichen keine authentifizierten iPhone-Downloads."
+            "Die Desktop-App nutzt das systemweit installierte yt-dlp, keine mitgelieferte Kopie. Einstellungen → Werkzeuge → YouTube-Untertitel zeigt fehlende Werkzeuge auch ohne Browsersitzung. Unter Installation und Diagnose stehen offizielle Anleitungen und gegebenenfalls ein kopierbarer Installationsbefehl; danach erneut prüfen. Auf dem iPhone sind für öffentliche englische Untertitel keine yt-dlp-Installationen nötig."
           ],
           "steps": []
         },

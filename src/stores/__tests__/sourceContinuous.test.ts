@@ -1,6 +1,7 @@
 import { beforeEach, afterEach, describe, it, expect, vi } from 'vitest';
 const mocks=vi.hoisted(()=>{const values=new Map();vi.stubGlobal('localStorage',{getItem:(k:string)=>values.get(k)??null,setItem:(k:string,v:string)=>values.set(k,v),removeItem:(k:string)=>values.delete(k)});vi.stubGlobal('navigator',{language:'en'});return{invoke:vi.fn()};});
 vi.mock('@tauri-apps/api/core',()=>({invoke:mocks.invoke,convertFileSrc:(p:string)=>`asset://${p}`}));
+vi.mock('@tauri-apps/api/event',()=>({listen:vi.fn().mockResolvedValue(() => {})}));
 import { useSpeechStore } from '../speechStore';
 import { usePreferencesStore } from '../preferencesStore';
 import { normalizeSpeechPreferences } from '../../lib/speechPreferences';
@@ -9,6 +10,14 @@ const ranges=[[500,2600],[2000,4200],[3700,5500],[5000,6000],[6800,7300]];
 const anchors=ranges.map(([start_ms,end_ms],index)=>({start_ms,end_ms,index,segment_id:index+10}));
 const result={path:'/managed/a.m4a',file_id:1,source_key:'source-a',asset_id:'a'.repeat(64),start_ms:500,duration_ms:8000,anchors};
 const request={fileId:1,sourceKey:'source-a',segmentId:10,index:0,key:'reader:a:continuous'};
+const fallbackItems = anchors.map((_, index) => ({text:`Line ${index}.`, key:`reader:a:${index}`}));
+function useEdgeFixture() {
+ const preferences=normalizeSpeechPreferences(null);
+ mocks.invoke.mockImplementation((command: string) => Promise.resolve(command === 'resolve_reading_media' ? result : {
+  data_base64:'fixture',mime:'audio/mpeg',cache_key:'tts-fixture',source:'edge-cache',
+  voice:preferences.voices[preferences.accent],speed:'normal',duration_ms:1000,
+ }));
+}
 class Player extends EventTarget {
  static all:Player[]=[];static metadataDuration=8;src='';preload='';duration=Player.metadataDuration;playbackRate=1;defaultPlaybackRate=1;paused=true;readyState=0;seeking=false;time=0;
  onplaying:(()=>void)|null=null;onended:(()=>void)|null=null;onerror:(()=>void)|null=null;
@@ -71,9 +80,47 @@ describe('whole-track original reading session',()=>{
   // A new card may have exactly the same public speech key. Owner identity is separate.
   speech().stop();await speech().speak('second','lookup:term',{owner:'new-button',ownerScope:'new-card'});const current=Player.all[2];speech().stopOwned('old-button');speech().stopScope('old-card');expect(current.paused).toBe(false);expect(old.paused).toBe(true);expect(speech().key).toBe('lookup:term');speech().stopScope('new-card');expect(current.paused).toBe(true);
  });
- it('does not synthesize on source failure, and a single clip preempts the continuous owner',async()=>{
-  await speech().startSourceContinuous(request);const p=Player.all[0];p.onerror!();expect(speech().status).toBe('error');expect(mocks.invoke.mock.calls.some(c=>c[0]==='resolve_tts_audio')).toBe(false);
-  await speech().startSourceContinuous(request);const second=Player.all[1];mocks.invoke.mockResolvedValue({path:'/managed/a.m4a',asset_id:'a'.repeat(64),start_ms:500,end_ms:2600,duration_ms:8000});await speech().speak('A clip.','saved:clip',{media:{record_id:'saved'}});expect(second.paused).toBe(true);expect(speech().playbackMode).toBe('single');
+ it('starts Edge synthesis from the current cue when original audio breaks mid-playback',async()=>{
+  useEdgeFixture();
+  await speech().startSourceContinuous({...request,fallbackItems});
+  const original=Player.all[0],lateError=original.onerror!;
+  tick(3.9);
+  lateError();
+  await vi.waitFor(()=>expect(speech()).toMatchObject({status:'playing',source:'edge-cache',reading:{mode:'tts-queue',index:2}}));
+  expect(original.paused).toBe(true);
+  expect(mocks.invoke).toHaveBeenCalledWith('resolve_tts_audio',{request:expect.objectContaining({text:'Line 2.'})});
+  Player.all[1].onended!();
+  await vi.waitFor(()=>expect(speech().reading?.index).toBe(3));
+  speech().pause();
+  lateError();
+  expect(speech().reading).toMatchObject({status:'paused',index:3});
+  speech().exitReading();
+  lateError();
+  expect(speech().reading).toBeNull();
+ });
+ it('hands a missing original to the native iPhone queue at the selected cue',async()=>{
+  vi.stubGlobal('navigator', { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X)', maxTouchPoints: 5 });
+  mocks.invoke.mockImplementation((command: string, args?: {id:string}) => {
+   if (command === 'resolve_reading_media') return Promise.reject('media_missing');
+   return Promise.resolve(command === 'ios_reading_control' ? {id:args?.id,index:2,status:'playing',source:'edge-network'} : undefined);
+  });
+  await speech().startSourceContinuous({...request,segmentId:12,index:2,fallbackItems});
+  expect(mocks.invoke).toHaveBeenCalledWith('ios_reading_start',{request:expect.objectContaining({
+   texts:fallbackItems.map(item=>item.text),startIndex:2,onlineEnabled:true,allowDeviceFallback:true,
+  })});
+  expect(speech()).toMatchObject({source:'edge-network',reading:{mode:'tts-queue',index:2,status:'playing'}});
+  expect(Player.all).toHaveLength(0);
+ });
+ it('does not synthesize when playback permission was denied',async()=>{
+  class BlockedPlayer extends Player { play = vi.fn(async () => { throw {name:'NotAllowedError'}; }); }
+  vi.stubGlobal('Audio',BlockedPlayer);
+  useEdgeFixture();
+  await speech().startSourceContinuous({...request,fallbackItems});
+  expect(speech().errorCode).toBe('playback_blocked');
+  expect(mocks.invoke.mock.calls.some(([command])=>command==='resolve_tts_audio')).toBe(false);
+ });
+ it('a single clip preempts the continuous owner',async()=>{
+  await speech().startSourceContinuous(request);const original=Player.all[0];mocks.invoke.mockResolvedValue({path:'/managed/a.m4a',asset_id:'a'.repeat(64),start_ms:500,end_ms:2600,duration_ms:8000});await speech().speak('A clip.','saved:clip',{media:{record_id:'saved'}});expect(original.paused).toBe(true);expect(speech().playbackMode).toBe('single');
  });
  it('pauses a pending source resolution and resumes only by an explicit new request',async()=>{
   let resolveFirst!:(v:typeof result)=>void;

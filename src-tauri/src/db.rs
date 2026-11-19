@@ -8,18 +8,29 @@ pub struct DbState {
 }
 
 impl DbState {
-    /// IPC handlers run on the platform event thread. Acquire the SQLite lock,
-    /// initialize cold indexes and serialize owned results on a blocking worker.
+    /// Run SQLite work on a blocking worker so the platform event thread stays responsive.
     pub async fn read<T: Send + 'static>(
         &self,
         operation: &'static str,
         work: impl FnOnce(&Connection) -> Result<T, String> + Send + 'static,
     ) -> Result<T, String> {
+        self.read_prepared(operation, || (), move |conn, ()| work(conn))
+            .await
+    }
+
+    /// Prepare independent resources before locking the learning database.
+    pub async fn read_prepared<P: Send + 'static, T: Send + 'static>(
+        &self,
+        operation: &'static str,
+        prepare: impl FnOnce() -> P + Send + 'static,
+        work: impl FnOnce(&Connection, P) -> Result<T, String> + Send + 'static,
+    ) -> Result<T, String> {
         let shared = self.conn.clone();
         tauri::async_runtime::spawn_blocking(move || {
             let start = std::time::Instant::now();
+            let prepared = prepare();
             let conn = shared.lock().map_err(|e| e.to_string())?;
-            let result = work(&conn);
+            let result = work(&conn, prepared);
             let elapsed = start.elapsed().as_millis();
             if elapsed >= 100 {
                 log::info!("[db-read] {operation}: {elapsed}ms on background worker");

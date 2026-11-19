@@ -4,7 +4,10 @@ export interface ReadingPlayback {
   path: string; file_id: number; source_key: string; asset_id: string;
   start_ms: number; duration_ms: number; anchors: ReadingAnchor[];
 }
-export interface ReadingSourceRequest { fileId: number; segmentId: number; sourceKey: string; key: string; index: number }
+export interface ReadingSourceRequest {
+  fileId: number; segmentId: number; sourceKey: string; key: string; index: number;
+  fallbackItems?: readonly { text: string; key: string }[];
+}
 export interface ReadingSourceJump { fileId: number; segmentId: number; sourceKey: string; index: number }
 export interface ReadingGroup { index: number; start_ms: number; end_ms: number }
 export function readingGroups(anchors: readonly ReadingAnchor[]): ReadingGroup[] {

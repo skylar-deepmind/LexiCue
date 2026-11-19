@@ -12,6 +12,5 @@ export default function DictionaryPreferences() {
       <input type="radio" name="online-dictionary" checked={provider === value} onChange={() => setProvider(value)}/>
       <span>{t(`dictionaryPreferences.${value}`)}<small>{t(`dictionaryPreferences.${value}Provider`)}</small></span>
     </label>)}
-    <p>{t('dictionaryPreferences.onDemand')}</p>
   </fieldset>;
 }

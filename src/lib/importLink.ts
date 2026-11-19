@@ -20,5 +20,13 @@ export function inspectImportLink(text: string | null): ImportLink {
 
 /** Called only from the user's Paste link action. No polling or write access. */
 export async function readImportClipboard(): Promise<string | null> {
-  return isTauri() ? readText() : navigator.clipboard.readText();
+  if (!isTauri()) return navigator.clipboard.readText();
+  try { return await readText(); }
+  catch (error) {
+    // The desktop and iOS plugins reject when there is no text format. This
+    // is an empty text source; permission and transport failures still reject.
+    const message = typeof error === 'string' ? error : error instanceof Error ? error.message : null;
+    if (message === 'The clipboard contents were not available in the requested format or the clipboard is empty.' || message === 'Clipboard is empty') return null;
+    throw error;
+  }
 }

@@ -16,7 +16,7 @@ export const SETTINGS_LABELS = {
 export type SettingsEntry = keyof typeof SETTINGS_LABELS;
 
 export const SETTINGS_GROUPS = [
-  { key: 'preferences', entries: ['language', 'speech', 'lookup', 'guide'] },
+  { key: 'preferences', entries: ['language', 'speech', 'lookup'] },
   { key: 'data', entries: ['sync', 'backup', 'dictionary'] },
   { key: 'tools', entries: ['youtube'] },
   { key: 'app', entries: ['updates'] },
@@ -26,7 +26,7 @@ export function useSettingsNavigation() {
   const { search, state } = useLocation();
   const value = new URLSearchParams(search).get('section');
   const restricted = import.meta.env.VITE_SLICE_PREVIEW === '1' && (value === 'sync' || value === 'updates');
-  const section = !restricted && value && Object.hasOwn(SETTINGS_LABELS, value) ? value as SettingsEntry : null;
+  const section = !restricted && value !== 'guide' && value && Object.hasOwn(SETTINGS_LABELS, value) ? value as SettingsEntry : null;
   const { back } = usePageReturn(section ? '/settings' : state?.settingsOrigin === '/saved' ? '/saved' : '/files');
   return { section, back };
 }

@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { useReadingToolsStore } from '../stores/readingToolsStore';
 import { useSpeechStore } from '../stores/speechStore';
 import DockPresence from './DockPresence';
-import DisplaySettingsMenu from './DisplaySettingsMenu';
 
 export default function ReadingTools() {
   const { t } = useTranslation();
@@ -19,6 +18,5 @@ export default function ReadingTools() {
     <button type="button" className="b-dock-control" aria-label={t(tools.translation ? 'reader.hideTranslation' : 'reader.showTranslation')} title={t(!tools.hasTranslation ? 'reader.noTranslation' : tools.translation ? 'reader.hideTranslation' : 'reader.showTranslation')} aria-pressed={tools.hasTranslation && tools.translation} disabled={!tools.hasTranslation} aria-busy={!!tools.translationProgress} onClick={tools.onTranslation}>
       {tools.translationProgress ? <InlineProgress label={t('reader.translationProgress', tools.translationProgress)} progress={tools.translationProgress}/> : <Languages size={22} aria-hidden="true"/>}
     </button>
-    <DisplaySettingsMenu dock active={tools.available} showRecall={tools.showRecall}/>
   </div></DockPresence>;
 }

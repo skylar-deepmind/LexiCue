@@ -28,6 +28,30 @@ export function recallExpression(expressions: readonly string[], expression: str
   if (allCaps(exact) || caseExclusions.has(exact)) return undefined;
   return expressions.find(item => !caseSensitive(item) && !caseExclusions.has(surface(item)) && normalizeRecall(item) === normalized);
 }
+const lookups = new WeakMap<readonly string[], { exact: Map<string, string>; folded: Map<string, string[]> }>();
+export function indexedRecallExpression(expressions: readonly string[], expression: string, caseExclusions: ReadonlySet<string>, literalOnly: boolean): string | undefined {
+  if (!expressions.length) return undefined;
+  let index = lookups.get(expressions);
+  if (!index) {
+    index = { exact: new Map(), folded: new Map() };
+    for (const item of expressions) {
+      const spelling = surface(item);
+      if (!index.exact.has(spelling)) index.exact.set(spelling, item);
+      if (!caseSensitive(item)) {
+        const key = spelling.toLowerCase();
+        const candidates = index.folded.get(key);
+        if (candidates) candidates.push(item);
+        else index.folded.set(key, [item]);
+      }
+    }
+    lookups.set(expressions, index);
+  }
+  const spelling = surface(expression);
+  const exact = index.exact.get(spelling);
+  if (exact) return exact;
+  if (literalOnly || allCaps(spelling) || caseExclusions.has(spelling)) return undefined;
+  return index.folded.get(spelling.toLowerCase())?.find(item => !caseExclusions.has(surface(item)));
+}
 function normalizeText(text: string) {
   let value = '', offset = 0;
   const starts: number[] = [], ends: number[] = [];

@@ -1,3 +1,4 @@
+import { normalizeLibraryNames, type LibraryNames, type LibraryNameKey } from '../lib/libraryNames';
 import { create } from 'zustand';
 import { persist, createJSONStorage, subscribeWithSelector } from 'zustand/middleware';
 import { normalizeBrowserSession, type BrowserSession } from '../lib/youtubeDownload';
@@ -5,7 +6,7 @@ import type { AnnotationKind, AnnotationMode } from '../lib/annotation';
 import type { Language, UILanguage } from '../lib/languages';
 import { isLanguage, detectSystemLanguage, isUILanguage } from '../lib/languages';
 import { languageKey, normalizeYouTubePreferences, rememberYouTubeImport, type YouTubeLanguagePair, type YouTubePreferences } from '../lib/youtubeSelection';
-import { normalizeSpeechPreferences, type SpeechPreferences, type SpeechAccent } from '../lib/speechPreferences';
+import { DEFAULT_SPEECH_PREFERENCES, normalizeSpeechPreferences, type SpeechPreferences, type SpeechAccent } from '../lib/speechPreferences';
 import { normalizeContentFontScale, type ContentFontCategory, type ContentFontScale } from '../lib/contentFontScale';
 import {normalizeTagColors,type TagColors} from '../lib/tagAppearance';
 
@@ -16,6 +17,8 @@ const FONT_SIZES: ContentFontSize[] = ['sm', 'md', 'lg'];
 const LINE_HEIGHTS: ReadingLineHeight[] = ['compact', 'normal', 'loose'];
 
 interface PreferencesState {
+  libraryNames: LibraryNames;
+  setLibraryName: (key: LibraryNameKey, name: string) => void;
   onlineDictionary: 'cambridge' | 'wiktionary';
   setOnlineDictionary: (provider: 'cambridge' | 'wiktionary') => void;
   tagColors: TagColors;
@@ -53,6 +56,8 @@ export const usePreferencesStore = create<PreferencesState>()(
   subscribeWithSelector(
     persist(
       (set) => ({
+        libraryNames: {},
+        setLibraryName: (key, name) => set(state => ({ libraryNames: normalizeLibraryNames({ ...state.libraryNames, [key]: name }) })),
         onlineDictionary: 'cambridge',
         setOnlineDictionary: onlineDictionary => set({ onlineDictionary }),
         tagColors: {},
@@ -97,6 +102,7 @@ export const usePreferencesStore = create<PreferencesState>()(
         merge: (persisted, current) => {
           const saved = (persisted ?? {}) as {
             onlineDictionary?: unknown;
+            libraryNames?: unknown;
             tagColors?: unknown;
             speech?: unknown;
             contentFontScale?: unknown;
@@ -138,7 +144,11 @@ export const usePreferencesStore = create<PreferencesState>()(
             word: saved.annotationModes?.word === 'single' ? 'single' : 'batch',
             phrase: saved.annotationModes?.phrase === 'single' ? 'single' : 'batch',
           };
-          return { ...current, onlineDictionary: saved.onlineDictionary === 'wiktionary' ? 'wiktionary' : 'cambridge', tagColors:normalizeTagColors(saved.tagColors), contentFontScale: normalizeContentFontScale(saved.contentFontScale), speech: normalizeSpeechPreferences(saved.speech), reencounterHints: typeof saved.reencounterHints==='boolean'?saved.reencounterHints:current.reencounterHints, vocabularyKind: saved.vocabularyKind === 'phrase' ? 'phrase' : 'word', youtube: normalizeYouTubePreferences(saved.youtube), annotationModes, language, uiLanguage, learningTextFontSize, definitionFontSize, auxiliaryFontSize, readingLineHeight };
+          // Connection switches are no longer user preferences. Restore the
+          // app defaults while keeping the user's accent, voices and speed.
+          const { accent, voices, speed } = normalizeSpeechPreferences(saved.speech);
+          const speech = { ...DEFAULT_SPEECH_PREFERENCES, accent, voices, speed };
+          return { ...current, libraryNames: normalizeLibraryNames(saved.libraryNames), onlineDictionary: saved.onlineDictionary === 'wiktionary' ? 'wiktionary' : 'cambridge', tagColors:normalizeTagColors(saved.tagColors), contentFontScale: normalizeContentFontScale(saved.contentFontScale), speech, reencounterHints: typeof saved.reencounterHints==='boolean'?saved.reencounterHints:current.reencounterHints, vocabularyKind: saved.vocabularyKind === 'phrase' ? 'phrase' : 'word', youtube: normalizeYouTubePreferences(saved.youtube), annotationModes, language, uiLanguage, learningTextFontSize, definitionFontSize, auxiliaryFontSize, readingLineHeight };
         },
       },
     ),

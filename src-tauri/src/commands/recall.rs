@@ -5,8 +5,18 @@ use rusqlite::Connection;
 use serde::Serialize;
 use tauri::State;
 
+#[cfg(test)]
+use super::dictionary_packs::relation_catalog_configured;
+use super::dictionary_packs::relation_catalog_with_forms;
+use super::longman::RelationCatalog;
+use super::saved::archive_with_catalog;
+use std::sync::Arc;
+
+#[cfg(test)]
 pub fn index(conn: &Connection) -> Result<Vec<String>, String> {
-    Ok(super::saved::archive(conn, "")?.expressions())
+    Ok(archive_with_catalog(conn, relation_catalog_configured())?
+        .expressions()
+        .to_vec())
 }
 
 #[derive(Serialize)]
@@ -15,10 +25,19 @@ pub struct RecallCatalog {
     pub case_exclusions: Vec<String>,
     pub literal_only: bool,
 }
+
+#[cfg(test)]
 pub fn catalog(conn: &Connection) -> Result<RecallCatalog, String> {
-    let archive = super::saved::archive(conn, "")?;
+    catalog_with_relations(conn, relation_catalog_configured())
+}
+
+fn catalog_with_relations(
+    conn: &Connection,
+    relations: Arc<RelationCatalog>,
+) -> Result<RecallCatalog, String> {
+    let archive = archive_with_catalog(conn, relations)?;
     Ok(RecallCatalog {
-        expressions: archive.expressions(),
+        expressions: archive.expressions().to_vec(),
         case_exclusions: archive.case_exclusions(),
         literal_only: archive.literal_only(),
     })
@@ -29,13 +48,31 @@ pub struct ContextPage {
     pub records: Vec<SavedRecord>,
     pub total: i64,
 }
+
+#[cfg(test)]
 pub fn contexts(
     conn: &Connection,
     expression: &str,
     offset: i64,
     limit: i64,
 ) -> Result<ContextPage, String> {
-    let archive = super::saved::archive(conn, "")?;
+    contexts_with_relations(
+        conn,
+        expression,
+        offset,
+        limit,
+        relation_catalog_configured(),
+    )
+}
+
+pub(super) fn contexts_with_relations(
+    conn: &Connection,
+    expression: &str,
+    offset: i64,
+    limit: i64,
+    relations: Arc<RelationCatalog>,
+) -> Result<ContextPage, String> {
+    let archive = archive_with_catalog(conn, relations)?;
     let page = super::saved::context_page(conn, archive.resolve(expression), limit, offset)?;
     Ok(ContextPage {
         records: page.records,
@@ -45,26 +82,30 @@ pub fn contexts(
 
 #[tauri::command]
 pub async fn saved_recall_index(state: State<'_, DbState>) -> Result<Vec<String>, String> {
-    let shared = state.conn.clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        let conn = shared.lock().map_err(|e| e.to_string())?;
-        index(&conn)
-    })
-    .await
-    .map_err(|e| e.to_string())?
+    state
+        .read_prepared(
+            "saved_recall_index",
+            relation_catalog_with_forms,
+            |conn, relations| {
+                Ok(archive_with_catalog(conn, relations)?
+                    .expressions()
+                    .to_vec())
+            },
+        )
+        .await
 }
 
 /// One batch carries source case reservations with the existing literal index.
 /// No per-word IPC or user-data fields are needed; the old Vec command remains.
 #[tauri::command]
 pub async fn saved_recall_catalog(state: State<'_, DbState>) -> Result<RecallCatalog, String> {
-    let shared = state.conn.clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        let conn = shared.lock().map_err(|e| e.to_string())?;
-        catalog(&conn)
-    })
-    .await
-    .map_err(|e| e.to_string())?
+    state
+        .read_prepared(
+            "saved_recall_catalog",
+            relation_catalog_with_forms,
+            catalog_with_relations,
+        )
+        .await
 }
 
 #[tauri::command]
@@ -74,13 +115,21 @@ pub async fn saved_recall_contexts(
     offset: Option<i64>,
     limit: Option<i64>,
 ) -> Result<ContextPage, String> {
-    let shared = state.conn.clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        let conn = shared.lock().map_err(|e| e.to_string())?;
-        contexts(&conn, &expression, offset.unwrap_or(0), limit.unwrap_or(10))
-    })
-    .await
-    .map_err(|e| e.to_string())?
+    state
+        .read_prepared(
+            "saved_recall_contexts",
+            relation_catalog_with_forms,
+            move |conn, relations| {
+                contexts_with_relations(
+                    conn,
+                    &expression,
+                    offset.unwrap_or(0),
+                    limit.unwrap_or(10),
+                    relations,
+                )
+            },
+        )
+        .await
 }
 
 #[cfg(test)]

@@ -1,7 +1,11 @@
 import { readerViews } from '../lib/readerViewMemory';
-import { viewKey } from '../lib/pageNavigation';
+import { usePageReturn, viewKey } from '../lib/pageNavigation';
 import VisitLink from '../components/VisitLink';
 import PageBack from '../components/PageBack';
+import { ChevronLeft } from 'lucide-react';
+import { prepareReadingReturn } from '../lib/readingMotion';
+import { readingReturnPath } from '../lib/readingEntry';
+import ReaderHeading from '../components/ReaderHeading';
 import { LoadingSkeleton } from '../components/LoadingFeedback';
 import { useEffect, useState } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
@@ -14,6 +18,19 @@ import ReadingPage from './ReadingPage';
 import { LIBRARY_SCOPE } from '../lib/readingScope';
 import { consumeImportedReading, validateImportedReading } from '../lib/readingEntry';
 import { useReadingDeskStore } from '../stores/readingDeskStore';
+import { useRestoreGuard } from '../stores/restoreGuard';
+
+const pendingReads = new Map<string, Promise<ReadingMaterial>>();
+function openMaterial(id: number) {
+    const key = `${useRestoreGuard.getState().generation}:${id}`;
+    const pending = pendingReads.get(key);
+    if (pending) return pending;
+    const request = invoke<ReadingMaterial>('open_reading_material', { fileId: id })
+        .finally(() => { pendingReads.delete(key); });
+    pendingReads.set(key, request);
+    return request;
+}
+
 export default function FileDetailPage() {
     const { fileId: raw } = useParams();
     const id = Number(raw);
@@ -21,10 +38,11 @@ export default function FileDetailPage() {
     return <MaterialReader key={`${id}:${location.key}`} id={id}/>;
 }
 function MaterialReader({ id }: { id: number }) {
-    const title = useMaterialStore(store =>
-        store.files.find(file => file.id === id)?.name ?? (store.current?.id === id ? store.current.name : undefined));
+    const material = useMaterialStore(store =>
+        store.files.find(file => file.id === id) ?? (store.current?.id === id ? store.current : undefined));
     const location = useLocation();
     const {state} = location;
+    const { back } = usePageReturn(readingReturnPath(state));
     const [cached] = useState(()=>readerViews.get(viewKey(location)));
     const importToken = state?.importReadingToken;
     const visit = readerNavigation.get(state?.sourceVisitToken);
@@ -40,7 +58,7 @@ function MaterialReader({ id }: { id: number }) {
             setError(true);
             return;
         }
-        void Promise.all([invoke<ReadingMaterial>('open_reading_material', { fileId: id }), useMaterialStore.getState().load()]).then(async ([next]) => {
+        void openMaterial(id).then(async next => {
             const imported = await validateImportedReading(importToken, next);
             if (active) {
             if (imported && consumeImportedReading(importToken)) useReadingDeskStore.getState().keepAndOpen(next.material);
@@ -48,6 +66,7 @@ function MaterialReader({ id }: { id: number }) {
             useReadingDeskStore.getState().use(next.material);
             setData(next);
             useMaterialStore.setState({ current: next.material });
+            void useMaterialStore.getState().ensure();
         } }).catch(() => { if (active) {
             consumeImportedReading(importToken); setError(true);
         } });
@@ -56,8 +75,13 @@ function MaterialReader({ id }: { id: number }) {
     if (error || data && visit && !sourceMatches(visit.target, data))
         return <div className="reader-load-error"><p>{t('reader.unavailable')}</p>{visit && <blockquote lang="en">{visit.target.sentence}</blockquote>}<div><PageBack fallback={visit?.origin.path ?? '/files'}/><button className="ui-button" onClick={() => setRevision(revision + 1)}>{t('common.retry')}</button><VisitLink className="ui-button" to={`/legacy?fileId=${id}`}>{t('materials.history')}</VisitLink></div></div>;
     if (!data)
-        return <div className="material-reading"><div className="reading-page"><div className="reader-scroll"><div className="reading-layout"><section className="workspace-paper reading-paper" aria-busy="true">
-            {title && <h1 className="reading-title" lang="en">{title}</h1>}
+        return <div className="material-reading"><div className={material ? 'reading-page reader-with-cover' : 'reading-page'}><nav className="reading-breadcrumb" aria-label={t('materials.path')}>
+            <button className="page-back" type="button" aria-label={t('common.back')} onClick={() => {
+                if (state?.readingMotion) prepareReadingReturn(id);
+                back();
+            }}><ChevronLeft size={22} aria-hidden="true"/></button>
+        </nav><div className="reader-scroll"><div className="reading-layout"><section className="workspace-paper reading-paper" aria-busy="true">
+            {material && <ReaderHeading material={material}/>}
             <LoadingSkeleton kind="text" label={t('common.loading')}/>
         </section></div></div></div></div>;
     return <div className="material-reading"><ReadingPage key={`${data.material.id}:${data.material.content_hash}:${state?.sourceVisitToken ?? ""}:${state?.restoreVisitToken ?? ""}`} data={data} scope={LIBRARY_SCOPE}/></div>;

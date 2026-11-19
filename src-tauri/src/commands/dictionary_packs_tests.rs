@@ -26,6 +26,109 @@ fn installed_base_proves_recall_forms_and_reserves_independent_case() {
         .contains(&"US".into()));
     assert!(catalog.safe_forms("take off").contains(&"took off".into()));
 }
+#[test]
+fn bundled_relations_match_runtime_relations_for_every_daily_spelling() {
+    use super::super::longman::RelationCatalog;
+    let pack = Pack::open(
+        &Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("resources/dictionaries/daily/dictionary.sqlite3"),
+        "daily",
+    )
+    .unwrap();
+    let words = {
+        let mut query = pack.conn.prepare("SELECT word FROM surfaces").unwrap();
+        let rows = query.query_map([], |row| row.get::<_, String>(0)).unwrap();
+        rows.collect::<rusqlite::Result<Vec<_>>>().unwrap()
+    };
+    let runtime = pack_relations(&[pack], "daily".into()).unwrap();
+    let compiled = RelationCatalog::from_bundled_daily("daily".into());
+    for word in
+        words
+            .iter()
+            .map(String::as_str)
+            .chain(["Take off", " Went ", "   ", "unknown token"])
+    {
+        assert_eq!(compiled.identity(word), runtime.identity(word), "{word}");
+        assert_eq!(
+            compiled.safe_forms(word),
+            runtime.safe_forms(word),
+            "{word}"
+        );
+        assert_eq!(
+            compiled.case_sensitive_identity(word),
+            runtime.case_sensitive_identity(word),
+            "{word}"
+        );
+    }
+    assert_eq!(
+        compiled.case_exclusions(&words),
+        runtime.case_exclusions(&words)
+    );
+}
+
+#[test]
+fn indexed_relations_match_cross_pack_conflict_and_case_rules() {
+    use super::super::longman::RelationCatalog;
+    use rusqlite::Connection;
+    fn packs() -> Vec<Pack> {
+        let pack = |id: &str, extra: &str| {
+            let conn = Connection::open_in_memory().unwrap();
+            conn.execute_batch(
+                "CREATE TABLE surfaces(id INTEGER PRIMARY KEY, word TEXT UNIQUE, folded TEXT);
+                CREATE TABLE entries(source_line INTEGER PRIMARY KEY, surface_id INTEGER);
+                CREATE TABLE aliases(surface_id INTEGER, entry_line INTEGER, kind INTEGER);
+                INSERT INTO surfaces VALUES (1,'go','go'),(2,'went','went'),(3,'ride','ride'),
+                    (4,'rode','rode'),(5,'us','us'),(6,'US','us'),(7,'take off','take off'),
+                    (8,'took off','took off'),(9,'fly','fly');
+                INSERT INTO entries VALUES (1,1),(3,3),(5,5),(6,6),(7,7),(9,9);",
+            )
+            .unwrap();
+            conn.execute_batch(extra).unwrap();
+            Pack {
+                conn,
+                id: id.into(),
+            }
+        };
+        vec![
+            pack(
+                "daily",
+                "INSERT INTO aliases VALUES (2,1,1),(4,3,1),(8,7,1);",
+            ),
+            pack(
+                "extended",
+                "INSERT INTO aliases VALUES (4,9,2); INSERT INTO entries VALUES (2,2);",
+            ),
+        ]
+    }
+    let indexed = RelationCatalog::from_pack_reader(
+        "test".into(),
+        relation_reader::RelationReader::new(packs(), packs()),
+    );
+    let full = pack_relations(&packs(), "test".into()).unwrap();
+    for word in [
+        "go",
+        "went",
+        "rode",
+        "us",
+        "US",
+        "Us",
+        "took off",
+        "Took off",
+        "nonexistent",
+    ] {
+        assert_eq!(indexed.identity(word), full.identity(word), "{word}");
+        assert_eq!(
+            indexed.case_sensitive_identity(word),
+            full.case_sensitive_identity(word),
+            "{word}"
+        );
+        assert_eq!(indexed.safe_forms(word), full.safe_forms(word), "{word}");
+    }
+    assert_eq!(indexed.identity("went"), "went");
+    assert_eq!(indexed.identity("rode"), "rode");
+    assert_eq!(indexed.identity("Took off"), "take off");
+}
+
 fn detached() -> Operation {
     Operation(
         Arc::new(AtomicBool::new(false)),

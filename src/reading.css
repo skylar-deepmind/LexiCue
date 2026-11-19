@@ -494,10 +494,6 @@
 .reading-paper[data-lines='loose'] .reading-original { line-height:1.8; }
 .reading-sentence { margin-bottom:12px; }
 .lookup-tabs button:hover:not(:disabled) { background:transparent; color:var(--accent-700); }
-.longman-result--compact .dictionary-overview h3,.longman-result--compact .dictionary-overview-line > div,.longman-result--compact .dictionary-parent-meaning { display:none; }
-.longman-result--compact .dictionary-overview-list { display:block; list-style:decimal; padding-left:20px; }
-.longman-result--compact .dictionary-overview-line { padding-left:2px; margin-bottom:6px; }
-.longman-result--compact .dictionary-overview-line p { margin:0; line-height:30px; font-size:16px; }
 .lookup-secondary { margin-top:10px; color:var(--text-muted); font-size:13px; }
 .lookup-secondary > summary { min-height:44px; padding:10px 0; cursor:pointer; }
 .context-panel[data-reading-layout] :is(.lookup-body,.recall-history,.lookup-content) { scrollbar-width:thin; scrollbar-color:transparent transparent; scrollbar-gutter:stable; }
@@ -554,25 +550,7 @@
 @media (prefers-reduced-motion:reduce) { .reading-playback,.reading-playback[data-closing] { animation:none; } }
 
 .lookup-edit.ui-button[aria-expanded='true'] { background:var(--interactive-pressed); color:var(--accent-700); border-color:var(--accent-600); }
-/* Footer and paper edge share the same height timeline in both directions. */
 .context-panel[data-reading-layout] .lookup-content { scrollbar-gutter:auto; }
-.context-panel[data-refresh-sizing] > .lookup-stage,
-.context-panel[data-refresh-sizing] .lookup-content,
-.context-panel[data-refresh-sizing] .lookup-content > .soft-refresh-current { flex:1; overflow:hidden; }
-.context-panel[data-refresh-sizing] .lookup-content > .soft-refresh-current > .lookup-body { flex:1; }
-/* Layout clamping must never reveal a native thumb during replacement. */
-.context-panel[data-refresh-transition] :is(.lookup-body,.recall-history,.lookup-content),
-body:has(.context-panel[data-refresh-transition]) .reader-scroll { scrollbar-color:transparent transparent !important; }
-.context-panel[data-refresh-transition] :is(.lookup-body,.recall-history,.lookup-content)::-webkit-scrollbar-thumb,
-body:has(.context-panel[data-refresh-transition]) .reader-scroll::-webkit-scrollbar-thumb { background:transparent !important; }
-
-/* WebKit may paint a native overlay thumb even when its color is transparent.
-   Remove the native scrollbar during replacement and reserve its measured space. */
-.context-panel[data-refresh-transition] :is(.lookup-body,.recall-history,.lookup-content) { scrollbar-width:none; scrollbar-gutter:auto; }
-.context-panel[data-refresh-transition] .lookup-body { padding-right:calc(var(--lookup-body-padding,24px) + var(--lookup-scrollbar-width,0px)); }
-body:has(.context-panel[data-refresh-transition]) .reader-scroll { scrollbar-width:none; padding-right:var(--lookup-reader-padding,16px); }
-.context-panel[data-refresh-transition] :is(.lookup-body,.recall-history,.lookup-content)::-webkit-scrollbar,
-body:has(.context-panel[data-refresh-transition]) .reader-scroll::-webkit-scrollbar { display:none; width:0; height:0; }
 
 .dictionary-prototype + .dictionary-prototype { margin-top:18px; padding-top:16px; border-top:1px solid var(--border-soft); }
 .dictionary-prototype-heading { display:flex; align-items:baseline; gap:10px; margin-bottom:10px; color:var(--text-strong); }

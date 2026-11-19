@@ -1,6 +1,7 @@
+import useTrashDrag from './useTrashDrag';
 import { createViewCache } from '../lib/pageNavigation';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ExternalLink, Languages, Pencil, Trash2, Volume2, X } from 'lucide-react';
+import { ExternalLink, Languages, Pencil, Volume2, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { savedErrorKey, type SavedRecord } from '../lib/savedRecords';
 import { LIBRARY_SCOPE, mutateInScope, type ReadingScope } from '../lib/readingScope';
@@ -57,6 +58,7 @@ export default function SavedSentence({ record, active, onActivate, onChange, on
   const end = record.source?.end_offset;
   const hasRange = start != null && end != null && start >= 0 && end > start && end <= sentence.length;
   const disabled = busy || removing || sourceBusy;
+  useTrashDrag(original,{id:`saved:${record.record_id}`,label:sentence,disabled:disabled||!onRemove,remove:async()=>{setError('');try{await onRemove?.(record);return true;}catch(reason){setError(t(savedErrorKey(reason)));return false;}}});
 
   useEffect(() => {
     if (editing || savedNoteDrafts.has(record.record_id)) return;
@@ -112,7 +114,7 @@ export default function SavedSentence({ record, active, onActivate, onChange, on
     role="group" aria-labelledby={`${id}-original`} tabIndex={active ? -1 : 0}
     onClick={event => { if (!(event.target instanceof Element) || !event.target.closest('button,a,input,textarea,summary')) activate(); }}
     onFocusCapture={() => onActivate()} onKeyDown={event => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onActivate(); } }}>
-    <p ref={original} id={`${id}-original`} className="saved-sentence-original" data-expanded={expanded} lang="en">
+    <p ref={original} id={`${id}-original`} className="saved-sentence-original" tabIndex={onRemove?0:undefined} data-expanded={expanded} lang="en">
       {hasRange ? <>{sentence.slice(0, start)}<span className="saved-sentence-expression">{sentence.slice(start, end)}</span>{sentence.slice(end)}</> : sentence}
     </p>
     {overflows && <button type="button" className="ui-button saved-sentence-disclosure" aria-expanded={expanded} onClick={() => setExpanded(value => !value)}>{t(expanded ? 'reader.collapseSentence' : 'reader.expandSentence')}</button>}
@@ -120,13 +122,13 @@ export default function SavedSentence({ record, active, onActivate, onChange, on
     {record.explanation_source === 'personal' && record.explanation && <p className="saved-sentence-personal">{t('dictionaryFlow.personalMeaning')}：<span className="saved-sentence-note">{record.explanation}</span></p>}
     <small className="saved-sentence-source">{record.source ? t('savedRecords.source', { name: record.source.file_name, index: record.source.segment_index + 1 }) : t('savedRecords.legacyMissingSource')}</small>
     {active && <div className="saved-sentence-actions saved-record-actions" role="group" aria-label={t('reader.sentenceActions')}>
-      <SpeechButton text={record.sentence ?? ''} speechKey={speechKey} kind="sentence" media={mediaReady && media?.source.audio ? bindMediaTarget(media, {record_id: record.record_id}) : undefined} label={t(mediaReady && media?.source.audio ? 'sourceAudio.playOriginal' : 'sourceAudio.read')} idleIcon={<Volume2 size={20} strokeWidth={1.8} aria-hidden="true" />} disabled={removing}/>
+      <SpeechButton text={record.sentence ?? ''} speechKey={speechKey} kind="sentence" media={mediaReady && media ? bindMediaTarget(media, {record_id: record.record_id}) : undefined} label={t(mediaReady && media ? 'sourceAudio.playOriginal' : 'sourceAudio.read')} idleIcon={<Volume2 size={20} strokeWidth={1.8} aria-hidden="true" />} disabled={removing}/>
       <button type="button" className="ui-button ui-button--icon" aria-label={t('reader.toggleTranslation')} title={t(record.sentence_translation ? 'reader.toggleTranslation' : 'reader.noSavedTranslation')} aria-pressed={translated} disabled={!record.sentence_translation} onClick={() => setTranslated(value => !value)}><Languages size={20} strokeWidth={1.8} aria-hidden="true" /></button>
       <button type="button" className="ui-button ui-button--icon recall-source" data-testid="recall-source" aria-label={t('savedRecords.returnToSource')} title={t('savedRecords.returnToSource')} disabled={disabled || sourceMissing || !onSource} onClick={() => void returnToSource()}><ExternalLink size={20} strokeWidth={1.8} aria-hidden="true" /></button>
       <button ref={editButton} type="button" className="ui-button ui-button--icon" aria-label={t('reader.personalExplanation')} title={t('reader.personalExplanation')} disabled={disabled} onClick={beginEdit}><Pencil size={20} strokeWidth={1.8} aria-hidden="true" /></button>
-      <button type="button" className="ui-button ui-button--icon saved-sentence-remove" aria-label={t('dictionaryFlow.removeSentence')} title={t('dictionaryFlow.removeSentence')} disabled={disabled || !onRemove} onClick={() => { setError(''); void onRemove?.(record).catch(reason => setError(t(savedErrorKey(reason)))); }}><Trash2 size={20} strokeWidth={1.8} aria-hidden="true" /></button>
+
     </div>}
-    {active && media?.source.audio && <SourceAudioControls statusOnly reference={media} target={{record_id: record.record_id}} text={record.sentence ?? ''} speechKey={speechKey}/>}
+    {active && media && <SourceAudioControls statusOnly reference={media} target={{record_id: record.record_id}} text={record.sentence ?? ''} speechKey={speechKey}/>}
     <SpeechFeedback speechKeys={[speechKey]}/>
     {record.explanation_source !== 'personal' && record.explanation && <details className="saved-sentence-legacy"><summary>{t('dictionaryFlow.historicalMeaning')}</summary><p>{record.explanation}</p></details>}
     {sourceMissing && record.source && <p className="saved-status" role="status">{t('savedRecords.sourceMissing')}</p>}

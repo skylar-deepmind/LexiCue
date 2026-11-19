@@ -33,6 +33,14 @@ pub fn build() {
         .map(|entry| entry.unwrap().path())
         .filter(|p| p.extension().is_some_and(|e| e == "swift"))
         .collect::<Vec<_>>();
+    let translation = PathBuf::from("native/AppleTranslation.swift");
+    println!("cargo:rerun-if-changed={}", translation.display());
+    swift.push(translation);
+    if sdk != "macosx" {
+        let probe = PathBuf::from("native/IOSAudioProbe.swift");
+        println!("cargo:rerun-if-changed={}", probe.display());
+        swift.push(probe);
+    }
     swift.sort();
     let sdk_path = xcrun(&["--sdk", sdk, "--show-sdk-path"]);
     let compiler = PathBuf::from(xcrun(&["--find", "swiftc"]));
@@ -70,5 +78,6 @@ pub fn build() {
     println!("cargo:rustc-link-search=native={}", swift_libs.display());
     println!("cargo:rustc-link-search=native={sdk_path}/usr/lib/swift");
     println!("cargo:rustc-link-lib=static=LexiCueDeviceSync");
+    println!("cargo:rustc-link-arg=-Wl,-weak_framework,Translation");
     println!("cargo:rustc-link-arg=-Wl,-rpath,/usr/lib/swift");
 }
