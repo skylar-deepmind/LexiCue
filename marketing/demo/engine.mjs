@@ -54,7 +54,7 @@ export class DemoEngine {
   case 'mutate_example_saved_record':return this.examples.get(args.sessionId)?.invoke('mutate_saved_record',args);
   case 'undo_example_saved_mutation':return this.examples.get(args.sessionId)?.invoke('undo_saved_mutation',args);
   case 'example_recall_contexts':return this.examples.get(args.sessionId)?.invoke('saved_recall_contexts',args)??{records:[],total:0};
-  case 'saved_source_segments':return [...new Set(this.active().filter(r=>r.source?.content_hash===args.contentHash).map(r=>r.source.segment_index))];
+  case 'saved_source_segments':return [...new Set(this.active().filter(r=>r.source?.content_hash===this.materials.find(m=>m.material.id===args.fileId)?.material.content_hash).map(r=>r.source.segment_index))];
   case 'example_source_segments':return this.examples.get(args.sessionId)?.invoke('saved_source_segments',args)??[];
   case 'saved_for_selection':return clone(this.selection(args.input));
   case 'mutate_saved_record':return this.mutate(args.mutation,args.operationId);

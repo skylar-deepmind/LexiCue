@@ -71,11 +71,11 @@ export default function ReadingPage({ data, scope }: {
     useEffect(() => {
       let current = true;
       const command = sessionId ? 'example_source_segments' : 'saved_source_segments';
-      void invoke<number[]>(command, {contentHash: material.content_hash, sessionId}).then(indices => {
+      void invoke<number[]>(command, {fileId: material.id, sessionId}).then(indices => {
         if (current) setCollectedSegments(new Set(indices));
       }).catch(() => { if (current) setCollectedSegments(new Set()); });
       return () => { current = false; };
-    }, [material.content_hash, sessionId, savedRevision, guide.saved]);
+    }, [material.id, material.content_hash, sessionId, savedRevision, guide.saved]);
     const memoryKey=viewKey(location);
     const [viewGeneration]=useState(()=>useRestoreGuard.getState().generation);
     const [memory]=useState(()=>readerViews.get(memoryKey));

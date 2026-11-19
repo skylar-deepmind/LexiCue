@@ -157,7 +157,7 @@ try {
         const expanded = await entry.boundingBox();
         const save = entry.getByRole('button',{name:'新建标签'});
         const button = await save.boundingBox();
-        check(Math.abs(plus.y-expanded.y)<2 && button.x+button.width<=1280 && await save.isEnabled(),
+        check(Math.abs(plus.y+plus.height/2-expanded.y-expanded.height/2)<4 && button.x+button.width<=1280 && await save.isEnabled(),
           `${theme} desktop long tag stays in the same row with a reachable checkmark`);
         await page.locator('.approved-home-header').click();
         await entry.waitFor({state:'detached'});

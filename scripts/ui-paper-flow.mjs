@@ -109,6 +109,45 @@ try {
       const records = await harness.call('saved_recall_contexts', { expression: 'time' });
       assert.equal(records.total, 1);
       assert.equal(records.records[0].sentence, sentence);
+      if (!record) {
+        await page.locator('.reading-breadcrumb .page-back').click();
+        await page.evaluate(() =>
+          Object.defineProperty(navigator, 'clipboard', {
+            configurable: true,
+            value: { readText: async () => 'A second card stays in preview.' },
+          }),
+        );
+        await page.locator('[data-guide=import]').click();
+        await preview.locator('[data-ready=true]').waitFor();
+        const touch = width < 700 ? await context.newCDPSession(page) : null;
+        const pointer = async (type, point) => {
+          if (touch)
+            return touch.send('Input.dispatchTouchEvent', {
+              type: { down: 'touchStart', move: 'touchMove', up: 'touchEnd' }[type],
+              touchPoints: type === 'up' ? [] : [{ ...point, id: 1 }],
+            });
+          if (type === 'move') return page.mouse.move(point.x, point.y);
+          if (type === 'down') {
+            await page.mouse.move(point.x, point.y);
+            return page.mouse.down();
+          }
+          return page.mouse.up();
+        };
+        for (const drop of [false, true]) {
+          const source = await center(preview.locator('.import-card-cover'));
+          await pointer('down', source);
+          await page.locator('.trash-drag-layer[data-bin-visible=false]').waitFor();
+          const lowered = { x: source.x, y: source.y + 40 };
+          await pointer('move', lowered);
+          await page.locator('.trash-drag-layer[data-bin-visible=true]').waitFor();
+          if (drop) await pointer('move', await center(page.locator('.trash-drop-target')));
+          await pointer('up', lowered);
+          await page.locator('.trash-drag-layer').waitFor({ state: 'detached' });
+          assert.equal(await preview.isVisible(), !drop);
+        }
+        await touch?.detach();
+        assert.equal((await harness.call('list_materials')).length, 1);
+      }
       console.log(theme, width, 'import → label → home → retag → lookup → pocket → reopen passed');
     } catch (error) {
       console.error(

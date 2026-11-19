@@ -27,12 +27,12 @@ fn route(
             Ok(Value::Null)
         }
         "saved_source_segments" => {
-            serde_json::to_value(saved::collected_segments(c, text("contentHash"))?)
+            serde_json::to_value(saved::collected_segments(c, id("fileId"))?)
                 .map_err(|e| e.to_string())
         }
         "example_source_segments" => {
             serde_json::to_value(examples.with("test-main", text("sessionId"), |conn| {
-                saved::collected_segments(conn, text("contentHash"))
+                saved::collected_segments(conn, id("fileId"))
             })?)
             .map_err(|e| e.to_string())
         }

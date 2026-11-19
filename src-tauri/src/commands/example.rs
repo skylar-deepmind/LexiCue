@@ -160,13 +160,13 @@ pub async fn example_source_segments(
     state: State<'_, ExampleState>,
     window: tauri::Window,
     session_id: String,
-    content_hash: String,
+    file_id: i64,
 ) -> Result<Vec<i64>, String> {
     let shared = state.inner().clone();
     let owner = window.label().to_string();
     tauri::async_runtime::spawn_blocking(move || {
         shared.with(&owner, &session_id, |c| {
-            saved::collected_segments(c, &content_hash)
+            saved::collected_segments(c, file_id)
         })
     })
     .await

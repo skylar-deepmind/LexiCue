@@ -1,4 +1,3 @@
-import type { OnlineProvider } from '../lib/onlineDictionary';
 import { LoadingSkeleton } from './LoadingFeedback';
 import './lookup-controls.css';
 import useContentFontScaleStyle from './useContentFontScaleStyle';
@@ -34,7 +33,7 @@ export interface ReadingQuery {
     end: number;
     expression: string;
 }
-interface LookupMemory {local:DictionaryResult|null;online:Partial<Record<OnlineProvider,DictionaryResult>>;ready:boolean}
+interface LookupMemory {local:DictionaryResult|null;ready:boolean}
 export interface LookupSession extends LookupUndoSession {
     panels?:Map<string,PanelView>;results?:Map<string,LookupMemory>;recall?:Map<string,RecallView>;
     actions: Map<string, { mutation: SavedMutation; id: string; promise?: Promise<SavedMutationResult> }>;
@@ -131,14 +130,12 @@ function LookupContent({ togglePocket,recordTotal,query, scope, onSkip, drafts, 
     session.results ??= new Map();
     const cached=session.results.get(key);
     const [localResult, setLocalResult] = useState<DictionaryResult | null>(cached?.local ?? null);
-    const localResultRef = useRef(localResult);
-    localResultRef.current = localResult;
     const result=localResult;
     const provider='local';
     const activeProvider='local';
     const [lookupError, setLookupError] = useState('');
     const [loading, setLoading] = useState(!cached?.ready);
-    useLayoutEffect(()=>{session.results!.set(key,{local:localResult,online:{},ready:!loading});trimSessionViews(session);});
+    useLayoutEffect(()=>{session.results!.set(key,{local:localResult,ready:!loading});trimSessionViews(session);});
     const [retry, setRetry] = useState(0);
     useEffect(() => { const refresh = () => setRetry(value => value + 1); window.addEventListener('lexicue-dictionary-changed', refresh); return () => window.removeEventListener('lexicue-dictionary-changed', refresh); }, []);
     const [draft, setDraft] = useState(existingDraft?.value ?? '');

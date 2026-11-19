@@ -2030,27 +2030,40 @@ pub(super) fn latest_preview(conn: &Connection) -> Result<Option<SavedRecord>, S
     Ok(opening_context(conn, None)?.map(group_preview))
 }
 
-pub fn collected_segments(conn: &Connection, hash: &str) -> Result<Vec<i64>, String> {
+pub fn collected_segments(conn: &Connection, file_id: i64) -> Result<Vec<i64>, String> {
+    // Only read identities from this content's index. The source resolver also
+    // distinguishes independent imports of identical text and legacy sources.
     let mut statement = conn.prepare(
-        "SELECT DISTINCT json_extract(snapshot_json,'$.source.segment_index') FROM saved_records
-         WHERE deleted_at IS NULL AND json_extract(snapshot_json,'$.source.content_hash') = ?1
+        "SELECT record_id, json_extract(snapshot_json,'$.source.segment_index') FROM saved_records
+         WHERE deleted_at IS NULL AND json_extract(snapshot_json,'$.source.content_hash') =
+             (SELECT content_hash FROM files WHERE id=?1)
          AND json_type(snapshot_json,'$.source.segment_index')='integer'"
     ).map_err(|e| e.to_string())?;
     let rows = statement
-        .query_map([hash], |row| row.get(0))
+        .query_map([file_id], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
+        })
         .map_err(|e| e.to_string())?;
-    rows.collect::<rusqlite::Result<_>>()
-        .map_err(|e| e.to_string())
+    let mut indices = std::collections::BTreeSet::new();
+    for row in rows {
+        let (record_id, index) = row.map_err(|e| e.to_string())?;
+        if !indices.contains(&index)
+            && resolve_source(conn, &record_id)?.is_some_and(|source| source.file_id == file_id)
+        {
+            indices.insert(index);
+        }
+    }
+    Ok(indices.into_iter().collect())
 }
 
 #[tauri::command]
 pub async fn saved_source_segments(
     state: State<'_, DbState>,
-    content_hash: String,
+    file_id: i64,
 ) -> Result<Vec<i64>, String> {
     state
         .read("saved_source_segments", move |conn| {
-            collected_segments(conn, &content_hash)
+            collected_segments(conn, file_id)
         })
         .await
 }

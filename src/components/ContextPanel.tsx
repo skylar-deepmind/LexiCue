@@ -178,11 +178,17 @@ export default function ContextPanel({ view, label, children, onClose, canClose 
     const unregister = backNavigation.register(() => closeRef.current());
     panelRef.current?.focus({ preventScroll: true });
     const keys = (event: KeyboardEvent) => {
-      if (event.key !== 'Tab' || !layerRef.current || !layerRef.current.contains(document.activeElement)&&!associatedGuide(layerRef.current)?.contains(document.activeElement)) return;
+      const sheet = layerRef.current?.querySelector('.context-panel--lookup') ? document.querySelector<HTMLElement>('[data-sheet-active] .sentence-sheet') : null;
+      if (event.key !== 'Tab' || !layerRef.current || document.activeElement!==sheet && !layerRef.current.contains(document.activeElement)&&!associatedGuide(layerRef.current)?.contains(document.activeElement)) return;
       const items = [layerRef.current,associatedGuide(layerRef.current)].filter((root):root is HTMLElement=>!!root).flatMap(root=>Array.from(root.querySelectorAll<HTMLElement>('button:not(:disabled),input,textarea,summary,a[href]')))
         .filter(item => item.getClientRects().length > 0 && !item.closest('[inert],[aria-hidden="true"]') && getComputedStyle(item).visibility !== 'hidden');
-      const sheet=document.querySelector<HTMLElement>('[data-sheet-active] .sentence-sheet');
-      if (sheet && layerRef.current?.querySelector('.context-panel--lookup')) items.push(sheet);
+      if (sheet && !event.shiftKey && document.activeElement===items.at(-1)) {
+        event.preventDefault(); sheet.focus({preventScroll:true}); return;
+      }
+      if (sheet && event.shiftKey && document.activeElement===sheet) {
+        event.preventDefault(); items.at(-1)?.focus(); return;
+      }
+      if (sheet) items.push(sheet);
       if (!items.length) return;
       if (event.shiftKey && (document.activeElement === items[0] || document.activeElement === panelRef.current)) {
         event.preventDefault(); items.at(-1)?.focus();
