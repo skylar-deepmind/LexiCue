@@ -1080,9 +1080,9 @@ async fn download(
     }
     let tmp = Temp(dir.join(format!(".part-{}", uuid::Uuid::new_v4())));
     std::fs::create_dir(&tmp.0).map_err(|_| "media_io")?;
-    let output = tmp.0.join("audio.m4a");
     #[cfg(target_os = "ios")]
     let (manifest, verified) = {
+        let output = tmp.0.join("audio.m4a");
         ios_source_audio::download(f, &output, job).await?;
         let normalized = tmp.0.join("normalized.m4a");
         let (duration, origin) = tokio::select! {
@@ -1096,7 +1096,7 @@ async fn download(
     };
     #[cfg(not(target_os = "ios"))]
     let (manifest, verified) =
-        download_desktop_track(&tmp.0, output, &path, r, &a, job, &session).await?;
+        download_desktop_track(&tmp.0, &path, r, &a, job, &session, &metadata).await?;
     if job.cancelled() {
         return Err("media_cancelled".into());
     }
@@ -1116,13 +1116,14 @@ async fn download(
 #[cfg(not(target_os = "ios"))]
 async fn download_desktop_track(
     temp_dir: &Path,
-    output: PathBuf,
     path: &Path,
     r: &MediaRef,
     audio: &AudioTrack,
     job: &youtube::DownloadJob,
     session: &BrowserSession,
+    metadata: &serde_json::Value,
 ) -> Result<(Manifest, PathBuf), String> {
+    let output = temp_dir.join("audio.m4a");
     let mut cmd = tokio::process::Command::new(path);
     cmd.arg("--ignore-config");
     youtube::downloads::configure_session(&mut cmd, session)?;
@@ -1149,14 +1150,27 @@ async fn download_desktop_track(
     ])
     .arg(&audio.format_id)
     .arg("-o")
-    .arg(&output)
-    .arg(&r.source.url);
+    .arg(&output);
+    // Use the same extractor snapshot that passed source and subtitle checks.
+    // This private scratch file lives only as long as the download.
+    let info = temp_dir.join("info.json");
+    std::fs::write(&info, serde_json::to_vec(metadata).map_err(|_| "media_io")?)
+        .map_err(|_| "media_io")?;
+    cmd.arg("--load-info-json").arg(info);
     let run = youtube::run_ytdlp_capture(&mut cmd, Some(job), Duration::from_secs(420));
     tokio::pin!(run);
     let (status, _, stderr) = loop {
         tokio::select! {r=&mut run=>break r?,_ = tokio::time::sleep(Duration::from_millis(100))=>{if size(temp_dir)>MAX_BYTES{return Err("media_budget".into())}}}
     };
     if !status.success() {
+        let message = stderr.to_ascii_lowercase();
+        if message.contains("unable to download video data")
+            && ["http error 401", "http error 403", "http error 410"]
+                .iter()
+                .any(|status| message.contains(status))
+        {
+            return Err("media_url_expired".into());
+        }
         return Err(format!(
             "media_{}",
             youtube::downloads::DownloadError::from_message(
