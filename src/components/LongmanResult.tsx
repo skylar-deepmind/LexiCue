@@ -71,7 +71,7 @@ export default function LongmanResult({ result, onInteract, sentenceView=false }
     {[...sources].map(([key, source]) => <DictionarySource key={key} source={source}/>)}
   </details>;
   if (sentenceView) {
-
+    const excerpt = new Set(overview.map(item => item.sense.id));
     return <div className="longman-result word-families" data-result-status={result.status} onPointerDownCapture={onInteract} onKeyDownCapture={onInteract}>
       {result.entries.map(entry => <div className="dictionary-entry" key={entry.id}>
         {(multipleHeadwords || entry.headword!==query) && <strong lang="en">{entry.headword}</strong>}
@@ -79,14 +79,19 @@ export default function LongmanResult({ result, onInteract, sentenceView=false }
           const senses = group.senses.map(sense => ({entry,group,sense}));
           if (!senses.length) return null;
           const uses = collocations([{...entry,match:{...entry.match,pattern:null},related_expressions:[],groups:[group]}]);
-          const more = senses.length>1 || uses.length>0 || group.forms.length>0;
-          const meaning = <MeaningList meanings={senses.slice(0,1)} query={query} overview/>;
+          const preview = senses.filter(item => excerpt.has(item.sense.id));
+          const rest = senses.filter(item => !excerpt.has(item.sense.id));
+          const more = rest.length > 0 || uses.length > 0 || group.forms.length > 0;
+          const part = group.part_of_speech ?? group.source_part_of_speech;
+          const meaning = preview.length
+            ? <MeaningList meanings={preview} query={query} overview/>
+            : <span className="dictionary-meaning-pos">{part ? t(`dictionaryFlow.pos.${part}`, { defaultValue: group.source_part_of_speech ?? part }) : entry.headword}</span>;
           if (!more) return <section key={group.id}>{meaning}</section>;
           return <details className="pos-group" key={group.id}><summary>{meaning}
             <small>{t('reader.senseCount',{count:senses.length})}{uses.length>0 && ' · '+t('dictionaryFlow.collocations')}</small>
             {uses.length>0 && <em lang="en">{uses.slice(0,2).map(row=>row.text).join('　·　')}</em>}
           </summary><div className="pos-rest">
-            {senses.length>1 && <MeaningList meanings={senses.slice(1)} query={query} start={2}/>}
+            {rest.length > 0 && <MeaningList meanings={rest} query={query} start={preview.length + 1}/>}
             {uses.length>0 && <dl>{uses.map(use=><div key={use.text}><dt lang="en">{use.text}</dt><dd>{use.gloss}</dd></div>)}</dl>}
             {group.forms.length>0 && <p lang="en">{group.forms.map(form=>form.text).join(' · ')}</p>}
           </div></details>;
