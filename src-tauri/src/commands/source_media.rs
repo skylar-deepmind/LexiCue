@@ -805,6 +805,66 @@ fn manifest_for_track(
         sha256: file_digest(path)?,
     })
 }
+
+#[cfg(any(target_os = "ios", test))]
+fn remove_container_clock(
+    file: &mut (impl std::io::Read + std::io::Write + std::io::Seek),
+) -> std::io::Result<()> {
+    use std::io::{ErrorKind, Read, Seek, SeekFrom, Write};
+
+    fn visit(
+        file: &mut (impl Read + Write + Seek),
+        mut at: u64,
+        end: u64,
+        parent: [u8; 4],
+    ) -> std::io::Result<()> {
+        let invalid = || std::io::Error::from(ErrorKind::InvalidData);
+        while at < end {
+            file.seek(SeekFrom::Start(at))?;
+            let mut header = [0; 8];
+            file.read_exact(&mut header)?;
+            let kind: [u8; 4] = header[4..].try_into().unwrap();
+            let (length, header_size) = match u32::from_be_bytes(header[..4].try_into().unwrap()) {
+                0 => (end - at, 8),
+                1 => {
+                    file.read_exact(&mut header)?;
+                    (u64::from_be_bytes(header), 16)
+                }
+                length => (u64::from(length), 8),
+            };
+            let next = at
+                .checked_add(length)
+                .filter(|next| *next <= end && length >= header_size)
+                .ok_or_else(invalid)?;
+            let body = at + header_size;
+            match (&parent, &kind) {
+                (b"root", b"moov") | (b"moov", b"trak") | (b"trak", b"mdia") => {
+                    visit(file, body, next, kind)?;
+                }
+                (b"moov", b"mvhd") | (b"trak", b"tkhd") | (b"mdia", b"mdhd") => {
+                    file.seek(SeekFrom::Start(body))?;
+                    let mut full_box = [0; 4];
+                    file.read_exact(&mut full_box)?;
+                    let stamp_bytes = match full_box[0] {
+                        0 => 8,
+                        1 => 16,
+                        _ => return Err(invalid()),
+                    };
+                    if next - body < 4 + stamp_bytes as u64 {
+                        return Err(invalid());
+                    }
+                    file.write_all(&[0; 16][..stamp_bytes])?;
+                }
+                _ => {}
+            }
+            at = next;
+        }
+        Ok(())
+    }
+
+    let len = file.seek(SeekFrom::End(0))?;
+    visit(file, 0, len, *b"root")
+}
 fn size(dir: &Path) -> u64 {
     std::fs::read_dir(dir)
         .into_iter()
@@ -1089,6 +1149,20 @@ async fn download(
             _ = job.cancel_signal() => return Err("media_cancelled".into()),
             result = ios_source_audio::normalize(&output, &normalized) => result?,
         };
+        // AVFoundation writes creation/modification times into every remux.
+        // Keep an exact legacy match if available, and make new files stable.
+        if !r
+            .expected_sha256
+            .as_deref()
+            .is_some_and(|hash| file_digest(&normalized).ok().as_deref() == Some(hash))
+        {
+            let mut file = std::fs::OpenOptions::new()
+                .read(true)
+                .write(true)
+                .open(&normalized)
+                .map_err(|_| "media_io")?;
+            remove_container_clock(&mut file).map_err(|_| "media_container_failed")?;
+        }
         (
             manifest_for_track(&normalized, &r.source, &a, duration, origin)?,
             normalized,
@@ -1319,6 +1393,38 @@ mod tests {
             &prior,
             &regenerated.replace("We take", "I take")
         ));
+    }
+
+    #[test]
+    fn remux_clock_does_not_influence_the_saved_audio_hash() {
+        fn atom(kind: &[u8; 4], body: &[u8]) -> Vec<u8> {
+            let mut atom = ((body.len() + 8) as u32).to_be_bytes().to_vec();
+            atom.extend(kind);
+            atom.extend(body);
+            atom
+        }
+        fn sample(time: u8) -> Vec<u8> {
+            let mut header = vec![0; 4];
+            header.extend([time; 8]);
+            header.extend(123u32.to_be_bytes());
+            let mut movie = atom(b"mvhd", &header);
+            let mut media = atom(b"mdhd", &header);
+            let mut track = atom(
+                b"tkhd",
+                &[&[1, 0, 0, 0][..], &[time; 16], &[0, 0, 0, 123]].concat(),
+            );
+            media.extend(atom(b"free", b"ignore"));
+            track.extend(atom(b"mdia", &media));
+            movie.extend(atom(b"trak", &track));
+            [atom(b"moov", &movie), atom(b"mdat", b"original audio")].concat()
+        }
+        let mut a = std::io::Cursor::new(sample(22));
+        let mut b = std::io::Cursor::new(sample(99));
+        assert_ne!(a.get_ref(), b.get_ref());
+        remove_container_clock(&mut a).unwrap();
+        remove_container_clock(&mut b).unwrap();
+        assert_eq!(a.get_ref(), b.get_ref());
+        assert!(a.get_ref().ends_with(b"original audio"));
     }
     fn input(op: &str, video: &str) -> materials::MaterialInput {
         materials::MaterialInput {
