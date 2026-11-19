@@ -71,6 +71,12 @@ pub struct YoutubeSource {
     pub audio: Option<AudioTrack>,
 }
 impl YoutubeSource {
+    pub(super) fn can_prepare_audio(&self) -> bool {
+        self.duration_ms <= MAX_DURATION_MS
+            && self.subtitle_language.starts_with("en")
+            && matches!(self.subtitle_kind.as_str(), "manual" | "original")
+    }
+
     fn identity(&self) -> String {
         digest(
             &serde_json::to_vec(&(
@@ -155,7 +161,7 @@ impl MediaRef {
             .iter()
             .filter_map(|i| self.source.cues.iter().find(|c| c.id == *i))
             .collect();
-        if self.source.audio.is_none()
+        if !self.source.can_prepare_audio()
             || self.precision != "cue"
             || self.padding_before_ms != 0
             || self.padding_after_ms != 0
@@ -228,6 +234,63 @@ fn english_audio(metadata: &serde_json::Value) -> Option<AudioTrack> {
             "metadata"
         }
         .into(),
+    })
+}
+
+fn local_audio(metadata: &serde_json::Value, saved: Option<&AudioTrack>) -> Option<AudioTrack> {
+    let current = english_audio(metadata)?;
+    if saved == Some(&current) {
+        return Some(current);
+    }
+    // An extractor's format ID is local to that extractor. A replacement
+    // must be positively identified as the original English AAC track.
+    let confirmed = current.language == "en"
+        && metadata["formats"].as_array()?.iter().any(|format| {
+            format["format_id"] == current.format_id
+                && format["format_note"].as_str().is_some_and(|note| {
+                    let note = note.to_ascii_lowercase();
+                    note.contains("original") && !note.contains("dubbed")
+                })
+        });
+    if !confirmed {
+        return None;
+    }
+    let family = |id: &str| {
+        id == "140"
+            || id.starts_with("ios-140-en-")
+            || id.strip_prefix("140-").is_some_and(|suffix| {
+                !suffix.is_empty() && suffix.bytes().all(|byte| byte.is_ascii_digit())
+            })
+    };
+    match saved {
+        None => Some(current),
+        Some(track)
+            if track.language == "en"
+                && family(&track.format_id)
+                && family(&current.format_id)
+                && track.format_id.starts_with("ios-") != current.format_id.starts_with("ios-") =>
+        {
+            Some(current)
+        }
+        _ => None,
+    }
+}
+
+fn matches_subtitle_revision(source: &YoutubeSource, content: &str) -> bool {
+    if digest(content.as_bytes()) == source.subtitle_sha256 {
+        return true;
+    }
+    // SRT, VTT and JSON3 can serialize the same cue with different whitespace.
+    let cues = youtube::parse_srt(content);
+    source.cues.iter().all(|saved| {
+        cues.get(saved.id as usize).is_some_and(|current| {
+            current.start_ms == saved.start_ms
+                && current.end_ms == saved.end_ms
+                && current
+                    .text
+                    .split_whitespace()
+                    .eq(saved.text.split_whitespace())
+        })
     })
 }
 #[cfg(test)]
@@ -341,7 +404,9 @@ pub fn reference_for_segment(
     end: Option<&str>,
     expected: Option<String>,
 ) -> Option<MediaRef> {
-    s.audio.as_ref()?;
+    if !s.can_prepare_audio() {
+        return None;
+    }
     let (start, end) = (youtube::parse_ts(start?)?, youtube::parse_ts(end?)?);
     if start >= s.duration_ms {
         return None;
@@ -663,6 +728,7 @@ pub struct Manifest {
 async fn probe(
     path: &Path,
     s: &YoutubeSource,
+    a: &AudioTrack,
     job: Option<&youtube::DownloadJob>,
 ) -> Result<Manifest, String> {
     let tool = youtube::tool_path("ffprobe").ok_or("media_missing_ffprobe")?;
@@ -702,12 +768,13 @@ async fn probe(
         .map_err(|_| "media_timebase")?
         * 1000.)
         .round() as i64;
-    media_manifest(path, s, duration_ms, start_ms)
+    manifest_for_track(path, s, a, duration_ms, start_ms)
 }
 
-fn media_manifest(
+fn manifest_for_track(
     path: &Path,
     s: &YoutubeSource,
+    a: &AudioTrack,
     duration_ms: i64,
     start_ms: i64,
 ) -> Result<Manifest, String> {
@@ -725,7 +792,6 @@ fn media_manifest(
     if bytes == 0 || bytes > MAX_BYTES {
         return Err("media_budget".into());
     }
-    let a = s.audio.as_ref().ok_or("media_unconfirmed_track")?;
     Ok(Manifest {
         video_id: s.video_id.clone(),
         format_id: a.format_id.clone(),
@@ -833,7 +899,25 @@ pub async fn prepare_source_media(
 ) -> Result<MediaStatus, String> {
     let s = {
         let c = state.conn.lock().map_err(|e| e.to_string())?;
-        target_ref(&c, &target)?
+        let mut reference = target_ref(&c, &target)?;
+        // A saved sentence may have only a cue snapshot. When the full
+        // material is present, verify its full subtitle revision as well.
+        let full: Option<String> = c
+            .query_row(
+                "SELECT media_source FROM files WHERE media_identity=?1 LIMIT 1",
+                [&reference.source.key],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(|e| e.to_string())?;
+        if let Some(full) = full {
+            let source: YoutubeSource =
+                serde_json::from_str(&full).map_err(|_| "media_invalid_source")?;
+            if source.key == reference.source.key {
+                reference.source = source;
+            }
+        }
+        reference
     };
     let dir = root(&app)?;
     std::fs::create_dir_all(&dir).map_err(|_| "media_io")?;
@@ -848,7 +932,21 @@ pub async fn prepare_source_media(
         reserve(&c, &dir)?;
         c.execute("INSERT INTO source_media(source_key,source_json,status,updated_at) VALUES(?1,?2,'preparing',?3) ON CONFLICT(source_key) DO UPDATE SET status='preparing',error=NULL",params![s.source.key,serde_json::to_string(&s.source).unwrap(),super::saved::now_ms()]).map_err(|e|e.to_string())?;
     }
-    let result = download(&dir, &s, &job, session.unwrap_or_default()).await;
+    let session = session.unwrap_or_default();
+    let refreshable = |error: &String| {
+        matches!(
+            error.as_str(),
+            "media_url_expired" | "media_track_missing" | "media_caption_link_stale"
+        )
+    };
+    let mut result = download(&dir, &s, &job, session.clone()).await;
+    if result.as_ref().is_err_and(refreshable) && !job.cancelled() {
+        youtube::invalidate_metadata(&s.source.video_id, &session);
+        result = download(&dir, &s, &job, session.clone()).await;
+        if result.as_ref().is_err_and(refreshable) {
+            youtube::invalidate_metadata(&s.source.video_id, &session);
+        }
+    }
     let c = state.conn.lock().map_err(|e| e.to_string())?;
     match result {
         Ok(m) => {
@@ -937,7 +1035,7 @@ async fn download(
     if duration != r.source.duration_ms || metadata["id"].as_str() != Some(&r.source.video_id) {
         return Err("media_version_changed".into());
     }
-    let a = r.source.audio.as_ref().ok_or("media_unconfirmed_track")?;
+    let a = local_audio(&metadata, r.source.audio.as_ref()).ok_or("media_track_missing")?;
     let f = metadata["formats"]
         .as_array()
         .and_then(|fs| {
@@ -945,8 +1043,7 @@ async fn download(
                 .find(|f| f["format_id"].as_str() == Some(&a.format_id))
         })
         .ok_or("media_track_missing")?;
-    if english_audio(&metadata).as_ref() != Some(a)
-        || f["vcodec"] != "none"
+    if f["vcodec"] != "none"
         || f["ext"] != "m4a"
         || (a.language == "en" && !f["language"].as_str().is_some_and(|s| s.starts_with("en")))
     {
@@ -978,7 +1075,7 @@ async fn download(
     )
     .await
     .map_err(|e| format!("media_{}", e.code))?;
-    if digest(subtitle.content.as_bytes()) != r.source.subtitle_sha256 {
+    if !matches_subtitle_revision(&r.source, &subtitle.content) {
         return Err("media_subtitle_changed".into());
     }
     let tmp = Temp(dir.join(format!(".part-{}", uuid::Uuid::new_v4())));
@@ -993,13 +1090,13 @@ async fn download(
             result = ios_source_audio::normalize(&output, &normalized) => result?,
         };
         (
-            media_manifest(&normalized, &r.source, duration, origin)?,
+            manifest_for_track(&normalized, &r.source, &a, duration, origin)?,
             normalized,
         )
     };
     #[cfg(not(target_os = "ios"))]
     let (manifest, verified) =
-        download_desktop_track(&tmp.0, output, &path, r, a, job, &session).await?;
+        download_desktop_track(&tmp.0, output, &path, r, &a, job, &session).await?;
     if job.cancelled() {
         return Err("media_cancelled".into());
     }
@@ -1033,9 +1130,11 @@ async fn download_desktop_track(
         "--no-playlist",
         "--no-progress",
         "--retries",
-        "0",
+        "2",
         "--fragment-retries",
-        "0",
+        "2",
+        "--retry-sleep",
+        "http:linear=1:2",
         "--extractor-retries",
         "0",
         "--socket-timeout",
@@ -1052,7 +1151,7 @@ async fn download_desktop_track(
     .arg("-o")
     .arg(&output)
     .arg(&r.source.url);
-    let run = youtube::run_ytdlp_capture(&mut cmd, Some(job), Duration::from_secs(180));
+    let run = youtube::run_ytdlp_capture(&mut cmd, Some(job), Duration::from_secs(420));
     tokio::pin!(run);
     let (status, _, stderr) = loop {
         tokio::select! {r=&mut run=>break r?,_ = tokio::time::sleep(Duration::from_millis(100))=>{if size(temp_dir)>MAX_BYTES{return Err("media_budget".into())}}}
@@ -1073,7 +1172,7 @@ async fn download_desktop_track(
     // A complete MP4 avoids the phantom tail WebKit exposes in some DASH files.
     let normalized = temp_dir.join("normalized.m4a");
     normalize_container(&output, &normalized, Some(job)).await?;
-    let mut manifest = probe(&normalized, &r.source, Some(job)).await?;
+    let mut manifest = probe(&normalized, &r.source, audio, Some(job)).await?;
     let mut verified = normalized;
     if job.cancelled() {
         return Err("media_cancelled".into());
@@ -1084,7 +1183,7 @@ async fn download_desktop_track(
     {
         // A legacy snapshot may bind the old raw container. Recover exactly
         // those bytes if available; never rewrite or silently migrate its hash.
-        let raw = probe(&output, &r.source, Some(job)).await?;
+        let raw = probe(&output, &r.source, audio, Some(job)).await?;
         if r.expected_sha256.as_deref() != Some(&raw.sha256) {
             return Err("media_version_changed".into());
         }
@@ -1160,6 +1259,52 @@ mod tests {
             source_language: Some("en".into()),
         };
         source_from_subtitles(video,&t,"1\n00:00:01,000 --> 00:00:03,000\nHello world. Another sentence.\n\n2\n00:00:04,000 --> 00:00:06,000\nWe take off.\n",&serde_json::json!({"title":"fixture","duration":8,"formats":[{"vcodec":"none","ext":"m4a","acodec":"mp4a.40.2","format_id":"140","language":"en"}]})).unwrap()
+    }
+
+    #[test]
+    fn recovers_original_audio_across_extractors_or_after_incomplete_import() {
+        let mac = AudioTrack {
+            format_id: "140-7".into(),
+            language: "en".into(),
+            language_basis: "metadata".into(),
+        };
+        let mut metadata = serde_json::json!({"formats":[{
+            "vcodec":"none","ext":"m4a","acodec":"mp4a.40.2",
+            "format_id":"ios-140-en-US-4","language":"en-US","format_note":"original"
+        }]});
+        let mobile = local_audio(&metadata, Some(&mac)).unwrap();
+        assert_eq!(mobile.format_id, "ios-140-en-US-4");
+        assert_eq!(local_audio(&metadata, None), Some(mobile.clone()));
+        metadata["formats"][0]["format_id"] = serde_json::json!("140-7");
+        assert_eq!(local_audio(&metadata, Some(&mobile)), Some(mac));
+        metadata["formats"][0]["format_note"] = serde_json::json!("dubbed");
+        assert!(local_audio(&metadata, Some(&mobile)).is_none());
+    }
+
+    #[test]
+    fn subtitle_serialization_can_change_but_recovery_cannot_change_timecodes_or_words() {
+        let mut prior = source("abcdefghijk");
+        prior.audio = None;
+        prior.key = prior.identity();
+        let reference = reference_for_segment(
+            &prior,
+            "Hello world.",
+            Some("00:00:01,000"),
+            Some("00:00:03,000"),
+            None,
+        )
+        .unwrap();
+        assert!(reference.validate().is_ok());
+        let regenerated = "1\n00:00:01,000 --> 00:00:03,000\nHello world.\nAnother sentence.\n\n2\n00:00:04,000 --> 00:00:06,000\nWe take off.\n";
+        assert!(matches_subtitle_revision(&prior, regenerated));
+        assert!(!matches_subtitle_revision(
+            &prior,
+            &regenerated.replace("04,000", "04,020")
+        ));
+        assert!(!matches_subtitle_revision(
+            &prior,
+            &regenerated.replace("We take", "I take")
+        ));
     }
     fn input(op: &str, video: &str) -> materials::MaterialInput {
         materials::MaterialInput {
@@ -1421,6 +1566,7 @@ mod tests {
         let manifest = tauri::async_runtime::block_on(probe(
             Path::new("/tmp/lexicue-youtube-audio-v1/jNQXAC9IVRw.m4a"),
             &source,
+            source.audio.as_ref().unwrap(),
             None,
         ))
         .unwrap();
@@ -1459,6 +1605,7 @@ mod tests {
         let manifest = tauri::async_runtime::block_on(probe(
             Path::new("/tmp/lexicue-youtube-audio-v1/controlled.m4a"),
             &controlled,
+            controlled.audio.as_ref().unwrap(),
             None,
         ))
         .unwrap();

@@ -7,7 +7,6 @@ use std::sync::{
     Mutex,
 };
 use std::time::Duration;
-use tokio::io::AsyncWriteExt;
 use tokio::sync::oneshot;
 
 type Times = (i64, i64);
@@ -76,8 +75,7 @@ async fn transfer(format: &serde_json::Value, path: &Path) -> Result<(), String>
     }
     let client = reqwest::Client::builder()
         .connect_timeout(Duration::from_secs(8))
-        .read_timeout(Duration::from_secs(15))
-        .timeout(Duration::from_secs(420))
+        .read_timeout(Duration::from_secs(30))
         .redirect(reqwest::redirect::Policy::custom(|attempt| {
             if attempt.previous().len() < 5 && mobile_audio::media_url(attempt.url()) {
                 attempt.follow()
@@ -87,35 +85,27 @@ async fn transfer(format: &serde_json::Value, path: &Path) -> Result<(), String>
         }))
         .build()
         .map_err(|_| "media_network")?;
-    let mut response = client
-        .get(url)
-        .header("User-Agent", mobile_audio::USER_AGENT)
-        .send()
-        .await
-        .map_err(|_| "media_network")?;
-    if !response.status().is_success()
-        || response
-            .content_length()
-            .is_some_and(|size| size != expected)
-    {
-        return Err("media_download_failed".into());
-    }
     let mut file = tokio::fs::File::create(path)
         .await
         .map_err(|_| "media_io")?;
     let mut written = 0;
-    while let Some(chunk) = response.chunk().await.map_err(|_| "media_network")? {
-        written += chunk.len() as u64;
-        if written > expected {
-            return Err("media_budget".into());
+    let run = async {
+        for attempt in 0..3 {
+            match mobile_audio::transfer_once(&client, &url, expected, &mut file, &mut written)
+                .await
+            {
+                Err("media_network") if attempt < 2 => {
+                    tokio::time::sleep(Duration::from_secs(attempt + 1)).await;
+                }
+                result => return result,
+            }
         }
-        file.write_all(&chunk).await.map_err(|_| "media_io")?;
-    }
-    if written != expected {
-        return Err("media_download_failed".into());
-    }
-    file.sync_all().await.map_err(|_| "media_io")?;
-    Ok(())
+        Err("media_network")
+    };
+    tokio::time::timeout(Duration::from_secs(420), run)
+        .await
+        .map_err(|_| "media_network")??;
+    file.sync_all().await.map_err(|_| "media_io".into())
 }
 
 pub(super) async fn download(

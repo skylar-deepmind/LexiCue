@@ -31,6 +31,7 @@ import useReadingLayout from '../components/useReadingLayout';
 import { useQuietScrollbars } from '../components/useQuietScrollbars';
 import useReadingAnchor from '../components/useReadingAnchor';
 import useReadingFollow from '../components/useReadingFollow';
+import { useSourceMediaStore } from '../stores/sourceMediaStore';
 import { createLookupPlaybackInterruption } from '../lib/lookupPlayback';
 import useRecallMatches from '../components/useRecallMatches';
 import useContentFontScaleStyle from '../components/useContentFontScaleStyle';
@@ -132,6 +133,9 @@ export default function ReadingPage({ data, scope }: {
         return q && segment && segment.en_text.slice(q.start, q.end).trim() === q.expression.trim() ? { segment, start: q.start, end: q.end, expression: q.expression } : null;
     });
     const lookupView = useRef({ tab: returnView?.query?.tab ?? 'meaning', provider: returnView?.query?.provider });
+    const recoveredAudioReady = useSourceMediaStore(state =>
+        !!material.source && !material.source.audio && state.entries[material.source.key]?.status === 'ready');
+    const hasSourceAudio = !!material.source?.audio || recoveredAudioReady;
     const queryWithMedia = useMemo(() => query ? {...query,media:data.media_refs?.[query.segment.id]} : null, [query,data.media_refs]);
     const drafts = useRef(memory?.drafts ?? returnLookupMemory.get(location.state?.restoreVisitToken)?.drafts ?? new Map<string, LookupDraft>());
     const lookupSession = useRef<LookupSession>(memory?.session ?? returnLookupMemory.get(location.state?.restoreVisitToken)?.session ?? {receipts:new Map(), actions:new Map(), undos:new Map()});
@@ -209,7 +213,7 @@ export default function ReadingPage({ data, scope }: {
             let selected: number | null = null, distance = Infinity;
             for (const row of rows) {
                 const index = segmentIndices.get(Number(row.dataset.sentence));
-                if (index === undefined || material.source?.audio && !data.media_refs?.[segments[index].id]) continue;
+                if (index === undefined || hasSourceAudio && !data.media_refs?.[segments[index].id]) continue;
                 const rect = row.querySelector('.reading-original')?.getBoundingClientRect();
                 if (!rect || rect.top < bounds.top || rect.top >= bottom) continue;
                 const next = Math.abs(rect.top - guide);
@@ -249,12 +253,12 @@ export default function ReadingPage({ data, scope }: {
             }
             // A paused or interrupted session may need its original source resolved again.
         }
-        if (material.source?.audio) {
+        if (hasSourceAudio) {
             if (!ref) { setSourceError(t('sourceAudio.noTiming')); return; }
             setSourceError('');
             void state.startSourceContinuous({fileId:material.id,segmentId:segment.id,sourceKey:ref.source.key,key:`reader:${mediaIdentity}:continuous`,index});
         } else void state.startQueue(speechItems.map(({text,key})=>({text,key})),index);
-    },[segments,data.media_refs,material.id,material.source,speechItems,mediaIdentity,t,followAllowed]);
+    },[segments,data.media_refs,material.id,hasSourceAudio,speechItems,mediaIdentity,t,followAllowed]);
     const listenFrom = (index: number) => {
         cancelBrowsing.current();
         progressIntent.current = true;

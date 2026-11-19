@@ -17,6 +17,7 @@ const OPERATION_TIMEOUT: Duration = Duration::from_secs(300);
 const METADATA_TTL: Duration = Duration::from_secs(600);
 const YTDLP_VERSION_TIMEOUT: Duration = Duration::from_secs(3);
 
+pub mod cover;
 #[cfg(any(test, target_os = "ios"))]
 #[path = "youtube_mobile_audio.rs"]
 pub(super) mod mobile_audio;
@@ -539,6 +540,14 @@ fn get_cached_metadata(video_id: &str) -> Option<serde_json::Value> {
         return None;
     }
     Some(entry.json.clone())
+}
+
+pub(super) fn invalidate_metadata(video: &str, session: &downloads::BrowserSession) {
+    if let Some(cache) = METADATA_CACHE.get() {
+        if let Ok(mut entries) = cache.lock() {
+            entries.remove(&format!("{video}:{}", session.cache_identity()));
+        }
+    }
 }
 
 fn cache_metadata(video_id: &str, json: &serde_json::Value) {

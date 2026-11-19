@@ -192,6 +192,7 @@ pub fn run() {
             commands::import::import_file,
             commands::import::check_duplicate,
             commands::source_media::source_media_status,
+            commands::youtube::cover::youtube_cover,
             commands::source_media::prepare_source_media,
             commands::source_media::resolve_source_media,
             commands::source_media::resolve_reading_media,

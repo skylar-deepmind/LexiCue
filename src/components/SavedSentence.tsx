@@ -122,13 +122,13 @@ export default function SavedSentence({ record, active, onActivate, onChange, on
     {record.explanation_source === 'personal' && record.explanation && <p className="saved-sentence-personal">{t('dictionaryFlow.personalMeaning')}：<span className="saved-sentence-note">{record.explanation}</span></p>}
     <small className="saved-sentence-source">{record.source ? t('savedRecords.source', { name: record.source.file_name, index: record.source.segment_index + 1 }) : t('savedRecords.legacyMissingSource')}</small>
     {active && <div className="saved-sentence-actions saved-record-actions" role="group" aria-label={t('reader.sentenceActions')}>
-      <SpeechButton text={record.sentence ?? ''} speechKey={speechKey} kind="sentence" media={mediaReady && media?.source.audio ? bindMediaTarget(media, {record_id: record.record_id}) : undefined} label={t(mediaReady && media?.source.audio ? 'sourceAudio.playOriginal' : 'sourceAudio.read')} idleIcon={<Volume2 size={20} strokeWidth={1.8} aria-hidden="true" />} disabled={removing}/>
+      <SpeechButton text={record.sentence ?? ''} speechKey={speechKey} kind="sentence" media={mediaReady && media ? bindMediaTarget(media, {record_id: record.record_id}) : undefined} label={t(mediaReady && media ? 'sourceAudio.playOriginal' : 'sourceAudio.read')} idleIcon={<Volume2 size={20} strokeWidth={1.8} aria-hidden="true" />} disabled={removing}/>
       <button type="button" className="ui-button ui-button--icon" aria-label={t('reader.toggleTranslation')} title={t(record.sentence_translation ? 'reader.toggleTranslation' : 'reader.noSavedTranslation')} aria-pressed={translated} disabled={!record.sentence_translation} onClick={() => setTranslated(value => !value)}><Languages size={20} strokeWidth={1.8} aria-hidden="true" /></button>
       <button type="button" className="ui-button ui-button--icon recall-source" data-testid="recall-source" aria-label={t('savedRecords.returnToSource')} title={t('savedRecords.returnToSource')} disabled={disabled || sourceMissing || !onSource} onClick={() => void returnToSource()}><ExternalLink size={20} strokeWidth={1.8} aria-hidden="true" /></button>
       <button ref={editButton} type="button" className="ui-button ui-button--icon" aria-label={t('reader.personalExplanation')} title={t('reader.personalExplanation')} disabled={disabled} onClick={beginEdit}><Pencil size={20} strokeWidth={1.8} aria-hidden="true" /></button>
 
     </div>}
-    {active && media?.source.audio && <SourceAudioControls statusOnly reference={media} target={{record_id: record.record_id}} text={record.sentence ?? ''} speechKey={speechKey}/>}
+    {active && media && <SourceAudioControls statusOnly reference={media} target={{record_id: record.record_id}} text={record.sentence ?? ''} speechKey={speechKey}/>}
     <SpeechFeedback speechKeys={[speechKey]}/>
     {record.explanation_source !== 'personal' && record.explanation && <details className="saved-sentence-legacy"><summary>{t('dictionaryFlow.historicalMeaning')}</summary><p>{record.explanation}</p></details>}
     {sourceMissing && record.source && <p className="saved-status" role="status">{t('savedRecords.sourceMissing')}</p>}

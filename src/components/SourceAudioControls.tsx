@@ -20,7 +20,7 @@ export default function SourceAudioControls({ reference, target, text, speechKey
   const current = useRef({ reference, target }); current.current = { reference, target };
   useEffect(() => { const { reference, target } = current.current; if (reference) void useSourceMediaStore.getState().refresh(reference, target); }, [key, targetKey, playbackFailed]);
   if (!text.trim()) return null;
-  const synthetic = (key: string) => <SpeechButton text={text} speechKey={key} kind="sentence" label={t('sourceAudio.playSynthetic')} displayLabel={t('sourceAudio.read')} showLabel={!!reference?.source.audio}/>;
+  const synthetic = (key: string) => <SpeechButton text={text} speechKey={key} kind="sentence" label={t('sourceAudio.playSynthetic')} displayLabel={t('sourceAudio.read')} showLabel={!!reference}/>;
   if (!reference) return statusOnly ? null : <div className="source-audio-controls">{synthetic(speechKey)}<SpeechFeedback speechKeys={[speechKey]} /></div>;
   if (!reference.source.audio) return statusOnly ? null : <div className="source-audio-controls">{synthetic(`${speechKey}:synthetic`)}<SpeechFeedback speechKeys={[`${speechKey}:synthetic`]} /></div>;
   const ready = state?.status === 'ready', preparing = state?.status === 'preparing';
