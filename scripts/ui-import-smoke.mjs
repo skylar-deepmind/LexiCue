@@ -83,7 +83,15 @@ try{
   eq((await writes()).length,0,'native picker boundary has zero writes before confirmation');eq((await call('test_counts')).files,0,'no material before confirmation');
   await full();ok((await page.locator('.lc-document-preview').innerText()).includes('take off'),'real English excerpt');eq((await page.locator('.lc-document-preview').innerText()).split('飞机很快就要起飞了。').length-1,1,'existing Chinese appears once in the original source block');ok((await page.locator('.lc-document-preview').innerText()).includes('Curiosity helps us make sense of new ideas.'),'full local preview includes the final cue, beyond the former three-sentence excerpt');
   await closeFull();await contrast(page.locator('.import-edge-label'),theme+' label');await page.locator('.import-edge-label').hover();await contrast(page.locator('.import-edge-label'),theme+' label hover');
-  const add=async()=>{await page.locator('.import-edge-label').click();await page.locator('.import-card-stage [data-add]').click();};
+  const add=async()=>{
+    await page.locator('.import-edge-label').click();
+    const rail=page.locator('.import-card-stage .draw-rail');
+    await rail.hover();await page.keyboard.down('Shift');await page.mouse.wheel(0,30000);await page.keyboard.up('Shift');
+    await page.waitForFunction(()=>{const r=document.querySelector('.import-card-stage .draw-rail');return r.scrollLeft+r.clientWidth>=r.scrollWidth-2;});
+    const outline=rail.locator('[data-add]'),a=await outline.boundingBox(),r=await rail.boundingBox();
+    assert.ok(a.x>=r.x-1 && a.x+a.width<=r.x+r.width+1,'new label remains visible at the right scroll limit');
+    await outline.click();
+  };
   const tagName=page.locator('.write-name input');
   // A cancelled picker preserves the already prepared content.
   const beforeDraft=await page.evaluate(async()=>{const {useImportStore}=await window.__uiStoreModule('importStore');return useImportStore.getState().items[0].draft;});

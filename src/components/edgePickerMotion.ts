@@ -101,7 +101,10 @@ export function bindEdgePicker(
     desk.style.setProperty('--edge-rise', top - baseline.bottom - 9 + 'px');
     const c = cards[0] as HTMLElement,
       second = cards[1] as HTMLElement;
-    first = c.offsetLeft + c.offsetWidth / 2;
+    // Place the first card under the grip while keeping both end cards in reach at the scroll limits.
+    const cardWidth = c.offsetWidth;
+    root.style.setProperty('--rail-start', clamp(x - left - cardWidth / 2, 0, width - cardWidth) + 'px');
+    first = c.offsetLeft + cardWidth / 2;
     stride = second.offsetLeft - c.offsetLeft;
     maxScroll = Math.max(0, rail.scrollWidth - width);
     scroll = clamp(first + selected * stride - (x - left), 0, maxScroll);
