@@ -43,7 +43,7 @@ import useTrashDrag, { isTrashDragging } from '../components/useTrashDrag';
 import PosterWall from '../components/PosterWall';
 import { cancelReadingReturn, captureReadingEntrance, finishReadingReturn, readingMotionExcerpt } from '../lib/readingMotion';
 import { playTagFlight } from '../lib/tagFlight';
-import { posterDealStyle, type PosterEntrance } from '../lib/posterDeal';
+import type { PosterEntrance } from '../lib/posterDeal';
 import './approved-ui.css';
 import '../components/import-material-card.css';
 
@@ -239,7 +239,7 @@ function MaterialDesk() {
     </>}
     {groups && !importOpen && wallTag === null && <TagRail files={catalog.files} tags={tags} returnFocus={() => libraryButton.current} onClose={() => { setGroups(false); setParams({}); }} onSelect={(tag, origin) => {
       lastLibraryTag = tag;
-      setWallEntrance({ tag, origin, style: posterDealStyle() });
+      setWallEntrance({ tag, origin });
       setGroups(false);
       setParams({ view: 'library', tag });
     }}/ >}

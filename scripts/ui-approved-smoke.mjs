@@ -27,9 +27,18 @@ try{
   await page.getByRole('button',{name:'材料库',exact:true}).click();await page.locator('.approved-tag-panel').waitFor();
   await page.getByRole('button',{name:'Coast · 14',exact:true}).click();
   if(width>=768){
-    await page.locator('.approved-poster-deal[data-style=cascade]').waitFor();
+    const deal=page.locator('.approved-poster-deal');
+    await deal.waitFor();
     ok(await page.locator('.approved-wall-viewport[data-dealing]').count()===1,'entering a desktop label deals its visible posters');
-    await page.locator('.approved-poster-deal').waitFor({state:'detached'});
+    ok(await deal.evaluate(layer=>{
+      const flights=layer.getAnimations({subtree:true});
+      const lead=flights.find(flight=>flight.effect.getTiming().duration===410);
+      const columns=flights.filter(flight=>flight.effect.getTiming().duration===510);
+      return lead?.effect.getKeyframes()[0].transform.includes('rotate(')
+        && columns.every(flight=>flight.effect.getKeyframes()[0].transform.startsWith('translateY('))
+        && new Set(columns.map(flight=>flight.effect.getTiming().delay)).size>1;
+    }),'the first poster flies out from the label and columns rise in sequence');
+    await deal.waitFor({state:'detached'});
   }
   await page.locator('.approved-poster').first().waitFor();
   if(width>=768){
