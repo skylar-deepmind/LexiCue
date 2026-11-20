@@ -38,3 +38,41 @@ the appropriate classification has not been established.
 References: [Tauri App Store distribution](https://v2.tauri.app/distribute/app-store/),
 [Apple required-reason API](https://developer.apple.com/documentation/bundleresources/describing-use-of-required-reason-api),
 [Apple TestFlight](https://developer.apple.com/help/app-store-connect/test-a-beta-version/testflight-overview/).
+
+## Apple distribution builds
+
+Use the Apple distribution configuration when preparing an iOS archive for
+TestFlight or the App Store. The regular local iOS build uses its usual
+configuration. Pass the team and a monotonically increasing build number in a
+separate local overlay as described above.
+
+```sh
+npm run ios:prepare
+npm run tauri -- ios build --archive-only --export-method app-store-connect --ci \
+  --config src-tauri/tauri.ios-store.conf.json --config /path/to/local-signing.json
+```
+
+The Apple distribution configuration disables online YouTube retrieval and
+in-app macOS software updates at both the frontend and native entry points.
+Local import, locally available media, and existing learning records remain
+usable.
+
+## Mac App Store
+
+Use the macOS platform on the existing App Store Connect LexiCue record with
+Bundle ID `com.skylar.lexicue.ios`. The store package uses App Sandbox and has its
+own data container. Verify file selection and backup export and restore with
+test data, including a backup created in the regular macOS build.
+
+Build an Apple Silicon App Store package with
+`node scripts/build-mac-app-store.mjs`. Set these variables locally.
+
+- `APPLE_SIGNING_IDENTITY` selects the Apple Distribution identity.
+- `LEXICUE_MAC_APP_STORE_PROFILE` points to the Mac App Store provisioning profile for the shared Bundle ID.
+- `LEXICUE_MAC_APP_STORE_INSTALLER_IDENTITY` selects the Mac Installer Distribution identity.
+- `LEXICUE_MAC_APP_STORE_BUILD_NUMBER` sets a sequential build number.
+- `CARGO_TARGET_DIR` points to an absolute, task-specific build directory.
+
+The script verifies the app signature, entitlement values, privacy manifest and
+installer signature, then prints the package path. Use App Store Connect
+validation and test the sandboxed build before adding the package to TestFlight.
