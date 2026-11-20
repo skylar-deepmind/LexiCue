@@ -1327,6 +1327,10 @@
     "inferred": "AI 判断"
   },
   "savedRecords": {
+    "noMatches": "没有符合筛选的词条。",
+    "browseWords": "查看全部词条",
+    "wordIndex": "词条",
+    "timeline": "记录日期",
     "title": "已保存",
     "settingsHint": "原句、解释和出处保存在一起。",
     "open": "打开已保存",
@@ -2019,8 +2023,6 @@
     "placeOnDesk": "放到桌面",
     "emptyMaterials": "还没有材料",
     "filterDates": "筛选收藏日期",
-    "recordCount": "{{count}} 条记录",
-    "timelineSummary": "{{records}} 条记录，分布在 {{days}} 个收藏日",
 
     "light": "切换亮色模式",
     "dark": "切换暗色模式",

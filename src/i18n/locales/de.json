@@ -1344,6 +1344,10 @@
     "inferred": "KI-Einschätzung"
   },
   "savedRecords": {
+    "noMatches": "Keine Stichwörter entsprechen den Filtern.",
+    "browseWords": "Alle Stichwörter ansehen",
+    "wordIndex": "Stichwörter",
+    "timeline": "Speicherdaten",
     "title": "Gespeichert",
     "settingsHint": "Originalsatz, Erklärung und Quelle zusammen aufbewahren.",
     "open": "Gespeicherte Einträge öffnen",
@@ -2039,9 +2043,6 @@
     "placeOnDesk": "Auf den Schreibtisch",
     "emptyMaterials": "Noch keine Materialien",
     "filterDates": "Speicherdatum filtern",
-    "recordCount_one": "{{count}} Eintrag",
-    "recordCount_other": "{{count}} Einträge",
-    "timelineSummary": "Gespeicherte Einträge: {{records}}; aktive Tage: {{days}}",
 
     "light": "Hellen Modus aktivieren",
     "dark": "Dunklen Modus aktivieren",

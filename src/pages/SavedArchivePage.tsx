@@ -2,6 +2,8 @@ import SavedExplanationEditor from '../components/SavedExplanationEditor';
 import useTrashDrag, { isTrashDragging } from '../components/useTrashDrag';
 import { bookmarkTitle } from '../lib/bookmarkDesk';
 import SavedTimeline from '../components/SavedTimeline';
+import { useSavedIndexPull } from '../components/useSavedIndexPull';
+import { useMediaQuery } from '../components/useMediaQuery';
 import '../components/saved-timeline.css';
 import SavedExcerpt from '../components/SavedExcerpt';
 import { finishSavedEntrance, prepareSavedReturn } from '../lib/savedEntrance';
@@ -10,7 +12,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
-import { ChevronDown, ChevronLeft, ChevronRight, Search, Undo2, Volume2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Search, Undo2, Volume2 } from 'lucide-react';
 import { createViewCache, usePageReturn, viewKey, visitState } from '../lib/pageNavigation';
 import { backNavigation } from '../lib/backNavigation';
 import { readerNavigation, resolveSavedSource, savedNoteDrafts } from '../lib/readerNavigation';
@@ -59,6 +61,7 @@ function SavedArchive() {
     ?? groups.groups[0]?.group_id ?? null);
   const [recordId, setRecordId] = useState<string | null>(initial?.record ?? pocketRecordId ?? null);
   const [expanded, setExpanded] = useState(initial?.expanded ?? false);
+  const mobile = useMediaQuery('(max-width: 767px)');
   const savedRevision = useSavedReadRevision();
   const activeContextKey = contextKey(selected, start, end);
   const contextIdentity = JSON.stringify([activeContextKey, savedRevision, generation]);
@@ -68,12 +71,17 @@ function SavedArchive() {
   const [bins, setBins] = useState(() => savedTimelineCache.peek(timelineKey) ?? []);
   const [timelineStatus, setTimelineStatus] = useState<'loading' | 'ready' | 'error'>(() => savedTimelineCache.isFresh(timelineKey) ? 'ready' : 'loading');
   const [loading, setLoading] = useState(() => !savedGroupCache.isFresh(groupKey));
+  const [loadingMore, setLoadingMore] = useState(false), [moreFailed, setMoreFailed] = useState(false);
   const [contextLoading, setContextLoading] = useState(false), [failure, setFailure] = useState(false), [revision, setRevision] = useState(0);
   const [sourceBusy, setSourceBusy] = useState(false), [sourceError, setSourceError] = useState('');
   const removeIntents = useRef(new Map<string, { operation: string; revision: string }>());
   const [receipt, setReceipt] = useState<string | null>(null), [undoing, setUndoing] = useState(false);
   const [direction, setDirection] = useState(1);
   const input = useRef<HTMLInputElement>(null), list = useRef<HTMLDivElement>(null), detail = useRef<HTMLDivElement>(null);
+  const columns = useRef<HTMLDivElement>(null);
+  const activeRailWord = useRef<HTMLButtonElement>(null), backButton = useRef<HTMLButtonElement>(null), restoredListScroll = useRef(false);
+  const railDrag = useRef<{ pointer: number; x: number; scroll: number; moved: boolean } | null>(null);
+  const indexHeading = useRef<HTMLHeadingElement>(null), returnToIndexToggle = useRef(false);
   const request = useRef(0), contextRequest = useRef(0), sourceRequest = useRef(0), alive = useRef(true);
   const gesture = useRef<{ x: number; y: number; direction: 'x' | 'y' | null } | null>(null), suppress = useRef(0);
   const snapshot = useRef<View>({ query, start, end, selected, record: recordId, expanded, listScroll: initial?.listScroll ?? 0 });
@@ -81,6 +89,7 @@ function SavedArchive() {
   useEffect(() => () => { views.set(key, snapshot.current); }, [key]);
   useEffect(() => { alive.current = true; return () => { alive.current = false; sourceRequest.current++; }; }, []);
   useEffect(() => { if (searching) input.current?.focus(); }, [searching]);
+  useEffect(() => { if (!mobile) setExpanded(false); }, [mobile]);
   useEffect(() => {
     if (!needsOpeningContext || query || start || end) return;
     let current = true;
@@ -101,6 +110,7 @@ function SavedArchive() {
     const token = ++request.current;
     const cached = savedGroupCache.peek(groupKey);
     setLoading(!cached); setFailure(false);
+    setLoadingMore(false); setMoreFailed(false);
     const load = () => void savedGroupCache.fetch(groupKey, () =>
       invoke<SavedGroupPage>('list_saved_groups', { query, limit: 200, offset: 0, ...bounds(start, end) }),
     ).then(next => {
@@ -139,7 +149,22 @@ function SavedArchive() {
     });
     return () => { contextRequest.current++; };
   }, [selected, start, end, revision, activeContextKey, contextIdentity, t]);
-  useLayoutEffect(() => { if (list.current && !loading) list.current.scrollTop = initial?.listScroll ?? 0; }, [loading, initial]);
+  useLayoutEffect(() => {
+    activeRailWord.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [selected, expanded, loading]);
+  useLayoutEffect(() => {
+    if (!list.current || loading || restoredListScroll.current) return;
+    list.current.scrollTop = initial?.listScroll ?? 0;
+    restoredListScroll.current = true;
+  }, [loading, initial]);
+  useLayoutEffect(() => {
+    if (expanded) indexHeading.current?.focus({ preventScroll: true });
+    else if (returnToIndexToggle.current) {
+      returnToIndexToggle.current = false;
+      const target = activeRailWord.current?.disabled ? backButton.current : activeRailWord.current ?? backButton.current;
+      target?.focus({ preventScroll: true });
+    }
+  }, [expanded]);
   const index = Math.max(0, contexts.records.findIndex(record => record.record_id === recordId));
   const matchingContext = loadedContext === contextIdentity;
   const selectedGroup = groups.groups.find(group => group.group_id === selected);
@@ -150,7 +175,13 @@ function SavedArchive() {
   const record = matchingContext ? contexts.records[index] : openingRecord;
   const currentRecordId=record?.record_id;
   const leave = useCallback(() => { if (prepareSavedReturn(currentRecordId)) back(); else dissolvePage(back,true); },[back,currentRecordId]);
-  useEffect(() => backNavigation.setPage(() => { if(expanded)setExpanded(false);else leave();return true; },3),[expanded,leave]);
+  const closeIndex = useCallback(() => {
+    returnToIndexToggle.current = true;
+    setExpanded(false);
+  }, []);
+  const pull = useSavedIndexPull(columns, list, expanded, !expanded && (loading || !groups.groups.length), next => next ? setExpanded(true) : closeIndex());
+  const goBack = useCallback(() => { if (expanded) closeIndex(); else leave(); }, [expanded, closeIndex, leave]);
+  useEffect(() => backNavigation.setPage(() => { goBack(); return true; }, 3), [goBack]);
   const previousFolio = useRef<string | null>(null);
   useLayoutEffect(() => {
     if(currentRecordId)finishSavedEntrance(currentRecordId);
@@ -160,7 +191,11 @@ function SavedArchive() {
     node.scrollTop = 0;
     if (previous && currentRecordId && previous !== currentRecordId && !matchMedia('(prefers-reduced-motion: reduce)').matches) node.animate([{ transform: `translateX(${direction * 22}px)`, opacity: .45 }, { transform: 'none', opacity: 1 }], { duration: 185, easing: 'ease-out' });
   }, [currentRecordId, direction]);
-  const choose = (id: string) => { if (performance.now() < suppress.current) return; setSelected(id); setRecordId(null); setExpanded(false); };
+  const choose = (id: string) => {
+    setSelected(id);
+    setRecordId(null);
+    if (expanded) closeIndex();
+  };
   const turn = (step: number) => { if (contexts.records[index + step]) { setDirection(step); setRecordId(contexts.records[index + step].record_id); } };
   const openSource = async () => {
     if (!record || sourceBusy) return;
@@ -182,32 +217,74 @@ function SavedArchive() {
     catch (cause) { setSourceError(t(savedErrorKey(cause))); return false; } finally { setUndoing(false); }
   };
   const loadMore = async () => {
-    const token = request.current; setLoading(true);
-    try { const next = await invoke<SavedGroupPage>('list_saved_groups', { query, limit: 200, offset: groups.groups.length, ...bounds(start, end) }); if (token === request.current) setGroups(previous => ({ ...next, groups: [...previous.groups, ...next.groups] })); }
-    catch { setFailure(true); } finally { if (token === request.current) setLoading(false); }
+    if (loading || loadingMore) return;
+    const token = request.current;
+    setLoadingMore(true);
+    setMoreFailed(false);
+    try {
+      const next = await invoke<SavedGroupPage>('list_saved_groups', { query, limit: 200, offset: groups.groups.length, ...bounds(start, end) });
+      if (token === request.current) setGroups(previous => ({ ...next, groups: [...previous.groups, ...next.groups] }));
+    } catch { if (token === request.current) setMoreFailed(true); }
+    finally { if (token === request.current) setLoadingMore(false); }
   };
-  return <section className="approved-saved saved-workspace" aria-label={t('savedRecords.title')} onKeyDown={event => { if (event.key === 'Escape' && expanded) { event.preventDefault(); event.stopPropagation(); setExpanded(false); } }}>
-    <header className="approved-saved-header"><button className="approved-icon approved-back" aria-label={t('common.back')} onClick={leave}><ChevronLeft size={22}/></button><div className="approved-saved-search" data-open={searching}><input ref={input} type="search" aria-label={t('savedRecords.search')} value={query} onChange={event => setQuery(event.target.value)} onKeyDown={event => { if (event.key === 'Escape') { setSearching(false); input.current?.blur(); } }}/><button className="approved-icon" aria-label={t('savedRecords.search')} aria-expanded={searching} onClick={() => setSearching(value => !value)}><Search size={21}/></button></div></header>
-    <SavedTimeline bins={bins} recordCount={groups.total_records} start={start} end={end} status={timelineStatus} onRangeChange={(first, last) => { setStart(first); setEnd(last); }} onRetry={() => setRevision(value => value + 1)}/>
-    <div className="approved-saved-columns" data-expanded={expanded}>
-      <div ref={list} className="approved-saved-index" onKeyDown={event=>{
+  const emptyMessage = t(query || start || end ? 'savedRecords.noMatches' : 'savedRecords.empty');
+  return <section className="approved-saved saved-workspace" aria-label={t('savedRecords.title')} onKeyDown={event => { if (event.key === 'Escape' && expanded) { event.preventDefault(); event.stopPropagation(); closeIndex(); } }}>
+    <header className="approved-saved-header"><button ref={backButton} className="approved-icon approved-back" aria-label={t('common.back')} onClick={goBack}><ChevronLeft size={22}/></button><div className="approved-saved-search" data-open={searching}><input ref={input} type="search" tabIndex={searching ? 0 : -1} aria-label={t('savedRecords.search')} value={query} onChange={event => setQuery(event.target.value)} onKeyDown={event => { if (event.key === 'Escape' && !expanded) { setSearching(false); input.current?.blur(); } }}/><button className="approved-icon" aria-label={t('savedRecords.search')} aria-expanded={searching} onClick={() => setSearching(value => !value)}><Search size={21}/></button></div></header>
+    <SavedTimeline bins={bins} start={start} end={end} status={timelineStatus} onRangeChange={(first, last) => { setStart(first); setEnd(last); }} onRetry={() => setRevision(value => value + 1)}/>
+    <div ref={columns} className="approved-saved-columns" data-expanded={expanded}>
+      {mobile && (expanded ? <h1 ref={indexHeading} className="saved-index-heading" tabIndex={-1} {...pull}>{t('savedRecords.wordIndex')}</h1>
+        : groups.groups.length > 0 && <div className="saved-index-strip" onPointerDown={event => {
+          railDrag.current = event.pointerType === 'mouse' && event.button === 0
+            ? { pointer: event.pointerId, x: event.clientX, scroll: event.currentTarget.scrollLeft, moved: false } : null;
+        }} onPointerMove={event => {
+          const drag = railDrag.current;
+          if (!drag || drag.pointer !== event.pointerId) return;
+          const dx = event.clientX - drag.x;
+          if (!drag.moved) {
+            if (Math.abs(dx) < 6) return;
+            drag.moved = true;
+            event.currentTarget.setPointerCapture(event.pointerId);
+          }
+          event.currentTarget.scrollLeft = drag.scroll - dx;
+        }} onPointerUp={() => { railDrag.current = null; }} onPointerCancel={() => { railDrag.current = null; }} onPointerLeave={() => {
+          if (!railDrag.current?.moved) railDrag.current = null;
+        }}>
+          {groups.groups.map(group => {
+            const active = selected === group.group_id;
+            return <button key={group.group_id} ref={active ? activeRailWord : undefined} type="button" className="saved-rail-word" lang="en"
+              aria-pressed={active} aria-controls={active ? 'saved-word-index' : undefined} aria-expanded={active ? false : undefined}
+              title={active ? t('savedRecords.browseWords') : undefined} disabled={loading} onClick={() => active ? setExpanded(true) : choose(group.group_id)}>
+              {group.expression}
+            </button>;
+          })}
+        </div>)}
+      <div ref={list} id="saved-word-index" className="approved-saved-index" inert={mobile && !expanded} aria-hidden={mobile && !expanded || undefined} aria-busy={loading || loadingMore || undefined} onKeyDown={event=>{
         if(!['ArrowDown','ArrowUp','ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;
-        const buttons=[...event.currentTarget.querySelectorAll<HTMLButtonElement>('.approved-saved-word')];
+        const buttons=[...event.currentTarget.querySelectorAll<HTMLButtonElement>('.approved-saved-word:not(:disabled)')];
         const index=buttons.indexOf(document.activeElement as HTMLButtonElement);
-        const next=event.key==='Home'?0:event.key==='End'?buttons.length-1:Math.max(0,Math.min(buttons.length-1,index+(['ArrowDown','ArrowRight'].includes(event.key)?1:-1)));
-        if(buttons[next]){event.preventDefault();buttons[next].focus();choose(buttons[next].dataset.group!);}
-      }} onScroll={() => { snapshot.current.listScroll = list.current?.scrollTop ?? 0; }} onPointerDown={event => { gesture.current = { x: event.clientX, y: event.clientY, direction: null }; }} onPointerMove={event => { const g = gesture.current; if (!g) return; const x = event.clientX-g.x, y=event.clientY-g.y; if (!g.direction && Math.hypot(x,y)>8) g.direction=Math.abs(x)>Math.abs(y)?'x':'y'; if(g.direction==='y' && y>42) { setExpanded(true); suppress.current=performance.now()+350; } }} onPointerUp={() => { if (gesture.current?.direction) suppress.current=performance.now()+350; gesture.current=null; }}>
+        if(index<0)return;
+        const columns = expanded ? Number(getComputedStyle(event.currentTarget).getPropertyValue('--saved-index-columns')) || 1 : 1;
+        const step = event.key === 'ArrowUp' || event.key === 'ArrowDown' ? columns : 1;
+        const next=event.key==='Home'?0:event.key==='End'?buttons.length-1:Math.max(0,Math.min(buttons.length-1,index+(['ArrowDown','ArrowRight'].includes(event.key)?step:-step)));
+        event.preventDefault();
+        buttons[next].focus();
+        if(!expanded)choose(buttons[next].dataset.group!);
+      }} onScroll={() => { snapshot.current.listScroll = list.current?.scrollTop ?? 0; }}>
         {groups.groups.map(group => <button key={group.group_id} className="approved-saved-word" data-group={group.group_id} aria-pressed={selected === group.group_id} disabled={loading} onClick={() => choose(group.group_id)}><span lang="en">{group.expression}</span>{group.context_count > 1 && <small>{group.context_count}</small>}<i aria-hidden="true"/></button>)}
-        {groups.groups.length < groups.total_groups && <button className="ui-button" disabled={loading} onClick={() => void loadMore()}>{t('approved.more')}</button>}
+        {groups.groups.length < groups.total_groups && <div className="saved-index-more">{moreFailed && <span role="alert">{t('approved.loadFailed')}</span>}<button className="ui-button" disabled={loading || loadingMore} onClick={() => void loadMore()}>{t(loadingMore ? 'common.loading' : moreFailed ? 'common.retry' : 'approved.more')}</button></div>}
+        {expanded && (failure ? <div className="saved-error" role="alert"><p>{t('approved.loadFailed')}</p><button className="ui-button" onClick={() => setRevision(value => value + 1)}>{t('common.retry')}</button></div> : !groups.groups.length && <p role="status" className="approved-saved-empty">{loading ? t('common.loading') : emptyMessage}</p>)}
       </div>
-      <button className="approved-index-toggle approved-icon" aria-expanded={expanded} aria-label={t('savedRecords.title')} onClick={() => setExpanded(value => !value)}><ChevronDown size={19}/></button>
-      <div className="approved-saved-detail">
+      <div className="approved-saved-detail" inert={mobile && expanded} aria-hidden={mobile && expanded || undefined}>
         {failure ? <div className="saved-error" role="alert"><p>{t('approved.loadFailed')}</p><button className="ui-button" onClick={() => setRevision(value => value+1)}>{t('common.retry')}</button></div> : !record && (loading && !groups.groups.length || contextLoading || selected && !matchingContext) ? <div role="status"><BusyRing/><span className="sr-only">{t('common.loading')}</span></div> : record ? <>
           {matchingContext && contexts.total > 1 && <nav className="approved-context-pager" aria-label={t('dictionaryFlow.moreContexts', { count:contexts.total })}><button className="approved-icon" disabled={index===0} aria-label={t('history.previous')} onClick={() => turn(-1)}><ChevronLeft size={18}/></button><span>{index+1} / {contexts.total}</span><button className="approved-icon" disabled={index>=contexts.records.length-1} aria-label={t('history.next')} onClick={() => turn(1)}><ChevronRight size={18}/></button>{contexts.records.length<contexts.total && <button className="ui-button" onClick={() => { const token=contextRequest.current; void invoke<SavedContextPage>('saved_group_contexts',{groupId:selected,limit:50,offset:contexts.records.length,...bounds(start,end)}).then(next=>{if(token===contextRequest.current)setContexts(previous=>({...next,records:[...previous.records,...next.records]}));}).catch(()=>setSourceError(t('approved.loadFailed'))); }}>{t('approved.more')}</button>}</nav>}
           <div ref={detail} className="approved-folio-scroll" onPointerDown={event => { if (!(event.target as Element).closest('button,input,textarea,summary')) gesture.current={x:event.clientX,y:event.clientY,direction:null}; }} onPointerMove={event=>{if(isTrashDragging()){gesture.current=null;return;}const g=gesture.current;if(!g)return;const x=event.clientX-g.x,y=event.clientY-g.y;if(!g.direction&&Math.hypot(x,y)>8)g.direction=Math.abs(x)>Math.abs(y)*1.25?'x':'y';}} onPointerUp={event=>{const g=gesture.current;gesture.current=null;if(!g)return;const x=event.clientX-g.x,y=event.clientY-g.y;if(g.direction==='x'&&Math.abs(x)>=36&&Math.abs(x)>Math.abs(y)*1.25){turn(x<0?1:-1);suppress.current=performance.now()+350;}}}>
             <SavedFolio key={record.record_id} record={record} sourceBusy={sourceBusy} onSource={() => { if(performance.now()>=suppress.current)void openSource(); }} onChange={next=>setContexts(previous=>({...previous,records:previous.records.map(value=>value.record_id===next.record_id?next:value)}))} onRemove={remove} removing={undoing}/>
+            {mobile && <div className="saved-pull-space" aria-hidden="true" {...pull} onPointerDown={event => {
+              event.stopPropagation();
+              pull.onPointerDown(event);
+            }}/>}
           </div>
-        </> : <p role="status" className="approved-saved-empty">{t(query || start || end ? 'materials.noMatches' : 'savedRecords.empty')}</p>}
+        </> : <p role="status" className="approved-saved-empty">{emptyMessage}</p>}
         {sourceError && <p className="saved-error" role="alert">{sourceError}</p>}
         {receipt && <div className="recall-undo" role="status"><span>{t('savedRecords.removed')}</span><button className="ui-button" disabled={undoing} onClick={()=>{setUndoing(true);void undoSaved(receipt).then(()=>setReceipt(null)).catch(cause=>setSourceError(t(savedErrorKey(cause)))).finally(()=>setUndoing(false));}}><Undo2 size={18}/>{t('savedRecords.undo')}</button></div>}
       </div>
