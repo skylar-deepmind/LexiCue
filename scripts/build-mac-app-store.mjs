@@ -86,7 +86,7 @@ try {
   const info = plist(join(app, 'Contents/Info.plist'));
   check(info.CFBundleIdentifier === identifier && info.CFBundleVersion === buildNumber, 'Unexpected Mac app identity or build number');
   run('codesign', ['--verify', '--deep', '--strict', app]);
-  const signedRights = plistFrom(run('codesign', ['-d', '--entitlements', '-', app]));
+  const signedRights = plistFrom(run('codesign', ['-d', '--entitlements', ':-', app]));
   check(Object.entries(rights).every(([key, value]) => signedRights[key] === value), 'Signed app entitlements do not match the store configuration');
   check(!signedRights['com.apple.security.get-task-allow'] && !signedRights['com.apple.security.cs.disable-library-validation'], 'The app has a development entitlement');
   check(existsSync(join(app, 'Contents/Resources/PrivacyInfo.xcprivacy')), 'Missing privacy manifest');
