@@ -136,7 +136,9 @@ export default function SavedTimeline({ bins, start, end, status, onRangeChange,
         if (drag.current?.pointer !== event.pointerId) return;
         if (pendingRange.current) commit(pendingRange.current);
         stopDrag();
-      }} onPointerLeave={() => { if (!drag.current?.moved) stopDrag(); }} onPointerCancel={stopDrag} onLostPointerCapture={stopDrag}
+      }} onPointerLeave={() => { if (!drag.current?.moved) stopDrag(); }} onPointerCancel={stopDrag} onLostPointerCapture={event => {
+        if (event.target === event.currentTarget && drag.current?.pointer === event.pointerId) stopDrag();
+      }}
       onKeyDown={event => { if (event.key === 'Escape' && drag.current) { event.preventDefault(); event.stopPropagation(); stopDrag(); } }}>
       <div ref={scroll} className="saved-timeline-scroll" style={{ maxWidth: model.width }} onScroll={event => setScrollLeft(event.currentTarget.scrollLeft)}>
         <div ref={plot} className="saved-timeline-plot" style={{ width: model.width }}>

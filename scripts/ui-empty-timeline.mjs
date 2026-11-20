@@ -88,6 +88,21 @@ try{
    await page.locator('.saved-timeline-reset').waitFor();
    ok(await scroll.evaluate((n,left)=>n.scrollLeft>=left+70,sizing.left),'dragging the bars selects a range without moving the viewport');
    await page.locator('.saved-timeline-reset').click();
+   const touch=await c.newCDPSession(page);
+   const touchDrag=async (x,y,dx)=>{
+    await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y}]});
+    for(let step=1;step<=6;step++)await touch.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:x+dx*step/6,y}]});
+    await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+   };
+   const beforeTouch=await scroll.evaluate(n=>n.scrollLeft);
+   const dateBand=await page.locator('.saved-timeline-period').boundingBox();
+   await touchDrag(dateBand.x+dateBand.width/2,dateBand.y+dateBand.height/2,72);
+   ok(await scroll.evaluate((n,left)=>n.scrollLeft<left-60,beforeTouch),'a touch drag on the dates pans the timeline');
+   await touchDrag(barViewport.x+90,barViewport.y+24,78);
+   await page.locator('.saved-timeline-reset').waitFor();
+   ok(true,'a touch drag on the bars selects a date range');
+   await page.locator('.saved-timeline-reset').click();
+   await touch.detach();
   }
   await c.close();
  }
