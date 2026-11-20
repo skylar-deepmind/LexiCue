@@ -2,7 +2,7 @@ import SavedExplanationEditor from '../components/SavedExplanationEditor';
 import useTrashDrag, { isTrashDragging } from '../components/useTrashDrag';
 import { bookmarkTitle } from '../lib/bookmarkDesk';
 import SavedTimeline from '../components/SavedTimeline';
-import SavedIndexPull from '../components/SavedIndexPull';
+import { useSavedIndexPull } from '../components/useSavedIndexPull';
 import { useMediaQuery } from '../components/useMediaQuery';
 import '../components/saved-timeline.css';
 import SavedExcerpt from '../components/SavedExcerpt';
@@ -79,7 +79,8 @@ function SavedArchive() {
   const [direction, setDirection] = useState(1);
   const input = useRef<HTMLInputElement>(null), list = useRef<HTMLDivElement>(null), detail = useRef<HTMLDivElement>(null);
   const columns = useRef<HTMLDivElement>(null);
-  const indexToggle = useRef<HTMLButtonElement>(null), backButton = useRef<HTMLButtonElement>(null), restoredListScroll = useRef(false);
+  const activeRailWord = useRef<HTMLButtonElement>(null), backButton = useRef<HTMLButtonElement>(null), restoredListScroll = useRef(false);
+  const railDrag = useRef<{ pointer: number; x: number; scroll: number; moved: boolean } | null>(null);
   const indexHeading = useRef<HTMLHeadingElement>(null), returnToIndexToggle = useRef(false);
   const request = useRef(0), contextRequest = useRef(0), sourceRequest = useRef(0), alive = useRef(true);
   const gesture = useRef<{ x: number; y: number; direction: 'x' | 'y' | null } | null>(null), suppress = useRef(0);
@@ -149,6 +150,9 @@ function SavedArchive() {
     return () => { contextRequest.current++; };
   }, [selected, start, end, revision, activeContextKey, contextIdentity, t]);
   useLayoutEffect(() => {
+    activeRailWord.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [selected, expanded, loading]);
+  useLayoutEffect(() => {
     if (!list.current || loading || restoredListScroll.current) return;
     list.current.scrollTop = initial?.listScroll ?? 0;
     restoredListScroll.current = true;
@@ -157,7 +161,7 @@ function SavedArchive() {
     if (expanded) indexHeading.current?.focus({ preventScroll: true });
     else if (returnToIndexToggle.current) {
       returnToIndexToggle.current = false;
-      const target = indexToggle.current?.disabled ? backButton.current : indexToggle.current ?? backButton.current;
+      const target = activeRailWord.current?.disabled ? backButton.current : activeRailWord.current ?? backButton.current;
       target?.focus({ preventScroll: true });
     }
   }, [expanded]);
@@ -175,6 +179,7 @@ function SavedArchive() {
     returnToIndexToggle.current = true;
     setExpanded(false);
   }, []);
+  const pull = useSavedIndexPull(columns, list, expanded, !expanded && (loading || !groups.groups.length), next => next ? setExpanded(true) : closeIndex());
   const goBack = useCallback(() => { if (expanded) closeIndex(); else leave(); }, [expanded, closeIndex, leave]);
   useEffect(() => backNavigation.setPage(() => { goBack(); return true; }, 3), [goBack]);
   const previousFolio = useRef<string | null>(null);
@@ -227,9 +232,32 @@ function SavedArchive() {
     <header className="approved-saved-header"><button ref={backButton} className="approved-icon approved-back" aria-label={t('common.back')} onClick={goBack}><ChevronLeft size={22}/></button><div className="approved-saved-search" data-open={searching}><input ref={input} type="search" tabIndex={searching ? 0 : -1} aria-label={t('savedRecords.search')} value={query} onChange={event => setQuery(event.target.value)} onKeyDown={event => { if (event.key === 'Escape' && !expanded) { setSearching(false); input.current?.blur(); } }}/><button className="approved-icon" aria-label={t('savedRecords.search')} aria-expanded={searching} onClick={() => setSearching(value => !value)}><Search size={21}/></button></div></header>
     <SavedTimeline bins={bins} start={start} end={end} status={timelineStatus} onRangeChange={(first, last) => { setStart(first); setEnd(last); }} onRetry={() => setRevision(value => value + 1)}/>
     <div ref={columns} className="approved-saved-columns" data-expanded={expanded}>
-      {mobile && (expanded || !!groups.total_groups) && <SavedIndexPull region={columns} panel={list} handle={indexToggle} heading={indexHeading}
-        expression={selectedGroup?.expression ?? openingRecord?.expression} expanded={expanded} disabled={loading && !expanded}
-        onChange={next => next ? setExpanded(true) : closeIndex()}/>}
+      {mobile && (expanded ? <h1 ref={indexHeading} className="saved-index-heading" tabIndex={-1} {...pull}>{t('savedRecords.wordIndex')}</h1>
+        : groups.groups.length > 0 && <div className="saved-index-strip" onPointerDown={event => {
+          railDrag.current = event.pointerType === 'mouse' && event.button === 0
+            ? { pointer: event.pointerId, x: event.clientX, scroll: event.currentTarget.scrollLeft, moved: false } : null;
+        }} onPointerMove={event => {
+          const drag = railDrag.current;
+          if (!drag || drag.pointer !== event.pointerId) return;
+          const dx = event.clientX - drag.x;
+          if (!drag.moved) {
+            if (Math.abs(dx) < 6) return;
+            drag.moved = true;
+            event.currentTarget.setPointerCapture(event.pointerId);
+          }
+          event.currentTarget.scrollLeft = drag.scroll - dx;
+        }} onPointerUp={() => { railDrag.current = null; }} onPointerCancel={() => { railDrag.current = null; }} onPointerLeave={() => {
+          if (!railDrag.current?.moved) railDrag.current = null;
+        }}>
+          {groups.groups.map(group => {
+            const active = selected === group.group_id;
+            return <button key={group.group_id} ref={active ? activeRailWord : undefined} type="button" className="saved-rail-word" lang="en"
+              aria-pressed={active} aria-controls={active ? 'saved-word-index' : undefined} aria-expanded={active ? false : undefined}
+              title={active ? t('savedRecords.browseWords') : undefined} disabled={loading} onClick={() => active ? setExpanded(true) : choose(group.group_id)}>
+              {group.expression}
+            </button>;
+          })}
+        </div>)}
       <div ref={list} id="saved-word-index" className="approved-saved-index" inert={mobile && !expanded} aria-hidden={mobile && !expanded || undefined} aria-busy={loading || loadingMore || undefined} onKeyDown={event=>{
         if(!['ArrowDown','ArrowUp','ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;
         const buttons=[...event.currentTarget.querySelectorAll<HTMLButtonElement>('.approved-saved-word:not(:disabled)')];
@@ -251,6 +279,10 @@ function SavedArchive() {
           {matchingContext && contexts.total > 1 && <nav className="approved-context-pager" aria-label={t('dictionaryFlow.moreContexts', { count:contexts.total })}><button className="approved-icon" disabled={index===0} aria-label={t('history.previous')} onClick={() => turn(-1)}><ChevronLeft size={18}/></button><span>{index+1} / {contexts.total}</span><button className="approved-icon" disabled={index>=contexts.records.length-1} aria-label={t('history.next')} onClick={() => turn(1)}><ChevronRight size={18}/></button>{contexts.records.length<contexts.total && <button className="ui-button" onClick={() => { const token=contextRequest.current; void invoke<SavedContextPage>('saved_group_contexts',{groupId:selected,limit:50,offset:contexts.records.length,...bounds(start,end)}).then(next=>{if(token===contextRequest.current)setContexts(previous=>({...next,records:[...previous.records,...next.records]}));}).catch(()=>setSourceError(t('approved.loadFailed'))); }}>{t('approved.more')}</button>}</nav>}
           <div ref={detail} className="approved-folio-scroll" onPointerDown={event => { if (!(event.target as Element).closest('button,input,textarea,summary')) gesture.current={x:event.clientX,y:event.clientY,direction:null}; }} onPointerMove={event=>{if(isTrashDragging()){gesture.current=null;return;}const g=gesture.current;if(!g)return;const x=event.clientX-g.x,y=event.clientY-g.y;if(!g.direction&&Math.hypot(x,y)>8)g.direction=Math.abs(x)>Math.abs(y)*1.25?'x':'y';}} onPointerUp={event=>{const g=gesture.current;gesture.current=null;if(!g)return;const x=event.clientX-g.x,y=event.clientY-g.y;if(g.direction==='x'&&Math.abs(x)>=36&&Math.abs(x)>Math.abs(y)*1.25){turn(x<0?1:-1);suppress.current=performance.now()+350;}}}>
             <SavedFolio key={record.record_id} record={record} sourceBusy={sourceBusy} onSource={() => { if(performance.now()>=suppress.current)void openSource(); }} onChange={next=>setContexts(previous=>({...previous,records:previous.records.map(value=>value.record_id===next.record_id?next:value)}))} onRemove={remove} removing={undoing}/>
+            {mobile && <div className="saved-pull-space" aria-hidden="true" {...pull} onPointerDown={event => {
+              event.stopPropagation();
+              pull.onPointerDown(event);
+            }}/>}
           </div>
         </> : <p role="status" className="approved-saved-empty">{emptyMessage}</p>}
         {sourceError && <p className="saved-error" role="alert">{sourceError}</p>}

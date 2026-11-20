@@ -52,15 +52,17 @@ try{
   const compact=(await page.locator('.saved-growing-timeline').boundingBox()).height;
   await seed([100]);await refresh('seed',100);eq((await page.locator('.saved-growing-timeline').boundingBox()).height,compact,'the single-date row stays compact');
   eq(await page.locator('.saved-growing-timeline').innerText(),'2026年10月7日','single-date view shows just the date');
-  await seed([1,1,1],[0,4,9]);await refresh('dots',3);let x=await page.locator('.saved-timeline-mark').evaluateAll(nodes=>nodes.map(n=>{const b=n.getBoundingClientRect();return b.x+b.width/2;}));ok(Math.abs((x[1]-x[0])/(x[2]-x[0])-4/9)<.01,'date gaps remain chronological and proportional');eq(await page.locator('.saved-timeline-mark').count(),3,'empty days do not appear as false saved records');await screen(`${theme}-${width}-dots`);
+  await seed([1,1,1],[0,4,9]);await refresh('dots',3);let x=await page.locator('.saved-timeline-mark').evaluateAll(nodes=>nodes.map(n=>{const b=n.getBoundingClientRect();return b.x+b.width/2;}));ok(Math.abs((x[1]-x[0])/(x[2]-x[0])-4/9)<.01,'date gaps remain chronological and proportional');eq(await page.locator('.saved-timeline-mark').count(),3,'empty days do not appear as false saved records');
+  const sparse=await page.locator('.saved-timeline-scroll').boundingBox(), workspace=await page.locator('.saved-growing-timeline').boundingBox();
+  ok(sparse.width<workspace.width/2&&Math.abs(sparse.x+sparse.width/2-workspace.x-workspace.width/2)<1,'sparse dates stay compact and centered');await screen(`${theme}-${width}-dots`);
   await seed([1,2,3,4,5,6,7]);await refresh('stems',28);const stemHeights=await page.locator('.saved-timeline-mark').evaluateAll(nodes=>nodes.map(n=>n.getBBox().height));ok(stemHeights[6]>stemHeights[0]&&stemHeights[6]<48,'dates grow into short stems before dense bars');
-  const total=await seed(Array.from({length:28},(_,i)=>i%7+1));await refresh('band',total);eq(await page.locator('.saved-timeline-mark').count(),28,'dense dates form a band of the same marks');ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'dense dates fit the viewport');await screen(`${theme}-${width}-band`);
+  const total=await seed(Array.from({length:20},(_,i)=>i%7+1));await refresh('band',total);eq(await page.locator('.saved-timeline-mark').count(),20,'dense dates form a band of the same marks');ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'dense dates fit the viewport');await screen(`${theme}-${width}-band`);
   eq(await page.locator('input[type=date]').count(),0,'range selection exposes no precise date form');
   const plot=await page.locator('.saved-timeline-plot').boundingBox();
-  await page.mouse.move(plot.x+22+(plot.width-44)*14/27,plot.y+30);await page.mouse.down();await page.mouse.move(plot.x+plot.width-22,plot.y+30,{steps:12});await page.mouse.up();
+  await page.mouse.move(plot.x+22+(plot.width-44)*10/19,plot.y+30);await page.mouse.down();await page.mouse.move(plot.x+plot.width-22,plot.y+30,{steps:12});await page.mouse.up();
   await page.locator('.saved-timeline-reset').waitFor();
-  await page.waitForFunction(()=>window.__uiCalls.some(c=>c.command==='list_saved_groups'&&c.args.startMs===Date.UTC(2026,9,21)));
-  ok((await h.call('list_saved_groups',{query:'',limit:200,offset:0,startMs:Date.UTC(2026,9,21)})).total_records===56,'drag range agrees with actual native counts');
+  await page.waitForFunction(()=>window.__uiCalls.some(c=>c.command==='list_saved_groups'&&c.args.startMs===Date.UTC(2026,9,17)));
+  ok((await h.call('list_saved_groups',{query:'',limit:200,offset:0,startMs:Date.UTC(2026,9,17)})).total_records===43,'drag range agrees with actual native counts');
   await page.locator('.saved-timeline-reset').click();await page.locator('.saved-timeline-reset').waitFor({state:'detached'});
   const graphHeight=(await page.locator('.saved-growing-timeline').boundingBox()).height;
   ok(graphHeight>compact&&graphHeight<=92,'only the interactive plot needs a taller overview');
@@ -70,6 +72,23 @@ try{
   await page.locator('.saved-timeline-reset').click();
   // Exercise the real request's retry path without changing the test database.
   await page.evaluate(()=>{const invoke=window.__TAURI_INTERNALS__.invoke;window.__histFailure=true;window.__TAURI_INTERNALS__.invoke=(cmd,args)=>cmd==='saved_date_histogram'&&window.__histFailure?Promise.reject(Error('controlled histogram failure')):invoke(cmd,args);window.dispatchEvent(new Event('lexicue-saved-changed'));});await page.locator('.saved-timeline-status[data-state=error]').waitFor();await page.evaluate(()=>window.__histFailure=false);await page.locator('.saved-timeline-status').getByRole('button',{name:'重试'}).click();await page.locator('.saved-growing-timeline[data-phase=band]').waitFor();
+  if(width===375){
+   const dense=await seed(Array.from({length:64},(_,i)=>i%4+1));
+   await refresh('band',dense);
+   const scroll=page.locator('.saved-timeline-scroll');
+   const sizing=await scroll.evaluate(n=>({width:n.clientWidth,full:n.scrollWidth,left:n.scrollLeft}));
+   ok(sizing.full>sizing.width&&sizing.left>0,'a dense timeline scrolls and starts centered');
+   const period=await page.locator('.saved-timeline-period').boundingBox();
+   const px=period.x+period.width/2,py=period.y+period.height/2;
+   await page.mouse.move(px,py);await page.mouse.down();await page.mouse.move(px-78,py,{steps:8});await page.mouse.up();
+   ok(await scroll.evaluate((n,left)=>n.scrollLeft>=left+70,sizing.left),'dragging the date band browses the timeline');
+   const barViewport=await scroll.boundingBox();
+   await page.mouse.move(barViewport.x+80,barViewport.y+26);await page.mouse.down();
+   await page.mouse.move(barViewport.x+150,barViewport.y+26,{steps:8});await page.mouse.up();
+   await page.locator('.saved-timeline-reset').waitFor();
+   ok(await scroll.evaluate((n,left)=>n.scrollLeft>=left+70,sizing.left),'dragging the bars selects a range without moving the viewport');
+   await page.locator('.saved-timeline-reset').click();
+  }
   await c.close();
  }
  // Verify the drag interaction with native search results on small touch screens.
@@ -83,17 +102,25 @@ try{
   await page.locator('.approved-saved-search button').tap();
   const search=page.getByRole('searchbox');
   await search.fill('coast');
-  const toggle=page.getByRole('button',{name:'查看全部词条'});
+  const toggle=page.locator('.saved-rail-word[aria-pressed=true]');
   await page.waitForFunction(()=>document.querySelectorAll('.approved-saved-word').length===14);
   await toggle.waitFor();
-  eq(await toggle.innerText(),'','the drag handle has no count label');
+  eq(await page.locator('.approved-index-toggle').count(),0,'the word rail has no extra drag handle');
   ok((await toggle.boundingBox()).height>=48,'result action has a mobile touch target');
   eq(await page.locator('.saved-workspace :is(select,summary)').count(),0,'result browsing uses an app button');
   const visible=page.locator('.approved-saved-columns[data-expanded=true]');
   await screen(`${theme}-${width}-filtered`);
   const strip=page.locator('.saved-index-strip');
-  const bounds=await strip.boundingBox();
-  const x=Math.round(bounds.x+bounds.width/3),y=Math.round(bounds.y+bounds.height/2);
+  const blank=await page.locator('.saved-pull-space').boundingBox();
+  const x=Math.round(blank.x+blank.width/3),y=Math.round(blank.y+Math.min(20,blank.height/2));
+  if(height>400)ok(blank.height>75,'the space below the sentence offers a large pull area');
+  if(theme==='sage'){
+   const rail=await strip.boundingBox(),ry=rail.y+rail.height/2;
+   const word=await toggle.innerText();
+   await page.mouse.move(rail.x+140,ry);await page.mouse.down();await page.mouse.move(rail.x+32,ry,{steps:8});await page.mouse.up();
+   ok(await strip.evaluate(n=>n.scrollLeft>50),'dragging horizontally scrolls the word rail');
+   eq(await toggle.innerText(),word,'scrolling the rail does not select a different word');
+  }
   if(theme==='sage'){
    await page.mouse.move(x,y);await page.mouse.down();await page.mouse.move(x,y+28,{steps:5});
    eq(await page.locator('.approved-saved-columns').evaluate(n=>n.style.getPropertyValue('--saved-pull')),'28px','the panel follows a short mouse drag');
@@ -102,7 +129,9 @@ try{
    eq(await visible.count(),0,'releasing a short drag springs back');
   }
   const touch=await c.newCDPSession(page);
-  for(const [type,touchPoints] of [['touchStart',[{x,y}]],['touchMove',[{x,y:y+38}]],['touchMove',[{x,y:y+78}]],['touchEnd',[]]]){
+  if(height<400){
+   await toggle.press('Enter');
+  }else for(const [type,touchPoints] of [['touchStart',[{x,y}]],['touchMove',[{x,y:y+38}]],['touchMove',[{x,y:y+78}]],['touchEnd',[]]]){
    await touch.send('Input.dispatchTouchEvent',{type,touchPoints});
   }
   await visible.waitFor();
@@ -116,7 +145,9 @@ try{
   ok(await page.getByRole('button',{name:'返回',exact:true}).isVisible(),'the result grid keeps a visible back button');
   await screen(`${theme}-${width}-all-results`);
   if(theme==='sage'){
-   await page.mouse.move(x,y);await page.mouse.down();await page.mouse.move(x,y-72,{steps:8});await page.mouse.up();
+   const heading=await visible.getByRole('heading',{name:'词条'}).boundingBox();
+   const fromX=heading.x+40,fromY=heading.y+22;
+   await page.mouse.move(fromX,fromY);await page.mouse.down();await page.mouse.move(fromX,fromY-72,{steps:8});await page.mouse.up();
    await visible.waitFor({state:'detached'});
    eq(await toggle.getAttribute('aria-expanded'),'false','pulling the strip upward closes the list');
    await toggle.press('Enter');await visible.waitFor();
@@ -128,7 +159,7 @@ try{
   eq(await page.evaluate(()=>document.activeElement?.getAttribute('aria-controls')),'saved-word-index','closing the list restores focus to its entry');
   await toggle.tap();await word.tap();await visible.waitFor({state:'detached'});
   await page.waitForFunction(()=>document.querySelector('.approved-folio-sentence')?.textContent?.includes('ripple'));
-  eq(await strip.locator('> span').innerText(),'ripple','the compact strip shows the selected word');
+  eq(await toggle.innerText(),'ripple','the compact rail shows the selected word');
   await toggle.tap();await search.fill('no match 987654');
   await visible.locator('.approved-saved-index').getByText('没有符合筛选的词条。').waitFor();
   await page.getByRole('button',{name:'返回',exact:true}).tap();
@@ -146,7 +177,7 @@ try{
  await current.goto(h.url+'/saved');
  await current.locator('.approved-saved-search button').tap();
  await current.getByRole('searchbox').fill('临时性能样本');
- await current.getByRole('button',{name:'查看全部词条'}).tap();
+ await current.locator('.saved-rail-word[aria-pressed=true]').tap();
  const index=current.locator('.approved-saved-index');
  const more=index.locator('.saved-index-more button');
  await current.evaluate(()=>window.__uiFailure={command:'list_saved_groups',remaining:1,afterCommit:false});
