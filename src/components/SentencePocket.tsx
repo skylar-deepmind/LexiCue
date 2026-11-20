@@ -1,7 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { useTranslation } from 'react-i18next';
-import usePaperSeam, { seamX, seamInset } from './usePaperSeam';
+import { useMediaQuery } from './useMediaQuery';
+import { isMobilePlatform } from '../lib/platform';
+import usePaperSeam, { seamOffset, seamInset } from './usePaperSeam';
 
 type Point = { x: number; y: number };
 interface Props {
@@ -18,7 +20,9 @@ interface Props {
 const limit = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 export default function SentencePocket(props: Props) {
   const { t } = useTranslation();
-  const { canvas, pressure } = usePaperSeam();
+  const narrow = useMediaQuery('(max-width: 767px)');
+  const top = narrow || isMobilePlatform();
+  const { canvas, pressure } = usePaperSeam(top);
   const latest = useRef(props);
   latest.current = props;
   const mouth = useRef<HTMLButtonElement>(null),
@@ -50,44 +54,46 @@ export default function SentencePocket(props: Props) {
       const r = mouth.current?.closest('.context-panel')?.getBoundingClientRect();
       return !!r && at.x >= r.left && at.x <= r.right && at.y >= r.top && at.y <= r.bottom;
     };
+    // Measure travel across the lip and alignment along it, in viewport coordinates.
+    const axes = (r: DOMRect) => top
+      ? { across: r.top, depth: r.height, along: r.left, span: r.width }
+      : { across: r.left, depth: r.width, along: r.top, span: r.height };
+    const clip = (trim: number, forward: boolean) => {
+      if (top) return `inset(-18px -18px ${trim}px -18px)`;
+      return forward ? `inset(-18px ${trim}px -18px -18px)` : `inset(-18px -18px -18px ${trim}px)`;
+    };
     const display = (pt: Point) => {
       if (!box) return;
       const dx = pt.x - box.left - grip.x,
         dy = pt.y - box.top - grip.y,
         progress = Math.min(1, Math.hypot(dx, dy) / 230);
       const t = progress * progress * (3 - 2 * progress);
-      const scale = 1 - (reduced() ? 0 : t) * 0.39;
-      const rim = mouth.current!.getBoundingClientRect(),
-        slit = rim.left + seamX;
-      const forward = rim.left > box.width * scale + 10;
-      const left = pt.x - grip.x * scale,
-        width = box.width * scale;
-      const centerY = pt.y + (0.5 * box.height - grip.y) * scale;
-      const inset = seamInset(rim.height);
-      const meetsHeight = centerY > rim.top + inset && centerY < rim.bottom - inset;
-      const travel = forward ? left + width - slit : slit - left;
-      const contact = meetsHeight ? limit((travel + 48) / 48, 0, 1) : 0;
-      // Reserve a little of the note outside the cut until the finger releases it.
-      const past = contact === 1 ? Math.max(0, travel - width * 0.68) : 0;
-      const adjustedX = dx + (forward ? -past : past);
+      const paper = axes(box), rim = axes(mouth.current!.getBoundingClientRect());
+      const inset = seamInset(rim.span, top);
+      const carryScale = top ? Math.min(0.82, (rim.span - 2 * inset) / paper.span) : 0.61;
+      const scale = 1 - (reduced() ? 0 : t) * (1 - carryScale);
+      const slit = rim.across + seamOffset;
+      const forward = top || rim.across > paper.depth * scale + 10;
+      const alongGrip = top ? grip.x : grip.y;
+      const edge = top ? pt.y - grip.y * scale : pt.x - grip.x * scale;
+      const extent = paper.depth * scale;
+      const center = (top ? pt.x : pt.y) + (paper.span / 2 - alongGrip) * scale;
+      const cross = center - rim.along;
+      const travel = forward ? edge + extent - slit : slit - edge;
+      const contact = cross > inset && cross < rim.span - inset ? limit((travel + 48) / 48, 0, 1) : 0;
+      const past = contact === 1 ? Math.max(0, travel - extent * 0.68) : 0;
+      const correction = forward ? -past : past;
       const angle = reduced() ? 0 : t * 2.3 * (1 - contact);
-      pose = 'translate(' + adjustedX + 'px,' + dy + 'px) rotate(' + angle + 'deg) scale(' + scale + ')';
+      pose = `translate(${dx + (top ? 0 : correction)}px,${dy + (top ? correction : 0)}px) rotate(${angle}deg) scale(${scale})`;
       note.style.transform = pose;
       const hidden = travel - past;
-      note.style.clipPath =
-        contact === 1 && hidden > -9
-          ? forward
-            ? 'inset(-18px ' + hidden / scale + 'px -18px -18px)'
-            : 'inset(-18px -18px -18px ' + hidden / scale + 'px)'
-          : 'inset(-18px)';
-      // Keep the invitation at the original sentence while the note is still far
-      // away. Transfer the same bend to the point of contact as the note arrives.
-      const sourceY = limit(box.top + grip.y - rim.top, inset + 25, rim.height - inset - 25);
-      const targetY = sourceY + (centerY - rim.top - sourceY) * contact;
-      const towardSentence = box.left + box.width * 0.5 < slit ? -1 : 1;
+      note.style.clipPath = contact === 1 && hidden > -9 ? clip(hidden / scale, forward) : 'inset(-18px)';
+      const source = limit(paper.along + alongGrip - rim.along, inset + 25, rim.span - inset - 25);
+      const contactPoint = source + (cross - source) * contact;
+      const towardSentence = paper.across + paper.depth / 2 < slit ? -1 : 1;
       const invitation = 1 - contact;
       const depth = 0.73 * invitation + contact * (0.73 + 0.27 * limit(travel / 35, 0, 1));
-      pressure.current(targetY, depth, towardSentence * invitation);
+      pressure.current(contactPoint, depth, towardSentence * invitation);
       note.style.setProperty('--rise', String(t));
       phaseTo(inPocket(pt) ? 'over' : 'carrying');
     };
@@ -133,17 +139,19 @@ export default function SentencePocket(props: Props) {
         loc = note.getBoundingClientRect(),
         original = box,
         home = seat.getBoundingClientRect();
-      const scale = Math.min(0.86, 225 / original.width, Math.max(36, dest.height - 16) / original.height);
-      const forward = dest.x > original.width * scale + 10,
-        slit = dest.x + seamX;
-      const width = original.width * scale;
-      const across = forward ? loc.right - slit : slit - loc.left;
-      const tucked = limit(across / width, 0, 0.6);
-      const bound = seamInset(dest.height) + 4;
-      const dockX = forward ? slit - width * (1 - tucked) : slit - width * tucked,
-        dockY = limit(loc.top, dest.top + bound, dest.bottom - original.height * scale - bound);
-      const contactY = dockY + original.height * scale * 0.5 - dest.top;
-      pressure.current(contactY, insert ? 1 : 0);
+      const rim = axes(dest), paper = axes(original), current = axes(loc);
+      const bound = seamInset(rim.span, top) + 4;
+      const scale = top ? Math.min(0.82, (rim.span - 2 * bound) / paper.span)
+        : Math.min(0.86, 225 / original.width, Math.max(36, dest.height - 16) / original.height);
+      const forward = top || rim.across > paper.depth * scale + 10;
+      const slit = rim.across + seamOffset, extent = paper.depth * scale;
+      const across = forward ? current.across + current.depth - slit : slit - current.across;
+      const tucked = limit(across / extent, 0, 0.6);
+      const dock = forward ? slit - extent * (1 - tucked) : slit - extent * tucked;
+      const along = limit(current.along, rim.along + bound, rim.along + rim.span - paper.span * scale - bound);
+      const end = forward ? slit : slit - extent;
+      const contactPoint = along + paper.span * scale / 2 - rim.along;
+      pressure.current(contactPoint, insert ? 1 : 0);
       const align = (x: number, y: number, s: number) =>
         'translate(' +
         (x - original.x - grip.x * (1 - s)) +
@@ -158,8 +166,8 @@ export default function SentencePocket(props: Props) {
       ];
       if (insert) {
         frames.push(
-          { transform: align(dockX, dockY, scale), offset: 0.46, easing: 'cubic-bezier(.32,0,.45,1)' },
-          { transform: align(slit + (forward ? 0 : -original.width * scale), dockY, scale), offset: 1 },
+          { transform: align(top ? along : dock, top ? dock : along, scale), offset: 0.46, easing: 'cubic-bezier(.32,0,.45,1)' },
+          { transform: align(top ? along : end, top ? end : along, scale), offset: 1 },
         );
       } else frames.push({ transform: align(home.x, home.y, 1), clipPath: 'inset(-18px)' });
       phaseTo(insert ? 'sliding' : 'returning');
@@ -175,11 +183,9 @@ export default function SentencePocket(props: Props) {
         const r = note.getBoundingClientRect(),
           factor = r.width / original.width;
         if (factor > 0) {
-          const overhang = forward ? r.right - slit : slit - r.left;
-          const trim = limit(overhang / factor, -18, original.width + 12);
-          note.style.clipPath = forward
-            ? 'inset(-18px ' + trim + 'px -18px -18px)'
-            : 'inset(-18px -18px -18px ' + trim + 'px)';
+          const edge = axes(r);
+          const overhang = forward ? edge.across + edge.depth - slit : slit - edge.across;
+          note.style.clipPath = clip(limit(overhang / factor, -18, paper.depth + 12), forward);
         }
         maskFrame = requestAnimationFrame(cutAtLip);
       };
@@ -193,7 +199,7 @@ export default function SentencePocket(props: Props) {
           anim.cancel();
           anim = null;
         }
-        pressure.current(contactY, 0);
+        pressure.current(contactPoint, 0);
         restore();
         phaseTo(insert ? 'arrived' : 'idle');
         if (insert) {
@@ -320,16 +326,17 @@ export default function SentencePocket(props: Props) {
       if (active) restore();
       activate.current = () => {};
     };
-  }, [props.segmentId, props.expression, pressure]);
+  }, [props.segmentId, props.expression, pressure, top]);
   useEffect(() => {
     phaseTo('idle');
-  }, [props.segmentId, props.expression]);
+  }, [props.segmentId, props.expression, top]);
   return (
     <>
       <button
         type="button"
         className="quiet-pocket"
         ref={mouth}
+        data-edge={top ? 'top' : 'side'}
         data-phase={phase}
         data-open={props.open}
         aria-expanded={props.open}
