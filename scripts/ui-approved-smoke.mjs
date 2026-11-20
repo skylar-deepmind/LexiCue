@@ -46,6 +46,8 @@ try{
     eq(await controls.locator('button').count(),3,'desktop wall has three graphically distinct scales');
     const medium=await page.locator('.approved-poster-column').count();
     await controls.getByRole('button',{name:'大图',exact:true}).click();
+    await page.locator('.approved-wall-viewport[data-reflowing]').waitFor();
+    ok(await page.locator('.approved-poster').evaluateAll(posters=>posters.some(p=>p.getAnimations().some(a=>a.effect.getTiming().duration===390))),'scale changes visually move and resize existing posters');
     ok(await page.locator('.approved-poster-column').count()>medium,'large posters fit fewer materials per column');
     await controls.getByRole('button',{name:'密集',exact:true}).click();
     ok(await page.locator('.approved-poster-column').count()<medium,'compact scale fits more materials per column');

@@ -61,35 +61,45 @@ export function playPosterDeal(viewport: HTMLElement, entrance: PosterEntrance) 
     let frames: Keyframe[];
     let duration: number, delay: number;
     if (entrance.style === 'fan') {
-      const turn = ((index % 9) - 4) * 5;
+      // The whole hand opens around a shared pivot, holds, then releases together.
+      const slot = posters.length < 2 ? 0 : (index / (posters.length - 1)) * 2 - 1;
+      const spread = Math.min(180, bounds.width * .22);
+      const pivotX = Math.max(bounds.left + spread + 55, Math.min(bounds.right - spread - 55, sourceX));
+      const pivotY = Math.max(bounds.top + 110, Math.min(bounds.bottom - 100, sourceY - 44));
+      const fanX = dx + (pivotX - sourceX) + slot * spread;
+      const fanY = dy + (pivotY - sourceY) + slot * slot * 49;
+      const turn = slot * 32;
+      const openHand = pose(fanX, fanY, turn, scale * 1.55);
       frames = [
-        { transform: pose(dx, dy, -10, scale * .8), opacity: 0 },
-        { transform: pose(dx + turn * 2, dy - 42, turn, scale * 1.26), opacity: 1, offset: .32 },
-        { transform: pose(dx * .46, dy * .46 - 48, turn * .6, .76), offset: .63 },
+        { transform: pose(dx, dy, 0, scale * .68), opacity: 0, easing: 'cubic-bezier(.18,.8,.24,1)' },
+        { transform: openHand, opacity: 1, offset: .33, easing: 'linear' },
+        { transform: openHand, opacity: 1, offset: .49, easing: 'cubic-bezier(.4,0,.23,1)' },
         landing,
       ];
-      duration = 700;
-      delay = Math.min(index * 12, 115);
-    } else if (entrance.style === 'columns') {
-      const turn = (column % 2 === 0 ? -1 : 1) * 12;
+      duration = 940;
+      delay = 0;
+      copy.style.zIndex = String(posters.length - index);
+    } else if (entrance.style === 'columns' && index !== 0) {
+      // All posters in a column travel the same distance, as one vertical strip.
+      const rise = innerHeight + 32 - bounds.top;
       frames = [
-        { transform: pose(dx, dy, turn * 1.5, scale), opacity: 0 },
-        { transform: pose(dx * .48, dy * .5 - 32, turn, .74), opacity: 1, offset: .48 },
-        landing,
-      ];
-      duration = 480;
-      delay = Math.min(column * 86, 490) + (index % 2) * 10;
-    } else {
-      const turn = index % 2 ? 9 : -15;
-      frames = [
-        { transform: pose(dx, dy, turn, scale), opacity: 0 },
-        { transform: pose(dx * .62, dy * .55 - 38, turn * .77, .68), opacity: 1, offset: .38 },
+        { transform: pose(0, rise, 0, 1), opacity: 1, easing: 'cubic-bezier(.23,.76,.2,1)' },
         landing,
       ];
       duration = 510;
-      delay = Math.min(index * 39, 540);
+      delay = 200 + Math.min(column * 105, 525);
+    } else {
+      const turn = (index % 2 ? 13 : -21);
+      const sweep = Math.min(130, (rect.height * .24) + 47);
+      frames = [
+        { transform: pose(dx, dy + 13, turn, scale * .9), opacity: 0, easing: 'ease-out' },
+        { transform: pose(dx * .84, dy * .78 - sweep, turn, scale * 1.17), opacity: 1, offset: .31, easing: 'cubic-bezier(.2,.72,.2,1)' },
+        landing,
+      ];
+      duration = 410;
+      delay = index < 4 ? index * 105 : 315 + Math.min((index - 3) * 46, 488);
     }
-    const job = copy.animate(frames, { duration, delay, easing: 'cubic-bezier(.24,.7,.24,1)', fill: 'both' });
+    const job = copy.animate(frames, { duration, delay, fill: 'both' });
     jobs.push(job);
     void job.finished.then(() => { node.style.visibility = visibility; copy.remove(); }, () => {});
   }

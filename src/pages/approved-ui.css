@@ -101,6 +101,8 @@
  .approved-poster-plane[data-few] { width:100%; align-items:center; justify-content:center; }
  .approved-wall .approved-poster-column { display:grid; width:var(--poster-column-width); gap:10px; }
  .approved-poster-plane[data-few] .approved-poster-column { width:clamp(235px,34vw,470px); height:min(100%,440px); }
+ .approved-wall[data-poster-scale="large"] .approved-poster-plane[data-few] .approved-poster-column { width:clamp(270px,41vw,540px); height:min(100%,505px); }
+ .approved-wall[data-poster-scale="small"] .approved-poster-plane[data-few] .approved-poster-column { width:clamp(184px,26vw,360px); height:min(100%,345px); }
  .approved-poster { border:0; border-radius:5px; background:var(--approved-card); }
  .approved-poster > button { color:var(--approved-card-ink); }
  .approved-poster > button:focus-visible { outline:2px solid var(--approved-focus); outline-offset:-3px; }

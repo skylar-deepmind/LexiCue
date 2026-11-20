@@ -12,6 +12,7 @@ import useTrashDrag, { isTrashDragging } from './useTrashDrag';
 import { useFileStore } from '../stores/fileStore';
 import { finishReadingReturn } from '../lib/readingMotion';
 import { playPosterDeal, type PosterEntrance } from '../lib/posterDeal';
+import { capturePosterReflow, playPosterReflow } from '../lib/posterReflow';
 
 type WallPosition = { x: number; y: number; focus: number | null; scale: PosterScale };
 const positions = new Map<string, WallPosition>();
@@ -24,23 +25,15 @@ export default function PosterWall({ files, title, identity, entrance, onBack, o
   const memory = useRef<WallPosition>(positions.get(identity) ?? { x: 0, y: 0, focus: null, scale: 'medium' });
   const suppression = useRef(0), restoring = useRef(true);
   const [scale, setScale] = useState(memory.current.scale);
-  const scaleAnchor = useRef<{ id: string; x: number } | null>(null);
+  const scaleSnapshot = useRef<ReturnType<typeof capturePosterReflow> | null>(null);
+  const endReflow = useRef<(() => void) | undefined>(undefined);
   const endDeal = useRef<(() => void) | undefined>(undefined);
   const desktop = useMemo(() => desktopPosterLayout(files, scale), [files, scale]);
   const changeScale = (next: PosterScale) => {
     if (scale === next || !viewport.current) return;
     endDeal.current?.();
-    const bounds = viewport.current.getBoundingClientRect();
-    const middle = bounds.left + bounds.width / 2;
-    let best = Infinity;
-    for (const poster of viewport.current.querySelectorAll<HTMLElement>('.approved-poster')) {
-      const rect = poster.getBoundingClientRect();
-      if (rect.right <= bounds.left || rect.left >= bounds.right) continue;
-      const x = rect.left + rect.width / 2;
-      if (Math.abs(x - middle) >= best) continue;
-      best = Math.abs(x - middle);
-      scaleAnchor.current = { id: poster.dataset.motionFile!, x: x - bounds.left };
-    }
+    scaleSnapshot.current = capturePosterReflow(viewport.current);
+    endReflow.current?.();
     memory.current.scale = next;
     positions.set(identity, memory.current);
     setScale(next);
@@ -76,9 +69,10 @@ export default function PosterWall({ files, title, identity, entrance, onBack, o
     let drag: { id: number; x: number; start: number; moved: boolean } | null = null;
     const max = () => Math.max(0, plane.scrollWidth - view.clientWidth);
     const clamp = (value: number) => Math.max(0, Math.min(max(), value));
-    const anchor = scaleAnchor.current;
+    const snapshot = scaleSnapshot.current;
+    scaleSnapshot.current = null;
+    const anchor = snapshot?.anchor;
     if (anchor) {
-      scaleAnchor.current = null;
       const node = plane.querySelector<HTMLElement>(`[data-motion-file="${anchor.id}"]`);
       if (node) {
         const rect = node.getBoundingClientRect();
@@ -104,9 +98,10 @@ export default function PosterWall({ files, title, identity, entrance, onBack, o
     const wheel = (event: WheelEvent) => {
       const delta = Math.abs(event.deltaX) >= Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
       if (!delta || event.ctrlKey || !max()) return;
+      endReflow.current?.();
       event.preventDefault(); target = clamp(target + delta * .95); wake();
     };
-    const down = (event: PointerEvent) => { if (event.button !== 0) return; drag = { id: event.pointerId, x: event.clientX, start: target, moved: false }; };
+    const down = (event: PointerEvent) => { if (event.button !== 0) return; endReflow.current?.(); drag = { id: event.pointerId, x: event.clientX, start: target, moved: false }; };
     const move = (event: PointerEvent) => {
       if(isTrashDragging()){drag=null;return;}
       if (!drag || drag.id !== event.pointerId) return;
@@ -118,13 +113,15 @@ export default function PosterWall({ files, title, identity, entrance, onBack, o
     const end = (event: PointerEvent) => { if (!drag || drag.id !== event.pointerId) return; if (drag.moved) suppression.current = performance.now() + 350; if (view.hasPointerCapture(event.pointerId)) view.releasePointerCapture(event.pointerId); drag = null; wake(); };
     const key = (event: KeyboardEvent) => {
       if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      endReflow.current?.();
       event.preventDefault(); target = event.key === 'Home' ? 0 : event.key === 'End' ? max() : clamp(target + (event.key === 'ArrowRight' ? 1 : -1) * 260); wake();
     };
     plane.style.transform = `translate3d(${-clamp(x)}px,0,0)`;
+    if (snapshot) endReflow.current = playPosterReflow(view, snapshot);
     view.addEventListener('wheel', wheel, { passive: false });
     view.addEventListener('pointerdown', down); view.addEventListener('pointermove', move); view.addEventListener('pointerup', end); view.addEventListener('pointercancel', end); view.addEventListener('keydown', key);
-    const resize = () => { target = clamp(target); wake(); }; window.addEventListener('resize', resize);
-    return () => { cancelAnimationFrame(frame); view.removeEventListener('wheel', wheel); view.removeEventListener('pointerdown', down); view.removeEventListener('pointermove', move); view.removeEventListener('pointerup', end); view.removeEventListener('pointercancel', end); view.removeEventListener('keydown', key); window.removeEventListener('resize', resize); };
+    const resize = () => { endReflow.current?.(); target = clamp(target); wake(); }; window.addEventListener('resize', resize);
+    return () => { endReflow.current?.(); endReflow.current = undefined; cancelAnimationFrame(frame); view.removeEventListener('wheel', wheel); view.removeEventListener('pointerdown', down); view.removeEventListener('pointermove', move); view.removeEventListener('pointerup', end); view.removeEventListener('pointercancel', end); view.removeEventListener('keydown', key); window.removeEventListener('resize', resize); };
   }, [mobile, identity, files, scale]);
   const poster = (file: Material, units?: number) => <RemovablePoster key={file.id} file={file}><article className="approved-poster" key={file.id} data-motion-file={file.id} style={units ? { '--poster-units': units } as CSSProperties : undefined}><button aria-label={t('readingDesk.openNamed', { name: file.name })} title={mobile ? undefined : bookmarkTitle(file.name)} onClick={event => {
     if (performance.now() < suppression.current) return;
