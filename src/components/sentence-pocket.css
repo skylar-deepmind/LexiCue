@@ -49,3 +49,9 @@ html[data-theme=midnight]{--note-paper:#343630;--note-edge:#636357;--note-shade:
 .word-families summary:focus-visible { outline:2px solid var(--approved-focus); }
 .word-families .pos-rest { margin-top:8px; padding:10px 12px; border-radius:6px; background:var(--interactive-hover); }
 .word-families .pos-rest dt { font-style:italic; }
+
+/* The mobile pocket occupies its own touch row above the heading and controls. */
+.context-panel--lookup:has(.quiet-pocket[data-edge=top])::before { content:none; }
+.lookup-stage:has(.quiet-pocket[data-edge=top]) { padding-left:0; padding-top:38px; }
+.quiet-pocket[data-edge=top] { inset:0 0 auto; width:100%; height:44px; }
+.context-panel.context-panel--lookup:has(.quiet-pocket[data-edge=top]) .context-sheet-controls { top:50px; }

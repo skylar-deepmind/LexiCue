@@ -1,12 +1,12 @@
 import { useLayoutEffect, useRef } from 'react';
 
 // The cut is in the face of the card. Its ends are bonded to the backing.
-export const seamX = 13;
-export const seamInset = (height: number) => Math.min(27, height * 0.09);
+export const seamOffset = 13;
+export const seamInset = (span: number, top: boolean) => top ? Math.min(18, span * 0.045) : Math.min(27, span * 0.09);
 
-export default function usePaperSeam() {
+export default function usePaperSeam(top: boolean) {
   const canvas = useRef<HTMLCanvasElement>(null);
-  const pressure = useRef<(y: number, depth: number, lean?: number) => void>(() => {});
+  const pressure = useRef<(position: number, depth: number, lean?: number) => void>(() => {});
   useLayoutEffect(() => {
     const el = canvas.current;
     if (!el) return;
@@ -19,8 +19,8 @@ export default function usePaperSeam() {
       raf = 0,
       last = 0,
       dark = false;
-    let y = 0,
-      goalY = 0,
+    let position = 0,
+      targetPosition = 0,
       depth = 0,
       goalDepth = 0,
       lean = 0,
@@ -29,27 +29,28 @@ export default function usePaperSeam() {
     const paint = () => {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, w, h);
-      const inset = seamInset(h),
-        end = h - inset;
+      const span = top ? w : h;
+      const inset = seamInset(span, top), end = span - inset;
+      const spread = top ? Math.max(70, (end - inset) * 0.38) : 48;
       const shadow = dark ? '4,9,10' : '43,49,48';
       // Shade the recess and one continuous, shallow bevel on the outer sheet.
       // The relief falls to zero away from the paper and at both fixed ends.
       for (let row = Math.floor(inset); row < end; row++) {
         const tip = Math.min(1, (row - inset + 1) / 7, (end - row) / 7);
-        const falloff = Math.exp(-Math.pow((row - y) / 48, 2)) * Math.max(0, tip);
+        const falloff = Math.exp(-Math.pow((row - position) / spread, 2)) * Math.max(0, tip);
         const level = Math.round(100 * falloff * depth);
         const strain = level / 100;
-        const gap = 0.7 + 4.1 * strain,
-          front = seamX + gap;
+        const gap = 0.7 + (top ? 11 : 4.1) * strain,
+          front = seamOffset + gap;
         let shade = ramps.get(level);
-        const origin = seamX - 2 - strain,
+        const origin = seamOffset - 2 - strain,
           length = front + 10 - origin;
         if (!shade) {
           const ramp = ctx.createLinearGradient(origin, 0, front + 10, 0);
           const stop = (x: number, rgba: string) => ramp.addColorStop((x - origin) / length, rgba);
           const tint = (a: number) => 'rgba(' + shadow + ',' + a + ')';
           ramp.addColorStop(0, tint(0));
-          stop(seamX, tint(0.11 + 0.18 * strain));
+          stop(seamOffset, tint(0.11 + 0.18 * strain));
           stop(front - 0.32, tint((dark ? 0.67 : 0.31) + 0.18 * strain));
           stop(front + 0.23, 'rgba(255,255,255,' + (dark ? 0.12 : 0.57) + ')');
           stop(front + 1.5, 'rgba(255,255,255,' + (dark ? 0.035 : 0.18) + ')');
@@ -60,7 +61,8 @@ export default function usePaperSeam() {
         }
         // At pickup the free edge leans toward the source, with both ends fixed.
         const offset = lean * 4.8 * falloff;
-        ctx.setTransform(dpr, 0, 0, dpr, offset * dpr, 0);
+        if (top) ctx.setTransform(0, dpr, dpr, 0, 0, offset * dpr);
+        else ctx.setTransform(dpr, 0, 0, dpr, offset * dpr, 0);
         ctx.globalAlpha = Math.max(0, tip);
         ctx.fillStyle = shade;
         ctx.fillRect(origin, row, length, 1);
@@ -74,17 +76,17 @@ export default function usePaperSeam() {
       const k = media.matches ? 1 : 1 - Math.exp(-dt / (goalDepth > depth ? 76 : 155));
       depth += (goalDepth - depth) * k;
       lean += (goalLean - lean) * k;
-      y += (goalY - y) * Math.min(1, k * 1.7);
+      position += (targetPosition - position) * Math.min(1, k * 1.7);
       if (
         Math.abs(goalDepth - depth) > 0.006 ||
-        Math.abs(goalY - y) > 0.3 ||
+        Math.abs(targetPosition - position) > 0.3 ||
         Math.abs(goalLean - lean) > 0.006
       ) {
         raf = requestAnimationFrame(tick);
       } else {
         depth = goalDepth;
         lean = goalLean;
-        y = goalY;
+        position = targetPosition;
       }
       paint();
     };
@@ -94,9 +96,10 @@ export default function usePaperSeam() {
         raf = requestAnimationFrame(tick);
       }
     };
-    pressure.current = (position, amount, direction = 0) => {
-      if (amount > 0) goalY = Math.max(seamInset(h) + 7, Math.min(h - seamInset(h) - 7, position));
-      if (depth < 0.03) y = goalY;
+    pressure.current = (at, amount, direction = 0) => {
+      const span = top ? w : h, inset = seamInset(span, top);
+      if (amount > 0) targetPosition = Math.max(inset + 7, Math.min(span - inset - 7, at));
+      if (depth < 0.03) position = targetPosition;
       goalDepth = Math.max(0, Math.min(1, amount));
       goalLean = direction;
       schedule();
@@ -108,7 +111,7 @@ export default function usePaperSeam() {
       dpr = Math.min(devicePixelRatio || 1, 2);
       el.width = Math.max(1, Math.round(w * dpr));
       el.height = Math.max(1, Math.round(h * dpr));
-      if (!y) y = goalY = h * 0.52;
+      position = targetPosition = (top ? w : h) * 0.52;
       paint();
     };
     const theme = () => {
@@ -128,6 +131,6 @@ export default function usePaperSeam() {
       cancelAnimationFrame(raf);
       pressure.current = () => {};
     };
-  }, []);
+  }, [top]);
   return { canvas, pressure };
 }
