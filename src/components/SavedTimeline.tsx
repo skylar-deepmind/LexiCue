@@ -1,10 +1,10 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Trans, useTranslation } from 'react-i18next';
+import { useTranslation } from 'react-i18next';
 import { RotateCcw } from 'lucide-react';
 import { savedDayString, savedInputDay, savedTimeline, type SavedDateBin } from '../lib/savedTimeline';
 
 type Props = {
-  bins: SavedDateBin[]; recordCount: number | null | undefined; start: string; end: string;
+  bins: SavedDateBin[]; start: string; end: string;
   status: 'loading' | 'ready' | 'error';
   onRangeChange: (start: string, end: string) => void; onRetry: () => void;
 };
@@ -12,7 +12,7 @@ type Range = { from: number; to: number };
 type Drag = Range & { pointer: number; x: number; y: number; day: number; mode: 'start' | 'end' | 'new'; moved: boolean };
 const baseline = 35;
 
-export default function SavedTimeline({ bins, recordCount, start, end, status, onRangeChange, onRetry }: Props) {
+export default function SavedTimeline({ bins, start, end, status, onRangeChange, onRetry }: Props) {
   const { t, i18n } = useTranslation(), plot = useRef<HTMLDivElement>(null);
   const drag = useRef<Drag | null>(null), pendingRange = useRef<Range | null>(null);
   const [width, setWidth] = useState(320), [draft, setDraft] = useState<Range | null>(null);
@@ -58,14 +58,7 @@ export default function SavedTimeline({ bins, recordCount, start, end, status, o
       commit(side==='start'?{from:Math.min(to,value),to}:{from,to:Math.max(from,value)});
     }}><span aria-hidden="true"/></button>;
   if (statusOnly) return <div className="approved-timeline saved-timeline-status" data-state={status} role={status==='error'?'alert':'status'}><span>{t(status==='error'?'approved.loadFailed':'common.loading')}</span>{status==='error'&&<button className="ui-button" onClick={onRetry}>{t('common.retry')}</button>}</div>;
-  return <div className="approved-timeline saved-growing-timeline" data-phase={model.phase} data-active-days={model.activeDays} data-records={model.total} data-range-active={selected||undefined} aria-busy={status==='loading'||recordCount===null||undefined}>
-    <div className="saved-timeline-summary">
-      {recordCount === null && <span className="saved-timeline-label">{t('common.loading')}</span>}
-      {recordCount !== undefined && recordCount !== null && <span className="saved-timeline-count">
-        <Trans i18nKey="savedRecords.recordMetric" count={recordCount} components={{ value: <strong/>, unit: <span/> }}/>
-      </span>}
-      {(start||end)&&<button type="button" className="saved-timeline-reset approved-icon" aria-label={t('approved.allDates')} onClick={()=>onRangeChange('','')}><RotateCcw size={16} aria-hidden="true"/></button>}
-    </div>
+  return <div className="approved-timeline saved-growing-timeline" data-phase={model.phase} data-active-days={model.activeDays} data-records={model.total} data-range-active={selected||undefined} aria-busy={status==='loading'||undefined}>
     {model.activeDays === 1 && <time className="saved-timeline-date" dateTime={savedDayString(first)}>{fullDate.format(first * 86400000)}</time>}
     {showPlot && <div className="saved-timeline-graph">
       <div ref={plot} className="saved-timeline-plot" onPointerDown={event=>{
@@ -81,13 +74,13 @@ export default function SavedTimeline({ bins, recordCount, start, end, status, o
         const next=current.mode==='start'?{from:Math.min(day,current.to),to:current.to}:current.mode==='end'?{from:current.from,to:Math.max(day,current.from)}:{from:Math.min(day,current.day),to:Math.max(day,current.day)};pendingRange.current=next;setDraft(next);
       }} onPointerUp={event=>{const current=drag.current;if(!current||current.pointer!==event.pointerId)return;if(current.moved&&pendingRange.current)commit(pendingRange.current);stopDrag();if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId);}}
         onPointerCancel={stopDrag} onLostPointerCapture={stopDrag} onKeyDown={event=>{if(event.key==='Escape'&&drag.current){event.preventDefault();event.stopPropagation();stopDrag();}}}>
-        <svg width="100%" height="48" viewBox={`0 0 ${width} 48`} role="img" aria-label={t('approved.timelineSummary',{records:model.total,days:model.activeDays})}>
+        <svg width="100%" height="48" viewBox={`0 0 ${width} 48`} role="img" aria-label={t('savedRecords.timeline')}>
           <line className="saved-timeline-axis" x1={model.axisStart} x2={model.axisEnd} y1={baseline} y2={baseline}/>
           {selected&&<rect className="saved-timeline-selection" x={xFor(from)-5} y="7" width={Math.max(10,xFor(to)-xFor(from)+10)} height="30" rx="4"/>}
           {model.marks.map(mark => {
             const barWidth = mark.width * .72, barHeight = mark.height * .64;
             return <rect key={mark.key} className="saved-timeline-mark" width={barWidth} height={barHeight} rx={Math.min(barWidth / 2, 2)} style={{transform:`translate(${mark.x-barWidth/2}px,${baseline-barHeight}px)`,width:barWidth,height:barHeight,opacity:mark.selectedCount?1:.22}} data-count={mark.count} data-day={mark.firstDay} data-last-day={mark.lastDay}>
-              <title>{fullDate.format(mark.firstDay*86400000)} · {t('approved.recordCount',{count:mark.count})}</title>
+              <title>{fullDate.format(mark.firstDay*86400000)}{mark.firstDay !== mark.lastDay && ` – ${fullDate.format(mark.lastDay*86400000)}`}</title>
             </rect>;
           })}
         </svg>
@@ -97,5 +90,6 @@ export default function SavedTimeline({ bins, recordCount, start, end, status, o
         {selected && dateStart !== dateEnd ? <span>{dateStart} – {dateEnd}</span> : <><span>{dateStart}</span>{dateStart !== dateEnd && <span>{dateEnd}</span>}</>}
       </div>
     </div>}
+    {(start||end)&&<button type="button" className="saved-timeline-reset approved-icon" aria-label={t('approved.allDates')} onClick={()=>onRangeChange('','')}><RotateCcw size={16} aria-hidden="true"/></button>}
   </div>;
 }

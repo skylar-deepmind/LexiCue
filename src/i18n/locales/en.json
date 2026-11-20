@@ -1344,11 +1344,11 @@
     "inferred": "AI inferred"
   },
   "savedRecords": {
+    "noMatches": "No words match these filters.",
     "browseWords": "Browse all words",
-    "recordMetric_one": "<value>{{count, number}}</value> <unit>record</unit>",
-    "recordMetric_other": "<value>{{count, number}}</value> <unit>records</unit>",
-    "wordCount_one": "{{count}} word",
-    "wordCount_other": "{{count}} words",
+    "wordIndex": "Words",
+    "closeWords": "Close word list",
+    "timeline": "Saved dates",
     "title": "Saved",
     "settingsHint": "Keep the original sentence, explanation and source together.",
     "open": "Open saved records",
@@ -2039,9 +2039,6 @@
     "placeOnDesk": "Add to desk",
     "emptyMaterials": "No materials yet",
     "filterDates": "Filter saved dates",
-    "recordCount_one": "{{count}} record",
-    "recordCount_other": "{{count}} records",
-    "timelineSummary": "Saved records: {{records}}; active dates: {{days}}",
 
     "light": "Switch to light mode",
     "dark": "Switch to dark mode",

@@ -1327,9 +1327,11 @@
     "inferred": "AI の推定"
   },
   "savedRecords": {
+    "noMatches": "条件に一致する見出し語はありません。",
     "browseWords": "すべての見出し語を見る",
-    "recordMetric": "<value>{{count, number}}</value> <unit>件の記録</unit>",
-    "wordCount": "{{count}} 語",
+    "wordIndex": "見出し語",
+    "closeWords": "見出し語一覧を閉じる",
+    "timeline": "保存日",
     "title": "保存済み",
     "settingsHint": "原文・説明・出典をまとめて保存します。",
     "open": "保存済みを開く",
@@ -2019,8 +2021,6 @@
     "placeOnDesk": "デスクに追加",
     "emptyMaterials": "まだ教材がありません",
     "filterDates": "保存日で絞り込む",
-    "recordCount": "{{count}} 件の記録",
-    "timelineSummary": "{{records}} 件の記録、{{days}} 日の保存日",
 
     "light": "ライトモード",
     "dark": "ダークモード",
