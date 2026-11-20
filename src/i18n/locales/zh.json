@@ -1327,6 +1327,9 @@
     "inferred": "AI 判断"
   },
   "savedRecords": {
+    "browseWords": "查看全部词条",
+    "closeWords": "收起词条",
+    "wordCount": "{{count}} 个词条",
     "title": "已保存",
     "settingsHint": "原句、解释和出处保存在一起。",
     "open": "打开已保存",

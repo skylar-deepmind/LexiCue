@@ -1344,6 +1344,10 @@
     "inferred": "AI inferred"
   },
   "savedRecords": {
+    "browseWords": "Browse all words",
+    "closeWords": "Close word list",
+    "wordCount_one": "{{count}} word",
+    "wordCount_other": "{{count}} words",
     "title": "Saved",
     "settingsHint": "Keep the original sentence, explanation and source together.",
     "open": "Open saved records",

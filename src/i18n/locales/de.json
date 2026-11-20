@@ -1344,6 +1344,10 @@
     "inferred": "KI-Einschätzung"
   },
   "savedRecords": {
+    "browseWords": "Alle Stichwörter ansehen",
+    "closeWords": "Wortliste schließen",
+    "wordCount_one": "{{count}} Stichwort",
+    "wordCount_other": "{{count}} Stichwörter",
     "title": "Gespeichert",
     "settingsHint": "Originalsatz, Erklärung und Quelle zusammen aufbewahren.",
     "open": "Gespeicherte Einträge öffnen",

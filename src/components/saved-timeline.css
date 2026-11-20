@@ -1,15 +1,47 @@
-.approved-timeline { flex:none; width:100%; height:88px; position:relative; margin:0 0 10px; }
-.approved-timeline.saved-growing-timeline { margin:0 0 10px; }
+.approved-timeline {
+  flex: none;
+  width: 100%;
+  min-height: 52px;
+  margin: 8px 0 18px;
+  padding: 0 16px;
+  border: 1px solid color-mix(in srgb, var(--approved-dot) 65%, transparent);
+  border-radius: 12px;
+  background: var(--approved-card);
+}
+.saved-growing-timeline {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+.saved-growing-timeline[data-phase="empty"] { width:fit-content; max-width:100%; }
+.saved-growing-timeline[data-phase="seed"] { max-width:270px; }
+.saved-growing-timeline[data-phase="dots"] { max-width:640px; }
+.saved-timeline-summary { display:flex; flex-direction:column; align-items:flex-start; padding-block:4px; }
+.saved-timeline-count { font:600 1.125rem/1.25 system-ui; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+.saved-timeline-date { color:var(--approved-secondary); font-size:.8125rem; text-align:end; }
+.saved-timeline-graph { min-width:0; padding-bottom:8px; }
 .saved-timeline-plot { height:60px; position:relative; width:100%; touch-action:pan-y; user-select:none; -webkit-user-select:none; }
 .saved-timeline-plot > svg { display:block; overflow:visible; }
 .saved-timeline-axis { stroke:var(--approved-dot); stroke-width:1; opacity:.65; }
 .saved-timeline-mark { fill:var(--approved-warm); transition:transform 320ms cubic-bezier(.2,.7,.2,1),width 320ms ease,height 320ms ease,opacity 140ms ease; }
 .saved-timeline-selection { fill:color-mix(in srgb,var(--approved-warm) 12%,transparent); }
-.saved-timeline-handle { position:absolute; top:0; width:44px; height:44px; min-height:44px; min-width:44px; transform:translateX(-50%); padding:0; border:0; color:var(--approved-secondary); background:transparent; display:grid; place-items:center; cursor:ew-resize; -webkit-tap-highlight-color:transparent; touch-action:pan-y; z-index:2; }
-.saved-timeline-handle span { display:block; width:3px; height:12px; transform:translateY(16px); border-radius:3px; background:currentColor; opacity:.6; }
+.saved-timeline-handle { position:absolute; top:0; width:44px; height:60px; transform:translateX(-50%); padding:0; border:0; color:var(--approved-secondary); background:transparent; display:grid; place-items:center; cursor:ew-resize; -webkit-tap-highlight-color:transparent; touch-action:pan-y; z-index:2; }
+.saved-timeline-handle span { display:block; width:3px; height:8px; transform:translateY(22px); border-radius:3px; background:currentColor; opacity:.6; }
 .saved-timeline-handle:focus-visible { outline:2px solid var(--approved-focus); outline-offset:-6px; border-radius:9px; z-index:3; }
 .saved-timeline-handle:is(:hover,:active) span { opacity:1; }
-.saved-timeline-period { display:block; text-align:center; color:var(--approved-secondary); font:12px/18px system-ui; pointer-events:none; }
-.saved-timeline-reset.approved-icon { position:absolute; right:-8px; top:44px; width:44px; height:44px; min-width:44px; background:var(--approved-desk); }
+.saved-timeline-period { display:flex; justify-content:space-between; gap:8px; padding-inline:12px; color:var(--approved-secondary); font:.75rem/1.25 system-ui; }
+.saved-timeline-period > :last-child { text-align:end; }
+.saved-timeline-period[data-centered] { justify-content:center; }
+.saved-timeline-period[data-centered] > span { text-align:center; }
+.saved-timeline-reset.approved-icon { width:44px; height:44px; margin-inline-start:-6px; color:var(--approved-secondary); }
+.saved-timeline-reset:active { background:var(--approved-hover); }
 .saved-timeline-status { display:flex; align-items:center; justify-content:center; gap:12px; font-size:13px; color:var(--approved-secondary); }
+@media(max-width:767px) {
+  .approved-timeline { padding-inline:12px; margin-bottom:12px; }
+  .saved-growing-timeline[data-phase="seed"] { max-width:none; }
+  .saved-growing-timeline:has(.saved-timeline-graph) { grid-template-columns:minmax(82px, 30%) minmax(0, 1fr); gap:6px; }
+  .saved-timeline-count { font-size:1rem; }
+  .saved-timeline-period { padding-inline:2px; }
+}
 @media(prefers-reduced-motion:reduce) { .saved-timeline-mark { transition:none; } }
