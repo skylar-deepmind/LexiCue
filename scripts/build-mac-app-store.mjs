@@ -37,7 +37,7 @@ const profile = run('security', ['cms', '-D', '-i', profilePath]);
 const extractProfile = (key, format = 'raw') =>
   run('plutil', ['-extract', key, format, '-o', '-', '-'], { input: profile }).trim();
 const team = extractProfile('TeamIdentifier.0');
-const profileEntitlements = JSON.parse(extractProfile('Entitlements', 'json'));
+const profileEntitlements = plistFrom(extractProfile('Entitlements', 'xml1'));
 const appIdentifier = `${team}.${identifier}`;
 check(profileEntitlements['com.apple.application-identifier'] === appIdentifier, 'Provisioning profile must match the LexiCue store Bundle ID');
 check(Date.parse(extractProfile('ExpirationDate')) > Date.now() && !profile.includes('<key>ProvisionedDevices</key>'), 'Use a current Mac App Store distribution profile');
