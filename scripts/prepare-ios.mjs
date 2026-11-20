@@ -20,7 +20,12 @@ if (process.argv[2] === '--xcode-build') {
   // Xcode's SDKROOT is for iOS. Cargo also builds host executables, including
   // dictionary dependencies with native code. Give those the host SDK.
   const sdk = execFileSync('xcrun', ['--sdk', 'macosx', '--show-sdk-path'], {encoding: 'utf8'}).trim();
-  const env = {...process.env, CC_SHELL_ESCAPED_FLAGS: '1'};
+  const env = {
+    ...process.env,
+    CC_SHELL_ESCAPED_FLAGS: '1',
+    TAURI_APP_PATH: join(root, 'src-tauri'),
+    TAURI_FRONTEND_PATH: root,
+  };
   const quoted = "'" + sdk.replaceAll("'", "'\\''") + "'";
   for (const arch of ['aarch64', 'x86_64']) {
     for (const flags of ['CFLAGS', 'CXXFLAGS']) {
