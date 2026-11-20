@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { isAbsolute, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -98,8 +98,15 @@ try {
   const output = join(bundle, 'app-store');
   mkdirSync(output, { recursive: true });
   const pkg = join(output, `LexiCue_${info.CFBundleShortVersionString}_${buildNumber}_arm64.pkg`);
-  run('productbuild', ['--component', app, '/Applications', '--sign', installerIdentity, pkg], { stdio: 'inherit' });
-  run('pkgutil', ['--check-signature', pkg], { stdio: 'inherit' });
+  const staging = mkdtempSync(join(output, '.package-'));
+  try {
+    const candidate = join(staging, 'LexiCue.pkg');
+    run('productbuild', ['--component', app, '/Applications', '--sign', installerIdentity, candidate], { stdio: 'inherit' });
+    run('pkgutil', ['--check-signature', candidate], { stdio: 'inherit' });
+    renameSync(candidate, pkg);
+  } finally {
+    rmSync(staging, { recursive: true, force: true });
+  }
   console.log(pkg);
 } finally {
   rmSync(temp, { recursive: true, force: true });
