@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { isAbsolute, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -54,6 +54,9 @@ try {
   const jsonPath = join(temp, 'entitlements.json');
   writeFileSync(jsonPath, JSON.stringify(rights));
   run('plutil', ['-convert', 'xml1', '-o', rightsPath, jsonPath]);
+  const bundledProfile = join(temp, 'embedded.provisionprofile');
+  copyFileSync(profilePath, bundledProfile);
+  chmodSync(bundledProfile, 0o644);
   const overrides = join(temp, 'signing.json');
   writeFileSync(overrides, JSON.stringify({
     bundle: {
@@ -62,7 +65,7 @@ try {
         signingIdentity,
         entitlements: rightsPath,
         files: {
-          'embedded.provisionprofile': profilePath,
+          'embedded.provisionprofile': bundledProfile,
           'Resources/PrivacyInfo.xcprivacy': join(tauri, 'PrivacyInfo.xcprivacy'),
         },
       },
@@ -90,6 +93,8 @@ try {
   check(Object.entries(rights).every(([key, value]) => signedRights[key] === value), 'Signed app entitlements do not match the store configuration');
   check(!signedRights['com.apple.security.get-task-allow'] && !signedRights['com.apple.security.cs.disable-library-validation'], 'The app has a development entitlement');
   check(existsSync(join(app, 'Contents/Resources/PrivacyInfo.xcprivacy')), 'Missing privacy manifest');
+  const embedded = statSync(join(app, 'Contents/embedded.provisionprofile'));
+  check((embedded.mode & 0o044) === 0o044, 'Bundled provisioning profile must be readable after installation');
   const output = join(bundle, 'app-store');
   mkdirSync(output, { recursive: true });
   const pkg = join(output, `LexiCue_${info.CFBundleShortVersionString}_${buildNumber}_arm64.pkg`);
