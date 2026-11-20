@@ -13,7 +13,7 @@ import InlineTagName from '../components/InlineTagName';
 import HomeCardTags from '../components/HomeCardTags';
 import LibraryCover from '../components/LibraryCover';
 import LibraryCategoryCard from '../components/LibraryCategoryCard';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
@@ -43,6 +43,7 @@ import useTrashDrag, { isTrashDragging } from '../components/useTrashDrag';
 import PosterWall from '../components/PosterWall';
 import { cancelReadingReturn, captureReadingEntrance, finishReadingReturn, readingMotionExcerpt } from '../lib/readingMotion';
 import { playTagFlight } from '../lib/tagFlight';
+import type { PosterEntrance } from '../lib/posterDeal';
 import './approved-ui.css';
 import '../components/import-material-card.css';
 
@@ -65,6 +66,7 @@ function MaterialDesk() {
   const [pocket, setPocket] = useState<SavedRecord | null>(() => savedPocketCache.peek('latest') ?? null);
   const [pasting, setPasting] = useState(false), [turning, setTurning] = useState(false);
   const [groups, setGroups] = useState(params.get('view') === 'library' && !params.has('tag'));
+  const [wallEntrance, setWallEntrance] = useState<PosterEntrance | null>(null);
   const home = useRef<HTMLDivElement>(null);
   const card = useRef<HTMLDivElement>(null), libraryButton = useRef<HTMLButtonElement>(null);
   const gesture = useRef<{ x: number; y: number; locked: boolean } | null>(null), suppress = useRef(0);
@@ -191,14 +193,16 @@ function MaterialDesk() {
     };
   }, []);
   const wallTag = params.get('tag');
-  const wallFiles = wallTag === 'all' ? catalog.files : wallTag === 'untagged' ? catalog.files.filter(file => !file.tags.length) : catalog.files.filter(file => file.tags.some(tag => String(tag.id) === wallTag));
+  const wallFiles = useMemo(() => wallTag === 'all' ? catalog.files : catalog.files.filter(file =>
+    wallTag === 'untagged' ? !file.tags.length : file.tags.some(tag => String(tag.id) === wallTag)), [catalog.files, wallTag]);
+  const returnToTags = useCallback(() => { setWallEntrance(null); setParams({ view: 'library' }); setGroups(true); }, [setParams]);
   const tagName = wallTag === 'all' ? libraryNames.all : wallTag === 'untagged' ? libraryNames.untagged : tags.find(tag => String(tag.id) === wallTag)?.name ?? t('readingDesk.library');
   useEffect(() => backNavigation.setPage(() => {
-    if (wallTag !== null) { setParams({ view: 'library' }); setGroups(true); return true; }
+    if (wallTag !== null) { returnToTags(); return true; }
     return false;
-  }, 2), [wallTag, setParams]);
+  }, 2), [wallTag, returnToTags]);
   return <div className="approved-desk" ref={home} data-library-open={groups || undefined}>
-    {wallTag !== null ? <PosterWall files={wallFiles} title={tagName} identity={wallTag} onBack={() => { setParams({ view: 'library' }); setGroups(true); }} onOpen={(file, node) => open(file, node, 'wall')}/> : <>
+    {wallTag !== null ? <PosterWall key={wallTag} files={wallFiles} title={tagName} identity={wallTag} entrance={wallEntrance?.tag === wallTag ? wallEntrance : null} onBack={returnToTags} onOpen={(file, node) => open(file, node, 'wall')}/> : <>
       <header className="approved-home-header">
         <button className="approved-brand" aria-label={t(theme === 'midnight' ? 'approved.light' : 'approved.dark')} aria-pressed={theme === 'midnight'} onClick={() => setTheme(current => current === 'midnight' ? 'sage' : 'midnight')}><span className="approved-wordmark" aria-hidden="true"/></button>
         <div><button data-guide="import" className="approved-icon clipboard-import" aria-label={t(importing ? 'materials.importRunning' : 'materials.importDialog.pasteLink')} aria-busy={pasting || importing} disabled={pasting} onClick={() => void paste()}>{pasting || importing ? <BusyRing/> : <ClipboardImportIcon/>}</button>
@@ -233,10 +237,15 @@ function MaterialDesk() {
         }}><span className="approved-word-pocket" aria-hidden="true"><i/><SavedPocketPreview record={pocket}/><i/></span></button>
       </footer>
     </>}
-    {groups && !importOpen && wallTag === null && <TagRail files={catalog.files} tags={tags} returnFocus={() => libraryButton.current} onClose={() => { setGroups(false); setParams({}); }} onSelect={tag => { lastLibraryTag = tag; setGroups(false); setParams({ view: 'library', tag }); }}/ >}
+    {groups && !importOpen && wallTag === null && <TagRail files={catalog.files} tags={tags} returnFocus={() => libraryButton.current} onClose={() => { setGroups(false); setParams({}); }} onSelect={(tag, origin) => {
+      lastLibraryTag = tag;
+      setWallEntrance({ tag, origin });
+      setGroups(false);
+      setParams({ view: 'library', tag });
+    }}/ >}
   </div>;
 }
-function TagRail({ files, tags, returnFocus, onClose, onSelect }: { files: Material[]; tags: Material['tags']; returnFocus: () => HTMLElement | null; onClose: () => void; onSelect: (id: string) => void }) {
+function TagRail({ files, tags, returnFocus, onClose, onSelect }: { files: Material[]; tags: Material['tags']; returnFocus: () => HTMLElement | null; onClose: () => void; onSelect: (id: string, source: DOMRect) => void }) {
   const { t } = useTranslation();
   const [editingId,setEditingId] = useState<string|null>(null);
   const libraryNames = useLibraryNames();
@@ -277,8 +286,8 @@ function TagRail({ files, tags, returnFocus, onClose, onSelect }: { files: Mater
           : renameDefault(item.id as LibraryNameKey, name);
         return <div key={item.id} className="approved-tag-group" data-tag-id={item.id} tabIndex={-1}>
           <LibraryCategoryCard tag={tag} disabled={editingId!==null}>
-            <button className="approved-tag-open" aria-label={`${item.name} · ${item.files.length}`} onClick={() => {
-              if (!saving()) onSelect(item.id);
+            <button className="approved-tag-open" aria-label={`${item.name} · ${item.files.length}`} onClick={event => {
+              if (!saving()) onSelect(item.id, event.currentTarget.getBoundingClientRect());
             }}><LibraryCover files={item.files}/></button>
             <InlineTagName name={item.name} editing={editingId===item.id} onRename={rename}
               onEdit={() => { if (!saving()) setEditingId(item.id); }}
