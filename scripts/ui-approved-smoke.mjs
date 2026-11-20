@@ -25,7 +25,13 @@ try{
   ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'no horizontal document overflow');
   await page.screenshot({path:`${output}/${theme}-${width}-home.png`});
   await page.getByRole('button',{name:'材料库',exact:true}).click();await page.locator('.approved-tag-panel').waitFor();
-  await page.getByRole('button',{name:'Coast · 14',exact:true}).click();await page.locator('.approved-poster').first().waitFor();
+  await page.getByRole('button',{name:'Coast · 14',exact:true}).click();
+  if(width>=768){
+    await page.locator('.approved-poster-deal[data-style=cascade]').waitFor();
+    ok(await page.locator('.approved-wall-viewport[data-dealing]').count()===1,'entering a desktop label deals its visible posters');
+    await page.locator('.approved-poster-deal').waitFor({state:'detached'});
+  }
+  await page.locator('.approved-poster').first().waitFor();
   if(width>=768){
     eq(await page.locator('.approved-projector').count(),0,'desktop poster wall omits the projector');
     const long=page.locator('.approved-poster').filter({hasText:'A Very Long Title'});
@@ -36,6 +42,14 @@ try{
         && cover.getBoundingClientRect().height>=bounds.height*.58
         && poster.querySelector('button').title===title.textContent;
     }),'long desktop titles keep the cover visible and expose the full title on hover');
+    const controls=page.locator('.approved-poster-scales');
+    eq(await controls.locator('button').count(),3,'desktop wall has three graphically distinct scales');
+    const medium=await page.locator('.approved-poster-column').count();
+    await controls.getByRole('button',{name:'大图',exact:true}).click();
+    ok(await page.locator('.approved-poster-column').count()>medium,'large posters fit fewer materials per column');
+    await controls.getByRole('button',{name:'密集',exact:true}).click();
+    ok(await page.locator('.approved-poster-column').count()<medium,'compact scale fits more materials per column');
+    await controls.getByRole('button',{name:'中图',exact:true}).click();
     const wall=page.locator('.approved-wall-viewport');
     await wall.hover();
     await page.mouse.wheel(0,360);
@@ -44,7 +58,7 @@ try{
     await page.waitForFunction(()=>Math.abs(new DOMMatrix(getComputedStyle(document.querySelector('.approved-poster-plane')).transform).m41)<1);
     ok(true,'the mouse wheel and keyboard navigate the wall after removing the projector');
   }
-  if(width<768){eq(await page.locator('.approved-phone-column').count(),2,'two vertical poster columns');await page.locator('.approved-wall-viewport').evaluate(node=>{node.scrollTop=420;});}
+  if(width<768){eq(await page.locator('.approved-poster-scales').count(),0,'phone retains its two-column browsing');eq(await page.locator('.approved-phone-column').count(),2,'two vertical poster columns');await page.locator('.approved-wall-viewport').evaluate(node=>{node.scrollTop=420;});}
   await page.screenshot({path:`${output}/${theme}-${width}-wall.png`});
   const wallPosition=await page.locator('.approved-wall-viewport').evaluate(n=>({x:n.scrollLeft,y:n.scrollTop}));
   const visibleId=await page.locator('.approved-poster').evaluateAll(nodes=>nodes.find(n=>{const r=n.getBoundingClientRect();return r.top>=90&&r.bottom<=innerHeight-50;})?.getAttribute('data-motion-file'));

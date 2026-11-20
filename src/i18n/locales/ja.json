@@ -1894,6 +1894,10 @@
     "codeBlocks": "View source code blocks (excluded from speech)"
   },
   "readingDesk": {
+    "posterScale": "ポスター表示サイズ",
+    "posterScale_large": "大きいポスター",
+    "posterScale_medium": "中サイズのポスター",
+    "posterScale_small": "小さいポスター",
     "resetFilters": "フィルターをクリア",
     "continueLabel": "続きを読む",
     "materialCount": "{{count}} 件の教材",
