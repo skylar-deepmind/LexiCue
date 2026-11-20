@@ -63,7 +63,7 @@ pub fn run() {
             )?;
             let isolated_runtime = slice_preview || dictionary_qa;
             #[cfg(desktop)]
-            if !isolated_runtime {
+            if !isolated_runtime && !cfg!(feature = "apple-store") {
                 app.handle()
                     .plugin(tauri_plugin_updater::Builder::new().build())?;
             }

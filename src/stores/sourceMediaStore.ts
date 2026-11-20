@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { bindMediaTarget, type MediaRef, type MediaStatus, type MediaTarget } from '../lib/sourceMedia';
 import { usePreferencesStore } from './preferencesStore';
 import { EMPTY_BROWSER_SESSION } from '../lib/youtubeDownload';
+import { isAppleStoreBuild } from '../lib/distribution';
 let sequence = Date.now();
 const jobs = new Map<string, number>();
 export const useSourceMediaStore = create<{
@@ -21,6 +22,7 @@ export const useSourceMediaStore = create<{
       catch { if (!jobs.has(key)) update(key, { status: 'missing' }); }
     },
     prepare: async (reference, target) => {
+      if (isAppleStoreBuild) return;
       const key = reference.source.key;
       if (jobs.has(key) || get().entries[key]?.status === 'ready') return;
       const job = ++sequence; jobs.set(key, job); update(key, { status: 'preparing' });

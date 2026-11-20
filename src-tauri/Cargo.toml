@@ -20,6 +20,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 [features]
 lan-sync = []
 dictionary-native-qa = []
+apple-store = []
 
 [build-dependencies]
 rusqlite = { version = "0.31", features = ["bundled"] }

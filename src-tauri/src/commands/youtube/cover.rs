@@ -110,6 +110,9 @@ pub async fn youtube_cover(app: tauri::AppHandle, video_id: String) -> Result<St
     if let Some(bytes) = cached(&path).await {
         return Ok(format!("data:image/jpeg;base64,{}", STANDARD.encode(bytes)));
     }
+    if cfg!(feature = "apple-store") {
+        return Err("cover_unavailable".into());
+    }
     let _permit = DOWNLOADS.acquire().await.map_err(|_| "cover_unavailable")?;
     if let Some(bytes) = cached(&path).await {
         return Ok(format!("data:image/jpeg;base64,{}", STANDARD.encode(bytes)));

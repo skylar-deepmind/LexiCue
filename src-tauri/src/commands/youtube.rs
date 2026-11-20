@@ -810,6 +810,9 @@ pub async fn youtube_list_subs(
     url: String,
     session: Option<downloads::BrowserSession>,
 ) -> Result<VideoSubInfo, String> {
+    if cfg!(feature = "apple-store") {
+        return Err("youtube_import_unavailable".into());
+    }
     let session = session.unwrap_or_default();
     session.validate()?;
     if extract_video_id(&url).is_none() {

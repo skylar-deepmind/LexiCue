@@ -1,6 +1,7 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { useEffect, useState } from 'react';
 import { allocatedCover } from '../lib/materialCover';
+import { isAppleStoreBuild } from '../lib/distribution';
 
 const covers = new Map<string, string>();
 const pending = new Map<string, Promise<string>>();
@@ -21,12 +22,13 @@ function loadCover(videoId: string): Promise<string> {
 }
 
 export default function MaterialCover({ src, identity, className = '' }: { src: string; identity: string; className?: string }) {
-  const videoId = isTauri() ? coverUrl.exec(src)?.[1] : undefined;
+  const youtubeCover = coverUrl.exec(src)?.[1];
+  const videoId = isTauri() && !isAppleStoreBuild ? youtubeCover : undefined;
   const [resolved, setResolved] = useState<{ videoId: string; image: string }>();
   const fallback = allocatedCover(identity);
   const image = videoId
     ? (resolved?.videoId === videoId ? resolved.image : covers.get(videoId)) ?? fallback
-    : src;
+    : isAppleStoreBuild && youtubeCover ? fallback : src;
   useEffect(() => {
     if (!videoId || covers.has(videoId)) return;
     let active = true;

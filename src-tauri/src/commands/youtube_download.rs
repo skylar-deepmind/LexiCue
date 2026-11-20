@@ -841,12 +841,15 @@ pub async fn youtube_prepare_subtitles(
     secondary: Option<TrackSelection>,
     session: Option<BrowserSession>,
 ) -> Result<PreparedSubtitles, DownloadError> {
-    let job = create_download_job(app.clone(), job_id);
-    let _guard = JobGuard { job_id };
-    let session = session.unwrap_or_default();
     let fail = |message: &str| {
         DownloadError::from_message(message, "primary", &primary.lang, SubtitleSource::Unknown)
     };
+    if cfg!(feature = "apple-store") {
+        return Err(fail("youtube_import_unavailable"));
+    }
+    let job = create_download_job(app.clone(), job_id);
+    let _guard = JobGuard { job_id };
+    let session = session.unwrap_or_default();
     session.validate().map_err(|message| fail(&message))?;
     let video = extract_video_id(&url).ok_or_else(|| fail("invalid_url"))?;
     if !cfg!(target_os = "ios") && ytdlp_path().is_none() {

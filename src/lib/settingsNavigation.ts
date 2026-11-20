@@ -1,5 +1,6 @@
 import { useLocation } from 'react-router-dom';
 import { usePageReturn } from './pageNavigation';
+import { isAppleStoreBuild } from './distribution';
 
 export const SETTINGS_LABELS = {
   language: 'settings.uiLanguage.title',
@@ -25,7 +26,8 @@ export const SETTINGS_GROUPS = [
 export function useSettingsNavigation() {
   const { search, state } = useLocation();
   const value = new URLSearchParams(search).get('section');
-  const restricted = import.meta.env.VITE_SLICE_PREVIEW === '1' && (value === 'sync' || value === 'updates');
+  const restricted = import.meta.env.VITE_SLICE_PREVIEW === '1' && (value === 'sync' || value === 'updates')
+    || isAppleStoreBuild && (value === 'updates' || value === 'youtube');
   const section = !restricted && value !== 'guide' && value && Object.hasOwn(SETTINGS_LABELS, value) ? value as SettingsEntry : null;
   const { back } = usePageReturn(section ? '/settings' : state?.settingsOrigin === '/saved' ? '/saved' : '/files');
   return { section, back };
