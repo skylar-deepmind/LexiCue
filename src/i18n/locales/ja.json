@@ -1521,6 +1521,7 @@
       "unsupportedProtocol": "Only HTTP/HTTPS links are supported. Edit the link or copy the text.",
       "multipleLinks": "Copy one link or some English text.",
       "unsupportedYoutube": "Copy a specific YouTube video link. Channels and playlists are not supported.",
+      "youtubeStoreUnavailable": "この教材で学習するには、ローカルの字幕ファイルまたは文書を読み込んでください。",
       "manualContent": "English text or link",
       "previewContent": "Preview content",
       "pasteBody": "Paste text",

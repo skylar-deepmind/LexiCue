@@ -1538,6 +1538,7 @@
       "unsupportedProtocol": "Only HTTP/HTTPS links are supported. Edit the link or copy the text.",
       "multipleLinks": "Copy one link or some English text.",
       "unsupportedYoutube": "Copy a specific YouTube video link. Channels and playlists are not supported.",
+      "youtubeStoreUnavailable": "Import a local subtitle or document file to study this material.",
       "manualContent": "English text or link",
       "previewContent": "Preview content",
       "pasteBody": "Paste text",

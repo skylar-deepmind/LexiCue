@@ -957,6 +957,9 @@ pub async fn prepare_source_media(
     job_id: i64,
     session: Option<BrowserSession>,
 ) -> Result<MediaStatus, String> {
+    if cfg!(feature = "apple-store") {
+        return Err("media_download_unavailable".into());
+    }
     let s = {
         let c = state.conn.lock().map_err(|e| e.to_string())?;
         let mut reference = target_ref(&c, &target)?;

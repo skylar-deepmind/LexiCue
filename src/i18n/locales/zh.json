@@ -1521,6 +1521,7 @@
       "unsupportedProtocol": "仅支持 HTTP/HTTPS 网页链接，请修改或复制正文。",
       "multipleLinks": "请复制一条链接，或复制英文正文。",
       "unsupportedYoutube": "请复制具体的 YouTube 视频链接；频道和播放列表暂不支持。",
+      "youtubeStoreUnavailable": "要学习这段内容，请导入本地字幕或文档。",
       "manualContent": "英文正文或链接",
       "previewContent": "预览内容",
       "pasteBody": "粘贴正文",

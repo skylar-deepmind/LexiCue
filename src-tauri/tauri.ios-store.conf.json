@@ -1,0 +1,6 @@
+{
+  "build": {
+    "beforeBuildCommand": "VITE_APPLE_STORE=1 npm run build",
+    "features": ["apple-store"]
+  }
+}

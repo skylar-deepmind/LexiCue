@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { isMobilePlatform } from '../lib/platform';
+import { isAppleStoreBuild } from '../lib/distribution';
 import { getVersion } from '@tauri-apps/api/app';
 import {
   checkForUpdates,
@@ -40,7 +41,7 @@ export const useUpdateStore = create<UpdateStore>((set, get) => ({
   progress: 0,
   error: null,
   check: async () => {
-    if (import.meta.env.VITE_SLICE_PREVIEW === '1' || isMobilePlatform()) return;
+    if (isAppleStoreBuild || import.meta.env.VITE_SLICE_PREVIEW === '1' || isMobilePlatform()) return;
     if (get().status === 'checking' || get().status === 'downloading') return;
     set({ status: 'checking', error: null });
     try {
@@ -89,7 +90,7 @@ export const useUpdateStore = create<UpdateStore>((set, get) => ({
     }
   },
   install: async () => {
-    if (import.meta.env.VITE_SLICE_PREVIEW === '1') return;
+    if (isAppleStoreBuild || import.meta.env.VITE_SLICE_PREVIEW === '1') return;
     const { update, status } = get();
     if (!update || (status !== 'available' && status !== 'error')) return;
     set({ status: 'downloading', progress: 0, error: null });

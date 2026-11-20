@@ -1,0 +1,18 @@
+{
+  "identifier": "com.skylar.lexicue.ios",
+  "build": {
+    "beforeBuildCommand": "npm run prepare:gemma && VITE_APPLE_STORE=1 npm run build",
+    "features": ["apple-store"]
+  },
+  "bundle": {
+    "targets": ["app"],
+    "category": "Education",
+    "createUpdaterArtifacts": false,
+    "macOS": {
+      "minimumSystemVersion": "14.0"
+    }
+  },
+  "plugins": {
+    "updater": null
+  }
+}

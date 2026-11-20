@@ -19,6 +19,9 @@ pub struct LatestRelease {
 
 #[tauri::command]
 pub async fn check_github_release() -> Result<Option<LatestRelease>, String> {
+    if cfg!(feature = "apple-store") {
+        return Ok(None);
+    }
     let client = reqwest::Client::builder()
         .user_agent("LexiCue")
         .timeout(std::time::Duration::from_secs(10))
