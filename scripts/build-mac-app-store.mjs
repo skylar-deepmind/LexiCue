@@ -33,11 +33,14 @@ check(isAbsolute(targetDir), 'Use an absolute CARGO_TARGET_DIR');
 check(signingIdentity.startsWith('Apple Distribution: '), 'Use an Apple Distribution signing identity');
 check(installerIdentity.startsWith('3rd Party Mac Developer Installer: '), 'Use a Mac Installer Distribution identity');
 
-const profile = plistFrom(run('security', ['cms', '-D', '-i', profilePath]));
-const [team] = profile.TeamIdentifier ?? [];
+const profile = run('security', ['cms', '-D', '-i', profilePath]);
+const extractProfile = (key, format = 'raw') =>
+  run('plutil', ['-extract', key, format, '-o', '-', '-'], { input: profile }).trim();
+const team = extractProfile('TeamIdentifier.0');
+const profileEntitlements = JSON.parse(extractProfile('Entitlements', 'json'));
 const appIdentifier = `${team}.${identifier}`;
-check(team && profile.Entitlements?.['com.apple.application-identifier'] === appIdentifier, 'Provisioning profile must match the LexiCue store Bundle ID');
-check(Date.parse(profile.ExpirationDate) > Date.now() && !profile.ProvisionedDevices, 'Use a current Mac App Store distribution profile');
+check(profileEntitlements['com.apple.application-identifier'] === appIdentifier, 'Provisioning profile must match the LexiCue store Bundle ID');
+check(Date.parse(extractProfile('ExpirationDate')) > Date.now() && !profile.includes('<key>ProvisionedDevices</key>'), 'Use a current Mac App Store distribution profile');
 check(signingIdentity.endsWith(`(${team})`) && installerIdentity.endsWith(`(${team})`), 'Both signing identities must match the profile team');
 
 const temp = mkdtempSync(join(tmpdir(), 'lexicue-mac-app-store-'));
