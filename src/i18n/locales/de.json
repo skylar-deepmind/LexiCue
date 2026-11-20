@@ -1345,7 +1345,8 @@
   },
   "savedRecords": {
     "browseWords": "Alle Stichwörter ansehen",
-    "closeWords": "Wortliste schließen",
+    "recordMetric_one": "<value>{{count, number}}</value> <unit>Eintrag</unit>",
+    "recordMetric_other": "<value>{{count, number}}</value> <unit>Einträge</unit>",
     "wordCount_one": "{{count}} Stichwort",
     "wordCount_other": "{{count}} Stichwörter",
     "title": "Gespeichert",

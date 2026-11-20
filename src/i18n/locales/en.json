@@ -1345,7 +1345,8 @@
   },
   "savedRecords": {
     "browseWords": "Browse all words",
-    "closeWords": "Close word list",
+    "recordMetric_one": "<value>{{count, number}}</value> <unit>record</unit>",
+    "recordMetric_other": "<value>{{count, number}}</value> <unit>records</unit>",
     "wordCount_one": "{{count}} word",
     "wordCount_other": "{{count}} words",
     "title": "Saved",

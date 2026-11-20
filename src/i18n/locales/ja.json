@@ -1328,7 +1328,7 @@
   },
   "savedRecords": {
     "browseWords": "すべての見出し語を見る",
-    "closeWords": "見出し語一覧を閉じる",
+    "recordMetric": "<value>{{count, number}}</value> <unit>件の記録</unit>",
     "wordCount": "{{count}} 語",
     "title": "保存済み",
     "settingsHint": "原文・説明・出典をまとめて保存します。",

@@ -10,7 +10,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
-import { ChevronLeft, ChevronRight, List, Search, Undo2, Volume2, X } from 'lucide-react';
+import { ArrowRight, ChevronLeft, ChevronRight, Search, Undo2, Volume2 } from 'lucide-react';
 import { createViewCache, usePageReturn, viewKey, visitState } from '../lib/pageNavigation';
 import { backNavigation } from '../lib/backNavigation';
 import { readerNavigation, resolveSavedSource, savedNoteDrafts } from '../lib/readerNavigation';
@@ -76,6 +76,7 @@ function SavedArchive() {
   const [direction, setDirection] = useState(1);
   const input = useRef<HTMLInputElement>(null), list = useRef<HTMLDivElement>(null), detail = useRef<HTMLDivElement>(null);
   const indexToggle = useRef<HTMLButtonElement>(null), backButton = useRef<HTMLButtonElement>(null), restoredListScroll = useRef(false);
+  const indexHeading = useRef<HTMLHeadingElement>(null), returnToIndexToggle = useRef(false);
   const request = useRef(0), contextRequest = useRef(0), sourceRequest = useRef(0), alive = useRef(true);
   const gesture = useRef<{ x: number; y: number; direction: 'x' | 'y' | null } | null>(null), suppress = useRef(0);
   const snapshot = useRef<View>({ query, start, end, selected, record: recordId, expanded, listScroll: initial?.listScroll ?? 0 });
@@ -160,6 +161,14 @@ function SavedArchive() {
     const active = viewport.querySelector('[aria-pressed="true"]');
     active?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }, [expanded, selected, loading]);
+  useLayoutEffect(() => {
+    if (expanded) indexHeading.current?.focus({ preventScroll: true });
+    else if (returnToIndexToggle.current) {
+      returnToIndexToggle.current = false;
+      const target = indexToggle.current?.disabled ? backButton.current : indexToggle.current ?? backButton.current;
+      target?.focus({ preventScroll: true });
+    }
+  }, [expanded]);
   const index = Math.max(0, contexts.records.findIndex(record => record.record_id === recordId));
   const matchingContext = loadedContext === contextIdentity;
   const selectedGroup = groups.groups.find(group => group.group_id === selected);
@@ -171,10 +180,9 @@ function SavedArchive() {
   const currentRecordId=record?.record_id;
   const leave = useCallback(() => { if (prepareSavedReturn(currentRecordId)) back(); else dissolvePage(back,true); },[back,currentRecordId]);
   const closeIndex = useCallback(() => {
+    returnToIndexToggle.current = true;
     setExpanded(false);
-    const target = groups.total_groups > 1 && !loading ? indexToggle.current : backButton.current;
-    target?.focus({ preventScroll: true });
-  }, [groups.total_groups, loading]);
+  }, []);
   const goBack = useCallback(() => { if (expanded) closeIndex(); else leave(); }, [expanded, closeIndex, leave]);
   useEffect(() => backNavigation.setPage(() => { goBack(); return true; }, 3), [goBack]);
   const previousFolio = useRef<string | null>(null);
@@ -223,21 +231,24 @@ function SavedArchive() {
     finally { if (token === request.current) setLoadingMore(false); }
   };
   const emptyMessage = t(query || start || end ? 'materials.noMatches' : 'savedRecords.empty');
+  const wordCount = loading ? t('common.loading') : t('savedRecords.wordCount', { count: groups.total_groups });
   return <section className="approved-saved saved-workspace" aria-label={t('savedRecords.title')} onKeyDown={event => { if (event.key === 'Escape' && expanded) { event.preventDefault(); event.stopPropagation(); closeIndex(); } }}>
     <header className="approved-saved-header"><button ref={backButton} className="approved-icon approved-back" aria-label={t('common.back')} onClick={goBack}><ChevronLeft size={22}/></button><div className="approved-saved-search" data-open={searching}><input ref={input} type="search" tabIndex={searching ? 0 : -1} aria-label={t('savedRecords.search')} value={query} onChange={event => setQuery(event.target.value)} onKeyDown={event => { if (event.key === 'Escape' && !expanded) { setSearching(false); input.current?.blur(); } }}/><button className="approved-icon" aria-label={t('savedRecords.search')} aria-expanded={searching} onClick={() => setSearching(value => !value)}><Search size={21}/></button></div></header>
     <SavedTimeline bins={bins} recordCount={failure ? undefined : loading ? null : groups.total_records} start={start} end={end} status={timelineStatus} onRangeChange={(first, last) => { setStart(first); setEnd(last); }} onRetry={() => setRevision(value => value + 1)}/>
     <div className="approved-saved-columns" data-expanded={expanded}>
-      {(expanded || groups.total_groups > 1) && <button ref={indexToggle} type="button" className="approved-index-toggle" aria-expanded={expanded} aria-controls="saved-word-index" disabled={loading && !expanded} onClick={() => expanded ? closeIndex() : setExpanded(true)}>
-        {expanded ? <X size={17} aria-hidden="true"/> : <List size={18} aria-hidden="true"/>}
-        <span className="sr-only">{t(expanded ? 'savedRecords.closeWords' : 'savedRecords.browseWords')} · </span>
-        <span>{loading ? t('common.loading') : t('savedRecords.wordCount', { count: groups.total_groups })}</span>
+      {expanded && <h1 ref={indexHeading} className="saved-index-heading" tabIndex={-1}>{wordCount}</h1>}
+      {!expanded && groups.total_groups > 1 && <button ref={indexToggle} type="button" className="approved-index-toggle" aria-expanded={false} aria-controls="saved-word-index" disabled={loading} onClick={() => setExpanded(true)}>
+        <span className="sr-only">{t('savedRecords.browseWords')} · </span>
+        <span>{wordCount}</span><ArrowRight size={17} aria-hidden="true"/>
       </button>}
       <div ref={list} id="saved-word-index" className="approved-saved-index" aria-busy={loading || loadingMore || undefined} onKeyDown={event=>{
         if(!['ArrowDown','ArrowUp','ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;
         const buttons=[...event.currentTarget.querySelectorAll<HTMLButtonElement>('.approved-saved-word:not(:disabled)')];
         const index=buttons.indexOf(document.activeElement as HTMLButtonElement);
         if(index<0)return;
-        const next=event.key==='Home'?0:event.key==='End'?buttons.length-1:Math.max(0,Math.min(buttons.length-1,index+(['ArrowDown','ArrowRight'].includes(event.key)?1:-1)));
+        const columns = expanded ? Number(getComputedStyle(event.currentTarget).getPropertyValue('--saved-index-columns')) || 1 : 1;
+        const step = event.key === 'ArrowUp' || event.key === 'ArrowDown' ? columns : 1;
+        const next=event.key==='Home'?0:event.key==='End'?buttons.length-1:Math.max(0,Math.min(buttons.length-1,index+(['ArrowDown','ArrowRight'].includes(event.key)?step:-step)));
         event.preventDefault();
         buttons[next].focus();
         if(!expanded)choose(buttons[next].dataset.group!);
