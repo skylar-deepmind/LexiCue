@@ -49,7 +49,7 @@ try{
     ok(await page.locator('.approved-poster-column').count()>medium,'large posters fit fewer materials per column');
     await controls.getByRole('button',{name:'密集',exact:true}).click();
     ok(await page.locator('.approved-poster-column').count()<medium,'compact scale fits more materials per column');
-    await controls.getByRole('button',{name:'中图',exact:true}).click();
+    await controls.getByRole('button',{name:'大图',exact:true}).click();
     const wall=page.locator('.approved-wall-viewport');
     await wall.hover();
     await page.mouse.wheel(0,360);
