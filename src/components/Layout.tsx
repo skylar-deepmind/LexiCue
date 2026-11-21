@@ -5,6 +5,7 @@ import { Suspense, useEffect, useRef, useLayoutEffect } from 'react';
 import MobileReadingTools from './MobileReadingTools';
 import ImportPanel from './ImportPanel';
 import useMaterialDrop from './useMaterialDrop';
+import useOpenedMaterials from './useOpenedMaterials';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -83,8 +84,9 @@ export default function Layout() {
         return () => { cancelAnimationFrame(frame); document.removeEventListener('focusin', update); viewport?.removeEventListener('resize', update); viewport?.removeEventListener('scroll', update); window.removeEventListener('resize', update); root.style.removeProperty('--visual-height'); root.style.removeProperty('--visual-top'); delete root.dataset.keyboardOpen; };
     }, []);
     useEffect(() => { retainImportedReading(routeState?.importReadingToken); }, [rawPathname, routeState]);
-    useMaterialDrop();
-    useEffect(()=>{const restore=()=>{const state=useImportStore.getState();if(state.phase==='source')void state.choose();else state.show();};window.addEventListener('lexicue-return-import',restore);return()=>window.removeEventListener('lexicue-return-import',restore);},[]);
+    const droppingMaterial = useMaterialDrop();
+    useOpenedMaterials();
+    useEffect(()=>{const restore=()=>{useImportStore.getState().show();};window.addEventListener('lexicue-return-import',restore);return()=>window.removeEventListener('lexicue-return-import',restore);},[]);
     useEffect(() => { document.body.classList.add('lexicue-b'); return () => document.body.classList.remove('lexicue-b'); }, []);
     const panels = useWorkspaceStore(state => state.panels);
     const stageRef = useRef<HTMLDivElement>(null);
@@ -211,6 +213,7 @@ export default function Layout() {
           <PageTransition pageKey={pathname === '/settings' ? pathname + search : pathname}><Suspense fallback={<RouteLoading/>}><Outlet /></Suspense></PageTransition>
         </div>
         </main>
+      {droppingMaterial && <div className="lc-file-drop" role="status">{t('materials.drop')}</div>}
       <ImportPanel />
       <ToastHost />
       <ConfirmationHost />

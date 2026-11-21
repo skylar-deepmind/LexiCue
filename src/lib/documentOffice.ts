@@ -3,6 +3,14 @@ import { boundedDocumentZip, xmlDocument, arrayOf, resolveArchivePath } from './
 import { htmlDocumentBlocks } from './documentMarkup';
 import { decodeDocumentText, type RawDocument } from './documentCore';
 
+interface OfficeNode { type: string; children?: OfficeNode[] }
+function bodyWithoutNotes(node: OfficeNode): OfficeNode {
+  if (!node.children) return node;
+  return { ...node, children: node.children
+    .filter(child => child.type !== 'noteReference' && child.type !== 'commentReference')
+    .map(bodyWithoutNotes) };
+}
+
 export async function docxDocument(bytes: Uint8Array): Promise<RawDocument> {
   const files = boundedDocumentZip(bytes);
   if (!files.has('[Content_Types].xml') || !files.has('word/document.xml')) throw new Error('material_invalid_document');
@@ -10,6 +18,7 @@ export async function docxDocument(bytes: Uint8Array): Promise<RawDocument> {
   xmlDocument(files.get('word/document.xml'));
   const result = await mammoth.convertToHtml({ arrayBuffer: new Uint8Array(bytes).buffer }, {
     externalFileAccess: false, includeEmbeddedStyleMap: false,
+    transformDocument: bodyWithoutNotes,
     styleMap: ["p[style-name='Title'] => h1:fresh", "p[style-name='Subtitle'] => h2:fresh", "p[style-name='Quote'] => blockquote > p:fresh", "p[style-name='Intense Quote'] => blockquote > p:fresh"],
     convertImage: mammoth.images.imgElement(async () => ({ src: '' })),
   });
@@ -17,7 +26,7 @@ export async function docxDocument(bytes: Uint8Array): Promise<RawDocument> {
   const warnings = [...extracted.warnings];
   let partial = extracted.partial;
   if (/<(?:\w+:)?txbxContent\b/.test(body)) { partial = true; warnings.push('文本框按文档锚点顺序保留，视觉排版顺序需在预览中核对。 / Text boxes follow anchor order; verify layout order.'); }
-  if (/<(?:\w+:)?(?:footnoteReference|endnoteReference)\b/.test(body)) warnings.push('脚注和尾注在正文后作为附属列表保留。 / Footnotes and endnotes follow the body as ancillary lists.');
+  if (/<(?:\w+:)?(?:footnoteReference|endnoteReference)\b/.test(body)) warnings.push('附属脚注和尾注未并入正文。 / Footnotes and endnotes are excluded from the reading body.');
   if (/<(?:\w+:)?del\b/.test(body)) warnings.push('已删除的修订文字被排除；采用最终可见正文。 / Deleted revision text is excluded.');
   if (result.messages.length) { warnings.push('此 DOCX 含未映射的样式或元素，请核对预览。 / This DOCX contains unmapped styles or elements.'); if (result.messages.some(message => message.type === 'error' || !/Unrecognised (?:paragraph|run) style/i.test(message.message))) partial = true; }
   if (/<(?:\w+:)?(?:oMath|oMathPara|altChunk)\b/.test(body)) { partial = true; warnings.push('公式或嵌入文档无法保证完整提取。 / Equations or embedded documents may be incomplete.'); }

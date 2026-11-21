@@ -39,7 +39,7 @@ export default function ImportPanel() {
     const [inputError, setInputError] = useState<string | null>(null);
     const [manualInput, setManualInput] = useState<string | null>(null);
     const scene = live.open && live.presentation === 'scene';
-    const open = !scene && live.open && (phase !== 'source' || source !== 'choose' || manualInput !== null || !!inputError);
+    const open = !scene && live.open;
     const present = useImportPresence(open, panelRef, live.presentation==='scene');
     const clipboardRequest = useRef(0);
     const reading = useRef(false), placing = useRef(false), placed = useRef(new Set<string>());
@@ -52,17 +52,21 @@ export default function ImportPanel() {
     }, [present, open, live]);
     useEffect(() => {
         const unsubscribe = useImportStore.subscribe((next, before) => {
+            if (before.open && !next.open) {
+                setInputError(null);
+                setManualInput(null);
+            }
             if (!next.open || next.source !== before.source || next.phase !== before.phase) {
                 invalidateClipboard();
             }
         });
         return () => { unsubscribe(); invalidateClipboard(false); };
     }, [invalidateClipboard]);
-    const acceptContent = async (text: string | null) => {
+    const acceptContent = async (text: string | null, fromChooser = false) => {
         const result = inspectClipboardContent(text);
         if (result.kind === 'error') { setInputError(result.error); setManualInput(result.input.trim() ? result.input : null); return; }
         setInputError(null); setManualInput(null);
-        await useImportStore.getState().fromContent(result.kind === 'text' ? 'clipboard' : 'webpage', result.kind === 'text' ? result.text : result.url, useImportStore.getState().presentation==='scene');
+        await useImportStore.getState().fromContent(result.kind === 'text' ? 'clipboard' : 'webpage', result.kind === 'text' ? result.text : result.url, fromChooser || useImportStore.getState().presentation==='scene');
     };
     useEffect(() => {
         const accept = (event: Event) => {
@@ -85,9 +89,9 @@ export default function ImportPanel() {
         reading.current = true; setReadingClipboard(true);
         try {
             const text = await readImportClipboard();
-            if (token !== clipboardRequest.current || useImportStore.getState() !== owner || !owner.open) return;
+            if (token !== clipboardRequest.current || !useImportStore.getState().open) return;
             reading.current = false; setReadingClipboard(false);
-            await acceptContent(text);
+            await acceptContent(text, owner.phase === 'source');
         } catch {
             if (token === clipboardRequest.current && owner.open) {setInputError('clipboardFailed'); setManualInput('');}
         } finally { if (token === clipboardRequest.current) {reading.current = false; setReadingClipboard(false);} }
@@ -134,7 +138,7 @@ export default function ImportPanel() {
         if (open && panel && !panel.contains(document.activeElement)) panel.focus({ preventScroll: true });
     }, [open, phase, source]);
     if (!present && !scene) return null;
-    const compact = false;
+    const compact = phase === 'source' && manualInput === null;
     const preparing = phase === 'preparing';
     const committing = phase === 'committing';
     const preview = phase === 'preview';
@@ -160,8 +164,14 @@ export default function ImportPanel() {
             <button className="ui-button ui-button--icon lc-import-close" aria-label={t(committing ? 'materials.importDialog.minimize' : 'common.close')} onClick={hide}><X size={20} aria-hidden="true" /></button>
         </header>
         <MotionChange changeKey={`${phase}:${source}`} resizeContainer=".lc-import-modal"><div className="lc-import-body">
+            {phase === 'source' && <div className="lc-import-sources">
+                <button type="button" className="ui-button lc-import-primary" disabled={state.picking || readingClipboard}
+                    aria-busy={state.picking} onClick={() => void state.choose()}><FileText size={18} aria-hidden="true"/>{t('materials.choose')}</button>
+                <button type="button" className="ui-button" disabled={state.picking || readingClipboard}
+                    aria-busy={readingClipboard} onClick={() => void pasteLink()}><ClipboardPaste size={18} aria-hidden="true"/>{t('materials.importDialog.pasteLink')}</button>
+            </div>}
             {(inputError || manualInput !== null) && (phase === 'source' || preview && !selected) && <div className="lc-content-input">
-                <button type="button" className="ui-button" disabled={readingClipboard} aria-busy={readingClipboard} onClick={() => void pasteLink()}><ClipboardPaste size={18} aria-hidden="true"/>{t('materials.importDialog.pasteLink')}</button>
+                {manualInput !== null && phase !== 'source' && <button type="button" className="ui-button" disabled={readingClipboard} aria-busy={readingClipboard} onClick={() => void pasteLink()}><ClipboardPaste size={18} aria-hidden="true"/>{t('materials.importDialog.pasteLink')}</button>}
                 {inputError && <p className="lc-import-error" role="alert">{t(`materials.importDialog.${inputError}`)}</p>}
                 {manualInput !== null && <form onSubmit={event => {event.preventDefault(); void acceptContent(manualInput);}}>
                     <label htmlFor="lc-manual-content">{t('materials.importDialog.manualContent')}</label>

@@ -11,6 +11,12 @@ const h=await createReadingHarness(output, ['upload_local_material_audio', 'impo
 let page,checks=0;const contrasts=[];
 const ok=(value,label)=>{assert.ok(value,label);checks++;};
 const eq=(actual,expected,label)=>{assert.deepEqual(actual,expected,label);checks++;};
+const documentFixtures=new URL('../src/lib/__tests__/fixtures/document-body/',import.meta.url);
+const bodies=JSON.parse(await readFile(new URL('expected.json',documentFixtures),'utf8'));
+const originals=Object.fromEntries(await Promise.all(Object.keys(bodies).map(async name=>[
+  name, [...await readFile(new URL(name,documentFixtures))],
+])));
+const draft=()=>page.evaluate(async()=>{const {useImportStore}=await window.__uiStoreModule('importStore');return useImportStore.getState().items[0]?.draft;});
 const flight=await readFile(`${root}/docs/implementation/fixtures/v31-reading.srt`,'utf8');
 const srt=(text,zh='')=>`1\n00:00:01,000 --> 00:00:03,000\n${text}${zh?'\n'+zh:''}\n`;
 const writes=()=>page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='import_reading_material'));
@@ -26,6 +32,7 @@ const open=async()=>{
  if(new URL(page.url()).pathname!=='/files'){await page.locator('.reading-breadcrumb .page-back').click();await page.locator('.approved-desk').waitFor();}
  if(await page.locator('.approved-tag-panel').count()){await page.keyboard.press('Escape');await page.locator('.approved-tag-panel').waitFor({state:'detached'});}
 };
+const showChooser=async()=>{await open();await page.locator('.home-import-action').click();await page.locator('.lc-import-modal--compact').waitFor();};
 const confirm=async()=>{const batch=page.locator('.import-card-batch-confirm');if(await batch.count())return batch.click();await page.locator('.import-edge-label').click();await page.locator('.import-card-stage [data-choice][aria-pressed=true]').click();};
 async function contrast(locator,label){const value=await locator.evaluate(async node=>{
  // Measure the requested interaction state after its finite color transition.
@@ -73,7 +80,19 @@ try{
    };
   });
   await page.goto(`${url}/files`);await page.locator('.approved-desk').waitFor();
-  await page.getByRole('button',{name:'选择文件',exact:true}).click();eq(await page.locator('.lc-import-modal').count(),0,'cancelled direct file picker leaves no old source chooser');eq(await page.locator('#root').evaluate(n=>n.inert),false,'cancelled picker leaves the workspace interactive');
+  await showChooser();
+  await page.getByRole('button',{name:'选择文件',exact:true}).click();
+  await page.getByRole('button',{name:'选择文件',exact:true}).waitFor();
+  eq(await page.locator('#root').evaluate(n=>n.inert),true,'cancelled picker returns to the source chooser');
+  eq(await page.locator('.lc-import-sources button').count(),2,'files and clipboard share one source chooser');
+  const chooseFiles=page.locator('.lc-import-sources').getByRole('button',{name:'选择文件',exact:true});
+  const readClipboard=page.locator('.lc-import-sources').getByRole('button',{name:'读取剪贴板',exact:true});
+  await contrast(chooseFiles,theme+' choose files');
+  await readClipboard.hover();await contrast(readClipboard,theme+' clipboard hover');
+  await chooseFiles.focus();await page.keyboard.press('Tab');
+  ok(await readClipboard.evaluate(button=>document.activeElement===button&&button.matches(':focus-visible')),'keyboard reaches clipboard with visible focus');
+  await page.screenshot({path:`${output}/${theme}-import-chooser.png`});
+
   eq(await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='plugin:clipboard-manager|read_text').length),0,'file entry never reads clipboard');
   await page.evaluate(text=>window.__uiFiles={'/fixture/真实英语.srt':text},flight);await page.getByRole('button',{name:'选择文件',exact:true}).click();await preview();await settle();
   eq(await page.locator('#root').evaluate(n=>n.inert),true,'prepared-content modal owns focus');eq(await page.locator('.context-panel').count(),0,'import does not use context panel');eq(await page.locator('.b-shell').getAttribute('data-context-open'),'false','import never shifts reading workspace');
@@ -173,21 +192,21 @@ try{
   await page.locator('.lc-document-preview').focus();ok(await page.locator('.lc-document-preview').evaluate(n=>n===document.activeElement),'preview retains keyboard access');await close();
   await page.evaluate(()=>{window.__clipboardText='https://youtu.be/abcdefghijk';});
   const clipBefore=await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='plugin:clipboard-manager|read_text').length);
-  await open();await page.getByRole('button',{name:'读取剪贴板',exact:true}).evaluate(n=>{n.click();n.click();});
+  await showChooser();await page.getByRole('button',{name:'读取剪贴板',exact:true}).evaluate(n=>{n.click();n.click();});
   await page.getByText('请导入本地字幕或素材 ZIP 来学习这段视频。',{exact:true}).waitFor();
   eq(await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='plugin:clipboard-manager|read_text').length),clipBefore+1,'double paste reads once');
   eq(await page.evaluate(()=>window.__uiCalls.filter(c=>c.command.startsWith('youtube_')||c.command==='import_webpage').length),0,'video clipboard link does not make a retrieval request');
-  await page.locator('.notification-host--top .toast-card').getByRole('button',{name:'关闭提示',exact:true}).click();
-  for(const [text,fail,message]of [['https://',false,'链接格式不完整，请修改或重新粘贴。'],[null,false,'剪贴板为空，请先复制英文或链接。'],[null,true,'无法读取剪贴板，请允许访问后重试。']]){
+  await close();
+  for(const [text,fail,message]of [['https://',false,'链接格式不完整，请修改或重新粘贴。'],[null,false,'未读到文字，请先复制英文或链接；图片或文件请使用选择文件。'],[null,true,'无法读取剪贴板，请在下方手动粘贴。']]){
    await page.evaluate(({text,fail})=>{window.__clipboardText=text;window.__clipboardFail=fail;},{text,fail});
    const before=await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='youtube_list_subs').length);
-   await open();await page.getByRole('button',{name:'读取剪贴板',exact:true}).click();await page.getByText(message,{exact:true}).waitFor();
+   await showChooser();await page.getByRole('button',{name:'读取剪贴板',exact:true}).click();await page.getByText(message,{exact:true}).waitFor();
    eq(await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='youtube_list_subs').length),before,'invalid or unavailable clipboard stays local');
-   eq(await page.locator('.lc-import-modal,.clipboard-scene').count(),0,'clipboard errors never open a dialog');ok(await page.locator('.notification-host--top').isVisible(),'clipboard errors appear above the desk');await close();
+   eq(await page.locator('.clipboard-scene').count(),0,'clipboard errors stay in the chooser');ok(await page.locator('.lc-import-modal [role=alert]').isVisible(),'clipboard error appears beside the import controls');await close();
   }
   await page.evaluate(()=>{window.__clipboardFail=false;window.__clipboardHold=true;window.__clipboardText='https://youtu.be/abcdefghijk';});
-  await open();await page.getByRole('button',{name:'读取剪贴板',exact:true}).click();await page.locator('.clipboard-import[aria-busy=true]').waitFor();ok(await page.locator('.clipboard-import').isDisabled(),'pending clipboard action cannot be submitted twice');
-  await page.getByRole('button',{name:'设置',exact:true}).click();await page.locator('.approved-settings-back').click();await page.evaluate(()=>{window.__clipboardHold=false;window.__releaseClipboard();});await page.waitForTimeout(70);
+  await showChooser();await page.getByRole('button',{name:'读取剪贴板',exact:true}).click();await page.locator('.lc-import-sources [aria-busy=true]').waitFor();ok(await page.locator('.lc-import-sources [aria-busy=true]').isDisabled(),'pending clipboard action cannot be submitted twice');
+  await close();await page.evaluate(()=>{window.__clipboardHold=false;window.__releaseClipboard();});await page.waitForTimeout(70);
   eq(await page.locator('.lc-import-modal').count(),0,'late clipboard result cannot replace a departed home entry');
   // Import finishes the entire translation before the frozen preview is ready.
   const translationRequestsBeforeLocal=await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='translate_import_sentences').length);
@@ -243,8 +262,71 @@ try{
    ok(await page.locator('.import-card-stage').evaluate(n=>n.scrollWidth<=n.clientWidth+1),'body has no horizontal overflow');
    await page.screenshot({path:`${output}/${theme}-${width}x${height}-${scale}x.png`});
   }
-  await page.evaluate(()=>document.documentElement.style.fontSize='100%');await page.setViewportSize({width:1440,height:900});await close();await page.emulateMedia({reducedMotion:'reduce'});await open();await page.getByRole('button',{name:'选择文件',exact:true}).click();eq(await page.locator('.lc-import-modal').count(),0,'reduced motion also uses the direct picker without a source modal');
+  await close();
+  for(const [name,expected] of Object.entries(bodies)){
+    await drop([[name,originals[name]]]);
+    if(expected.error){
+      await page.locator('.lc-import-modal [role=alert]').waitFor();
+      eq(await itemStages(),['failed'],theme+' image-only PDF does not generate an empty preview');
+    }else{
+      await preview();
+      eq((await draft()).content,expected.content,theme+' app Worker extracts '+name);
+      if(name==='harbor-two-pages.pdf'){
+        await confirm();await landed();
+        const saved=await call('export_all');
+        ok(saved.data.files.some(file=>file.content===expected.content),theme+' cross-page PDF body survives SQLite import');
+      }
+    }
+    await close();
+  }
+  await page.evaluate(()=>document.documentElement.style.fontSize='100%');await page.setViewportSize({width:1440,height:900});await close();await page.emulateMedia({reducedMotion:'reduce'});await showChooser();await page.getByRole('button',{name:'选择文件',exact:true}).click();await page.locator('.lc-import-modal--compact').waitFor();await close();
   await page.evaluate(async()=>{const{useImportStore}=await window.__uiStoreModule('importStore');void useImportStore.getState().start([{name:'reduced.srt',read:()=>new Promise(done=>window.__reducedRead=done)}]);});await page.locator('.lc-import-paper-character').waitFor();eq(await page.locator('.lc-import-paper-character').evaluate(n=>getComputedStyle(n).animationName),'none','reduced motion paper');await close();await page.evaluate(()=>window.__reducedRead(''));await context.close();
+ }
+ // The native OS hands us file URLs on iOS and permission-bearing content
+ // URIs on Android. Simulate both delivery boundaries with the real Worker's bytes.
+ for(const platform of ['ios','android']){
+  const ios=platform==='ios';
+  const platformContext=await browser.newContext({
+   viewport:{width:375,height:812},isMobile:true,hasTouch:true,
+   userAgent:ios?'Mozilla/5.0 (iPhone; CPU iPhone OS 26_3 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148':'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/142.0 Mobile Safari/537.36',
+  });
+  page=await platformContext.newPage();await fixture(page,ios?'midnight':'sage');await page.routeWebSocket('**',socket=>socket.close());
+  await page.addInitScript(({ios,files})=>{
+   window.isTauri=true;
+   const names=Object.keys(files);
+   const paths=names.map(name=>ios?`file:///fixture/${name}`:`content://fixtures/documents/${name}`);
+   for(const [index,name] of names.entries())window.__uiFiles[paths[index]]=files[name];
+   const queue=[paths[0]];
+   const take=()=>queue.splice(0);
+   const callbacks=new Map(), listeners=new Map();
+   let next=200;
+   const base=window.__TAURI_INTERNALS__.invoke;
+   window.__TAURI_INTERNALS__.transformCallback=callback=>{const id=++next;callbacks.set(id,callback);return id;};
+   window.__TAURI_INTERNALS__.invoke=(command,args={})=>{
+    if(command==='take_opened_documents')return Promise.resolve(take());
+    if(command==='plugin:event|listen'){const id=++next;listeners.set(id,args);return Promise.resolve(id);}
+    if(command==='plugin:event|unlisten'){listeners.delete(args.eventId);return Promise.resolve();}
+    return base(command,args);
+   };
+   if(!ios)window.LexiCueSystemUi={
+    takeOpenedDocuments:()=>JSON.stringify(take()),
+    documentDisplayName:uri=>names[paths.indexOf(uri)],
+   };
+   window.__openSecondDocument=()=>{
+    queue.push(paths[1]);
+    const event='lexicue-open-documents';
+    if(ios){for(const listener of listeners.values())if(listener.event===event)callbacks.get(listener.handler)?.({event});}
+    else window.dispatchEvent(new Event(event));
+   };
+  },{ios,files:{'station.txt':originals['station.txt'],'morning-cues.srt':originals['morning-cues.srt']}});
+  await page.goto(`${url}/files`);await preview();
+  eq((await draft()).content,bodies['station.txt'].content,platform+' cold file open reaches preview');
+  await page.evaluate(()=>window.__openSecondDocument());
+  eq((await draft()).content,bodies['station.txt'].content,platform+' warm open keeps existing draft');
+  await page.keyboard.press('Escape');
+  await page.locator('.import-material-card').getByText('morning-cues',{exact:true}).waitFor();
+  eq((await draft()).content,bodies['morning-cues.srt'].content,platform+' queues the new file and opens it after the first draft');
+  await platformContext.close();
  }
  eq(errors,[],'no browser exceptions');await writeFile(`${output}/evidence.json`,JSON.stringify({checks,themes:['sage','midnight'],contrasts,errors,nativeBoundary:'simulated OS picker/drop/chunked FS IPC and translation-service responses; actual document/ZIP Workers, native video-to-audio conversion, Rust transactions, explicit reading translation writeback and temporary SQLite'},null,2));console.log(`Import UI: ${checks} checks passed. Evidence: ${output}`);
 }catch(error){if(page){await page.screenshot({path:`${output}/failure.png`}).catch(()=>{});await writeFile(`${output}/failure.json`,JSON.stringify(await page.evaluate(async()=>{const{useImportStore}=await window.__uiStoreModule('importStore');const s=useImportStore.getState();return {text:document.body.innerText,calls:window.__uiCalls,trace:window.__importTrace,state:{open:s.open,phase:s.phase,running:s.running,items:s.items.map(i=>({name:i.name,stage:i.stage,error:i.error}))}};}),null,2)).catch(()=>{});}throw error;}finally{await h.dispose();}

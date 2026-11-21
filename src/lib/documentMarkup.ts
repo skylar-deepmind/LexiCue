@@ -10,16 +10,27 @@ export function inertHtmlText(html: string): string {
   const root = parseFragment(html);
   return nodeText(root).replace(/\u00a0/g, ' ');
 }
-function nodeText(node: any): string {
-  if (node.nodeName === '#text') return node.value;
-  if (ignored.has(node.tagName) || hidden(node)) return '';
+function epubAncillary(node: any): boolean {
+  const semantic = attribute(node, 'epub:type') || attribute(node, 'type');
+  const role = attribute(node, 'role');
+  return node.tagName === 'nav' ||
+    /(?:^|\s)(?:toc|landmarks|page-list|pagebreak|footnote|endnote|noteref|backlink)(?:\s|$)/.test(semantic) ||
+    /(?:^|\s)doc-(?:pagebreak|footnote|endnote|noteref|backlink)(?:\s|$)/.test(role) ||
+    /^(?:pg-header|pg-footer)$/.test(attribute(node, 'id')) ||
+    /(?:^|\s)pg-boilerplate(?:\s|$)/.test(attribute(node, 'class')) ||
+    node.tagName === 'a' && /(?:^|\s)(?:footnote-back|footnote-backref)(?:\s|$)/.test(attribute(node, 'class'));
+}
+function nodeText(node: any, epub = false): string {
+  if (node.nodeName === '#text') return epub ? node.value.replace(/[\t\r\n\f ]+/g, ' ') : node.value;
+  if (ignored.has(node.tagName) || hidden(node) || epub && epubAncillary(node)) return '';
   if (node.tagName === 'a' && /^#(?:FNanchor|noteref|footnote-ref)/i.test(attribute(node, 'href'))) return '';
   if (node.tagName === 'br') return '\n';
-  const text = (node.childNodes ?? []).map(nodeText).join('');
+  const text = (node.childNodes ?? []).map((child: any) => nodeText(child, epub)).join('');
   return ['p', 'div', 'li', 'tr'].includes(node.tagName) ? text + '\n' : text;
 }
 export function htmlDocumentBlocks(html: string, sectionId: string, mode: 'epub' | 'docx'): { blocks: RawDocumentBlock[]; title?: string; warnings: string[]; partial: boolean } {
   const root = parse(html);
+  const visibleText = (node: any) => nodeText(node, mode === 'epub');
   const blocks: RawDocumentBlock[] = [], warnings: string[] = [];
   let paragraph = 0, title: string | undefined, partial = false;
   const add = (kind: DocumentBlock['kind'], text: string) => {
@@ -29,18 +40,17 @@ export function htmlDocumentBlocks(html: string, sectionId: string, mode: 'epub'
   const walk = (node: any, inherited?: DocumentBlock['kind']) => {
     const tag = node.tagName;
     if (ignored.has(tag) || hidden(node)) return;
-    if (mode === 'epub' && (/^(?:pg-header|pg-footer)$/.test(attribute(node, 'id')) || /(?:^|\s)pg-boilerplate(?:\s|$)/.test(attribute(node, 'class')))) return;
-    if (mode === 'epub' && ['body', 'div', 'section'].includes(tag) && (node.childNodes?.length ?? 0) <= 12 && /^back$/i.test(nodeText(node).trim())) {
+    if (mode === 'epub' && epubAncillary(node)) {
+      if (/footnote|endnote/.test(attribute(node, 'epub:type') + attribute(node, 'role'))) {
+        warnings.push('附属注释未并入正文。 / Ancillary notes are excluded from the reading body.');
+      }
+      return;
+    }
+    if (mode === 'epub' && ['body', 'div', 'section'].includes(tag) && (node.childNodes?.length ?? 0) <= 12 && /^back$/i.test(visibleText(node).trim())) {
       const images: any[] = [], anchors: any[] = [];
       const collect = (n: any) => { if (n.tagName === 'img') images.push(n); if (n.tagName === 'a') anchors.push(n); for (const child of n.childNodes ?? []) collect(child); };
       collect(node);
       if (images.length && anchors.length === 1 && !/^[a-z]+:/i.test(attribute(anchors[0], 'href'))) return;
-    }
-    if (mode === 'epub' && tag === 'a' && (/backlink|noteref/i.test(attribute(node, 'role')) || /(?:^|\s)(?:footnote-back|footnote-backref)(?:\s|$)/.test(attribute(node, 'class')) || /^#(?:FNanchor|noteref|footnote-ref)/i.test(attribute(node, 'href')))) return;
-    const semantic = attribute(node, 'epub:type') || attribute(node, 'type');
-    if (mode === 'epub' && (tag === 'nav' || /(?:^|\s)(?:toc|landmarks|page-list|footnote|endnote)(?:\s|$)/.test(semantic))) {
-      if (/footnote|endnote/.test(semantic)) warnings.push('附属注释没有重复并入正文。 / Ancillary notes are excluded from the reading body.');
-      return;
     }
     if (tag === 'head') return;
     if (tag === 'table') {
@@ -48,8 +58,8 @@ export function htmlDocumentBlocks(html: string, sectionId: string, mode: 'epub'
         const anchors: any[] = [];
         const links = (n: any) => { if (n.tagName === 'a') anchors.push(n); for (const child of n.childNodes ?? []) links(child); };
         links(node);
-        const linkedText = anchors.map(nodeText).join('').replace(/\s/g, '');
-        const allText = nodeText(node).replace(/\s/g, '');
+        const linkedText = anchors.map(visibleText).join('').replace(/\s/g, '');
+        const allText = visibleText(node).replace(/\s/g, '');
         if (anchors.length >= 3 && anchors.every(a => /#/.test(attribute(a, 'href')) && !/^[a-z]+:/i.test(attribute(a, 'href'))) && linkedText.length >= allText.length * .7) return;
       }
       const rows: any[] = [];
@@ -59,13 +69,13 @@ export function htmlDocumentBlocks(html: string, sectionId: string, mode: 'epub'
         const cells = (row.childNodes ?? []).filter((n: any) => n.tagName === 'td' || n.tagName === 'th');
         if (cells.some((c: any) => Number(attribute(c, 'colspan') || 1) > 1)) warnings.push('横向合并表格单元格按原行从左到右保留；不保留列宽。 / Horizontally merged cells retain row order; column widths are omitted.');
         if (cells.some((c: any) => Number(attribute(c, 'rowspan') || 1) > 1)) { partial = true; warnings.push('跨行合并表格已按行展开，请核对行列关系。 / Vertically merged table cells require a relationship check.'); }
-        add('table', cells.map((c: any) => nodeText(c).trim()).join(' | '));
+        add('table', cells.map((c: any) => visibleText(c).trim()).join(' | '));
       }
       return;
     }
-    if (tag === 'pre') { add('code', nodeText(node)); return; }
+    if (tag === 'pre') { add('code', visibleText(node)); return; }
     if (/^h[1-6]$/.test(tag)) {
-      let text = nodeText(node);
+      let text = visibleText(node);
       if (!text.trim()) {
         const alternatives: string[] = [];
         const collect = (n: any) => { if (n.tagName === 'img' && attribute(n, 'alt')) alternatives.push(attribute(n, 'alt')); for (const child of n.childNodes ?? []) collect(child); };
@@ -75,12 +85,12 @@ export function htmlDocumentBlocks(html: string, sectionId: string, mode: 'epub'
     }
     if (tag === 'li') {
       const direct = (node.childNodes ?? []).filter((n: any) => n.tagName !== 'ul' && n.tagName !== 'ol');
-      add('list', direct.map(nodeText).join(' '));
+      add('list', direct.map(visibleText).join(' '));
       for (const child of node.childNodes ?? []) if (child.tagName === 'ul' || child.tagName === 'ol') walk(child);
       return;
     }
-    if (tag === 'p' || tag === 'blockquote' && !(node.childNodes ?? []).some((n: any) => ['p','div','ul','ol'].includes(n.tagName))) { add(inherited ?? (tag === 'blockquote' ? 'quote' : 'paragraph'), nodeText(node)); return; }
-    if (tag === 'math') { partial = true; warnings.push('数学公式仅保留可提取文字，请核对原公式。 / Formula layout is not preserved.'); add('paragraph', nodeText(node)); return; }
+    if (tag === 'p' || tag === 'blockquote' && !(node.childNodes ?? []).some((n: any) => ['p','div','ul','ol'].includes(n.tagName))) { add(inherited ?? (tag === 'blockquote' ? 'quote' : 'paragraph'), visibleText(node)); return; }
+    if (tag === 'math') { partial = true; warnings.push('数学公式仅保留可提取文字，请核对原公式。 / Formula layout is not preserved.'); add('paragraph', visibleText(node)); return; }
     if (node.nodeName === '#text' && node.value.trim()) { add(inherited ?? 'paragraph', node.value); return; }
     for (const child of node.childNodes ?? []) walk(child, tag === 'blockquote' ? 'quote' : inherited);
   };

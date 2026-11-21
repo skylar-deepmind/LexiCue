@@ -1,34 +1,69 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { isTauri } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { readDocumentFile } from '../lib/readDocumentFile';
 import { DOCUMENT_LIMITS } from '../lib/documentTypes';
 import { pickedMaterialSource } from '../lib/importPicker';
+import { isMobilePlatform } from '../lib/platform';
 import { useImportStore } from '../stores/importStore';
+
 export default function useMaterialDrop() {
+    const [dragging, setDragging] = useState(false);
     useEffect(() => {
-        const sources = (files: FileList) => Array.from(files).map(file => ({ name: file.name, read: async (signal: AbortSignal) => {if (file.size > DOCUMENT_LIMITS.binaryBytes) throw new Error('material_too_large'); const bytes = new Uint8Array(await file.arrayBuffer()); if (signal.aborted) throw new Error('material_cancelled'); return bytes;} }));
-        const drag = (event: DragEvent) => { if (event.dataTransfer?.types.includes('Files')) {
+        if (isMobilePlatform()) return;
+        const start = useImportStore.getState().start;
+        const canDrop = () => {
+            const state = useImportStore.getState();
+            return !state.running && !state.picking;
+        };
+        const browserDrag = (event: DragEvent) => {
+            if (!event.dataTransfer?.types.includes('Files')) return;
             event.preventDefault();
-            useImportStore.getState().show();
-        } };
-        const drop = (event: DragEvent) => { if (!event.dataTransfer?.files.length)
-            return; event.preventDefault(); void useImportStore.getState().start(sources(event.dataTransfer.files)); };
-        window.addEventListener('dragover', drag);
-        window.addEventListener('drop', drop);
+            event.dataTransfer.dropEffect = canDrop() ? 'copy' : 'none';
+            setDragging(canDrop());
+        };
+        const leave = (event: DragEvent) => {
+            if (!event.relatedTarget) setDragging(false);
+        };
+        const browserDrop = (event: DragEvent) => {
+            if (!event.dataTransfer?.files.length) return;
+            event.preventDefault();
+            setDragging(false);
+            if (!canDrop()) return;
+            void start(Array.from(event.dataTransfer.files, file => ({
+                name: file.name,
+                async read(signal: AbortSignal) {
+                    if (file.size > DOCUMENT_LIMITS.binaryBytes) throw new Error('material_too_large');
+                    const bytes = new Uint8Array(await file.arrayBuffer());
+                    if (signal.aborted) throw new Error('material_cancelled');
+                    return bytes;
+                },
+            })));
+        };
+        // Native drops grant read access to the dropped paths. DOM file events
+        // are the fallback for web previews and builds with native drag disabled.
+        window.addEventListener('dragover', browserDrag);
+        window.addEventListener('dragleave', leave);
+        window.addEventListener('drop', browserDrop);
         let disposed = false;
         let off: (() => void) | undefined;
-        try {
-            void getCurrentWindow().onDragDropEvent(({ payload }) => {
-                if (payload.type === 'enter')
-                    useImportStore.getState().show();
-                if (payload.type === 'drop')
-                    void useImportStore.getState().start(payload.paths.map(path => pickedMaterialSource(path, readDocumentFile)));
-            }).then(unlisten => { if (disposed)
-                unlisten();
-            else
-                off = unlisten; }).catch(() => { });
+        if (isTauri()) {
+            void Promise.resolve().then(() => getCurrentWindow().onDragDropEvent(({ payload }) => {
+                if (disposed) return;
+                if (payload.type === 'enter' || payload.type === 'over') setDragging(canDrop());
+                else setDragging(false);
+                if (payload.type === 'drop' && canDrop()) {
+                    void start(payload.paths.map(path => pickedMaterialSource(path, readDocumentFile)));
+                }
+            })).then(unlisten => { if (disposed) unlisten(); else off = unlisten; }).catch(() => {});
         }
-        catch { /* DOM file dropping remains available in browser tests. */ }
-        return () => { disposed = true; off?.(); window.removeEventListener('dragover', drag); window.removeEventListener('drop', drop); };
+        return () => {
+            disposed = true;
+            off?.();
+            window.removeEventListener('dragover', browserDrag);
+            window.removeEventListener('dragleave', leave);
+            window.removeEventListener('drop', browserDrop);
+        };
     }, []);
+    return dragging;
 }

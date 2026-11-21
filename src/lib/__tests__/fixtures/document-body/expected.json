@@ -1,0 +1,50 @@
+{
+  "harbor-two-pages.pdf": {
+    "content": "The Harbor Archive\n\nThe old lighthouse stood above the harbor, where visitors often gathered to watch the boats come in.\n\nAt sunset the fog rolled past the well-known lighthouse, hiding the boats from view.\n\nThe harbor master wrote down the weather at six.\n\nThe waves rose against the wall as the wind picked up.\n\nThe archive was open to everyone who lived in the town.\n\nSome visitors arrived long before the tour began.\n\nEveryone waited outside until the keeper turned the key.\n\nThe keeper explained that the light had guided ships through the narrow channel for over a century. She kept a record of each rescue in a leather journal.\n\nThe First Rescue\n\nThe crew followed a signal from the harbor and recovered the missing sailboat before dawn.\n\nThe captain thanked everyone for their help.",
+    "pages": [
+      "The Harbor Archive\n\nThe old lighthouse stood above the harbor, where visitors often gathered to watch the boats come in.\n\nAt sunset the fog rolled past the well-known lighthouse, hiding the boats from view.\n\nThe harbor master wrote down the weather at six.\n\nThe waves rose against the wall as the wind picked up.\n\nThe archive was open to everyone who lived in the town.\n\nSome visitors arrived long before the tour began.\n\nEveryone waited outside until the keeper turned the key.\n\nThe keeper explained that the light had guided ships",
+      "through the narrow channel for over a century. She kept a record of each rescue in a leather journal.\n\nThe First Rescue\n\nThe crew followed a signal from the harbor and recovered the missing sailboat before dawn.\n\nThe captain thanked everyone for their help."
+    ]
+  },
+  "garden-columns.pdf": {
+    "content": "A Morning at the Community Garden\n\nWe planted the tomatoes near the path and watered them before lunch. A robin waited on the fence.\n\nThe gardener opened the west gate and brought a basket of seeds. We promised to share the harvest."
+  },
+  "image-only.pdf": {
+    "error": "material_no_text_layer"
+  },
+  "market-spine.epub": {
+    "content": "Before Sunrise\n\nWe walked past the quiet bakery just before dawn.\n\nThree cyclists turned toward the square.\n\nAt the Market\n\nSomeone had left a blue umbrella & a paper map on the bench."
+  },
+  "field-notes.docx": {
+    "content": "Field Notes\n\nThe trail was quiet\nuntil the sun came up.\n\nThe team recorded four sightings before lunch.\n\nSurvey Results\n\nLocation | Observation\n\nNorth meadow | The birds returned."
+  },
+  "morning-cues.srt": {
+    "content": "We heard the bell\nat dawn & packed up.\n\nWe heard the bell at dawn & packed up.\n我们黎明时听到铃声，就收拾了行李。\n\n[The door opens.]",
+    "segments": [
+      [
+        "We heard the bell at dawn & packed up.",
+        "00:00:01.000",
+        "00:00:04.500"
+      ],
+      [
+        "We heard the bell at dawn & packed up.",
+        "00:00:06.000",
+        "00:00:08.000"
+      ],
+      [
+        "[The door opens.]",
+        "00:00:09.000",
+        "00:00:10.000"
+      ]
+    ]
+  },
+  "timed-voices.vtt": {
+    "content": "The first train arrived.\n\nWe carried the cases aboard."
+  },
+  "walking-notes.md": {
+    "content": "Walking Notes\n\nWe met at the town hall and found a map.\n\nFollow the blue route.\n\nTurn at the bridge."
+  },
+  "station.txt": {
+    "content": "The station was quiet.\nWe waited for the train.\n\nThe rain eased by noon."
+  }
+}

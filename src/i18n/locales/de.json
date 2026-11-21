@@ -1402,7 +1402,7 @@
     "path": "Aktueller Ort",
     "import": "Importieren",
     "importRunning": "Import läuft – Status öffnen",
-    "drop": "Englischen Text oder Untertitel ablegen",
+    "drop": "Dateien zum Importieren hier ablegen",
     "srtOnly": "PDF, DOCX, EPUB, MD, TXT, SRT, VTT, ZIP",
     "choose": "Dateien auswählen",
     "processing": "{{done}} / {{total}} Dateien verarbeitet",
