@@ -24,10 +24,14 @@ for (const [name, test] of Object.entries(expected)) {
       expect(full.segments.map(segment => segment.en_text)).toContain(
         'The keeper explained that the light had guided ships through the narrow channel for over a century.',
       );
+      const intactSentence = 'She kept a record of each rescue in a leather journal.';
+      const translated = full.segments.find(segment => segment.en_text === intactSentence)!;
+      translated.zh_text = '她把每次救援都记录在皮质日记里。';
       for (const [index, content] of test.pages.entries()) {
         const page = index + 1;
         const selected = await rangeFromDocument(full, { kind: 'pages', start: page, end: page });
         expect(selected.content).toBe(content);
+        if (page === 2) expect(selected.segments.find(segment => segment.en_text === intactSentence)?.zh_text).toBe(translated.zh_text);
         expect(selected.document.blocks.flatMap(block => block.locations.map(location => location.page))).toEqual(
           Array(selected.document.blocks.length).fill(page),
         );

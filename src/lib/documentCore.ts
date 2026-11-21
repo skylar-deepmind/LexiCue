@@ -156,12 +156,33 @@ export async function rangeFromDocument(full: ExtractedDocument, selection: Docu
   const canonical: DocumentSelection = keep.size === doc.sections.length ? { kind: 'all' } : selection.kind === 'chapters' ? { kind: 'chapters', section_ids: doc.sections.filter(s => keep.has(s.id)).map(s => s.id) } : selection.kind === 'pages' ? { kind: 'pages', start: selection.start, end: selection.end } : { kind: 'all' };
   if (canonical.kind === 'all') return full;
   if (full.pdfPageBlocks) {
-    return buildDocument({
+    const selected = await buildDocument({
       sections: doc.sections.filter(section => keep.has(section.id)),
       blocks: full.pdfPageBlocks.filter(block => keep.has(block.section_id)),
       warnings: doc.warnings,
       partial: doc.extraction_status === 'partial',
     }, doc.original_format, doc.display_name, doc.source_sha256, canonical);
+    const translated = new Map<string, Map<string, string>>();
+    for (const block of doc.blocks) {
+      const translations = new Map<string, string>();
+      for (const index of block.segment_indices) {
+        const segment = full.segments[index];
+        if (segment?.zh_text) translations.set(segment.en_text, segment.zh_text);
+      }
+      for (const location of block.locations) translated.set(`${location.page}:${location.paragraph}`, translations);
+    }
+    // A clipped page may change only the sentence that straddled the page
+    // break. Reuse translations of the identical sentences in the same block.
+    for (const block of selected.document.blocks) {
+      const start = block.locations[0];
+      const translations = translated.get(`${start.page}:${start.paragraph}`);
+      for (const index of block.segment_indices) {
+        const segment = selected.segments[index];
+        segment.zh_text ??= translations?.get(segment.en_text) ?? null;
+      }
+    }
+    if (doc.cover) selected.document.cover = doc.cover;
+    return selected;
   }
   const blocks: DocumentBlock[] = [], segments: SegmentInput[] = [];
   let content = '';
