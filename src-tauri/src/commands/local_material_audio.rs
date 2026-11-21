@@ -324,11 +324,11 @@ mod tests {
             );
             let data = std::fs::read(&target).unwrap();
             assert_eq!(&data[..4], b"RIFF");
-            assert!(data[44..].chunks_exact(2).any(|sample| i16::from_le_bytes([
-                sample[0], sample[1]
-            ])
-            .abs()
-                > 100));
+            let (samples, remainder) = data[44..].as_chunks::<2>();
+            assert!(remainder.is_empty());
+            assert!(samples
+                .iter()
+                .any(|sample| i16::from_le_bytes(*sample).unsigned_abs() > 100));
         }
     }
 }
