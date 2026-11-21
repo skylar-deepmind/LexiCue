@@ -1,38 +1,29 @@
 //! Portable subtitle provenance and device-local, content-addressed audio.
 //! No local paths, signed URLs or credentials are accepted from portable data.
-use super::youtube::{
-    self,
-    downloads::{BrowserSession, SubtitleSource},
-};
+use super::youtube;
+#[cfg(test)]
+use super::youtube::downloads::SubtitleSource;
 use crate::db::DbState;
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::{
-    path::{Path, PathBuf},
-    time::Duration,
-};
+use std::path::{Path, PathBuf};
 use tauri::{Manager, State};
 
 pub const MAX_BYTES: u64 = 256 * 1024 * 1024;
-const CACHE_BYTES: u64 = 2 * 1024 * 1024 * 1024;
 const TOTAL_BYTES: u64 = 8 * 1024 * 1024 * 1024;
 const MAX_DURATION_MS: i64 = 7_200_000;
 const MAX_SOURCE_DURATION_MS: i64 = 604_800_000;
 // Auto captions can leave their final rolling cue open after the real EOF.
 // Preserve the declaration; only playback ranges are clamped to verified audio.
 const MAX_CUE_TAIL_MS: i64 = 5_000;
-static DOWNLOAD_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 #[cfg(test)]
 #[path = "source_media_import_lookup_test.rs"]
 mod import_lookup_tests;
-#[cfg(target_os = "ios")]
-#[path = "ios_source_audio.rs"]
-mod ios_source_audio;
 pub fn digest(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
-fn valid_hash(value: &str) -> bool {
+pub(super) fn valid_hash(value: &str) -> bool {
     value.len() == 64
         && value
             .bytes()
@@ -90,10 +81,29 @@ impl YoutubeSource {
         )
     }
     pub fn validate(&self) -> Result<(), String> {
+        let valid_origin = match self.provider.as_str() {
+            "youtube" => {
+                self.audio
+                    .as_ref()
+                    .is_none_or(|track| track.language_basis != "provided_file")
+                    && youtube::is_valid_video_id(&self.video_id)
+                    && self.url == format!("https://www.youtube.com/watch?v={}", self.video_id)
+            }
+            "local" => {
+                valid_hash(&self.video_id)
+                    && self.url.is_empty()
+                    && self.subtitle_track == "local"
+                    && self.subtitle_kind == "original"
+                    && self.audio.as_ref().is_some_and(|track| {
+                        track.format_id == "pcm_s16le"
+                            && track.language == "und"
+                            && track.language_basis == "provided_file"
+                    })
+            }
+            _ => false,
+        };
         if self.version != 1
-            || self.provider != "youtube"
-            || !youtube::is_valid_video_id(&self.video_id)
-            || self.url != format!("https://www.youtube.com/watch?v={}", self.video_id)
+            || !valid_origin
             || self.key != self.identity()
             || !valid_hash(&self.subtitle_sha256)
             || self.title.len() > 1000
@@ -129,7 +139,7 @@ impl YoutubeSource {
                 || !matches!(a.language.as_str(), "en" | "und")
                 || !matches!(
                     a.language_basis.as_str(),
-                    "metadata" | "single_unlabelled_original"
+                    "metadata" | "single_unlabelled_original" | "provided_file"
                 )
                 || !self.subtitle_language.starts_with("en")
                 || !matches!(self.subtitle_kind.as_str(), "manual" | "original")
@@ -180,6 +190,7 @@ impl MediaRef {
         Ok(())
     }
 }
+#[cfg(test)]
 fn english_audio(metadata: &serde_json::Value) -> Option<AudioTrack> {
     let formats = metadata["formats"].as_array()?;
     let audio: Vec<_> = formats
@@ -237,45 +248,7 @@ fn english_audio(metadata: &serde_json::Value) -> Option<AudioTrack> {
     })
 }
 
-fn local_audio(metadata: &serde_json::Value, saved: Option<&AudioTrack>) -> Option<AudioTrack> {
-    let current = english_audio(metadata)?;
-    if saved == Some(&current) {
-        return Some(current);
-    }
-    // An extractor's format ID is local to that extractor. A replacement
-    // must be positively identified as the original English AAC track.
-    let confirmed = current.language == "en"
-        && metadata["formats"].as_array()?.iter().any(|format| {
-            format["format_id"] == current.format_id
-                && format["format_note"].as_str().is_some_and(|note| {
-                    let note = note.to_ascii_lowercase();
-                    note.contains("original") && !note.contains("dubbed")
-                })
-        });
-    if !confirmed {
-        return None;
-    }
-    let family = |id: &str| {
-        id == "140"
-            || id.starts_with("ios-140-en-")
-            || id.strip_prefix("140-").is_some_and(|suffix| {
-                !suffix.is_empty() && suffix.bytes().all(|byte| byte.is_ascii_digit())
-            })
-    };
-    match saved {
-        None => Some(current),
-        Some(track)
-            if track.language == "en"
-                && family(&track.format_id)
-                && family(&current.format_id)
-                && track.format_id.starts_with("ios-") != current.format_id.starts_with("ios-") =>
-        {
-            Some(current)
-        }
-        _ => None,
-    }
-}
-
+#[cfg(test)]
 fn matches_subtitle_revision(source: &YoutubeSource, content: &str) -> bool {
     if digest(content.as_bytes()) == source.subtitle_sha256 {
         return true;
@@ -302,6 +275,7 @@ pub fn source_from_subtitles(
 ) -> Option<YoutubeSource> {
     checked_source_from_subtitles(video, track, content, metadata).ok()
 }
+#[cfg(test)]
 pub fn checked_source_from_subtitles(
     video: &str,
     track: &youtube::SubtitleTrack,
@@ -526,6 +500,7 @@ impl SourceIdentity {
 pub struct SourceSummary {
     pub key: String,
     pub video_id: String,
+    pub provider: String,
     pub title: String,
     pub audio: Option<AudioTrack>,
 }
@@ -533,6 +508,7 @@ impl From<YoutubeSource> for SourceSummary {
     fn from(s: YoutubeSource) -> Self {
         Self {
             key: s.key,
+            provider: s.provider,
             video_id: s.video_id,
             title: s.title,
             audio: s.audio,
@@ -554,7 +530,7 @@ pub fn migrate(conn: &Connection) -> rusqlite::Result<()> {
     conn.execute_batch("CREATE INDEX IF NOT EXISTS files_media_identity ON files(media_identity);
     CREATE TABLE IF NOT EXISTS source_media(source_key TEXT PRIMARY KEY, source_json TEXT NOT NULL, asset_id TEXT, status TEXT NOT NULL DEFAULT 'missing', error TEXT, manifest_json TEXT, updated_at INTEGER NOT NULL) STRICT;")
 }
-fn root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+pub(super) fn root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     app.path()
         .app_data_dir()
         .map(|p| p.join("source-media"))
@@ -564,7 +540,17 @@ fn asset_path(dir: &Path, id: &str) -> Result<PathBuf, String> {
     if !valid_hash(id) {
         return Err("media_invalid_asset".into());
     }
-    let path = dir.join(format!("{id}.m4a"));
+    let legacy = dir.join(format!("{id}.m4a"));
+    let path = if legacy.exists() {
+        legacy
+    } else {
+        let local = dir.join(format!("{id}.wav"));
+        if local.exists() {
+            local
+        } else {
+            legacy
+        }
+    };
     if std::fs::symlink_metadata(&path).is_ok_and(|m| m.file_type().is_symlink()) {
         return Err("media_invalid_asset".into());
     }
@@ -697,7 +683,7 @@ pub async fn resolve_source_media(
         .map_err(|_| "media_scope")?;
     Ok(result)
 }
-fn file_digest(path: &Path) -> Result<String, String> {
+pub(super) fn file_digest(path: &Path) -> Result<String, String> {
     use std::io::Read;
     let mut file = std::fs::File::open(path).map_err(|_| "media_missing")?;
     let mut hash = Sha256::new();
@@ -724,147 +710,6 @@ pub struct Manifest {
     pub offset_ms: i64,
     pub sha256: String,
 }
-#[cfg(not(target_os = "ios"))]
-async fn probe(
-    path: &Path,
-    s: &YoutubeSource,
-    a: &AudioTrack,
-    job: Option<&youtube::DownloadJob>,
-) -> Result<Manifest, String> {
-    let tool = youtube::tool_path("ffprobe").ok_or("media_missing_ffprobe")?;
-    let mut cmd = tokio::process::Command::new(tool);
-    cmd.args([
-        "-v",
-        "error",
-        "-show_entries",
-        "format=duration,start_time:stream=codec_name,codec_type,start_time",
-        "-of",
-        "json",
-    ])
-    .arg(path);
-    let (status, out, _) =
-        youtube::run_ytdlp_capture(&mut cmd, job, Duration::from_secs(15)).await?;
-    if !status.success() {
-        return Err("media_decode_failed".into());
-    }
-    let j: serde_json::Value = serde_json::from_slice(&out).map_err(|_| "media_decode_failed")?;
-    let streams = j["streams"].as_array().ok_or("media_decode_failed")?;
-    if streams.len() != 1
-        || streams[0]["codec_type"] != "audio"
-        || streams[0]["codec_name"] != "aac"
-    {
-        return Err("media_decode_failed".into());
-    }
-    let seconds = j["format"]["duration"]
-        .as_str()
-        .and_then(|v| v.parse::<f64>().ok())
-        .filter(|n| n.is_finite())
-        .ok_or("media_decode_failed")?;
-    let duration_ms = (seconds * 1000.).round() as i64;
-    let start_ms = (j["format"]["start_time"]
-        .as_str()
-        .unwrap_or("0")
-        .parse::<f64>()
-        .map_err(|_| "media_timebase")?
-        * 1000.)
-        .round() as i64;
-    manifest_for_track(path, s, a, duration_ms, start_ms)
-}
-
-fn manifest_for_track(
-    path: &Path,
-    s: &YoutubeSource,
-    a: &AudioTrack,
-    duration_ms: i64,
-    start_ms: i64,
-) -> Result<Manifest, String> {
-    // Non-zero origins are rejected until an independently verified mapping is available.
-    if start_ms.abs() > 25
-        || !(1..=MAX_DURATION_MS).contains(&duration_ms)
-        || (duration_ms - s.duration_ms).abs() > 1000
-        || s.cues
-            .iter()
-            .any(|c| c.end_ms > duration_ms + MAX_CUE_TAIL_MS)
-    {
-        return Err("media_timebase_mismatch".into());
-    }
-    let bytes = std::fs::metadata(path).map_err(|_| "media_io")?.len();
-    if bytes == 0 || bytes > MAX_BYTES {
-        return Err("media_budget".into());
-    }
-    Ok(Manifest {
-        video_id: s.video_id.clone(),
-        format_id: a.format_id.clone(),
-        language: a.language.clone(),
-        language_basis: a.language_basis.clone(),
-        codec: "aac".into(),
-        bytes,
-        duration_ms,
-        start_ms,
-        offset_ms: 0,
-        sha256: file_digest(path)?,
-    })
-}
-
-#[cfg(any(target_os = "ios", test))]
-fn remove_container_clock(
-    file: &mut (impl std::io::Read + std::io::Write + std::io::Seek),
-) -> std::io::Result<()> {
-    use std::io::{ErrorKind, Read, Seek, SeekFrom, Write};
-
-    fn visit(
-        file: &mut (impl Read + Write + Seek),
-        mut at: u64,
-        end: u64,
-        parent: [u8; 4],
-    ) -> std::io::Result<()> {
-        let invalid = || std::io::Error::from(ErrorKind::InvalidData);
-        while at < end {
-            file.seek(SeekFrom::Start(at))?;
-            let mut header = [0; 8];
-            file.read_exact(&mut header)?;
-            let kind: [u8; 4] = header[4..].try_into().unwrap();
-            let (length, header_size) = match u32::from_be_bytes(header[..4].try_into().unwrap()) {
-                0 => (end - at, 8),
-                1 => {
-                    file.read_exact(&mut header)?;
-                    (u64::from_be_bytes(header), 16)
-                }
-                length => (u64::from(length), 8),
-            };
-            let next = at
-                .checked_add(length)
-                .filter(|next| *next <= end && length >= header_size)
-                .ok_or_else(invalid)?;
-            let body = at + header_size;
-            match (&parent, &kind) {
-                (b"root", b"moov") | (b"moov", b"trak") | (b"trak", b"mdia") => {
-                    visit(file, body, next, kind)?;
-                }
-                (b"moov", b"mvhd") | (b"trak", b"tkhd") | (b"mdia", b"mdhd") => {
-                    file.seek(SeekFrom::Start(body))?;
-                    let mut full_box = [0; 4];
-                    file.read_exact(&mut full_box)?;
-                    let stamp_bytes = match full_box[0] {
-                        0 => 8,
-                        1 => 16,
-                        _ => return Err(invalid()),
-                    };
-                    if next - body < 4 + stamp_bytes as u64 {
-                        return Err(invalid());
-                    }
-                    file.write_all(&[0; 16][..stamp_bytes])?;
-                }
-                _ => {}
-            }
-            at = next;
-        }
-        Ok(())
-    }
-
-    let len = file.seek(SeekFrom::End(0))?;
-    visit(file, 0, len, *b"root")
-}
 fn size(dir: &Path) -> u64 {
     std::fs::read_dir(dir)
         .into_iter()
@@ -879,410 +724,120 @@ fn protected(conn: &Connection, key: &str) -> Result<bool, String> {
     // Keep all tombstones, undo receipts and conflicts. No fragile reference counter.
     conn.query_row("SELECT EXISTS(SELECT 1 FROM saved_records WHERE instr(snapshot_json,?1)>0 UNION ALL SELECT 1 FROM saved_actions WHERE instr(COALESCE(before_json,''),?1)>0 UNION ALL SELECT 1 FROM sync_conflicts WHERE instr(COALESCE(local_value,'')||COALESCE(remote_value,''),?1)>0)",[key],|r|r.get(0)).map_err(|e|e.to_string())
 }
-fn reserve(conn: &Connection, dir: &Path) -> Result<(), String> {
-    let mut pinned = 0u64;
-    let mut candidates = Vec::new();
-    for entry in std::fs::read_dir(dir).map_err(|_| "media_io")?.flatten() {
-        let name = entry.file_name().to_string_lossy().into_owned();
-        let Some(id) = name.strip_suffix(".m4a").filter(|id| valid_hash(id)) else {
-            continue;
-        };
-        let path = asset_path(dir, id)?;
-        let bytes = path.metadata().map_err(|_| "media_io")?.len();
-        let aliases = conn
-            .prepare("SELECT source_key FROM source_media WHERE asset_id=?1")
-            .map_err(|e| e.to_string())?
-            .query_map([id], |r| r.get::<_, String>(0))
-            .map_err(|e| e.to_string())?
-            .collect::<rusqlite::Result<Vec<_>>>()
-            .map_err(|e| e.to_string())?;
-        if protected(conn, id)?
-            || aliases
-                .iter()
-                .any(|key| protected(conn, key).unwrap_or(true))
-        {
-            pinned = pinned.saturating_add(bytes);
-        } else {
-            candidates.push((id.to_string(), path, bytes));
-        }
-    }
-    // Count files, not bindings: aliases share one file. Unknown managed files
-    // consume the unpinned budget too, and are never mistaken for free space.
-    let mut unpinned = size(dir).saturating_sub(pinned);
-    for (id, path, bytes) in candidates {
-        if unpinned + MAX_BYTES <= CACHE_BYTES && size(dir) + MAX_BYTES <= TOTAL_BYTES {
-            break;
-        }
-        std::fs::remove_file(path).map_err(|_| "media_io")?;
-        conn.execute(
-            "UPDATE source_media SET status='missing' WHERE asset_id=?1",
-            [id],
-        )
-        .map_err(|e| e.to_string())?;
-        unpinned = unpinned.saturating_sub(bytes);
-    }
-    if size(dir) + MAX_BYTES > TOTAL_BYTES || unpinned + MAX_BYTES > CACHE_BYTES {
-        return Err("media_storage_full".into());
-    }
-    #[cfg(unix)]
-    {
-        use std::os::unix::ffi::OsStrExt;
-        let p = std::ffi::CString::new(dir.as_os_str().as_bytes()).map_err(|_| "media_io")?;
-        let mut stat = std::mem::MaybeUninit::<libc::statvfs>::uninit();
-        unsafe {
-            if libc::statvfs(p.as_ptr(), stat.as_mut_ptr()) == 0 {
-                let v = stat.assume_init();
-                // statvfs field widths vary across Unix targets.
-                #[allow(clippy::unnecessary_cast)]
-                let available = (v.f_bavail as u64).saturating_mul(v.f_frsize as u64);
-                if available < MAX_BYTES + 64 * 1024 * 1024 {
-                    return Err("media_disk_full".into());
-                }
-            }
-        }
-    }
-    Ok(())
-}
-struct Temp(PathBuf);
+pub(super) struct Temp(pub(super) PathBuf);
 impl Drop for Temp {
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.0);
     }
 }
-#[tauri::command]
-pub async fn prepare_source_media(
-    app: tauri::AppHandle,
-    state: State<'_, DbState>,
-    target: MediaTarget,
-    job_id: i64,
-    session: Option<BrowserSession>,
-) -> Result<MediaStatus, String> {
-    if cfg!(feature = "apple-store") {
-        return Err("media_download_unavailable".into());
-    }
-    let s = {
-        let c = state.conn.lock().map_err(|e| e.to_string())?;
-        let mut reference = target_ref(&c, &target)?;
-        // A saved sentence may have only a cue snapshot. When the full
-        // material is present, verify its full subtitle revision as well.
-        let full: Option<String> = c
-            .query_row(
-                "SELECT media_source FROM files WHERE media_identity=?1 LIMIT 1",
-                [&reference.source.key],
-                |row| row.get(0),
-            )
-            .optional()
-            .map_err(|e| e.to_string())?;
-        if let Some(full) = full {
-            let source: YoutubeSource =
-                serde_json::from_str(&full).map_err(|_| "media_invalid_source")?;
-            if source.key == reference.source.key {
-                reference.source = source;
-            }
-        }
-        reference
-    };
-    let dir = root(&app)?;
-    std::fs::create_dir_all(&dir).map_err(|_| "media_io")?;
-    let job = youtube::create_download_job(app, job_id);
-    let _guard = youtube::JobGuard { job_id };
-    let _serial = tokio::select! {_ = job.cancel_signal()=>return Err("media_cancelled".into()),lock=tokio::time::timeout(Duration::from_secs(300),DOWNLOAD_LOCK.lock())=>lock.map_err(|_|"media_timeout")?};
-    {
-        let c = state.conn.lock().map_err(|e| e.to_string())?;
-        if status(&c, &dir, &s)?.status == "ready" {
-            return status(&c, &dir, &s);
-        }
-        reserve(&c, &dir)?;
-        c.execute("INSERT INTO source_media(source_key,source_json,status,updated_at) VALUES(?1,?2,'preparing',?3) ON CONFLICT(source_key) DO UPDATE SET status='preparing',error=NULL",params![s.source.key,serde_json::to_string(&s.source).unwrap(),super::saved::now_ms()]).map_err(|e|e.to_string())?;
-    }
-    let session = session.unwrap_or_default();
-    let refreshable = |error: &String| {
-        matches!(
-            error.as_str(),
-            "media_url_expired" | "media_track_missing" | "media_caption_link_stale"
-        )
-    };
-    let mut result = download(&dir, &s, &job, session.clone()).await;
-    if result.as_ref().is_err_and(refreshable) && !job.cancelled() {
-        youtube::invalidate_metadata(&s.source.video_id, &session);
-        result = download(&dir, &s, &job, session.clone()).await;
-        if result.as_ref().is_err_and(refreshable) {
-            youtube::invalidate_metadata(&s.source.video_id, &session);
-        }
-    }
-    let c = state.conn.lock().map_err(|e| e.to_string())?;
-    match result {
-        Ok(m) => {
-            let previous: Option<String> = c
-                .query_row(
-                    "SELECT asset_id FROM source_media WHERE source_key=?1",
-                    [&s.source.key],
-                    |r| r.get(0),
-                )
-                .optional()
-                .map_err(|e| e.to_string())?
-                .flatten();
-            if previous.as_deref().is_some_and(|h| h != m.sha256) {
-                c.execute("UPDATE source_media SET status='missing',error='media_version_changed' WHERE source_key=?1",[&s.source.key]).map_err(|e|e.to_string())?;
-                return Err("media_version_changed".into());
-            }
-            c.execute("UPDATE source_media SET asset_id=?2,status='ready',error=NULL,manifest_json=?3,updated_at=?4 WHERE source_key=?1",params![s.source.key,m.sha256,serde_json::to_string(&m).unwrap(),super::saved::now_ms()]).map_err(|e|e.to_string())?;
-            status(&c, &dir, &s)
-        }
-        Err(error) => {
-            c.execute(
-                "UPDATE source_media SET status='failed',error=?2 WHERE source_key=?1",
-                params![s.source.key, error],
-            )
-            .map_err(|e| e.to_string())?;
-            Err(error)
-        }
-    }
-}
-#[cfg(not(target_os = "ios"))]
-async fn normalize_container(
-    input: &Path,
-    output: &Path,
-    job: Option<&youtube::DownloadJob>,
-) -> Result<(), String> {
-    let tool = youtube::tool_path("ffmpeg").ok_or("media_missing_ffmpeg")?;
-    let mut cmd = tokio::process::Command::new(tool);
-    cmd.args(["-nostdin", "-v", "error", "-i"])
-        .arg(input)
-        .args([
-            "-map",
-            "0:a:0",
-            "-c:a",
-            "copy",
-            "-map_metadata",
-            "-1",
-            "-movflags",
-            "+faststart",
-            "-fflags",
-            "+bitexact",
-            "-flags:a",
-            "+bitexact",
-            "-y",
-        ])
-        .arg(output);
-    let (status, _, _) = youtube::run_ytdlp_capture(&mut cmd, job, Duration::from_secs(60)).await?;
-    if !status.success() {
-        return Err("media_container_failed".into());
-    }
-    if std::fs::metadata(output).map_err(|_| "media_io")?.len() > MAX_BYTES {
-        return Err("media_budget".into());
-    }
-    Ok(())
-}
-async fn download(
-    dir: &Path,
-    r: &MediaRef,
-    job: &youtube::DownloadJob,
-    session: BrowserSession,
-) -> Result<Manifest, String> {
-    r.validate()?;
-    if job.cancelled() {
-        return Err("media_cancelled".into());
-    }
-    if r.source.duration_ms > MAX_DURATION_MS {
-        return Err("media_too_long".into());
-    }
-    session.validate()?;
-    #[cfg(not(target_os = "ios"))]
-    let path = youtube::ytdlp_path().ok_or("media_missing_tool")?;
-    // Recheck current metadata, subtitle revision and selected audio identity before recovery.
-    let metadata =
-        youtube::fetch_ytdlp_json(Some(job), &r.source.url, &session, Duration::from_secs(30))
-            .await?;
-    let duration = (metadata["duration"].as_f64().unwrap_or(0.) * 1000.).round() as i64;
-    if duration != r.source.duration_ms || metadata["id"].as_str() != Some(&r.source.video_id) {
-        return Err("media_version_changed".into());
-    }
-    let a = local_audio(&metadata, r.source.audio.as_ref()).ok_or("media_track_missing")?;
-    let f = metadata["formats"]
-        .as_array()
-        .and_then(|fs| {
-            fs.iter()
-                .find(|f| f["format_id"].as_str() == Some(&a.format_id))
-        })
-        .ok_or("media_track_missing")?;
-    if f["vcodec"] != "none"
-        || f["ext"] != "m4a"
-        || (a.language == "en" && !f["language"].as_str().is_some_and(|s| s.starts_with("en")))
-    {
-        return Err("media_track_mismatch".into());
-    }
-    let (lang, auto) = r
-        .source
-        .subtitle_track
-        .rsplit_once(':')
-        .ok_or("media_invalid_source")?;
-    let track = youtube::SubtitleTrack {
-        lang: lang.into(),
-        is_auto: auto == "true",
-        language: r.source.subtitle_language.clone(),
-        source: if r.source.subtitle_kind == "manual" {
-            SubtitleSource::Manual
-        } else {
-            SubtitleSource::Original
-        },
-        source_language: Some(r.source.subtitle_language.clone()),
-    };
-    let subtitle = youtube::downloads::native_track(
-        job,
-        &r.source.video_id,
-        &track,
-        &session,
-        "primary",
-        Duration::from_secs(60),
-    )
-    .await
-    .map_err(|e| format!("media_{}", e.code))?;
-    if !matches_subtitle_revision(&r.source, &subtitle.content) {
-        return Err("media_subtitle_changed".into());
-    }
-    let tmp = Temp(dir.join(format!(".part-{}", uuid::Uuid::new_v4())));
-    std::fs::create_dir(&tmp.0).map_err(|_| "media_io")?;
-    #[cfg(target_os = "ios")]
-    let (manifest, verified) = {
-        let output = tmp.0.join("audio.m4a");
-        ios_source_audio::download(f, &output, job).await?;
-        let normalized = tmp.0.join("normalized.m4a");
-        let (duration, origin) = tokio::select! {
-            _ = job.cancel_signal() => return Err("media_cancelled".into()),
-            result = ios_source_audio::normalize(&output, &normalized) => result?,
-        };
-        // AVFoundation writes creation/modification times into every remux.
-        // Keep an exact legacy match if available, and make new files stable.
-        if !r
-            .expected_sha256
-            .as_deref()
-            .is_some_and(|hash| file_digest(&normalized).ok().as_deref() == Some(hash))
-        {
-            let mut file = std::fs::OpenOptions::new()
-                .read(true)
-                .write(true)
-                .open(&normalized)
-                .map_err(|_| "media_io")?;
-            remove_container_clock(&mut file).map_err(|_| "media_container_failed")?;
-        }
-        (
-            manifest_for_track(&normalized, &r.source, &a, duration, origin)?,
-            normalized,
-        )
-    };
-    #[cfg(not(target_os = "ios"))]
-    let (manifest, verified) =
-        download_desktop_track(&tmp.0, &path, r, &a, job, &session, &metadata).await?;
-    if job.cancelled() {
-        return Err("media_cancelled".into());
-    }
-    if r.expected_sha256
-        .as_deref()
-        .is_some_and(|hash| hash != manifest.sha256)
-    {
-        return Err("media_version_changed".into());
-    }
-    let final_path = asset_path(dir, &manifest.sha256)?;
-    if !final_path.exists() || file_digest(&final_path).ok().as_deref() != Some(&manifest.sha256) {
-        std::fs::rename(verified, final_path).map_err(|_| "media_io")?;
-    }
-    Ok(manifest)
+pub(super) struct LocalAttachment {
+    pub(super) source: YoutubeSource,
+    manifest: Manifest,
+    staged: PathBuf,
+    destination: PathBuf,
 }
 
-#[cfg(not(target_os = "ios"))]
-async fn download_desktop_track(
-    temp_dir: &Path,
-    path: &Path,
-    r: &MediaRef,
-    audio: &AudioTrack,
-    job: &youtube::DownloadJob,
-    session: &BrowserSession,
-    metadata: &serde_json::Value,
-) -> Result<(Manifest, PathBuf), String> {
-    let output = temp_dir.join("audio.m4a");
-    let mut cmd = tokio::process::Command::new(path);
-    cmd.arg("--ignore-config");
-    youtube::downloads::configure_session(&mut cmd, session)?;
-    cmd.args([
-        "--no-playlist",
-        "--no-progress",
-        "--retries",
-        "2",
-        "--fragment-retries",
-        "2",
-        "--retry-sleep",
-        "http:linear=1:2",
-        "--extractor-retries",
-        "0",
-        "--socket-timeout",
-        "10",
-        "--max-filesize",
-        "256M",
-        "--no-write-subs",
-        "--no-write-auto-subs",
-        "--fixup",
-        "never",
-        "-f",
-    ])
-    .arg(&audio.format_id)
-    .arg("-o")
-    .arg(&output);
-    // Use the same extractor snapshot that passed source and subtitle checks.
-    // This private scratch file lives only as long as the download.
-    let info = temp_dir.join("info.json");
-    std::fs::write(&info, serde_json::to_vec(metadata).map_err(|_| "media_io")?)
-        .map_err(|_| "media_io")?;
-    cmd.arg("--load-info-json").arg(info);
-    let run = youtube::run_ytdlp_capture(&mut cmd, Some(job), Duration::from_secs(420));
-    tokio::pin!(run);
-    let (status, _, stderr) = loop {
-        tokio::select! {r=&mut run=>break r?,_ = tokio::time::sleep(Duration::from_millis(100))=>{if size(temp_dir)>MAX_BYTES{return Err("media_budget".into())}}}
-    };
-    if !status.success() {
-        let message = stderr.to_ascii_lowercase();
-        if message.contains("unable to download video data")
-            && ["http error 401", "http error 403", "http error 410"]
-                .iter()
-                .any(|status| message.contains(status))
+impl LocalAttachment {
+    pub(super) fn new(
+        input: &super::materials::MaterialInput,
+        path: &Path,
+        duration_ms: i64,
+        media_hash: String,
+    ) -> Result<Self, String> {
+        let invalid = "material_package_audio";
+        let track = AudioTrack {
+            format_id: "pcm_s16le".into(),
+            language: "und".into(),
+            language_basis: "provided_file".into(),
+        };
+        let mut cues: Vec<_> = input
+            .segments
+            .iter()
+            .filter_map(|segment| {
+                let start_ms = youtube::parse_ts(segment.start_time.as_deref()?)?;
+                let end_ms = youtube::parse_ts(segment.end_time.as_deref()?)?;
+                (start_ms >= 0
+                    && start_ms < duration_ms
+                    && end_ms > start_ms
+                    && end_ms <= duration_ms + MAX_CUE_TAIL_MS)
+                    .then(|| Cue {
+                        id: 0,
+                        start_ms,
+                        end_ms,
+                        text: segment.en_text.clone(),
+                    })
+            })
+            .collect();
+        cues.sort_by_key(|cue| cue.start_ms);
+        for (index, cue) in cues.iter_mut().enumerate() {
+            cue.id = index as u32;
+        }
+        let mut source = YoutubeSource {
+            version: 1,
+            provider: "local".into(),
+            key: String::new(),
+            video_id: media_hash,
+            url: String::new(),
+            title: input.name.clone(),
+            duration_ms,
+            subtitle_track: "local".into(),
+            subtitle_language: "en".into(),
+            subtitle_kind: "original".into(),
+            subtitle_sha256: digest(input.content.as_bytes()),
+            cues,
+            audio: Some(track.clone()),
+        };
+        source.key = source.identity();
+        source.validate().map_err(|_| invalid)?;
+        let sha256 = file_digest(path).map_err(|_| invalid)?;
+        let dir = path.parent().and_then(Path::parent).ok_or(invalid)?;
+        let destination = dir.join(format!("{sha256}.wav"));
+        let manifest = Manifest {
+            video_id: source.video_id.clone(),
+            format_id: track.format_id,
+            language: track.language,
+            language_basis: track.language_basis,
+            codec: "pcm_s16le".into(),
+            bytes: path.metadata().map_err(|_| invalid)?.len(),
+            duration_ms,
+            start_ms: 0,
+            offset_ms: 0,
+            sha256,
+        };
+        Ok(Self {
+            source,
+            manifest,
+            staged: path.to_owned(),
+            destination,
+        })
+    }
+
+    pub(super) fn install(&self, tx: &Connection) -> Result<(), String> {
+        let invalid = "material_package_audio";
+        let dir = self.destination.parent().ok_or(invalid)?;
+        if !self.destination.exists() && size(dir) + self.manifest.bytes > TOTAL_BYTES {
+            return Err(invalid.into());
+        }
+        if std::fs::symlink_metadata(&self.destination).is_ok_and(|entry| !entry.is_file()) {
+            return Err(invalid.into());
+        }
+        if !self.destination.is_file()
+            || file_digest(&self.destination).as_deref() != Ok(&self.manifest.sha256)
         {
-            return Err("media_url_expired".into());
+            std::fs::rename(&self.staged, &self.destination).map_err(|_| invalid)?;
         }
-        return Err(format!(
-            "media_{}",
-            youtube::downloads::DownloadError::from_message(
-                &stderr,
-                "primary",
-                "en",
-                SubtitleSource::Original
-            )
-            .code
-        ));
+        tx.execute(
+            "INSERT INTO source_media(source_key,source_json,asset_id,status,manifest_json,updated_at)
+             VALUES(?1,?2,?3,'ready',?4,?5) ON CONFLICT(source_key) DO UPDATE
+             SET asset_id=excluded.asset_id,status='ready',error=NULL,manifest_json=excluded.manifest_json,updated_at=excluded.updated_at",
+            params![self.source.key, serde_json::to_string(&self.source).map_err(|_| invalid)?,
+                self.manifest.sha256, serde_json::to_string(&self.manifest).map_err(|_| invalid)?,
+                super::saved::now_ms()],
+        ).map_err(|e| e.to_string())?;
+        Ok(())
     }
-    // Remux only new, unbound files. AAC packets are copied, never re-encoded.
-    // A complete MP4 avoids the phantom tail WebKit exposes in some DASH files.
-    let normalized = temp_dir.join("normalized.m4a");
-    normalize_container(&output, &normalized, Some(job)).await?;
-    let mut manifest = probe(&normalized, &r.source, audio, Some(job)).await?;
-    let mut verified = normalized;
-    if job.cancelled() {
-        return Err("media_cancelled".into());
-    }
-    if r.expected_sha256
-        .as_deref()
-        .is_some_and(|h| h != manifest.sha256)
-    {
-        // A legacy snapshot may bind the old raw container. Recover exactly
-        // those bytes if available; never rewrite or silently migrate its hash.
-        let raw = probe(&output, &r.source, audio, Some(job)).await?;
-        if r.expected_sha256.as_deref() != Some(&raw.sha256) {
-            return Err("media_version_changed".into());
-        }
-        manifest = raw;
-        verified = output;
-    }
-    Ok((manifest, verified))
 }
+
 pub fn recover(conn: &Connection, dir: &Path) -> Result<(), String> {
     // Startup only, before accepting jobs. Partial directories never count as ready.
     std::fs::create_dir_all(dir).map_err(|_| "media_io")?;
@@ -1290,7 +845,11 @@ pub fn recover(conn: &Connection, dir: &Path) -> Result<(), String> {
         let name = e.file_name().to_string_lossy().into_owned();
         if name.starts_with(".part-") {
             let _ = std::fs::remove_dir_all(e.path());
-        } else if let Some(id) = name.strip_suffix(".m4a").filter(|id| valid_hash(id)) {
+        } else if let Some(id) = name
+            .strip_suffix(".m4a")
+            .or_else(|| name.strip_suffix(".wav"))
+            .filter(|id| valid_hash(id))
+        {
             let bound: bool = conn
                 .query_row(
                     "SELECT EXISTS(SELECT 1 FROM source_media WHERE asset_id=?1)",
@@ -1311,6 +870,26 @@ pub fn initialize(app: &tauri::AppHandle, conn: &Connection) -> Result<(), Strin
 }
 
 /// Validate portable file rows at every ingress; no device-local manifest is imported.
+/// A local audio attachment can accompany an extracted subtitle document.
+pub(crate) fn local_document_media(
+    raw: Option<&str>,
+    key: Option<&str>,
+) -> Result<Option<YoutubeSource>, String> {
+    match (raw, key) {
+        (None, None) => Ok(None),
+        (Some(raw), Some(key)) => {
+            let source: YoutubeSource =
+                serde_json::from_str(raw).map_err(|_| "material_invalid_document")?;
+            source.validate()?;
+            if source.provider != "local" || source.key != key {
+                return Err("material_invalid_document".into());
+            }
+            Ok(Some(source))
+        }
+        _ => Err("material_invalid_document".into()),
+    }
+}
+
 pub fn validate_file_source(
     row: &serde_json::Map<String, serde_json::Value>,
 ) -> Result<(), String> {
@@ -1353,26 +932,6 @@ mod tests {
     }
 
     #[test]
-    fn recovers_original_audio_across_extractors_or_after_incomplete_import() {
-        let mac = AudioTrack {
-            format_id: "140-7".into(),
-            language: "en".into(),
-            language_basis: "metadata".into(),
-        };
-        let mut metadata = serde_json::json!({"formats":[{
-            "vcodec":"none","ext":"m4a","acodec":"mp4a.40.2",
-            "format_id":"ios-140-en-US-4","language":"en-US","format_note":"original"
-        }]});
-        let mobile = local_audio(&metadata, Some(&mac)).unwrap();
-        assert_eq!(mobile.format_id, "ios-140-en-US-4");
-        assert_eq!(local_audio(&metadata, None), Some(mobile.clone()));
-        metadata["formats"][0]["format_id"] = serde_json::json!("140-7");
-        assert_eq!(local_audio(&metadata, Some(&mobile)), Some(mac));
-        metadata["formats"][0]["format_note"] = serde_json::json!("dubbed");
-        assert!(local_audio(&metadata, Some(&mobile)).is_none());
-    }
-
-    #[test]
     fn subtitle_serialization_can_change_but_recovery_cannot_change_timecodes_or_words() {
         let mut prior = source("abcdefghijk");
         prior.audio = None;
@@ -1398,37 +957,6 @@ mod tests {
         ));
     }
 
-    #[test]
-    fn remux_clock_does_not_influence_the_saved_audio_hash() {
-        fn atom(kind: &[u8; 4], body: &[u8]) -> Vec<u8> {
-            let mut atom = ((body.len() + 8) as u32).to_be_bytes().to_vec();
-            atom.extend(kind);
-            atom.extend(body);
-            atom
-        }
-        fn sample(time: u8) -> Vec<u8> {
-            let mut header = vec![0; 4];
-            header.extend([time; 8]);
-            header.extend(123u32.to_be_bytes());
-            let mut movie = atom(b"mvhd", &header);
-            let mut media = atom(b"mdhd", &header);
-            let mut track = atom(
-                b"tkhd",
-                &[&[1, 0, 0, 0][..], &[time; 16], &[0, 0, 0, 123]].concat(),
-            );
-            media.extend(atom(b"free", b"ignore"));
-            track.extend(atom(b"mdia", &media));
-            movie.extend(atom(b"trak", &track));
-            [atom(b"moov", &movie), atom(b"mdat", b"original audio")].concat()
-        }
-        let mut a = std::io::Cursor::new(sample(22));
-        let mut b = std::io::Cursor::new(sample(99));
-        assert_ne!(a.get_ref(), b.get_ref());
-        remove_container_clock(&mut a).unwrap();
-        remove_container_clock(&mut b).unwrap();
-        assert_eq!(a.get_ref(), b.get_ref());
-        assert!(a.get_ref().ends_with(b"original audio"));
-    }
     fn input(op: &str, video: &str) -> materials::MaterialInput {
         materials::MaterialInput {
             tag_ids: Vec::new(),
@@ -1630,7 +1158,7 @@ mod tests {
         .is_none());
     }
     #[test]
-    fn crash_partial_cleanup_budget_and_tampered_asset() {
+    fn crash_partial_cleanup_and_tampered_asset() {
         let (d, c) = db();
         let dir = d.path().join("audio");
         std::fs::create_dir_all(dir.join(".part-test")).unwrap();
@@ -1649,12 +1177,6 @@ mod tests {
         recover(&c, &dir).unwrap();
         assert!(!dir.join(".part-test").exists());
         assert_eq!(status(&c, &dir, &r).unwrap().status, "missing");
-        let big = std::fs::File::create(dir.join("foreign.bin")).unwrap();
-        big.set_len(TOTAL_BYTES).unwrap();
-        assert!(reserve(&c, &dir).is_err());
-        drop(big);
-        std::fs::remove_file(dir.join("foreign.bin")).unwrap();
-        assert!(reserve(&c, &dir).is_ok());
         let id = digest(b"expected");
         std::fs::write(asset_path(&dir, &id).unwrap(), b"corrupt").unwrap();
         c.execute(
@@ -1666,121 +1188,6 @@ mod tests {
             resolve(&c, &dir, &r).err().unwrap(),
             "media_checksum_mismatch"
         );
-    }
-    #[test]
-    #[ignore = "explicit controlled and real-audio fixture evidence; reads only /tmp inputs"]
-    fn captured_audio_fixture() {
-        let output = PathBuf::from(std::env::var("LEXICUE_MEDIA_FIXTURE_OUT").unwrap());
-        assert!(output.starts_with("/tmp"));
-        std::fs::create_dir_all(&output).unwrap();
-        let metadata: serde_json::Value =
-            serde_json::from_slice(&std::fs::read("/tmp/lexicue-youtube-probe.json").unwrap())
-                .unwrap();
-        let content =
-            std::fs::read_to_string("/tmp/lexicue-youtube-audio-v1/jNQXAC9IVRw.en.srt").unwrap();
-        let t = youtube::SubtitleTrack {
-            lang: "en".into(),
-            is_auto: false,
-            language: "en".into(),
-            source: SubtitleSource::Manual,
-            source_language: Some("en".into()),
-        };
-        let source = source_from_subtitles("jNQXAC9IVRw", &t, &content, &metadata).unwrap();
-        let manifest = tauri::async_runtime::block_on(probe(
-            Path::new("/tmp/lexicue-youtube-audio-v1/jNQXAC9IVRw.m4a"),
-            &source,
-            source.audio.as_ref().unwrap(),
-            None,
-        ))
-        .unwrap();
-        std::fs::write(
-            output.join("youtube-source.json"),
-            serde_json::to_vec_pretty(&source).unwrap(),
-        )
-        .unwrap();
-        std::fs::write(
-            output.join("youtube-manifest.json"),
-            serde_json::to_vec_pretty(&manifest).unwrap(),
-        )
-        .unwrap();
-        let mut controlled = self::source("abcdefghijk");
-        controlled.cues = vec![
-            Cue {
-                id: 0,
-                start_ms: 1000,
-                end_ms: 2000,
-                text: "First tone.".into(),
-            },
-            Cue {
-                id: 1,
-                start_ms: 3500,
-                end_ms: 4500,
-                text: "Middle tone.".into(),
-            },
-            Cue {
-                id: 2,
-                start_ms: 6000,
-                end_ms: 7000,
-                text: "Last tone.".into(),
-            },
-        ];
-        controlled.key = controlled.identity();
-        let manifest = tauri::async_runtime::block_on(probe(
-            Path::new("/tmp/lexicue-youtube-audio-v1/controlled.m4a"),
-            &controlled,
-            controlled.audio.as_ref().unwrap(),
-            None,
-        ))
-        .unwrap();
-        std::fs::write(
-            output.join("controlled-source.json"),
-            serde_json::to_vec_pretty(&controlled).unwrap(),
-        )
-        .unwrap();
-        std::fs::write(
-            output.join("controlled-manifest.json"),
-            serde_json::to_vec_pretty(&manifest).unwrap(),
-        )
-        .unwrap();
-    }
-}
-
-#[cfg(test)]
-mod real_pipeline_tests {
-    use super::*;
-    #[test]
-    #[ignore = "explicit network: one already documented 19-second sample, no cookies/retries"]
-    fn real_youtube_audio_pipeline() {
-        let dir = PathBuf::from("/tmp/lexicue-youtube-audio-v1/pipeline");
-        std::fs::create_dir_all(&dir).unwrap();
-        let s: YoutubeSource = serde_json::from_slice(
-            &std::fs::read("/tmp/lexicue-youtube-audio-v1/youtube-source.json").unwrap(),
-        )
-        .unwrap();
-        let r = MediaRef {
-            start_ms: s.cues[0].start_ms,
-            end_ms: s.cues[0].end_ms,
-            cue_ids: vec![0],
-            source: s,
-            precision: "cue".into(),
-            padding_before_ms: 0,
-            padding_after_ms: 0,
-            expected_sha256: None,
-        };
-        let job = youtube::register_download_job(None, 888_001);
-        let _guard = youtube::JobGuard { job_id: 888_001 };
-        let result =
-            tauri::async_runtime::block_on(download(&dir, &r, &job, BrowserSession::default()));
-        let report = match &result {
-            Ok(m) => serde_json::json!({"status":"passed","manifest":m}),
-            Err(e) => serde_json::json!({"status":"failed","error":e}),
-        };
-        std::fs::write(
-            "/tmp/lexicue-youtube-audio-v1/pipeline-report.json",
-            serde_json::to_vec_pretty(&report).unwrap(),
-        )
-        .unwrap();
-        assert!(result.is_ok(), "{}", report);
     }
 }
 
@@ -2200,7 +1607,3 @@ mod continuous_contract_tests {
         .is_err());
     }
 }
-
-#[cfg(test)]
-#[path = "source_media_external_tests.rs"]
-mod external_release_tests;

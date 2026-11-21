@@ -130,6 +130,17 @@ fn legacy_document_duplicate(
 }
 
 pub fn import_material(conn: &Connection, input: &MaterialInput) -> Result<ImportResult, String> {
+    import_material_with_attachment(conn, input, None)
+}
+
+pub(super) fn import_material_with_attachment(
+    conn: &Connection,
+    input: &MaterialInput,
+    attachment: Option<&super::source_media::LocalAttachment>,
+) -> Result<ImportResult, String> {
+    let source = attachment
+        .map(|entry| &entry.source)
+        .or(input.source.as_ref());
     let name = input.name.to_lowercase();
     let kind = if input.document.is_some() {
         input
@@ -174,11 +185,23 @@ pub fn import_material(conn: &Connection, input: &MaterialInput) -> Result<Impor
     }
     if let Some(source) = &input.source {
         source.validate()?;
+        if source.provider != "youtube" {
+            return Err("material_invalid_document".into());
+        }
     }
     let request_hash = format!(
         "{:x}",
         Sha256::digest(
-            if input.document.is_some() {
+            if let Some(attachment) = attachment {
+                serde_json::to_vec(&(
+                    &input.name,
+                    &input.content,
+                    &input.segments,
+                    &input.document,
+                    &input.normalized_kind,
+                    &attachment.source.key,
+                ))
+            } else if input.document.is_some() {
                 serde_json::to_vec(&(
                     &input.name,
                     &input.content,
@@ -220,14 +243,18 @@ pub fn import_material(conn: &Connection, input: &MaterialInput) -> Result<Impor
         }
         let still_present = tx
             .query_row(
-                "SELECT EXISTS(SELECT 1 FROM files WHERE id=?1 AND ((?5 IS NOT NULL AND document_identity=?5) OR (?5 IS NULL AND content_hash=?2 AND (?3 IS NULL OR media_identity IS ?3) AND content=?4 AND document_identity IS NULL)))",
-                params![id, hash,input.source.as_ref().map(|s|&s.key),input.content,input.document.as_ref().map(|s|&s.identity)],
+                "SELECT EXISTS(SELECT 1 FROM files WHERE id=?1 AND ((?5 IS NOT NULL AND document_identity=?5 AND media_identity IS ?3) OR (?5 IS NULL AND content_hash=?2 AND (?3 IS NULL OR media_identity IS ?3) AND content=?4 AND document_identity IS NULL)))",
+                params![id, hash,source.map(|s|&s.key),input.content,input.document.as_ref().map(|s|&s.identity)],
                 |r| r.get::<_, bool>(0),
             )
             .map_err(|e| e.to_string())?;
         if !still_present && legacy_document_duplicate(&tx, input)?.is_none_or(|v| v.0 != id) {
             return Err("material_source_removed".into());
         }
+        if let Some(attachment) = attachment {
+            attachment.install(&tx)?;
+        }
+        tx.commit().map_err(|e| e.to_string())?;
         return Ok(ImportResult {
             file_id: id,
             outcome,
@@ -238,16 +265,16 @@ pub fn import_material(conn: &Connection, input: &MaterialInput) -> Result<Impor
         // An extractor update may discover different text. An explicit new
         // import returns the original material, preserving saved offsets.
         tx.query_row(
-            "SELECT id,language,type FROM files WHERE document_identity=?1 ORDER BY id LIMIT 1",
-            [&document.identity],
+            "SELECT id,language,type FROM files WHERE document_identity=?1 AND media_identity IS ?2 ORDER BY id LIMIT 1",
+            params![document.identity, source.map(|s| &s.key)],
             |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
         )
         .optional()
         .map_err(|e| e.to_string())?
-        .or(legacy_document_duplicate(&tx, input)?)
+        .or(if attachment.is_none() { legacy_document_duplicate(&tx, input)? } else { None })
     } else {
         tx.query_row("SELECT id,language,type FROM files WHERE content_hash=?1 AND media_identity IS ?2 AND content=?3 AND document_identity IS NULL ORDER BY id LIMIT 1",
-            params![hash,input.source.as_ref().map(|s|&s.key),input.content],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))).optional().map_err(|e|e.to_string())?
+            params![hash,source.map(|s|&s.key),input.content],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))).optional().map_err(|e|e.to_string())?
     };
     let existing = match existing {
         None if kind == "srt" && input.document.is_none() => {
@@ -256,13 +283,20 @@ pub fn import_material(conn: &Connection, input: &MaterialInput) -> Result<Impor
         value => value,
     };
     let result = if let Some((id, language, kind)) = existing {
+        if let Some(cover) = input.document.as_ref().and_then(|d| d.cover.as_ref()) {
+            tx.execute(
+                "UPDATE files SET document_source=json_set(document_source,'$.cover',?2)
+                 WHERE id=?1 AND document_source IS NOT NULL AND json_extract(document_source,'$.cover') IS NULL",
+                params![id,cover],
+            ).map_err(|e| e.to_string())?;
+        }
         ImportResult {
             file_id: id,
             outcome: "duplicate".into(),
             readable: language == "en" && matches!(kind.as_str(), "srt" | "txt"),
         }
     } else {
-        tx.execute("INSERT INTO files(name,type,content,content_hash,imported_at,language,media_source,media_identity,document_source,document_identity) VALUES(?1,?2,?3,?4,?5,'en',?6,?7,?8,?9)",params![input.name,kind,input.content,hash,super::saved::now_ms(),input.source.as_ref().map(|s|serde_json::to_string(s).unwrap()),input.source.as_ref().map(|s|&s.key),input.document.as_ref().map(|s|serde_json::to_string(s).unwrap()),input.document.as_ref().map(|s|&s.identity)]).map_err(|e|e.to_string())?;
+        tx.execute("INSERT INTO files(name,type,content,content_hash,imported_at,language,media_source,media_identity,document_source,document_identity) VALUES(?1,?2,?3,?4,?5,'en',?6,?7,?8,?9)",params![input.name,kind,input.content,hash,super::saved::now_ms(),source.map(|s|serde_json::to_string(s).unwrap()),source.map(|s|&s.key),input.document.as_ref().map(|s|serde_json::to_string(s).unwrap()),input.document.as_ref().map(|s|&s.identity)]).map_err(|e|e.to_string())?;
         let id = tx.last_insert_rowid();
         super::tags::replace_file_tags(&tx, id, &input.tag_ids, &input.new_tag_names)?;
         let mut statement=tx.prepare_cached("INSERT INTO segments(file_id,index_num,en_text,zh_text,start_time,end_time) VALUES(?1,?2,?3,?4,?5,?6)").map_err(|e|e.to_string())?;
@@ -285,6 +319,9 @@ pub fn import_material(conn: &Connection, input: &MaterialInput) -> Result<Impor
         }
     };
     tx.execute("INSERT INTO material_import_actions(operation_id,request_hash,file_id,outcome,readable) VALUES(?1,?2,?3,?4,?5)",params![input.operation_id,request_hash,result.file_id,result.outcome,result.readable]).map_err(|e|e.to_string())?;
+    if let Some(attachment) = attachment {
+        attachment.install(&tx)?;
+    }
     tx.commit().map_err(|e| e.to_string())?;
     Ok(result)
 }
@@ -536,7 +573,10 @@ fn list_filtered(
             let document: Option<super::document_source::DocumentSource> = r
                 .get::<_, Option<String>>(7)?
                 .and_then(|s| serde_json::from_str(&s).ok());
-            let source_kind = if source.is_some() {
+            let source_kind = if source
+                .as_ref()
+                .is_some_and(|source| source.provider == "youtube")
+            {
                 "youtube"
             } else {
                 match document.as_ref().and_then(|d| d.origin.as_ref()) {

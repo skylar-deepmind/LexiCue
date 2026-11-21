@@ -80,7 +80,6 @@ pub fn run() {
             app.set_activation_policy(tauri::ActivationPolicy::Regular);
 
             commands::gemma::runtime::initialize(app.handle())?;
-            commands::youtube::init_subtitle_cache(app.handle());
             commands::dictionary_packs::configure(app.handle());
             commands::cambridge::configure(app.handle());
             commands::free_dictionary::configure(app.handle());
@@ -192,8 +191,6 @@ pub fn run() {
             commands::import::import_file,
             commands::import::check_duplicate,
             commands::source_media::source_media_status,
-            commands::youtube::cover::youtube_cover,
-            commands::source_media::prepare_source_media,
             commands::source_media::resolve_source_media,
             commands::source_media::resolve_reading_media,
             commands::export::export_all,
@@ -218,6 +215,9 @@ pub fn run() {
             commands::recall::saved_recall_catalog,
             commands::recall::saved_recall_contexts,
             commands::materials::import_reading_material,
+            commands::local_material_audio::import_material_with_local_audio,
+            commands::local_material_audio::upload_local_material_audio,
+            commands::local_material_audio::discard_local_material_audio,
             commands::materials::fill_reading_translations,
             commands::materials::list_materials,
             commands::history::list_legacy_records,
@@ -333,13 +333,6 @@ pub fn run() {
             commands::translation::translate_import_sentences,
             commands::translation::cancel_import_translation,
             commands::ollama::cancel_translate_segments,
-            commands::youtube::youtube_list_subs,
-            commands::youtube::downloads::youtube_prepare_subtitles,
-            commands::youtube::downloads::youtube_clear_subtitle_cache,
-            commands::youtube::youtube_download_sub,
-            commands::youtube::youtube_merge_subs,
-            commands::youtube::youtube_cancel_job,
-            commands::youtube::youtube_ytdlp_status,
             commands::language::tokenize_japanese,
             commands::language::tokenize_japanese_batch,
             commands::german::tokenize_german,

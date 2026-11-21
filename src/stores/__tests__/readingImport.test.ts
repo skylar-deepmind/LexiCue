@@ -1,12 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-const mocks = vi.hoisted(() => ({ invoke: vi.fn(), parse: vi.fn(), open: vi.fn(), read: vi.fn(), prepare: vi.fn(), cancel: vi.fn(), record: vi.fn(), translate: vi.fn(), changed: vi.fn() }));
+const mocks = vi.hoisted(() => ({ invoke: vi.fn(), parse: vi.fn(), open: vi.fn(), read: vi.fn(), translate: vi.fn(), changed: vi.fn() }));
 vi.mock('@tauri-apps/api/core', () => ({ invoke: mocks.invoke }));
 vi.mock('@tauri-apps/plugin-dialog', () => ({ open: mocks.open }));
 vi.mock('@tauri-apps/plugin-fs', () => ({ readFile: mocks.read }));
 vi.mock('../../lib/materials', async original => ({ ...await original<object>(), parseSrtInWorker: mocks.parse }));
 vi.mock('../../lib/importTranslation', () => ({ translateImportSegments: mocks.translate }));
-vi.mock('../youtubeStore', () => ({ useYoutubeStore: { getState: () => ({ prepareSubtitles: mocks.prepare, cancelJob: mocks.cancel }) } }));
-vi.mock('../preferencesStore', () => ({ usePreferencesStore: { getState: () => ({ youtube: {}, recordYouTubeImport: mocks.record }) } }));
 vi.mock('../materialStore', () => ({ useMaterialStore: { getState: () => ({ changed: mocks.changed }) } }));
 import { prepareImportQueue, commitImportQueue, useImportStore, type ImportItem } from '../importStore';
 import { parseEnglishSrt } from '../../lib/englishSrt';
@@ -19,13 +17,12 @@ const store = () => useImportStore.getState();
 const receipt = { file_id: 1, outcome: 'created' as const, readable: true };
 const update = (items: ImportItem[]) => (id: string, patch: Partial<ImportItem>) => Object.assign(items.find(item => item.id === id)!, patch);
 function deferred<T>() { let resolve!: (value: T) => void; let reject!: (error: unknown) => void; const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; }
-const youtube = { url: 'https://www.youtube.com/watch?v=test', title: 'Real title', primary: { lang: 'en-orig', language: 'en', is_auto: true }, secondary: { lang: 'zh-Hans', is_auto: false } };
 beforeEach(() => {
     store().changeSource(); store().hide(); vi.clearAllMocks();
     vi.stubGlobal('navigator', { userAgent: 'test' });
     mocks.parse.mockImplementation(async (text, _, name) => name?.endsWith('.txt') ? parseEnglishText(text) : parseEnglishSrt(text));
     mocks.translate.mockImplementation(async segments => ({ segments: segments.map((row: {zh_text: string|null; index: number}) => ({...row, zh_text: row.zh_text || `译文 ${row.index}`})), failed: false }));
-    mocks.invoke.mockResolvedValue(receipt); mocks.cancel.mockResolvedValue(undefined);
+    mocks.invoke.mockResolvedValue(receipt);
 });
 
 describe('preview and transaction boundaries', () => {
@@ -64,10 +61,10 @@ describe('preview and transaction boundaries', () => {
         expect(mocks.translate).toHaveBeenCalledOnce();
         expect(mocks.invoke).not.toHaveBeenCalled();
     });
-    it('retries only missing YouTube translation using retained sentences without downloading again', async () => {
+    it('retries only missing subtitle translations using retained sentences without downloading again', async () => {
         const read = vi.fn(async () => srt('One sentence. Another sentence.'));
         mocks.translate.mockImplementationOnce(async segments => ({segments: segments.map((s: {index:number}) => ({...s,zh_text:s.index===0?'第一句。':null})),failed:true}));
-        await store().start([{name:'retry.srt',kind:'youtube',read}]);
+        await store().start([{name:'retry.srt',kind:'file',read}]);
         expect(store().items[0].fallbackSegments?.[0].zh_text).toBe('第一句。');
         expect(store().items[0].error).toBe('translation_partial');
         mocks.translate.mockImplementationOnce(async segments => ({segments: segments.map((s: {zh_text:string|null}) => ({...s,zh_text:s.zh_text??'另一句。'})),failed:false}));
@@ -88,15 +85,14 @@ describe('preview and transaction boundaries', () => {
         expect(store().items[0].draft?.segments.map(row=>row.zh_text)).toEqual(['已有译文','译文 1']);
         expect(mocks.translate).toHaveBeenCalledOnce();expect(mocks.invoke).not.toHaveBeenCalled();
     });
-    it('continues with completed YouTube translations after failure and cancels a late translation on close', async () => {
+    it('continues with completed subtitle translations after failure and cancels a late translation on close', async () => {
         mocks.translate.mockImplementationOnce(async segments => ({segments,failed:true}));
-        await store().start([{...item('fallback'),kind:'youtube'}]);
+        await store().start([{...item('fallback'),kind:'file'}]);
         await store().useEnglish(store().items[0].id);
         expect(store().items[0].draft).toBeDefined();expect(mocks.translate).toHaveBeenCalledTimes(1);
-        expect(store().items[0].draft?.youtubeSelection).toBeUndefined();
         const late = deferred<{segments: ReturnType<typeof parseEnglishSrt>; failed: boolean}>();
         mocks.translate.mockReturnValueOnce(late.promise);
-        const pending = store().start([{...item('late'),kind:'youtube'}]);
+        const pending = store().start([{...item('late'),kind:'file'}]);
         await vi.waitFor(()=>expect(store().items[0].stage).toBe('translating'));
         store().hide();await pending;late.resolve({segments:parseEnglishSrt(srt()),failed:false});await Promise.resolve();
         expect(store()).toMatchObject({open:false,items:[]});
@@ -160,71 +156,7 @@ describe('preview and transaction boundaries', () => {
     });
     it('does not let drops or source changes replace a committing batch', async () => {
         await store().start([item('locked')]); const pending = deferred<typeof receipt>(); mocks.invoke.mockReturnValueOnce(pending.promise);
-        const committing = store().confirm(); await store().start([item('drop')]); store().changeSource('youtube');
+        const committing = store().confirm(); await store().start([item('drop')]); store().changeSource('file');
         expect(store().items[0].name).toBe('locked.srt'); pending.resolve(receipt); await committing;
-    });
-    it('completes YouTube translation before preview without committing material', async () => {
-        mocks.prepare.mockResolvedValueOnce({ status: 'complete', subtitle: { name: 'English.srt', content: srt() } });
-        await store().fromYouTube({ ...youtube, secondary: null });
-        expect(store().items[0]).toMatchObject({ stage: 'ready' });
-        expect(store().items[0].skipTranslation).not.toBe(true);
-        expect(store().items[0].draft?.segments[0].zh_text).toBe('译文 0');
-        expect(store().items[0].draft?.segments[0].en_text).toBe('We fly.');
-        expect(mocks.translate).toHaveBeenCalledOnce();
-        expect(mocks.invoke).not.toHaveBeenCalled();
-    });
-    it('keeps English after a translation failure, previews it without redownloading, and records only committed preferences', async () => {
-        mocks.prepare.mockResolvedValueOnce({ status: 'partial', primary: { content: srt(), name: 'English.srt' } });
-        await store().fromYouTube(youtube);
-        expect(store().items[0]).toMatchObject({ stage: 'failed', error: 'translation_partial', englishFallback: srt() });
-        expect(mocks.invoke).not.toHaveBeenCalled(); expect(mocks.record).not.toHaveBeenCalled();
-        await store().useEnglish(store().items[0].id);
-        expect(mocks.prepare).toHaveBeenCalledTimes(1); expect(store().items[0].draft?.youtubeSelection).toEqual({ primary: 'en', secondary: null });
-        expect(mocks.record).not.toHaveBeenCalled(); await store().confirm();
-        expect(mocks.record).toHaveBeenCalledWith({ primary: 'en', secondary: null });
-    });
-    it('cancels downloading on close and does not revive a late YouTube result', async () => {
-        const late = deferred<unknown>(); mocks.prepare.mockReturnValueOnce(late.promise);
-        const pending = store().fromYouTube(youtube); store().hide(); await pending;
-        expect(mocks.cancel).toHaveBeenCalledWith(expect.any(Number));
-        late.resolve({ status: 'complete', subtitle: { content: srt() } }); await Promise.resolve();
-        expect(store()).toMatchObject({ open: false, items: [] }); expect(mocks.record).not.toHaveBeenCalled();
-    });
-    it('retries a failed download into preview, still requiring an explicit confirmation', async () => {
-        mocks.prepare.mockRejectedValueOnce(Error('network unavailable'));
-        await store().fromYouTube(youtube);
-        expect(store().items[0]).toMatchObject({ stage: 'failed', error: 'download_failed' });
-        expect(mocks.invoke).not.toHaveBeenCalled(); expect(mocks.record).not.toHaveBeenCalled();
-        mocks.prepare.mockResolvedValueOnce({ status: 'complete', subtitle: { content: srt() } });
-        await store().retry(); expect(store().items[0].stage).toBe('ready');
-        expect(mocks.invoke).not.toHaveBeenCalled(); expect(mocks.record).not.toHaveBeenCalled();
-        await store().confirm(); expect(mocks.invoke).toHaveBeenCalledTimes(1);
-    });
-    it('records bilingual preferences only after a successful retry, not a failed submit or a duplicate', async () => {
-        mocks.prepare.mockResolvedValue({ status: 'complete', subtitle: { content: srt('We fly.\n我们飞翔。') } });
-        await store().fromYouTube(youtube); expect(mocks.record).not.toHaveBeenCalled();
-        mocks.invoke.mockRejectedValueOnce(Error('failed')); await store().confirm(); expect(mocks.record).not.toHaveBeenCalled();
-        await store().retry(); expect(mocks.record).toHaveBeenCalledWith({ primary: 'en', secondary: 'zh-Hans' });
-        mocks.record.mockClear(); await store().fromYouTube(youtube); mocks.invoke.mockResolvedValueOnce({ ...receipt, outcome: 'duplicate' }); await store().confirm();
-        expect(mocks.record).not.toHaveBeenCalled();
-    });
-});
-
-describe('YouTube provenance is independent of subtitle and translation completion', () => {
-    const source = { version: 1, key: 'immutable-source', audio: null } as unknown as import('../../lib/sourceMedia').YoutubeSource;
-    it('carries the native source snapshot through the frozen draft and exact write payload', async () => {
-        mocks.prepare.mockResolvedValue({ status: 'complete', subtitle: { name: 'native.srt', content: srt(), source } });
-        await store().fromYouTube(youtube);
-        expect(store().items[0].draft?.source).toEqual(source);
-        await store().confirm();
-        expect(mocks.invoke).toHaveBeenCalledWith('import_reading_material', { input: expect.objectContaining({ source }) });
-        expect(mocks.invoke.mock.calls.some(([cmd]) => cmd === 'resolve_source_media' || cmd === 'resolve_tts_audio')).toBe(false);
-    });
-    it('keeps primary source identity when the user retains subtitles after secondary translation failure', async () => {
-        mocks.prepare.mockResolvedValue({ status: 'partial', primary: { name: 'native.srt', content: srt(), source }, error: { code: 'network' } });
-        await store().fromYouTube(youtube);
-        const id = store().items[0].id; await store().useEnglish(id);
-        expect(store().items[0].draft?.source).toEqual(source);
-        expect(store().items[0].stage).toBe('ready');
     });
 });

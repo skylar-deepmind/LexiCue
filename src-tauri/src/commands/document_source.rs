@@ -56,6 +56,8 @@ pub struct DocumentSource {
     pub schema_version: u8,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub origin: Option<ContentOrigin>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cover: Option<String>,
     pub original_format: String,
     pub display_name: String,
     pub source_sha256: String,
@@ -138,6 +140,22 @@ impl DocumentLocation {
             }
     }
 }
+fn valid_cover(cover: &str) -> bool {
+    use base64::Engine;
+    if cover.len() > 350_000 {
+        return false;
+    }
+    let Some(data) = cover.strip_prefix("data:image/jpeg;base64,") else {
+        return false;
+    };
+    let Ok(bytes) = base64::engine::general_purpose::STANDARD.decode(data) else {
+        return false;
+    };
+    image::ImageReader::with_format(std::io::Cursor::new(bytes), image::ImageFormat::Jpeg)
+        .into_dimensions()
+        .is_ok_and(|(w, h)| (1..=512).contains(&w) && (1..=512).contains(&h))
+}
+
 impl DocumentSource {
     pub fn validate(&self, content: &str, segment_count: Option<usize>) -> Result<(), String> {
         let invalid = || "material_invalid_document".to_string();
@@ -155,6 +173,10 @@ impl DocumentSource {
                 .origin
                 .as_ref()
                 .is_some_and(|o| o.title() != self.display_name)
+            || self
+                .cover
+                .as_deref()
+                .is_some_and(|cover| !valid_cover(cover))
             || !portable(&self.extractor_version, 256)
             || !hash(&self.source_sha256)
             || !hash(&self.normalized_sha256)
@@ -365,11 +387,10 @@ pub fn validate_file_source(
     ) {
         (None, None) => Ok(()),
         (Some(raw), Some(identity)) => {
-            if row.get("media_identity").is_some_and(|v| !v.is_null())
-                || row.get("media_source").is_some_and(|v| !v.is_null())
-            {
-                return Err("material_invalid_document".into());
-            }
+            let media = super::source_media::local_document_media(
+                row.get("media_source").and_then(|v| v.as_str()),
+                row.get("media_identity").and_then(|v| v.as_str()),
+            )?;
             let s: DocumentSource =
                 serde_json::from_str(raw).map_err(|_| "material_invalid_document")?;
             s.validate(
@@ -378,7 +399,8 @@ pub fn validate_file_source(
                     .ok_or("material_invalid_document")?,
                 None,
             )?;
-            if s.identity != identity
+            if (media.is_some() && !matches!(s.original_format.as_str(), "srt" | "vtt"))
+                || s.identity != identity
                 || row.get("type").and_then(|v| v.as_str())
                     != Some(if matches!(s.original_format.as_str(), "srt" | "vtt") {
                         "srt"
@@ -527,20 +549,29 @@ impl DocumentSource {
                     .ok_or("material_invalid_document")?;
                 cursor += at + text.len();
                 if matches!(self.original_format.as_str(), "srt" | "vtt") {
-                    let start = block
-                        .locations
-                        .iter()
-                        .filter_map(|l| l.start_ms)
-                        .min()
+                    let (start, end) = segment
+                        .start_time
+                        .as_deref()
+                        .and_then(super::youtube::parse_ts)
+                        .zip(
+                            segment
+                                .end_time
+                                .as_deref()
+                                .and_then(super::youtube::parse_ts),
+                        )
                         .ok_or("material_invalid_document")?;
-                    let end = block
-                        .locations
-                        .iter()
-                        .filter_map(|l| l.end_ms)
-                        .max()
-                        .ok_or("material_invalid_document")?;
-                    if segment.start_time.as_deref() != Some(&time(start))
-                        || segment.end_time.as_deref() != Some(&time(end))
+                    if start < 0
+                        || end <= start
+                        || segment.start_time.as_deref() != Some(&time(start as u64))
+                        || segment.end_time.as_deref() != Some(&time(end as u64))
+                        || !block.locations.iter().any(|location| {
+                            location.start_ms == Some(start as u64)
+                                && location.end_ms.is_some_and(|value| value <= end as u64)
+                        })
+                        || !block.locations.iter().any(|location| {
+                            location.end_ms == Some(end as u64)
+                                && location.start_ms.is_some_and(|value| value >= start as u64)
+                        })
                     {
                         return Err("material_invalid_document".into());
                     }

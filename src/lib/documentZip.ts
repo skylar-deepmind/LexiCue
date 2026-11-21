@@ -18,7 +18,11 @@ export function resolveArchivePath(base: string, href: string): string {
   return safeArchivePath(parts.join('/'));
 }
 /** Streaming inflate checks actual text output. No archive entry is ever written to disk. */
-export function boundedDocumentZip(bytes: Uint8Array): Map<string, Uint8Array> {
+export function boundedDocumentZip(bytes: Uint8Array, policy = {
+  needed: (name: string) => /(?:\.(?:xml|rels|opf|ncx|xhtml|html|htm|txt)|(?:^|\/)mimetype)$/i.test(name),
+  entryBytes: (_name: string) => DOCUMENT_LIMITS.zipEntryBytes,
+  totalBytes: DOCUMENT_LIMITS.zipTotalBytes,
+}): Map<string, Uint8Array> {
   if (bytes[0] !== 0x50 || bytes[1] !== 0x4b) throw new Error('material_invalid_document');
   // Reject truncated/multi-disk/ZIP64 containers before any inflation.
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
@@ -50,15 +54,14 @@ export function boundedDocumentZip(bytes: Uint8Array): Map<string, Uint8Array> {
       const name = safeArchivePath(file.name);
       if (localNames.has(name) || !centralNames.has(name)) throw new Error('material_invalid_document');
       localNames.add(name);
-      // Do not inflate images, fonts, media, or embedded objects.
-      const needed = /(?:\.(?:xml|rels|opf|ncx|xhtml|html|htm|txt)|(?:^|\/)mimetype)$/i.test(name);
-      if (file.originalSize !== undefined && file.originalSize > DOCUMENT_LIMITS.zipEntryBytes && needed) throw new Error('material_archive_limit');
-      if (!needed || name.endsWith('/')) return;
+      if (!policy.needed(name) || name.endsWith('/')) return;
+      const limit = policy.entryBytes(name);
+      if (file.originalSize !== undefined && file.originalSize > limit) throw new Error('material_archive_limit');
       let size = 0; const chunks: Uint8Array[] = [];
       file.ondata = (error, data, final) => {
         if (error) { if (String(error).includes('material_')) throw error; throw new Error('material_invalid_document'); }
         size += data.length; total += data.length;
-        if (size > DOCUMENT_LIMITS.zipEntryBytes || total > DOCUMENT_LIMITS.zipTotalBytes) throw new Error('material_archive_limit');
+        if (size > limit || total > policy.totalBytes) throw new Error('material_archive_limit');
         chunks.push(data);
         if (final) { const result = new Uint8Array(size); let offset = 0; for (const chunk of chunks) { result.set(chunk, offset); offset += chunk.length; } files.set(name, result); }
       };

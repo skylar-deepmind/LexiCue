@@ -24,6 +24,7 @@ pub mod gemma;
 
 pub mod dictionary_init;
 
+pub mod local_material_audio;
 pub mod materials;
 pub mod reader;
 pub mod saved;

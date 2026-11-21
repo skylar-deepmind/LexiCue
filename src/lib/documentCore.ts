@@ -3,9 +3,9 @@ import { clearlyNonEnglish, readableEnglishSegment } from './englishScope';
 import { DOCUMENT_LIMITS, type DocumentBlock, type DocumentFormat, type DocumentLocation, type DocumentSection, type DocumentSelection, type DocumentSource, type ExtractedDocument } from './documentTypes';
 import type { SegmentInput } from './types';
 
-export interface RawDocumentBlock { kind: DocumentBlock['kind']; text: string; section_id: string; locations: DocumentLocation[]; start_ms?: number; end_ms?: number }
+export interface RawDocumentBlock { kind: DocumentBlock['kind']; text: string; section_id: string; locations: DocumentLocation[]; cueTexts?: string[] }
 export interface RawDocument { sections: DocumentSection[]; blocks: RawDocumentBlock[]; warnings: string[]; partial?: boolean }
-export const DOCUMENT_EXTRACTOR_VERSION = 'lexicue-documents/1.0.1';
+export const DOCUMENT_EXTRACTOR_VERSION = 'lexicue-documents/1.1.0';
 export async function documentDigest(bytes: Uint8Array): Promise<string> {
   const copy = new Uint8Array(bytes);
   return [...new Uint8Array(await crypto.subtle.digest('SHA-256', copy))].map(v => v.toString(16).padStart(2, '0')).join('');
@@ -45,17 +45,40 @@ function bilingual(text: string): { en: string; zh: string } {
 function sentences(block: RawDocumentBlock, index: number): SegmentInput[] {
   if (block.kind === 'code') return [];
   const { en, zh } = bilingual(block.text);
-  const pieces = splitIntoSentences(en, 'en');
-  const valid: string[] = [];
-  for (const piece of pieces) {
-    if (readableEnglishSegment(piece)) valid.push(piece);
-    else if (valid.length && !/\p{Alphabetic}/u.test(piece)) valid[valid.length - 1] += piece;
+  const english = en.replace(/\s+/g, ' ').trim();
+  const parts = splitIntoSentences(english, 'en', 1000).filter(readableEnglishSegment);
+  const translated = zh ? splitIntoSentences(zh, 'zh') : [];
+  const aligned = alignSentenceStreams(parts, translated, 'en');
+  const translations = new Map<number, string>();
+  let alignedIndex = 0;
+  for (const pair of aligned) {
+    if (pair.translation) translations.set(alignedIndex, pair.translation);
+    let remaining = pair.source.length;
+    while (remaining > 0 && alignedIndex < parts.length) {
+      remaining -= parts[alignedIndex++].length + 1;
+    }
   }
-  return alignSentenceStreams(valid, zh ? splitIntoSentences(zh, 'zh') : [], 'en').map((pair, i) => ({
-    index: index + i, en_text: pair.source, zh_text: pair.translation,
-    start_time: block.start_ms === undefined ? null : documentTime(block.start_ms),
-    end_time: block.end_ms === undefined ? null : documentTime(block.end_ms),
-  }));
+  let offset = 0;
+  const cueSpans = block.cueTexts?.flatMap((text, i) => {
+    const cue = bilingual(text).en.replace(/\s+/g, ' ').trim();
+    if (!cue) return [];
+    const from = offset;
+    offset += cue.length + 1;
+    return [{ from, to: from + cue.length, location: block.locations[i] }];
+  });
+  let cursor = 0;
+  return parts.map((text, i) => {
+    const from = english.indexOf(text, cursor);
+    cursor = from + text.length;
+    const spans = cueSpans?.filter(cue => cue.from < cursor && cue.to > from);
+    const start = spans?.[0]?.location.start_ms;
+    const end = spans?.length ? Math.max(...spans.map(cue => cue.location.end_ms!)) : undefined;
+    return {
+      index: index + i, en_text: text, zh_text: translations.get(i) ?? null,
+      start_time: start === undefined ? null : documentTime(start),
+      end_time: end === undefined ? null : documentTime(end),
+    };
+  });
 }
 export async function buildDocument(raw: RawDocument, format: DocumentFormat, name: string, sourceHash: string, selection: DocumentSelection = { kind: 'all' }): Promise<ExtractedDocument> {
   if (raw.blocks.length > DOCUMENT_LIMITS.blocks) throw new Error('material_too_large');

@@ -140,10 +140,7 @@ function MaterialDesk() {
       if(!alive.current||intent!==pasteIntent.current)return;
       const content = inspectClipboardContent(text);
       if (content.kind === 'error') { useFeedbackStore.getState().show(t(content.error==='clipboardEmpty'?'approved.clipboardEmpty':`materials.importDialog.${content.error}`),'error',4500,undefined,'top');return; }
-      if(content.kind==='youtube'){
-        useImportStore.getState().showScene();
-        window.dispatchEvent(new CustomEvent('lexicue-import-content',{detail:text}));
-      } else await useImportStore.getState().fromContent(content.kind==='text'?'clipboard':'webpage',content.kind==='text'?content.text:content.url,true);
+      await useImportStore.getState().fromContent(content.kind==='text'?'clipboard':'webpage',content.kind==='text'?content.text:content.url,true);
     } catch {
       if(!alive.current||intent!==pasteIntent.current)return;
       useFeedbackStore.getState().show(t('approved.clipboardUnavailable'),'error',6000,undefined,'top');

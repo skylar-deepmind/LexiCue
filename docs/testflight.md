@@ -52,10 +52,22 @@ npm run tauri -- ios build --archive-only --export-method app-store-connect --ci
   --config src-tauri/tauri.ios-store.conf.json --config /path/to/local-signing.json
 ```
 
-The Apple distribution configuration disables online YouTube retrieval and
-in-app macOS software updates at both the frontend and native entry points.
-Local import, locally available media, and existing learning records remain
-usable.
+All distributions import user-provided documents, subtitles, and material ZIPs.
+The Apple distribution configuration also disables in-app macOS software updates.
+
+To verify a material ZIP, put `Lesson.srt`, `Lesson.jpg`, and either `Lesson.m4a`
+or `Lesson.mp4` in the same ZIP folder. Select the ZIP through the file picker.
+The preview uses the provided cover. After confirmation, LexiCue reads the
+subtitle sentences and plays the aligned audio. The app extracts the audio
+locally when the package contains a video. If the package contains text only,
+reading uses Edge TTS with the user's speech settings. Existing learning
+records and audio already stored on the device remain usable.
+
+The ZIP limit is 64 MiB. Supported subtitle files are SRT and VTT. The importer
+accepts JPEG, PNG, and WebP covers and supports common audio tracks, including
+AAC in MP4 and Opus in WebM. A subtitle file named `Lesson.en.vtt` can match
+`Lesson.webp` and `Lesson.webm`. A local audio file remains on the device that
+imports it.
 
 ## Mac App Store
 

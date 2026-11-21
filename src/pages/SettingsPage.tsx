@@ -1,14 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Archive, AudioLines, BookOpen, Captions, ChevronLeft, ChevronRight, MonitorSmartphone, RefreshCw, Settings, Wrench } from 'lucide-react';
+import { Archive, AudioLines, BookOpen, ChevronLeft, ChevronRight, MonitorSmartphone, RefreshCw, Settings } from 'lucide-react';
 import { backNavigation } from '../lib/backNavigation';
 import { SETTINGS_LABELS, useSettingsNavigation, type SettingsEntry } from '../lib/settingsNavigation';
 import { visitState, usePageReturn } from '../lib/pageNavigation';
 import BackupSettings from '../components/BackupSettings';
 import DictionaryPacks from '../components/DictionaryPacks';
 import DeviceSyncSettings, { DeviceSyncSummary } from '../components/DeviceSyncSettings';
-import YouTubeDownloadSettings from '../components/YouTubeDownloadSettings';
 import SpeechSettings from '../components/SpeechSettings';
 import DictionaryPreferences from '../components/DictionaryPreferences';
 import SoftwareUpdateSettings from '../components/SoftwareUpdateSettings';
@@ -16,14 +15,13 @@ import InterfaceLanguageSwitch from '../components/InterfaceLanguageSwitch';
 import { isAppleStoreBuild } from '../lib/distribution';
 import './materials-settings.css';
 import './settings-directory.css';
-const icons = { speech: AudioLines, lookup: BookOpen, sync: MonitorSmartphone, backup: Archive, youtube: Captions, updates: RefreshCw };
+const icons = { speech: AudioLines, lookup: BookOpen, sync: MonitorSmartphone, backup: Archive, updates: RefreshCw };
 const categories = [
   { key: 'preferences', icon: Settings, entries: ['speech', 'lookup'] },
   { key: 'data', icon: Archive, entries: ['sync', 'backup'] },
-  { key: 'tools', icon: Wrench, entries: ['youtube'] },
   { key: 'updates', icon: RefreshCw, entries: ['updates'] },
 ] as const;
-const visibleCategories = isAppleStoreBuild ? categories.filter(group => group.key !== 'updates' && group.key !== 'tools') : categories;
+const visibleCategories = isAppleStoreBuild ? categories.filter(group => group.key !== 'updates') : categories;
 function Detail({ entry }: { entry: SettingsEntry }) {
   const { t } = useTranslation();
   switch (entry) {
@@ -32,7 +30,6 @@ function Detail({ entry }: { entry: SettingsEntry }) {
     case 'lookup': case 'dictionary': return <div className="approved-dictionary-detail"><div className="approved-dict-online"><h2>{t('dictionaryPreferences.title')}</h2><DictionaryPreferences/></div><h2>{t('settings.dictionary.title')}</h2><DictionaryPacks/></div>;
     case 'sync': return <DeviceSyncSettings/>;
     case 'backup': return <BackupSettings/>;
-    case 'youtube': return <YouTubeDownloadSettings/>;
     case 'updates': return <SoftwareUpdateSettings/>;
     case 'guide': return null;
   }

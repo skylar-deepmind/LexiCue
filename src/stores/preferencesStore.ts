@@ -1,11 +1,9 @@
 import { normalizeLibraryNames, type LibraryNames, type LibraryNameKey } from '../lib/libraryNames';
 import { create } from 'zustand';
 import { persist, createJSONStorage, subscribeWithSelector } from 'zustand/middleware';
-import { normalizeBrowserSession, type BrowserSession } from '../lib/youtubeDownload';
 import type { AnnotationKind, AnnotationMode } from '../lib/annotation';
 import type { Language, UILanguage } from '../lib/languages';
 import { isLanguage, detectSystemLanguage, isUILanguage } from '../lib/languages';
-import { languageKey, normalizeYouTubePreferences, rememberYouTubeImport, type YouTubeLanguagePair, type YouTubePreferences } from '../lib/youtubeSelection';
 import { DEFAULT_SPEECH_PREFERENCES, normalizeSpeechPreferences, type SpeechPreferences, type SpeechAccent } from '../lib/speechPreferences';
 import { normalizeContentFontScale, type ContentFontCategory, type ContentFontScale } from '../lib/contentFontScale';
 import {normalizeTagColors,type TagColors} from '../lib/tagAppearance';
@@ -32,10 +30,6 @@ interface PreferencesState {
   setReencounterHints: (enabled: boolean) => void;
   vocabularyKind: 'word' | 'phrase';
   setVocabularyKind: (kind: 'word' | 'phrase') => void;
-  youtube: YouTubePreferences;
-  toggleYouTubeFavorite: (language: string) => void;
-  setYouTubeBrowserSession: (session: BrowserSession) => void;
-  recordYouTubeImport: (pair: YouTubeLanguagePair) => void;
   annotationModes: Record<AnnotationKind, AnnotationMode>;
   setAnnotationMode: (kind: AnnotationKind, mode: AnnotationMode) => void;
   language: Language | 'all';
@@ -71,16 +65,6 @@ export const usePreferencesStore = create<PreferencesState>()(
         setReencounterHints: reencounterHints => set({reencounterHints}),
         vocabularyKind: 'word',
         setVocabularyKind: vocabularyKind => set({ vocabularyKind }),
-        youtube: normalizeYouTubePreferences(null),
-        toggleYouTubeFavorite: (language) => set(state => {
-          const key = languageKey(language);
-          if (!key) return {};
-          const favorites = state.youtube.favoriteLanguages;
-          return { youtube: { ...state.youtube, favoriteLanguages: favorites.some(code => languageKey(code) === key)
-            ? favorites.filter(code => languageKey(code) !== key) : [...favorites, language.trim()] } };
-        }),
-        setYouTubeBrowserSession: session => set(state => ({ youtube: { ...state.youtube, browserSession: normalizeBrowserSession(session) } })),
-        recordYouTubeImport: (pair) => set(state => ({ youtube: rememberYouTubeImport(state.youtube, pair) })),
         annotationModes: { word: 'batch', phrase: 'batch' },
         setAnnotationMode: (kind, mode) => set(state => ({ annotationModes: { ...state.annotationModes, [kind]: mode } })),
         language: 'all',
@@ -108,7 +92,6 @@ export const usePreferencesStore = create<PreferencesState>()(
             contentFontScale?: unknown;
             reencounterHints?: unknown;
             vocabularyKind?: unknown;
-            youtube?: unknown;
             annotationModes?: Partial<Record<AnnotationKind, unknown>>;
             language?: unknown;
             uiLanguage?: unknown;
@@ -148,7 +131,7 @@ export const usePreferencesStore = create<PreferencesState>()(
           // app defaults while keeping the user's accent, voices and speed.
           const { accent, voices, speed } = normalizeSpeechPreferences(saved.speech);
           const speech = { ...DEFAULT_SPEECH_PREFERENCES, accent, voices, speed };
-          return { ...current, libraryNames: normalizeLibraryNames(saved.libraryNames), onlineDictionary: saved.onlineDictionary === 'wiktionary' ? 'wiktionary' : 'cambridge', tagColors:normalizeTagColors(saved.tagColors), contentFontScale: normalizeContentFontScale(saved.contentFontScale), speech, reencounterHints: typeof saved.reencounterHints==='boolean'?saved.reencounterHints:current.reencounterHints, vocabularyKind: saved.vocabularyKind === 'phrase' ? 'phrase' : 'word', youtube: normalizeYouTubePreferences(saved.youtube), annotationModes, language, uiLanguage, learningTextFontSize, definitionFontSize, auxiliaryFontSize, readingLineHeight };
+          return { ...current, libraryNames: normalizeLibraryNames(saved.libraryNames), onlineDictionary: saved.onlineDictionary === 'wiktionary' ? 'wiktionary' : 'cambridge', tagColors:normalizeTagColors(saved.tagColors), contentFontScale: normalizeContentFontScale(saved.contentFontScale), speech, reencounterHints: typeof saved.reencounterHints==='boolean'?saved.reencounterHints:current.reencounterHints, vocabularyKind: saved.vocabularyKind === 'phrase' ? 'phrase' : 'word', annotationModes, language, uiLanguage, learningTextFontSize, definitionFontSize, auxiliaryFontSize, readingLineHeight };
         },
       },
     ),

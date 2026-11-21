@@ -111,8 +111,12 @@ impl SavedStore for ReaderSaves {
             } else {
                 "txt"
             };
+            let attachment = crate::commands::source_media::local_document_media(
+                source.media_source.as_deref(),
+                source.media_identity.as_deref(),
+            )?;
             if source.document_identity.as_deref() != Some(doc.identity.as_str())
-                || source.media_source.is_some()
+                || (attachment.is_some() && expected_kind != "srt")
                 || kind != expected_kind
                 || !doc.warnings.is_empty()
                 || !portable_name(&doc.display_name)

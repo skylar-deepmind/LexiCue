@@ -60,6 +60,17 @@ pub fn public_url(value: &str) -> Result<Url, String> {
         .trim_matches(['[', ']'])
         .trim_end_matches('.')
         .to_ascii_lowercase();
+    if ["youtube.com", "youtu.be", "youtube-nocookie.com"]
+        .iter()
+        .any(|domain| {
+            host == *domain
+                || host
+                    .strip_suffix(domain)
+                    .is_some_and(|prefix| prefix.ends_with('.'))
+        })
+    {
+        return Err("material_web_invalid".into());
+    }
     if host == "localhost"
         || [
             ".localhost",

@@ -14,7 +14,7 @@ export interface Material {
     source_kind?: 'youtube' | 'webpage' | 'clipboard' | 'file';
     original_format?: string;
     document?: import('./documentTypes').DocumentSource | null;
-    source?: Pick<import('./sourceMedia').YoutubeSource, 'key' | 'video_id' | 'title' | 'audio'> | null;
+    source?: Pick<import('./sourceMedia').YoutubeSource, 'key' | 'video_id' | 'title' | 'audio'> & { provider?: 'youtube' | 'local' } | null;
 }
 export interface ReadingMaterial {
     material: Material;
@@ -56,7 +56,7 @@ export function materialError(error: unknown) {
     const message = String(error);
     const aliases: Record<string, string> = {unsupported_format: 'unsupported', unsafe_archive: 'zip_limit', archive_limit: 'zip_limit', fixed_layout: 'unsupported', protected_document: 'encrypted', missing_resource: 'invalid_document', too_many_pages: 'too_large', parse_timeout: 'timeout', invalid_vtt: 'invalid_srt'};
     for (const [code, value] of Object.entries(aliases)) if (message.includes(`material_${code}`)) return value;
-    return ['web_invalid', 'web_private', 'web_network', 'web_redirect', 'web_http', 'web_download', 'web_large', 'web_timeout', 'web_unreadable', 'content_alignment', 'empty', 'too_large', 'read_failed', 'parse_failed', 'english_only', 'invalid_srt', 'source_removed', 'operation_conflict', 'translation_partial', 'download_failed', 'unsupported', 'password', 'encrypted', 'invalid_format', 'invalid_encoding', 'timeout', 'invalid_range', 'zip_limit', 'no_text', 'invalid_document', 'document_version_conflict', 'invalid_translation'].find(code => message.includes(`material_${code}`)) ?? 'failed';
+    return ['web_invalid', 'web_private', 'web_network', 'web_redirect', 'web_http', 'web_download', 'web_large', 'web_timeout', 'web_unreadable', 'content_alignment', 'empty', 'too_large', 'read_failed', 'parse_failed', 'english_only', 'invalid_srt', 'source_removed', 'operation_conflict', 'translation_partial', 'download_failed', 'unsupported', 'password', 'encrypted', 'invalid_format', 'invalid_encoding', 'timeout', 'invalid_range', 'zip_limit', 'no_text', 'invalid_document', 'document_version_conflict', 'invalid_translation', 'empty_package', 'ambiguous_package', 'invalid_cover', 'package_audio'].find(code => message.includes(`material_${code}`)) ?? 'failed';
 }
 
 /** File dialogs return native paths; decode only actual file/content URIs. */

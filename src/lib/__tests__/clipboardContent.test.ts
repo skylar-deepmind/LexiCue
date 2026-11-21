@@ -1,26 +1,15 @@
-import {describe,it,expect,vi} from 'vitest';
+import {describe,it,expect} from 'vitest';
 import {inspectClipboardContent} from '../clipboardContent';
 import {extractClipboard,extractWebpage} from '../contentExtract';
 const page=(html:string,url='https://example.com/article')=>({bytes_base64:btoa(unescape(encodeURIComponent(html))),submitted_url:url,final_url:url,content_type:'text/html; charset=utf-8',fetched_at:1793350000000});
 describe('clipboard routing',()=>{
  it.each(['https://example.com\n中文说明','https://example.com\n42','https://example.com\n(42)','https://example.com\nhttps://other.example\n中文说明','www.example.com\n42','Note:','apple:苹果','word:definition','note:English',' \thttps://example.com\n中文说明 42\n '])('keeps mixed content and colon notes as exact text: %s',text=>{expect(inspectClipboardContent(text)).toEqual({kind:'text',text});});
  it('keeps bodies byte-for-byte and never guesses domains',()=>{for(const text of ['book','take off','A good day.','article.txt','example.com','  We read https://example.com today.\n','https://example.com\nHere is the body.','Read https://a.test and https://b.test'])expect(inspectClipboardContent(text)).toEqual({kind:'text',text});});
- it('routes only entire explicit valid links',()=>{for(const url of ['https://example.com','http://example.com','www.example.com'])expect(inspectClipboardContent(url).kind).toBe('webpage');expect(inspectClipboardContent('https://youtu.be/dQw4w9WgXcQ').kind).toBe('youtube');});
- it('explains empty, multiple, invalid, unsupported and nonvideo links',()=>{for(const [text,error]of [['','clipboardEmpty'],['https://a.test\nhttps://b.test','multipleLinks'],['https://a.test www.example.com','multipleLinks'],['https://','invalidLink'],['ftp://example.com','unsupportedProtocol'],['file:///tmp/lesson.txt','unsupportedProtocol'],['mailto:person@example.com','unsupportedProtocol'],['javascript:alert(1)','unsupportedProtocol'],['data:text/plain,hello','unsupportedProtocol'],['custom://example.com','unsupportedProtocol'],['https:/example.com','invalidLink'],['https//example.com','invalidLink'],['www.','invalidLink'],['https://youtube.com/playlist?list=x','unsupportedYoutube']])expect(inspectClipboardContent(text)).toMatchObject({kind:'error',error});});
+ it('routes only entire explicit valid links',()=>{for(const url of ['https://example.com','http://example.com','www.example.com'])expect(inspectClipboardContent(url).kind).toBe('webpage');});
+ it('explains empty, multiple, invalid, unsupported and nonvideo links',()=>{for(const [text,error]of [['','clipboardEmpty'],['https://a.test\nhttps://b.test','multipleLinks'],['https://a.test www.example.com','multipleLinks'],['https://','invalidLink'],['ftp://example.com','unsupportedProtocol'],['file:///tmp/lesson.txt','unsupportedProtocol'],['mailto:person@example.com','unsupportedProtocol'],['javascript:alert(1)','unsupportedProtocol'],['data:text/plain,hello','unsupportedProtocol'],['custom://example.com','unsupportedProtocol'],['https:/example.com','invalidLink'],['https//example.com','invalidLink'],['www.','invalidLink'],['https://youtube.com/playlist?list=x','videoLinkUnsupported']])expect(inspectClipboardContent(text)).toMatchObject({kind:'error',error});});
 });
-it('offers local import for YouTube links in Apple distribution builds', async () => {
-  vi.stubEnv('VITE_APPLE_STORE', '1');
-  vi.resetModules();
-  try {
-    const { inspectClipboardContent } = await import('../clipboardContent');
-    expect(inspectClipboardContent('https://youtu.be/dQw4w9WgXcQ')).toMatchObject({
-      kind: 'error', error: 'youtubeStoreUnavailable',
-    });
-    expect(inspectClipboardContent('https://example.com/article').kind).toBe('webpage');
-  } finally {
-    vi.unstubAllEnvs();
-    vi.resetModules();
-  }
+it('offers local import for video links without routing to the Web importer', () => {
+  expect(inspectClipboardContent('https://youtu.be/dQw4w9WgXcQ')).toMatchObject({ kind: 'error', error: 'videoLinkUnsupported' });
 });
 describe('immutable content snapshot',()=>{
  it('accepts short text without article threshold and preserves punctuation/numbers',async()=>{for(const text of ['apple','take off','  We did not leave (even at 3.14).\n\n1 2 3 4.  ']){const d=await extractClipboard(text);expect(d.content).toBe(text);expect(d.document.original_format).toBe('clipboard');expect(d.document.origin?.kind).toBe('clipboard');expect(d.segments.length).toBeGreaterThan(0);}});
