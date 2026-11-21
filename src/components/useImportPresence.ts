@@ -1,12 +1,11 @@
 import { useCallback, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 
 /** Keep the modal and focus owner mounted until its exit has actually finished. */
-export function useImportPresence(open: boolean, ref: RefObject<HTMLDivElement | null>, suppressed=false) {
+export function useImportPresence(open: boolean, ref: RefObject<HTMLDivElement | null>) {
   const [present, setPresent] = useState(open);
   const sequence = useRef(0);
   const invalidate = useCallback(() => { sequence.current++; }, []);
   useLayoutEffect(() => {
-    if(suppressed){setPresent(false);return;}
     const panel = ref.current;
     if (!panel) return;
     const scrim = panel.parentElement?.querySelector<HTMLElement>('.overlay-scrim');
@@ -51,6 +50,6 @@ export function useImportPresence(open: boolean, ref: RefObject<HTMLDivElement |
       if (scrim) scrim.style.opacity = getComputedStyle(scrim).opacity;
       animations.forEach(animation => animation.cancel());
     };
-  }, [open, ref, invalidate, suppressed]);
-  return !suppressed && (open || present);
+  }, [open, ref, invalidate]);
+  return open || present;
 }

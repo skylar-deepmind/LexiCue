@@ -37,7 +37,7 @@ export function captureImportInsertion(source: HTMLElement | null): Flight | nul
   Object.assign(veil.style, {
     position: 'absolute',
     inset: '0',
-    background: getComputedStyle(source.closest('.clipboard-scene-layer') ?? document.body).backgroundColor,
+    background: getComputedStyle(document.body).backgroundColor,
   });
   layer.append(veil, copy);
   document.body.append(layer);

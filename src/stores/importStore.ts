@@ -159,7 +159,7 @@ let generation = 0;
 let pickerGeneration = 0;
 let rangeGeneration = 0;
 const noImportTags: TagSelection = { tagIds: [], newTagNames: [] };
-const empty = { presentation: 'panel' as 'panel'|'scene', importTags: noImportTags, items: [] as ImportItem[], phase: 'source' as ImportPhase, source: 'choose' as 'choose' | 'file', selectedId: null as string | null,
+const empty = { importTags: noImportTags, items: [] as ImportItem[], phase: 'source' as ImportPhase, selectedId: null as string | null,
     running: false, stopping: false, destination: null as number | 'materials' | null, pickerError: false, picking: false, selectionBusy: null as string | null };
 function abandonPreparation() {
     generation++;
@@ -170,11 +170,8 @@ function abandonPreparation() {
 }
 export const useImportStore = create<{
     open: boolean;
-    presentation: 'panel'|'scene';
-    showScene: () => void;
     items: ImportItem[];
     phase: ImportPhase;
-    source: 'choose' | 'file';
     selectedId: string | null;
     running: boolean;
     stopping: boolean;
@@ -187,12 +184,11 @@ export const useImportStore = create<{
     selectRange: (id: string, selection: DocumentSelection) => Promise<void>;
     show: () => void;
     hide: () => void;
-    changeSource: (source?: 'choose' | 'file') => void;
     select: (id: string) => void;
     clearDestination: () => void;
     start: (sources: ImportSource[]) => Promise<void>;
     choose: () => Promise<void>;
-    fromContent: (kind: 'clipboard' | 'webpage', value: string, scene?:boolean) => Promise<void>;
+    fromContent: (kind: 'clipboard' | 'webpage', value: string) => Promise<void>;
     renameDraft: (id: string, title: string) => void;
     cancel: () => void;
     retry: () => Promise<void>;
@@ -279,16 +275,11 @@ export const useImportStore = create<{
     return {
         open: false, ...empty,
         setImportTags: importTags => { if (!get().running && get().phase === 'preview') set({ importTags }); },
-        show: () => set({ open: true }),
-        showScene: () => set({open:true,presentation:'scene'}),
+        show: () => { if (get().phase !== 'source') set({ open: true }); },
         clearDestination: () => set({ destination: null }),
         hide: () => {
             if (get().phase === 'committing' || get().phase === 'result' && get().items.some(item => item.draft && ['failed', 'cancelled'].includes(item.stage))) set({ open: false, destination: null });
             else { abandonPreparation(); set({ ...empty, open: false }); }
-        },
-        changeSource: (source = 'choose') => {
-            if (get().phase === 'committing') return;
-            abandonPreparation(); set({ ...empty, open: true, source });
         },
         select: selectedId => set({ selectedId }),
         selectRange: async (id, selection) => {
@@ -312,12 +303,12 @@ export const useImportStore = create<{
         },
         start: async sources => {
             if (get().phase === 'committing' || !sources.length) return;
-            set({presentation:'panel',importTags:noImportTags});
+            set({importTags:noImportTags});
             await prepare(sources.map(source => ({ ...source, id: crypto.randomUUID(), stage: 'queued' })));
         },
-        fromContent: async (kind, value, scene=false) => {
+        fromContent: async (kind, value) => {
             if(get().running)return;
-            set({presentation:scene?'scene':'panel',importTags:noImportTags});
+            set({importTags:noImportTags});
             await prepare([{id:crypto.randomUUID(),stage:'queued',kind, name: kind === 'clipboard' ? clipboardTitle(value) : value, capturedText: kind === 'clipboard' ? value : undefined, url: kind === 'webpage' ? value : undefined, read: async () => value}]);
         },
         renameDraft: (id, title) => {

@@ -10,6 +10,13 @@ async function center(locator) {
   assert.ok(box);
   return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 }
+async function importFile(page, text) {
+  await page.evaluate(text => {
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(new File([text], 'reading.txt', { type: 'text/plain' }));
+    window.dispatchEvent(new DragEvent('drop', { dataTransfer, bubbles: true, cancelable: true }));
+  }, text);
+}
 async function choose(page, host, name) {
   const edge = host.locator('.gesture-bottom-edge'),
     start = await center(edge);
@@ -42,19 +49,9 @@ try {
     try {
       await harness.fixture(page, theme);
       await page.goto(harness.url + '/files');
-      await page.evaluate((text) => {
-        localStorage.setItem('lexicue-onboarding-v1', JSON.stringify({ version: 1, status: 'skipped' }));
-        const original = window.__TAURI_INTERNALS__.invoke;
-        window.__TAURI_INTERNALS__.invoke = (command, args) =>
-          command === 'plugin:clipboard-manager|read_text' ? Promise.resolve(text) : original(command, args);
-        Object.defineProperty(navigator, 'clipboard', {
-          configurable: true,
-          value: { readText: async () => text },
-        });
-      }, sentence + '\n\nThere is still time to listen.');
+      await page.evaluate(() => localStorage.setItem('lexicue-onboarding-v1', JSON.stringify({ version: 1, status: 'skipped' })));
       await page.waitForTimeout(record ? 1000 : 250);
-      await page.locator('[data-guide=import]').click();
-      await page.getByRole('button', { name: '读取剪贴板', exact: true }).click();
+      await importFile(page, sentence + '\n\nThere is still time to listen.');
       const preview = page.locator('.import-card-stage');
       await preview.locator('[data-ready=true]').waitFor();
       await page.screenshot({ path: output + '/' + theme + '-1.png' });
@@ -112,14 +109,7 @@ try {
       assert.equal(records.records[0].sentence, sentence);
       if (!record) {
         await page.locator('.reading-breadcrumb .page-back').click();
-        await page.evaluate(() =>
-          Object.defineProperty(navigator, 'clipboard', {
-            configurable: true,
-            value: { readText: async () => 'A second card stays in preview.' },
-          }),
-        );
-        await page.locator('[data-guide=import]').click();
-        await page.getByRole('button', { name: '读取剪贴板', exact: true }).click();
+        await importFile(page, 'A second card stays in preview.');
         await preview.locator('[data-ready=true]').waitFor();
         const touch = width < 700 ? await context.newCDPSession(page) : null;
         const pointer = async (type, point) => {

@@ -40,7 +40,6 @@ export async function runSlice4FlowChecks() {
   const files = () => invoke<Material[]>('list_materials', { tagIds: [], untagged: false });
   const groups = (query: string) => invoke<SavedGroupPage>('list_saved_groups', { query, limit: 50, offset: 0 });
   const desk = () => structuredClone(useReadingDeskStore.getState().desk);
-  const openImport = async () => { await click('.dock-import-slot button'); await until(() => live('.lc-import-sources'), 'compact import entry'); };
   const preview = async (text: string) => {
     await useImportStore.getState().fromContent('clipboard', text);
     await until(() => useImportStore.getState().phase === 'preview' && useImportStore.getState().items[0]?.draft, 'real Worker preview');
@@ -61,8 +60,7 @@ export async function runSlice4FlowChecks() {
       const countBefore = (await files()).length;
       const nonce = crypto.randomUUID();
       const text = `P4 QA flow ${theme} ${nonce}\nThe ${expression} glows beside a quiet window.\nI keep https://example.com/qa-${nonce} inside this English note.`;
-      await openImport();
-      check(!live('textarea') && document.querySelectorAll('.lc-import-source').length === 2, `${theme}: compact entry has only clipboard and file choices`);
+      check(!!live('.home-import-action') && !live('.lc-import-modal'), `${theme}: the desk starts with a single file entry`);
       const multiple = inspectClipboardContent('https://example.com/one https://example.com/two');
       check(multiple.kind === 'error' && multiple.error === 'multipleLinks', `${theme}: multiple URLs fail local classification`);
       await preview(text);
@@ -71,11 +69,13 @@ export async function runSlice4FlowChecks() {
       check((await files()).length === countBefore, `${theme}: preview does not commit`);
       await escape(); await until(() => !document.querySelector('.lc-import-modal'), 'preview cancellation');
       check((await files()).length === countBefore, `${theme}: cancel preview preserves database`);
-      await openImport();
-      check(!!live('.lc-import-sources') && !live('textarea'), `${theme}: cancelled preview returns to compact source choices`);
+      check(!live('.lc-import-modal') && useImportStore.getState().items.length === 0, `${theme}: cancelling returns to the desk and clears the draft`);
       await preview(text);
-      await click('.lc-import-footer .lc-import-primary');
-      await until(() => document.querySelector('.reading-title')?.textContent?.includes(`P4 QA flow ${theme}`), 'confirmed native import opens reader');
+      await click('.import-edge-label');
+      await click('.import-card-stage [data-choice][aria-pressed=true]');
+      await until(() => !live('.lc-import-modal') && !live('.import-insertion-flight'), 'new material card lands on the desk');
+      await click('.approved-card[data-desk-active=true] .approved-card-open');
+      await until(() => document.querySelector('.reading-title')?.textContent?.includes(`P4 QA flow ${theme}`), 'opening the confirmed material reaches the reader');
       await settle();
       const material = (await files()).find(row => row.name.includes(nonce));
       check(!!material && (await files()).length === countBefore + 1, `${theme}: confirmed import writes exactly one material`);

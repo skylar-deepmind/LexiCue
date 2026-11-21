@@ -23,13 +23,12 @@ are deliberately not versioned. `LEXICUE_PLAYWRIGHT_MODULE`,
 
 ```sh
 node scripts/ui-import-terminal-punctuation.mjs
-node scripts/ui-clipboard-content.mjs
 node scripts/ui-adaptive-reading-layout.mjs
 node scripts/ui-recall-soft-marker.mjs
 ```
 
 The harness launches production Rust command cores against disposable SQLite,
-with controlled clipboard, file-picker and external-service responses. The
+with controlled file-picker and external-service responses. The
 scripts cover default and midnight themes; they do not certify real network
 services or native audio playback. Generated output is written under the
 system temporary directory.

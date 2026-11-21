@@ -22,7 +22,7 @@ import { useMaterialStore } from '../stores/materialStore';
 import { useReadingDeskStore } from '../stores/readingDeskStore';
 import { useFileStore } from '../stores/fileStore';
 import { useImportStore } from '../stores/importStore';
-import { rememberImportFocus } from '../components/importFocus';
+import { openImportFrom } from '../components/importFocus';
 import { matchesMaterial, readingPosition } from '../lib/readingDesk';
 import { materialCover } from '../lib/materialCover';
 import { visitState } from '../lib/pageNavigation';
@@ -184,7 +184,7 @@ function MaterialDesk() {
         <button className="approved-brand" aria-label={t(theme === 'midnight' ? 'approved.light' : 'approved.dark')} aria-pressed={theme === 'midnight'} onClick={() => setTheme(current => current === 'midnight' ? 'sage' : 'midnight')}><span className="approved-wordmark" aria-hidden="true"/></button>
         <div><button type="button" data-guide="import" className="approved-icon home-import-action"
           aria-label={t(importing ? 'materials.importRunning' : 'materials.import')} aria-haspopup="dialog" aria-expanded={importOpen}
-          aria-busy={picking || importing} disabled={picking} onClick={event => { rememberImportFocus(event.currentTarget); useImportStore.getState().show(); }}>
+          aria-busy={picking || importing} disabled={picking} onClick={event => openImportFrom(event.currentTarget)}>
           {picking || importing ? <BusyRing/> : <Plus size={24} aria-hidden="true"/>}
         </button>
           <button className="approved-icon home-settings-action" onPointerDown={settingsRoute.preload} onFocus={settingsRoute.preload} aria-label={t('sidebar.settings')} onClick={() => navigate('/settings', { state: visitState(location) })}><Settings size={23}/></button>

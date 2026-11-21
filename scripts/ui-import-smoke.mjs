@@ -19,20 +19,22 @@ const originals=Object.fromEntries(await Promise.all(Object.keys(bodies).map(asy
 const draft=()=>page.evaluate(async()=>{const {useImportStore}=await window.__uiStoreModule('importStore');return useImportStore.getState().items[0]?.draft;});
 const flight=await readFile(`${root}/docs/implementation/fixtures/v31-reading.srt`,'utf8');
 const srt=(text,zh='')=>`1\n00:00:01,000 --> 00:00:03,000\n${text}${zh?'\n'+zh:''}\n`;
+const center=async locator=>{const box=await locator.boundingBox();assert.ok(box);return{x:box.x+box.width/2,y:box.y+box.height/2};};
 const writes=()=>page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='import_reading_material'));
 const drop=files=>page.evaluate(files=>{const dataTransfer=new DataTransfer();for(const[name,text]of files)dataTransfer.items.add(new File([Array.isArray(text) ? Uint8Array.from(text) : text],name));window.dispatchEvent(new DragEvent('drop',{dataTransfer,bubbles:true,cancelable:true}));},files);
 const preview=async()=>{await page.locator('.approved-import-preview[data-ready=true]').waitFor();};
 const full=async()=>{await page.locator('.import-card-cover').click();await page.locator('.import-document-sheet').waitFor();};
 const closeFull=async()=>{await page.locator('.import-document-sheet').getByRole('button',{name:'关闭',exact:true}).click();await page.locator('.import-document-sheet').waitFor({state:'detached'});};
-const landed=async()=>{await page.locator('.lc-import-modal,.clipboard-scene').waitFor({state:'detached'});await page.waitForFunction(()=>!document.querySelector('.import-insertion-flight'));await page.locator('.approved-card[data-desk-active=true]').waitFor();};
+const landed=async()=>{await page.locator('.lc-import-modal').waitFor({state:'detached'});await page.waitForFunction(()=>!document.querySelector('.import-insertion-flight'));await page.locator('.approved-card[data-desk-active=true]').waitFor();};
 const itemStages=()=>page.evaluate(async()=>{const{useImportStore}=await window.__uiStoreModule('importStore');return useImportStore.getState().items.map(i=>i.stage);});
 const settle=()=>page.locator('.lc-import-modal').evaluate(node=>Promise.all(node.getAnimations({subtree:true}).filter(a=>a.effect.getComputedTiming().iterations!==Infinity).map(a=>a.finished.catch(()=>{}))));
-const close=async()=>{if(await page.locator('.import-document-sheet').count())await closeFull();if(await page.locator('.lc-import-modal,.clipboard-scene').count()){await page.keyboard.press('Escape');await page.locator('.lc-import-modal,.clipboard-scene').waitFor({state:'detached'});}};
+const close=async()=>{if(await page.locator('.import-document-sheet').count())await closeFull();if(await page.locator('.lc-import-modal').count()){await page.keyboard.press('Escape');await page.locator('.lc-import-modal').waitFor({state:'detached'});}};
 const open=async()=>{
  if(new URL(page.url()).pathname!=='/files'){await page.locator('.reading-breadcrumb .page-back').click();await page.locator('.approved-desk').waitFor();}
  if(await page.locator('.approved-tag-panel').count()){await page.keyboard.press('Escape');await page.locator('.approved-tag-panel').waitFor({state:'detached'});}
 };
-const showChooser=async()=>{await open();await page.locator('.home-import-action').click();await page.locator('.lc-import-modal--compact').waitFor();};
+const chooseFromDesk=async()=>{await open();await page.locator('.home-import-action').click();};
+const pickerCalls=()=>page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='plugin:dialog|open').length);
 const confirm=async()=>{const batch=page.locator('.import-card-batch-confirm');if(await batch.count())return batch.click();await page.locator('.import-edge-label').click();await page.locator('.import-card-stage [data-choice][aria-pressed=true]').click();};
 async function contrast(locator,label){const value=await locator.evaluate(async node=>{
  // Measure the requested interaction state after its finite color transition.
@@ -60,12 +62,6 @@ try{
    window.__TAURI_INTERNALS__.invoke=async(command,args={})=>{
     if(command==='plugin:event|listen'){const id=++next;listeners.set(id,args);return id;}
     if(command==='plugin:event|unlisten'){listeners.delete(args.eventId);return;}
-    if(command==='plugin:clipboard-manager|read_text'){
-     window.__uiCalls.push({command,args:{}});
-     if(window.__clipboardHold)await new Promise(done=>window.__releaseClipboard=done);
-     if(window.__clipboardFail)throw Error('clipboard unavailable');
-     return window.__clipboardText??null;
-    }
     if(['plugin:fs|read_text_file','plugin:fs|read'].includes(command)&&window.__holdRead){await new Promise(done=>window.__releaseRead=done);}
     if(command==='cancel_import_translation'){window.__uiCalls.push({command,args:structuredClone(args)});return;}
     if(command==='translate_import_sentences'){
@@ -80,21 +76,15 @@ try{
    };
   });
   await page.goto(`${url}/files`);await page.locator('.approved-desk').waitFor();
-  await showChooser();
-  await page.getByRole('button',{name:'选择文件',exact:true}).click();
-  await page.getByRole('button',{name:'选择文件',exact:true}).waitFor();
-  eq(await page.locator('#root').evaluate(n=>n.inert),true,'cancelled picker returns to the source chooser');
-  eq(await page.locator('.lc-import-sources button').count(),2,'files and clipboard share one source chooser');
-  const chooseFiles=page.locator('.lc-import-sources').getByRole('button',{name:'选择文件',exact:true});
-  const readClipboard=page.locator('.lc-import-sources').getByRole('button',{name:'读取剪贴板',exact:true});
-  await contrast(chooseFiles,theme+' choose files');
-  await readClipboard.hover();await contrast(readClipboard,theme+' clipboard hover');
-  await chooseFiles.focus();await page.keyboard.press('Tab');
-  ok(await readClipboard.evaluate(button=>document.activeElement===button&&button.matches(':focus-visible')),'keyboard reaches clipboard with visible focus');
-  await page.screenshot({path:`${output}/${theme}-import-chooser.png`});
-
+  const callsBefore=await pickerCalls();
+  await chooseFromDesk();
+  eq(await pickerCalls(),callsBefore+1,'one click opens the system picker directly');
+  eq(await page.locator('#root').evaluate(n=>n.inert),false,'cancelling the picker leaves the desk interactive');
+  eq(await page.locator('.lc-import-modal').count(),0,'direct picker has no source dialog');
+  ok(await page.locator('.home-import-action').evaluate(node=>node===document.activeElement),'cancelled picker returns focus');
+  await page.evaluate(text=>window.__uiFiles={'/fixture/真实英语.srt':text},flight);
+  await chooseFromDesk();await preview();await settle();
   eq(await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='plugin:clipboard-manager|read_text').length),0,'file entry never reads clipboard');
-  await page.evaluate(text=>window.__uiFiles={'/fixture/真实英语.srt':text},flight);await page.getByRole('button',{name:'选择文件',exact:true}).click();await preview();await settle();
   eq(await page.locator('#root').evaluate(n=>n.inert),true,'prepared-content modal owns focus');eq(await page.locator('.context-panel').count(),0,'import does not use context panel');eq(await page.locator('.b-shell').getAttribute('data-context-open'),'false','import never shifts reading workspace');
   await page.locator('.import-edge-label').focus();await page.keyboard.press('Tab');ok(await page.locator('.lc-import-modal').evaluate(n=>n.contains(document.activeElement)),'prepared-content dialog retains keyboard ownership');
   eq((await writes()).length,0,'native picker boundary has zero writes before confirmation');eq((await call('test_counts')).files,0,'no material before confirmation');
@@ -121,7 +111,7 @@ try{
   eq(newMaterial.tags.map(tag=>tag.name),['Coast notes'],'committed tag is attached to the imported material');
   eq(await page.getByRole('button',{name:'新建标签',exact:true}).count(),0,'the normal desk has no create tag button');
   await page.evaluate(async () => { await document.fonts.ready; await Promise.all(document.getAnimations().filter(a => a.effect?.getComputedTiming().iterations !== Infinity).map(a => a.finished.catch(() => {}))); });
-  await page.locator('.approved-card[data-desk-active=true] .approved-card-open').click();await page.locator('.reading-word').first().waitFor();const readingBounds=await page.locator('.reading-original').first().boundingBox();eq(await page.locator('.reading-page').getByRole('button',{name:'导入',exact:true}).count(),0,'reading content has no import button');await page.evaluate(async()=>{window.dispatchEvent(new CustomEvent('lexicue-import-content',{detail:null}));const {useImportStore}=await window.__uiStoreModule('importStore');useImportStore.getState().show();});await settle();eq(await page.locator('.reading-original').first().boundingBox(),readingBounds,'reader dimensions unchanged while manual clipboard recovery is open');await close();
+  await page.locator('.approved-card[data-desk-active=true] .approved-card-open').click();await page.locator('.reading-word').first().waitFor();const readingBounds=await page.locator('.reading-original').first().boundingBox();eq(await page.locator('.reading-page').getByRole('button',{name:'导入',exact:true}).count(),0,'reading content has no import button');await page.evaluate(async()=>{const {useImportStore}=await window.__uiStoreModule('importStore');void useImportStore.getState().start([{name:'slow.srt',read:()=>new Promise(()=>{})}]);});await settle();eq(await page.locator('.reading-original').first().boundingBox(),readingBounds,'reader dimensions unchanged while preparing files');await close();
   await drop([['duplicate.srt',flight],['empty.srt',''],['second.srt',srt('A second material is ready.','第二份材料已经准备好了。')]]);await preview();
   eq((await writes()).length,1,'browser drop prepares without writing');eq((await call('test_counts')).files,1,'browser drop does not mutate database');
   await page.locator('.import-card-pager button').last().click();ok((await page.locator('.approved-import-preview').innerText()).includes('A second material is ready.'),'each valid file has its own real preview');
@@ -137,8 +127,25 @@ try{
   await add();await tagName.fill('Discarded tag');await tagName.press('Escape');await close();
   eq((await call('list_tags')).map(tag=>tag.name),['Coast notes'],'closing discards an uncommitted tag');
 
-  // Closing a slow read cancels promptly, even when the OS finishes later.
-  await page.evaluate(text=>{window.__holdRead=true;window.__uiFiles={'/fixture/slow.srt':text};window.__nativeDrop(['/fixture/slow.srt']);},srt('This late file must never be saved.'));await page.locator('.lc-import-loading-copy').waitFor();await close();
+  // The loading card owns a real hold and release. Outside the bin reads continue.
+  await page.evaluate(text=>{window.__holdRead=true;window.__uiFiles={'/fixture/slow.srt':text};window.__nativeDrop(['/fixture/slow.srt']);},srt('This late file must never be saved.'));
+  const preparation=page.locator('.lc-import-preparing');
+  const grip=preparation.locator('.lc-import-paper-grip'),trash=page.locator('.trash-drop-target');
+  await grip.waitFor();await settle();
+  eq(await preparation.evaluate(n=>getComputedStyle(n).backgroundColor),'rgba(0, 0, 0, 0)','preparation has no enclosing panel surface');
+  ok(await page.locator('.lc-import-preparing-layer .overlay-scrim').evaluate(n=>getComputedStyle(n).backdropFilter.includes('blur')),'the desk behind the preparation card is blurred');
+  eq(await preparation.locator('button').count(),1,'the paper is the sole interactive control while loading');
+  await page.screenshot({path:`${output}/${theme}-preparation.png`});
+  const gripCenter=await center(grip);
+  await page.mouse.move(gripCenter.x,gripCenter.y);await page.mouse.down();await trash.waitFor();
+  await page.mouse.move(gripCenter.x+95,gripCenter.y+45,{steps:6});await page.mouse.up();
+  await trash.waitFor({state:'detached'});
+  ok(await grip.isVisible(),'release outside the bin resumes preparation');
+  await page.mouse.move(gripCenter.x,gripCenter.y);await page.mouse.down();await trash.waitFor();
+  const trashCenter=await center(trash);
+  await page.mouse.move(trashCenter.x,trashCenter.y,{steps:11});
+  eq(await trash.getAttribute('data-open'),'true','the bin only opens at the drop target');
+  await page.mouse.up();await preparation.waitFor({state:'detached'});await trash.waitFor({state:'detached'});
   await drop([['new.srt',srt('A newer source owns the preview.')]]);await preview();await page.evaluate(()=>{window.__holdRead=false;window.__releaseRead();});await page.waitForTimeout(80);ok((await page.locator('.approved-import-preview').innerText()).includes('A newer source owns'),'late source cannot overwrite new one');await close();eq((await call('test_counts')).files,3,'cancelled and discarded previews do not write');
   // Exercise actual module Worker termination, not a mocked parser.
   const workerCancel=await page.evaluate(async content=>{
@@ -190,24 +197,6 @@ try{
   while(shown<95){await page.locator('.lc-document-preview').evaluate(n=>{n.scrollTop=n.scrollHeight;});await page.waitForFunction(count=>document.querySelectorAll('.lc-document-preview [data-block]').length>count,shown);shown=await page.locator('.lc-document-preview [data-block]').count();}
   ok((await page.locator('.lc-document-preview').innerText()).includes('paragraph 95'),'scroll reaches final original paragraph');
   await page.locator('.lc-document-preview').focus();ok(await page.locator('.lc-document-preview').evaluate(n=>n===document.activeElement),'preview retains keyboard access');await close();
-  await page.evaluate(()=>{window.__clipboardText='https://youtu.be/abcdefghijk';});
-  const clipBefore=await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='plugin:clipboard-manager|read_text').length);
-  await showChooser();await page.getByRole('button',{name:'读取剪贴板',exact:true}).evaluate(n=>{n.click();n.click();});
-  await page.getByText('请导入本地字幕或素材 ZIP 来学习这段视频。',{exact:true}).waitFor();
-  eq(await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='plugin:clipboard-manager|read_text').length),clipBefore+1,'double paste reads once');
-  eq(await page.evaluate(()=>window.__uiCalls.filter(c=>c.command.startsWith('youtube_')||c.command==='import_webpage').length),0,'video clipboard link does not make a retrieval request');
-  await close();
-  for(const [text,fail,message]of [['https://',false,'链接格式不完整，请修改或重新粘贴。'],[null,false,'未读到文字，请先复制英文或链接；图片或文件请使用选择文件。'],[null,true,'无法读取剪贴板，请在下方手动粘贴。']]){
-   await page.evaluate(({text,fail})=>{window.__clipboardText=text;window.__clipboardFail=fail;},{text,fail});
-   const before=await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='youtube_list_subs').length);
-   await showChooser();await page.getByRole('button',{name:'读取剪贴板',exact:true}).click();await page.getByText(message,{exact:true}).waitFor();
-   eq(await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='youtube_list_subs').length),before,'invalid or unavailable clipboard stays local');
-   eq(await page.locator('.clipboard-scene').count(),0,'clipboard errors stay in the chooser');ok(await page.locator('.lc-import-modal [role=alert]').isVisible(),'clipboard error appears beside the import controls');await close();
-  }
-  await page.evaluate(()=>{window.__clipboardFail=false;window.__clipboardHold=true;window.__clipboardText='https://youtu.be/abcdefghijk';});
-  await showChooser();await page.getByRole('button',{name:'读取剪贴板',exact:true}).click();await page.locator('.lc-import-sources [aria-busy=true]').waitFor();ok(await page.locator('.lc-import-sources [aria-busy=true]').isDisabled(),'pending clipboard action cannot be submitted twice');
-  await close();await page.evaluate(()=>{window.__clipboardHold=false;window.__releaseClipboard();});await page.waitForTimeout(70);
-  eq(await page.locator('.lc-import-modal').count(),0,'late clipboard result cannot replace a departed home entry');
   // Import finishes the entire translation before the frozen preview is ready.
   const translationRequestsBeforeLocal=await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='translate_import_sentences').length);
   await drop([['book.txt','Dr. Smith bought a book. She read it yesterday.']]);await preview();
@@ -272,14 +261,17 @@ try{
       await preview();
       eq((await draft()).content,expected.content,theme+' app Worker extracts '+name);
       if(name==='harbor-two-pages.pdf'){
-        await confirm();await landed();
+        await full();
+        eq(await page.locator('.import-document-sheet select').count(),0,'PDF full preview has no range controls');
+        ok((await page.locator('.lc-document-preview').innerText()).includes('well-known lighthouse'),'PDF full preview preserves the cross-page paragraph');
+        await closeFull();await confirm();await landed();
         const saved=await call('export_all');
         ok(saved.data.files.some(file=>file.content===expected.content),theme+' cross-page PDF body survives SQLite import');
       }
     }
     await close();
   }
-  await page.evaluate(()=>document.documentElement.style.fontSize='100%');await page.setViewportSize({width:1440,height:900});await close();await page.emulateMedia({reducedMotion:'reduce'});await showChooser();await page.getByRole('button',{name:'选择文件',exact:true}).click();await page.locator('.lc-import-modal--compact').waitFor();await close();
+  await page.evaluate(()=>document.documentElement.style.fontSize='100%');await page.setViewportSize({width:1440,height:900});await close();await page.emulateMedia({reducedMotion:'reduce'});await page.evaluate(()=>window.__uiFiles={});await chooseFromDesk();eq(await page.locator('.lc-import-modal').count(),0,'reduced motion keeps direct picker behavior');
   await page.evaluate(async()=>{const{useImportStore}=await window.__uiStoreModule('importStore');void useImportStore.getState().start([{name:'reduced.srt',read:()=>new Promise(done=>window.__reducedRead=done)}]);});await page.locator('.lc-import-paper-character').waitFor();eq(await page.locator('.lc-import-paper-character').evaluate(n=>getComputedStyle(n).animationName),'none','reduced motion paper');await close();await page.evaluate(()=>window.__reducedRead(''));await context.close();
  }
  // The native OS hands us file URLs on iOS and permission-bearing content
@@ -327,6 +319,31 @@ try{
   await page.keyboard.press('Escape');
   await page.locator('.import-material-card').getByText('morning-cues',{exact:true}).waitFor();
   eq((await draft()).content,bodies['morning-cues.srt'].content,platform+' queues the new file and opens it after the first draft');
+  await close();
+  const picksBefore=await pickerCalls();
+  await page.evaluate(()=>window.__uiFiles={});
+  await chooseFromDesk();
+  eq(await pickerCalls(),picksBefore+1,platform+' home plus opens the picker directly');
+  eq(await page.locator('.lc-import-modal').count(),0,platform+' cancelled picker leaves no app dialog');
+  const filesBefore=(await call('test_counts')).files;
+  await page.evaluate(async()=>{
+   const {useImportStore}=await window.__uiStoreModule('importStore');
+   void useImportStore.getState().start([{name:'held-reading.pdf',read:()=>new Promise(done=>window.__releaseMobileRead=done)}]);
+  });
+  await page.locator('.lc-import-paper-grip').waitFor();await settle();
+  const grip=await center(page.locator('.lc-import-paper-grip'));
+  const touch=await platformContext.newCDPSession(page);
+  const dispatch=(type,point)=>touch.send('Input.dispatchTouchEvent',{type,touchPoints:point?[{...point,id:1}]:[]});
+  await dispatch('touchStart',grip);
+  const bin=page.locator('.trash-drop-target');await bin.waitFor();
+  const end=await center(bin);
+  await dispatch('touchMove',{x:grip.x,y:grip.y+50});await dispatch('touchMove',end);
+  eq(await bin.getAttribute('data-open'),'true',platform+' touch drag reaches the physical target region');
+  await page.screenshot({path:`${output}/${platform}-touch-cancel.png`});
+  await dispatch('touchEnd');await page.locator('.lc-import-preparing').waitFor({state:'detached'});await bin.waitFor({state:'detached'});
+  await page.evaluate(()=>window.__releaseMobileRead(new Uint8Array()));
+  eq((await call('test_counts')).files,filesBefore,platform+' canceled preparation emits no writes');
+  await touch.detach();
   await platformContext.close();
  }
  eq(errors,[],'no browser exceptions');await writeFile(`${output}/evidence.json`,JSON.stringify({checks,themes:['sage','midnight'],contrasts,errors,nativeBoundary:'simulated OS picker/drop/chunked FS IPC and translation-service responses; actual document/ZIP Workers, native video-to-audio conversion, Rust transactions, explicit reading translation writeback and temporary SQLite'},null,2));console.log(`Import UI: ${checks} checks passed. Evidence: ${output}`);

@@ -23,11 +23,9 @@ try{
   await h.call('remember_reading_position',{fileId:file.file_id,contentHash:material.content_hash,segment:110,back:false,legacy:false,parent:null});
   const context=await h.browser.newContext({viewport:{width,height:width===1360?880:812},hasTouch:width<768,userAgent:width<768?'Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.7 Mobile/15E148 Safari/604.1':'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140 Safari/537.36',isMobile:width<768});page=await context.newPage();await h.fixture(page,theme);
   await page.addInitScript(()=>{
-   window.isTauri=true;window.__TAURI_INTERNALS__.metadata={currentWindow:{label:'main'},currentWebview:{label:'main'}};const base=window.__TAURI_INTERNALS__.invoke;window.__clip=null;window.__toolsReady=false;
+   window.isTauri=true;window.__TAURI_INTERNALS__.metadata={currentWindow:{label:'main'},currentWebview:{label:'main'}};const base=window.__TAURI_INTERNALS__.invoke;window.__toolsReady=false;
    window.__TAURI_INTERNALS__.invoke=async(c,a)=>{
-    if(c==='plugin:clipboard-manager|read_text'){window.__uiCalls.push({command:c,args:a});if(window.__clipFail)throw Error('controlled clipboard denial');if(window.__clipNoText)throw window.__clipNoText;return window.__clip;}
     if(c==='delete_file_start'){window.__uiCalls.push({command:c,args:a});throw Error('controlled material deletion failure');}
-    if(c==='translate_import_sentences'&&window.__holdRecognition)await new Promise(done=>window.__releaseRecognition=done);
     return base(c,a);
    };
   });
@@ -52,35 +50,12 @@ try{
   await page.locator('.reading-breadcrumb .page-back').click();await page.locator('[data-motion-piece=shared-back]').waitFor();await frames(650);eq(await page.locator('[data-motion-piece=shared-back]').count(),1,'reverse exposure also uses one arrow');ok(await page.locator('.app-layout .approved-wall > header > button').evaluate(n=>getComputedStyle(n).visibility==='hidden'),'real wall arrow stays hidden during reverse');await finish();await settle();
   const touch=width<768?await context.newCDPSession(page):null;const drag=async(type,x,y)=>touch?touch.send('Input.dispatchTouchEvent',{type,touchPoints:type==='touchEnd'?[]:[{x,y,id:1}]}):type==='touchStart'?(await page.mouse.move(x,y),page.mouse.down()):type==='touchEnd'?page.mouse.up():page.mouse.move(x,y,{steps:3});const p=await poster.boundingBox(),start={x:p.x+p.width*.5,y:p.y+p.height*.5};await drag('touchStart',start.x,start.y);await page.locator('.trash-drop-target').waitFor();const bin=await page.locator('.trash-drop-target').boundingBox(),end={x:bin.x+bin.width/2,y:bin.y+bin.height*.4};const widths=[];for(const fraction of [.15,.5,1]){await drag('touchMove',start.x+(end.x-start.x)*fraction,start.y+(end.y-start.y)*fraction);widths.push((await page.locator('.trash-drag-ghost').boundingBox()).width);}ok(widths[0]>widths[1]&&widths[1]>widths[2],'card continuously shrinks as it approaches the bin');ok(bin.width<100,'trash basket is compact');await page.screenshot({path:`${out}/${theme}-${width}-trash-near.png`});await drag('touchEnd',end.x,end.y);await page.waitForFunction(()=>document.querySelector('.trash-drop-target')?.dataset.dropping==='true');await page.evaluate(()=>document.getAnimations().filter(a=>a.effect?.target.classList.contains('trash-drag-ghost')).forEach(a=>{a.pause();a.currentTime=160;}));const entering=await page.locator('.trash-drag-ghost').boundingBox();await page.evaluate(()=>document.getAnimations().filter(a=>a.effect?.target.classList.contains('trash-drag-ghost')).forEach(a=>a.currentTime=480));const sinking=await page.locator('.trash-drag-ghost').boundingBox();ok(sinking.width<entering.width,'confirmed deletion visibly sinks and shrinks');ok(await page.locator('.trash-drag-ghost').evaluate(n=>Number(getComputedStyle(n).opacity)<.7),'toss fades only after entering');await finish();await page.locator('.trash-drag-layer').waitFor({state:'detached'});await touch?.detach();ok(await poster.isVisible(),'failed native deletion restores the material');eq((await h.call('test_counts')).files,2,'failed deletion did not lose a material');
   const back=page.locator('.approved-wall > header > button');await back.hover();ok(await back.evaluate(n=>getComputedStyle(n).backgroundColor==='rgba(0, 0, 0, 0)'),'back hover has no accent surface');await back.click();await settle();await page.keyboard.press('Escape');await settle();
-  const chooser=page.locator('.lc-import-modal--compact');
-  const paste=()=>chooser.getByRole('button',{name:'读取剪贴板',exact:true}).click();
+  const pickerCalls=()=>page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='plugin:dialog|open').length);
+  const pickerBefore=await pickerCalls();
   await page.locator('.home-import-action').click();
-  await paste();
-  await chooser.getByRole('alert').filter({hasText:'未读到文字'}).waitFor();
-  eq(await page.locator('.clipboard-scene').count(),0,'empty clipboard keeps focus in the source chooser');
-  for(const message of ['The clipboard contents were not available in the requested format or the clipboard is empty.','Clipboard is empty']){
-    await page.evaluate(message=>window.__clipNoText=message,message);
-    await paste();
-    await chooser.getByRole('alert').filter({hasText:'未读到文字'}).waitFor();
-    await page.evaluate(()=>window.__clipNoText=null);
-  }
-  await page.evaluate(()=>{window.__clip='A quiet day is a good time to read. We waited beside the sea.';window.__holdRecognition=true;});
-  await paste();
-  await page.locator('.clipboard-recognition-art[data-running=true]').waitFor();
-  eq(await page.locator('.lc-import-modal').count(),0,'recognition replaces the source chooser');
-  ok(await page.locator('.clipboard-scene').evaluate(n=>{const r=n.getBoundingClientRect();return r.width>innerWidth*.8&&r.height>innerHeight*.8;}),'recognition owns the whole scene');
-  eq((await h.call('test_counts')).files,2,'recognition has no write capability');
-  await page.waitForFunction(()=>typeof window.__releaseRecognition==='function');
-  await page.evaluate(()=>{window.__holdRecognition=false;window.__releaseRecognition();});
-  await page.locator('.clipboard-scene .approved-import-preview').waitFor();
-  eq((await h.call('test_counts')).files,2,'preview still waits for explicit import choice');
-  await page.keyboard.press('Escape');
-  await page.locator('.clipboard-scene').waitFor({state:'detached'});
-  await page.locator('.home-import-action').click();
-  await chooser.getByRole('button',{name:'选择文件',exact:true}).click();
-  await chooser.waitFor();
-  await page.keyboard.press('Escape');
-  await chooser.waitFor({state:'detached'});
+  eq(await pickerCalls(),pickerBefore+1,'home plus opens the system picker directly');
+  eq(await page.locator('.lc-import-modal').count(),0,'cancelled system picker leaves no import overlay');
+  eq((await h.call('test_counts')).files,2,'cancelling the picker makes no writes');
   await page.locator('.home-settings-action').click();await page.locator('.approved-interface-language legend svg').waitFor();const langX=await page.locator('.approved-interface-language legend svg').evaluate(n=>n.getBoundingClientRect().x);await page.locator('.approved-settings-tabs button').last().click();const version=page.locator('.settings-facts dt');eq(await version.locator('svg').count(),1,'current version has a stable icon slot');const versionX=await version.locator('svg').evaluate(n=>n.getBoundingClientRect().x);ok(Math.abs(langX-versionX)<1,'language and version icons share the same leading position');
   eq(await page.locator('[data-entry=youtube], .youtube-download-settings').count(),0,'online subtitle settings have been removed');
   await page.screenshot({path:`${out}/${theme}-${width}-tools.png`});await context.close();console.log(`Refinement ${theme}/${width}: ${checks} assertions`);
@@ -91,5 +66,5 @@ try{
   await page.goto(demo.url+'?locale=zh&theme='+theme+'#/files');await page.locator('.approved-card[data-desk-active=true] .approved-card-open').waitFor();await page.locator('.mobile-startup').waitFor({state:'detached'});
   await cardGeometry(page.locator('.approved-card[data-desk-active=true]'));eq(await page.locator('.approved-card[data-desk-active=true] .approved-card-title').innerText(),'A quiet morning','first-use demo seeds a usable desk without awaiting a catalog before mounting');ok(await page.locator('.approved-tag-edit').first().isVisible(),'built demo uses the new caption hit region');await context.close();
  }
- eq(h.errors,[],'no page exceptions');await writeFile(out+'/evidence.json',JSON.stringify({passed:true,checks,anchorEvidence,scope:'Chromium desktop/touch-sized viewports, real Rust/SQLite. Clipboard, tool availability, and failed material deletion are controlled boundaries; phone/native installation separate. Built-demo startup uses its independent sample-data engine.'},null,2));console.log(`Approved refinement: ${checks} checks passed`);
+ eq(h.errors,[],'no page exceptions');await writeFile(out+'/evidence.json',JSON.stringify({passed:true,checks,anchorEvidence,scope:'Chromium desktop/touch-sized viewports, real Rust/SQLite. File picker, tool availability, and failed material deletion are controlled boundaries; phone/native installation separate. Built-demo startup uses its independent sample-data engine.'},null,2));console.log(`Approved refinement: ${checks} checks passed`);
 }catch(error){console.log('DEBUG',await page?.evaluate(()=>({wheel:window.__lastWheel,scroll:[...document.querySelectorAll('.reader-scroll')].map(n=>({rect:n.getBoundingClientRect().toJSON(),top:n.scrollTop,inert:n.inert,style:getComputedStyle(n).pointerEvents})),inert:[...document.querySelectorAll('[inert]')].map(n=>n.className)})).catch(()=>null));await page?.screenshot({path:out+'/failure.png'}).catch(()=>{});await writeFile(out+'/failure.txt',String(error)+'\n'+await page?.locator('body').innerText().catch(()=>''));throw error;}finally{await demo?.close();await h.dispose();}
