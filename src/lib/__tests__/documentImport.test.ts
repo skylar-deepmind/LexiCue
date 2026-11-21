@@ -37,6 +37,10 @@ describe('local document extraction contracts',()=>{
    expect(result.content).toContain('window.evil');expect(result.segments.some(s=>s.en_text.includes('window.evil'))).toBe(false);
    expect(result.content).toContain('Key | Value');expect(result.content).not.toContain('steal');
  });
+ it('preserves meaningful line breaks in EPUB preformatted blocks',()=>{
+   const result=htmlDocumentBlocks('<p>We walked through\n a quiet market.</p><pre>first line\nsecond line</pre>','chapter','epub');
+   expect(result.blocks.map(block=>block.text)).toEqual(['We walked through a quiet market.','first line\nsecond line']);
+ });
  it('keeps separate-time repeats and actual cue ids/times; parses NOTE/STYLE/REGION',async()=>{
    const input='WEBVTT\n\nNOTE ignore this\n\nSTYLE\n::cue {color: red}\n\nREGION\nid:fred\n\nintro\n00:00.000 --> 00:02.000\n<v Alice>Hello &amp; welcome.\n你好。\n\nagain\n00:03.000 --> 00:05.000\nHello &amp; welcome.';
    const result=await buildDocument(vttDocument(input),'vtt','sample.vtt',hash);

@@ -73,7 +73,7 @@ export function htmlDocumentBlocks(html: string, sectionId: string, mode: 'epub'
       }
       return;
     }
-    if (tag === 'pre') { add('code', visibleText(node)); return; }
+    if (tag === 'pre') { add('code', nodeText(node)); return; }
     if (/^h[1-6]$/.test(tag)) {
       let text = visibleText(node);
       if (!text.trim()) {
