@@ -309,6 +309,7 @@ try{
     return base(command,args);
    };
    if(!ios)window.LexiCueSystemUi={
+    setDarkTheme(){},
     takeOpenedDocuments:()=>JSON.stringify(take()),
     documentDisplayName:uri=>names[paths.indexOf(uri)],
    };

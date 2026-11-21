@@ -45,6 +45,7 @@ async function fixture(page,theme){
    }
    if(command==='dictionary_init_status')return {runId:1,sequence:1,state:'ready',currentSource:null,sources:[{name:'ECDICT',language:'en',state:'ready',processedRows:1,error:null},{name:'PhraseDict',language:'en',state:'ready',processedRows:1,error:null}]};
    if(command==='plugin:event|listen')return 1;
+   if(command==='take_opened_documents')return [];
    if(command==='plugin:app|version')return '0.4.5';
    if(command==='plugin:dialog|open')return Object.keys(window.__uiFiles);
    if(command==='plugin:dialog|ask')return true;
