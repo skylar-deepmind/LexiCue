@@ -12,11 +12,10 @@ try{
   await page.goto(h.url+'/files');await page.locator('.approved-desk').waitFor();eq(await page.locator('.b-dock,.workspace-header,.mobile-nav').count(),0,'retired navigation components are not mounted');await page.evaluate(async()=>{const {useMaterialStore:m}=await window.__uiStoreModule('materialStore');await m.getState().load();const{useReadingDeskStore:d}=await window.__uiStoreModule('readingDeskStore');m.getState().files.slice(0,3).reverse().forEach(f=>d.getState().keepAndOpen(f));});
   const open=page.locator('.approved-card[data-desk-active=true] .approved-card-open');await open.waitFor();await page.locator('.approved-card[data-desk-active=true] img').evaluate(n=>n.decode());
   await page.locator('.home-import-action').click();
-  await page.getByRole('button',{name:'选择文件',exact:true}).click();
   eq(await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='plugin:dialog|open').length),1,'file action opens the picker once');
-  await page.keyboard.press('Escape');
-  await page.locator('.lc-import-modal').waitFor({state:'detached'});
-  ok(await page.locator('.home-import-action').evaluate(button=>document.activeElement===button),'closing the chooser returns focus to the import button');
+  eq(await page.locator('.lc-import-modal').count(),0,'cancelling the native picker leaves no app dialog');
+  await page.waitForFunction(()=>document.activeElement?.matches('.home-import-action'));
+  ok(await page.locator('.home-import-action').evaluate(button=>document.activeElement===button),'cancelling the native picker returns focus to Import');
   await page.evaluate(()=>window.__holdReader=true);const source=await page.locator('.approved-card[data-desk-active=true] img').boundingBox();await open.click();await page.waitForFunction(()=>typeof window.__releaseReader==='function');
   ok(await page.locator('.approved-reading-hold').isVisible(),'source frame remains painted while native reading load is delayed');const held=await page.locator('.approved-reading-hold [data-desk-active=true] img').boundingBox();ok(Math.abs(held.x-source.x)<1&&Math.abs(held.y-source.y)<1,'held frame has exactly the original cover geometry');
   await page.evaluate(()=>{window.__holdReader=false;window.__releaseReader();});await page.locator('.approved-handoff').waitFor();await page.evaluate(()=>document.getAnimations().filter(a=>a.effect?.getTiming().duration===580).forEach(a=>{a.pause();a.currentTime=0;}));
