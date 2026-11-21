@@ -54,6 +54,7 @@ try {
       }, sentence + '\n\nThere is still time to listen.');
       await page.waitForTimeout(record ? 1000 : 250);
       await page.locator('[data-guide=import]').click();
+      await page.getByRole('button', { name: '读取剪贴板', exact: true }).click();
       const preview = page.locator('.import-card-stage');
       await preview.locator('[data-ready=true]').waitFor();
       await page.screenshot({ path: output + '/' + theme + '-1.png' });
@@ -118,6 +119,7 @@ try {
           }),
         );
         await page.locator('[data-guide=import]').click();
+        await page.getByRole('button', { name: '读取剪贴板', exact: true }).click();
         await preview.locator('[data-ready=true]').waitFor();
         const touch = width < 700 ? await context.newCDPSession(page) : null;
         const pointer = async (type, point) => {
