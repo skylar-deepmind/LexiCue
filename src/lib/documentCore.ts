@@ -3,9 +3,9 @@ import { clearlyNonEnglish, readableEnglishSegment } from './englishScope';
 import { DOCUMENT_LIMITS, type DocumentBlock, type DocumentFormat, type DocumentLocation, type DocumentSection, type DocumentSelection, type DocumentSource, type ExtractedDocument } from './documentTypes';
 import type { SegmentInput } from './types';
 
-export interface RawDocumentBlock { kind: DocumentBlock['kind']; text: string; section_id: string; locations: DocumentLocation[]; cueTexts?: string[] }
+export interface RawDocumentBlock { kind: DocumentBlock['kind']; text: string; section_id: string; locations: DocumentLocation[]; cueTexts?: string[]; continuesPreviousPage?: boolean }
 export interface RawDocument { sections: DocumentSection[]; blocks: RawDocumentBlock[]; warnings: string[]; partial?: boolean }
-export const DOCUMENT_EXTRACTOR_VERSION = 'lexicue-documents/1.1.0';
+export const DOCUMENT_EXTRACTOR_VERSION = 'lexicue-documents/1.2.0';
 export async function documentDigest(bytes: Uint8Array): Promise<string> {
   const copy = new Uint8Array(bytes);
   return [...new Uint8Array(await crypto.subtle.digest('SHA-256', copy))].map(v => v.toString(16).padStart(2, '0')).join('');
@@ -80,13 +80,41 @@ function sentences(block: RawDocumentBlock, index: number): SegmentInput[] {
     };
   });
 }
+/** Join a visually wrapped PDF line, preserving explicit non-breaking hyphens and common compounds. */
+export function joinPdfLines(before: string, after: string): string {
+  if (before.endsWith('\u00ad')) return before.slice(0, -1) + after;
+  if (/[‐‑]$/.test(before)) return before + after;
+  if (/[A-Za-z]{3,}-$/.test(before) && /^[a-z]{2,}/.test(after)) {
+    const compound = /\b(?:self|well|long|short|high|low|part|full|first|second|cross|all|half|small|large|state-of-the)-$/i.test(before);
+    return (compound ? before : before.slice(0, -1)) + after;
+  }
+  return before + ' ' + after;
+}
+
+function joinedPdfBlocks(blocks: RawDocumentBlock[]) {
+  const joined: RawDocumentBlock[] = [];
+  for (const block of blocks) {
+    const previous = joined.at(-1);
+    if (block.continuesPreviousPage && previous && previous.locations.length < 32 &&
+        previous.locations.at(-1)?.page === (block.locations[0].page ?? 0) - 1) {
+      joined[joined.length - 1] = {
+        ...previous,
+        text: joinPdfLines(previous.text, block.text),
+        locations: [...previous.locations, ...block.locations],
+      };
+    } else joined.push(block);
+  }
+  return joined;
+}
+
 export async function buildDocument(raw: RawDocument, format: DocumentFormat, name: string, sourceHash: string, selection: DocumentSelection = { kind: 'all' }): Promise<ExtractedDocument> {
   if (raw.blocks.length > DOCUMENT_LIMITS.blocks) throw new Error('material_too_large');
   const blocks: DocumentBlock[] = [], segments: SegmentInput[] = [];
   const warnings = [...raw.warnings];
   let partial = !!raw.partial;
   let content = '';
-  for (const item of raw.blocks) {
+  const pdfPageBlocks = format === 'pdf' && raw.blocks.some(block => block.continuesPreviousPage) ? raw.blocks : undefined;
+  for (const item of pdfPageBlocks ? joinedPdfBlocks(pdfPageBlocks) : raw.blocks) {
     // Strip embedded NUL bytes before persisting extracted text.
     // oxlint-disable-next-line no-control-regex
     const text = item.text.replace(/\u0000/g, '').trim();
@@ -118,7 +146,7 @@ export async function buildDocument(raw: RawDocument, format: DocumentFormat, na
     offset_unit: 'utf16', extraction_status: partial ? 'partial' : 'complete', warnings: [...new Set(warnings)],
     sections: raw.sections, blocks, selection, identity,
   };
-  return { content, segments, document, normalized_kind: format === 'srt' || format === 'vtt' ? 'srt' : 'txt' };
+  return { content, segments, document, normalized_kind: format === 'srt' || format === 'vtt' ? 'srt' : 'txt', ...(pdfPageBlocks && {pdfPageBlocks}) };
 }
 export async function rangeFromDocument(full: ExtractedDocument, selection: DocumentSelection): Promise<ExtractedDocument> {
   const doc = full.document;
@@ -126,6 +154,36 @@ export async function rangeFromDocument(full: ExtractedDocument, selection: Docu
   if (selection.kind === 'chapters' && (doc.original_format !== 'epub' || !selection.section_ids.length || selection.section_ids.some(id => !doc.sections.some(s => s.id === id)))) throw new Error('material_invalid_range');
   const keep = new Set(doc.sections.filter(section => selection.kind === 'all' || selection.kind === 'pages' && section.page !== undefined && section.page >= selection.start && section.page <= selection.end || selection.kind === 'chapters' && selection.section_ids.includes(section.id)).map(s => s.id));
   const canonical: DocumentSelection = keep.size === doc.sections.length ? { kind: 'all' } : selection.kind === 'chapters' ? { kind: 'chapters', section_ids: doc.sections.filter(s => keep.has(s.id)).map(s => s.id) } : selection.kind === 'pages' ? { kind: 'pages', start: selection.start, end: selection.end } : { kind: 'all' };
+  if (canonical.kind === 'all') return full;
+  if (full.pdfPageBlocks) {
+    const selected = await buildDocument({
+      sections: doc.sections.filter(section => keep.has(section.id)),
+      blocks: full.pdfPageBlocks.filter(block => keep.has(block.section_id)),
+      warnings: doc.warnings,
+      partial: doc.extraction_status === 'partial',
+    }, doc.original_format, doc.display_name, doc.source_sha256, canonical);
+    const translated = new Map<string, Map<string, string>>();
+    for (const block of doc.blocks) {
+      const translations = new Map<string, string>();
+      for (const index of block.segment_indices) {
+        const segment = full.segments[index];
+        if (segment?.zh_text) translations.set(segment.en_text, segment.zh_text);
+      }
+      for (const location of block.locations) translated.set(`${location.page}:${location.paragraph}`, translations);
+    }
+    // A clipped page may change only the sentence that straddled the page
+    // break. Reuse translations of the identical sentences in the same block.
+    for (const block of selected.document.blocks) {
+      const start = block.locations[0];
+      const translations = translated.get(`${start.page}:${start.paragraph}`);
+      for (const index of block.segment_indices) {
+        const segment = selected.segments[index];
+        segment.zh_text ??= translations?.get(segment.en_text) ?? null;
+      }
+    }
+    if (doc.cover) selected.document.cover = doc.cover;
+    return selected;
+  }
   const blocks: DocumentBlock[] = [], segments: SegmentInput[] = [];
   let content = '';
   let processed = 0;

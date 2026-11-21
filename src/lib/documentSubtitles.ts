@@ -8,6 +8,17 @@ function cleanCue(text: string): string {
   // Only known subtitle markup is removed; bracketed speech remains intact.
   return inertHtmlText(text.replace(/<(?:\d{2}:)?\d{2}:\d{2}\.\d{3}>/g, '')).trim();
 }
+function removeRollUpPrefix(text: string, previous: string): string {
+  const words = text.matchAll(/\S+/g);
+  let end = 0;
+  for (const word of previous.split(/\s+/)) {
+    const match = words.next().value;
+    if (!match || match[0] !== word) return text;
+    end = match.index + word.length;
+  }
+  // Identical dialogue at a distinct time is still a separate cue.
+  return end < text.length ? text.slice(end).trimStart() : text;
+}
 function cueDocument(cues: Cue[], warnings: string[], partial = false): RawDocument {
   const section_id = 'subtitles', blocks: RawDocumentBlock[] = [];
   const seen = new Set<string>();
@@ -22,11 +33,14 @@ function cueDocument(cues: Cue[], warnings: string[], partial = false): RawDocum
     const key = `${cue.start_ms}:${cue.end_ms}:${text}`;
     if (seen.has(key)) { warnings.push('已合并时间范围与文字完全相同的重复字幕。 / Exact duplicate cues at the same time were merged.'); continue; }
     seen.add(key);
-    if (previous && cue.start_ms < previous.end_ms && cue.start_ms >= previous.start_ms && cue.start_ms - previous.start_ms <= 10000 && text.startsWith(previous.text + ' ')) {
-      text = text.slice(previous.text.length).trim();
+    const visibleText = text;
+    if (previous && cue.start_ms < previous.end_ms && cue.start_ms >= previous.start_ms && cue.start_ms - previous.start_ms <= 10000) {
+      text = removeRollUpPrefix(text, previous.text);
+    }
+    if (text !== visibleText) {
       warnings.push('重叠的滚动字幕仅移除前一条已显示的完整前缀；其他时间的重复台词保留。 / Overlapping roll-up cues remove only an exact preceding prefix.');
     }
-    previous = { ...cue, text: cleanCue(cue.text) };
+    previous = { ...cue, text: visibleText };
     if (!text) continue;
     const english = text.split('\n').filter(line => /[A-Za-z]/.test(line)).join(' ').trim();
     const location = { section_id, paragraph: ++paragraph, cue_id: cue.id, start_ms: cue.start_ms, end_ms: cue.end_ms };
@@ -57,7 +71,7 @@ export function srtDocument(text: string): RawDocument {
     if (!match || !lines.some(line => line.trim())) throw new Error('material_invalid_srt');
     const start_ms = time(match[1], match[2], match[3], match[4]), end_ms = time(match[5], match[6], match[7], match[8]);
     if (!Number.isSafeInteger(start_ms) || !Number.isSafeInteger(end_ms) || start_ms >= end_ms) throw new Error('material_invalid_srt');
-    cues.push({ id, start_ms, end_ms, text: lines.join('\n') });
+    cues.push({ id, start_ms, end_ms, text: lines.join('\n').replace(/\{\\(?:an?[1-9]\d*|pos\([^{}\r\n]+\))\}/gi, '') });
   }
   return cueDocument(cues, []);
 }

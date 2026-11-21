@@ -1402,7 +1402,7 @@
     "path": "Current location",
     "import": "Import",
     "importRunning": "Import in progress — open status",
-    "drop": "Drop English text or subtitles",
+    "drop": "Drop files to import",
     "srtOnly": "PDF, DOCX, EPUB, MD, TXT, SRT, VTT, ZIP",
     "choose": "Choose files",
     "processing": "Processed {{done}} / {{total}} files",

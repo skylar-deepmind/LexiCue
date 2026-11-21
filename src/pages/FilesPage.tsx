@@ -17,17 +17,15 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
-import { ChevronLeft, ChevronRight, Settings } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Settings } from 'lucide-react';
 import { useMaterialStore } from '../stores/materialStore';
 import { useReadingDeskStore } from '../stores/readingDeskStore';
 import { useFileStore } from '../stores/fileStore';
 import { useImportStore } from '../stores/importStore';
-import { useFeedbackStore } from '../stores/feedbackStore';
+import { openImportFrom } from '../components/importFocus';
 import { matchesMaterial, readingPosition } from '../lib/readingDesk';
 import { materialCover } from '../lib/materialCover';
 import { visitState } from '../lib/pageNavigation';
-import { readImportClipboard } from '../lib/importLink';
-import { inspectClipboardContent } from '../lib/clipboardContent';
 import { backNavigation } from '../lib/backNavigation';
 import type { Material } from '../lib/materials';
 import type { SavedRecord } from '../lib/savedRecords';
@@ -38,7 +36,6 @@ import { useTheme } from '../components/useTheme';
 import MaterialCover from '../components/MaterialCover';
 import Overlay from '../components/Overlay';
 import { BusyRing } from '../components/LoadingFeedback';
-import { ClipboardImportIcon, FileImportIcon } from '../components/HomeActionIcons';
 import useTrashDrag, { isTrashDragging } from '../components/useTrashDrag';
 import PosterWall from '../components/PosterWall';
 import { cancelReadingReturn, captureReadingEntrance, finishReadingReturn, readingMotionExcerpt } from '../lib/readingMotion';
@@ -64,15 +61,13 @@ function MaterialDesk() {
   const [quotes, setQuotes] = useState<Record<string, string>>({});
   const savedRevision = useSavedReadRevision();
   const [pocket, setPocket] = useState<SavedRecord | null>(() => savedPocketCache.peek('latest') ?? null);
-  const [pasting, setPasting] = useState(false), [turning, setTurning] = useState(false);
+  const [turning, setTurning] = useState(false);
   const [groups, setGroups] = useState(params.get('view') === 'library' && !params.has('tag'));
   const [wallEntrance, setWallEntrance] = useState<PosterEntrance | null>(null);
   const home = useRef<HTMLDivElement>(null);
   const card = useRef<HTMLDivElement>(null), libraryButton = useRef<HTMLButtonElement>(null);
   const gesture = useRef<{ x: number; y: number; locked: boolean } | null>(null), suppress = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const pasteIntent=useRef(0),pastePending=useRef(false),alive=useRef(true);
-  useEffect(()=>{alive.current=true;return()=>{alive.current=false;pasteIntent.current++;};},[]);
   useEffect(() => { if(params.get('view')==='manage')setParams({view:'library'},{replace:true}); },[params,setParams]);
   useEffect(() => { void useMaterialStore.getState().ensure(); void loadTags(); }, [catalog.revision, loadTags]);
   useEffect(() => {
@@ -131,21 +126,6 @@ function MaterialDesk() {
     captureReadingEntrance(file, node, origin);
     navigate(`/files/${file.id}`, { state: { ...visitState(location), readingOrigin: origin === 'wall' ? 'library' : 'desk', readingMotion: true } });
   };
-  const paste = async () => {
-    if (pastePending.current) return;
-    if (useImportStore.getState().running) { useImportStore.getState().show(); return; }
-    const intent=++pasteIntent.current;pastePending.current=true;setPasting(true);
-    try {
-      const text = await readImportClipboard();
-      if(!alive.current||intent!==pasteIntent.current)return;
-      const content = inspectClipboardContent(text);
-      if (content.kind === 'error') { useFeedbackStore.getState().show(t(content.error==='clipboardEmpty'?'approved.clipboardEmpty':`materials.importDialog.${content.error}`),'error',4500,undefined,'top');return; }
-      await useImportStore.getState().fromContent(content.kind==='text'?'clipboard':'webpage',content.kind==='text'?content.text:content.url,true);
-    } catch {
-      if(!alive.current||intent!==pasteIntent.current)return;
-      useFeedbackStore.getState().show(t('approved.clipboardUnavailable'),'error',6000,undefined,'top');
-    } finally { if(alive.current&&intent===pasteIntent.current){pastePending.current=false;setPasting(false);} }
-  };
   useLayoutEffect(() => {
     const desk = home.current;
     if (!desk || !isIOSPlatform()) return;
@@ -202,8 +182,11 @@ function MaterialDesk() {
     {wallTag !== null ? <PosterWall key={wallTag} files={wallFiles} title={tagName} identity={wallTag} entrance={wallEntrance?.tag === wallTag ? wallEntrance : null} onBack={returnToTags} onOpen={(file, node) => open(file, node, 'wall')}/> : <>
       <header className="approved-home-header">
         <button className="approved-brand" aria-label={t(theme === 'midnight' ? 'approved.light' : 'approved.dark')} aria-pressed={theme === 'midnight'} onClick={() => setTheme(current => current === 'midnight' ? 'sage' : 'midnight')}><span className="approved-wordmark" aria-hidden="true"/></button>
-        <div><button data-guide="import" className="approved-icon clipboard-import" aria-label={t(importing ? 'materials.importRunning' : 'materials.importDialog.pasteLink')} aria-busy={pasting || importing} disabled={pasting} onClick={() => void paste()}>{pasting || importing ? <BusyRing/> : <ClipboardImportIcon/>}</button>
-          <button className="approved-icon home-file-picker import-tray" aria-label={t('materials.choose')} aria-busy={picking || importing} disabled={picking || importing || pasting} onClick={() => void useImportStore.getState().choose()}>{picking ? <BusyRing/> : <FileImportIcon/>}</button>
+        <div><button type="button" data-guide="import" className="approved-icon home-import-action"
+          aria-label={t(importing ? 'materials.importRunning' : 'materials.import')} aria-haspopup="dialog" aria-expanded={importOpen}
+          aria-busy={picking || importing} disabled={picking} onClick={event => openImportFrom(event.currentTarget)}>
+          {picking || importing ? <BusyRing/> : <Plus size={24} aria-hidden="true"/>}
+        </button>
           <button className="approved-icon home-settings-action" onPointerDown={settingsRoute.preload} onFocus={settingsRoute.preload} aria-label={t('sidebar.settings')} onClick={() => navigate('/settings', { state: visitState(location) })}><Settings size={23}/></button>
         </div>
       </header>

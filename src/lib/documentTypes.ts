@@ -1,4 +1,5 @@
 import type { SegmentInput } from './types';
+import type { RawDocumentBlock } from './documentCore';
 
 export type DocumentFormat = 'pdf' | 'docx' | 'epub' | 'md' | 'txt' | 'srt' | 'vtt' | 'clipboard' | 'webpage';
 export type DocumentSelection = { kind: 'all' } | { kind: 'pages'; start: number; end: number } | { kind: 'chapters'; section_ids: string[] };
@@ -41,7 +42,7 @@ export interface DocumentSource {
   /** SHA-256 of original bytes + format + canonical selection. Extractor version is separate. */
   identity: string;
 }
-export interface ExtractedDocument { content: string; segments: SegmentInput[]; document: DocumentSource; normalized_kind: 'txt' | 'srt' }
+export interface ExtractedDocument { content: string; segments: SegmentInput[]; document: DocumentSource; normalized_kind: 'txt' | 'srt'; pdfPageBlocks?: RawDocumentBlock[] }
 export const DOCUMENT_LIMITS = Object.freeze({ binaryBytes: 64 * 1024 * 1024, textBytes: 32 * 1024 * 1024, zipEntries: 10000, zipEntryBytes: 16 * 1024 * 1024, zipTotalBytes: 128 * 1024 * 1024, pdfPages: 2000, pdfPageItems: 100000, pdfTotalItems: 1000000, timeoutMs: 120000, blocks: 150000 });
 export function documentLocationLabel(location?: DocumentLocation): string {
   if (!location) return '';

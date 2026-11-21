@@ -27,7 +27,7 @@ const currentWrites=()=>page.evaluate(()=>window.__uiCalls.filter(call=>call.com
 async function openFile(name,content,failTranslation=false){
  await page.goto(`${h.url}/files`);await page.locator('.materials-paper').waitFor();
  await page.evaluate(({name,content,failTranslation})=>{window.__uiFiles={[`/fixture/${name}`]:content};window.__translationFail=failTranslation;},{name,content,failTranslation});
- await page.getByRole('button',{name:'导入',exact:true}).click();await page.getByRole('button',{name:'选择文件',exact:true}).click();
+ await page.getByRole('button',{name:'导入',exact:true}).click();
 }
 async function capture(name){await page.screenshot({path:`${output}/${name}.png`});}
 try{

@@ -1,22 +1,36 @@
+import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import DocumentPreview from './DocumentPreview';
-import { useImportStore, type ImportItem } from '../stores/importStore';
+import { useImportStore } from '../stores/importStore';
+import useTrashDrag from './useTrashDrag';
 
-/** One paper surface follows the real preparation state; motion never gates work. */
-export default function ImportPaper({ item, loading }: { item?: ImportItem; loading: boolean }) {
+export default function ImportPaper({ disabled }: { disabled: boolean }) {
     const { t } = useTranslation();
-    return <div className={`lc-import-paper-stage${loading ? ' is-loading' : ''}`}>
-        <div className={`lc-import-paper${loading ? ' lc-import-paper--small' : ''}`}>
-            {loading ? <div className="lc-import-paper-character" aria-hidden="true">
-                <div className="lc-import-paper-fold" /><div className="lc-import-paper-eyes"><i /><i /></div>
-                <span /><span /><span />
-            </div> : item?.draft && <article className="lc-import-preview" aria-label={t('materials.importDialog.preview')}>
-                <div className="lc-import-preview-meta"><span>{t('materials.importDialog.stats', { segments: item.draft.segments.length, words: item.draft.wordCount })}</span></div>
-                {item.draft.document?.origin ? <label className="lc-content-title">{t('materials.importDialog.materialTitle')}<input value={item.draft.name} maxLength={240} onChange={event => useImportStore.getState().renameDraft(item.id, event.target.value)} /></label> : <h3>{item.title ?? item.name}</h3>}
-                <p className="lc-import-preview-source">{item.draft.document?.origin?.kind === 'clipboard' ? t('materials.importDialog.clipboardText') : item.draft.document?.origin?.kind === 'webpage' ? item.draft.document.origin.final_url : t('materials.importDialog.localFile', { type: item.name.split('.').at(-1)?.toUpperCase() })}</p>
-                <DocumentPreview item={item} />
-            </article>}
-        </div>
-        {loading && <div className="lc-import-loading-copy" role="status"><strong>{t(item?.kind === 'webpage' && item.stage === 'reading' ? 'materials.importDialog.readingWebpage' : item?.kind === 'clipboard' && item.stage === 'reading' ? 'materials.stages.parsing' : `materials.stages.${item?.stage ?? 'queued'}`)}</strong><small>{item?.stage === 'translating' && item.translationProgress ? t('materials.importDialog.translationProgress', { ...item.translationProgress }) : ''}</small></div>}
+    const card = useRef<HTMLButtonElement>(null);
+    const openTrashTarget = useTrashDrag(card, {
+        id: 'import-preparation',
+        label: t('materials.importDialog.preparingTitle'),
+        disabled,
+        discardPreview: true,
+        showBinOnLift: true,
+        remove: async () => {
+            const state = useImportStore.getState();
+            if (!state.open || state.phase !== 'preparing') return false;
+            state.cancel();
+            return true;
+        },
+    });
+
+    return <div className="lc-import-paper-stage">
+        <button ref={card} type="button" className="lc-import-paper-grip" disabled={disabled}
+            aria-label={t('reader.discardImport')} onClick={openTrashTarget}>
+            <span className="lc-import-paper-character" aria-hidden="true">
+                <span className="lc-import-paper-fold" />
+                <span className="lc-import-paper-eyes"><i /><i /></span>
+                <span className="lc-import-paper-line" />
+                <span className="lc-import-paper-line" />
+                <span className="lc-import-paper-line" />
+            </span>
+        </button>
+        <p className="lc-import-loading-copy" role="status">{t('materials.importDialog.preparingTitle')}</p>
     </div>;
 }

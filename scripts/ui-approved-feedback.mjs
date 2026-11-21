@@ -19,13 +19,13 @@ try{
   const context=await h.browser.newContext({viewport:{width,height:width===1360?880:844},isMobile:width<768,hasTouch:width<768});page=await context.newPage();await h.fixture(page,theme);await page.routeWebSocket('**',s=>s.close());await page.goto(h.url);await page.locator('.approved-desk').waitFor();await page.locator('.mobile-startup').waitFor({state:'detached'});
   eq(await page.locator('.app-guide').count(),0,'fresh users see no guide');
   await page.evaluate(async()=>{const {useMaterialStore:m}=await window.__uiStoreModule('materialStore');await m.getState().load();const {useReadingDeskStore:d}=await window.__uiStoreModule('readingDeskStore');for(const file of m.getState().files.slice().reverse())d.getState().keepAndOpen(file);});await page.locator('.approved-card[data-desk-active=true]').waitFor();await page.evaluate(()=>document.fonts.ready);
-  eq(await page.locator('.approved-home-header > div button:visible').count(),3,'clipboard, file and settings are independent visible actions');
+  eq(await page.locator('.approved-home-header > div button:visible').count(),2,'one import button alongside settings');
   const centers=await page.evaluate(()=>{
     const center=nodes=>{const r=nodes.map(n=>n.getBoundingClientRect());return (Math.min(...r.map(r=>r.top))+Math.max(...r.map(r=>r.bottom)))/2;};
     return [center([...document.querySelectorAll('.approved-stock img')]),center([...document.querySelector('.approved-word-pocket').children])];
   });ok(Math.abs(centers[0]-centers[1])<2,'painted bottom entrance centers align');
   await page.locator('.approved-library-entry').hover();ok(await page.locator('.approved-library-entry').evaluate(n=>{const s=getComputedStyle(n);return s.backgroundColor==='rgba(0, 0, 0, 0)'&&s.boxShadow==='none'&&parseFloat(s.borderTopWidth)===0;}),'library hover never paints a placeholder rectangle');
-  for(const selector of ['.clipboard-import','.import-tray','.home-settings-action']){await page.locator(selector).hover();if(width===1360)ok(await page.locator(selector).evaluate(n=>n.getAnimations({subtree:true}).length>0),'header icon has an illustrative hover animation');}
+  for(const selector of ['.home-settings-action']){await page.locator(selector).hover();if(width===1360)ok(await page.locator(selector).evaluate(n=>n.getAnimations({subtree:true}).length>0),'header icon has an illustrative hover animation');}
   const backRect = async selector => {
     const { x, y, width, height } = await page.locator(selector).boundingBox();
     return [x, y, width, height].map(Math.round);

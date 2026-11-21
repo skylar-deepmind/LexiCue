@@ -16,6 +16,16 @@ for (const [source, destination] of [
   mkdirSync(dirname(target), { recursive: true });
   copyFileSync(join(root, 'src-tauri/android-template', source), target);
 }
+// The Tauri project is generated per checkout. Keep the association in the
+// template and refresh only that marked block to preserve local build settings.
+const manifestPath = join(project, 'app/src/main/AndroidManifest.xml');
+const openFilter = readFileSync(join(root, 'src-tauri/android-template/document-intent.xml'), 'utf8').trimEnd();
+const manifest = readFileSync(manifestPath, 'utf8')
+  .replace(/^ +<!-- LexiCue document import -->[\s\S]*?<!-- End LexiCue document import -->\r?\n/m, '');
+const mainActivity = /(<activity\b(?=[^>]*\bandroid:name="(?:\.MainActivity|com\.lexicue\.app\.MainActivity)")[^>]*>[\s\S]*?)(^[ \t]*<\/activity>)/m;
+if (!mainActivity.test(manifest)) throw new Error('Cannot find the Android main activity');
+writeFileSync(manifestPath, manifest.replace(mainActivity, (_, body, end) => body + openFilter + '\n' + end));
+
 const icons = join(root, 'src-tauri/icons/android');
 const resources = join(project, 'app/src/main/res');
 cpSync(icons, resources, { recursive: true });

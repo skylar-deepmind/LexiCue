@@ -14,11 +14,22 @@ pub mod lan_sync;
 
 use db::{init_db, DbState, DictionaryStatus};
 use std::sync::{Arc, Mutex};
+#[cfg(target_os = "ios")]
+use tauri::Emitter;
 use tauri::Manager;
+
+#[derive(Default)]
+struct OpenedDocuments(Mutex<Vec<String>>);
+
+#[tauri::command]
+fn take_opened_documents(state: tauri::State<'_, OpenedDocuments>) -> Vec<String> {
+    std::mem::take(&mut *state.0.lock().unwrap())
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .manage(OpenedDocuments::default())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_process::init())
@@ -175,6 +186,7 @@ pub fn run() {
         .manage(commands::example::ExampleState::default())
         .manage(commands::webpage::WebpageState::default())
         .invoke_handler(tauri::generate_handler![
+            take_opened_documents,
             device_sync::device_sync,
             device_sync::restore_device_merge_backup,
             commands::tts::prepare_audio_playback,
@@ -352,6 +364,19 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error building tauri application")
         .run(|handle, event| {
+            #[cfg(target_os = "ios")]
+            if let tauri::RunEvent::Opened { ref urls } = event {
+                let state = handle.state::<OpenedDocuments>();
+                let mut pending = state.0.lock().unwrap();
+                for url in urls.iter().filter(|url| url.scheme() == "file") {
+                    if !pending.iter().any(|path| path == url.as_str()) {
+                        pending.push(url.to_string());
+                    }
+                }
+                drop(pending);
+                let _ = handle.emit_to("main", "lexicue-open-documents", ());
+            }
+
             #[cfg(target_os = "macos")]
             if matches!(
                 event,

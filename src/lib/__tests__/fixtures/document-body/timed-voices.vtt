@@ -1,0 +1,14 @@
+WEBVTT
+
+NOTE Internal review only.
+
+STYLE
+::cue { color: white; }
+
+opening
+00:00:01.000 --> 00:00:02.500 align:start
+<v Lena>The first train arrived.</v>
+
+answer
+00:00:03.000 --> 00:00:05.000
+<v Jules>We carried the cases aboard.</v>

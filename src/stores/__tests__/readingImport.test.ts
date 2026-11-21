@@ -18,7 +18,7 @@ const receipt = { file_id: 1, outcome: 'created' as const, readable: true };
 const update = (items: ImportItem[]) => (id: string, patch: Partial<ImportItem>) => Object.assign(items.find(item => item.id === id)!, patch);
 function deferred<T>() { let resolve!: (value: T) => void; let reject!: (error: unknown) => void; const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; }
 beforeEach(() => {
-    store().changeSource(); store().hide(); vi.clearAllMocks();
+    store().hide(); vi.clearAllMocks();
     vi.stubGlobal('navigator', { userAgent: 'test' });
     mocks.parse.mockImplementation(async (text, _, name) => name?.endsWith('.txt') ? parseEnglishText(text) : parseEnglishSrt(text));
     mocks.translate.mockImplementation(async segments => ({ segments: segments.map((row: {zh_text: string|null; index: number}) => ({...row, zh_text: row.zh_text || `译文 ${row.index}`})), failed: false }));
@@ -156,7 +156,7 @@ describe('preview and transaction boundaries', () => {
     });
     it('does not let drops or source changes replace a committing batch', async () => {
         await store().start([item('locked')]); const pending = deferred<typeof receipt>(); mocks.invoke.mockReturnValueOnce(pending.promise);
-        const committing = store().confirm(); await store().start([item('drop')]); store().changeSource('file');
+        const committing = store().confirm(); await store().start([item('drop')]); await store().choose();
         expect(store().items[0].name).toBe('locked.srt'); pending.resolve(receipt); await committing;
     });
 });

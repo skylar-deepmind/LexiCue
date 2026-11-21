@@ -1,6 +1,8 @@
 package com.lexicue.app
 
+import android.content.Intent
 import android.net.Uri
+import org.json.JSONArray
 import android.provider.OpenableColumns
 import android.os.Bundle
 import android.webkit.WebView
@@ -20,6 +22,24 @@ import io.crates.keyring.Keyring
  */
 class MainActivity : TauriActivity() {
     private external fun nativeGemmaBackground(background: Boolean)
+    private val openedDocuments = linkedSetOf<String>()
+    private var mainWebView: WebView? = null
+
+    private fun receiveDocument(intent: Intent?) {
+        // Only URI grants from a file provider are accepted. The existing
+        // content resolver reads through the system's temporary grant.
+        val uri = intent?.takeIf { it.action == Intent.ACTION_VIEW }?.data ?: return
+        if (uri.scheme != "content") return
+        synchronized(openedDocuments) { openedDocuments.add(uri.toString()) }
+        mainWebView?.evaluateJavascript(
+            "window.dispatchEvent(new Event('lexicue-open-documents'))", null
+        )
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        receiveDocument(intent)
+    }
 
     override fun onPause() {
         nativeGemmaBackground(true)
@@ -33,6 +53,7 @@ class MainActivity : TauriActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         Keyring.initializeNdkContext(applicationContext)
+        if (savedInstanceState == null) receiveDocument(intent)
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
@@ -40,11 +61,17 @@ class MainActivity : TauriActivity() {
 
     override fun onWebViewCreate(webView: WebView) {
         super.onWebViewCreate(webView)
+        mainWebView = webView
         // Resize the WebView's parent, so CSS viewport dimensions already exclude
         // system bars, cutouts and the IME. Do not add those insets a second time in JS.
         val content = findViewById<android.view.View>(android.R.id.content)
         // This local-only bridge coordinates system chrome and IME-first UI Back.
         webView.addJavascriptInterface(object {
+            @JavascriptInterface
+            fun takeOpenedDocuments(): String = synchronized(openedDocuments) {
+                JSONArray(openedDocuments.toList()).toString().also { openedDocuments.clear() }
+            }
+
             // Metadata only. ContentResolver enforces the permission granted
             // by the system picker; file bytes still use the scoped fs plugin.
             @JavascriptInterface

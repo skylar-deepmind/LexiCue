@@ -2,20 +2,20 @@ import { useLayoutEffect, useRef, type RefObject } from 'react';
 import i18n from '../i18n';
 import { visualCopy, copyImportCard } from '../lib/visualSnapshot';
 
-type Removal = { id: string; label: string; remove: () => Promise<boolean>; disabled?: boolean; discardPreview?: boolean };
+type Removal = { id: string; label: string; remove: () => Promise<boolean>; disabled?: boolean; discardPreview?: boolean; showBinOnLift?: boolean };
 type Session = { node: HTMLElement; commit: () => void; move: (x: number, y: number) => void; release: (x: number, y: number) => void; cancel: () => void; busy: boolean };
 let current: Session | null = null;
 export const isTrashDragging = () => !!current;
 
 
-function lift(node: HTMLElement, spec: Removal, x: number, y: number, keyboard=false): Session {
+function lift(node: HTMLElement, spec: Removal, x: number, y: number, activateTarget=false): Session {
   current?.cancel();
   const previousFocus=document.activeElement instanceof HTMLElement?document.activeElement:null;
   const rect=node.getBoundingClientRect(),visibility=node.style.visibility,copy=spec.discardPreview?copyImportCard(node):visualCopy(node);
   const layer=document.createElement('div');layer.className='trash-drag-layer figma-shell';
   if (spec.discardPreview) {
     layer.dataset.previewDiscard = 'true';
-    layer.dataset.binVisible = String(keyboard);
+    layer.dataset.binVisible = String(activateTarget || !!spec.showBinOnLift);
   }
   const ghost=document.createElement('div');ghost.className='trash-drag-ghost';ghost.setAttribute('aria-hidden','true');
   Object.assign(ghost.style,{left:`${rect.left}px`,top:`${rect.top}px`,width:`${rect.width}px`,height:`${rect.height}px`,transformOrigin:'0 0'});
@@ -66,9 +66,9 @@ function lift(node: HTMLElement, spec: Removal, x: number, y: number, keyboard=f
       session.busy=true;layer.dataset.binVisible='false';
       void ghost.animate([{transform:ghost.style.transform||'none'},{transform:'none'}],{duration:185,easing:'cubic-bezier(.2,.75,.3,1)',fill:'forwards'}).finished.then(close,close);
     }else cancel();}};
-  if(!spec.discardPreview||keyboard)basket.onclick=commit;window.addEventListener('keydown',key,true);window.addEventListener('resize',cancel);window.addEventListener('pagehide',cancel);window.addEventListener('blur',cancel);document.addEventListener('pointerdown',outside,true);current=session;
-  if(spec.discardPreview&&!keyboard)session.move(x,y);
-  if(keyboard)basket.focus({preventScroll:true});return session;
+  if(!spec.discardPreview||activateTarget)basket.onclick=commit;window.addEventListener('keydown',key,true);window.addEventListener('resize',cancel);window.addEventListener('pagehide',cancel);window.addEventListener('blur',cancel);document.addEventListener('pointerdown',outside,true);current=session;
+  if(spec.discardPreview&&!activateTarget)session.move(x,y);
+  if(activateTarget)basket.focus({preventScroll:true});return session;
 }
 
 /** Touch scrolling wins before the hold; only an already lifted object owns touchmove. */
@@ -94,4 +94,11 @@ export default function useTrashDrag(ref: RefObject<HTMLElement|null>, spec: Rem
     node.addEventListener('pointerdown',down);stream.addEventListener('pointermove',pointerMove as EventListener);stream.addEventListener('pointerup',up as EventListener);stream.addEventListener('pointercancel',up as EventListener);node.addEventListener('touchstart',touchStart,{passive:true});node.addEventListener('touchmove',touchMove,{passive:false});node.addEventListener('touchend',touchEnd);node.addEventListener('touchcancel',touchEnd);node.addEventListener('click',click,true);node.addEventListener('contextmenu',context);node.addEventListener('dragstart',context);node.addEventListener('keydown',key);
     return()=>{clear();delete node.dataset.trashSource;if(current?.node===node&&!current.busy)current.cancel();node.removeEventListener('pointerdown',down);stream.removeEventListener('pointermove',pointerMove as EventListener);stream.removeEventListener('pointerup',up as EventListener);stream.removeEventListener('pointercancel',up as EventListener);node.removeEventListener('touchstart',touchStart);node.removeEventListener('touchmove',touchMove);node.removeEventListener('touchend',touchEnd);node.removeEventListener('touchcancel',touchEnd);node.removeEventListener('click',click,true);node.removeEventListener('contextmenu',context);node.removeEventListener('dragstart',context);node.removeEventListener('keydown',key);};
   },[ref,spec.id]);
+  // An explicit activation lets keyboard and single-tap users confirm via the same basket.
+  return () => {
+    const node = ref.current;
+    if (!node || latest.current.disabled || current) return;
+    const box = node.getBoundingClientRect();
+    lift(node, latest.current, box.left + box.width / 2, box.top + box.height / 2, true);
+  };
 }
