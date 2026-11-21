@@ -55,7 +55,8 @@ tokio = { version = "1", features = ["time", "macros", "process", "sync", "fs", 
 base64 = "0.22"
 image = { version = "0.25", default-features = false, features = ["jpeg"] }
 msedge-tts = { path = "vendor/msedge-tts", default-features = false, features = ["tokio-runtime"] }
-symphonia = { version = "=0.5.5", default-features = false, features = ["mp3"] }
+symphonia = { version = "=0.5.5", default-features = false, features = ["aac", "alac", "flac", "isomp4", "mkv", "mp3", "ogg", "pcm", "vorbis", "wav"] }
+ps-rusty-opus = "=1.0.1"
 argon2 = "0.5"
 chacha20poly1305 = "0.10"
 rand = "0.8"

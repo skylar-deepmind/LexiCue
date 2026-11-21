@@ -11,7 +11,6 @@ import { useTranslation } from 'react-i18next';
 import ConfirmationHost from './ConfirmationHost';
 import ToastHost from './ToastHost';
 import { useDictionaryStore } from '../stores/dictionaryStore';
-import { useYoutubeStore } from '../stores/youtubeStore';
 import { useUpdateStore } from '../stores/updateStore';
 import { useFeedbackStore } from '../stores/feedbackStore';
 import PageTransition from './PageTransition';
@@ -143,15 +142,13 @@ export default function Layout() {
         return () => { window.removeEventListener('lexicue-sync-applied', refresh); window.removeEventListener('storage', external); };
     }, []);
     const initializeDict = useDictionaryStore((state) => state.initialize);
-    const initializeYoutube = useYoutubeStore((state) => state.initialize);
     const checkUpdate = useUpdateStore((state) => state.check);
     const showFeedback = useFeedbackStore((state) => state.show);
     const startupChecked = useRef(false);
     useEffect(() => {
         prepareSpeechVoices();
         void initializeDict();
-        void initializeYoutube();
-    }, [initializeDict, initializeYoutube]);
+    }, [initializeDict]);
     useEffect(() => {
         if (import.meta.env.VITE_SLICE_PREVIEW === '1' || startupChecked.current)
             return;

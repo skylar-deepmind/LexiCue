@@ -20,16 +20,16 @@ const MAX_SENTENCE_SECONDS = 20;
 const timeSeconds = (time: string | null) => time ? time.replace(',', '.').split(':').reduce((n, part) => n * 60 + Number(part), 0) : null;
 
 /** Keep unpunctuated transcripts readable without losing or cutting words. */
-export function splitLongSentence(text: string): string[] {
+export function splitLongSentence(text: string, maxChars = MAX_CHARS_PER_SENTENCE): string[] {
   const parts: string[] = [];
   let rest = text.trim();
-  while (rest.length > MAX_CHARS_PER_SENTENCE) {
-    const window = rest.slice(0, MAX_CHARS_PER_SENTENCE + 1);
+  while (rest.length > maxChars) {
+    const window = rest.slice(0, maxChars + 1);
     // Prefer a clause break in the latter half, otherwise the last word boundary.
     const clauses = [...window.matchAll(/[,;:—–]\s+/g)];
     const clause = clauses.at(-1);
-    let end = clause && clause.index >= MAX_CHARS_PER_SENTENCE / 2 ? clause.index + 1 : window.lastIndexOf(' ');
-    if (end <= 0) end = MAX_CHARS_PER_SENTENCE;
+    let end = clause && clause.index >= maxChars / 2 ? clause.index + 1 : window.lastIndexOf(' ');
+    if (end <= 0) end = maxChars;
     // Do not split a UTF-16 surrogate pair.
     if (/[\uD800-\uDBFF]/.test(rest[end - 1])) end--;
     parts.push(rest.slice(0, end).trim());
@@ -48,10 +48,6 @@ const LATIN_ABBREVIATIONS = new Set([
 
 const CLOSING_CHARS = /[\s"'“”‘’«»「」『』()（）[\]【】]+$/u;
 
-function hasCjk(text: string): boolean {
-  return /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u.test(text);
-}
-
 function lastWordBeforePeriod(text: string): string | null {
   const match = text.match(/[\p{L}\p{N}][\p{L}\p{N}.'-]*$/u);
   if (!match) return null;
@@ -64,11 +60,11 @@ export function endsSentence(text: string, language: Language): boolean {
 
   const last = stripped[stripped.length - 1];
 
-  if (language === 'ja' || language === 'zh' || hasCjk(stripped)) {
+  if (language === 'ja' || language === 'zh') {
     return /[。！？!?…～~]/u.test(last);
   }
 
-  if (last === '!' || last === '?') return true;
+  if (/[!?。！？]/u.test(last)) return true;
   if (last === '…') return true;
   if (last === '.') {
     const word = lastWordBeforePeriod(stripped);
@@ -114,7 +110,7 @@ function scanQuoteChar(state: QuoteState, ch: string, prev: string, next: string
   }
 }
 
-export function splitIntoSentences(text: string, language: Language): string[] {
+export function splitIntoSentences(text: string, language: Language, maxChars = MAX_CHARS_PER_SENTENCE): string[] {
   const parts: string[] = [];
   let start = 0;
   const quote: QuoteState = { depth: 0 };
@@ -149,7 +145,7 @@ export function splitIntoSentences(text: string, language: Language): string[] {
 
   const rest = text.slice(start).trim();
   if (rest.length > 0) parts.push(rest);
-  return parts.filter((part) => part.length > 0).flatMap(part => language === 'en' ? splitLongSentence(part) : [part]);
+  return parts.filter((part) => part.length > 0).flatMap(part => language === 'en' ? splitLongSentence(part, maxChars) : [part]);
 }
 
 export interface AlignedPair {

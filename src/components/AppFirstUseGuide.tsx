@@ -1,5 +1,4 @@
 import { usePageReturn } from '../lib/pageNavigation';
-import { isAppleStoreBuild } from '../lib/distribution';
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useOnboardingStore } from '../stores/onboardingStore';
@@ -52,7 +51,7 @@ export default function AppFirstUseGuide() {
     case 'import':
       target=importing?'[data-guide="import-sources"]':document.querySelector('.approved-card[data-desk-active="true"]')?'.approved-card[data-desk-active="true"]':'[data-guide="import"]';
       title=importing?'从喜欢的内容开始':document.querySelector('.approved-card[data-desk-active="true"]')?'从这里继续阅读':'把想读的内容带进来';
-      body=importing?(isAppleStoreBuild?'粘贴英文正文或网页链接，也能选择英语文件。导入前可以先检查。':'粘贴英文正文、网页或 YouTube 链接，也能选择英语文件。导入前可以先检查。'):document.querySelector('.approved-card[data-desk-active="true"]')?'点中央卡回到上次读到的句子。右上的托盘可以导入新的内容。':'点这里打开导入。先不用准备材料，我们也备好了一篇英语体验文章。';
+      body=importing?'粘贴英文正文或网页链接，也能导入文档、字幕或素材 ZIP。':document.querySelector('.approved-card[data-desk-active="true"]')?'点中央卡回到上次读到的句子。右上的托盘可以导入新的内容。':'点这里打开导入。先不用准备材料，我们也备好了一篇英语体验文章。';
       action='先用体验材料';onNext=startExample;break;
     case 'lookup':
       progress=2;target='.reading-sentence .reading-word';title='不懂的词，点一下！';

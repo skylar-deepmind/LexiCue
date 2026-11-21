@@ -10,9 +10,8 @@ export function allocatedCover(identity: string): string {
   return `/design/prints/${prints[hash % prints.length]}.jpg`;
 }
 export function materialCover(material: Material): string {
-  return material.source?.video_id ? `https://i.ytimg.com/vi/${encodeURIComponent(material.source.video_id)}/hqdefault.jpg` : allocatedCover(material.content_hash);
+  return material.document?.cover ?? allocatedCover(material.content_hash);
 }
 export function savedCover(record: SavedRecord): string {
-  const video = record.source?.youtube?.video_id ?? record.source?.media?.source.video_id;
-  return video ? `https://i.ytimg.com/vi/${encodeURIComponent(video)}/hqdefault.jpg` : allocatedCover(record.source?.content_hash ?? record.source_key);
+  return allocatedCover(record.source?.content_hash ?? record.source_key);
 }

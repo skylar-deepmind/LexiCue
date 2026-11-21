@@ -26,6 +26,7 @@ export interface DocumentBlock {
 export interface DocumentSource {
   schema_version: 1 | 2;
   origin?: ContentOrigin;
+  cover?: string;
   original_format: DocumentFormat;
   display_name: string;
   source_sha256: string;

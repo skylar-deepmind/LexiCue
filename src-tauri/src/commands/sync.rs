@@ -2614,7 +2614,7 @@ fn apply_record(
             .optional(),
         "files" => conn
             .query_row(
-                "SELECT id FROM files WHERE language=?1 AND ((?4 IS NOT NULL AND document_identity=?4) OR (?4 IS NULL AND content_hash=?2 AND media_identity IS ?3 AND document_identity IS NULL)) ORDER BY id LIMIT 1",
+                "SELECT id FROM files WHERE language=?1 AND ((?4 IS NOT NULL AND document_identity=?4 AND media_identity IS ?3) OR (?4 IS NULL AND content_hash=?2 AND media_identity IS ?3 AND document_identity IS NULL)) ORDER BY id LIMIT 1",
                 rusqlite::params![string(r, "language")?, string(r, "content_hash")?, optional_string(r,"media_identity"),optional_string(r,"document_identity")],
                 |x| x.get(0),
             )
@@ -3831,7 +3831,7 @@ fn stable_identity_updates(
         ("phrases", "SELECT id,language,text FROM phrases", "phrase"),
         (
             "files",
-            "SELECT id,language,CASE WHEN document_identity IS NOT NULL THEN content_hash||':document:'||document_identity WHEN media_identity IS NULL THEN content_hash ELSE content_hash||':'||media_identity END FROM files",
+            "SELECT id,language,CASE WHEN document_identity IS NOT NULL THEN content_hash||':document:'||document_identity||CASE WHEN media_identity IS NULL THEN '' ELSE ':'||media_identity END WHEN media_identity IS NULL THEN content_hash ELSE content_hash||':'||media_identity END FROM files",
             "file",
         ),
     ] {

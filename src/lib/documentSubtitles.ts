@@ -1,5 +1,6 @@
 import vttParser from 'webvtt-parser';
 import { inertHtmlText } from './documentMarkup';
+import { endsSentence } from './sentenceMerge';
 import type { RawDocument, RawDocumentBlock } from './documentCore';
 
 interface Cue { id: string; start_ms: number; end_ms: number; text: string }
@@ -11,7 +12,11 @@ function cueDocument(cues: Cue[], warnings: string[], partial = false): RawDocum
   const section_id = 'subtitles', blocks: RawDocumentBlock[] = [];
   const seen = new Set<string>();
   let previous: Cue | undefined;
-  for (const cue of cues) {
+  let pending: RawDocumentBlock | undefined;
+  let tail = '';
+  let pendingEnd = 0;
+  let paragraph = 0;
+  for (const cue of cues.sort((a, b) => a.start_ms - b.start_ms)) {
     let text = cleanCue(cue.text);
     if (!text) continue;
     const key = `${cue.start_ms}:${cue.end_ms}:${text}`;
@@ -23,7 +28,20 @@ function cueDocument(cues: Cue[], warnings: string[], partial = false): RawDocum
     }
     previous = { ...cue, text: cleanCue(cue.text) };
     if (!text) continue;
-    blocks.push({ kind: 'paragraph', text, section_id, locations: [{ section_id, paragraph: blocks.length + 1, cue_id: cue.id, start_ms: cue.start_ms, end_ms: cue.end_ms }], start_ms: cue.start_ms, end_ms: cue.end_ms });
+    const english = text.split('\n').filter(line => /[A-Za-z]/.test(line)).join(' ').trim();
+    const location = { section_id, paragraph: ++paragraph, cue_id: cue.id, start_ms: cue.start_ms, end_ms: cue.end_ms };
+    const speakerChange = /^(?:[-–—]\s|[A-Z][A-Z ]{1,30}:)/.test(english);
+    if (pending && cue.start_ms <= pendingEnd + 1600 && pending.locations.length < 32 && pending.text.length + text.length <= 3000 && !endsSentence(tail, 'en') && !speakerChange) {
+      pending.text += '\n' + text;
+      pending.locations.push(location);
+      pending.cueTexts!.push(text);
+      pendingEnd = Math.max(pendingEnd, cue.end_ms);
+    } else {
+      pending = { kind: 'paragraph', text, section_id, locations: [location], cueTexts: [text] };
+      blocks.push(pending);
+      pendingEnd = cue.end_ms;
+    }
+    if (english) tail = english;
   }
   return { sections: [{ id: section_id, title: 'Subtitles' }], blocks, warnings, partial };
 }
@@ -38,7 +56,7 @@ export function srtDocument(text: string): RawDocument {
     const match = lines.shift()?.trim().match(/^(\d{2,}):([0-5]\d):([0-5]\d)[,.](\d{3})\s*-->\s*(\d{2,}):([0-5]\d):([0-5]\d)[,.](\d{3})(?:\s+.*)?$/);
     if (!match || !lines.some(line => line.trim())) throw new Error('material_invalid_srt');
     const start_ms = time(match[1], match[2], match[3], match[4]), end_ms = time(match[5], match[6], match[7], match[8]);
-    if (start_ms >= end_ms) throw new Error('material_invalid_srt');
+    if (!Number.isSafeInteger(start_ms) || !Number.isSafeInteger(end_ms) || start_ms >= end_ms) throw new Error('material_invalid_srt');
     cues.push({ id, start_ms, end_ms, text: lines.join('\n') });
   }
   return cueDocument(cues, []);

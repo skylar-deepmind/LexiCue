@@ -4,38 +4,31 @@ import { useFeedbackStore } from './feedbackStore';
 import i18n from '../i18n';
 import { prepareContent } from '../lib/contentImport';
 import { clipboardTitle } from '../lib/clipboardContent';
-import { snapshotSource, type YoutubeSource } from '../lib/sourceMedia';
-import type { ReadingMaterial } from '../lib/materials';
-import { useSourceMediaStore } from './sourceMediaStore';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
+import { materialPackageCover, readMaterialPackage } from '../lib/materialPackage';
 import { readDocumentFile } from '../lib/readDocumentFile';
 import { extractDocument, selectDocumentRange } from '../lib/documentImport';
 import type { DocumentSource, DocumentSelection, ExtractedDocument } from '../lib/documentTypes';
 import { materialError, parseSrtInWorker, type MaterialImportResult } from '../lib/materials';
 import type { SegmentInput, TagSelection } from '../lib/types';
 import { useMaterialStore } from './materialStore';
-import { useYoutubeStore, type TrackSelection } from './youtubeStore';
-import { usePreferencesStore } from './preferencesStore';
-import { EMPTY_BROWSER_SESSION } from '../lib/youtubeDownload';
-import { trackLanguage } from '../lib/youtubeSelection';
 import { materialPickerOptions, pickedMaterialSource } from '../lib/importPicker';
 import { translateImportSegments, type ImportTranslationResult, type TranslationProgress } from '../lib/importTranslation';
 
-export type ImportStage = 'queued' | 'downloading' | 'reading' | 'parsing' | 'translating' | 'ready' | 'writing' | 'created' | 'duplicate' | 'failed' | 'cancelled';
+export type ImportStage = 'queued' | 'reading' | 'parsing' | 'translating' | 'ready' | 'writing' | 'created' | 'duplicate' | 'failed' | 'cancelled';
 export type ImportPhase = 'source' | 'preparing' | 'preview' | 'committing' | 'result';
-type YouTubeSelection = { primary: string; secondary: string | null };
-interface ReadResult { content: string; translationFailed?: boolean; source?: YoutubeSource | null; sourceIssue?: string | null }
 export interface ImportSource {
     name: string;
-    kind?: 'file' | 'youtube' | 'clipboard' | 'webpage';
+    kind?: 'file' | 'clipboard' | 'webpage';
     capturedText?: string;
     title?: string;
     url?: string;
-    youtubeSelection?: YouTubeSelection;
     preparedSegments?: SegmentInput[];
+    packageCover?: Uint8Array;
+    packageAudio?: Uint8Array;
     skipTranslation?: boolean;
-    read: (signal: AbortSignal) => Promise<string | Uint8Array | ReadResult>;
+    read: (signal: AbortSignal) => Promise<string | Uint8Array>;
 }
 /** A preview and its write share this immutable snapshot, including its operation id. */
 export interface ImportDraft {
@@ -44,9 +37,6 @@ export interface ImportDraft {
     readonly content: string;
     readonly segments: SegmentInput[];
     readonly wordCount: number;
-    readonly source?: YoutubeSource | null;
-    readonly sourceIssue?: string | null;
-    readonly youtubeSelection?: YouTubeSelection;
     readonly document?: DocumentSource;
     readonly normalized_kind?: 'txt' | 'srt';
 }
@@ -58,15 +48,13 @@ export interface ImportItem extends ImportSource {
     extraction?: ExtractedDocument;
     englishFallback?: string;
     fallbackSegments?: SegmentInput[];
-    fallbackSource?: YoutubeSource | null;
-    fallbackSourceIssue?: string | null;
     translationProgress?: TranslationProgress;
     result?: MaterialImportResult;
 }
 export interface ImportIO {
     parse: (content: string, signal: AbortSignal, name?: string) => Promise<SegmentInput[]>;
     translate?: (segments: SegmentInput[], signal: AbortSignal, progress: (value: TranslationProgress) => void) => Promise<ImportTranslationResult>;
-    write: (input: { operation_id: string; name: string; content: string; segments: SegmentInput[]; source?: YoutubeSource | null; document?: DocumentSource; normalized_kind?: 'txt' | 'srt' }) => Promise<MaterialImportResult>;
+    write: (input: { operation_id: string; name: string; content: string; segments: SegmentInput[]; document?: DocumentSource; normalized_kind?: 'txt' | 'srt' }, audio?: Uint8Array) => Promise<MaterialImportResult>;
 }
 type Update = (id: string, patch: Partial<ImportItem>) => void;
 
@@ -100,7 +88,7 @@ export async function prepareImportQueue(items: ImportItem[], signal: AbortSigna
         try {
             const contentKind = item.kind === 'clipboard' || item.kind === 'webpage' ? item.kind : undefined;
             if (!contentKind && !/\.(pdf|docx|epub|md|markdown|vtt|srt|txt)$/i.test(item.name)) throw new Error('material_invalid_srt');
-            update(item.id, { stage: item.kind === 'youtube' ? 'downloading' : 'reading', error: undefined });
+            update(item.id, { stage: 'reading', error: undefined });
             const reusing = !!item.preparedSegments;
             const preparedContent = contentKind && !reusing ? await abortable(prepareContent(contentKind, contentKind === 'webpage' ? item.url! : item.capturedText!, signal), signal) : undefined;
             const read = preparedContent ? preparedContent.content : await abortable(item.read(signal), signal);
@@ -108,15 +96,18 @@ export async function prepareImportQueue(items: ImportItem[], signal: AbortSigna
             if (!reusing && !contentKind && !(read instanceof Uint8Array) && !/\.(txt|srt)$/i.test(item.name)) throw new Error('material_invalid_format');
             update(item.id, { stage: 'parsing' });
             parsing = true;
-            const extraction = preparedContent ?? (reusing ? item.extraction : read instanceof Uint8Array ? await extractDocument(read, item.name, signal) : undefined);
-            const content = extraction ? extraction.content : typeof read === 'string' ? read : (read as ReadResult).content;
-            const readMeta = typeof read === 'object' && !(read instanceof Uint8Array) ? read : undefined;
-            if (readMeta?.translationFailed) {
-                update(item.id, { stage: 'failed', error: 'translation_partial', englishFallback: content, fallbackSource: readMeta!.source, fallbackSourceIssue: readMeta!.sourceIssue });
-                continue;
+            let extraction = preparedContent ?? (reusing ? item.extraction : read instanceof Uint8Array ? await extractDocument(read, item.name, signal) : undefined);
+            if (item.packageCover && extraction && !extraction.document.cover) {
+                try {
+                    const cover = await abortable(materialPackageCover(item.packageCover), signal);
+                    extraction = { ...extraction, document: { ...extraction.document, cover } };
+                } catch {
+                    if (signal.aborted) break;
+                    extraction = { ...extraction, document: { ...extraction.document, extraction_status: 'partial',
+                        warnings: [...extraction.document.warnings, '封面无法读取。 / The cover could not be read.'] } };
+                }
             }
-            update(item.id, { stage: 'parsing' });
-            parsing = true;
+            const content = extraction?.content ?? (typeof read === 'string' ? read : '');
             let segments = item.preparedSegments ?? extraction?.segments ?? await parse(content, signal, item.name);
             if (signal.aborted) break;
             if (translate && !item.skipTranslation && segments.some(segment => !segment.zh_text?.trim())) {
@@ -125,22 +116,21 @@ export async function prepareImportQueue(items: ImportItem[], signal: AbortSigna
                 if (signal.aborted) break;
                 segments = translated.segments;
                 if (translated.failed) {
-                    update(item.id, { stage: 'failed', error: 'translation_partial', englishFallback: content, fallbackSegments: segments, extraction, fallbackSource: readMeta ? readMeta.source : item.fallbackSource, fallbackSourceIssue: readMeta ? readMeta.sourceIssue : item.fallbackSourceIssue, translationProgress: undefined });
+                    update(item.id, { stage: 'failed', error: 'translation_partial', englishFallback: content, fallbackSegments: segments, extraction, translationProgress: undefined });
                     continue;
                 }
             }
             // Freeze copies, never objects owned by a parser or another source.
             const frozenSegments = segments.map(segment => Object.freeze({ ...segment }));
             Object.freeze(frozenSegments);
-            const draft = Object.freeze({ operation_id: item.id, name: extraction?.document.display_name ?? item.name, content, segments: frozenSegments, source: snapshotSource(readMeta ? readMeta.source : item.fallbackSource), sourceIssue: readMeta ? readMeta.sourceIssue : item.fallbackSourceIssue,
+            const draft = Object.freeze({ operation_id: item.id, name: extraction?.document.display_name ?? item.name, content, segments: frozenSegments,
                 wordCount: segments.reduce((count, segment) => count + (segment.en_text.match(/[A-Za-z]+(?:['’][A-Za-z]+)*/g)?.length ?? 0), 0),
-                youtubeSelection: item.youtubeSelection ? Object.freeze({ ...item.youtubeSelection }) : undefined,
                 ...(extraction ? {document: freezeDocument(extraction.document), normalized_kind: extraction.normalized_kind} : {}) });
             update(item.id, { ...(preparedContent ? { name: draft.name, title: draft.name } : {}), stage: 'ready', draft, extraction: extraction ? {...extraction, segments} : undefined, englishFallback: undefined, fallbackSegments: undefined, translationProgress: undefined });
         } catch (error) {
             if (signal.aborted) break;
             const known = materialError(error);
-            const reason = known === 'failed' ? parsing ? 'parse_failed' : item.kind === 'youtube' ? 'download_failed' : 'read_failed' : known;
+            const reason = known === 'failed' ? parsing ? 'parse_failed' : 'read_failed' : known;
             update(item.id, { stage: 'failed', error: reason });
         }
     }
@@ -154,18 +144,9 @@ export async function commitImportQueue(items: ImportItem[], signal: AbortSignal
         if (signal.aborted) { update(item.id, { stage: 'cancelled' }); continue; }
         update(item.id, { stage: 'writing', error: undefined });
         try {
-            const result = await write({ operation_id: draft.operation_id, name: draft.name, content: draft.content, segments: draft.segments, ...(draft.source ? { source: draft.source } : {}), ...(draft.document ? { document: draft.document, normalized_kind: draft.normalized_kind } : {}) });
+            const result = await write({ operation_id: draft.operation_id, name: draft.name, content: draft.content, segments: draft.segments, ...(draft.document ? { document: draft.document, normalized_kind: draft.normalized_kind } : {}) }, item.packageAudio);
             update(item.id, { stage: result.outcome, result });
             useMaterialStore.getState().changed();
-            if (draft.source?.audio && result.readable) {
-                // Independent of the subtitle queue/timeout; no automatic playback.
-                void invoke<ReadingMaterial>('open_reading_material', { fileId: result.file_id }).then(data => {
-                    const first = Object.entries(data.media_refs ?? {})[0];
-                    if (first) void useSourceMediaStore.getState().prepare(first[1], { segment_id: Number(first[0]) });
-                }).catch(() => {});
-            }
-            if (result.outcome === 'created' && draft.youtubeSelection)
-                usePreferencesStore.getState().recordYouTubeImport(draft.youtubeSelection);
         } catch (error) {
             // A missing receipt may mean committed. Never turn it into cancelled.
             update(item.id, { stage: 'failed', error: materialError(error) });
@@ -177,9 +158,8 @@ let controller: AbortController | null = null;
 let generation = 0;
 let pickerGeneration = 0;
 let rangeGeneration = 0;
-let jobSequence = Date.now();
 const noImportTags: TagSelection = { tagIds: [], newTagNames: [] };
-const empty = { presentation: 'panel' as 'panel'|'scene', importTags: noImportTags, items: [] as ImportItem[], phase: 'source' as ImportPhase, source: 'choose' as 'choose' | 'file' | 'youtube', selectedId: null as string | null,
+const empty = { presentation: 'panel' as 'panel'|'scene', importTags: noImportTags, items: [] as ImportItem[], phase: 'source' as ImportPhase, source: 'choose' as 'choose' | 'file', selectedId: null as string | null,
     running: false, stopping: false, destination: null as number | 'materials' | null, pickerError: false, picking: false, selectionBusy: null as string | null };
 function abandonPreparation() {
     generation++;
@@ -194,7 +174,7 @@ export const useImportStore = create<{
     showScene: () => void;
     items: ImportItem[];
     phase: ImportPhase;
-    source: 'choose' | 'file' | 'youtube';
+    source: 'choose' | 'file';
     selectedId: string | null;
     running: boolean;
     stopping: boolean;
@@ -207,7 +187,7 @@ export const useImportStore = create<{
     selectRange: (id: string, selection: DocumentSelection) => Promise<void>;
     show: () => void;
     hide: () => void;
-    changeSource: (source?: 'choose' | 'file' | 'youtube') => void;
+    changeSource: (source?: 'choose' | 'file') => void;
     select: (id: string) => void;
     clearDestination: () => void;
     start: (sources: ImportSource[]) => Promise<void>;
@@ -217,8 +197,8 @@ export const useImportStore = create<{
     cancel: () => void;
     retry: () => Promise<void>;
     confirm: () => Promise<void>;
+    usePackageText: (id: string) => Promise<void>;
     useEnglish: (id: string) => Promise<void>;
-    fromYouTube: (input: { url: string; title: string; primary: TrackSelection; secondary: TrackSelection | null }) => Promise<void>;
 }>((set, get) => {
     const update: Update = (id, patch) => set(state => ({ items: state.items.map(item => item.id === id ? { ...item, ...patch } : item) }));
     const prepare = async (items: ImportItem[], all = items) => {
@@ -227,7 +207,36 @@ export const useImportStore = create<{
         const active = new AbortController();
         controller = active;
         set({ open: true, phase: 'preparing', running: true, stopping: false, items: all, selectedId: null, destination: null, pickerError: false, picking: false, selectionBusy: null });
-        await prepareImportQueue(items, active.signal, (id, patch) => { if (token === generation) update(id, patch); }, parseSrtInWorker, translateImportSegments);
+        const expanded: ImportItem[] = [];
+        let nextItems = all;
+        for (const item of items) {
+            if (active.signal.aborted) return;
+            if (!/\.zip$/i.test(item.name) || item.kind && item.kind !== 'file') {
+                expanded.push(item);
+                continue;
+            }
+            update(item.id, { stage: 'reading' });
+            try {
+                const bytes = await abortable(item.read(active.signal), active.signal);
+                if (!(bytes instanceof Uint8Array)) throw new Error('material_invalid_document');
+                update(item.id, { stage: 'parsing' });
+                const members = await readMaterialPackage(bytes, active.signal);
+                if (token !== generation) return;
+                const sources: ImportItem[] = members.map(member => ({
+                    id: crypto.randomUUID(), stage: 'queued', kind: 'file', name: member.name,
+                    read: async () => member.document, packageCover: member.cover, packageAudio: member.audio,
+                }));
+                expanded.push(...sources);
+                nextItems = nextItems.flatMap(row => row.id === item.id ? sources : [row]);
+                set({ items: nextItems });
+            } catch (error) {
+                if (token !== generation) return;
+                const failed: ImportItem = { ...item, stage: 'failed', error: materialError(error) };
+                nextItems = nextItems.map(row => row.id === item.id ? failed : row);
+                update(item.id, failed);
+            }
+        }
+        await prepareImportQueue(expanded, active.signal, (id, patch) => { if (token === generation) update(id, patch); }, parseSrtInWorker, translateImportSegments);
         if (token !== generation) return;
         controller = null;
         set({ running: false, phase: 'preview', selectedId: get().items.find(item => item.draft)?.id ?? null });
@@ -241,9 +250,24 @@ export const useImportStore = create<{
         controller = active;
         set({ phase: 'committing', running: true, stopping: false, picking: false, destination: null });
         const { tagIds, newTagNames } = get().importTags;
-        await commitImportQueue(items, active.signal, update, input => invoke('import_reading_material', {
-            input: { ...input, ...(tagIds.length ? { tag_ids: tagIds } : {}), ...(newTagNames.length ? { new_tag_names: newTagNames } : {}) },
-        }));
+        await commitImportQueue(items, active.signal, update, async (input, audio) => {
+            const request = { ...input, ...(tagIds.length ? { tag_ids: tagIds } : {}), ...(newTagNames.length ? { new_tag_names: newTagNames } : {}) };
+            if (!audio) return invoke('import_reading_material', { input: request });
+            const operationId = input.operation_id;
+            try {
+                const size = 1024 * 1024;
+                for (let offset = 0; offset < audio.length; offset += size) {
+                    const bytes = audio.subarray(offset, offset + size);
+                    let binary = '';
+                    for (let i = 0; i < bytes.length; i += 8192)
+                        binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
+                    await invoke('upload_local_material_audio', { operationId, offset, chunk: btoa(binary) });
+                }
+                return await invoke('import_material_with_local_audio', { input: request });
+            } finally {
+                await invoke('discard_local_material_audio', { operationId }).catch(() => {});
+            }
+        });
         const current = get().items;
         // A hidden write still owns its receipt and refreshes the catalog, but
         // must not leave a deferred navigation that fires on the next opening.
@@ -315,22 +339,6 @@ export const useImportStore = create<{
             } catch { if (token === pickerGeneration) { set({ pickerError: true }); useFeedbackStore.getState().show(i18n.t('materials.importDialog.pickerFailed'),'error'); } }
             finally { if (token === pickerGeneration) set({ picking: false }); }
         },
-        fromYouTube: async input => {
-            if (get().running) return;
-            const name = input.title.replace(/[\\/:*?"<>|]/g, '_').slice(0, 100) + '.srt';
-            await prepare([{ id:crypto.randomUUID(),stage:'queued',name, title: input.title, url: input.url, kind: 'youtube',
-                youtubeSelection: { primary: trackLanguage(input.primary), secondary: input.secondary ? trackLanguage(input.secondary) : null },
-                read: async signal => {
-                    const job = ++jobSequence;
-                    const abort = () => { void useYoutubeStore.getState().cancelJob(job).catch(() => {}); };
-                    signal.addEventListener('abort', abort, { once: true });
-                    try {
-                        const prepared = await useYoutubeStore.getState().prepareSubtitles(job, input.url, input.primary, input.secondary,
-                            usePreferencesStore.getState().youtube.browserSession ?? EMPTY_BROWSER_SESSION);
-                        return prepared.status === 'partial' ? { content: prepared.primary.content, translationFailed: true, source: prepared.primary.source, sourceIssue: prepared.primary.source_issue } : { content: prepared.subtitle.content, source: prepared.subtitle.source, sourceIssue: prepared.subtitle.source_issue };
-                    } finally { signal.removeEventListener('abort', abort); }
-                } }]);
-        },
         useEnglish: async id => {
             if (get().running || get().phase !== 'preview') return;
             const item = get().items.find(row => row.id === id);
@@ -338,8 +346,16 @@ export const useImportStore = create<{
             const content = item.englishFallback;
             const next: ImportItem = { ...item, stage: 'queued', error: undefined, englishFallback: undefined,
                 preparedSegments: item.fallbackSegments, skipTranslation: true,
-                youtubeSelection: item.youtubeSelection ? { primary: item.youtubeSelection.primary, secondary: null } : undefined, read: async () => content };
+                read: async () => content };
             await prepare([next], get().items.map(row => row.id === id ? next : row));
+        },
+        usePackageText: async id => {
+            if (get().running || get().phase !== 'result') return;
+            const item = get().items.find(row => row.id === id);
+            if (!item?.draft || item.error !== 'package_audio') return;
+            const next = { ...item, packageAudio: undefined, draft: Object.freeze({ ...item.draft, operation_id: crypto.randomUUID() }) };
+            update(id, { packageAudio: undefined, draft: next.draft });
+            await commit([next]);
         },
         confirm: async () => {
             if (get().phase !== 'preview') return;

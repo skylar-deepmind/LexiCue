@@ -22,6 +22,7 @@ pub(crate) fn input(op: &str, format: &str) -> materials::MaterialInput {
     let page = if format == "pdf" { Some(1) } else { None };
     let timed = matches!(format, "srt" | "vtt");
     let source = DocumentSource {
+        cover: None,
         origin: None,
         schema_version: 1,
         original_format: format.into(),

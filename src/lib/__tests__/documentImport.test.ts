@@ -48,6 +48,19 @@ describe('local document extraction contracts',()=>{
    const result=await buildDocument(srtDocument('1\n00:00:01,000 --> 00:00:02,000\n[Do not remove me.]'),'srt','test.srt',hash);
    expect(result.segments[0].en_text).toBe('[Do not remove me.]');
  });
+ it('joins subtitle fragments and assigns each sentence its own cue span',async()=>{
+   const raw=srtDocument('1\n00:00:01,000 --> 00:00:02,000\nFirst sentence. We heard\n\n2\n00:00:02,000 --> 00:00:03,000\nthe whole story.');
+   const result=await buildDocument(raw,'srt','lesson.srt',hash);
+   expect(result.segments.map(({en_text,start_time,end_time})=>[en_text,start_time,end_time])).toEqual([
+      ['First sentence.','00:00:01.000','00:00:02.000'],
+      ['We heard the whole story.','00:00:01.000','00:00:03.000'],
+   ]);
+ });
+ it('keeps long punctuated English sentences and joins line-wrapped text', async()=>{
+   const english='The story of the old city, '+ 'which many people know and tell again, '.repeat(9)+'ends here.';
+   const result=await buildDocument(plainDocument(english.replace('old city, ', 'old city,\n')),'txt','story.txt',hash);
+   expect(result.segments.map(s=>s.en_text)).toEqual([english]);
+ });
  it('uses EPUB spine order and immutable chapter identities',async()=>{
    const raw=await epubDocument(epub({}));const full=await buildDocument(raw,'epub','book.epub',hash);
    expect(full.document.sections[0].spine_id).toBe('two');expect(full.content.indexOf('first chapter')).toBeLessThan(full.content.indexOf('second chapter'));
@@ -88,7 +101,7 @@ describe('local document extraction contracts',()=>{
  });
  it('roll-up dedup stays inside overlapping intervals; truncated ZIP is rejected',async()=>{
    const input='WEBVTT\n\n00:00.000 --> 00:03.000\nWe do not\n\n00:02.000 --> 00:04.000\nWe do not forget.\n\n00:05.000 --> 00:07.000\nWe do not forget.';
-   const raw=vttDocument(input);expect(raw.blocks.map(b=>b.text)).toEqual(['We do not','forget.','We do not forget.']);
+   const raw=vttDocument(input);expect(raw.blocks.map(b=>b.text)).toEqual(['We do not\nforget.','We do not forget.']);
    const zipped=epub({});expect(()=>boundedDocumentZip(zipped.slice(0,-10))).toThrow('material_invalid_document');
  });
  it('checks actual ZIP output despite false sizes, and supports legal small data-descriptor streams',()=>{

@@ -302,21 +302,6 @@ fn actual_video_exact_reimport_preserves_ids_translations_and_saved_records() {
     println!("actual source recovery: file_id={}, segment_ids_preserved={}, saved_revision={}, explanation preserved, repeat imports idempotent",id,recovered.segments.len(),record.revision);
 }
 #[test]
-#[ignore = "local captured DASH media, probes and stream-copy tools"]
-fn normalization_is_deterministic_and_probed_before_final_hash() {
-    let base=Path::new("/tmp/lexicue-youtube-audio-v1/pipeline/a01b38c896d27707ef852301f1ccc6c39cebe792852c868109e85753ef159e47.m4a");
-    let d = tempfile::tempdir().unwrap();
-    let a = d.path().join("a.m4a");
-    let b = d.path().join("b.m4a");
-    tauri::async_runtime::block_on(async {
-        normalize_container(base, &a, None).await.unwrap();
-        normalize_container(base, &b, None).await.unwrap();
-    });
-    assert_eq!(file_digest(&a).unwrap(), file_digest(&b).unwrap());
-    assert_ne!(file_digest(base).unwrap(), file_digest(&a).unwrap());
-}
-
-#[test]
 #[ignore = "captured actual 206-row source and verified local audio, no network"]
 fn actual_reading_anchors_are_exported_without_guessing_unmapped_rows() {
     let base = Path::new("/tmp/lexicue-import-lookup-qa");

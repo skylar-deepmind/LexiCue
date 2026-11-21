@@ -36,11 +36,6 @@ pub fn build() {
     let translation = PathBuf::from("native/AppleTranslation.swift");
     println!("cargo:rerun-if-changed={}", translation.display());
     swift.push(translation);
-    if sdk != "macosx" {
-        let probe = PathBuf::from("native/IOSAudioProbe.swift");
-        println!("cargo:rerun-if-changed={}", probe.display());
-        swift.push(probe);
-    }
     swift.sort();
     let sdk_path = xcrun(&["--sdk", sdk, "--show-sdk-path"]);
     let compiler = PathBuf::from(xcrun(&["--find", "swiftc"]));

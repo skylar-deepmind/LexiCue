@@ -537,7 +537,16 @@ pub(crate) fn validate_record(record: &SavedRecord) -> Result<(), String> {
     }
     if let Some(source) = record.source.as_ref().filter(|s| s.document.is_some()) {
         source.document.as_ref().unwrap().validate()?;
-        if source.media.is_some() || source.media_identity.is_some() || source.youtube.is_some() {
+        if source.youtube.is_some()
+            || source
+                .media_identity
+                .as_deref()
+                .is_some_and(|key| !super::source_media::valid_hash(key))
+            || source.media.as_ref().is_some_and(|media| {
+                media.source.provider != "local"
+                    || source.media_identity.as_deref() != Some(media.source.key.as_str())
+            })
+        {
             return Err("invalid_saved_record".into());
         }
     }
@@ -680,6 +689,7 @@ fn from_input(conn: &Connection, input: &SaveInput) -> Result<SavedRecord, Strin
     let youtube = origin
         .as_deref()
         .and_then(|j| serde_json::from_str::<super::source_media::YoutubeSource>(j).ok())
+        .filter(|source| source.provider == "youtube")
         .map(|s| super::source_media::SourceIdentity::from(&s));
     let legacy_key = if let Some(doc) = &document {
         serde_json::to_string(&(&hash, index, start_offset, &doc.identity)).unwrap()

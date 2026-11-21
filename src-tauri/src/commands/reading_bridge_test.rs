@@ -1,8 +1,8 @@
 //! Opt-in browser → production command cores → temporary SQLite evidence.
 //! This module is compiled only for tests and never starts with the application.
 use super::{
-    cambridge, example::ExampleState, export, free_dictionary, history, longman, materials, recall,
-    saved, tags,
+    cambridge, example::ExampleState, export, free_dictionary, history, local_material_audio,
+    longman, materials, recall, saved, source_media, tags,
 };
 use serde_json::{json, Value};
 use std::io::{Read, Write};
@@ -11,6 +11,7 @@ use std::net::TcpListener;
 fn route(
     c: &rusqlite::Connection,
     examples: &ExampleState,
+    media_dir: &std::path::Path,
     command: &str,
     a: &Value,
 ) -> Result<Value, String> {
@@ -89,6 +90,49 @@ fn route(
             &serde_json::from_value(a["input"].clone()).map_err(|e| e.to_string())?,
         )?)
         .map_err(|e| e.to_string()),
+        "upload_local_material_audio" => {
+            let staging = local_material_audio::staging_path(media_dir, text("operationId"))?;
+            local_material_audio::write_chunk(
+                &staging,
+                a["offset"].as_u64().ok_or("invalid offset")?,
+                text("chunk"),
+            )?;
+            Ok(Value::Null)
+        }
+        "discard_local_material_audio" => {
+            let _ = std::fs::remove_dir_all(local_material_audio::staging_path(
+                media_dir,
+                text("operationId"),
+            )?);
+            Ok(Value::Null)
+        }
+        "import_material_with_local_audio" => {
+            let input: materials::MaterialInput =
+                serde_json::from_value(a["input"].clone()).map_err(|e| e.to_string())?;
+            let staging = source_media::Temp(local_material_audio::staging_path(
+                media_dir,
+                &input.operation_id,
+            )?);
+            let attachment = local_material_audio::prepare_attachment(&staging.0, &input)?;
+            serde_json::to_value(materials::import_material_with_attachment(
+                c,
+                &input,
+                Some(&attachment),
+            )?)
+            .map_err(|e| e.to_string())
+        }
+        "source_media_status" => {
+            let target = serde_json::from_value(a["target"].clone()).map_err(|e| e.to_string())?;
+            let reference = source_media::target_ref(c, &target)?;
+            serde_json::to_value(source_media::status(c, media_dir, &reference)?)
+                .map_err(|e| e.to_string())
+        }
+        "resolve_source_media" => {
+            let target = serde_json::from_value(a["target"].clone()).map_err(|e| e.to_string())?;
+            let reference = source_media::target_ref(c, &target)?;
+            serde_json::to_value(source_media::resolve(c, media_dir, &reference)?)
+                .map_err(|e| e.to_string())
+        }
         "list_materials" => serde_json::to_value(materials::list(
             c,
             &serde_json::from_value::<Vec<i64>>(a["tagIds"].clone()).unwrap_or_default(),
@@ -598,7 +642,13 @@ fn serve_reading_bridge() {
         } else if options {
             Ok(Value::Null)
         } else {
-            route(&conn, &examples, command, args)
+            route(
+                &conn,
+                &examples,
+                &path.with_extension("media"),
+                command,
+                args,
+            )
         };
         let body = match result {
             Ok(value) => json!({"value":value}),

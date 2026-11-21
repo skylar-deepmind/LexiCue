@@ -17,7 +17,6 @@ import MotionChange from './MotionChange';
 import { takeImportFocus } from './importFocus';
 import { useFileStore } from '../stores/fileStore';
 import { useImportStore } from '../stores/importStore';
-import YouTubeImport from './YouTubeImport';
 import ImportPaper from './ImportPaper';
 import { readImportClipboard } from '../lib/importLink';
 import { inspectClipboardContent } from '../lib/clipboardContent';
@@ -37,7 +36,6 @@ export default function ImportPanel() {
     const state = live.open ? live : previous.current;
     const { destination, running, hide, clearDestination, phase, source } = state;
     const [readingClipboard, setReadingClipboard] = useState(false);
-    const [linkDraft, setLinkDraft] = useState<{ url: string; autoSearch: boolean; id: number } | null>(null);
     const [inputError, setInputError] = useState<string | null>(null);
     const [manualInput, setManualInput] = useState<string | null>(null);
     const scene = live.open && live.presentation === 'scene';
@@ -50,7 +48,7 @@ export default function ImportPanel() {
         if (refresh) setReadingClipboard(false);
     }, []);
     useEffect(() => {
-        if (!present && !live.open) { previous.current = live; setLinkDraft(null); setInputError(null); setManualInput(null); }
+        if (!present && !live.open) { previous.current = live; setInputError(null); setManualInput(null); }
     }, [present, open, live]);
     useEffect(() => {
         const unsubscribe = useImportStore.subscribe((next, before) => {
@@ -64,12 +62,7 @@ export default function ImportPanel() {
         const result = inspectClipboardContent(text);
         if (result.kind === 'error') { setInputError(result.error); setManualInput(result.input.trim() ? result.input : null); return; }
         setInputError(null); setManualInput(null);
-        if (result.kind === 'youtube') {
-            setLinkDraft({url: result.url, autoSearch: true, id: ++clipboardRequest.current});
-            const scene=useImportStore.getState().presentation==='scene';
-            useImportStore.getState().changeSource('youtube');
-            if(scene)useImportStore.getState().showScene();
-        } else await useImportStore.getState().fromContent(result.kind === 'text' ? 'clipboard' : 'webpage', result.kind === 'text' ? result.text : result.url, useImportStore.getState().presentation==='scene');
+        await useImportStore.getState().fromContent(result.kind === 'text' ? 'clipboard' : 'webpage', result.kind === 'text' ? result.text : result.url, useImportStore.getState().presentation==='scene');
     };
     useEffect(() => {
         const accept = (event: Event) => {
@@ -150,26 +143,23 @@ export default function ImportPanel() {
     const processed = state.items.filter(item => ['created', 'duplicate', 'failed', 'cancelled'].includes(item.stage)).length;
     const active = state.items.find(item => ['reading', 'downloading', 'parsing', 'translating', 'writing'].includes(item.stage));
     const selected = state.items.find(item => item.id === state.selectedId && item.draft) ?? state.items.find(item => item.draft);
-    const retryable = state.items.some(item => item.stage === 'failed' && !['invalid_format', 'invalid_document', 'unsupported', 'password', 'encrypted', 'no_text', 'invalid_encoding', 'too_large', 'english_only', 'zip_limit'].includes(item.error ?? '') && (result ? !!item.draft : item.englishFallback === undefined || !!item.fallbackSegments) || result && item.stage === 'cancelled' && !!item.draft);
+    const retryable = state.items.some(item => item.stage === 'failed' && !['invalid_format', 'invalid_document', 'unsupported', 'password', 'encrypted', 'no_text', 'invalid_encoding', 'too_large', 'english_only', 'zip_limit', 'empty_package', 'ambiguous_package', 'package_audio'].includes(item.error ?? '') && (result ? !!item.draft : item.englishFallback === undefined || !!item.fallbackSegments) || result && item.stage === 'cancelled' && !!item.draft);
     const heading = preview ? 'previewTitle' : preparing ? 'preparingTitle' : committing ? 'writingTitle' : result ? 'resultTitle' : 'title';
     if(selected?.draft && (preview||committing||result)) {
         const card=<ImportMaterialCard item={selected} items={state.items} tags={tags} tagSelection={state.importTags} phase={phase} busy={running||!!state.selectionBusy} canConfirm={valid.length>0&&!state.selectionBusy} retryable={retryable} onClose={hide} onConfirm={()=>void state.confirm()} onRetry={()=>void state.retry()}/>;
         return scene?<ClipboardScene returnFocus={takeImportFocus} label={t('materials.importDialog.previewTitle')} onClose={hide}>{card}</ClipboardScene>:<Overlay returnFocus={takeImportFocus} label={t('materials.import')} onClose={hide} className="lc-import-modal import-card-modal" layerClassName={`lc-import-layer${open?'':' lc-import-layer--closing'}`} panelRef={panelRef}>{card}</Overlay>;
     }
     if(scene)return <ClipboardScene returnFocus={takeImportFocus} label={t('approved.recognizing')} onClose={hide}>
-        {phase==='source'&&source==='youtube'?<YouTubeImport key={linkDraft?.id??'scene'} initialUrl={linkDraft?.url} autoSearch={linkDraft?.autoSearch} active/>:<>
           <div className="clipboard-recognition-art" data-running={running||undefined} aria-hidden="true"><span/><span/><span/><i/></div>
           {running? <p role="status"><BusyRing/>{t(committing?'materials.importDialog.writingTitle':'approved.recognizing')}</p>:<div role="status">{state.items.map(item=><div key={item.id}>{item.error&&<p>{t(`materials.errors.${item.error}`)}</p>}{item.englishFallback!==undefined&&<button className="ui-button" onClick={()=>void state.useEnglish(item.id)}>{t('materials.englishFallback')}</button>}{item.result?.outcome==='duplicate'&&<><p>{t('materials.stages.duplicate')}</p><button className="ui-button" onClick={()=>{hide();navigate(`/files/${item.result!.file_id}`,{state:{readingOrigin:'desk'}});}}>{t('materials.openExisting')}</button></>}</div>)}{retryable&&<button className="ui-button" onClick={()=>void state.retry()}>{t('common.retry')}</button>}</div>}
-        </>}
         <button className="clipboard-scene-cancel" onClick={running?state.cancel:hide}>{t(running?'common.cancel':'common.close')}</button>
     </ClipboardScene>;
     return <Overlay returnFocus={takeImportFocus} label={t('materials.import')} onClose={hide} className={`lc-import-modal${compact ? ' lc-import-modal--compact' : ''}`} layerClassName={`lc-import-layer${open ? '' : ' lc-import-layer--closing'}`} panelRef={panelRef}>
         <header className="lc-import-header">
-            <h2>{compact ? t('materials.import') : phase === 'source' && source === 'youtube' ? t('materials.importDialog.linkTitle') : t(`materials.importDialog.${heading}`)}</h2>
+            <h2>{compact ? t('materials.import') : t(`materials.importDialog.${heading}`)}</h2>
             <button className="ui-button ui-button--icon lc-import-close" aria-label={t(committing ? 'materials.importDialog.minimize' : 'common.close')} onClick={hide}><X size={20} aria-hidden="true" /></button>
         </header>
         <MotionChange changeKey={`${phase}:${source}`} resizeContainer=".lc-import-modal"><div className="lc-import-body">
-            {phase === 'source' && source === 'youtube' && <YouTubeImport key={linkDraft?.id ?? 'manual'} initialUrl={linkDraft?.url} autoSearch={linkDraft?.autoSearch} active={open} />}
             {(inputError || manualInput !== null) && (phase === 'source' || preview && !selected) && <div className="lc-content-input">
                 <button type="button" className="ui-button" disabled={readingClipboard} aria-busy={readingClipboard} onClick={() => void pasteLink()}><ClipboardPaste size={18} aria-hidden="true"/>{t('materials.importDialog.pasteLink')}</button>
                 {inputError && <p className="lc-import-error" role="alert">{t(`materials.importDialog.${inputError}`)}</p>}
