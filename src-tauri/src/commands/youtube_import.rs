@@ -345,7 +345,7 @@ async fn fetch(
     if output.stdout.len() > MAX_METADATA_BYTES {
         return Err("material_too_large".into());
     }
-    let metadata: serde_json::Value =
+    let mut metadata: serde_json::Value =
         serde_json::from_slice(&output.stdout).map_err(|_| "material_download_failed")?;
     let tracks = caption_tracks(&metadata);
     if tracks.iter().all(Option::is_none) {
@@ -353,8 +353,14 @@ async fn fetch(
     }
     // Reuse this one video lookup for both downloads. It stays inside the
     // private temporary directory and is removed before audio is staged.
+    // yt-dlp otherwise repeats the page extraction when a loaded request fails.
+    metadata
+        .as_object_mut()
+        .ok_or("material_download_failed")?
+        .remove("webpage_url");
     let metadata_file = directory.path().join("video.info.json");
-    fs::write(&metadata_file, &output.stdout)
+    let manifest = serde_json::to_vec(&metadata).map_err(|_| "material_download_failed")?;
+    fs::write(&metadata_file, manifest)
         .await
         .map_err(|_| "material_download_failed")?;
     let mut selected = None;
