@@ -51,7 +51,11 @@ case " $* " in
       printf 'invalid SRT\n' > "captions.$track.srt"
       exit 0
     fi
-    printf '1\n00:00:00,000 --> 00:00:01,500\nWe saw the harbor.\n' > "captions.$track.srt"
+    if [ "$track" = en-orig ]; then
+      printf '1\n00:00:00,000 --> 00:00:01,500\n\nWe saw the harbor.\n\n2\n00:00:01,500 --> 00:00:02,000\n\n' > "captions.$track.srt"
+    else
+      printf '1\n00:00:00,000 --> 00:00:01,500\nWe saw the harbor.\n' > "captions.$track.srt"
+    fi
     ;;
   *' --extract-audio '*)
     record audio
@@ -203,6 +207,9 @@ async fn retries_timeout_and_uses_original_english_if_manual_is_invalid() {
             .unwrap();
         assert_eq!(fixture.requests(), expected);
         assert_eq!(result.source.subtitle_kind, kind);
+        assert_eq!(result.source.cues.len(), 1);
+        assert_eq!(result.source.cues[0].text, "We saw the harbor.");
+        assert!(!result.content.contains("00:01,500\n\nWe"));
         assert!(result.source.audio.is_some());
         assert!(result.cover.is_none());
         fixture.no_temporary_files();
@@ -388,4 +395,12 @@ async fn real_downloader_recovers_after_one_http_503_with_exact_audio_bytes() {
         expected
     );
     fixture.no_temporary_files();
+}
+
+#[test]
+fn well_formed_automatic_captions_keep_their_existing_identity() {
+    let content =
+        "\u{feff}1\r\n00:00:00,200 --> 00:00:02,000\r\nOne line.\r\nAnother line.\r\n\r\n"
+            .to_owned();
+    assert_eq!(tidy_automatic_captions(content.clone()), content);
 }

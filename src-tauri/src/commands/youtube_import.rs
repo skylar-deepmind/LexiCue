@@ -173,6 +173,56 @@ async fn load_metadata(tools: &Tools, path: &Path, id: &str) -> Result<serde_jso
     Ok(metadata)
 }
 
+// YouTube's rolling WebVTT can yield SRT with blank padding inside a cue
+// after conversion. Keep its text and time range together for the SRT reader.
+fn tidy_automatic_captions(content: String) -> String {
+    let normalized = content.replace("\r\n", "\n").replace('\r', "\n");
+    let lines: Vec<_> = normalized.trim_start_matches('\u{feff}').lines().collect();
+    let mut boundaries: Vec<_> = lines
+        .windows(2)
+        .enumerate()
+        .filter_map(|(index, pair)| {
+            (pair[0].trim().parse::<u32>().is_ok()
+                && super::youtube::parse_ts_line(pair[1]).is_some())
+            .then_some(index)
+        })
+        .collect();
+    let Some(&first) = boundaries.first() else {
+        return content;
+    };
+    if lines[..first].iter().any(|line| !line.trim().is_empty()) {
+        return content;
+    }
+    boundaries.push(lines.len());
+    let mut repaired = String::new();
+    let mut changed = false;
+    for cue in boundaries.windows(2) {
+        let start = cue[0];
+        let mut body = &lines[start + 2..cue[1]];
+        while body.last().is_some_and(|line| line.trim().is_empty()) {
+            body = &body[..body.len() - 1];
+        }
+        let text: Vec<_> = body
+            .iter()
+            .copied()
+            .filter(|line| !line.trim().is_empty())
+            .collect();
+        changed |= text.is_empty() || text.len() != body.len();
+        if !text.is_empty() {
+            for line in lines[start..start + 2].iter().copied().chain(text) {
+                repaired.push_str(line);
+                repaired.push('\n');
+            }
+            repaired.push('\n');
+        }
+    }
+    if changed {
+        repaired
+    } else {
+        content
+    }
+}
+
 async fn download_caption(
     tools: &Tools,
     metadata_file: &Path,
@@ -210,9 +260,14 @@ async fn download_caption(
     if file.len() > MAX_CAPTION_BYTES {
         return Err(Failure::TooLarge);
     }
-    fs::read_to_string(path)
+    let content = fs::read_to_string(path)
         .await
-        .map_err(|_| Failure::InvalidSubtitles)
+        .map_err(|_| Failure::InvalidSubtitles)?;
+    Ok(if track.kind == "original" {
+        tidy_automatic_captions(content)
+    } else {
+        content
+    })
 }
 
 async fn download_audio(
