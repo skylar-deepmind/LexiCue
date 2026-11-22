@@ -8,7 +8,7 @@ use std::{
     sync::Mutex,
     time::{Duration, Instant},
 };
-use tauri::State;
+use tauri::{ipc::Channel, State};
 use tokio::sync::watch;
 const MAX_BYTES: usize = 8_000_000;
 #[derive(Default)]
@@ -20,6 +20,23 @@ pub struct WebpageResponse {
     pub final_url: String,
     pub content_type: String,
     pub fetched_at: i64,
+}
+#[derive(Serialize)]
+#[serde(tag = "part", rename_all = "snake_case")]
+pub enum ImportDownload {
+    Page {
+        received: u64,
+        total: Option<u64>,
+    },
+    #[cfg(all(target_os = "macos", not(feature = "apple-store")))]
+    Captions,
+    #[cfg(all(target_os = "macos", not(feature = "apple-store")))]
+    Audio {
+        received: u64,
+        total: Option<u64>,
+    },
+    #[cfg(all(target_os = "macos", not(feature = "apple-store")))]
+    Cover,
 }
 pub fn public_ip(ip: IpAddr) -> bool {
     match ip {
@@ -130,7 +147,10 @@ async fn bounded_fetch<T, F: std::future::Future<Output = Result<T, String>>>(
     }
     tokio::select! {_ = cancel.changed()=>Err("material_cancelled".into()), result=tokio::time::timeout(timeout,task)=>result.unwrap_or(Err("material_web_timeout".into()))}
 }
-async fn fetch(value: String) -> Result<WebpageResponse, String> {
+async fn fetch(
+    value: String,
+    progress: impl Fn(ImportDownload),
+) -> Result<WebpageResponse, String> {
     let submitted = public_url(&value)?.to_string();
     let mut url = public_url(&value)?;
     for hop in 0..=5 {
@@ -187,14 +207,17 @@ async fn fetch(value: String) -> Result<WebpageResponse, String> {
             .and_then(|v| v.to_str().ok())
             .unwrap_or("")
             .to_string();
-        validate_response(
-            response.status().as_u16(),
-            &content_type,
-            response.content_length(),
-        )?;
+        let total = response.content_length();
+        validate_response(response.status().as_u16(), &content_type, total)?;
         let mut bytes = Vec::new();
+        let mut last_report = Instant::now();
         while let Some(chunk) = response.chunk().await.map_err(|_| "material_web_network")? {
             append_bounded(&mut bytes, &chunk)?;
+            let received = bytes.len() as u64;
+            if last_report.elapsed() >= Duration::from_millis(120) || total == Some(received) {
+                progress(ImportDownload::Page { received, total });
+                last_report = Instant::now();
+            }
         }
         return Ok(WebpageResponse {
             bytes_base64: base64::engine::general_purpose::STANDARD.encode(bytes),
@@ -211,13 +234,16 @@ pub async fn fetch_import_webpage(
     state: State<'_, WebpageState>,
     job: String,
     url: String,
+    on_progress: Channel<ImportDownload>,
 ) -> Result<WebpageResponse, String> {
     registered_import(
         &state,
         job,
         &url,
         Duration::from_secs(30),
-        fetch(url.clone()),
+        fetch(url.clone(), |value| {
+            let _ = on_progress.send(value);
+        }),
     )
     .await
 }
@@ -365,7 +391,7 @@ mod live_probe {
             ("timeout", "https://httpbin.org/delay/40"),
         ] {
             let start = Instant::now();
-            let result = tokio::time::timeout(Duration::from_secs(30), fetch(url.into()))
+            let result = tokio::time::timeout(Duration::from_secs(30), fetch(url.into(), |_| {}))
                 .await
                 .unwrap_or(Err("material_web_timeout".into()));
             let row = match result {

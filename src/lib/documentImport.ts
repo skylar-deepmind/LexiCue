@@ -4,7 +4,7 @@ export type { DocumentSource, DocumentBlock, DocumentSection, DocumentSelection,
 export { documentFormat } from './documentCore';
 export { DOCUMENT_LIMITS, documentLocationLabel } from './documentTypes';
 
-export function extractDocument(bytes: Uint8Array, name: string, signal: AbortSignal): Promise<ExtractedDocument> {
+export function extractDocument(bytes: Uint8Array, name: string, signal: AbortSignal, progress?: (value: number) => void): Promise<ExtractedDocument> {
   return new Promise((resolve, reject) => {
     if (signal.aborted) { reject(new Error('material_cancelled')); return; }
     if (bytes.length > DOCUMENT_LIMITS.binaryBytes) { reject(new Error('material_too_large')); return; }
@@ -13,7 +13,14 @@ export function extractDocument(bytes: Uint8Array, name: string, signal: AbortSi
     const cleanup = () => { clearTimeout(timer); signal.removeEventListener('abort', abort); worker.terminate(); };
     const abort = () => { cleanup(); reject(new Error('material_cancelled')); };
     signal.addEventListener('abort', abort, { once: true });
-    worker.onmessage = event => { if (!event.data || !('error' in event.data) && !('result' in event.data)) return; cleanup(); if (import.meta.env.DEV && event.data.diagnostic) window.dispatchEvent(new CustomEvent('lexicue-document-diagnostic', { detail: event.data.diagnostic })); if (event.data.error) reject(new Error(event.data.error)); else resolve(event.data.result); };
+    worker.onmessage = event => {
+      if (!event.data) return;
+      if (typeof event.data.progress === 'number') { progress?.(event.data.progress); return; }
+      if (!('error' in event.data) && !('result' in event.data)) return;
+      cleanup();
+      if (import.meta.env.DEV && event.data.diagnostic) window.dispatchEvent(new CustomEvent('lexicue-document-diagnostic', { detail: event.data.diagnostic }));
+      if (event.data.error) reject(new Error(event.data.error)); else resolve(event.data.result);
+    };
     worker.onerror = event => { if (import.meta.env.DEV) window.dispatchEvent(new CustomEvent('lexicue-document-diagnostic', { detail: { message: event.message, filename: event.filename, line: event.lineno, column: event.colno } })); cleanup(); reject(new Error('material_parse_failed')); };
     const copy = new Uint8Array(bytes);
     worker.postMessage({ bytes: copy, name }, [copy.buffer]);

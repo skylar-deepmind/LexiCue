@@ -58,30 +58,51 @@
     backdrop-filter: blur(18px);
 }
 .overlay-panel.lc-import-preparing { width:fit-content; border:0; background:none; box-shadow:none; overflow:visible; }
-.lc-import-paper-stage { display:grid; justify-items:center; gap:18px; padding:15px; }
+.lc-import-paper-stage { display:grid; justify-items:center; gap:25px; padding:24px 26px 15px; }
 .lc-import-paper-grip {
-    display:block; width:100px; height:130px; padding:0; border:0; border-radius:13px;
+    position:relative; display:block; width:126px; height:148px; padding:0; border:0; border-radius:14px;
     background:none; touch-action:none; user-select:none; -webkit-touch-callout:none; cursor:grab;
 }
-.lc-import-paper-grip:active { cursor:grabbing; }
-.lc-import-paper-grip:focus-visible { outline:2px solid var(--approved-focus); outline-offset:6px; }
-.lc-import-paper-character {
-    position:relative; display:block; width:100%; height:100%; border-radius:13px;
-    background:var(--approved-card); box-shadow:var(--panel-shadow);
-    transform:rotate(-5deg); animation:lc-import-sway 2.2s ease-in-out infinite;
+.lc-import-paper-grip:active:not(:disabled) { cursor:grabbing; }
+.lc-import-paper-grip:disabled { cursor:default; }
+.lc-import-modal .lc-import-paper-grip:focus-visible { outline:2px solid var(--approved-focus); outline-offset:6px; box-shadow:none; }
+.lc-import-paper-art {
+    position:absolute; inset:0; display:block; pointer-events:none;
+    --paper-transition:540ms cubic-bezier(.22,.55,.26,1);
 }
-.lc-import-paper-grip:active .lc-import-paper-character,
-.trash-drag-ghost .lc-import-paper-character { animation:none; }
-.lc-import-paper-fold {
-    position:absolute; top:0; right:0; width:22px; height:22px;
-    border-radius:0 12px 3px 5px; background:var(--approved-hover);
+.lc-import-paper-art :is(.lc-import-paper-shadow, .lc-import-paper-sheet, .lc-import-paper-cover,
+    .lc-import-paper-fragment, .lc-import-paper-original, .lc-import-paper-translation, .lc-import-paper-pending-line) {
+    position:absolute; display:block;
+    transition: left var(--paper-transition), top var(--paper-transition), width var(--paper-transition),
+        height var(--paper-transition), background-color var(--paper-transition), opacity var(--paper-transition),
+        transform var(--paper-transition);
 }
-.lc-import-paper-eyes { position:absolute; top:40px; left:33px; display:flex; gap:22px; animation:lc-import-blink 3.2s linear infinite; }
-.lc-import-paper-eyes i { width:5px; height:6px; border-radius:50%; background:var(--approved-tag); }
-.lc-import-paper-line { position:absolute; left:20px; top:68px; width:60px; height:2px; border-radius:2px; background:var(--approved-dot); }
-.lc-import-paper-line:nth-last-child(2) { top:83px; }
-.lc-import-paper-line:last-child { top:98px; width:42px; }
-.lc-import-loading-copy { margin:0; text-align:center; color:var(--approved-ink); font-size:.875rem; }
+.lc-import-paper-pair { display:contents; }
+.lc-import-paper-shadow { border-radius:15px; background:color-mix(in srgb,var(--approved-dot) 27%,transparent); }
+.lc-import-paper-sheet { border-radius:14px; background:var(--approved-card); border:1px solid var(--approved-dot); }
+.lc-import-paper-cover {
+    border-radius:5px; overflow:hidden;
+    background:color-mix(in srgb,var(--approved-dot) var(--cover-ink),var(--approved-card));
+}
+.lc-import-paper-fragment { border-radius:3px; background:var(--approved-dot); }
+.lc-import-paper-fragment:nth-of-type(5) { background:color-mix(in srgb,var(--approved-dot) 69%,var(--approved-tag)); }
+.lc-import-paper-original { border-radius:2px; background:var(--approved-dot); }
+.lc-import-paper-translation { border-radius:2px; background:color-mix(in srgb,var(--approved-tag) 58%,var(--approved-dot)); }
+.lc-import-paper-art .lc-import-paper-original,
+.lc-import-paper-art .lc-import-paper-translation { transition-delay:var(--line-delay); }
+.lc-import-paper-cover > i,
+.lc-import-paper-pending-line,
+.lc-import-paper-stage[data-stage='parsing'] .lc-import-paper-original {
+    background-image:linear-gradient(105deg,transparent 35%,color-mix(in srgb,var(--approved-tag) 21%,transparent) 50%,transparent 65%);
+    background-size:300% 100%;
+    animation:lc-import-paper-activity 2.45s linear infinite;
+}
+.lc-import-paper-cover > i { position:absolute; inset:0; visibility:hidden; }
+.lc-import-paper-stage[data-stage='reading'] .lc-import-paper-cover > i { visibility:visible; }
+.lc-import-loading-copy { margin:0; text-align:center; color:var(--approved-ink); font-size:1rem; transition:opacity 210ms ease; }
+.lc-import-paper-stage[data-stage='ready'] .lc-import-paper-art { --paper-transition:225ms cubic-bezier(.22,.55,.26,1); }
+.lc-import-paper-stage[data-stage='ready'] :is(.lc-import-paper-original,.lc-import-paper-translation) { transition-delay:0ms; }
+.lc-import-paper-stage[data-stage='ready'] .lc-import-loading-copy,
 .lc-import-paper-stage:has(.lc-import-paper-grip[data-trash-lifted]) .lc-import-loading-copy { opacity:0; }
 .lc-import-preview { padding:24px; }
 .lc-import-preview-meta { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px; font-size:.75rem; color:var(--text-body); }
@@ -91,8 +112,7 @@
 .lc-import-excerpts > div { margin-top:20px; }
 .lc-import-excerpts p[lang='en'] { font-family:Georgia,'Times New Roman',serif; font-size:1.125rem; color:var(--text-strong); line-height:1.8; white-space:pre-wrap; }
 .lc-import-excerpts p[lang='zh'] { font-size:.875rem; color:var(--text-body); line-height:1.8; margin-top:6px; white-space:pre-wrap; }
-@keyframes lc-import-sway { 0%,100% { transform:rotate(-5deg); } 50% { transform:rotate(-2deg) translateY(-3px); } }
-@keyframes lc-import-blink { 0%,40%,46%,100% { transform:scaleY(1); } 43% { transform:scaleY(.15); } }
+@keyframes lc-import-paper-activity { from { background-position:100% 0; } to { background-position:-50% 0; } }
 @media(max-width:540px) {
     .overlay-panel.lc-import-modal { border-radius:18px; }
     .lc-import-header { padding:20px 20px 16px; }
@@ -108,7 +128,8 @@
     .lc-import-footer { padding-block:10px; }
 }
 @media(prefers-reduced-motion:reduce) {
-    .overlay-panel.lc-import-modal, .lc-import-modal *, .trash-drag-ghost .lc-import-paper-character { animation:none; transition:none; }
+    .overlay-panel.lc-import-modal, .lc-import-modal * { animation:none; transition:none; }
+    .lc-import-paper-art * { animation:none !important; transition:none !important; }
 }
 .import-document-sheet .lc-document-preview { margin-top:0; border-top:0; }
 .import-document-sheet .lc-document-preview > div:first-child { margin-top:0; }

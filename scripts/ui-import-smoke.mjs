@@ -59,14 +59,33 @@ try{
    window.__TAURI_INTERNALS__.transformCallback=fn=>{const id=++next;callbacks.set(id,fn);return id;};
    window.__TAURI_INTERNALS__.unregisterCallback=id=>callbacks.delete(id);
    window.__nativeDrop=paths=>{for(const {event,handler}of listeners.values())if(event==='tauri://drag-drop')callbacks.get(handler)?.({event,payload:{paths,position:{x:0,y:0}}});};
+   const OriginalWorker=window.Worker;
+   window.Worker=class extends OriginalWorker{
+    constructor(url,options){super(url,options);this.holdBody=window.__holdImportBody&&String(url).includes('contentWorker');}
+    set onmessage(handler){super.onmessage=event=>{
+     if(this.holdBody&&event.data.result)window.__releaseImportBody=()=>handler.call(this,event);
+     else handler.call(this,event);
+    };}
+   };
    window.__TAURI_INTERNALS__.invoke=async(command,args={})=>{
     if(command==='plugin:event|listen'){const id=++next;listeners.set(id,args);return id;}
     if(command==='plugin:event|unlisten'){listeners.delete(args.eventId);return;}
     if(['plugin:fs|read_text_file','plugin:fs|read'].includes(command)&&window.__holdRead){await new Promise(done=>window.__releaseRead=done);}
     if(command==='cancel_import_translation'){window.__uiCalls.push({command,args:structuredClone(args)});return;}
+    if(command==='fetch_import_webpage'&&window.__webImportFixture){
+     const response=window.__webImportFixture;
+     let index=0;
+     window.__receiveImportBytes=(received,total)=>callbacks.get(args.onProgress.id)?.({index:index++,message:{part:'page',received,total}});
+     await new Promise(done=>{window.__releaseImportDownload=done;});
+     callbacks.get(args.onProgress.id)?.({index,end:true});
+     return response;
+    }
     if(command==='translate_import_sentences'){
      window.__uiCalls.push({command,args:structuredClone(args)});
-     if(window.__translationHold)await new Promise(done=>window.__releaseTranslation=done);
+     if(window.__translationHold){
+      window.__completeImportTranslation=done=>{for(const {event,handler} of listeners.values())if(event==='import-translation-progress')callbacks.get(handler)?.({event,payload:{jobId:args.jobId,done,total:args.sentences.length}});};
+      await new Promise(done=>window.__releaseTranslation=done);
+     }
      if(window.__translationFail)return {translations:[],error:'translation_rate_limited'};
      return {translations:args.sentences.map(s=>({index:s.index,translation:`测试译文 ${s.index+1}。`})),error:null};
     }
@@ -145,6 +164,8 @@ try{
   eq(await preparation.evaluate(n=>getComputedStyle(n).backgroundColor),'rgba(0, 0, 0, 0)','preparation has no enclosing panel surface');
   ok(await page.locator('.lc-import-preparing-layer .overlay-scrim').evaluate(n=>getComputedStyle(n).backdropFilter.includes('blur')),'the desk behind the preparation card is blurred');
   eq(await preparation.locator('button').count(),1,'the paper is the sole interactive control while loading');
+  await page.keyboard.press('Tab');
+  ok(await grip.evaluate(node=>node===document.activeElement&&getComputedStyle(node).outlineStyle==='solid'),'keyboard focus is visible around the preparation paper');
   await page.screenshot({path:`${output}/${theme}-preparation.png`});
   const gripCenter=await center(grip);
   await page.mouse.move(gripCenter.x,gripCenter.y);await page.mouse.down();await trash.waitFor();
@@ -157,6 +178,60 @@ try{
   eq(await trash.getAttribute('data-open'),'true','the bin only opens at the drop target');
   await page.mouse.up();await preparation.waitFor({state:'detached'});await trash.waitFor({state:'detached'});
   await drop([['new.srt',srt('A newer source owns the preview.')]]);await preview();await page.evaluate(()=>{window.__holdRead=false;window.__releaseRead();});await page.waitForTimeout(80);ok((await page.locator('.approved-import-preview').innerText()).includes('A newer source owns'),'late source cannot overwrite new one');await close();eq((await call('test_counts')).files,3,'cancelled and discarded previews do not write');
+  // Release each real preparation boundary independently. The cover should
+  // track received bytes, while the rows only advance with the worker/batches.
+  {
+   const article='<html lang="en"><title>Progress sample</title><body><article><h1>A daily reading habit</h1><p>We read every day because the stories are interesting. The first page is about a walk in the park. We watched the birds and listened to the wind together.</p><p>Then we read about the river and the bridge. The article tells us to look carefully at the small details. We will have more time to finish the story tomorrow afternoon.</p></article></body></html>';
+   const fixtureURL='https://example.com/reading-progress';
+   await page.evaluate(async({article,fixtureURL})=>{
+    window.__holdImportBody=true;window.__translationHold=true;
+    window.__webImportFixture={bytes_base64:btoa(article),submitted_url:fixtureURL,final_url:fixtureURL,content_type:'text/html; charset=utf-8',fetched_at:0};
+    const {useImportStore}=await window.__uiStoreModule('importStore');
+    void useImportStore.getState().fromContent('webpage',fixtureURL);
+   },{article,fixtureURL});
+   const paper=preparation.locator('.lc-import-paper-stage');
+   const cover=paper.locator('.lc-import-paper-cover');
+   const original=paper.locator('.lc-import-paper-original').first();
+   const translated=paper.locator('.lc-import-paper-translation');
+   const width=loc=>loc.evaluate(node=>parseFloat(node.style.width));
+   const opacity=loc=>loc.evaluate(node=>Number(node.style.opacity));
+   await page.waitForFunction(()=>typeof window.__receiveImportBytes==='function');await paper.waitFor();
+   eq(await paper.getAttribute('data-stage'),'reading','source stays in the download stage until bytes are ready');
+   const initialCover=await width(cover),initialLine=await width(original);
+   await page.evaluate(()=>window.__receiveImportBytes(40,100));
+   await page.waitForFunction(p=>parseFloat(document.querySelector('.lc-import-paper-cover').style.width)>p,initialCover);
+   eq(await width(original),initialLine,'download progress grows the cover without projecting parsed lines');
+   eq(await opacity(translated.first()),0,'no translation is claimed during download');
+   const downloaded=await width(cover);
+   await page.evaluate(()=>window.__receiveImportBytes(20,100));
+   eq(await width(cover),downloaded,'out-of-order bytes do not move the paper backwards');
+   await page.emulateMedia({reducedMotion:'reduce'});
+   eq(await paper.evaluate(node=>node.getAnimations({subtree:true}).length),0,'reduced motion still shows progress without moving the paper');
+   await page.emulateMedia({reducedMotion:'no-preference'});
+   await page.evaluate(()=>window.__releaseImportDownload());
+   await page.waitForFunction(()=>typeof window.__releaseImportBody==='function');
+   await preparation.locator('[data-stage="parsing"]').waitFor();
+   eq(await paper.getAttribute('data-stage'),'parsing','the content Worker owns the body stage');
+   ok(await width(original)>initialLine,'actual extracted text unfurls the original line');
+   eq(await opacity(translated.first()),0,'paragraph preparation leaves translation rows empty');
+   await page.evaluate(()=>window.__releaseImportBody());
+   await page.waitForFunction(()=>typeof window.__completeImportTranslation==='function');
+   await preparation.locator('[data-stage="translating"]').waitFor();
+   eq(await paper.getAttribute('data-stage'),'translating','translation starts only after the actual parser finishes');
+   eq(await opacity(translated.first()),0,'an in-flight translation does not appear as completed text');
+   const currentJob=await page.evaluate(()=>window.__uiCalls.filter(call=>call.command==='translate_import_sentences').at(-1).args);
+   await page.evaluate(done=>window.__completeImportTranslation(done),Math.ceil(currentJob.sentences.length*.43));
+   await page.waitForFunction(()=>Number(document.querySelector('.lc-import-paper-translation').style.opacity)>0);
+   eq(await opacity(translated.last()),0,'only the translated fraction is inked');
+   eq((await preparation.innerText()).trim(),'正在准备你的预览','progress introduces no visible copy');
+   await settle();await page.screenshot({path:`${output}/${theme}-paper-progress.png`});
+   await page.evaluate(()=>window.__releaseTranslation());
+   await preparation.locator('[data-stage="ready"]').waitFor();
+   ok(await grip.isDisabled(),'the completed paper settles without a second cancel action');
+   await preview();await close();
+   await page.evaluate(()=>{window.__holdImportBody=false;window.__translationHold=false;window.__webImportFixture=null;window.__completeImportTranslation=null;});
+   eq((await call('test_counts')).files,3,'completing the animation does not save an unconfirmed draft');
+  }
   // Exercise actual module Worker termination, not a mocked parser.
   const workerCancel=await page.evaluate(async content=>{
    const OriginalWorker=window.Worker;let started;let terminated=0;
@@ -282,7 +357,7 @@ try{
     await close();
   }
   await page.evaluate(()=>document.documentElement.style.fontSize='100%');await page.setViewportSize({width:1440,height:900});await close();await page.emulateMedia({reducedMotion:'reduce'});await page.evaluate(()=>window.__uiFiles={});await chooseFromDesk();eq(await page.locator('.lc-import-modal').count(),0,'reduced motion keeps direct picker behavior');
-  await page.evaluate(async()=>{const{useImportStore}=await window.__uiStoreModule('importStore');void useImportStore.getState().start([{name:'reduced.srt',read:()=>new Promise(done=>window.__reducedRead=done)}]);});await page.locator('.lc-import-paper-character').waitFor();eq(await page.locator('.lc-import-paper-character').evaluate(n=>getComputedStyle(n).animationName),'none','reduced motion paper');await close();await page.evaluate(()=>window.__reducedRead(''));await context.close();
+  await page.evaluate(async()=>{const{useImportStore}=await window.__uiStoreModule('importStore');void useImportStore.getState().start([{name:'reduced.srt',read:()=>new Promise(done=>window.__reducedRead=done)}]);});await page.locator('.lc-import-paper-art').waitFor();eq(await page.locator('.lc-import-paper-art').evaluate(n=>n.getAnimations({subtree:true}).length),0,'reduced motion paper');await close();await page.evaluate(()=>window.__reducedRead(''));await context.close();
  }
  // The native OS hands us file URLs on iOS and permission-bearing content
  // URIs on Android. Simulate both delivery boundaries with the real Worker's bytes.

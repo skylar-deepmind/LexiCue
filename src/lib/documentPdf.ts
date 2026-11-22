@@ -159,7 +159,7 @@ function pageBlocks(pages: PdfPage[]) {
   }
   return extracted.flatMap(page => page.blocks);
 }
-export async function pdfDocument(bytes: Uint8Array): Promise<RawDocument> {
+export async function pdfDocument(bytes: Uint8Array, progress?: (fraction: number) => void): Promise<RawDocument> {
   if (!new TextDecoder().decode(bytes.subarray(0, 1024)).includes('%PDF-')) throw new Error('material_invalid_document');
   const assetBase = new URL('/pdfjs/', typeof location !== 'undefined' ? location.href : 'http://localhost/').href;
   // WKWebView does not consistently expose nested Worker constructors. Load the
@@ -210,6 +210,7 @@ export async function pdfDocument(bytes: Uint8Array): Promise<RawDocument> {
       const result = pageLines(items, p, right - left, top - bottom);
       if (result.complex) { partial = true; complexPages.push(p); }
       pages.push(result); page.cleanup();
+      progress?.(p / doc.numPages);
     }
   } finally { await doc.destroy(); }
   if (noText.length === pages.length) throw new Error('material_no_text_layer');

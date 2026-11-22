@@ -1,7 +1,7 @@
 use super::{
     materials::MaterialInput,
     source_media::{self, AudioTrack, LocalAttachment, YoutubeSource, MAX_DURATION_MS},
-    webpage::{registered_import, WebpageState},
+    webpage::{registered_import, ImportDownload, WebpageState},
     youtube::is_valid_video_id,
 };
 use reqwest::Url;
@@ -11,8 +11,12 @@ use std::{
     process::Stdio,
     time::Duration,
 };
-use tauri::{AppHandle, State};
-use tokio::{fs, process::Command};
+use tauri::{ipc::Channel, AppHandle, State};
+use tokio::{
+    fs,
+    io::{AsyncBufReadExt, BufReader},
+    process::Command,
+};
 
 const CAPTION_LANGUAGES: [&str; 4] = ["en", "en-orig", "en-US", "en-GB"];
 const MAX_CAPTION_BYTES: u64 = 8_000_000;
@@ -95,8 +99,9 @@ async fn download_audio(
     url: &str,
     track: &AudioTrack,
     stage: &Path,
+    progress: &Channel<ImportDownload>,
 ) -> Option<i64> {
-    let status = command
+    let mut child = command
         .args([
             "--format",
             &track.format_id,
@@ -111,15 +116,28 @@ async fn download_audio(
             ffmpeg,
             "--output",
             "original.%(ext)s",
+            "--quiet",
+            "--no-warnings",
+            "--newline",
+            "--progress",
+            "--progress-delta",
+            "0.15",
+            "--progress-template",
+            "download:lexicue-audio:%(progress.downloaded_bytes)s:%(progress.total_bytes)s",
             "--",
             url,
         ])
-        .stdout(Stdio::null())
+        .stdout(Stdio::piped())
         .stderr(Stdio::null())
-        .status()
-        .await
+        .spawn()
         .ok()?;
-    if !status.success() {
+    let mut lines = BufReader::new(child.stdout.take()?).lines();
+    while let Some(line) = lines.next_line().await.ok()? {
+        if let Some(value) = audio_progress(&line) {
+            let _ = progress.send(value);
+        }
+    }
+    if !child.wait().await.ok()?.success() {
         return None;
     }
     let audio = stage.join("original.m4a");
@@ -164,7 +182,24 @@ async fn download_audio(
         .then(|| (duration * 1000.).round() as i64)
 }
 
-async fn fetch(url: &str, stage: PathBuf) -> Result<CaptionImport, String> {
+fn audio_progress(line: &str) -> Option<ImportDownload> {
+    let (received, total) = line
+        .trim()
+        .strip_prefix("lexicue-audio:")?
+        .split_once(':')?;
+    let received = received.parse().ok()?;
+    let total = total
+        .parse::<u64>()
+        .ok()
+        .filter(|&n| n > 0 && n >= received);
+    Some(ImportDownload::Audio { received, total })
+}
+
+async fn fetch(
+    url: &str,
+    stage: PathBuf,
+    progress: &Channel<ImportDownload>,
+) -> Result<CaptionImport, String> {
     let id = video_id(url).ok_or("material_web_invalid")?;
     let ytdlp = tools_directory("yt-dlp").ok_or("material_youtube_tool_missing")?;
     let ffmpeg = tools_directory("ffmpeg").ok_or("material_youtube_tool_missing")?;
@@ -221,6 +256,7 @@ async fn fetch(url: &str, stage: PathBuf) -> Result<CaptionImport, String> {
         .map_err(|_| "material_download_failed")?;
     let metadata: serde_json::Value =
         serde_json::from_slice(&output.stdout).map_err(|_| "material_download_failed")?;
+    let _ = progress.send(ImportDownload::Captions);
     let title = metadata["title"]
         .as_str()
         .unwrap_or(&id)
@@ -255,6 +291,7 @@ async fn fetch(url: &str, stage: PathBuf) -> Result<CaptionImport, String> {
             &canonical,
             track,
             directory.path(),
+            progress,
         )
         .await
         .filter(|actual| actual.abs_diff(duration_ms) <= 5_000),
@@ -305,16 +342,20 @@ pub async fn fetch_import_youtube(
     job: String,
     url: String,
     operation_id: String,
+    on_progress: Channel<ImportDownload>,
 ) -> Result<CaptionImport, String> {
     let stage = staging_path(&source_media::root(&app)?, &operation_id)?;
     let id = video_id(&url).ok_or("material_web_invalid")?;
     registered_import(&state, job, &url, Duration::from_secs(240), async {
-        let (captions, cover) = tokio::join!(
-            fetch(&url, stage),
-            super::youtube_cover::youtube_cover(app, id),
-        );
+        let (captions, cover) = tokio::join!(fetch(&url, stage, &on_progress), async {
+            let cover = super::youtube_cover::youtube_cover(app, id).await.ok();
+            if cover.is_some() {
+                let _ = on_progress.send(ImportDownload::Cover);
+            }
+            cover
+        });
         let mut captions = captions?;
-        captions.cover = cover.ok();
+        captions.cover = cover;
         Ok(captions)
     })
     .await
@@ -365,6 +406,28 @@ pub(super) fn take_attachment(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn audio_progress_uses_only_known_byte_totals() {
+        assert!(matches!(
+            audio_progress("lexicue-audio:200:400"),
+            Some(ImportDownload::Audio {
+                received: 200,
+                total: Some(400)
+            })
+        ));
+        for line in ["lexicue-audio:200:NA", "lexicue-audio:200:100"] {
+            assert!(matches!(
+                audio_progress(line),
+                Some(ImportDownload::Audio {
+                    received: 200,
+                    total: None
+                })
+            ));
+        }
+        assert!(audio_progress("[download] some unrelated message").is_none());
+        assert!(audio_progress("lexicue-audio:NA:400").is_none());
+    }
 
     #[test]
     fn accepts_only_direct_video_ids_from_known_hosts() {

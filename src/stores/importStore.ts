@@ -53,6 +53,8 @@ export interface ImportItem extends ImportSource {
     extraction?: ExtractedDocument;
     englishFallback?: string;
     fallbackSegments?: SegmentInput[];
+    downloadProgress?: number;
+    bodyProgress?: number;
     translationProgress?: TranslationProgress;
     result?: MaterialImportResult;
 }
@@ -94,9 +96,22 @@ export async function prepareImportQueue(items: ImportItem[], signal: AbortSigna
         try {
             const contentKind = item.kind === 'clipboard' || item.kind === 'webpage' ? item.kind : undefined;
             if (!contentKind && !/\.(pdf|docx|epub|md|markdown|vtt|srt|txt)$/i.test(item.name)) throw new Error('material_invalid_srt');
-            update(item.id, { stage: 'reading', error: undefined });
+            update(item.id, { stage: 'reading', error: undefined, downloadProgress: undefined, bodyProgress: undefined, translationProgress: undefined });
+            let received = 0;
+            const download = (fraction: number) => {
+                if (signal.aborted || fraction <= received) return;
+                received = fraction;
+                update(item.id, { downloadProgress: fraction });
+            };
+            const organize = (fraction: number) => {
+                if (!signal.aborted) update(item.id, { bodyProgress: fraction });
+            };
+            const parsingStarted = () => {
+                parsing = true;
+                update(item.id, { stage: 'parsing', bodyProgress: .18 });
+            };
             const reusing = !!item.preparedSegments;
-            const captions = item.kind === 'youtube' && !reusing ? await abortable(prepareYouTube(item.url!, item.id, signal), signal) : undefined;
+            const captions = item.kind === 'youtube' && !reusing ? await abortable(prepareYouTube(item.url!, item.id, signal, download), signal) : undefined;
             const youtube = captions?.source ?? item.youtube;
             const presentation = youtube ? {
                 youtube, youtubeCoverData: captions ? captions.cover : item.youtubeCoverData,
@@ -104,13 +119,13 @@ export async function prepareImportQueue(items: ImportItem[], signal: AbortSigna
             } : {};
             const title = youtube?.title || youtube?.video_id;
             const name = title ? `${title.replace(/[\\/:*?"<>|\p{Cc}]/gu, '_').slice(0, 200)}.srt` : item.name;
-            const preparedContent = contentKind && !reusing ? await abortable(prepareContent(contentKind, contentKind === 'webpage' ? item.url! : item.capturedText!, signal), signal) : undefined;
+            const preparedContent = contentKind && !reusing ? await abortable(prepareContent(contentKind,
+                contentKind === 'webpage' ? item.url! : item.capturedText!, signal, download, parsingStarted, organize), signal) : undefined;
             const read = captions?.content ?? preparedContent?.content ?? await abortable(item.read(signal), signal);
             if (signal.aborted) break;
             if (!reusing && !contentKind && !(read instanceof Uint8Array) && !/\.(txt|srt)$/i.test(item.name)) throw new Error('material_invalid_format');
-            update(item.id, { stage: 'parsing' });
-            parsing = true;
-            let extraction = preparedContent ?? (reusing ? item.extraction : read instanceof Uint8Array ? await extractDocument(read, item.name, signal) : undefined);
+            if (!parsing) parsingStarted();
+            let extraction = preparedContent ?? (reusing ? item.extraction : read instanceof Uint8Array ? await extractDocument(read, item.name, signal, organize) : undefined);
             if (item.packageCover && extraction && !extraction.document.cover) {
                 try {
                     const cover = await abortable(materialPackageCover(item.packageCover), signal);

@@ -35,6 +35,22 @@ export default function ImportPanel() {
     const { destination, running, hide, clearDestination, phase } = state;
     const open = live.open;
     const present = useImportPresence(open, panelRef);
+    const [paperPainted, setPaperPainted] = useState(false);
+    const finishingPaper = open && paperPainted && phase === 'preview' && state.items.some(item => item.stage === 'ready')
+        && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const preparing = phase === 'preparing' || finishingPaper;
+    useLayoutEffect(() => {
+        if (open && phase === 'preparing') {
+            setPaperPainted(true);
+        } else if (finishingPaper) {
+            // The draft is already available. Let the paper land before
+            // swapping the overlay content; parsing and writes never wait.
+            const timer = setTimeout(() => setPaperPainted(false), 250);
+            return () => clearTimeout(timer);
+        } else {
+            setPaperPainted(false);
+        }
+    }, [open, phase, finishingPaper]);
     const placing = useRef(false), placed = useRef(new Set<string>());
     const tags = useFileStore(s => s.tags);
     const loadTags = useFileStore(s => s.loadTags);
@@ -85,7 +101,7 @@ export default function ImportPanel() {
     useLayoutEffect(() => {
         const panel = panelRef.current;
         if (open && panel && !panel.contains(document.activeElement)) panel.focus({ preventScroll: true });
-    }, [open, phase]);
+    }, [open, phase, preparing]);
     if (!present) return null;
     if (phase === 'source') return <Overlay returnFocus={takeImportFocus}
         label={t('materials.importDialog.linkTitle')} onClose={hide} panelRef={panelRef}
@@ -93,7 +109,6 @@ export default function ImportPanel() {
         layerClassName={`lc-import-layer${open ? '' : ' lc-import-layer--closing'}`}>
         <LinkImportForm input={linkInput} onClose={hide} />
     </Overlay>;
-    const preparing = phase === 'preparing';
     const committing = phase === 'committing';
     const preview = phase === 'preview';
     const result = phase === 'result';
@@ -104,10 +119,10 @@ export default function ImportPanel() {
     const heading = preview ? 'previewTitle' : committing ? 'writingTitle' : 'resultTitle';
     const layer = `lc-import-layer${open ? '' : ' lc-import-layer--closing'}`;
     if (preparing) return <Overlay returnFocus={takeImportFocus} label={t('materials.importDialog.preparingTitle')}
-        onClose={() => { if (useImportStore.getState().phase === 'preparing') state.cancel(); }}
+        onClose={() => { if (useImportStore.getState().phase === 'preparing') state.cancel(); else hide(); }}
         dismissOnBackdrop={false} className="lc-import-modal lc-import-preparing"
         layerClassName={`${layer} lc-import-preparing-layer`} panelRef={panelRef}>
-        <ImportPaper disabled={!open} />
+        <ImportPaper disabled={!open || finishingPaper} finishing={finishingPaper} items={state.items} />
     </Overlay>;
     if (selected?.draft && (preview || committing || result)) {
         return <Overlay returnFocus={takeImportFocus} label={t('materials.import')} onClose={hide}
