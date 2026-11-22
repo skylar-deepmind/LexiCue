@@ -80,7 +80,24 @@ fn attach_exact_source(
     if cues != source.cues {
         return Ok(None);
     }
-    let ids=conn.prepare("SELECT id FROM files WHERE content_hash=?1 AND content=?2 AND language='en' AND type='srt' AND media_source IS NULL AND media_identity IS NULL AND document_identity IS NULL ORDER BY id").map_err(|e|e.to_string())?.query_map(params![hash,input.content],|r|r.get::<_,i64>(0)).map_err(|e|e.to_string())?.collect::<rusqlite::Result<Vec<_>>>().map_err(|e|e.to_string())?;
+    let ids = conn
+        .prepare(
+            "SELECT id FROM files WHERE content_hash=?1 AND content=?2
+         AND language='en' AND type='srt' AND document_identity IS NULL
+         AND ((media_source IS NULL AND media_identity IS NULL) OR
+             CASE WHEN json_valid(media_source) THEN
+                json_extract(media_source,'$.provider')='youtube'
+                AND json_extract(media_source,'$.video_id')=?3
+                AND json_extract(media_source,'$.audio') IS NULL
+             ELSE FALSE END) ORDER BY id",
+        )
+        .map_err(|e| e.to_string())?
+        .query_map(params![hash, input.content, source.video_id], |r| {
+            r.get::<_, i64>(0)
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<rusqlite::Result<Vec<_>>>()
+        .map_err(|e| e.to_string())?;
     if ids.len() != 1 {
         return Ok(None);
     }
@@ -93,7 +110,15 @@ fn attach_exact_source(
     {
         return Ok(None);
     }
-    conn.execute("UPDATE files SET media_source=?2,media_identity=?3 WHERE id=?1 AND media_source IS NULL AND media_identity IS NULL",params![id,serde_json::to_string(source).map_err(|e|e.to_string())?,source.key]).map_err(|e|e.to_string())?;
+    conn.execute(
+        "UPDATE files SET media_source=?2,media_identity=?3 WHERE id=?1",
+        params![
+            id,
+            serde_json::to_string(source).map_err(|e| e.to_string())?,
+            source.key
+        ],
+    )
+    .map_err(|e| e.to_string())?;
     Ok(Some(id))
 }
 
@@ -192,7 +217,7 @@ pub(super) fn import_material_with_attachment(
     let request_hash = format!(
         "{:x}",
         Sha256::digest(
-            if let Some(attachment) = attachment {
+            if let Some(attachment) = attachment.filter(|entry| entry.source.provider == "local") {
                 serde_json::to_vec(&(
                     &input.name,
                     &input.content,
@@ -327,12 +352,23 @@ pub(super) fn import_material_with_attachment(
 }
 #[tauri::command]
 pub async fn import_reading_material(
+    app: tauri::AppHandle,
     state: State<'_, DbState>,
     input: MaterialInput,
 ) -> Result<ImportResult, String> {
     let shared = state.conn.clone();
     tauri::async_runtime::spawn_blocking(move || {
+        #[cfg(all(target_os = "macos", not(feature = "apple-store")))]
+        let staged = super::youtube_import::take_attachment(&app, &input)?;
+        #[cfg(not(all(target_os = "macos", not(feature = "apple-store"))))]
+        let _ = app;
         let conn = shared.lock().map_err(|e| e.to_string())?;
+        #[cfg(all(target_os = "macos", not(feature = "apple-store")))]
+        if let Some((path, attachment)) = staged {
+            let result = import_material_with_attachment(&conn, &input, Some(&attachment))?;
+            let _ = std::fs::remove_dir_all(path);
+            return Ok(result);
+        }
         import_material(&conn, &input)
     })
     .await

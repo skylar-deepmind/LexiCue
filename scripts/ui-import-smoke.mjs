@@ -59,14 +59,33 @@ try{
    window.__TAURI_INTERNALS__.transformCallback=fn=>{const id=++next;callbacks.set(id,fn);return id;};
    window.__TAURI_INTERNALS__.unregisterCallback=id=>callbacks.delete(id);
    window.__nativeDrop=paths=>{for(const {event,handler}of listeners.values())if(event==='tauri://drag-drop')callbacks.get(handler)?.({event,payload:{paths,position:{x:0,y:0}}});};
+   const OriginalWorker=window.Worker;
+   window.Worker=class extends OriginalWorker{
+    constructor(url,options){super(url,options);this.holdBody=window.__holdImportBody&&String(url).includes('contentWorker');}
+    set onmessage(handler){super.onmessage=event=>{
+     if(this.holdBody&&event.data.result)window.__releaseImportBody=()=>handler.call(this,event);
+     else handler.call(this,event);
+    };}
+   };
    window.__TAURI_INTERNALS__.invoke=async(command,args={})=>{
     if(command==='plugin:event|listen'){const id=++next;listeners.set(id,args);return id;}
     if(command==='plugin:event|unlisten'){listeners.delete(args.eventId);return;}
     if(['plugin:fs|read_text_file','plugin:fs|read'].includes(command)&&window.__holdRead){await new Promise(done=>window.__releaseRead=done);}
     if(command==='cancel_import_translation'){window.__uiCalls.push({command,args:structuredClone(args)});return;}
+    if(command==='fetch_import_webpage'&&window.__webImportFixture){
+     const response=window.__webImportFixture;
+     let index=0;
+     window.__receiveImportBytes=(received,total)=>callbacks.get(args.onProgress.id)?.({index:index++,message:{part:'page',received,total}});
+     await new Promise(done=>{window.__releaseImportDownload=done;});
+     callbacks.get(args.onProgress.id)?.({index,end:true});
+     return response;
+    }
     if(command==='translate_import_sentences'){
      window.__uiCalls.push({command,args:structuredClone(args)});
-     if(window.__translationHold)await new Promise(done=>window.__releaseTranslation=done);
+     if(window.__translationHold){
+      window.__completeImportTranslation=done=>{for(const {event,handler} of listeners.values())if(event==='import-translation-progress')callbacks.get(handler)?.({event,payload:{jobId:args.jobId,done,total:args.sentences.length}});};
+      await new Promise(done=>window.__releaseTranslation=done);
+     }
      if(window.__translationFail)return {translations:[],error:'translation_rate_limited'};
      return {translations:args.sentences.map(s=>({index:s.index,translation:`测试译文 ${s.index+1}。`})),error:null};
     }
@@ -121,7 +140,17 @@ try{
   eq(await itemStages(),['duplicate','failed','created'],'partial results isolated');eq((await call('test_counts')).files,2,'only valid new content is created');await close();
   // Lost receipt after real COMMIT: same exact operation and content on retry.
   await drop([['lost.srt',srt('A lost receipt can be safely recovered.')]]);await preview();await page.evaluate(()=>window.__uiFailure={command:'import_reading_material',remaining:1,afterCommit:true});await confirm();await page.getByRole('alert').filter({visible:true}).waitFor();
-  const lost=(await writes()).at(-1);eq((await call('test_counts')).files,3,'lost receipt really committed');await page.getByRole('button',{name:'重试未完成项'}).click();await landed();eq((await writes()).at(-1),lost,'retry resends exact operation payload');eq((await call('test_counts')).files,3,'idempotent retry has one result');
+  const lost=(await writes()).at(-1);eq((await call('test_counts')).files,3,'lost receipt really committed');
+  const newCard=(await call('list_materials',{tagIds:[],untagged:false})).find(material=>material.name==='lost.srt');
+  assert.ok(newCard);
+  await page.getByRole('button',{name:'重试未完成项'}).click();
+  const flying=page.locator('.import-insertion-flight .import-material-card');
+  await flying.waitFor();
+  ok((await flying.innerText()).includes('A lost receipt can be safely recovered.'),'handoff carries the confirmed preview');
+  ok(await flying.evaluate(card=>card.getAnimations().some(animation=>animation.effect.getKeyframes().length>=4)),'preview lifts and lands instead of just switching cards');
+  await landed();
+  eq(Number(await page.locator('.approved-card[data-desk-active=true]').getAttribute('data-motion-file')),newCard.id,'the landing reveals this import as the active desk card');
+  eq((await writes()).at(-1),lost,'retry resends exact operation payload');eq((await call('test_counts')).files,3,'idempotent retry has one result');
   // Native drag event adapter routes into the same prepare/preview state.
   await page.evaluate(text=>{window.__uiFiles={'/fixture/native-drag.srt':text};window.__nativeDrop(['/fixture/native-drag.srt']);},srt('Native paths share the same preview.'));await preview();eq((await call('test_counts')).files,3,'native event adapter does not commit');
   await add();await tagName.fill('Discarded tag');await tagName.press('Escape');await close();
@@ -135,6 +164,8 @@ try{
   eq(await preparation.evaluate(n=>getComputedStyle(n).backgroundColor),'rgba(0, 0, 0, 0)','preparation has no enclosing panel surface');
   ok(await page.locator('.lc-import-preparing-layer .overlay-scrim').evaluate(n=>getComputedStyle(n).backdropFilter.includes('blur')),'the desk behind the preparation card is blurred');
   eq(await preparation.locator('button').count(),1,'the paper is the sole interactive control while loading');
+  await page.keyboard.press('Tab');
+  ok(await grip.evaluate(node=>node===document.activeElement&&getComputedStyle(node).outlineStyle==='solid'),'keyboard focus is visible around the preparation paper');
   await page.screenshot({path:`${output}/${theme}-preparation.png`});
   const gripCenter=await center(grip);
   await page.mouse.move(gripCenter.x,gripCenter.y);await page.mouse.down();await trash.waitFor();
@@ -147,6 +178,77 @@ try{
   eq(await trash.getAttribute('data-open'),'true','the bin only opens at the drop target');
   await page.mouse.up();await preparation.waitFor({state:'detached'});await trash.waitFor({state:'detached'});
   await drop([['new.srt',srt('A newer source owns the preview.')]]);await preview();await page.evaluate(()=>{window.__holdRead=false;window.__releaseRead();});await page.waitForTimeout(80);ok((await page.locator('.approved-import-preview').innerText()).includes('A newer source owns'),'late source cannot overwrite new one');await close();eq((await call('test_counts')).files,3,'cancelled and discarded previews do not write');
+  // Release each real preparation boundary independently. The cover should
+  // track received bytes, while the rows only advance with the worker/batches.
+  {
+   const article='<html lang="en"><title>Progress sample</title><body><article><h1>A daily reading habit</h1><p>We read every day because the stories are interesting. The first page is about a walk in the park. We watched the birds and listened to the wind together.</p><p>Then we read about the river and the bridge. The article tells us to look carefully at the small details. We will have more time to finish the story tomorrow afternoon.</p></article></body></html>';
+   const fixtureURL='https://example.com/reading-progress';
+   await page.evaluate(async({article,fixtureURL})=>{
+    window.__holdImportBody=true;window.__translationHold=true;
+    window.__webImportFixture={bytes_base64:btoa(article),submitted_url:fixtureURL,final_url:fixtureURL,content_type:'text/html; charset=utf-8',fetched_at:0};
+    const {useImportStore}=await window.__uiStoreModule('importStore');
+    void useImportStore.getState().fromContent('webpage',fixtureURL);
+   },{article,fixtureURL});
+   const paper=preparation.locator('.lc-import-paper-stage');
+   const cover=paper.locator('.lc-import-paper-cover');
+   const original=paper.locator('.lc-import-paper-original').first();
+   const translated=paper.locator('.lc-import-paper-translation');
+   const width=loc=>loc.evaluate(node=>parseFloat(node.style.width));
+   const opacity=loc=>loc.evaluate(node=>Number(node.style.opacity));
+   const movesBetweenUpdates=async stage=>{
+    const motion=await paper.locator('.lc-import-paper-art').evaluate(async node=>{
+     const positions=[];
+     for(let i=0;i<13;i++){
+      const transform=getComputedStyle(node).transform;
+      positions.push(transform==='none'?0:new DOMMatrix(transform).m42);
+      await new Promise(resolve=>setTimeout(resolve,110));
+     }
+     return {travel:Math.max(...positions)-Math.min(...positions),
+      movingWindows:positions.filter((y,i)=>i&&Math.abs(y-positions[i-1])>.18).length};
+    });
+    ok(motion.travel>4.5&&motion.movingWindows>=8,`the paper keeps moving when ${stage} sends no updates`);
+   };
+   await page.waitForFunction(()=>typeof window.__receiveImportBytes==='function');await paper.waitFor();
+   eq(await paper.getAttribute('data-stage'),'reading','source stays in the download stage until bytes are ready');
+   await movesBetweenUpdates('download');
+   const initialCover=await width(cover),initialLine=await width(original);
+   await page.evaluate(()=>window.__receiveImportBytes(40,100));
+   await page.waitForFunction(p=>parseFloat(document.querySelector('.lc-import-paper-cover').style.width)>p,initialCover);
+   eq(await width(original),initialLine,'download progress grows the cover without projecting parsed lines');
+   eq(await opacity(translated.first()),0,'no translation is claimed during download');
+   const downloaded=await width(cover);
+   await page.evaluate(()=>window.__receiveImportBytes(20,100));
+   eq(await width(cover),downloaded,'out-of-order bytes do not move the paper backwards');
+   await page.emulateMedia({reducedMotion:'reduce'});
+   eq(await paper.evaluate(node=>node.getAnimations({subtree:true}).length),0,'reduced motion still shows progress without moving the paper');
+   await page.emulateMedia({reducedMotion:'no-preference'});
+   await page.evaluate(()=>window.__releaseImportDownload());
+   await page.waitForFunction(()=>typeof window.__releaseImportBody==='function');
+   await preparation.locator('[data-stage="parsing"]').waitFor();
+   eq(await paper.getAttribute('data-stage'),'parsing','the content Worker owns the body stage');
+   ok(await width(original)>initialLine,'actual extracted text unfurls the original line');
+   eq(await opacity(translated.first()),0,'paragraph preparation leaves translation rows empty');
+   await movesBetweenUpdates('parsing');
+   await page.evaluate(()=>window.__releaseImportBody());
+   await page.waitForFunction(()=>typeof window.__completeImportTranslation==='function');
+   await preparation.locator('[data-stage="translating"]').waitFor();
+   eq(await paper.getAttribute('data-stage'),'translating','translation starts only after the actual parser finishes');
+   eq(await opacity(translated.first()),0,'an in-flight translation does not appear as completed text');
+   await movesBetweenUpdates('translation');
+   eq(await opacity(translated.first()),0,'idle motion never fills in a translation line');
+   const currentJob=await page.evaluate(()=>window.__uiCalls.filter(call=>call.command==='translate_import_sentences').at(-1).args);
+   await page.evaluate(done=>window.__completeImportTranslation(done),Math.ceil(currentJob.sentences.length*.43));
+   await page.waitForFunction(()=>Number(document.querySelector('.lc-import-paper-translation').style.opacity)>0);
+   eq(await opacity(translated.last()),0,'only the translated fraction is inked');
+   eq((await preparation.innerText()).trim(),'正在准备你的预览','progress introduces no visible copy');
+   await settle();await page.screenshot({path:`${output}/${theme}-paper-progress.png`});
+   await page.evaluate(()=>window.__releaseTranslation());
+   await preparation.locator('[data-stage="ready"]').waitFor();
+   ok(await grip.isDisabled(),'the completed paper settles without a second cancel action');
+   await preview();await close();
+   await page.evaluate(()=>{window.__holdImportBody=false;window.__translationHold=false;window.__webImportFixture=null;window.__completeImportTranslation=null;});
+   eq((await call('test_counts')).files,3,'completing the animation does not save an unconfirmed draft');
+  }
   // Exercise actual module Worker termination, not a mocked parser.
   const workerCancel=await page.evaluate(async content=>{
    const OriginalWorker=window.Worker;let started;let terminated=0;
@@ -272,7 +374,7 @@ try{
     await close();
   }
   await page.evaluate(()=>document.documentElement.style.fontSize='100%');await page.setViewportSize({width:1440,height:900});await close();await page.emulateMedia({reducedMotion:'reduce'});await page.evaluate(()=>window.__uiFiles={});await chooseFromDesk();eq(await page.locator('.lc-import-modal').count(),0,'reduced motion keeps direct picker behavior');
-  await page.evaluate(async()=>{const{useImportStore}=await window.__uiStoreModule('importStore');void useImportStore.getState().start([{name:'reduced.srt',read:()=>new Promise(done=>window.__reducedRead=done)}]);});await page.locator('.lc-import-paper-character').waitFor();eq(await page.locator('.lc-import-paper-character').evaluate(n=>getComputedStyle(n).animationName),'none','reduced motion paper');await close();await page.evaluate(()=>window.__reducedRead(''));await context.close();
+  await page.evaluate(async()=>{const{useImportStore}=await window.__uiStoreModule('importStore');void useImportStore.getState().start([{name:'reduced.srt',read:()=>new Promise(done=>window.__reducedRead=done)}]);});await page.locator('.lc-import-paper-art').waitFor();eq(await page.locator('.lc-import-paper-art').evaluate(n=>n.getAnimations({subtree:true}).length),0,'reduced motion paper');await close();await page.evaluate(()=>window.__reducedRead(''));await context.close();
  }
  // The native OS hands us file URLs on iOS and permission-bearing content
  // URIs on Android. Simulate both delivery boundaries with the real Worker's bytes.
@@ -347,4 +449,4 @@ try{
   await platformContext.close();
  }
  eq(errors,[],'no browser exceptions');await writeFile(`${output}/evidence.json`,JSON.stringify({checks,themes:['sage','midnight'],contrasts,errors,nativeBoundary:'simulated OS picker/drop/chunked FS IPC and translation-service responses; actual document/ZIP Workers, native video-to-audio conversion, Rust transactions, explicit reading translation writeback and temporary SQLite'},null,2));console.log(`Import UI: ${checks} checks passed. Evidence: ${output}`);
-}catch(error){if(page){await page.screenshot({path:`${output}/failure.png`}).catch(()=>{});await writeFile(`${output}/failure.json`,JSON.stringify(await page.evaluate(async()=>{const{useImportStore}=await window.__uiStoreModule('importStore');const s=useImportStore.getState();return {text:document.body.innerText,calls:window.__uiCalls,trace:window.__importTrace,state:{open:s.open,phase:s.phase,running:s.running,items:s.items.map(i=>({name:i.name,stage:i.stage,error:i.error}))}};}),null,2)).catch(()=>{});}throw error;}finally{await h.dispose();}
+}catch(error){if(page){await page.screenshot({path:`${output}/failure.png`}).catch(()=>{});await writeFile(`${output}/failure.json`,JSON.stringify({errors,...await page.evaluate(async()=>{const{useImportStore}=await window.__uiStoreModule('importStore');const s=useImportStore.getState();return {text:document.body.innerText,calls:window.__uiCalls,trace:window.__importTrace,state:{open:s.open,phase:s.phase,running:s.running,items:s.items.map(i=>({name:i.name,stage:i.stage,error:i.error}))}};})},null,2)).catch(()=>{});}throw error;}finally{await h.dispose();}

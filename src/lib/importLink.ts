@@ -1,8 +1,30 @@
 import { isTauri } from '@tauri-apps/api/core';
 import { readText } from '@tauri-apps/plugin-clipboard-manager';
+import { isAppleStoreBuild } from './distribution';
+import { isMobilePlatform } from './platform';
+import { inspectClipboardContent } from './clipboardContent';
 
 export type ImportLinkError = 'clipboardEmpty' | 'invalidLink' | 'unsupportedLink';
 export type ImportLink = { url: string; error?: undefined } | { url: string; error: ImportLinkError };
+
+export function supportsMacLinkImport(): boolean {
+  return isTauri() && !isAppleStoreBuild && /Macintosh/i.test(navigator.userAgent) && !isMobilePlatform();
+}
+
+export function classifyImportLink(value: string): { kind: 'webpage' | 'youtube'; url: string } | { error: string } {
+  if (!value.trim()) return { error: 'invalidLink' };
+  const parsed = inspectClipboardContent(value);
+  if (parsed.kind === 'webpage') return parsed;
+  if (parsed.kind === 'text') return { error: 'invalidLink' };
+  if (parsed.error !== 'videoLinkUnsupported') return { error: parsed.error };
+  const youtube = inspectImportLink(/^www\./i.test(value.trim()) ? `https://${value.trim()}` : value);
+  if (youtube.error) return { error: youtube.error };
+  const url = new URL(youtube.url);
+  const id = url.hostname.endsWith('youtu.be') ? url.pathname.slice(1).replace(/\/$/, '')
+    : url.pathname.replace(/\/$/, '') === '/watch' ? url.searchParams.get('v')
+    : /^\/(?:shorts|embed|live)\/([^/]+)\/?$/.exec(url.pathname)?.[1];
+  return id && /^[\w-]{11}$/.test(id) ? { kind: 'youtube', url: youtube.url } : { error: 'unsupportedLink' };
+}
 
 /** Validate locally before handing any clipboard content to a network source. */
 export function inspectImportLink(text: string | null): ImportLink {

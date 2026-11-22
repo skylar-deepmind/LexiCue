@@ -90,6 +90,9 @@ sha2 = { version = "0.10", features = ["asm"] }
 rcgen = { version = "0.13.2", default-features = false, features = ["crypto", "ring"] }
 p12 = "0.6.3"
 
+[target.'cfg(target_os = "macos")'.dependencies]
+tempfile = "3"
+
 [dev-dependencies]
 # Historical language/migration regression fixtures only; never shipped.
 lindera = { version = "4.0.1", features = ["embed-unidic"] }

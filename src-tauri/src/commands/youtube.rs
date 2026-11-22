@@ -28,7 +28,7 @@ pub(super) fn parse_ts(raw: &str) -> Option<i64> {
         .checked_add(m * 60_000 + s * 1000 + ms)
 }
 
-fn parse_ts_line(line: &str) -> Option<(i64, i64)> {
+pub(super) fn parse_ts_line(line: &str) -> Option<(i64, i64)> {
     let arrow = line.find("-->")?;
     let start = parse_ts(&line[..arrow])?;
     let end = parse_ts(line[arrow + 3..].split_whitespace().next()?)?;

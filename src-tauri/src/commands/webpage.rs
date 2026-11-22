@@ -8,7 +8,7 @@ use std::{
     sync::Mutex,
     time::{Duration, Instant},
 };
-use tauri::State;
+use tauri::{ipc::Channel, State};
 use tokio::sync::watch;
 const MAX_BYTES: usize = 8_000_000;
 #[derive(Default)]
@@ -20,6 +20,23 @@ pub struct WebpageResponse {
     pub final_url: String,
     pub content_type: String,
     pub fetched_at: i64,
+}
+#[derive(Serialize)]
+#[serde(tag = "part", rename_all = "snake_case")]
+pub enum ImportDownload {
+    Page {
+        received: u64,
+        total: Option<u64>,
+    },
+    #[cfg(all(target_os = "macos", not(feature = "apple-store")))]
+    Captions,
+    #[cfg(all(target_os = "macos", not(feature = "apple-store")))]
+    Audio {
+        received: u64,
+        total: Option<u64>,
+    },
+    #[cfg(all(target_os = "macos", not(feature = "apple-store")))]
+    Cover,
 }
 pub fn public_ip(ip: IpAddr) -> bool {
     match ip {
@@ -120,17 +137,20 @@ fn append_bounded(bytes: &mut Vec<u8>, chunk: &[u8]) -> Result<(), String> {
     bytes.extend_from_slice(chunk);
     Ok(())
 }
-async fn bounded_fetch<F: std::future::Future<Output = Result<WebpageResponse, String>>>(
+async fn bounded_fetch<T, F: std::future::Future<Output = Result<T, String>>>(
     mut cancel: watch::Receiver<bool>,
     timeout: Duration,
     task: F,
-) -> Result<WebpageResponse, String> {
+) -> Result<T, String> {
     if *cancel.borrow() {
         return Err("material_cancelled".into());
     }
     tokio::select! {_ = cancel.changed()=>Err("material_cancelled".into()), result=tokio::time::timeout(timeout,task)=>result.unwrap_or(Err("material_web_timeout".into()))}
 }
-async fn fetch(value: String) -> Result<WebpageResponse, String> {
+async fn fetch(
+    value: String,
+    progress: impl Fn(ImportDownload),
+) -> Result<WebpageResponse, String> {
     let submitted = public_url(&value)?.to_string();
     let mut url = public_url(&value)?;
     for hop in 0..=5 {
@@ -187,14 +207,17 @@ async fn fetch(value: String) -> Result<WebpageResponse, String> {
             .and_then(|v| v.to_str().ok())
             .unwrap_or("")
             .to_string();
-        validate_response(
-            response.status().as_u16(),
-            &content_type,
-            response.content_length(),
-        )?;
+        let total = response.content_length();
+        validate_response(response.status().as_u16(), &content_type, total)?;
         let mut bytes = Vec::new();
+        let mut last_report = Instant::now();
         while let Some(chunk) = response.chunk().await.map_err(|_| "material_web_network")? {
             append_bounded(&mut bytes, &chunk)?;
+            let received = bytes.len() as u64;
+            if last_report.elapsed() >= Duration::from_millis(120) || total == Some(received) {
+                progress(ImportDownload::Page { received, total });
+                last_report = Instant::now();
+            }
         }
         return Ok(WebpageResponse {
             bytes_base64: base64::engine::general_purpose::STANDARD.encode(bytes),
@@ -211,13 +234,35 @@ pub async fn fetch_import_webpage(
     state: State<'_, WebpageState>,
     job: String,
     url: String,
+    on_progress: Channel<ImportDownload>,
 ) -> Result<WebpageResponse, String> {
+    registered_import(
+        &state,
+        job,
+        &url,
+        Duration::from_secs(30),
+        fetch(url.clone(), |value| {
+            let _ = on_progress.send(value);
+        }),
+    )
+    .await
+}
+
+pub(super) async fn registered_import<T>(
+    state: &WebpageState,
+    job: String,
+    url: &str,
+    timeout: Duration,
+    task: impl std::future::Future<Output = Result<T, String>>,
+) -> Result<T, String> {
     if job.len() > 100 || url.len() > 8192 {
         return Err("material_web_invalid".into());
     }
     let cancel = {
         let mut jobs = state.0.lock().map_err(|_| "material_web_network")?;
-        jobs.retain(|_, (at, _)| at.elapsed() < Duration::from_secs(60));
+        jobs.retain(|_, (at, sender)| {
+            sender.receiver_count() > 0 || at.elapsed() < Duration::from_secs(60)
+        });
         if jobs.len() >= 32 {
             return Err("material_web_network".into());
         }
@@ -226,7 +271,7 @@ pub async fn fetch_import_webpage(
             .1
             .subscribe()
     };
-    let result = bounded_fetch(cancel, Duration::from_secs(30), fetch(url)).await;
+    let result = bounded_fetch(cancel, timeout, task).await;
     state
         .0
         .lock()
@@ -236,18 +281,25 @@ pub async fn fetch_import_webpage(
 }
 #[tauri::command]
 pub fn cancel_import_webpage(state: State<'_, WebpageState>, job: String) -> Result<(), String> {
-    if job.len() > 100 {
-        return Ok(());
+    state.request_cancel(job)
+}
+impl WebpageState {
+    pub(super) fn request_cancel(&self, job: String) -> Result<(), String> {
+        if job.len() > 100 {
+            return Ok(());
+        }
+        let mut jobs = self.0.lock().map_err(|_| "material_web_network")?;
+        jobs.retain(|_, (at, sender)| {
+            sender.receiver_count() > 0 || at.elapsed() < Duration::from_secs(60)
+        });
+        if jobs.contains_key(&job) || jobs.len() < 32 {
+            jobs.entry(job)
+                .or_insert_with(|| (Instant::now(), watch::channel(true).0))
+                .1
+                .send_replace(true);
+        }
+        Ok(())
     }
-    let mut jobs = state.0.lock().map_err(|_| "material_web_network")?;
-    jobs.retain(|_, (at, _)| at.elapsed() < Duration::from_secs(60));
-    if jobs.len() < 32 {
-        jobs.entry(job)
-            .or_insert_with(|| (Instant::now(), watch::channel(true).0))
-            .1
-            .send_replace(true);
-    }
-    Ok(())
 }
 #[cfg(test)]
 mod tests {
@@ -274,11 +326,15 @@ mod tests {
         let timeout = bounded_fetch(
             receiver.clone(),
             Duration::from_millis(5),
-            std::future::pending(),
+            std::future::pending::<Result<WebpageResponse, String>>(),
         )
         .await;
         assert_eq!(timeout.err().as_deref(), Some("material_web_timeout"));
-        let task = bounded_fetch(receiver, Duration::from_secs(30), std::future::pending());
+        let task = bounded_fetch(
+            receiver,
+            Duration::from_secs(30),
+            std::future::pending::<Result<WebpageResponse, String>>(),
+        );
         tokio::pin!(task);
         sender.send_replace(true);
         assert_eq!(task.await.err().as_deref(), Some("material_cancelled"));
@@ -340,7 +396,7 @@ mod live_probe {
             ("timeout", "https://httpbin.org/delay/40"),
         ] {
             let start = Instant::now();
-            let result = tokio::time::timeout(Duration::from_secs(30), fetch(url.into()))
+            let result = tokio::time::timeout(Duration::from_secs(30), fetch(url.into(), |_| {}))
                 .await
                 .unwrap_or(Err("material_web_timeout".into()));
             let row = match result {

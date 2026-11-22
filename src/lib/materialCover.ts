@@ -10,7 +10,12 @@ export function allocatedCover(identity: string): string {
   return `/design/prints/${prints[hash % prints.length]}.jpg`;
 }
 export function materialCover(material: Material): string {
-  return material.document?.cover ?? allocatedCover(material.content_hash);
+  return material.document?.cover ?? youtubeCover(material.source) ?? allocatedCover(material.content_hash);
+}
+export function youtubeCover(source: Material['source']): string | undefined {
+  if (source?.provider === 'youtube' && /^[A-Za-z0-9_-]{11}$/.test(source.video_id)) {
+    return `https://i.ytimg.com/vi/${source.video_id}/hqdefault.jpg`;
+  }
 }
 export function savedCover(record: SavedRecord): string {
   return allocatedCover(record.source?.content_hash ?? record.source_key);
