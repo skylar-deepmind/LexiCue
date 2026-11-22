@@ -3,19 +3,20 @@ use super::{
     source_media::{self, AudioTrack, LocalAttachment, YoutubeSource, MAX_DURATION_MS},
     webpage::{registered_import, ImportDownload, WebpageState},
     youtube::is_valid_video_id,
+    youtube_attempt::{run_tool, Failure, Trace},
+    youtube_import_tools::Tools,
 };
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use std::{
     path::{Path, PathBuf},
-    process::Stdio,
     time::Duration,
 };
 use tauri::{ipc::Channel, AppHandle, State};
 use tokio::{
     fs,
-    io::{AsyncBufReadExt, BufReader},
     process::Command,
+    time::{timeout_at, Instant},
 };
 
 const ENGLISH_CAPTIONS: [&str; 4] = ["en", "en-US", "en-GB", "en-orig"];
@@ -27,6 +28,7 @@ const ORIGINAL_ENGLISH_CAPTIONS: [&str; 6] = [
     "en-US",
     "en-GB",
 ];
+const IMPORT_LIMIT: Duration = Duration::from_secs(240);
 const MAX_CAPTION_BYTES: u64 = 8_000_000;
 const MAX_METADATA_BYTES: usize = 8_000_000;
 
@@ -78,123 +80,9 @@ fn video_id(value: &str) -> Option<String> {
     is_valid_video_id(&id).then_some(id)
 }
 
-fn tools_directory(tool: &str) -> Option<&'static str> {
-    ["/opt/homebrew/bin", "/usr/local/bin"]
-        .into_iter()
-        .find(|dir| Path::new(dir).join(tool).is_file())
-}
-
 fn staging_path(root: &Path, operation_id: &str) -> Result<PathBuf, String> {
     let id = uuid::Uuid::parse_str(operation_id).map_err(|_| "material_web_invalid")?;
     Ok(root.join(format!(".part-youtube-{id}")))
-}
-
-fn downloader(tool: &str, path: &Path) -> Command {
-    let mut command = Command::new(Path::new(tool).join("yt-dlp"));
-    command
-        .kill_on_drop(true)
-        .env("PATH", "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin")
-        .current_dir(path)
-        .args([
-            "--ignore-config",
-            "--no-plugin-dirs",
-            "--no-cache-dir",
-            "--no-playlist",
-            "--socket-timeout",
-            "12",
-            "--retries",
-            "0",
-        ]);
-    command
-}
-
-async fn download_audio(
-    mut command: Command,
-    ffmpeg: &str,
-    metadata_file: &Path,
-    track: &AudioTrack,
-    stage: &Path,
-    progress: &Channel<ImportDownload>,
-) -> Option<i64> {
-    let mut child = command
-        .arg("--load-info-json")
-        .arg(metadata_file)
-        .args([
-            "--format",
-            &track.format_id,
-            "--no-write-subs",
-            "--no-write-auto-subs",
-            "--max-filesize",
-            "96M",
-            "--extract-audio",
-            "--audio-format",
-            "m4a",
-            "--ffmpeg-location",
-            ffmpeg,
-            "--output",
-            "original.%(ext)s",
-            "--quiet",
-            "--no-warnings",
-            "--newline",
-            "--progress",
-            "--progress-delta",
-            "0.15",
-            "--progress-template",
-            "download:lexicue-audio:%(progress.downloaded_bytes)s:%(progress.total_bytes)s",
-        ])
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()
-        .ok()?;
-    let mut lines = BufReader::new(child.stdout.take()?).lines();
-    while let Some(line) = lines.next_line().await.ok()? {
-        if let Some(value) = audio_progress(&line) {
-            let _ = progress.send(value);
-        }
-    }
-    if !child.wait().await.ok()?.success() {
-        return None;
-    }
-    let audio = stage.join("original.m4a");
-    if !fs::metadata(&audio)
-        .await
-        .ok()
-        .is_some_and(|file| (1..=source_media::MAX_BYTES).contains(&file.len()))
-    {
-        return None;
-    }
-    let output = Command::new(Path::new(ffmpeg).join("ffprobe"))
-        .kill_on_drop(true)
-        .args([
-            "-v",
-            "error",
-            "-show_entries",
-            "stream=codec_name,codec_type:format=duration,start_time",
-            "-of",
-            "json",
-        ])
-        .arg(audio)
-        .output()
-        .await
-        .ok()?;
-    if !output.status.success() {
-        return None;
-    }
-    let parsed: serde_json::Value = serde_json::from_slice(&output.stdout).ok()?;
-    if !parsed["streams"].as_array().is_some_and(|streams| {
-        streams.len() == 1
-            && streams[0]["codec_name"] == "aac"
-            && streams[0]["codec_type"] == "audio"
-    }) {
-        return None;
-    }
-    let start = parsed["format"]["start_time"]
-        .as_str()?
-        .parse::<f64>()
-        .ok()?;
-    let duration = parsed["format"]["duration"].as_str()?.parse::<f64>().ok()?;
-    (start.abs() <= 0.25 && duration.is_finite() && duration > 0.)
-        .then(|| (duration * 1000.).round() as i64)
 }
 
 fn audio_progress(line: &str) -> Option<ImportDownload> {
@@ -249,25 +137,51 @@ fn caption_tracks(metadata: &serde_json::Value) -> [Option<CaptionTrack>; 2] {
     ]
 }
 
-fn extraction_error(stderr: &[u8], step: &'static str) -> &'static str {
-    let reason = if String::from_utf8_lossy(stderr).contains("HTTP Error 429") {
-        "material_youtube_rate_limited"
-    } else {
-        "material_download_failed"
-    };
-    // Downloader diagnostics can contain media URLs with temporary tokens.
-    log::warn!("YouTube import: {step} failed ({reason})");
-    reason
+// Fresh attempt directories keep incomplete caption/audio files out of retries
+// and are removed on error or when a cancelled future is dropped.
+fn work_dir(root: &Path) -> Result<tempfile::TempDir, Failure> {
+    tempfile::Builder::new()
+        .prefix(".part-youtube-")
+        .tempdir_in(root)
+        .map_err(|_| Failure::LocalIo)
+}
+
+async fn load_metadata(tools: &Tools, path: &Path, id: &str) -> Result<serde_json::Value, Failure> {
+    let canonical = format!("https://www.youtube.com/watch?v={id}");
+    let mut command = tools.downloader(path);
+    command.args([
+        "--skip-download",
+        "--extractor-args",
+        "youtube:skip=translated_subs",
+        "--dump-single-json",
+        "--",
+        &canonical,
+    ]);
+    let output = run_tool(command, MAX_METADATA_BYTES, |_| {}).await?;
+    let metadata: serde_json::Value = serde_json::from_slice(&output.stdout)
+        .map_err(|_| output.issue.unwrap_or(Failure::InvalidMetadata))?;
+    if metadata["id"] != id
+        || metadata["duration"]
+            .as_f64()
+            .is_none_or(|duration| duration <= 0.)
+    {
+        return Err(output.issue.unwrap_or(Failure::InvalidMetadata));
+    }
+    if caption_tracks(&metadata).iter().all(Option::is_none) {
+        return Err(output.issue.unwrap_or(Failure::NoSubtitles));
+    }
+    Ok(metadata)
 }
 
 async fn download_caption(
-    mut command: Command,
-    ffmpeg: &str,
+    tools: &Tools,
     metadata_file: &Path,
     directory: &Path,
     track: CaptionTrack,
-) -> Result<String, &'static str> {
-    let output = command
+) -> Result<String, Failure> {
+    let attempt = work_dir(directory)?;
+    let mut command = tools.downloader(attempt.path());
+    command
         .arg("--load-info-json")
         .arg(metadata_file)
         .args([
@@ -283,176 +197,281 @@ async fn download_caption(
             "--sub-format",
             "vtt",
             "--ffmpeg-location",
-            ffmpeg,
-            "--convert-subs",
-            "srt",
-            "--output",
-            "captions.%(ext)s",
         ])
-        .output()
-        .await
-        .map_err(|_| "material_youtube_tool_missing")?;
-    if !output.status.success() {
-        return Err(extraction_error(&output.stderr, "caption"));
-    }
-    let path = directory.join(format!("captions.{}.srt", track.language));
+        .arg(&tools.ffmpeg.path)
+        .args(["--convert-subs", "srt", "--output", "captions.%(ext)s"]);
+    let output = run_tool(command, 0, |_| {}).await?;
+    let path = attempt
+        .path()
+        .join(format!("captions.{}.srt", track.language));
     let file = fs::metadata(&path)
         .await
-        .map_err(|_| "material_download_failed")?;
+        .map_err(|_| output.issue.unwrap_or(Failure::InvalidSubtitles))?;
     if file.len() > MAX_CAPTION_BYTES {
-        return Err("material_too_large");
+        return Err(Failure::TooLarge);
     }
-    let content = fs::read_to_string(path)
+    fs::read_to_string(path)
         .await
-        .map_err(|_| "material_download_failed")?;
-    if content.trim().is_empty() {
-        return Err("material_download_failed");
+        .map_err(|_| Failure::InvalidSubtitles)
+}
+
+async fn download_audio(
+    tools: &Tools,
+    metadata_file: &Path,
+    track: &AudioTrack,
+    directory: &Path,
+    progress: &impl Fn(ImportDownload),
+) -> Result<tempfile::TempDir, Failure> {
+    let attempt = work_dir(directory)?;
+    let mut command = tools.downloader(attempt.path());
+    command
+        .arg("--load-info-json")
+        .arg(metadata_file)
+        .args([
+            "--format",
+            &track.format_id,
+            "--no-write-subs",
+            "--no-write-auto-subs",
+            "--max-filesize",
+            "96M",
+            "--extract-audio",
+            "--audio-format",
+            "m4a",
+            "--ffmpeg-location",
+        ])
+        .arg(&tools.ffmpeg.path)
+        .args([
+            "--output",
+            "original.%(ext)s",
+            "--quiet",
+            "--newline",
+            "--progress",
+            "--progress-delta",
+            "0.15",
+            "--progress-template",
+            "download:lexicue-audio:%(progress.downloaded_bytes)s:%(progress.total_bytes)s",
+        ]);
+    let output = run_tool(command, 0, |line| {
+        if let Some(value) = audio_progress(line) {
+            progress(value);
+        }
+    })
+    .await?;
+    if !fs::metadata(attempt.path().join("original.m4a"))
+        .await
+        .is_ok_and(|file| file.is_file() && (1..=source_media::MAX_BYTES).contains(&file.len()))
+    {
+        return Err(output.issue.unwrap_or(Failure::AudioInvalid));
     }
-    Ok(content)
+    Ok(attempt)
+}
+
+async fn probe_audio(probe: &Path, audio: &Path, expected_ms: i64) -> Result<i64, Failure> {
+    let mut command = Command::new(probe);
+    command
+        .args([
+            "-v",
+            "error",
+            "-show_entries",
+            "stream=codec_name,codec_type:format=duration,start_time",
+            "-of",
+            "json",
+        ])
+        .arg(audio);
+    let output = run_tool(command, 8192, |_| {}).await?;
+    let parsed: serde_json::Value =
+        serde_json::from_slice(&output.stdout).map_err(|_| Failure::AudioInvalid)?;
+    if !parsed["streams"].as_array().is_some_and(|streams| {
+        streams.len() == 1
+            && streams[0]["codec_name"] == "aac"
+            && streams[0]["codec_type"] == "audio"
+    }) {
+        return Err(Failure::AudioInvalid);
+    }
+    let parse_seconds = |field| {
+        parsed["format"][field]
+            .as_str()
+            .and_then(|value| value.parse::<f64>().ok())
+            .ok_or(Failure::AudioInvalid)
+    };
+    let start = parse_seconds("start_time")?;
+    let duration = parse_seconds("duration")?;
+    let duration_ms = (duration * 1000.).round() as i64;
+    if !(start.abs() <= 0.25
+        && duration.is_finite()
+        && duration_ms > 0
+        && duration_ms.abs_diff(expected_ms) <= 5_000)
+    {
+        return Err(Failure::AudioInvalid);
+    }
+    Ok(duration_ms)
+}
+
+async fn stage_audio(
+    directory: &Path,
+    stage: &Path,
+    source: &YoutubeSource,
+    duration_ms: i64,
+) -> Result<(), Failure> {
+    let metadata = serde_json::to_vec(&StagedAudio {
+        key: source.key.clone(),
+        duration_ms,
+    })
+    .map_err(|_| Failure::LocalIo)?;
+    fs::write(directory.join("audio.json"), metadata)
+        .await
+        .map_err(|_| Failure::LocalIo)?;
+    // Publishing is synchronous so cancellation cannot drop a future whose
+    // background rename still publishes the files after the import returns.
+    if stage.is_dir() {
+        std::fs::remove_dir_all(stage).map_err(|_| Failure::LocalIo)?;
+    }
+    std::fs::rename(directory, stage).map_err(|_| Failure::LocalIo)
 }
 
 async fn fetch(
-    url: &str,
-    stage: PathBuf,
-    progress: &Channel<ImportDownload>,
-) -> Result<CaptionImport, String> {
-    let id = video_id(url).ok_or("material_web_invalid")?;
-    let ytdlp = tools_directory("yt-dlp").ok_or("material_youtube_tool_missing")?;
-    let ffmpeg = tools_directory("ffmpeg").ok_or("material_youtube_tool_missing")?;
-    let root = stage.parent().ok_or("material_download_failed")?;
+    id: &str,
+    stage: &Path,
+    trace: &Trace,
+    tools: &Tools,
+    progress: impl Fn(ImportDownload),
+    cover: impl std::future::Future<Output = Result<String, Failure>>,
+) -> Result<CaptionImport, Failure> {
+    let root = stage.parent().ok_or(Failure::LocalIo)?;
     fs::create_dir_all(root)
         .await
-        .map_err(|_| "material_download_failed")?;
-    let directory = tempfile::Builder::new()
-        .prefix(".part-youtube-")
-        .tempdir_in(root)
-        .map_err(|_| "material_download_failed")?;
-    let canonical = format!("https://www.youtube.com/watch?v={id}");
-    let output = downloader(ytdlp, directory.path())
-        .args([
-            "--skip-download",
-            "--extractor-args",
-            "youtube:skip=translated_subs",
-            "--dump-single-json",
-            "--",
-            &canonical,
-        ])
-        .output()
-        .await
-        .map_err(|_| "material_youtube_tool_missing")?;
-    if !output.status.success() {
-        return Err(extraction_error(&output.stderr, "video metadata").into());
-    }
-    if output.stdout.len() > MAX_METADATA_BYTES {
-        return Err("material_too_large".into());
-    }
-    let mut metadata: serde_json::Value =
-        serde_json::from_slice(&output.stdout).map_err(|_| "material_download_failed")?;
+        .map_err(|_| Failure::LocalIo)?;
+    let directory = work_dir(root)?;
+    let mut metadata = trace
+        .step("metadata", Duration::from_secs(45), true, || {
+            load_metadata(tools, directory.path(), id)
+        })
+        .await?;
     let tracks = caption_tracks(&metadata);
-    if tracks.iter().all(Option::is_none) {
-        return Err("material_youtube_no_subtitles".into());
-    }
-    // Reuse this one video lookup for both downloads. It stays inside the
-    // private temporary directory and is removed before audio is staged.
-    // yt-dlp otherwise repeats the page extraction when a loaded request fails.
+    // The manifest contains signed URLs. It stays in the private work
+    // directory. Removing webpage_url prevents yt-dlp re-extracting on failure.
     metadata
         .as_object_mut()
-        .ok_or("material_download_failed")?
+        .ok_or(Failure::InvalidMetadata)?
         .remove("webpage_url");
     let metadata_file = directory.path().join("video.info.json");
-    let manifest = serde_json::to_vec(&metadata).map_err(|_| "material_download_failed")?;
+    let manifest = serde_json::to_vec(&metadata).map_err(|_| Failure::InvalidMetadata)?;
     fs::write(&metadata_file, manifest)
         .await
-        .map_err(|_| "material_download_failed")?;
-    let mut selected = None;
-    for track in tracks.into_iter().flatten() {
-        match download_caption(
-            downloader(ytdlp, directory.path()),
-            ffmpeg,
-            &metadata_file,
-            directory.path(),
-            track,
-        )
-        .await
-        {
-            Ok(content) => {
-                selected = Some((track, content));
-                break;
-            }
-            Err("material_download_failed") => continue,
-            // A rate limit applies to the request, not just to this track.
-            Err(reason) => return Err(reason.into()),
-        }
-    }
-    let (caption, content) = selected.ok_or("material_download_failed")?;
-    let _ = progress.send(ImportDownload::Captions);
-    let title = metadata["title"]
+        .map_err(|_| Failure::LocalIo)?;
+    let title: String = metadata["title"]
         .as_str()
-        .unwrap_or(&id)
+        .unwrap_or(id)
         .trim()
         .chars()
         .take(240)
         .collect();
     let duration_ms = (metadata["duration"]
         .as_f64()
-        .ok_or("material_download_failed")?
+        .ok_or(Failure::InvalidMetadata)?
         * 1000.)
         .round() as i64;
+    let mut selected = Err(Failure::NoSubtitles);
+    for track in tracks.into_iter().flatten() {
+        selected = trace
+            .step(
+                if track.kind == "manual" {
+                    "captions_manual"
+                } else {
+                    "captions_original"
+                },
+                Duration::from_secs(30),
+                true,
+                || async {
+                    let content =
+                        download_caption(tools, &metadata_file, directory.path(), track).await?;
+                    let source = YoutubeSource::from_imported_captions(
+                        id,
+                        title.clone(),
+                        duration_ms,
+                        track.language,
+                        &content,
+                        track.kind,
+                        None,
+                    )
+                    .map_err(|_| Failure::InvalidSubtitles)?;
+                    Ok((track, content, source))
+                },
+            )
+            .await;
+        if matches!(
+            selected,
+            Ok(_)
+                | Err(Failure::RateLimited
+                    | Failure::TooLarge
+                    | Failure::ToolMissing
+                    | Failure::ToolIncompatible)
+        ) {
+            break;
+        }
+    }
+    let (caption, content, mut source) = selected?;
+    progress(ImportDownload::Captions);
+
+    // The cover uses its own YouTube image endpoint. Request optional pieces
+    // in order so observing a 429 precludes any later network step.
+    let cover = cover.await;
+    if cover.is_ok() {
+        progress(ImportDownload::Cover);
+    }
+    let started = Instant::now();
     let track = (1..=MAX_DURATION_MS)
         .contains(&duration_ms)
         .then(|| source_media::english_audio(&metadata))
         .flatten();
-    let audio_duration = match &track {
-        Some(track) => download_audio(
-            downloader(ytdlp, directory.path()),
-            ffmpeg,
-            &metadata_file,
-            track,
-            directory.path(),
-            progress,
-        )
-        .await
-        .filter(|actual| actual.abs_diff(duration_ms) <= 5_000),
-        None => None,
-    };
-    let source = YoutubeSource::from_imported_captions(
-        &id,
-        title,
-        duration_ms,
-        caption.language,
-        &content,
-        caption.kind,
-        track.filter(|_| audio_duration.is_some()),
-    )
-    .map_err(|_| "material_download_failed")?;
-    if let Some(duration_ms) = audio_duration {
-        fs::remove_file(&metadata_file)
-            .await
-            .map_err(|_| "material_download_failed")?;
-        let metadata = serde_json::to_vec(&StagedAudio {
-            key: source.key.clone(),
-            duration_ms,
-        })
-        .map_err(|_| "material_download_failed")?;
-        fs::write(directory.path().join("audio.json"), metadata)
-            .await
-            .map_err(|_| "material_download_failed")?;
-        // This directory belongs to one operation and is replaced only when a
-        // new, validated capture of that operation is available.
-        if stage.is_dir() {
-            fs::remove_dir_all(&stage)
-                .await
-                .map_err(|_| "material_download_failed")?;
+    match (track, &tools.ffprobe, &cover) {
+        (_, _, Err(Failure::RateLimited)) => {
+            trace.record("audio", 0, started, Some(Failure::RateLimited))
         }
-        fs::rename(directory.path(), stage)
-            .await
-            .map_err(|_| "material_download_failed")?;
+        (None, _, _) => trace.record("audio", 1, started, Some(Failure::NoAudioTrack)),
+        (_, Err(reason), _) => trace.record("audio_probe", 1, started, Some(*reason)),
+        (Some(track), Ok(probe), _) => {
+            let audio = trace
+                .step("audio", Duration::from_secs(75), true, || {
+                    download_audio(tools, &metadata_file, &track, directory.path(), &progress)
+                })
+                .await;
+            if let Ok(audio) = audio {
+                let actual = trace
+                    .step("audio_probe", Duration::from_secs(8), false, || async {
+                        probe_audio(&probe.path, &audio.path().join("original.m4a"), duration_ms)
+                            .await
+                    })
+                    .await;
+                if let Ok(actual) = actual {
+                    let result = trace
+                        .step("audio_stage", Duration::from_secs(3), false, || async {
+                            let with_audio = YoutubeSource::from_imported_captions(
+                                id,
+                                title.clone(),
+                                duration_ms,
+                                caption.language,
+                                &content,
+                                caption.kind,
+                                Some(track.clone()),
+                            )
+                            .map_err(|_| Failure::AudioInvalid)?;
+                            stage_audio(audio.path(), stage, &with_audio, actual).await?;
+                            Ok(with_audio)
+                        })
+                        .await;
+                    if let Ok(with_audio) = result {
+                        source = with_audio;
+                    }
+                }
+            }
+        }
     }
     Ok(CaptionImport {
         content,
+        audio_unavailable: source.audio.is_none(),
         source,
-        audio_unavailable: audio_duration.is_none(),
-        cover: None,
+        cover: cover.ok(),
     })
 }
 
@@ -467,19 +486,43 @@ pub async fn fetch_import_youtube(
 ) -> Result<CaptionImport, String> {
     let stage = staging_path(&source_media::root(&app)?, &operation_id)?;
     let id = video_id(&url).ok_or("material_web_invalid")?;
-    registered_import(&state, job, &url, Duration::from_secs(240), async {
-        let (captions, cover) = tokio::join!(fetch(&url, stage, &on_progress), async {
-            let cover = super::youtube_cover::youtube_cover(app, id).await.ok();
-            if cover.is_some() {
-                let _ = on_progress.send(ImportDownload::Cover);
-            }
-            cover
-        });
-        let mut captions = captions?;
-        captions.cover = cover;
-        Ok(captions)
+    let started = Instant::now();
+    // Leave time to return text at the hard deadline if optional media stalls.
+    let deadline = started + IMPORT_LIMIT - Duration::from_secs(2);
+    let trace = Trace::new(deadline);
+    let result = registered_import(&state, job, &url, IMPORT_LIMIT, async {
+        let tools = Tools::find(&trace).await.map_err(Failure::code)?;
+        let cover = async {
+            timeout_at(
+                deadline,
+                super::youtube_cover::import_cover(&app, &id, &trace),
+            )
+            .await
+            .unwrap_or(Err(Failure::Timeout))
+        };
+        fetch(
+            &id,
+            &stage,
+            &trace,
+            &tools,
+            |value| {
+                let _ = on_progress.send(value);
+            },
+            cover,
+        )
+        .await
+        .map_err(|failure| failure.code().into())
     })
-    .await
+    .await;
+    let result = result.map_err(|reason| {
+        if reason == "material_web_timeout" {
+            Failure::Timeout.code().into()
+        } else {
+            reason
+        }
+    });
+    trace.finish(started, result.as_ref().err().map(String::as_str));
+    result
 }
 
 #[tauri::command]
@@ -525,6 +568,10 @@ pub(super) fn take_attachment(
 }
 
 #[cfg(test)]
+#[path = "youtube_import/tests.rs"]
+mod recovery_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -567,18 +614,6 @@ mod tests {
                     kind: "original"
                 }),
             ]
-        );
-    }
-
-    #[test]
-    fn distinguishes_rate_limits_from_generic_caption_errors() {
-        assert_eq!(
-            extraction_error(b"ERROR: HTTP Error 429: Too Many Requests", "caption"),
-            "material_youtube_rate_limited"
-        );
-        assert_eq!(
-            extraction_error(b"ERROR: unexpected tool exit", "caption"),
-            "material_download_failed"
         );
     }
 

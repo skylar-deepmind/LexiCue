@@ -281,20 +281,25 @@ pub(super) async fn registered_import<T>(
 }
 #[tauri::command]
 pub fn cancel_import_webpage(state: State<'_, WebpageState>, job: String) -> Result<(), String> {
-    if job.len() > 100 {
-        return Ok(());
+    state.request_cancel(job)
+}
+impl WebpageState {
+    pub(super) fn request_cancel(&self, job: String) -> Result<(), String> {
+        if job.len() > 100 {
+            return Ok(());
+        }
+        let mut jobs = self.0.lock().map_err(|_| "material_web_network")?;
+        jobs.retain(|_, (at, sender)| {
+            sender.receiver_count() > 0 || at.elapsed() < Duration::from_secs(60)
+        });
+        if jobs.contains_key(&job) || jobs.len() < 32 {
+            jobs.entry(job)
+                .or_insert_with(|| (Instant::now(), watch::channel(true).0))
+                .1
+                .send_replace(true);
+        }
+        Ok(())
     }
-    let mut jobs = state.0.lock().map_err(|_| "material_web_network")?;
-    jobs.retain(|_, (at, sender)| {
-        sender.receiver_count() > 0 || at.elapsed() < Duration::from_secs(60)
-    });
-    if jobs.contains_key(&job) || jobs.len() < 32 {
-        jobs.entry(job)
-            .or_insert_with(|| (Instant::now(), watch::channel(true).0))
-            .1
-            .send_replace(true);
-    }
-    Ok(())
 }
 #[cfg(test)]
 mod tests {

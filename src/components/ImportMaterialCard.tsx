@@ -31,7 +31,8 @@ export default function ImportMaterialCard({ item, items, tags, tagSelection, ph
   const tagsError = useFileStore(s=>s.tagsError);
   const draft=item.draft!;
   useEffect(()=>{let current=true;setIdentity(null);void crypto.subtle.digest('SHA-256',new TextEncoder().encode(draft.content)).then(bytes=>{if(current)setIdentity([...new Uint8Array(bytes)].map(n=>n.toString(16).padStart(2,'0')).join('').slice(0,16));}).catch(()=>{if(current)setIdentity(draft.operation_id);});return()=>{current=false;};},[draft.content,draft.operation_id]);
-  const cover=draft.document?.cover??item.youtubeCoverData??youtubeCover(draft.source)??allocatedCover(identity??draft.operation_id);
+  const youtubeArtwork = item.youtubeCoverData === undefined ? youtubeCover(draft.source) : item.youtubeCoverData;
+  const cover = draft.document?.cover ?? youtubeArtwork ?? allocatedCover(identity ?? draft.operation_id);
   const newTag = tagSelection.newTagNames[0];
   const selected = tags.find(tag => tagSelection.tagIds.includes(tag.id));
   const tagName = newTag ?? selected?.name ?? libraryNames.untagged;
