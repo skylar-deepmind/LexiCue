@@ -272,6 +272,7 @@ async fn download_caption(
         .arg(metadata_file)
         .args([
             "--skip-download",
+            "--abort-on-error",
             if track.kind == "manual" {
                 "--write-subs"
             } else {
