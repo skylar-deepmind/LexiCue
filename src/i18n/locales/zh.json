@@ -1452,6 +1452,7 @@
       "failed": "未能确认写入结果。请重试核对，不会重复导入已提交内容。",
       "source_removed": "这次导入的材料已被移除，请重新选择文件。",
       "operation_conflict": "导入内容已变化，请重新选择文件。",
+      "youtube_rate_limited": "YouTube 暂时限制了字幕请求，请稍后重试。",
       "download_failed": "字幕获取失败。重试会重新获取，不会覆盖已有材料。",
       "translation_partial": "翻译暂未完成（网络或服务限流）。已保留原文及已完成的翻译，可重试或继续预览。",
       "read_failed": "无法读取文件，请检查访问权限后重试。",

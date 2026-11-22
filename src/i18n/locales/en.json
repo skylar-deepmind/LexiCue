@@ -1469,6 +1469,7 @@
       "failed": "Could not confirm the write. Retry to check; committed content will not be duplicated.",
       "source_removed": "This imported material was removed. Choose the file again.",
       "operation_conflict": "The import content changed. Choose the file again.",
+      "youtube_rate_limited": "YouTube is temporarily limiting subtitle requests. Try again later.",
       "download_failed": "Could not get subtitles. Retry will not overwrite existing materials.",
       "translation_partial": "Translation is incomplete (network or service limits). The source and completed translations are preserved. Retry or continue to preview.",
       "read_failed": "Could not read the file. Check access and retry.",

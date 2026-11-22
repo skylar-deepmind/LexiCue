@@ -18,8 +18,23 @@ use tokio::{
     process::Command,
 };
 
-const CAPTION_LANGUAGES: [&str; 4] = ["en", "en-orig", "en-US", "en-GB"];
+const ENGLISH_CAPTIONS: [&str; 4] = ["en", "en-US", "en-GB", "en-orig"];
+const ORIGINAL_ENGLISH_CAPTIONS: [&str; 6] = [
+    "en-orig",
+    "en-US-orig",
+    "en-GB-orig",
+    "en",
+    "en-US",
+    "en-GB",
+];
 const MAX_CAPTION_BYTES: u64 = 8_000_000;
+const MAX_METADATA_BYTES: usize = 8_000_000;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct CaptionTrack {
+    language: &'static str,
+    kind: &'static str,
+}
 
 #[derive(Serialize)]
 pub struct CaptionImport {
@@ -96,12 +111,14 @@ fn downloader(tool: &str, path: &Path) -> Command {
 async fn download_audio(
     mut command: Command,
     ffmpeg: &str,
-    url: &str,
+    metadata_file: &Path,
     track: &AudioTrack,
     stage: &Path,
     progress: &Channel<ImportDownload>,
 ) -> Option<i64> {
     let mut child = command
+        .arg("--load-info-json")
+        .arg(metadata_file)
         .args([
             "--format",
             &track.format_id,
@@ -124,8 +141,6 @@ async fn download_audio(
             "0.15",
             "--progress-template",
             "download:lexicue-audio:%(progress.downloaded_bytes)s:%(progress.total_bytes)s",
-            "--",
-            url,
         ])
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
@@ -195,6 +210,106 @@ fn audio_progress(line: &str) -> Option<ImportDownload> {
     Some(ImportDownload::Audio { received, total })
 }
 
+fn caption_tracks(metadata: &serde_json::Value) -> [Option<CaptionTrack>; 2] {
+    let manual = ENGLISH_CAPTIONS.into_iter().find(|&language| {
+        metadata["subtitles"][language]
+            .as_array()
+            .is_some_and(|formats| !formats.is_empty())
+    });
+    let original = ORIGINAL_ENGLISH_CAPTIONS.into_iter().find(|&language| {
+        metadata["automatic_captions"][language]
+            .as_array()
+            .is_some_and(|formats| {
+                if language.ends_with("-orig") {
+                    return !formats.is_empty();
+                }
+                // Some older extractors label original automatic captions simply
+                // "en". Accept those only when the source track is English.
+                formats.iter().any(|format| {
+                    let Some(url) = format["url"].as_str().and_then(|url| Url::parse(url).ok())
+                    else {
+                        return false;
+                    };
+                    let mut parameters = url.query_pairs();
+                    parameters.clone().any(|(key, value)| {
+                        key == "lang" && (value == "en" || value.starts_with("en-"))
+                    }) && !parameters.any(|(key, _)| key == "tlang")
+                })
+            })
+    });
+    [
+        manual.map(|language| CaptionTrack {
+            language,
+            kind: "manual",
+        }),
+        original.map(|language| CaptionTrack {
+            language,
+            kind: "original",
+        }),
+    ]
+}
+
+fn extraction_error(stderr: &[u8], step: &'static str) -> &'static str {
+    let reason = if String::from_utf8_lossy(stderr).contains("HTTP Error 429") {
+        "material_youtube_rate_limited"
+    } else {
+        "material_download_failed"
+    };
+    // Downloader diagnostics can contain media URLs with temporary tokens.
+    log::warn!("YouTube import: {step} failed ({reason})");
+    reason
+}
+
+async fn download_caption(
+    mut command: Command,
+    ffmpeg: &str,
+    metadata_file: &Path,
+    directory: &Path,
+    track: CaptionTrack,
+) -> Result<String, &'static str> {
+    let output = command
+        .arg("--load-info-json")
+        .arg(metadata_file)
+        .args([
+            "--skip-download",
+            if track.kind == "manual" {
+                "--write-subs"
+            } else {
+                "--write-auto-subs"
+            },
+            "--sub-langs",
+            track.language,
+            "--sub-format",
+            "vtt",
+            "--ffmpeg-location",
+            ffmpeg,
+            "--convert-subs",
+            "srt",
+            "--output",
+            "captions.%(ext)s",
+        ])
+        .output()
+        .await
+        .map_err(|_| "material_youtube_tool_missing")?;
+    if !output.status.success() {
+        return Err(extraction_error(&output.stderr, "caption"));
+    }
+    let path = directory.join(format!("captions.{}.srt", track.language));
+    let file = fs::metadata(&path)
+        .await
+        .map_err(|_| "material_download_failed")?;
+    if file.len() > MAX_CAPTION_BYTES {
+        return Err("material_too_large");
+    }
+    let content = fs::read_to_string(path)
+        .await
+        .map_err(|_| "material_download_failed")?;
+    if content.trim().is_empty() {
+        return Err("material_download_failed");
+    }
+    Ok(content)
+}
+
 async fn fetch(
     url: &str,
     stage: PathBuf,
@@ -215,21 +330,9 @@ async fn fetch(
     let output = downloader(ytdlp, directory.path())
         .args([
             "--skip-download",
-            "--no-simulate",
-            "--write-subs",
-            "--write-auto-subs",
-            "--sub-langs",
-            &CAPTION_LANGUAGES.join(","),
-            "--sub-format",
-            "vtt",
-            "--ffmpeg-location",
-            ffmpeg,
-            "--convert-subs",
-            "srt",
-            "--output",
-            "captions.%(ext)s",
-            "--print",
-            "after_video:%(.{title,duration,language,original_language,formats,subtitles})j",
+            "--extractor-args",
+            "youtube:skip=translated_subs",
+            "--dump-single-json",
             "--",
             &canonical,
         ])
@@ -237,25 +340,44 @@ async fn fetch(
         .await
         .map_err(|_| "material_youtube_tool_missing")?;
     if !output.status.success() {
-        return Err("material_download_failed".into());
+        return Err(extraction_error(&output.stderr, "video metadata").into());
     }
-    let mut selected = None;
-    for language in CAPTION_LANGUAGES {
-        let path = directory.path().join(format!("captions.{language}.srt"));
-        if let Ok(metadata) = fs::metadata(&path).await {
-            if metadata.len() > MAX_CAPTION_BYTES {
-                return Err("material_too_large".into());
-            }
-            selected = Some((language, path));
-            break;
-        }
+    if output.stdout.len() > MAX_METADATA_BYTES {
+        return Err("material_too_large".into());
     }
-    let (language, path) = selected.ok_or("material_youtube_no_subtitles")?;
-    let content = fs::read_to_string(path)
-        .await
-        .map_err(|_| "material_download_failed")?;
     let metadata: serde_json::Value =
         serde_json::from_slice(&output.stdout).map_err(|_| "material_download_failed")?;
+    let tracks = caption_tracks(&metadata);
+    if tracks.iter().all(Option::is_none) {
+        return Err("material_youtube_no_subtitles".into());
+    }
+    // Reuse this one video lookup for both downloads. It stays inside the
+    // private temporary directory and is removed before audio is staged.
+    let metadata_file = directory.path().join("video.info.json");
+    fs::write(&metadata_file, &output.stdout)
+        .await
+        .map_err(|_| "material_download_failed")?;
+    let mut selected = None;
+    for track in tracks.into_iter().flatten() {
+        match download_caption(
+            downloader(ytdlp, directory.path()),
+            ffmpeg,
+            &metadata_file,
+            directory.path(),
+            track,
+        )
+        .await
+        {
+            Ok(content) => {
+                selected = Some((track, content));
+                break;
+            }
+            Err("material_download_failed") => continue,
+            // A rate limit applies to the request, not just to this track.
+            Err(reason) => return Err(reason.into()),
+        }
+    }
+    let (caption, content) = selected.ok_or("material_download_failed")?;
     let _ = progress.send(ImportDownload::Captions);
     let title = metadata["title"]
         .as_str()
@@ -269,26 +391,15 @@ async fn fetch(
         .ok_or("material_download_failed")?
         * 1000.)
         .round() as i64;
-    let original = metadata["original_language"]
-        .as_str()
-        .or_else(|| metadata["language"].as_str());
-    let subtitle_kind = if metadata["subtitles"][language].is_array() {
-        "manual"
-    } else if language == "en-orig"
-        || original.is_some_and(|tag| tag == "en" || tag.starts_with("en-"))
-    {
-        "original"
-    } else {
-        "unknown"
-    };
-    let track = ((1..=MAX_DURATION_MS).contains(&duration_ms) && subtitle_kind != "unknown")
+    let track = (1..=MAX_DURATION_MS)
+        .contains(&duration_ms)
         .then(|| source_media::english_audio(&metadata))
         .flatten();
     let audio_duration = match &track {
         Some(track) => download_audio(
             downloader(ytdlp, directory.path()),
             ffmpeg,
-            &canonical,
+            &metadata_file,
             track,
             directory.path(),
             progress,
@@ -301,13 +412,16 @@ async fn fetch(
         &id,
         title,
         duration_ms,
-        language,
+        caption.language,
         &content,
-        subtitle_kind,
+        caption.kind,
         track.filter(|_| audio_duration.is_some()),
     )
     .map_err(|_| "material_download_failed")?;
     if let Some(duration_ms) = audio_duration {
+        fs::remove_file(&metadata_file)
+            .await
+            .map_err(|_| "material_download_failed")?;
         let metadata = serde_json::to_vec(&StagedAudio {
             key: source.key.clone(),
             duration_ms,
@@ -406,6 +520,60 @@ pub(super) fn take_attachment(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn requests_one_human_english_track_then_the_source_track() {
+        let metadata = serde_json::json!({
+            "subtitles": {"en": [{"ext": "vtt"}], "en-GB": [{"ext": "vtt"}]},
+            "automatic_captions": {"en-orig": [{"ext": "vtt"}], "en": [{"ext": "vtt"}]}
+        });
+        assert_eq!(
+            caption_tracks(&metadata),
+            [
+                Some(CaptionTrack {
+                    language: "en",
+                    kind: "manual"
+                }),
+                Some(CaptionTrack {
+                    language: "en-orig",
+                    kind: "original"
+                }),
+            ]
+        );
+    }
+
+    #[test]
+    fn legacy_automatic_tracks_must_be_original_english() {
+        let translated = serde_json::json!({
+            "automatic_captions": {"en": [{"url": "https://www.youtube.com/api/timedtext?lang=es&tlang=en"}]}
+        });
+        assert_eq!(caption_tracks(&translated), [None, None]);
+        let original = serde_json::json!({
+            "automatic_captions": {"en": [{"url": "https://www.youtube.com/api/timedtext?lang=en"}]}
+        });
+        assert_eq!(
+            caption_tracks(&original),
+            [
+                None,
+                Some(CaptionTrack {
+                    language: "en",
+                    kind: "original"
+                }),
+            ]
+        );
+    }
+
+    #[test]
+    fn distinguishes_rate_limits_from_generic_caption_errors() {
+        assert_eq!(
+            extraction_error(b"ERROR: HTTP Error 429: Too Many Requests", "caption"),
+            "material_youtube_rate_limited"
+        );
+        assert_eq!(
+            extraction_error(b"ERROR: unexpected tool exit", "caption"),
+            "material_download_failed"
+        );
+    }
 
     #[test]
     fn audio_progress_uses_only_known_byte_totals() {

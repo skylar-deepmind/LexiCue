@@ -1469,6 +1469,7 @@
       "failed": "Schreibbestätigung fehlt. Erneutes Versuchen erzeugt keine Duplikate bereits gespeicherter Inhalte.",
       "source_removed": "Das Material wurde entfernt. Die Datei erneut auswählen.",
       "operation_conflict": "Der Inhalt hat sich geändert. Die Datei erneut auswählen.",
+      "youtube_rate_limited": "YouTube begrenzt vorübergehend Untertitelanfragen. Versuche es später erneut.",
       "download_failed": "Untertitel konnten nicht geladen werden. Vorhandene Materialien werden beim Wiederholen nicht überschrieben.",
       "translation_partial": "Übersetzung unvollständig (Netzwerk oder Dienstlimit). Original und fertige Übersetzungen bleiben erhalten. Erneut versuchen oder Vorschau öffnen.",
       "read_failed": "Datei konnte nicht gelesen werden. Zugriff prüfen und erneut versuchen.",
