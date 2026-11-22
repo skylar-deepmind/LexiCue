@@ -1,4 +1,4 @@
-import { useRef, type CSSProperties } from 'react';
+import { useLayoutEffect, useRef, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useImportStore, type ImportItem } from '../stores/importStore';
 import useTrashDrag from './useTrashDrag';
@@ -42,6 +42,15 @@ export default function ImportPaper({ disabled, finishing, items }: {
 }) {
     const { t } = useTranslation();
     const card = useRef<HTMLButtonElement>(null);
+    const art = useRef<HTMLSpanElement>(null);
+    useLayoutEffect(() => {
+        const node = art.current;
+        if (!finishing || !node?.animate || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        // Settle from the exact position the paper reached when work finished.
+        const motion = node.animate([{ transform: getComputedStyle(node).transform }, { transform: 'none' }],
+            { duration: 225, easing: 'ease-out', fill: 'forwards' });
+        return () => motion.cancel();
+    }, [finishing]);
     const openTrashTarget = useTrashDrag(card, {
         id: 'import-preparation',
         label: t('materials.importDialog.preparingTitle'),
@@ -64,7 +73,7 @@ export default function ImportPaper({ disabled, finishing, items }: {
     return <div className="lc-import-paper-stage" data-stage={finishing ? 'ready' : active ?? 'reading'}>
         <button ref={card} type="button" className="lc-import-paper-grip" disabled={disabled}
             aria-label={t('reader.discardImport')} onClick={openTrashTarget}>
-            <span className="lc-import-paper-art" aria-hidden="true">
+            <span ref={art} className="lc-import-paper-art" aria-hidden="true">
                 <span className="lc-import-paper-shadow" style={box(x + 4, y + 8, width, height)} />
                 <span className="lc-import-paper-sheet" style={box(x, y, width, height)} />
                 <span className="lc-import-paper-cover" style={{

@@ -66,16 +66,11 @@
 .lc-import-paper-grip:active:not(:disabled) { cursor:grabbing; }
 .lc-import-paper-grip:disabled { cursor:default; }
 .lc-import-modal .lc-import-paper-grip:focus-visible { outline:2px solid var(--approved-focus); outline-offset:6px; box-shadow:none; }
-@property --lc-import-paper-lift {
-    syntax:"<length>"; inherits:false; initial-value:0px;
-}
 .lc-import-paper-art {
     position:absolute; inset:0; display:block; pointer-events:none;
     --paper-transition:300ms cubic-bezier(.22,.55,.26,1);
 }
 .lc-import-paper-stage .lc-import-paper-art {
-    --lc-import-paper-lift:6px;
-    transition:--lc-import-paper-lift 225ms ease-out;
     animation:lc-import-paper-float 1.42s ease-in-out infinite;
 }
 .lc-import-paper-art :is(.lc-import-paper-shadow, .lc-import-paper-sheet, .lc-import-paper-cover,
@@ -113,7 +108,6 @@
 .lc-import-loading-copy { margin:0; text-align:center; color:var(--approved-ink); font-size:1rem; transition:opacity 210ms ease; }
 .lc-import-paper-stage[data-stage='ready'] .lc-import-paper-art {
     --paper-transition:225ms cubic-bezier(.22,.55,.26,1);
-    --lc-import-paper-lift:0px;
 }
 .lc-import-paper-stage[data-stage='ready'] :is(.lc-import-paper-original,.lc-import-paper-translation) { transition-delay:0ms; }
 .lc-import-paper-stage[data-stage='ready'] .lc-import-loading-copy,
@@ -128,7 +122,7 @@
 .lc-import-excerpts p[lang='zh'] { font-size:.875rem; color:var(--text-body); line-height:1.8; margin-top:6px; white-space:pre-wrap; }
 @keyframes lc-import-paper-float {
     0%,100% { transform:translateY(0); }
-    50% { transform:translateY(calc(0px - var(--lc-import-paper-lift))); }
+    50% { transform:translateY(-6px); }
 }
 @keyframes lc-import-paper-activity {
     from { transform:translateX(0); }
