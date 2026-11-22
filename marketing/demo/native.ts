@@ -6,6 +6,7 @@ export async function invoke<T=unknown>(command:string,args:Record<string,any>={
  catch(error){throw error;}
 }
 export const isTauri=()=>false;
+export class Channel<T>{constructor(public onmessage:(message:T)=>void){}}
 export const convertFileSrc=(path:string)=>{if(path.startsWith('blob:'))return path;throw Error('demo_native_file_unavailable');};
 export const getVersion=async()=>'0.4.6 · browser demo';
 export const getIdentifier=async()=>'com.lexicue.browser.demo';
