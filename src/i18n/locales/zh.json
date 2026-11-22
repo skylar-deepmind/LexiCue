@@ -1884,7 +1884,6 @@
     "applyRange": "应用范围",
     "all": "全部正文",
     "rangeError": "结束位置不能早于开始位置。",
-    "jump": "跳转章节 / 页",
     "end": "已到所选正文末尾",
     "previewPages": "预览分页",
     "previewPage": "预览页",

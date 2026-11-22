@@ -16,7 +16,8 @@ export default function useReadingLayout(scroll: RefObject<HTMLDivElement | null
             const sentence = grid.querySelector<HTMLElement>('.reading-sentence');
             if (!paper || !text || !sentence) return;
             const padding = getComputedStyle(viewport), paperStyle = getComputedStyle(paper);
-            const available = viewport.clientWidth - parseFloat(padding.paddingLeft) - parseFloat(padding.paddingRight);
+            const left = parseFloat(padding.paddingLeft), right = parseFloat(padding.paddingRight);
+            const available = viewport.clientWidth - left - right;
             const font = parseFloat(getComputedStyle(text).fontSize);
             const gutter = text.getBoundingClientRect().left - sentence.getBoundingClientRect().left;
             const inset = parseFloat(paperStyle.paddingLeft) + parseFloat(paperStyle.paddingRight) + gutter;
@@ -26,7 +27,7 @@ export default function useReadingLayout(scroll: RefObject<HTMLDivElement | null
             const desktop = window.innerWidth >= 768;
             const width = Math.min(available, paperMax + (desktop ? 480 + gap : 0));
             const panel = desktop ? Math.min(480, 320 + Math.max(0, width - paperMin - 320 - gap) * .4) : 0;
-            const nextGeometry = [available, font, inset, desktop].join(':');
+            const nextGeometry = [available, left, right, font, inset, desktop].join(':');
             if (nextGeometry !== geometry) {
                 // Window/font changes may reflow, but must not also animate an
                 // obsolete centering offset. Lookup toggles keep this geometry.
@@ -44,7 +45,8 @@ export default function useReadingLayout(scroll: RefObject<HTMLDivElement | null
             grid.style.width = `${Math.max(0, width)}px`;
             grid.style.setProperty('--reading-gap', `${gap}px`);
             grid.style.setProperty('--reading-panel-width', `${panel}px`);
-            grid.style.setProperty('--reading-paper-shift', `${desktop ? (panel + gap) / 2 : 0}px`);
+            // Compensate for the wider left gutter so the closed reader stays centered.
+            grid.style.setProperty('--reading-paper-shift', `${desktop ? (panel + gap + right - left) / 2 : 0}px`);
             // A slot can change position without changing its own dimensions.
             slot.current?.dispatchEvent(new Event('reading-layout'));
         };

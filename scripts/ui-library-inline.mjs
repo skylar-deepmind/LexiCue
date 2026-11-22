@@ -47,6 +47,23 @@ try {
   await page.reload();await settle();await page.locator('[data-tag-id="all"] .approved-tag-name').waitFor();
   eq(await page.locator('[data-tag-id="all"] strong').innerText(),'我的材料','default library name survives page/app rehydration');eq(await page.locator('[data-tag-id="untagged"] strong').innerText(),'待整理','default untagged name survives rehydration');
   await page.locator('.approved-rail-back').click();await page.getByRole('dialog').waitFor({state:'detached'});
+  const library=page.locator('.approved-library-entry');
+  for(const edge of width>=768 ? ['left','right','between'] : ['above']){
+   await library.click();await settle();
+   const panel=page.locator('.approved-tag-panel');
+   const point=await panel.evaluate((node,edge)=>{
+    const r=node.getBoundingClientRect();
+    const cards=[...node.querySelectorAll('.approved-tag-stack')].map(card=>card.getBoundingClientRect());
+    const x=edge==='left'?r.left+12:edge==='right'?r.right-12:edge==='between'?(cards[0].right+cards[1].left)/2:r.left+r.width/2;
+    const y=edge==='above'?r.top+6:r.top+r.height/2;
+    const target=document.elementFromPoint(x,y);
+    return {x,y,overPanel:node.contains(target)&&!target.closest('.approved-tag-stack')};
+   },edge);
+   ok(point.overPanel,`${edge} hits the blurred area inside the wide panel`);
+   if(width<768)await page.touchscreen.tap(point.x,point.y);else await page.mouse.click(point.x,point.y);
+   await panel.waitFor({state:'detached'});
+   ok(await library.evaluate(n=>document.activeElement===n),`${edge} dismisses cards and restores desk focus`);
+  }
   await page.evaluate(async()=>{const{useMaterialStore:m}=await window.__uiStoreModule('materialStore');await m.getState().load();const{useReadingDeskStore:d}=await window.__uiStoreModule('readingDeskStore');d.getState().keepAndOpen(m.getState().files[0]);});
   await page.locator('.approved-card[data-desk-active=true] .approved-tag-edit').waitFor();eq(await page.locator('.approved-card[data-desk-active=true] .approved-tag-edit').innerText(),'待整理','home uses the renamed untagged caption');
   await page.locator('.approved-card[data-desk-active=true] .approved-tag-edit').click();ok(await page.getByRole('button',{name:'待整理',exact:true}).isVisible(),'tag choices use the same renamed default');await page.keyboard.press('Escape');

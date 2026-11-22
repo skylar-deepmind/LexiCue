@@ -19,7 +19,7 @@ html[data-theme=midnight]{--note-paper:#343630;--note-edge:#636357;--note-shade:
 @keyframes settle-paper{from{opacity:.4}to{opacity:1}}
 }
 @media(prefers-reduced-motion:reduce){.sheet-seat[data-sheet-active] .sentence-sheet::before{transition:none}}
-@media(max-width:767px){.lookup-stage{padding-left:19px}.context-panel--lookup .lookup-heading>div{padding-right:68px}.quiet-pocket{width:37px}.sheet-seat[data-sheet-active] .sentence-sheet::before{inset:-4px -7px}}
+@media(max-width:767px){.lookup-stage{padding-left:19px}.quiet-pocket{width:37px}.sheet-seat[data-sheet-active] .sentence-sheet::before{inset:-4px -7px}}
 
 /* A record belongs to its source sentence, including when the lookup closes. */
 .sheet-seat[data-collected]{
@@ -42,13 +42,49 @@ html[data-theme=midnight]{--note-paper:#343630;--note-edge:#636357;--note-shade:
 .lookup-stage:has(.quiet-pocket){position:relative}
 .word-families .dictionary-entry { display:grid; gap:22px; }
 .word-families .dictionary-entry + .dictionary-entry { margin-top:22px; }
-.word-families .dictionary-meanings { padding:0; list-style:none; }
-.word-families .dictionary-meaning { padding:0; }
+.word-families .dictionary-meanings { padding-inline-start:2.25em; }
+.word-families .dictionary-meaning { padding-inline-start:0; }
+.word-families .dictionary-meaning::marker { font-variant-numeric:tabular-nums; }
 .word-families .pos-group summary { list-style:none; cursor:pointer; min-height:44px; }
 .word-families .pos-group summary::-webkit-details-marker { display:none; }
-.word-families .dictionary-pos-heading { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:4px; }
-.word-families .dictionary-pos-count { display:inline-flex; align-items:center; gap:6px; color:var(--text-muted); font-size:.8125rem; }
-.word-families .dictionary-pos-count svg { flex:none; }
+.word-families .dictionary-pos-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:4px; }
+.dictionary-pos-heading .dictionary-meaning-pos {
+  --pos-highlight-strength:62%;
+  --pos-marker:var(--accent-500);
+  color:var(--text-strong);
+  font-weight:600;
+  padding-inline:3px;
+  background-image:linear-gradient(transparent 37%, color-mix(in srgb,var(--pos-marker) var(--pos-highlight-strength),var(--surface)) 37% 94%, transparent 94%);
+  box-decoration-break:clone;
+  -webkit-box-decoration-break:clone;
+}
+[data-theme='midnight'] .dictionary-pos-heading .dictionary-meaning-pos { --pos-highlight-strength:28%; }
+.dictionary-pos-heading [data-pos='noun'] { --pos-marker:#f3d15a; }
+.dictionary-pos-heading [data-pos='verb'] { --pos-marker:#7fd6a7; }
+.dictionary-pos-heading [data-pos='adjective'] { --pos-marker:#f5a7c8; }
+.dictionary-pos-heading [data-pos='adverb'] { --pos-marker:#90beff; }
+.dictionary-pos-heading [data-pos='pronoun'] { --pos-marker:#c4abfa; }
+.dictionary-pos-heading [data-pos='preposition'] { --pos-marker:#72d5dc; }
+.dictionary-pos-heading [data-pos='conjunction'] { --pos-marker:#b7d874; }
+.dictionary-pos-heading [data-pos='determiner'] { --pos-marker:#e8a0ed; }
+.dictionary-pos-heading [data-pos='interjection'] { --pos-marker:#f7ae7e; }
+.dictionary-pos-heading [data-pos='auxiliary'] { --pos-marker:#9fc4ec; }
+.dictionary-pos-heading [data-pos='modal'] { --pos-marker:#f6a19b; }
+.dictionary-pos-heading [data-pos='phrasal verb'] { --pos-marker:#65d5c2; }
+.dictionary-pos-heading [data-pos='number'] { --pos-marker:#ddbf98; }
+.dictionary-pos-heading [data-pos='article'] { --pos-marker:#b4b8fc; }
+.word-families .dictionary-pos-count {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 14px minmax(0,1fr);
+  align-items:center;
+  flex:none;
+  width:var(--lookup-action-width,48px);
+  margin-inline-end:var(--lookup-actions-end,0px);
+  color:var(--text-muted);
+  font-size:.8125rem;
+}
+.word-families .dictionary-pos-count svg { grid-column:2; }
+.word-families .dictionary-pos-count > [aria-hidden]:not(svg) { grid-column:3; margin-inline-start:4px; white-space:nowrap; font-variant-numeric:tabular-nums; }
 .word-families .pos-group summary:hover .dictionary-pos-count { color:var(--accent-700); }
 .word-families summary em { color:var(--text-muted); }
 .word-families summary em { display:block; font-family:Georgia,serif; margin-top:4px; }

@@ -1,13 +1,13 @@
 /* Reading lookup and saved sentences follow the reviewed Figma content hierarchy. */
 .context-panel--lookup:not([data-reading-layout]) { visibility:hidden; }
-.context-panel.context-panel--lookup .lookup-stage { display:flex; flex:1; flex-direction:column; min-height:0; }
-.context-panel--lookup .lookup-fixed-header { flex:none; background:var(--surface); }
+.context-panel.context-panel--lookup .lookup-stage { display:flex; flex:1; flex-direction:column; min-height:0; --lookup-action-width:48px; --lookup-actions-end:0px; }
+.context-panel--lookup .lookup-fixed-header { flex:none; background:var(--surface); overflow:hidden; scrollbar-width:thin; scrollbar-gutter:stable; }
 .context-panel.context-panel--lookup .lookup-heading { flex:none; height:60px; padding:12px 16px 0; border:0; }
-.context-panel--lookup .lookup-heading > div { height:48px; padding-right:96px; gap:0; align-items:center; }
+.context-panel.context-panel--lookup .lookup-heading > div { height:48px; padding-inline-end:var(--lookup-actions-end); gap:0; align-items:center; }
 .lookup-word-identity { display:flex; align-items:center; gap:8px; min-width:0; flex:1; }
 .context-panel.context-panel--lookup .lookup-heading h2 { font:400 calc(26px * var(--learning-font-scale,1))/calc(34px * var(--learning-font-scale,1)) 'Source Serif 4',Georgia,serif; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .lookup-source-tag { display:inline-flex; align-items:center; flex:none; height:22px; padding:0 6px; border-radius:4px; font-size:13px; line-height:20px; color:var(--accent-700); background:var(--accent-50); }
-.context-panel--lookup .lookup-heading .speech-button { width:48px; min-width:48px; height:48px; min-height:48px; padding:0; }
+.context-panel--lookup .lookup-heading .speech-button { width:var(--lookup-action-width); min-width:var(--lookup-action-width); height:48px; min-height:48px; padding:0; }
 .context-panel.context-panel--lookup .context-sheet-controls { position:absolute; z-index:5; right:16px; top:12px; display:flex; align-items:center; gap:0; height:48px; padding:0; border:0; }
 .context-panel--lookup .context-sheet-controls > button { display:grid; place-items:center; width:48px; min-width:48px; height:48px; min-height:48px; padding:0; border:0; border-radius:50%; color:var(--text-body); background:transparent; }
 .context-panel--lookup .context-sheet-controls .context-mobile-return { order:2; }
@@ -23,7 +23,7 @@
 .lookup-record-count { display:inline-flex; align-items:center; justify-content:center; min-width:22px; height:22px; padding:0 5px; border-radius:999px; font-size:13px; font-weight:400; line-height:20px; color:var(--accent-700); background:var(--accent-50); }
 .context-panel.context-panel--lookup .lookup-content { flex:1; min-height:0; overflow:clip; }
 .context-panel--lookup .lookup-content > .soft-refresh-current { flex:1; min-height:0; overflow:auto; overscroll-behavior:contain; }
-.context-panel.context-panel--lookup .lookup-body { flex:none; padding:16px; }
+.context-panel.context-panel--lookup .lookup-body { flex:none; padding:16px; overflow:visible; scrollbar-gutter:auto; }
 .context-panel--lookup .recall-section.recall-history { margin:0; padding:0; border:0; }
 .context-panel--lookup .lookup-action-slot:empty { display:none; }
 .context-panel--lookup .lookup-footer { padding:8px 16px; border:0; background:var(--surface); }
@@ -68,13 +68,13 @@ button.saved-sentence-source:not(:disabled):hover { text-decoration:underline; }
 .saved-group-row[data-expanded='true'] .saved-chevron { transform:rotate(90deg); }
 .saved-group-row .saved-record-meaning { grid-column:1 / -1; grid-row:2; margin:0; font-size:14px; line-height:22px; }
 @media (max-width:767px) {
+  .context-panel.context-panel--lookup .lookup-stage { --lookup-actions-end:var(--lookup-action-width); }
   .lexicue-b .context-panel.context-panel--lookup { height:min(500px,54%,calc(100% - max(104px,var(--safe-top)))); border:0; border-radius:21px 21px 0 0; }
   .lexicue-b .context-panel.context-panel--lookup[data-expanded='true'] { height:calc(100% - max(20px,var(--safe-top))); }
   .context-panel--lookup::before { content:''; position:absolute; z-index:5; top:4px; left:calc(50% - 18px); width:36px; height:3px; border-radius:2px; background:var(--border); pointer-events:none; }
 }
 @media (min-width:768px) {
   .context-panel--lookup .context-sheet-controls .context-sheet-expand { display:none; }
-  .context-panel.context-panel--lookup .lookup-heading > div { padding-right:48px; }
   .context-panel.context-panel--lookup[data-reading-layout='columns'] { width:var(--reading-slot-width); }
 }
 @media (hover:none) {

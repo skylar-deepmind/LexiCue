@@ -12,7 +12,7 @@ function MeaningList({ meanings, query, showHeadwords = false, start = 1, overvi
   grouped?: boolean;
 }) {
   const { t } = useTranslation();
-  return <ol className="dictionary-meanings" start={start} role={grouped ? 'list' : undefined}>
+  return <ol className="dictionary-meanings" start={start}>
     {meanings.map(({ entry, group, sense }, index) => {
       const related = ['inflection', 'source_relation'].includes(entry.match.type) && entry.headword !== query;
       const headword = !grouped && (showHeadwords || related) && entry.headword !== meanings[index - 1]?.entry.headword;
@@ -106,7 +106,7 @@ export default function LongmanResult({ result, onInteract, sentenceView=false }
           const rest = senses.filter(item => !excerpt.has(item.sense));
           const more = rest.length > 0 || uses.length > 0 || forms.size > 0;
           const heading = (part || more) && <div className="dictionary-pos-heading">
-            <span className="dictionary-meaning-pos">{part ? t(`dictionaryFlow.pos.${part}`, { defaultValue: sourcePart ?? part }) : t('dictionaryFlow.overview')}</span>
+            <span className="dictionary-meaning-pos" data-pos={part || undefined}>{part ? t(`dictionaryFlow.pos.${part}`, { defaultValue: sourcePart ?? part }) : t('dictionaryFlow.overview')}</span>
             {more && <span className="dictionary-pos-count">
               <span className="sr-only">{t('reader.senseCount', { count: senses.length })}</span>
               <Layers size={14} aria-hidden="true"/><span aria-hidden="true">{senses.length}</span>

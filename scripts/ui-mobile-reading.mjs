@@ -41,7 +41,7 @@ try{
     explanation:'保留侧袋笔记',explanation_source:'personal',
    }}});
   }
-  for(const viewport of [{width:320,height:568},{width:390,height:844},{width:430,height:932},{width:667,height:375},{width:1120,height:820}]){
+  for(const viewport of [{width:320,height:568},{width:390,height:844},{width:430,height:932},{width:667,height:375},{width:1161,height:820},{width:1254,height:820}]){
    const phone=viewport.width<768;const context=await h.browser.newContext({viewport,hasTouch:phone,isMobile:phone});page=await context.newPage();if(viewport.width===390){const cdp=await context.newCDPSession(page);await cdp.send('Emulation.setSafeAreaInsetsOverride',{insets:{top:51,bottom:34,left:0,right:0}});}await h.fixture(page,theme);await page.routeWebSocket('**',socket=>socket.close());
    await page.addInitScript(()=>{localStorage.setItem('lexicue-onboarding-v1',JSON.stringify({version:1,status:'skipped'}));const base=window.__TAURI_INTERNALS__.invoke;window.__supplementMode='empty';window.__TAURI_INTERNALS__.invoke=async(command,args={})=>{if(command==='lookup_cambridge_expression'){window.__uiCalls.push({command,args:structuredClone(args)});await new Promise(r=>setTimeout(r,800));if(window.__supplementMode==='error')throw Error('controlled online unavailable');if(window.__supplementMode==='success')return {schema_version:1,query:{text:args.expression,language:'en',context:args.context},status:'found',default_entry_id:'cambridge:ui-fixture',notices:[],entries:[{id:'cambridge:ui-fixture',headword:args.expression,kind:'word',origin:'headword',expression_type:null,parent_headword:null,source:{provider:'cambridge',dataset:'Controlled UI provider fixture',edition:null,release:null,adapter_version:'controlled-ui-fixture',entry_key:args.expression,locator:null,delivery:'online',entry_url:'https://dictionary.cambridge.org/dictionary/english/take',retrieved_at:'2026-11-16T00:00:00Z'},match:{type:'exact',pattern:null,note:null,sense_ids:[]},groups:[{id:'cambridge:ui-group',part_of_speech:'verb',source_part_of_speech:'verb',pronunciations:[],forms:[],labels:[],notes:[],senses:[{id:'cambridge:ui-sense',meaning:{en:'A controlled additional meaning for this lookup.',zh:'补充的独立用法。'},labels:[],patterns:[],examples:[],notes:[]}]}],notes:[],related_expressions:[]}]};return {schema_version:1,query:{text:args.expression,language:'en',context:args.context},status:'not_found',entries:[],default_entry_id:null,notices:[]};}return base(command,args);};});
    await page.goto(`${h.url}/files/${material.file_id}`);await page.locator('.reading-original').first().waitFor();await page.locator('.mobile-startup').waitFor({state:'detached'});
@@ -55,6 +55,17 @@ try{
    const take=page.locator('.reading-word').filter({hasText:/^take$/}).first();await take.scrollIntoViewIfNeeded();const clickedGeometry=await geometry(page),clickedBottom=await sourceBottom(take);await take.click();await page.locator('.context-panel').waitFor();await settled(page);
    if(phone)await checkLookupSource(page,take,clickedGeometry,clickedBottom,`${theme}/${viewport.width} half drawer`);
    await page.locator('.soft-refresh-current .longman-meaning').first().waitFor();const baseText=await page.locator('.soft-refresh-current .longman-meaning').first().innerText();
+   if(!phone){
+    await page.waitForFunction(()=>!document.querySelector('.reading-paper').getAnimations().some(a=>a.playState==='running'));
+    const bounds=await page.evaluate(()=>{
+      const back=document.querySelector('.reading-breadcrumb .page-back').getBoundingClientRect();
+      const title=document.querySelector('.reading-title').getBoundingClientRect();
+      const body=document.querySelector('.reading-original').getBoundingClientRect();
+      return {back:back.left+back.width/2,title:title.left,body:body.left};
+    });
+    ok(Math.min(bounds.title,bounds.body)>=bounds.back-.5,'desktop title and prose stay at or to the right of the back icon');
+    ok(Math.abs((await geometry(page)).width-clickedGeometry.width)<.5,'opening the drawer preserves the desktop prose measure');
+   }
    const fixed=await drawerFrame(page);
    const details=page.locator('.soft-refresh-current .pos-group').first();
    const detailTrigger=details.locator('summary').first();
@@ -63,6 +74,15 @@ try{
       /^\d+$/.test(n.querySelector('span[aria-hidden]').textContent) && /\d+ 义/.test(n.querySelector('.sr-only').textContent)),
     'the visible layers and count are transparent and include an accessible count');
    eq(await page.locator('.lookup-heading h2').innerText(),'take','the query is the only primary headword');
+   ok(await count.evaluate(n=>{
+    const center=icon=>{const r=icon.getBoundingClientRect();return r.x+r.width/2;};
+    const audio=document.querySelector('.lookup-heading .speech-button svg');
+    return Math.abs(center(audio)-center(n.querySelector('svg')))<1;
+   }),'audio and sense-count icons share one vertical axis');
+   const markers=page.locator('.word-families .dictionary-entry').first().locator('.dictionary-pos-heading [data-pos]');
+   const highlights=await markers.evaluateAll(nodes=>nodes.map(node=>getComputedStyle(node).backgroundImage));
+   ok(highlights.length>=2&&highlights.every(color=>color!=='none')&&new Set(highlights).size===highlights.length,
+    'the visible parts of speech use distinct marker colors');
    ok(await page.locator('.word-families .dictionary-entry').evaluateAll(entries=>entries.every(entry=>{
     const labels=[...entry.querySelectorAll('.dictionary-pos-heading .dictionary-meaning-pos')].map(label=>label.textContent);
     return new Set(labels).size===labels.length;
@@ -70,6 +90,11 @@ try{
    if(phone&&viewport.width===390)await page.screenshot({path:`${output}/${theme}-dictionary-overview.png`});
    await detailTrigger.focus();await page.keyboard.press('Enter');
    eq(await details.getAttribute('open'),'','keyboard can expand the definitions');
+   ok(await details.evaluate(node=>{
+    const preview=node.querySelector('summary ol'),extra=node.querySelector('.pos-rest ol');
+    return preview?.start===1 && extra?.start===preview.children.length+1 &&
+      [preview,extra].every(list=>getComputedStyle(list).listStyleType==='decimal');
+   }),'ordered sense markers continue from the overview into the expanded list');
    eq(await drawerFrame(page),fixed,'opening extra dictionary content leaves drawer geometry fixed');
    const content=page.locator('.soft-refresh-current');
    eq(await content.locator('.longman-ipa,.longman-example').count(),0,'both result sections omit phonetics and examples');
@@ -137,7 +162,7 @@ try{
    const read=await page.evaluate(()=>window.__sentenceRead);
    eq(read.text,await original.textContent(),'play hands off the selected full English sentence');
    eq(read.kind,'sentence','play uses sentence speech');
-   if(viewport.width===390||viewport.width===1120)await page.screenshot({path:`${output}/${theme}-${viewport.width}-pocket-playing.png`});
+   if(viewport.width===390||viewport.width===1161)await page.screenshot({path:`${output}/${theme}-${viewport.width}-pocket-playing.png`});
    await page.evaluate(async()=>{const {useSpeechStore}=await window.__uiStoreModule('speechStore');useSpeechStore.setState({speak:window.__originalSpeak});});
    await page.locator('.quiet-pocket').click();
    await lookupShown(page,'take');

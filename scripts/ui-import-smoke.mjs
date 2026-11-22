@@ -279,6 +279,11 @@ try{
         await closeFull();await confirm();await landed();
         const saved=await call('export_all');
         ok(saved.data.files.some(file=>file.content===expected.content),theme+' cross-page PDF body survives SQLite import');
+        await page.locator('.approved-card[data-desk-active=true] .approved-card-open').click();
+        await page.locator('.reading-original').first().waitFor();
+        eq(await page.locator('.reading-paper select').count(),0,'multi-page PDF reader omits the section picker');
+        await page.locator('.reading-original').filter({hasText:'well-known lighthouse'}).waitFor();
+        await open();
       }
     }
     await close();

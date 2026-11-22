@@ -16,10 +16,11 @@ interface Props {
   returnFocus?: () => HTMLElement | null;
   initialFocus?:()=>HTMLElement|null;
   dismissOnBackdrop?: boolean;
+  isPanelBackdrop?: (target: Element) => boolean;
 }
 
 /** Body portal: background inertness and focus ownership are shared across all dialogs. */
-export default function Overlay({ children, onClose, label, variant = 'dialog', className = '', layerClassName = '', panelRef, returnFocus, initialFocus, dismissOnBackdrop = true }: Props) {
+export default function Overlay({ children, onClose, label, variant = 'dialog', className = '', layerClassName = '', panelRef, returnFocus, initialFocus, dismissOnBackdrop = true, isPanelBackdrop }: Props) {
   const ownRef = useRef<HTMLDivElement>(null);
   const ref = panelRef ?? ownRef;
   const closing = useRef(false);
@@ -35,7 +36,10 @@ export default function Overlay({ children, onClose, label, variant = 'dialog', 
     <div className={`overlay-layer overlay-layer--${variant}${expanded ? ' is-expanded' : ''} ${layerClassName}`} data-overlay-layer="">
       <div className="overlay-scrim" onClick={dismissOnBackdrop ? () => void requestClose().catch(() => {}) : undefined} aria-hidden="true" />
       <div ref={ref} role="dialog" aria-modal="true" aria-label={label} tabIndex={-1}
-        className={`overlay-panel ${className}`}>
+        className={`overlay-panel ${className}`}
+        onClick={dismissOnBackdrop && isPanelBackdrop ? event => {
+          if (event.target instanceof Element && isPanelBackdrop(event.target)) void requestClose().catch(() => {});
+        } : undefined}>
         {variant === 'detail' && <div className="detail-sheet-control">
           <span className="detail-sheet-handle" aria-hidden="true" />
           <button className="ui-button ui-button--icon" onClick={() => setExpanded(value => !value)}
