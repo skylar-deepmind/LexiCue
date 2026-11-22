@@ -46,7 +46,10 @@ try {
     await selected();
     await page.keyboard.press('Tab');
     await reset.focus();
-    eq(await reset.evaluate(node => getComputedStyle(node).outlineStyle), 'solid', 'keyboard focus remains visible');
+    eq(await reset.evaluate(node => {
+      const style = getComputedStyle(node);
+      return node.matches(':focus-visible') && (style.outlineStyle !== 'none' || style.boxShadow !== 'none');
+    }), true, 'keyboard focus remains visible');
     await reset.press('Enter');
     await reset.waitFor({ state: 'detached' });
     eq(await selection.count(), 0, 'keyboard reset restores all dates');
