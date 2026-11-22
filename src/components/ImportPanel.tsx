@@ -6,7 +6,7 @@ import { useFeedbackStore } from '../stores/feedbackStore';
 import { invoke } from '@tauri-apps/api/core';
 import type { ReadingMaterial } from '../lib/materials';
 import { visitState } from '../lib/pageNavigation';
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Check, FileText, X } from 'lucide-react';
@@ -17,6 +17,7 @@ import { useFileStore } from '../stores/fileStore';
 import { useImportStore } from '../stores/importStore';
 import ImportPaper from './ImportPaper';
 import { useImportPresence } from './useImportPresence';
+import { classifyImportLink } from '../lib/importLink';
 import { authorizeImportedReading, validateImportedReading, consumeImportedReading } from '../lib/readingEntry';
 import '../import.css';
 
@@ -26,11 +27,12 @@ export default function ImportPanel() {
     const location=useLocation();
     const live = useImportStore();
     const panelRef = useRef<HTMLDivElement>(null);
+    const linkInput = useRef<HTMLInputElement>(null);
     const previous = useRef(live);
     if (live.open) previous.current = live;
     const state = live.open ? live : previous.current;
     const { destination, running, hide, clearDestination, phase } = state;
-    const open = live.open && live.phase !== 'source';
+    const open = live.open;
     const present = useImportPresence(open, panelRef);
     const placing = useRef(false), placed = useRef(new Set<string>());
     const tags = useFileStore(s => s.tags);
@@ -79,7 +81,13 @@ export default function ImportPanel() {
         const panel = panelRef.current;
         if (open && panel && !panel.contains(document.activeElement)) panel.focus({ preventScroll: true });
     }, [open, phase]);
-    if (!present || phase === 'source') return null;
+    if (!present) return null;
+    if (phase === 'source') return <Overlay returnFocus={takeImportFocus}
+        label={t('materials.importDialog.linkTitle')} onClose={hide} panelRef={panelRef}
+        initialFocus={() => linkInput.current} className="lc-import-modal"
+        layerClassName={`lc-import-layer${open ? '' : ' lc-import-layer--closing'}`}>
+        <LinkImportForm input={linkInput} onClose={hide} />
+    </Overlay>;
     const preparing = phase === 'preparing';
     const committing = phase === 'committing';
     const preview = phase === 'preview';
@@ -116,15 +124,49 @@ export default function ImportPanel() {
                 <p className="lc-import-summary" role="status">{committing ? t(state.stopping ? 'materials.stopping' : 'materials.processing', { done: processed, total: state.items.length }) : result ? t('materials.finished', { count: state.items.filter(item => item.stage === 'created').length }) : t('materials.importDialog.readyCount', { count: valid.length, total: state.items.length })}</p>
                 {(state.items.length > 1 || !preview || !selected) && <ul className="lc-import-items">{state.items.map(item => <li key={item.id}>
                     {preview && item.draft ? <button className="lc-import-item-select" aria-pressed={selected?.id === item.id} onClick={() => state.select(item.id)}><FileText size={18} aria-hidden="true" /><span><strong>{item.name}</strong><small>{t(`materials.stages.${item.stage}`)}</small></span><Check size={18} aria-hidden="true" /></button> : <div className="lc-import-item-status"><FileText size={18} aria-hidden="true" /><span><strong>{item.name}</strong><small>{t(`materials.stages.${item.stage}`)}</small></span>{item.stage === 'created' && <Check size={18} aria-hidden="true" />}</div>}
-                    {item.error && item.stage === 'failed' && <p className="lc-import-error" role="alert">{t(`materials.errors.${item.error}`)}</p>}
+                    {item.error && item.stage === 'failed' && <p className="lc-import-error" role="alert">{t(
+                        item.error === 'youtube_tool_missing' ? 'materials.importDialog.youtubeToolsRequired'
+                        : item.error === 'youtube_no_subtitles' ? 'materials.noEnglishSubtitles' : `materials.errors.${item.error}`
+                    )}</p>}
                     {item.englishFallback !== undefined && <button className="ui-button" onClick={() => void state.useEnglish(item.id)}>{t('materials.englishFallback')}</button>}
                     {item.result?.outcome === 'duplicate' && <button className="ui-button" onClick={() => { state.hide(); navigate(item.result!.readable ? `/files/${item.result!.file_id}` : `/legacy?fileId=${item.result!.file_id}`,{state:{...visitState(location),reopenImport:true}}); }}>{t('materials.openExisting')}</button>}
                 </li>)}</ul>}
                 {retryable && <button className="ui-button" onClick={() => void state.retry()} disabled={running}>{t('materials.retryFailed')}</button>}
+                {preview && !selected && state.items.some(item => item.kind === 'webpage' || item.kind === 'youtube') && <button className="ui-button" onClick={state.showLink}>{t('materials.importDialog.linkTitle')}</button>}
             </>}
         </div></MotionChange>
         <footer className="lc-import-footer">
             {committing ? <><p>{t('materials.importDialog.backgroundHint')}</p><button className="ui-button" disabled={state.stopping} onClick={state.cancel}>{t('materials.cancelRemaining')}</button></> : preview ? <><button className="ui-button ui-button--icon" aria-label={t('materials.importDialog.changeSource')} title={t('materials.importDialog.changeSource')} onClick={() => void state.choose()}><FileText size={20} aria-hidden="true" /></button>{valid.length > 0 && <button className="ui-button lc-import-primary" disabled={!valid.length || !!state.selectionBusy} onClick={() => void state.confirm()}>{t(valid.some(item => item.draft?.document?.extraction_status === 'partial') ? 'documents.importPartial' : 'materials.importDialog.confirm', { count: valid.length })}</button>}</> : <><button className="ui-button" onClick={() => void state.choose()}>{t('materials.importDialog.importMore')}</button><button className="ui-button ui-button--icon lc-import-primary" aria-label={t('common.close')} title={t('common.close')} onClick={hide}><X size={20} aria-hidden="true" /></button></>}
         </footer>
     </Overlay>;
+}
+
+function LinkImportForm({ input, onClose }: {
+    input: RefObject<HTMLInputElement | null>;
+    onClose: () => void;
+}) {
+    const { t } = useTranslation();
+    const [error, setError] = useState('');
+    const label = t('materials.importDialog.linkTitle');
+    return <>
+        <header className="lc-import-header">
+            <h2>{label}</h2>
+            <button type="button" className="ui-button ui-button--icon lc-import-close" aria-label={t('common.close')} onClick={onClose}><X size={20} aria-hidden="true" /></button>
+        </header>
+        <div className="lc-import-body lc-import-youtube">
+            <form noValidate onSubmit={event => {
+                event.preventDefault();
+                const link = classifyImportLink(input.current?.value ?? '');
+                if ('error' in link) { setError(link.error); input.current?.focus(); return; }
+                void useImportStore.getState().fromContent(link.kind, link.url);
+            }}>
+                <label htmlFor="lc-import-link">{t('materials.importDialog.linkLabel')}</label>
+                <input id="lc-import-link" ref={input} type="url" autoComplete="off" placeholder="https://…"
+                    aria-invalid={!!error} aria-describedby={error ? 'lc-import-link-error' : undefined}
+                    onChange={() => { if (error) setError(''); }} />
+                {error && <p id="lc-import-link-error" className="lc-import-error" role="alert">{t(`materials.importDialog.${error}`)}</p>}
+                <button className="ui-button lc-import-primary">{t('materials.importDialog.analyzeLink')}</button>
+            </form>
+        </div>
+    </>;
 }

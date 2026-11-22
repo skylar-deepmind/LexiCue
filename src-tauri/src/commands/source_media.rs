@@ -62,6 +62,43 @@ pub struct YoutubeSource {
     pub audio: Option<AudioTrack>,
 }
 impl YoutubeSource {
+    #[cfg(all(target_os = "macos", not(feature = "apple-store")))]
+    pub(super) fn from_imported_captions(
+        video: &str,
+        title: String,
+        duration_ms: i64,
+        language: &str,
+        content: &str,
+    ) -> Result<Self, String> {
+        let mut source = Self {
+            version: 1,
+            provider: "youtube".into(),
+            key: String::new(),
+            video_id: video.into(),
+            url: format!("https://www.youtube.com/watch?v={video}"),
+            title,
+            duration_ms,
+            subtitle_track: language.into(),
+            subtitle_language: language.into(),
+            subtitle_kind: "unknown".into(),
+            subtitle_sha256: digest(content.as_bytes()),
+            cues: youtube::parse_srt(content)
+                .into_iter()
+                .enumerate()
+                .map(|(id, cue)| Cue {
+                    id: id as u32,
+                    start_ms: cue.start_ms,
+                    end_ms: cue.end_ms,
+                    text: cue.text,
+                })
+                .collect(),
+            audio: None,
+        };
+        source.key = source.identity();
+        source.validate()?;
+        Ok(source)
+    }
+
     pub(super) fn can_prepare_audio(&self) -> bool {
         self.duration_ms <= MAX_DURATION_MS
             && self.subtitle_language.starts_with("en")

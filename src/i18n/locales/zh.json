@@ -1517,6 +1517,8 @@
       "readingClipboard": "读取中…",
       "linkTitle": "链接导入",
       "linkLabel": "链接",
+      "analyzeLink": "分析链接",
+      "youtubeToolsRequired": "导入 YouTube 字幕需要在这台 Mac 上安装 yt-dlp 和 FFmpeg。",
       "clipboardEmpty": "未读到文字，请先复制英文或链接；图片或文件请使用选择文件。",
       "clipboardFailed": "无法读取剪贴板，请在下方手动粘贴。",
       "invalidLink": "链接格式不完整，请修改或重新粘贴。",

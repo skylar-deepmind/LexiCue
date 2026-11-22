@@ -2,7 +2,8 @@ import { create } from 'zustand';
 import { useRestoreGuard } from './restoreGuard';
 import { useFeedbackStore } from './feedbackStore';
 import i18n from '../i18n';
-import { prepareContent } from '../lib/contentImport';
+import { prepareContent, prepareYouTube } from '../lib/contentImport';
+import type { YoutubeSource } from '../lib/sourceMedia';
 import { clipboardTitle } from '../lib/clipboardContent';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
@@ -20,11 +21,12 @@ export type ImportStage = 'queued' | 'reading' | 'parsing' | 'translating' | 're
 export type ImportPhase = 'source' | 'preparing' | 'preview' | 'committing' | 'result';
 export interface ImportSource {
     name: string;
-    kind?: 'file' | 'clipboard' | 'webpage';
+    kind?: 'file' | 'clipboard' | 'webpage' | 'youtube';
     capturedText?: string;
     title?: string;
     url?: string;
     preparedSegments?: SegmentInput[];
+    youtube?: YoutubeSource;
     packageCover?: Uint8Array;
     packageAudio?: Uint8Array;
     skipTranslation?: boolean;
@@ -39,6 +41,7 @@ export interface ImportDraft {
     readonly wordCount: number;
     readonly document?: DocumentSource;
     readonly normalized_kind?: 'txt' | 'srt';
+    readonly source?: YoutubeSource;
 }
 export interface ImportItem extends ImportSource {
     id: string;
@@ -51,10 +54,11 @@ export interface ImportItem extends ImportSource {
     translationProgress?: TranslationProgress;
     result?: MaterialImportResult;
 }
+type ImportWrite = Pick<ImportDraft, 'operation_id' | 'name' | 'content' | 'segments' | 'document' | 'normalized_kind' | 'source'>;
 export interface ImportIO {
     parse: (content: string, signal: AbortSignal, name?: string) => Promise<SegmentInput[]>;
     translate?: (segments: SegmentInput[], signal: AbortSignal, progress: (value: TranslationProgress) => void) => Promise<ImportTranslationResult>;
-    write: (input: { operation_id: string; name: string; content: string; segments: SegmentInput[]; document?: DocumentSource; normalized_kind?: 'txt' | 'srt' }, audio?: Uint8Array) => Promise<MaterialImportResult>;
+    write: (input: ImportWrite, audio?: Uint8Array) => Promise<MaterialImportResult>;
 }
 type Update = (id: string, patch: Partial<ImportItem>) => void;
 
@@ -90,8 +94,12 @@ export async function prepareImportQueue(items: ImportItem[], signal: AbortSigna
             if (!contentKind && !/\.(pdf|docx|epub|md|markdown|vtt|srt|txt)$/i.test(item.name)) throw new Error('material_invalid_srt');
             update(item.id, { stage: 'reading', error: undefined });
             const reusing = !!item.preparedSegments;
+            const captions = item.kind === 'youtube' && !reusing ? await abortable(prepareYouTube(item.url!, signal), signal) : undefined;
+            const youtube = captions?.source ?? item.youtube;
+            const title = youtube?.title || youtube?.video_id;
+            const name = title ? `${title.replace(/[\\/:*?"<>|\p{Cc}]/gu, '_').slice(0, 200)}.srt` : item.name;
             const preparedContent = contentKind && !reusing ? await abortable(prepareContent(contentKind, contentKind === 'webpage' ? item.url! : item.capturedText!, signal), signal) : undefined;
-            const read = preparedContent ? preparedContent.content : await abortable(item.read(signal), signal);
+            const read = captions?.content ?? preparedContent?.content ?? await abortable(item.read(signal), signal);
             if (signal.aborted) break;
             if (!reusing && !contentKind && !(read instanceof Uint8Array) && !/\.(txt|srt)$/i.test(item.name)) throw new Error('material_invalid_format');
             update(item.id, { stage: 'parsing' });
@@ -108,7 +116,7 @@ export async function prepareImportQueue(items: ImportItem[], signal: AbortSigna
                 }
             }
             const content = extraction?.content ?? (typeof read === 'string' ? read : '');
-            let segments = item.preparedSegments ?? extraction?.segments ?? await parse(content, signal, item.name);
+            let segments = item.preparedSegments ?? extraction?.segments ?? await parse(content, signal, name);
             if (signal.aborted) break;
             if (translate && !item.skipTranslation && segments.some(segment => !segment.zh_text?.trim())) {
                 update(item.id, { stage: 'translating' });
@@ -116,17 +124,18 @@ export async function prepareImportQueue(items: ImportItem[], signal: AbortSigna
                 if (signal.aborted) break;
                 segments = translated.segments;
                 if (translated.failed) {
-                    update(item.id, { stage: 'failed', error: 'translation_partial', englishFallback: content, fallbackSegments: segments, extraction, translationProgress: undefined });
+                    update(item.id, { stage: 'failed', error: 'translation_partial', englishFallback: content, fallbackSegments: segments, extraction, youtube, translationProgress: undefined });
                     continue;
                 }
             }
             // Freeze copies, never objects owned by a parser or another source.
             const frozenSegments = segments.map(segment => Object.freeze({ ...segment }));
             Object.freeze(frozenSegments);
-            const draft = Object.freeze({ operation_id: item.id, name: extraction?.document.display_name ?? item.name, content, segments: frozenSegments,
+            const draft = Object.freeze({ operation_id: item.id, name: extraction?.document.display_name ?? name, content, segments: frozenSegments,
                 wordCount: segments.reduce((count, segment) => count + (segment.en_text.match(/[A-Za-z]+(?:['’][A-Za-z]+)*/g)?.length ?? 0), 0),
+                ...(youtube ? { source: youtube } : {}),
                 ...(extraction ? {document: freezeDocument(extraction.document), normalized_kind: extraction.normalized_kind} : {}) });
-            update(item.id, { ...(preparedContent ? { name: draft.name, title: draft.name } : {}), stage: 'ready', draft, extraction: extraction ? {...extraction, segments} : undefined, englishFallback: undefined, fallbackSegments: undefined, translationProgress: undefined });
+            update(item.id, { ...(preparedContent || youtube ? { name: draft.name, title: title ?? draft.name } : {}), stage: 'ready', draft, extraction: extraction ? {...extraction, segments} : undefined, englishFallback: undefined, fallbackSegments: undefined, translationProgress: undefined });
         } catch (error) {
             if (signal.aborted) break;
             const known = materialError(error);
@@ -144,7 +153,7 @@ export async function commitImportQueue(items: ImportItem[], signal: AbortSignal
         if (signal.aborted) { update(item.id, { stage: 'cancelled' }); continue; }
         update(item.id, { stage: 'writing', error: undefined });
         try {
-            const result = await write({ operation_id: draft.operation_id, name: draft.name, content: draft.content, segments: draft.segments, ...(draft.document ? { document: draft.document, normalized_kind: draft.normalized_kind } : {}) }, item.packageAudio);
+            const result = await write({ operation_id: draft.operation_id, name: draft.name, content: draft.content, segments: draft.segments, ...(draft.document ? { document: draft.document, normalized_kind: draft.normalized_kind } : {}), ...(draft.source ? { source: draft.source } : {}) }, item.packageAudio);
             update(item.id, { stage: result.outcome, result });
             useMaterialStore.getState().changed();
         } catch (error) {
@@ -183,12 +192,13 @@ export const useImportStore = create<{
     setImportTags: (selection: TagSelection) => void;
     selectRange: (id: string, selection: DocumentSelection) => Promise<void>;
     show: () => void;
+    showLink: () => void;
     hide: () => void;
     select: (id: string) => void;
     clearDestination: () => void;
     start: (sources: ImportSource[]) => Promise<void>;
     choose: () => Promise<void>;
-    fromContent: (kind: 'clipboard' | 'webpage', value: string) => Promise<void>;
+    fromContent: (kind: 'clipboard' | 'webpage' | 'youtube', value: string) => Promise<void>;
     renameDraft: (id: string, title: string) => void;
     cancel: () => void;
     retry: () => Promise<void>;
@@ -276,6 +286,9 @@ export const useImportStore = create<{
         open: false, ...empty,
         setImportTags: importTags => { if (!get().running && get().phase === 'preview') set({ importTags }); },
         show: () => { if (get().phase !== 'source') set({ open: true }); },
+        showLink: () => {
+            if (!get().running && !get().picking) set({ ...empty, open: true });
+        },
         clearDestination: () => set({ destination: null }),
         hide: () => {
             if (get().phase === 'committing' || get().phase === 'result' && get().items.some(item => item.draft && ['failed', 'cancelled'].includes(item.stage))) set({ open: false, destination: null });
@@ -309,7 +322,7 @@ export const useImportStore = create<{
         fromContent: async (kind, value) => {
             if(get().running)return;
             set({importTags:noImportTags});
-            await prepare([{id:crypto.randomUUID(),stage:'queued',kind, name: kind === 'clipboard' ? clipboardTitle(value) : value, capturedText: kind === 'clipboard' ? value : undefined, url: kind === 'webpage' ? value : undefined, read: async () => value}]);
+            await prepare([{id:crypto.randomUUID(),stage:'queued',kind, name: kind === 'youtube' ? 'YouTube.srt' : kind === 'clipboard' ? clipboardTitle(value) : value, capturedText: kind === 'clipboard' ? value : undefined, url: kind === 'clipboard' ? undefined : value, read: async () => value}]);
         },
         renameDraft: (id, title) => {
             if (get().phase !== 'preview' || get().running) return;

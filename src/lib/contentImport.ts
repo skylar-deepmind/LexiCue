@@ -1,13 +1,29 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { ExtractedDocument } from './documentTypes';
 import type { WebpageResponse } from './contentExtract';
+import type { YoutubeSource } from './sourceMedia';
+
+async function fetchLink<T>(command: 'fetch_import_webpage' | 'fetch_import_youtube', url: string, signal: AbortSignal): Promise<T> {
+    if (signal.aborted) throw Error('material_cancelled');
+    const job = crypto.randomUUID();
+    const abort = () => { void invoke('cancel_import_webpage', { job }).catch(() => {}); };
+    signal.addEventListener('abort', abort, { once: true });
+    try {
+        return await invoke<T>(command, { job, url });
+    } finally {
+        signal.removeEventListener('abort', abort);
+    }
+}
+
+export type YouTubeCaptions = { content: string; source: YoutubeSource };
+
+export function prepareYouTube(url: string, signal: AbortSignal) {
+    return fetchLink<YouTubeCaptions>('fetch_import_youtube', url, signal);
+}
+
 export async function prepareContent(kind:'clipboard'|'webpage',value:string,signal:AbortSignal):Promise<ExtractedDocument>{
     if(signal.aborted)throw Error('material_cancelled');
-    let response:WebpageResponse|undefined;
-    if(kind==='webpage'){
-        const job=crypto.randomUUID();const abort=()=>{void invoke('cancel_import_webpage',{job}).catch(()=>{});};signal.addEventListener('abort',abort,{once:true});
-        try{response=await invoke<WebpageResponse>('fetch_import_webpage',{job,url:value});}finally{signal.removeEventListener('abort',abort);}
-    }
+    const response = kind === 'webpage' ? await fetchLink<WebpageResponse>('fetch_import_webpage', value, signal) : undefined;
     if(signal.aborted)throw Error('material_cancelled');
     return new Promise((resolve,reject)=>{
         const worker=new Worker(new URL('./contentWorker.ts',import.meta.url),{type:'module'});

@@ -2,9 +2,16 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('@tauri-apps/api/core', () => ({ isTauri: () => true }));
 vi.mock('@tauri-apps/plugin-clipboard-manager', () => ({ readText: vi.fn() }));
 import { readText } from '@tauri-apps/plugin-clipboard-manager';
-import { inspectImportLink, readImportClipboard } from '../importLink';
+import { classifyImportLink, inspectImportLink, readImportClipboard } from '../importLink';
 
 describe('clipboard import boundary', () => {
+  it('routes explicit webpage and YouTube links separately and does not submit pasted prose', () => {
+    expect(classifyImportLink(' https://example.org/article#section ')).toEqual({ kind: 'webpage', url: 'https://example.org/article#section' });
+    expect(classifyImportLink('www.youtube.com/watch?v=abcdefghijk')).toEqual({ kind: 'youtube', url: 'https://www.youtube.com/watch?v=abcdefghijk' });
+    expect(classifyImportLink('https://youtube.com/playlist?list=abcdefghijk')).toEqual({ error: 'unsupportedLink' });
+    expect(classifyImportLink('A private reading note.')).toEqual({ error: 'invalidLink' });
+    expect(classifyImportLink('https://example.org/a https://example.org/b')).toEqual({ error: 'multipleLinks' });
+  });
   it.each([
     'https://www.youtube.com/watch?v=abcdefghijk',
     'https://youtu.be/abcdefghijk?t=20',

@@ -26,6 +26,23 @@ beforeEach(() => {
 });
 
 describe('preview and transaction boundaries', () => {
+    it('keeps subtitle provenance when translation fails and the user keeps English', async () => {
+        const url = 'https://www.youtube.com/watch?v=abcdefghijk';
+        const source = { title: 'A short English lesson', video_id: 'abcdefghijk', url };
+        const content = srt('Here is a short English lesson.');
+        mocks.invoke.mockResolvedValueOnce({ source, content });
+        mocks.translate.mockImplementationOnce(async segments => ({ segments, failed: true }));
+        await store().fromContent('youtube', url);
+        const item = store().items[0];
+        expect(item.error).toBe('translation_partial');
+        await store().useEnglish(item.id);
+        expect(store().items[0].draft).toMatchObject({ name: 'A short English lesson.srt', content, source });
+        expect(mocks.invoke).toHaveBeenCalledTimes(1);
+        await store().confirm();
+        expect(mocks.invoke).toHaveBeenLastCalledWith('import_reading_material', {
+            input: expect.objectContaining({ source, content }),
+        });
+    });
     it('prepares real bilingual content without writes and commits the exact frozen preview once', async () => {
         const read = vi.fn().mockResolvedValue(srt('We fly.\n我们飞翔。'));
         await store().start([{ name: 'flight.srt', read }]);

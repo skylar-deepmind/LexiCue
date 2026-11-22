@@ -1534,6 +1534,8 @@
       "readingClipboard": "Wird gelesen…",
       "linkTitle": "Link importieren",
       "linkLabel": "Link",
+      "analyzeLink": "Link analysieren",
+      "youtubeToolsRequired": "Für den YouTube-Untertitelimport müssen yt-dlp und FFmpeg auf diesem Mac installiert sein.",
       "clipboardEmpty": "No text was found. Copy English text or a link; use Choose files for files.",
       "clipboardFailed": "Clipboard access failed. Paste manually below.",
       "invalidLink": "This link is incomplete. Edit it or paste again.",

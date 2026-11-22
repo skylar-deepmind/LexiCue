@@ -194,6 +194,8 @@ pub fn run() {
             commands::ios_reading::ios_reading_control,
             commands::webpage::fetch_import_webpage,
             commands::webpage::cancel_import_webpage,
+            #[cfg(all(target_os = "macos", not(feature = "apple-store")))]
+            commands::youtube_import::fetch_import_youtube,
             commands::example::example_recall_contexts,
             commands::example::begin_example_session,
             commands::example::end_example_session,

@@ -120,11 +120,11 @@ fn append_bounded(bytes: &mut Vec<u8>, chunk: &[u8]) -> Result<(), String> {
     bytes.extend_from_slice(chunk);
     Ok(())
 }
-async fn bounded_fetch<F: std::future::Future<Output = Result<WebpageResponse, String>>>(
+async fn bounded_fetch<T, F: std::future::Future<Output = Result<T, String>>>(
     mut cancel: watch::Receiver<bool>,
     timeout: Duration,
     task: F,
-) -> Result<WebpageResponse, String> {
+) -> Result<T, String> {
     if *cancel.borrow() {
         return Err("material_cancelled".into());
     }
@@ -212,6 +212,23 @@ pub async fn fetch_import_webpage(
     job: String,
     url: String,
 ) -> Result<WebpageResponse, String> {
+    registered_import(
+        &state,
+        job,
+        &url,
+        Duration::from_secs(30),
+        fetch(url.clone()),
+    )
+    .await
+}
+
+pub(super) async fn registered_import<T>(
+    state: &WebpageState,
+    job: String,
+    url: &str,
+    timeout: Duration,
+    task: impl std::future::Future<Output = Result<T, String>>,
+) -> Result<T, String> {
     if job.len() > 100 || url.len() > 8192 {
         return Err("material_web_invalid".into());
     }
@@ -226,7 +243,7 @@ pub async fn fetch_import_webpage(
             .1
             .subscribe()
     };
-    let result = bounded_fetch(cancel, Duration::from_secs(30), fetch(url)).await;
+    let result = bounded_fetch(cancel, timeout, task).await;
     state
         .0
         .lock()
@@ -274,11 +291,15 @@ mod tests {
         let timeout = bounded_fetch(
             receiver.clone(),
             Duration::from_millis(5),
-            std::future::pending(),
+            std::future::pending::<Result<WebpageResponse, String>>(),
         )
         .await;
         assert_eq!(timeout.err().as_deref(), Some("material_web_timeout"));
-        let task = bounded_fetch(receiver, Duration::from_secs(30), std::future::pending());
+        let task = bounded_fetch(
+            receiver,
+            Duration::from_secs(30),
+            std::future::pending::<Result<WebpageResponse, String>>(),
+        );
         tokio::pin!(task);
         sender.send_replace(true);
         assert_eq!(task.await.err().as_deref(), Some("material_cancelled"));

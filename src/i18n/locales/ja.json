@@ -1517,6 +1517,8 @@
       "readingClipboard": "読み取り中…",
       "linkTitle": "リンクを読み込む",
       "linkLabel": "リンク",
+      "analyzeLink": "リンクを解析",
+      "youtubeToolsRequired": "YouTube の字幕を取り込むには、この Mac に yt-dlp と FFmpeg が必要です。",
       "clipboardEmpty": "No text was found. Copy English text or a link; use Choose files for files.",
       "clipboardFailed": "Clipboard access failed. Paste manually below.",
       "invalidLink": "This link is incomplete. Edit it or paste again.",
