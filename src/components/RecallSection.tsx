@@ -55,11 +55,10 @@ export default function RecallSection({ memory, expression, expanded = false, on
   if (!page.total) return error ? <div className="recall-error" role="alert"><p>{t('recall.loadFailed')}</p><button className="ui-button" onClick={() => setRetry(value => value + 1)}>{t('common.retry')}</button></div> : null;
   return <div className="recall-section recall-history" aria-label={t('recall.previous')} aria-busy={loading}>
     {!expanded && <p>{t('dictionaryFlow.historySummary', { count: page.total })}</p>}
-    {page.records.map(value => <SavedSentence key={value.record_id} scope={scope} record={value}
-      active={value.record_id === (page.records.some(record => record.record_id === activeRecord) ? activeRecord : page.records[0]?.record_id)}
+    {page.records.map(value => <SavedSentence key={value.record_id} record={value}
+      active={value.record_id === activeRecord}
       onActivate={() => setActiveRecord(value.record_id)} onRemove={onRemove} removing={removing || loading}
-      onSource={onSource} sourceBusy={sourceBusy}
-      onChange={next => setPage(previous => ({ ...previous, records: previous.records.map(record => record.record_id === next.record_id ? next : record) }))}/>) }
+      onSource={onSource} sourceBusy={sourceBusy}/>) }
     {loading && <span role="status"><BusyRing/><span className="sr-only">{t('common.loading')}</span></span>}
     {page.records.length < page.total && <button className="ui-button" disabled={loading} onClick={() => void loadRef.current(page.records.length)}>{t('savedRecords.loadMore')}</button>}
     {error && <div className="recall-error" role="alert"><p>{t('recall.loadFailed')}</p><button className="ui-button" disabled={loading} onClick={() => setRetry(value => value + 1)}>{t('common.retry')}</button></div>}

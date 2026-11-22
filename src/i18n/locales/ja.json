@@ -1385,7 +1385,7 @@
     "path": "現在の場所",
     "import": "インポート",
     "importRunning": "インポート中・進捗を表示",
-    "drop": "ファイルをドロップしてインポート",
+    "drop": "放してインポート",
     "srtOnly": "PDF、DOCX、EPUB、MD、TXT、SRT、VTT、ZIP",
     "choose": "ファイルを選択",
     "processing": "{{done}} / {{total}} 件を処理済み",

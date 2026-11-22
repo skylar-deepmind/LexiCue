@@ -19,9 +19,12 @@
 .lc-import-intro { color:var(--text-body); font-size:1rem; line-height:1.7; margin-bottom:24px; }
 .lc-import-hint { color:var(--text-muted); font-size:.875rem; line-height:1.7; }
 .lc-import-center { text-align:center; margin-top:24px; }
-.lc-file-drop { position:fixed; z-index:2000; inset:12px; display:grid; place-items:center; pointer-events:none;
-  border:2px dashed var(--accent-700); border-radius:16px; background:var(--surface); color:var(--text-strong);
-  font-size:1.125rem; font-weight:550; }
+.lc-file-drop {
+    position:fixed; z-index:2000; inset:0; display:grid; place-items:center; pointer-events:none;
+    background:color-mix(in srgb,var(--approved-desk) 45%,transparent); color:var(--text-strong);
+    -webkit-backdrop-filter:blur(5px); backdrop-filter:blur(5px);
+    font-size:1.125rem; font-weight:600;
+}
 .lc-import-modal .lc-import-primary { background:var(--lc-import-primary-bg); border-color:var(--lc-import-primary-bg); color:var(--on-accent); }
 .lc-import-modal .lc-import-primary:hover:not(:disabled), .lc-import-modal .lc-import-primary:active:not(:disabled) { background:var(--lc-import-primary-hover); border-color:var(--lc-import-primary-hover); color:var(--on-accent); }
 .lc-import-back { margin-bottom:16px; }

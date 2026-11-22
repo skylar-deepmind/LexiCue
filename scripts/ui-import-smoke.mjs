@@ -58,7 +58,8 @@ try{
    window.__TAURI_INTERNALS__.metadata={currentWindow:{label:'main'},currentWebview:{label:'main'}};
    window.__TAURI_INTERNALS__.transformCallback=fn=>{const id=++next;callbacks.set(id,fn);return id;};
    window.__TAURI_INTERNALS__.unregisterCallback=id=>callbacks.delete(id);
-   window.__nativeDrop=paths=>{for(const {event,handler}of listeners.values())if(event==='tauri://drag-drop')callbacks.get(handler)?.({event,payload:{paths,position:{x:0,y:0}}});};
+   window.__nativeDrag=(type,paths=[])=>{for(const {event,handler}of listeners.values())if(event===`tauri://drag-${type}`)callbacks.get(handler)?.({event,payload:{paths,position:{x:930,y:330}}});};
+   window.__nativeDrop=paths=>window.__nativeDrag('drop',paths);
    window.__TAURI_INTERNALS__.invoke=async(command,args={})=>{
     if(command==='plugin:event|listen'){const id=++next;listeners.set(id,args);return id;}
     if(command==='plugin:event|unlisten'){listeners.delete(args.eventId);return;}
@@ -123,6 +124,15 @@ try{
   await drop([['lost.srt',srt('A lost receipt can be safely recovered.')]]);await preview();await page.evaluate(()=>window.__uiFailure={command:'import_reading_material',remaining:1,afterCommit:true});await confirm();await page.getByRole('alert').filter({visible:true}).waitFor();
   const lost=(await writes()).at(-1);eq((await call('test_counts')).files,3,'lost receipt really committed');await page.getByRole('button',{name:'重试未完成项'}).click();await landed();eq((await writes()).at(-1),lost,'retry resends exact operation payload');eq((await call('test_counts')).files,3,'idempotent retry has one result');
   // Native drag event adapter routes into the same prepare/preview state.
+  const dropVeil=page.locator('.lc-file-drop');
+  await page.evaluate(()=>window.__nativeDrag('enter',['/fixture/native-drag.srt']));
+  await dropVeil.waitFor();
+  eq(await dropVeil.innerText(),'松手以导入','native file enter shows the release prompt');
+  eq(await dropVeil.evaluate(n=>getComputedStyle(n).backdropFilter),'blur(5px)','desk remains visible through light blur');
+  await page.screenshot({path:`${output}/${theme}-drag-enter.png`});
+  await page.evaluate(()=>window.__nativeDrag('leave'));
+  await dropVeil.waitFor({state:'detached'});
+  ok(!await page.locator('.lc-import-modal').count(),'leaving the window does not start import');
   await page.evaluate(text=>{window.__uiFiles={'/fixture/native-drag.srt':text};window.__nativeDrop(['/fixture/native-drag.srt']);},srt('Native paths share the same preview.'));await preview();eq((await call('test_counts')).files,3,'native event adapter does not commit');
   await add();await tagName.fill('Discarded tag');await tagName.press('Escape');await close();
   eq((await call('list_tags')).map(tag=>tag.name),['Coast notes'],'closing discards an uncommitted tag');
@@ -131,7 +141,9 @@ try{
   await page.evaluate(text=>{window.__holdRead=true;window.__uiFiles={'/fixture/slow.srt':text};window.__nativeDrop(['/fixture/slow.srt']);},srt('This late file must never be saved.'));
   const preparation=page.locator('.lc-import-preparing');
   const grip=preparation.locator('.lc-import-paper-grip'),trash=page.locator('.trash-drop-target');
-  await grip.waitFor();await settle();
+  await grip.waitFor();
+  ok(await grip.evaluate(n=>n.getAnimations().some(a=>a.effect.getKeyframes()[0]?.transform?.includes('translate'))),'dropped paper travels from drop coordinates to preparation');
+  await settle();
   eq(await preparation.evaluate(n=>getComputedStyle(n).backgroundColor),'rgba(0, 0, 0, 0)','preparation has no enclosing panel surface');
   ok(await page.locator('.lc-import-preparing-layer .overlay-scrim').evaluate(n=>getComputedStyle(n).backdropFilter.includes('blur')),'the desk behind the preparation card is blurred');
   eq(await preparation.locator('button').count(),1,'the paper is the sole interactive control while loading');

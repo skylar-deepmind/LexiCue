@@ -6,7 +6,7 @@ import { useFeedbackStore } from '../stores/feedbackStore';
 import { invoke } from '@tauri-apps/api/core';
 import type { ReadingMaterial } from '../lib/materials';
 import { visitState } from '../lib/pageNavigation';
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, type RefObject } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Check, FileText, X } from 'lucide-react';
@@ -16,11 +16,12 @@ import { takeImportFocus } from './importFocus';
 import { useFileStore } from '../stores/fileStore';
 import { useImportStore } from '../stores/importStore';
 import ImportPaper from './ImportPaper';
+import type { MaterialDropPoint } from './useMaterialDrop';
 import { useImportPresence } from './useImportPresence';
 import { authorizeImportedReading, validateImportedReading, consumeImportedReading } from '../lib/readingEntry';
 import '../import.css';
 
-export default function ImportPanel() {
+export default function ImportPanel({ dropOrigin }: { dropOrigin: RefObject<MaterialDropPoint | null> }) {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const location=useLocation();
@@ -94,7 +95,7 @@ export default function ImportPanel() {
         onClose={() => { if (useImportStore.getState().phase === 'preparing') state.cancel(); }}
         dismissOnBackdrop={false} className="lc-import-modal lc-import-preparing"
         layerClassName={`${layer} lc-import-preparing-layer`} panelRef={panelRef}>
-        <ImportPaper disabled={!open} />
+        <ImportPaper disabled={!open} dropOrigin={dropOrigin.current} />
     </Overlay>;
     if (selected?.draft && (preview || committing || result)) {
         return <Overlay returnFocus={takeImportFocus} label={t('materials.import')} onClose={hide}

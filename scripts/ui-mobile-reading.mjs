@@ -33,6 +33,14 @@ try{
   await h.call('test_reset');
   const rows=Array.from({length:45},(_,index)=>({index,en_text:`The plane will take off soon. We waited for the morning light. Paragraph ${index+1}.`,zh_text:'飞机即将起飞。我们等待清晨的阳光。',start_time:null,end_time:null}));
   const material=await h.call('import_reading_material',{input:{operation_id:crypto.randomUUID(),name:'The morning journey.txt',content:rows.map(r=>r.en_text).join('\n'),segments:rows,normalized_kind:'txt'}});
+  const source=await h.call('open_reading_material',{fileId:material.file_id});
+  for(const segment of source.segments.slice(0,2)){
+   const start=segment.en_text.indexOf('take');
+   await h.call('mutate_saved_record',{operationId:crypto.randomUUID(),mutation:{kind:'save',input:{
+    segment_id:segment.id,expression:'take',start_offset:start,end_offset:start+4,
+    explanation:'保留侧袋笔记',explanation_source:'personal',
+   }}});
+  }
   for(const viewport of [{width:320,height:568},{width:390,height:844},{width:430,height:932},{width:667,height:375},{width:1120,height:820}]){
    const phone=viewport.width<768;const context=await h.browser.newContext({viewport,hasTouch:phone,isMobile:phone});page=await context.newPage();if(viewport.width===390){const cdp=await context.newCDPSession(page);await cdp.send('Emulation.setSafeAreaInsetsOverride',{insets:{top:51,bottom:34,left:0,right:0}});}await h.fixture(page,theme);await page.routeWebSocket('**',socket=>socket.close());
    await page.addInitScript(()=>{localStorage.setItem('lexicue-onboarding-v1',JSON.stringify({version:1,status:'skipped'}));const base=window.__TAURI_INTERNALS__.invoke;window.__supplementMode='empty';window.__TAURI_INTERNALS__.invoke=async(command,args={})=>{if(command==='lookup_cambridge_expression'){window.__uiCalls.push({command,args:structuredClone(args)});await new Promise(r=>setTimeout(r,800));if(window.__supplementMode==='error')throw Error('controlled online unavailable');if(window.__supplementMode==='success')return {schema_version:1,query:{text:args.expression,language:'en',context:args.context},status:'found',default_entry_id:'cambridge:ui-fixture',notices:[],entries:[{id:'cambridge:ui-fixture',headword:args.expression,kind:'word',origin:'headword',expression_type:null,parent_headword:null,source:{provider:'cambridge',dataset:'Controlled UI provider fixture',edition:null,release:null,adapter_version:'controlled-ui-fixture',entry_key:args.expression,locator:null,delivery:'online',entry_url:'https://dictionary.cambridge.org/dictionary/english/take',retrieved_at:'2026-11-16T00:00:00Z'},match:{type:'exact',pattern:null,note:null,sense_ids:[]},groups:[{id:'cambridge:ui-group',part_of_speech:'verb',source_part_of_speech:'verb',pronunciations:[],forms:[],labels:[],notes:[],senses:[{id:'cambridge:ui-sense',meaning:{en:'A controlled additional meaning for this lookup.',zh:'补充的独立用法。'},labels:[],patterns:[],examples:[],notes:[]}]}],notes:[],related_expressions:[]}]};return {schema_version:1,query:{text:args.expression,language:'en',context:args.context},status:'not_found',entries:[],default_entry_id:null,notices:[]};}return base(command,args);};});
@@ -50,6 +58,15 @@ try{
    const fixed=await drawerFrame(page);
    const details=page.locator('.soft-refresh-current .pos-group').first();
    const detailTrigger=details.locator('summary').first();
+   const count=detailTrigger.locator('.dictionary-pos-count');
+   ok(await count.evaluate(n=>getComputedStyle(n).backgroundColor==='rgba(0, 0, 0, 0)' &&
+      /^\d+$/.test(n.querySelector('span[aria-hidden]').textContent) && /\d+ 义/.test(n.querySelector('.sr-only').textContent)),
+    'the visible layers and count are transparent and include an accessible count');
+   eq(await page.locator('.lookup-heading h2').innerText(),'take','the query is the only primary headword');
+   ok(await page.locator('.word-families .dictionary-entry').evaluateAll(entries=>entries.every(entry=>{
+    const labels=[...entry.querySelectorAll('.dictionary-pos-heading .dictionary-meaning-pos')].map(label=>label.textContent);
+    return new Set(labels).size===labels.length;
+   })),'same-headword senses share one heading per part of speech');
    if(phone&&viewport.width===390)await page.screenshot({path:`${output}/${theme}-dictionary-overview.png`});
    await detailTrigger.focus();await page.keyboard.press('Enter');
    eq(await details.getAttribute('open'),'','keyboard can expand the definitions');
@@ -81,6 +98,47 @@ try{
    await page.locator('.quiet-pocket').click();
    await page.waitForFunction(()=>document.querySelector('.lookup-stage')?.dataset.face==='records'&&document.querySelector('.soft-refresh')?.dataset.refreshState==='ready');
    eq(await drawerFrame(page),fixed,'switching to records keeps the same drawer size');
+   const records=page.locator('.soft-refresh-current .saved-sentence');
+   await records.nth(1).waitFor();
+   eq(await records.locator('.saved-sentence-translation').allTextContents(),rows.slice(0,2).map(row=>row.zh_text),'existing Chinese translations open by default');
+   eq(await records.locator('.saved-sentence-source').allTextContents(),Array(2).fill('The morning journey.txt'),'source lines contain only the filename');
+   eq(await records.locator('.saved-sentence-note').allTextContents(),Array(2).fill('保留侧袋笔记'),'existing personal notes remain visible');
+   eq(await records.locator('.saved-sentence-play').count(),0,'no row is selected when opening records');
+   const next=records.nth(1),original=next.locator('.saved-sentence-original');
+   if(phone)await original.tap();else await original.click();
+   const play=next.locator('.saved-sentence-play');
+   await play.waitFor();
+   eq(await records.locator('.saved-sentence-play').count(),1,'only the selected row has a play button');
+   ok(await play.evaluate(button=>{
+    const r=button.getBoundingClientRect(),row=button.closest('.saved-sentence-row'),b=row.getBoundingClientRect();
+    return r.width>=44&&r.height>=44&&Math.abs(r.y+r.height/2-b.y-b.height/2)<1&&
+      getComputedStyle(row).backgroundColor!=='rgba(0, 0, 0, 0)';
+   }),'play sits in the center of the highlighted row with a full touch target');
+   const transparent=()=>play.evaluate(button=>getComputedStyle(button).backgroundColor==='rgba(0, 0, 0, 0)');
+   ok(await transparent(),'idle play is transparent');
+   if(!phone){await play.hover();ok(await transparent(),'hovered play is transparent');}
+   await page.evaluate(async()=>{
+    const {useSpeechStore}=await window.__uiStoreModule('speechStore');
+    const player=useSpeechStore.getState();
+    window.__originalSpeak=player.speak;
+    useSpeechStore.setState({speak:async(text,key,options)=>{
+     window.__sentenceRead={text,key,kind:options.kind};
+     useSpeechStore.setState({key,owner:options.owner,status:'playing'});
+    }});
+   });
+   if(phone)await play.tap();
+   else {
+    await page.keyboard.press('Tab');await original.focus();await page.keyboard.press('Tab');
+    ok(await play.evaluate(button=>button===document.activeElement&&getComputedStyle(button).outlineStyle==='solid'),'keyboard reaches play with visible focus');
+    await play.hover();await page.mouse.down();ok(await transparent(),'pressed play is transparent');await page.mouse.up();
+   }
+   await next.locator('.saved-sentence-play[data-speech-state=playing]').waitFor();
+   ok(await transparent(),'playing keeps the button transparent');
+   const read=await page.evaluate(()=>window.__sentenceRead);
+   eq(read.text,await original.textContent(),'play hands off the selected full English sentence');
+   eq(read.kind,'sentence','play uses sentence speech');
+   if(viewport.width===390||viewport.width===1120)await page.screenshot({path:`${output}/${theme}-${viewport.width}-pocket-playing.png`});
+   await page.evaluate(async()=>{const {useSpeechStore}=await window.__uiStoreModule('speechStore');useSpeechStore.setState({speak:window.__originalSpeak});});
    await page.locator('.quiet-pocket').click();
    await lookupShown(page,'take');
    eq(await page.locator('.approved-lookup-map').count(),0,'the lookup uses only local dictionary data');

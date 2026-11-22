@@ -84,7 +84,7 @@ export default function Layout() {
         return () => { cancelAnimationFrame(frame); document.removeEventListener('focusin', update); viewport?.removeEventListener('resize', update); viewport?.removeEventListener('scroll', update); window.removeEventListener('resize', update); root.style.removeProperty('--visual-height'); root.style.removeProperty('--visual-top'); delete root.dataset.keyboardOpen; };
     }, []);
     useEffect(() => { retainImportedReading(routeState?.importReadingToken); }, [rawPathname, routeState]);
-    const droppingMaterial = useMaterialDrop();
+    const { dragging: droppingMaterial, dropOrigin } = useMaterialDrop();
     useOpenedMaterials();
     useEffect(()=>{const restore=()=>{useImportStore.getState().show();};window.addEventListener('lexicue-return-import',restore);return()=>window.removeEventListener('lexicue-return-import',restore);},[]);
     useEffect(() => { document.body.classList.add('lexicue-b'); return () => document.body.classList.remove('lexicue-b'); }, []);
@@ -214,7 +214,7 @@ export default function Layout() {
         </div>
         </main>
       {droppingMaterial && <div className="lc-file-drop" role="status">{t('materials.drop')}</div>}
-      <ImportPanel />
+      <ImportPanel dropOrigin={dropOrigin} />
       <ToastHost />
       <ConfirmationHost />
       <MobileReadingTools />
