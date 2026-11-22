@@ -7,6 +7,7 @@ import { invoke } from '@tauri-apps/api/core';
 import type { ReadingMaterial } from '../lib/materials';
 import { visitState } from '../lib/pageNavigation';
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
+import { flushSync } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Check, FileText, X } from 'lucide-react';
@@ -49,21 +50,25 @@ export default function ImportPanel() {
             if(!created.length){clearDestination();return;}
             const preferred=created.find(item=>item.id===owner.selectedId)??created.at(-1);
             const ordered=[...created.filter(item=>item!==preferred),...(preferred?[preferred]:[])];
-            const materials=[];
+            const materials: ReadingMaterial['material'][] = [];
             for(const item of ordered){
                 const token=authorizeImportedReading(item);
                 const data=await invoke<ReadingMaterial>('open_reading_material',{fileId:item.result!.file_id});
                 if(token&&await validateImportedReading(token,data)&&consumeImportedReading(token))materials.push(data.material);
             }
-            await useMaterialStore.getState().load();
+            await useMaterialStore.getState().ensure();
             if(!useImportStore.getState().open||useImportStore.getState().destination!==destination)return;
-            clearDestination();
-            for(const material of materials){useReadingDeskStore.getState().keepAndOpen(material);const item=created.find(row=>row.result?.file_id===material.id);if(item?.draft)placed.current.add(item.draft.operation_id);}
             const target=materials.at(-1);
             const incomplete=owner.items.some(item=>['failed','cancelled','duplicate'].includes(item.stage));
-            const flight=target&&!incomplete?captureImportInsertion(document.querySelector<HTMLElement>('.import-material-card')):null;
-            if(!incomplete)hide();
-            navigate('/files');
+            const flight=target&&!incomplete?captureImportInsertion(panelRef.current?.querySelector<HTMLElement>('.import-material-card')??null):null;
+            // Keep the painted preview in front while mounting the new desk
+            // card. Commit placement and dismissal in the same paint.
+            flushSync(() => {
+                clearDestination();
+                for(const material of materials){useReadingDeskStore.getState().keepAndOpen(material);const item=created.find(row=>row.result?.file_id===material.id);if(item?.draft)placed.current.add(item.draft.operation_id);}
+                navigate('/files');
+                if(!incomplete)hide();
+            });
             if(target)void finishImportInsertion(flight,target.id);
         })().catch(()=>{clearDestination();useFeedbackStore.getState().show(t('materials.loadFailed'),'error');}).finally(()=>{placing.current=false;});
     }, [live.open, destination, running, hide, clearDestination, navigate, t]);

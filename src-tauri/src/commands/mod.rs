@@ -20,6 +20,8 @@ pub mod updater;
 pub mod words;
 pub mod youtube;
 #[cfg(all(target_os = "macos", not(feature = "apple-store")))]
+pub mod youtube_cover;
+#[cfg(all(target_os = "macos", not(feature = "apple-store")))]
 pub mod youtube_import;
 
 pub mod gemma;

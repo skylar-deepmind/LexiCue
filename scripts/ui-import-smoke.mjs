@@ -121,7 +121,17 @@ try{
   eq(await itemStages(),['duplicate','failed','created'],'partial results isolated');eq((await call('test_counts')).files,2,'only valid new content is created');await close();
   // Lost receipt after real COMMIT: same exact operation and content on retry.
   await drop([['lost.srt',srt('A lost receipt can be safely recovered.')]]);await preview();await page.evaluate(()=>window.__uiFailure={command:'import_reading_material',remaining:1,afterCommit:true});await confirm();await page.getByRole('alert').filter({visible:true}).waitFor();
-  const lost=(await writes()).at(-1);eq((await call('test_counts')).files,3,'lost receipt really committed');await page.getByRole('button',{name:'重试未完成项'}).click();await landed();eq((await writes()).at(-1),lost,'retry resends exact operation payload');eq((await call('test_counts')).files,3,'idempotent retry has one result');
+  const lost=(await writes()).at(-1);eq((await call('test_counts')).files,3,'lost receipt really committed');
+  const newCard=(await call('list_materials',{tagIds:[],untagged:false})).find(material=>material.name==='lost.srt');
+  assert.ok(newCard);
+  await page.getByRole('button',{name:'重试未完成项'}).click();
+  const flying=page.locator('.import-insertion-flight .import-material-card');
+  await flying.waitFor();
+  ok((await flying.innerText()).includes('A lost receipt can be safely recovered.'),'handoff carries the confirmed preview');
+  ok(await flying.evaluate(card=>card.getAnimations().some(animation=>animation.effect.getKeyframes().length>=4)),'preview lifts and lands instead of just switching cards');
+  await landed();
+  eq(Number(await page.locator('.approved-card[data-desk-active=true]').getAttribute('data-motion-file')),newCard.id,'the landing reveals this import as the active desk card');
+  eq((await writes()).at(-1),lost,'retry resends exact operation payload');eq((await call('test_counts')).files,3,'idempotent retry has one result');
   // Native drag event adapter routes into the same prepare/preview state.
   await page.evaluate(text=>{window.__uiFiles={'/fixture/native-drag.srt':text};window.__nativeDrop(['/fixture/native-drag.srt']);},srt('Native paths share the same preview.'));await preview();eq((await call('test_counts')).files,3,'native event adapter does not commit');
   await add();await tagName.fill('Discarded tag');await tagName.press('Escape');await close();
@@ -347,4 +357,4 @@ try{
   await platformContext.close();
  }
  eq(errors,[],'no browser exceptions');await writeFile(`${output}/evidence.json`,JSON.stringify({checks,themes:['sage','midnight'],contrasts,errors,nativeBoundary:'simulated OS picker/drop/chunked FS IPC and translation-service responses; actual document/ZIP Workers, native video-to-audio conversion, Rust transactions, explicit reading translation writeback and temporary SQLite'},null,2));console.log(`Import UI: ${checks} checks passed. Evidence: ${output}`);
-}catch(error){if(page){await page.screenshot({path:`${output}/failure.png`}).catch(()=>{});await writeFile(`${output}/failure.json`,JSON.stringify(await page.evaluate(async()=>{const{useImportStore}=await window.__uiStoreModule('importStore');const s=useImportStore.getState();return {text:document.body.innerText,calls:window.__uiCalls,trace:window.__importTrace,state:{open:s.open,phase:s.phase,running:s.running,items:s.items.map(i=>({name:i.name,stage:i.stage,error:i.error}))}};}),null,2)).catch(()=>{});}throw error;}finally{await h.dispose();}
+}catch(error){if(page){await page.screenshot({path:`${output}/failure.png`}).catch(()=>{});await writeFile(`${output}/failure.json`,JSON.stringify({errors,...await page.evaluate(async()=>{const{useImportStore}=await window.__uiStoreModule('importStore');const s=useImportStore.getState();return {text:document.body.innerText,calls:window.__uiCalls,trace:window.__importTrace,state:{open:s.open,phase:s.phase,running:s.running,items:s.items.map(i=>({name:i.name,stage:i.stage,error:i.error}))}};})},null,2)).catch(()=>{});}throw error;}finally{await h.dispose();}

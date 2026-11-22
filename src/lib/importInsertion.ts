@@ -1,4 +1,4 @@
-import { copyImportCard } from './visualSnapshot';
+import { visualCopy } from './visualSnapshot';
 let active = () => {};
 type Flight = {
   layer: HTMLElement;
@@ -12,7 +12,7 @@ export function captureImportInsertion(source: HTMLElement | null): Flight | nul
   active();
   if (!source || matchMedia('(prefers-reduced-motion: reduce)').matches) return null;
   const box = source.getBoundingClientRect(),
-    copy = copyImportCard(source),
+    copy = visualCopy(source),
     layer = document.createElement('div'),
     visibility = source.style.visibility;
   layer.className = 'import-insertion-flight b-shell figma-shell';
@@ -31,13 +31,15 @@ export function captureImportInsertion(source: HTMLElement | null): Flight | nul
     transform: `scale(${box.width / source.offsetWidth},${box.height / source.offsetHeight})`,
     transformOrigin: '0 0',
     willChange: 'transform',
+    visibility: 'visible',
   });
   const veil = document.createElement('div');
+  const scrim = source.closest('.overlay-layer')?.querySelector('.overlay-scrim');
   Object.assign(layer.style, { background: 'transparent', border: 'none', padding: '0' });
   Object.assign(veil.style, {
     position: 'absolute',
     inset: '0',
-    background: getComputedStyle(document.body).backgroundColor,
+    background: scrim ? getComputedStyle(scrim).backgroundColor : 'transparent',
   });
   layer.append(veil, copy);
   document.body.append(layer);
@@ -91,15 +93,16 @@ export async function finishImportInsertion(flight: Flight | null, fileId: numbe
   const hidden = () => {
     if (document.hidden) dispose();
   };
-  flight.layer.firstElementChild?.animate([{ opacity: 0.96 }, { opacity: 0 }], {
+  flight.layer.firstElementChild?.animate([{ opacity: 1 }, { opacity: 0 }], {
     duration: 420,
     easing: 'ease-out',
     fill: 'forwards',
   });
   const animation = flight.copy.animate(
     [
-      { transform: pose(0, 0, startX, startY), easing: 'cubic-bezier(.37,.04,.45,1)' },
-      { transform: pose(dx, dy + 3, sx, sy), offset: 0.79, easing: 'cubic-bezier(.15,.8,.25,1)' },
+      { transform: pose(0, 0, startX, startY), easing: 'ease-out' },
+      { transform: pose(dx * .26, dy * .26 - 18, startX * .985, startY * .985), offset: 0.25, easing:'cubic-bezier(.3,.1,.22,1)' },
+      { transform: pose(dx, dy + 6, sx, sy), offset: 0.83, easing: 'ease-out' },
       { transform: pose(dx, dy, sx, sy) },
     ],
     { duration: 610, fill: 'both' },

@@ -234,7 +234,9 @@ pub(super) async fn registered_import<T>(
     }
     let cancel = {
         let mut jobs = state.0.lock().map_err(|_| "material_web_network")?;
-        jobs.retain(|_, (at, _)| at.elapsed() < Duration::from_secs(60));
+        jobs.retain(|_, (at, sender)| {
+            sender.receiver_count() > 0 || at.elapsed() < Duration::from_secs(60)
+        });
         if jobs.len() >= 32 {
             return Err("material_web_network".into());
         }
@@ -257,8 +259,10 @@ pub fn cancel_import_webpage(state: State<'_, WebpageState>, job: String) -> Res
         return Ok(());
     }
     let mut jobs = state.0.lock().map_err(|_| "material_web_network")?;
-    jobs.retain(|_, (at, _)| at.elapsed() < Duration::from_secs(60));
-    if jobs.len() < 32 {
+    jobs.retain(|_, (at, sender)| {
+        sender.receiver_count() > 0 || at.elapsed() < Duration::from_secs(60)
+    });
+    if jobs.contains_key(&job) || jobs.len() < 32 {
         jobs.entry(job)
             .or_insert_with(|| (Instant::now(), watch::channel(true).0))
             .1

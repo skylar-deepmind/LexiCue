@@ -27,6 +27,8 @@ export interface ImportSource {
     url?: string;
     preparedSegments?: SegmentInput[];
     youtube?: YoutubeSource;
+    youtubeCoverData?: string | null;
+    youtubeAudioUnavailable?: boolean;
     packageCover?: Uint8Array;
     packageAudio?: Uint8Array;
     skipTranslation?: boolean;
@@ -94,8 +96,12 @@ export async function prepareImportQueue(items: ImportItem[], signal: AbortSigna
             if (!contentKind && !/\.(pdf|docx|epub|md|markdown|vtt|srt|txt)$/i.test(item.name)) throw new Error('material_invalid_srt');
             update(item.id, { stage: 'reading', error: undefined });
             const reusing = !!item.preparedSegments;
-            const captions = item.kind === 'youtube' && !reusing ? await abortable(prepareYouTube(item.url!, signal), signal) : undefined;
+            const captions = item.kind === 'youtube' && !reusing ? await abortable(prepareYouTube(item.url!, item.id, signal), signal) : undefined;
             const youtube = captions?.source ?? item.youtube;
+            const presentation = youtube ? {
+                youtube, youtubeCoverData: captions ? captions.cover : item.youtubeCoverData,
+                youtubeAudioUnavailable: captions ? captions.audio_unavailable : item.youtubeAudioUnavailable,
+            } : {};
             const title = youtube?.title || youtube?.video_id;
             const name = title ? `${title.replace(/[\\/:*?"<>|\p{Cc}]/gu, '_').slice(0, 200)}.srt` : item.name;
             const preparedContent = contentKind && !reusing ? await abortable(prepareContent(contentKind, contentKind === 'webpage' ? item.url! : item.capturedText!, signal), signal) : undefined;
@@ -124,7 +130,7 @@ export async function prepareImportQueue(items: ImportItem[], signal: AbortSigna
                 if (signal.aborted) break;
                 segments = translated.segments;
                 if (translated.failed) {
-                    update(item.id, { stage: 'failed', error: 'translation_partial', englishFallback: content, fallbackSegments: segments, extraction, youtube, translationProgress: undefined });
+                    update(item.id, { ...presentation, stage: 'failed', error: 'translation_partial', englishFallback: content, fallbackSegments: segments, extraction, translationProgress: undefined });
                     continue;
                 }
             }
@@ -135,7 +141,7 @@ export async function prepareImportQueue(items: ImportItem[], signal: AbortSigna
                 wordCount: segments.reduce((count, segment) => count + (segment.en_text.match(/[A-Za-z]+(?:['’][A-Za-z]+)*/g)?.length ?? 0), 0),
                 ...(youtube ? { source: youtube } : {}),
                 ...(extraction ? {document: freezeDocument(extraction.document), normalized_kind: extraction.normalized_kind} : {}) });
-            update(item.id, { ...(preparedContent || youtube ? { name: draft.name, title: title ?? draft.name } : {}), stage: 'ready', draft, extraction: extraction ? {...extraction, segments} : undefined, englishFallback: undefined, fallbackSegments: undefined, translationProgress: undefined });
+            update(item.id, { ...presentation, ...(preparedContent || youtube ? { name: draft.name, title: title ?? draft.name } : {}), stage: 'ready', draft, extraction: extraction ? {...extraction, segments} : undefined, englishFallback: undefined, fallbackSegments: undefined, translationProgress: undefined });
         } catch (error) {
             if (signal.aborted) break;
             const known = materialError(error);
@@ -176,6 +182,14 @@ function abandonPreparation() {
     pickerGeneration++;
     controller?.abort();
     controller = null;
+}
+
+function discardYouTubeAudio(items: ImportItem[]) {
+    for (const item of items) {
+        if (item.kind === 'youtube') {
+            void invoke('discard_youtube_import_audio', { operationId: item.id }).catch(() => {});
+        }
+    }
 }
 export const useImportStore = create<{
     open: boolean;
@@ -287,12 +301,15 @@ export const useImportStore = create<{
         setImportTags: importTags => { if (!get().running && get().phase === 'preview') set({ importTags }); },
         show: () => { if (get().phase !== 'source') set({ open: true }); },
         showLink: () => {
-            if (!get().running && !get().picking) set({ ...empty, open: true });
+            if (!get().running && !get().picking) {
+                discardYouTubeAudio(get().items);
+                set({ ...empty, open: true });
+            }
         },
         clearDestination: () => set({ destination: null }),
         hide: () => {
             if (get().phase === 'committing' || get().phase === 'result' && get().items.some(item => item.draft && ['failed', 'cancelled'].includes(item.stage))) set({ open: false, destination: null });
-            else { abandonPreparation(); set({ ...empty, open: false }); }
+            else { abandonPreparation(); discardYouTubeAudio(get().items); set({ ...empty, open: false }); }
         },
         select: selectedId => set({ selectedId }),
         selectRange: async (id, selection) => {
@@ -316,6 +333,7 @@ export const useImportStore = create<{
         },
         start: async sources => {
             if (get().phase === 'committing' || !sources.length) return;
+            discardYouTubeAudio(get().items);
             set({importTags:noImportTags});
             await prepare(sources.map(source => ({ ...source, id: crypto.randomUUID(), stage: 'queued' })));
         },
@@ -367,7 +385,7 @@ export const useImportStore = create<{
         },
         cancel: () => {
             if (get().phase === 'committing') { set({ stopping: true }); controller?.abort(); }
-            else { abandonPreparation(); set({ ...empty, open: false }); }
+            else { abandonPreparation(); discardYouTubeAudio(get().items); set({ ...empty, open: false }); }
         },
         retry: async () => {
             if (get().running) return;

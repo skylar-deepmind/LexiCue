@@ -3,22 +3,22 @@ import type { ExtractedDocument } from './documentTypes';
 import type { WebpageResponse } from './contentExtract';
 import type { YoutubeSource } from './sourceMedia';
 
-async function fetchLink<T>(command: 'fetch_import_webpage' | 'fetch_import_youtube', url: string, signal: AbortSignal): Promise<T> {
+async function fetchLink<T>(command: 'fetch_import_webpage' | 'fetch_import_youtube', url: string, signal: AbortSignal, operationId?: string): Promise<T> {
     if (signal.aborted) throw Error('material_cancelled');
     const job = crypto.randomUUID();
     const abort = () => { void invoke('cancel_import_webpage', { job }).catch(() => {}); };
     signal.addEventListener('abort', abort, { once: true });
     try {
-        return await invoke<T>(command, { job, url });
+        return await invoke<T>(command, { job, url, ...(operationId ? { operationId } : {}) });
     } finally {
         signal.removeEventListener('abort', abort);
     }
 }
 
-export type YouTubeCaptions = { content: string; source: YoutubeSource };
+export type YouTubeCaptions = { content: string; source: YoutubeSource; cover?: string | null; audio_unavailable?: boolean };
 
-export function prepareYouTube(url: string, signal: AbortSignal) {
-    return fetchLink<YouTubeCaptions>('fetch_import_youtube', url, signal);
+export function prepareYouTube(url: string, operationId: string, signal: AbortSignal) {
+    return fetchLink<YouTubeCaptions>('fetch_import_youtube', url, signal, operationId);
 }
 
 export async function prepareContent(kind:'clipboard'|'webpage',value:string,signal:AbortSignal):Promise<ExtractedDocument>{
