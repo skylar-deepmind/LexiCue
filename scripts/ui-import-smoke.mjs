@@ -195,8 +195,22 @@ try{
    const translated=paper.locator('.lc-import-paper-translation');
    const width=loc=>loc.evaluate(node=>parseFloat(node.style.width));
    const opacity=loc=>loc.evaluate(node=>Number(node.style.opacity));
+   const movesBetweenUpdates=async stage=>{
+    const motion=await paper.locator('.lc-import-paper-art').evaluate(async node=>{
+     const positions=[];
+     for(let i=0;i<13;i++){
+      const transform=getComputedStyle(node).transform;
+      positions.push(transform==='none'?0:new DOMMatrix(transform).m42);
+      await new Promise(resolve=>setTimeout(resolve,110));
+     }
+     return {travel:Math.max(...positions)-Math.min(...positions),
+      movingWindows:positions.filter((y,i)=>i&&Math.abs(y-positions[i-1])>.18).length};
+    });
+    ok(motion.travel>4.5&&motion.movingWindows>=8,`the paper keeps moving when ${stage} sends no updates`);
+   };
    await page.waitForFunction(()=>typeof window.__receiveImportBytes==='function');await paper.waitFor();
    eq(await paper.getAttribute('data-stage'),'reading','source stays in the download stage until bytes are ready');
+   await movesBetweenUpdates('download');
    const initialCover=await width(cover),initialLine=await width(original);
    await page.evaluate(()=>window.__receiveImportBytes(40,100));
    await page.waitForFunction(p=>parseFloat(document.querySelector('.lc-import-paper-cover').style.width)>p,initialCover);
@@ -214,11 +228,14 @@ try{
    eq(await paper.getAttribute('data-stage'),'parsing','the content Worker owns the body stage');
    ok(await width(original)>initialLine,'actual extracted text unfurls the original line');
    eq(await opacity(translated.first()),0,'paragraph preparation leaves translation rows empty');
+   await movesBetweenUpdates('parsing');
    await page.evaluate(()=>window.__releaseImportBody());
    await page.waitForFunction(()=>typeof window.__completeImportTranslation==='function');
    await preparation.locator('[data-stage="translating"]').waitFor();
    eq(await paper.getAttribute('data-stage'),'translating','translation starts only after the actual parser finishes');
    eq(await opacity(translated.first()),0,'an in-flight translation does not appear as completed text');
+   await movesBetweenUpdates('translation');
+   eq(await opacity(translated.first()),0,'idle motion never fills in a translation line');
    const currentJob=await page.evaluate(()=>window.__uiCalls.filter(call=>call.command==='translate_import_sentences').at(-1).args);
    await page.evaluate(done=>window.__completeImportTranslation(done),Math.ceil(currentJob.sentences.length*.43));
    await page.waitForFunction(()=>Number(document.querySelector('.lc-import-paper-translation').style.opacity)>0);
