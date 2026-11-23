@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({ invoke: vi.fn(), parse: vi.fn(), open: vi.fn(), read: vi.fn(), translate: vi.fn(), changed: vi.fn() }));
-vi.mock('@tauri-apps/api/core', () => ({ invoke: mocks.invoke }));
+vi.mock('@tauri-apps/api/core', () => ({
+    invoke: mocks.invoke,
+    Channel: class {
+        onmessage: (message: unknown) => void;
+        constructor(onmessage: (message: unknown) => void) { this.onmessage = onmessage; }
+    },
+}));
 vi.mock('@tauri-apps/plugin-dialog', () => ({ open: mocks.open }));
 vi.mock('@tauri-apps/plugin-fs', () => ({ readFile: mocks.read }));
 vi.mock('../../lib/materials', async original => ({ ...await original<object>(), parseSrtInWorker: mocks.parse }));
@@ -26,6 +32,23 @@ beforeEach(() => {
 });
 
 describe('preview and transaction boundaries', () => {
+    it('keeps subtitle provenance when translation fails and the user keeps English', async () => {
+        const url = 'https://www.youtube.com/watch?v=abcdefghijk';
+        const source = { title: 'A short English lesson', video_id: 'abcdefghijk', url };
+        const content = srt('Here is a short English lesson.');
+        mocks.invoke.mockResolvedValueOnce({ source, content });
+        mocks.translate.mockImplementationOnce(async segments => ({ segments, failed: true }));
+        await store().fromContent('youtube', url);
+        const item = store().items[0];
+        expect(item.error).toBe('translation_partial');
+        await store().useEnglish(item.id);
+        expect(store().items[0].draft).toMatchObject({ name: 'A short English lesson.srt', content, source });
+        expect(mocks.invoke).toHaveBeenCalledTimes(1);
+        await store().confirm();
+        expect(mocks.invoke).toHaveBeenLastCalledWith('import_reading_material', {
+            input: expect.objectContaining({ source, content }),
+        });
+    });
     it('prepares real bilingual content without writes and commits the exact frozen preview once', async () => {
         const read = vi.fn().mockResolvedValue(srt('We fly.\n我们飞翔。'));
         await store().start([{ name: 'flight.srt', read }]);

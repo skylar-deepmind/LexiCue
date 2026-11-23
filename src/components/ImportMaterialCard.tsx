@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next';
 import type { ImportItem, ImportPhase } from '../stores/importStore';
 import { useImportStore } from '../stores/importStore';
 import type { TagInfo, TagSelection } from '../lib/types';
-import { allocatedCover } from '../lib/materialCover';
+import { allocatedCover, youtubeCover } from '../lib/materialCover';
 import { bookmarkTitle } from '../lib/bookmarkDesk';
 import MaterialCover from './MaterialCover';
 import DocumentPreview from './DocumentPreview';
@@ -31,7 +31,8 @@ export default function ImportMaterialCard({ item, items, tags, tagSelection, ph
   const tagsError = useFileStore(s=>s.tagsError);
   const draft=item.draft!;
   useEffect(()=>{let current=true;setIdentity(null);void crypto.subtle.digest('SHA-256',new TextEncoder().encode(draft.content)).then(bytes=>{if(current)setIdentity([...new Uint8Array(bytes)].map(n=>n.toString(16).padStart(2,'0')).join('').slice(0,16));}).catch(()=>{if(current)setIdentity(draft.operation_id);});return()=>{current=false;};},[draft.content,draft.operation_id]);
-  const cover=draft.document?.cover??allocatedCover(identity??draft.operation_id);
+  const youtubeArtwork = item.youtubeCoverData === undefined ? youtubeCover(draft.source) : item.youtubeCoverData;
+  const cover = draft.document?.cover ?? youtubeArtwork ?? allocatedCover(identity ?? draft.operation_id);
   const newTag = tagSelection.newTagNames[0];
   const selected = tags.find(tag => tagSelection.tagIds.includes(tag.id));
   const tagName = newTag ?? selected?.name ?? libraryNames.untagged;
@@ -85,6 +86,7 @@ export default function ImportMaterialCard({ item, items, tags, tagSelection, ph
     {phase==='preview'&&!full&&<EdgePicker key={item.id} tags={tags} current={newTag??selected?.name??''} loading={loadingTags} error={tagsError?t('tags.loadFailed'):undefined} retry={tagsError?()=>void useFileStore.getState().loadTags(true):undefined} disabled={!ready} choose={placeWithTag}/>}
     {selectable.length>1&&<nav className="import-card-pager" aria-label={t('materials.importDialog.previewTitle')}><button className="approved-icon" disabled={busy||!items.slice(0,index).some(row=>row.draft)} aria-label={t('history.previous')} onClick={()=>useImportStore.getState().select(items.slice(0,index).findLast(row=>row.draft)!.id)}><ChevronLeft size={18}/></button><span>{selectable.findIndex(row=>row.id===item.id)+1} / {selectable.length}</span><button className="approved-icon" disabled={busy||!items.slice(index+1).some(row=>row.draft)} aria-label={t('history.next')} onClick={()=>useImportStore.getState().select(items.slice(index+1).find(row=>row.draft)!.id)}><ChevronRight size={18}/></button></nav>}
     {phase==='preview' && item.packageAudio && <p className="import-card-warning">{t('materials.importDialog.packageAudio')}</p>}
+    {phase==='preview' && item.youtubeAudioUnavailable && <p className="import-card-warning" role="status">{t('sourceAudio.failed')}</p>}
     {draft.document?.extraction_status==='partial'&&<p className="import-card-warning" role="status">{t('documents.partial')}</p>}
     {phase==='preview' && items.length>1 && <button className="ui-button import-card-batch-confirm" disabled={!ready} onClick={onConfirm}>{t('materials.importDialog.confirm',{count:items.filter(row=>row.stage==='ready').length})}</button>}
     {phase!=='preview'&&<footer className="import-card-actions"><button type="button" className="approved-icon" aria-label={t(busy?'materials.importDialog.minimize':'common.close')} onClick={onClose}><X size={21}/></button>

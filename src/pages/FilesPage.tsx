@@ -17,12 +17,13 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
-import { ChevronLeft, ChevronRight, Plus, Settings } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Link2, Plus, Settings } from 'lucide-react';
 import { useMaterialStore } from '../stores/materialStore';
 import { useReadingDeskStore } from '../stores/readingDeskStore';
 import { useFileStore } from '../stores/fileStore';
 import { useImportStore } from '../stores/importStore';
-import { openImportFrom } from '../components/importFocus';
+import { openImportFrom, rememberImportFocus } from '../components/importFocus';
+import { supportsMacLinkImport } from '../lib/importLink';
 import { matchesMaterial, readingPosition } from '../lib/readingDesk';
 import { materialCover } from '../lib/materialCover';
 import { visitState } from '../lib/pageNavigation';
@@ -182,7 +183,13 @@ function MaterialDesk() {
     {wallTag !== null ? <PosterWall key={wallTag} files={wallFiles} title={tagName} identity={wallTag} entrance={wallEntrance?.tag === wallTag ? wallEntrance : null} onBack={returnToTags} onOpen={(file, node) => open(file, node, 'wall')}/> : <>
       <header className="approved-home-header">
         <button className="approved-brand" aria-label={t(theme === 'midnight' ? 'approved.light' : 'approved.dark')} aria-pressed={theme === 'midnight'} onClick={() => setTheme(current => current === 'midnight' ? 'sage' : 'midnight')}><span className="approved-wordmark" aria-hidden="true"/></button>
-        <div><button type="button" data-guide="import" className="approved-icon home-import-action"
+        <div>{supportsMacLinkImport() && <button type="button" className="approved-icon"
+          aria-label={t('materials.importDialog.linkTitle')} title={t('materials.importDialog.linkTitle')}
+          aria-haspopup="dialog" disabled={picking || importing} onClick={event => {
+            rememberImportFocus(event.currentTarget);
+            useImportStore.getState().showLink();
+          }}><Link2 size={23} aria-hidden="true" /></button>}
+          <button type="button" data-guide="import" className="approved-icon home-import-action"
           aria-label={t(importing ? 'materials.importRunning' : 'materials.import')} aria-haspopup="dialog" aria-expanded={importOpen}
           aria-busy={picking || importing} disabled={picking} onClick={event => openImportFrom(event.currentTarget)}>
           {picking || importing ? <BusyRing/> : <Plus size={24} aria-hidden="true"/>}

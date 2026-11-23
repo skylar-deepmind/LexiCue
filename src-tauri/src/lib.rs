@@ -194,6 +194,12 @@ pub fn run() {
             commands::ios_reading::ios_reading_control,
             commands::webpage::fetch_import_webpage,
             commands::webpage::cancel_import_webpage,
+            #[cfg(all(target_os = "macos", not(feature = "apple-store")))]
+            commands::youtube_cover::youtube_cover,
+            #[cfg(all(target_os = "macos", not(feature = "apple-store")))]
+            commands::youtube_import::fetch_import_youtube,
+            #[cfg(all(target_os = "macos", not(feature = "apple-store")))]
+            commands::youtube_import::discard_youtube_import_audio,
             commands::example::example_recall_contexts,
             commands::example::begin_example_session,
             commands::example::end_example_session,

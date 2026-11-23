@@ -2,7 +2,8 @@ import { create } from 'zustand';
 import { useRestoreGuard } from './restoreGuard';
 import { useFeedbackStore } from './feedbackStore';
 import i18n from '../i18n';
-import { prepareContent } from '../lib/contentImport';
+import { prepareContent, prepareYouTube } from '../lib/contentImport';
+import type { YoutubeSource } from '../lib/sourceMedia';
 import { clipboardTitle } from '../lib/clipboardContent';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
@@ -20,11 +21,14 @@ export type ImportStage = 'queued' | 'reading' | 'parsing' | 'translating' | 're
 export type ImportPhase = 'source' | 'preparing' | 'preview' | 'committing' | 'result';
 export interface ImportSource {
     name: string;
-    kind?: 'file' | 'clipboard' | 'webpage';
+    kind?: 'file' | 'clipboard' | 'webpage' | 'youtube';
     capturedText?: string;
     title?: string;
     url?: string;
     preparedSegments?: SegmentInput[];
+    youtube?: YoutubeSource;
+    youtubeCoverData?: string | null;
+    youtubeAudioUnavailable?: boolean;
     packageCover?: Uint8Array;
     packageAudio?: Uint8Array;
     skipTranslation?: boolean;
@@ -39,6 +43,7 @@ export interface ImportDraft {
     readonly wordCount: number;
     readonly document?: DocumentSource;
     readonly normalized_kind?: 'txt' | 'srt';
+    readonly source?: YoutubeSource;
 }
 export interface ImportItem extends ImportSource {
     id: string;
@@ -48,13 +53,16 @@ export interface ImportItem extends ImportSource {
     extraction?: ExtractedDocument;
     englishFallback?: string;
     fallbackSegments?: SegmentInput[];
+    downloadProgress?: number;
+    bodyProgress?: number;
     translationProgress?: TranslationProgress;
     result?: MaterialImportResult;
 }
+type ImportWrite = Pick<ImportDraft, 'operation_id' | 'name' | 'content' | 'segments' | 'document' | 'normalized_kind' | 'source'>;
 export interface ImportIO {
     parse: (content: string, signal: AbortSignal, name?: string) => Promise<SegmentInput[]>;
     translate?: (segments: SegmentInput[], signal: AbortSignal, progress: (value: TranslationProgress) => void) => Promise<ImportTranslationResult>;
-    write: (input: { operation_id: string; name: string; content: string; segments: SegmentInput[]; document?: DocumentSource; normalized_kind?: 'txt' | 'srt' }, audio?: Uint8Array) => Promise<MaterialImportResult>;
+    write: (input: ImportWrite, audio?: Uint8Array) => Promise<MaterialImportResult>;
 }
 type Update = (id: string, patch: Partial<ImportItem>) => void;
 
@@ -88,15 +96,36 @@ export async function prepareImportQueue(items: ImportItem[], signal: AbortSigna
         try {
             const contentKind = item.kind === 'clipboard' || item.kind === 'webpage' ? item.kind : undefined;
             if (!contentKind && !/\.(pdf|docx|epub|md|markdown|vtt|srt|txt)$/i.test(item.name)) throw new Error('material_invalid_srt');
-            update(item.id, { stage: 'reading', error: undefined });
+            update(item.id, { stage: 'reading', error: undefined, downloadProgress: undefined, bodyProgress: undefined, translationProgress: undefined });
+            let received = 0;
+            const download = (fraction: number) => {
+                if (signal.aborted || fraction <= received) return;
+                received = fraction;
+                update(item.id, { downloadProgress: fraction });
+            };
+            const organize = (fraction: number) => {
+                if (!signal.aborted) update(item.id, { bodyProgress: fraction });
+            };
+            const parsingStarted = () => {
+                parsing = true;
+                update(item.id, { stage: 'parsing', bodyProgress: .18 });
+            };
             const reusing = !!item.preparedSegments;
-            const preparedContent = contentKind && !reusing ? await abortable(prepareContent(contentKind, contentKind === 'webpage' ? item.url! : item.capturedText!, signal), signal) : undefined;
-            const read = preparedContent ? preparedContent.content : await abortable(item.read(signal), signal);
+            const captions = item.kind === 'youtube' && !reusing ? await abortable(prepareYouTube(item.url!, item.id, signal, download), signal) : undefined;
+            const youtube = captions?.source ?? item.youtube;
+            const presentation = youtube ? {
+                youtube, youtubeCoverData: captions ? captions.cover : item.youtubeCoverData,
+                youtubeAudioUnavailable: captions ? captions.audio_unavailable : item.youtubeAudioUnavailable,
+            } : {};
+            const title = youtube?.title || youtube?.video_id;
+            const name = title ? `${title.replace(/[\\/:*?"<>|\p{Cc}]/gu, '_').slice(0, 200)}.srt` : item.name;
+            const preparedContent = contentKind && !reusing ? await abortable(prepareContent(contentKind,
+                contentKind === 'webpage' ? item.url! : item.capturedText!, signal, download, parsingStarted, organize), signal) : undefined;
+            const read = captions?.content ?? preparedContent?.content ?? await abortable(item.read(signal), signal);
             if (signal.aborted) break;
             if (!reusing && !contentKind && !(read instanceof Uint8Array) && !/\.(txt|srt)$/i.test(item.name)) throw new Error('material_invalid_format');
-            update(item.id, { stage: 'parsing' });
-            parsing = true;
-            let extraction = preparedContent ?? (reusing ? item.extraction : read instanceof Uint8Array ? await extractDocument(read, item.name, signal) : undefined);
+            if (!parsing) parsingStarted();
+            let extraction = preparedContent ?? (reusing ? item.extraction : read instanceof Uint8Array ? await extractDocument(read, item.name, signal, organize) : undefined);
             if (item.packageCover && extraction && !extraction.document.cover) {
                 try {
                     const cover = await abortable(materialPackageCover(item.packageCover), signal);
@@ -108,7 +137,7 @@ export async function prepareImportQueue(items: ImportItem[], signal: AbortSigna
                 }
             }
             const content = extraction?.content ?? (typeof read === 'string' ? read : '');
-            let segments = item.preparedSegments ?? extraction?.segments ?? await parse(content, signal, item.name);
+            let segments = item.preparedSegments ?? extraction?.segments ?? await parse(content, signal, name);
             if (signal.aborted) break;
             if (translate && !item.skipTranslation && segments.some(segment => !segment.zh_text?.trim())) {
                 update(item.id, { stage: 'translating' });
@@ -116,17 +145,18 @@ export async function prepareImportQueue(items: ImportItem[], signal: AbortSigna
                 if (signal.aborted) break;
                 segments = translated.segments;
                 if (translated.failed) {
-                    update(item.id, { stage: 'failed', error: 'translation_partial', englishFallback: content, fallbackSegments: segments, extraction, translationProgress: undefined });
+                    update(item.id, { ...presentation, stage: 'failed', error: 'translation_partial', englishFallback: content, fallbackSegments: segments, extraction, translationProgress: undefined });
                     continue;
                 }
             }
             // Freeze copies, never objects owned by a parser or another source.
             const frozenSegments = segments.map(segment => Object.freeze({ ...segment }));
             Object.freeze(frozenSegments);
-            const draft = Object.freeze({ operation_id: item.id, name: extraction?.document.display_name ?? item.name, content, segments: frozenSegments,
+            const draft = Object.freeze({ operation_id: item.id, name: extraction?.document.display_name ?? name, content, segments: frozenSegments,
                 wordCount: segments.reduce((count, segment) => count + (segment.en_text.match(/[A-Za-z]+(?:['’][A-Za-z]+)*/g)?.length ?? 0), 0),
+                ...(youtube ? { source: youtube } : {}),
                 ...(extraction ? {document: freezeDocument(extraction.document), normalized_kind: extraction.normalized_kind} : {}) });
-            update(item.id, { ...(preparedContent ? { name: draft.name, title: draft.name } : {}), stage: 'ready', draft, extraction: extraction ? {...extraction, segments} : undefined, englishFallback: undefined, fallbackSegments: undefined, translationProgress: undefined });
+            update(item.id, { ...presentation, ...(preparedContent || youtube ? { name: draft.name, title: title ?? draft.name } : {}), stage: 'ready', draft, extraction: extraction ? {...extraction, segments} : undefined, englishFallback: undefined, fallbackSegments: undefined, translationProgress: undefined });
         } catch (error) {
             if (signal.aborted) break;
             const known = materialError(error);
@@ -144,7 +174,7 @@ export async function commitImportQueue(items: ImportItem[], signal: AbortSignal
         if (signal.aborted) { update(item.id, { stage: 'cancelled' }); continue; }
         update(item.id, { stage: 'writing', error: undefined });
         try {
-            const result = await write({ operation_id: draft.operation_id, name: draft.name, content: draft.content, segments: draft.segments, ...(draft.document ? { document: draft.document, normalized_kind: draft.normalized_kind } : {}) }, item.packageAudio);
+            const result = await write({ operation_id: draft.operation_id, name: draft.name, content: draft.content, segments: draft.segments, ...(draft.document ? { document: draft.document, normalized_kind: draft.normalized_kind } : {}), ...(draft.source ? { source: draft.source } : {}) }, item.packageAudio);
             update(item.id, { stage: result.outcome, result });
             useMaterialStore.getState().changed();
         } catch (error) {
@@ -168,6 +198,14 @@ function abandonPreparation() {
     controller?.abort();
     controller = null;
 }
+
+function discardYouTubeAudio(items: ImportItem[]) {
+    for (const item of items) {
+        if (item.kind === 'youtube') {
+            void invoke('discard_youtube_import_audio', { operationId: item.id }).catch(() => {});
+        }
+    }
+}
 export const useImportStore = create<{
     open: boolean;
     items: ImportItem[];
@@ -183,12 +221,13 @@ export const useImportStore = create<{
     setImportTags: (selection: TagSelection) => void;
     selectRange: (id: string, selection: DocumentSelection) => Promise<void>;
     show: () => void;
+    showLink: () => void;
     hide: () => void;
     select: (id: string) => void;
     clearDestination: () => void;
     start: (sources: ImportSource[]) => Promise<void>;
     choose: () => Promise<void>;
-    fromContent: (kind: 'clipboard' | 'webpage', value: string) => Promise<void>;
+    fromContent: (kind: 'clipboard' | 'webpage' | 'youtube', value: string) => Promise<void>;
     renameDraft: (id: string, title: string) => void;
     cancel: () => void;
     retry: () => Promise<void>;
@@ -276,10 +315,16 @@ export const useImportStore = create<{
         open: false, ...empty,
         setImportTags: importTags => { if (!get().running && get().phase === 'preview') set({ importTags }); },
         show: () => { if (get().phase !== 'source') set({ open: true }); },
+        showLink: () => {
+            if (!get().running && !get().picking) {
+                discardYouTubeAudio(get().items);
+                set({ ...empty, open: true });
+            }
+        },
         clearDestination: () => set({ destination: null }),
         hide: () => {
             if (get().phase === 'committing' || get().phase === 'result' && get().items.some(item => item.draft && ['failed', 'cancelled'].includes(item.stage))) set({ open: false, destination: null });
-            else { abandonPreparation(); set({ ...empty, open: false }); }
+            else { abandonPreparation(); discardYouTubeAudio(get().items); set({ ...empty, open: false }); }
         },
         select: selectedId => set({ selectedId }),
         selectRange: async (id, selection) => {
@@ -303,13 +348,14 @@ export const useImportStore = create<{
         },
         start: async sources => {
             if (get().phase === 'committing' || !sources.length) return;
+            discardYouTubeAudio(get().items);
             set({importTags:noImportTags});
             await prepare(sources.map(source => ({ ...source, id: crypto.randomUUID(), stage: 'queued' })));
         },
         fromContent: async (kind, value) => {
             if(get().running)return;
             set({importTags:noImportTags});
-            await prepare([{id:crypto.randomUUID(),stage:'queued',kind, name: kind === 'clipboard' ? clipboardTitle(value) : value, capturedText: kind === 'clipboard' ? value : undefined, url: kind === 'webpage' ? value : undefined, read: async () => value}]);
+            await prepare([{id:crypto.randomUUID(),stage:'queued',kind, name: kind === 'youtube' ? 'YouTube.srt' : kind === 'clipboard' ? clipboardTitle(value) : value, capturedText: kind === 'clipboard' ? value : undefined, url: kind === 'clipboard' ? undefined : value, read: async () => value}]);
         },
         renameDraft: (id, title) => {
             if (get().phase !== 'preview' || get().running) return;
@@ -354,7 +400,7 @@ export const useImportStore = create<{
         },
         cancel: () => {
             if (get().phase === 'committing') { set({ stopping: true }); controller?.abort(); }
-            else { abandonPreparation(); set({ ...empty, open: false }); }
+            else { abandonPreparation(); discardYouTubeAudio(get().items); set({ ...empty, open: false }); }
         },
         retry: async () => {
             if (get().running) return;

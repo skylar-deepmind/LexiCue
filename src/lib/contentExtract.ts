@@ -18,9 +18,10 @@ export function projectArticle(node: any): string {
     walk(node);for(const p of parts)if(!p.code)p.text=p.text.replace(/\r\n?/g,'\n').replace(/\n[ \t]*\n(?:[ \t]*\n)+/g,'\n\n');
     if(parts[0]&&!parts[0].code)parts[0].text=parts[0].text.trimStart();if(parts.at(-1)&&!parts.at(-1)!.code)parts.at(-1)!.text=parts.at(-1)!.text.trimEnd();return parts.map(p=>p.text).join('');
 }
-async function prepare(raw: RawDocument, text: string, origin: ContentOrigin): Promise<ExtractedDocument> {
+async function prepare(raw: RawDocument, text: string, origin: ContentOrigin, progress?: (value: number) => void): Promise<ExtractedDocument> {
     const sourceHash = await documentDigest(new TextEncoder().encode(origin.kind==='webpage' ? `${origin.submitted_url}\n${origin.final_url}\n${text}` : text));
     const result=await buildDocument(raw,origin.kind,origin.title,sourceHash);
+    progress?.(.78);
     // Keep exact captured text, including whitespace. Re-anchor normalized blocks against it.
     let cursor=0;
     for(const block of result.document.blocks){const at=text.indexOf(block.text,cursor);if(at<0)throw Error('material_content_alignment');block.start_utf16=at;block.end_utf16=at+block.text.length;cursor=block.end_utf16;}
@@ -51,12 +52,14 @@ async function prepare(raw: RawDocument, text: string, origin: ContentOrigin): P
     result.segments=rebuilt;
     return result;
 }
-export async function extractClipboard(text:string):Promise<ExtractedDocument>{
+export async function extractClipboard(text:string, progress?: (value: number) => void):Promise<ExtractedDocument>{
     if(new TextEncoder().encode(text).length>8_000_000)throw Error('material_too_large');
     if([...text].some(c=>c.charCodeAt(0)<32 && !['\t','\r','\n'].includes(c)))throw Error('material_invalid_encoding');
-    return prepare(plainDocument(text),text,{kind:'clipboard',title:clipboardTitle(text)});
+    const raw=plainDocument(text);
+    progress?.(.58);
+    return prepare(raw,text,{kind:'clipboard',title:clipboardTitle(text)},progress);
 }
-export async function extractWebpage(response:WebpageResponse):Promise<ExtractedDocument>{
+export async function extractWebpage(response:WebpageResponse, progress?: (value: number) => void):Promise<ExtractedDocument>{
     const bytes=Uint8Array.from(atob(response.bytes_base64),c=>c.charCodeAt(0));
     if(bytes.length>8_000_000)throw Error('material_web_large');
     const headerEncoding=/charset\s*=\s*["']?([^\s;"']+)/i.exec(response.content_type)?.[1];
@@ -84,5 +87,6 @@ export async function extractWebpage(response:WebpageResponse):Promise<Extracted
     raw.warnings.push('网页提取可能遗漏边注或章节，请核对原文。 / Extraction may omit side notes or sections; check the original.');
     if(restricted){raw.partial=true;raw.warnings.push('页面包含访问限制，当前仅有部分正文。 / This page restricts access; only partial text is available.');}
     const origin:ContentOrigin={kind:'webpage',title:(article.title?.trim()||title||new URL(response.final_url).hostname).slice(0,240),submitted_url:response.submitted_url,final_url:response.final_url,fetched_at:response.fetched_at};
-    return prepare(raw,text,origin);
+    progress?.(.58);
+    return prepare(raw,text,origin,progress);
 }

@@ -12,7 +12,7 @@ use tauri::{Manager, State};
 
 pub const MAX_BYTES: u64 = 256 * 1024 * 1024;
 const TOTAL_BYTES: u64 = 8 * 1024 * 1024 * 1024;
-const MAX_DURATION_MS: i64 = 7_200_000;
+pub(super) const MAX_DURATION_MS: i64 = 7_200_000;
 const MAX_SOURCE_DURATION_MS: i64 = 604_800_000;
 // Auto captions can leave their final rolling cue open after the real EOF.
 // Preserve the declaration; only playback ranges are clamped to verified audio.
@@ -62,6 +62,45 @@ pub struct YoutubeSource {
     pub audio: Option<AudioTrack>,
 }
 impl YoutubeSource {
+    #[cfg(all(target_os = "macos", not(feature = "apple-store")))]
+    pub(super) fn from_imported_captions(
+        video: &str,
+        title: String,
+        duration_ms: i64,
+        language: &str,
+        content: &str,
+        subtitle_kind: &str,
+        audio: Option<AudioTrack>,
+    ) -> Result<Self, String> {
+        let mut source = Self {
+            version: 1,
+            provider: "youtube".into(),
+            key: String::new(),
+            video_id: video.into(),
+            url: format!("https://www.youtube.com/watch?v={video}"),
+            title,
+            duration_ms,
+            subtitle_track: language.into(),
+            subtitle_language: language.into(),
+            subtitle_kind: subtitle_kind.into(),
+            subtitle_sha256: digest(content.as_bytes()),
+            cues: youtube::parse_srt(content)
+                .into_iter()
+                .enumerate()
+                .map(|(id, cue)| Cue {
+                    id: id as u32,
+                    start_ms: cue.start_ms,
+                    end_ms: cue.end_ms,
+                    text: cue.text,
+                })
+                .collect(),
+            audio,
+        };
+        source.key = source.identity();
+        source.validate()?;
+        Ok(source)
+    }
+
     pub(super) fn can_prepare_audio(&self) -> bool {
         self.duration_ms <= MAX_DURATION_MS
             && self.subtitle_language.starts_with("en")
@@ -190,8 +229,8 @@ impl MediaRef {
         Ok(())
     }
 }
-#[cfg(test)]
-fn english_audio(metadata: &serde_json::Value) -> Option<AudioTrack> {
+#[cfg(any(test, all(target_os = "macos", not(feature = "apple-store"))))]
+pub(super) fn english_audio(metadata: &serde_json::Value) -> Option<AudioTrack> {
     let formats = metadata["formats"].as_array()?;
     let audio: Vec<_> = formats
         .iter()
@@ -738,6 +777,47 @@ pub(super) struct LocalAttachment {
 }
 
 impl LocalAttachment {
+    #[cfg(all(target_os = "macos", not(feature = "apple-store")))]
+    pub(super) fn youtube(
+        source: &YoutubeSource,
+        path: &Path,
+        duration_ms: i64,
+    ) -> Result<Self, String> {
+        let invalid = "material_download_failed";
+        source.validate().map_err(|_| invalid)?;
+        let track = source
+            .audio
+            .as_ref()
+            .filter(|_| source.provider == "youtube")
+            .ok_or(invalid)?;
+        let bytes = path.metadata().map_err(|_| invalid)?.len();
+        if !(1..=MAX_BYTES).contains(&bytes)
+            || duration_ms <= 0
+            || duration_ms.abs_diff(source.duration_ms) > 5_000
+        {
+            return Err(invalid.into());
+        }
+        let sha256 = file_digest(path).map_err(|_| invalid)?;
+        let dir = path.parent().and_then(Path::parent).ok_or(invalid)?;
+        Ok(Self {
+            source: source.clone(),
+            staged: path.to_owned(),
+            destination: dir.join(format!("{sha256}.m4a")),
+            manifest: Manifest {
+                video_id: source.video_id.clone(),
+                format_id: track.format_id.clone(),
+                language: track.language.clone(),
+                language_basis: track.language_basis.clone(),
+                codec: "aac".into(),
+                bytes,
+                duration_ms,
+                start_ms: 0,
+                offset_ms: 0,
+                sha256,
+            },
+        })
+    }
+
     pub(super) fn new(
         input: &super::materials::MaterialInput,
         path: &Path,
@@ -824,7 +904,16 @@ impl LocalAttachment {
         if !self.destination.is_file()
             || file_digest(&self.destination).as_deref() != Ok(&self.manifest.sha256)
         {
-            std::fs::rename(&self.staged, &self.destination).map_err(|_| invalid)?;
+            if self.source.provider == "youtube" {
+                // Keep the validated draft available if the database transaction
+                // fails after installing the file and the user retries.
+                let staged_asset = self.staged.with_file_name("asset.m4a");
+                let _ = std::fs::remove_file(&staged_asset);
+                std::fs::hard_link(&self.staged, &staged_asset).map_err(|_| invalid)?;
+                std::fs::rename(staged_asset, &self.destination).map_err(|_| invalid)?;
+            } else {
+                std::fs::rename(&self.staged, &self.destination).map_err(|_| invalid)?;
+            }
         }
         tx.execute(
             "INSERT INTO source_media(source_key,source_json,asset_id,status,manifest_json,updated_at)

@@ -26,8 +26,9 @@ export function paintedCopy(source:HTMLElement) {
 
 /** Import previews already have self-contained styles. Keep the label's stage colours. */
 export function copyImportCard(source: HTMLElement) {
-  const copy = source.cloneNode(true) as HTMLElement;
   const label = source.querySelector<HTMLElement>('.import-edge-label');
+  if (!label) return visualCopy(source);
+  const copy = source.cloneNode(true) as HTMLElement;
   const second = copy.querySelector<HTMLElement>('.import-edge-label');
   if (label && second) {
     const style = getComputedStyle(label);
