@@ -171,15 +171,16 @@ try{
   const preparation=page.locator('.lc-import-preparing');
   const grip=preparation.locator('.lc-import-paper-grip'),trash=page.locator('.trash-drop-target');
   await grip.waitFor();
-  ok(await grip.evaluate(node=>{
+  const firstFrame=await grip.evaluate(node=>{
    const flight=node.getAnimations().find(animation=>animation.effect.getKeyframes()[0]?.transform?.includes('translate'));
-   if(!flight)return false;
+   if(!flight)return null;
    const elapsed=flight.currentTime;
    flight.currentTime=0;
    const bounds=node.getBoundingClientRect();
    flight.currentTime=elapsed;
-   return Math.abs(bounds.x+bounds.width/2-930)<1&&Math.abs(bounds.y+bounds.height/2-330)<1;
-  }),'dropped paper starts at the reported cursor coordinates');
+   return [Math.round(bounds.x+bounds.width/2),Math.round(bounds.y+bounds.height/2)];
+  });
+  eq(firstFrame,[930,330],'dropped paper starts at the reported cursor coordinates');
   await settle();
   eq(await preparation.evaluate(n=>getComputedStyle(n).backgroundColor),'rgba(0, 0, 0, 0)','preparation has no enclosing panel surface');
   ok(await page.locator('.lc-import-preparing-layer .overlay-scrim').evaluate(n=>getComputedStyle(n).backdropFilter.includes('blur')),'the desk behind the preparation card is blurred');
