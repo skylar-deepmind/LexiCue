@@ -103,11 +103,6 @@ export default function ReadingPage({ data, scope }: {
     useEffect(() => { setTranslationToast(true); if (translationStatus !== 'error' && translationStatus !== 'partial') return; const timer = setTimeout(() => setTranslationToast(false), 4200); return () => clearTimeout(timer); }, [translationStatus]);
     const segments = useMemo(() => data.segments.map(segment => segment.zh_text?.trim() || !generatedTranslations[segment.id] ? segment : {...segment, zh_text: generatedTranslations[segment.id]}), [data.segments, generatedTranslations]);
     const mediaIdentity = material.source?.key ?? material.document?.identity ?? material.content_hash;
-    const sourceBlocks = useMemo(() => {
-        const map = new Map<number, NonNullable<typeof material.document>['blocks'][number]>();
-        for (const block of material.document?.blocks ?? []) for (const index of block.segment_indices) map.set(index, block);
-        return map;
-    }, [material.document]);
     const positionKey = `lexicue-reader-state:${mediaIdentity}`;
     const [initial] = useState<Position>(() => {
         if (returnView) return { segment: returnView.segment, offset: returnView.offset };
@@ -180,20 +175,6 @@ export default function ReadingPage({ data, scope }: {
         const index = segments.findIndex(segment => segment.index_num === firstVisible);
         return index >= 0 ? index : initialIndex;
     };
-    const [documentJump, setDocumentJump] = useState<number | null>(null);
-    const jumpDocument = (index: number) => {
-        progressIntent.current = true;
-        followAllowed.current = false;
-        setQuery(null);
-        setFirst(Math.max(0, index));
-        setLast(Math.min(segments.length, index + 75));
-        setDocumentJump(index);
-    };
-    useLayoutEffect(() => {
-        if (documentJump === null) return;
-        scroll.current?.querySelector<HTMLElement>(`[data-sentence="${segments[documentJump]?.index_num}"]`)?.scrollIntoView({block: 'start'});
-        setDocumentJump(null);
-    }, [documentJump, segments]);
     const [listening, setListening] = useState(memory?.listening ?? false);
     const pausedIndex=useRef(memory?.playbackIndex);
     const speech = useSpeechStore();
@@ -604,11 +585,7 @@ export default function ReadingPage({ data, scope }: {
       <p className="example-instruction" role="status">{guide.active && !guide.tour ? t(`onboarding.step${guide.step}`) : ''}</p>
     </section>}
     {Object.entries(data.media_refs ?? {}).slice(0,1).map(([id, ref]) => <SourceAudioControls key={ref.source.key} reference={ref} target={{segment_id:Number(id)}} text={segments[0]?.en_text ?? ''} speechKey="reader:source" statusOnly/>)}
-    {material.document && (material.document.sections.length > 1 || material.document.origin || material.document.blocks.some(block => block.kind === 'code')) && <div className="reading-document-nav">
-        {material.document.sections.length > 1 && <label>{t('documents.jump')}<select aria-label={t('documents.jump')} value={sourceBlocks.get(segments[first]?.index_num)?.section_id ?? ''} onChange={event => {
-            const block = material.document?.blocks.find(block => block.section_id === event.target.value && block.segment_indices.length);
-            if (block) jumpDocument(segments.findIndex(segment => segment.index_num === block.segment_indices[0]));
-        }}>{material.document.sections.filter(section => material.document!.blocks.some(block => block.section_id === section.id && block.segment_indices.length)).map(section => <option key={section.id} value={section.id}>{section.title}</option>)}</select></label>}
+    {material.document && (material.document.origin || material.document.blocks.some(block => block.kind === 'code')) && <div className="reading-document-nav">
         {material.document.origin && <details className="reading-document-code"><summary>{t('documents.fullPreview')}</summary>{material.document.blocks.map(block => <p key={block.id} style={{whiteSpace:'pre-wrap'}}>{block.text}</p>)}</details>}
         {material.document.blocks.some(block => block.kind === 'code') && <details className="reading-document-code"><summary>{t('documents.codeBlocks')}</summary>{material.document.blocks.filter(block => block.kind === 'code').map(block => <pre key={block.id}>{block.text}</pre>)}</details>}
     </div>}

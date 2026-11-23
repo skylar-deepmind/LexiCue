@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useImportStore, type ImportItem } from '../stores/importStore';
 import useTrashDrag from './useTrashDrag';
+import type { MaterialDropPoint } from './useMaterialDrop';
 
 const clamp = (value: number) => Math.max(0, Math.min(1, value));
 const mix = (start: number, end: number, fraction: number) => start + (end - start) * fraction;
@@ -37,12 +38,26 @@ const lines = [
     { start: 47, english: 72, chinese: 44 },
 ];
 
-export default function ImportPaper({ disabled, finishing, items }: {
-    disabled: boolean; finishing: boolean; items: ImportItem[];
+export default function ImportPaper({ disabled, finishing, items, dropOrigin }: {
+    disabled: boolean; finishing: boolean; items: ImportItem[]; dropOrigin: MaterialDropPoint | null;
 }) {
     const { t } = useTranslation();
     const card = useRef<HTMLButtonElement>(null);
     const art = useRef<HTMLSpanElement>(null);
+    const entryFlight = useRef<Animation | null>(null);
+    useLayoutEffect(() => {
+        const paper = card.current;
+        if (!dropOrigin || !paper?.animate || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        entryFlight.current?.cancel();
+        const { left, top, width, height } = paper.getBoundingClientRect();
+        const x = dropOrigin.x - (left + width / 2);
+        const y = dropOrigin.y - (top + height / 2);
+        // Keep the entry on the grip so the progress art can float and settle independently.
+        entryFlight.current = paper.animate([
+            { transform: `translate(${x}px, ${y}px) scale(.58)` },
+            { transform: 'none' },
+        ], { duration: 240, easing: 'cubic-bezier(.2,.76,.24,1)' });
+    }, [dropOrigin]);
     useLayoutEffect(() => {
         const node = art.current;
         if (!finishing || !node?.animate || matchMedia('(prefers-reduced-motion: reduce)').matches) return;

@@ -1,27 +1,28 @@
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Layers } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { dictionaryOverview, dictionaryPrototypeGroups, isAuthorPublicSource, senseSelections, type DictionaryEntry, type DictionaryResult, type SenseSelection } from '../lib/dictionaryResult';
 import DictionarySource from './DictionarySource';
 
-function MeaningList({ meanings, query, showHeadwords = false, start = 1, overview = false }: {
+function MeaningList({ meanings, query, showHeadwords = false, start = 1, overview = false, grouped = false }: {
   meanings: SenseSelection[];
   query: string;
   showHeadwords?: boolean;
   start?: number;
   overview?: boolean;
+  grouped?: boolean;
 }) {
   const { t } = useTranslation();
   return <ol className="dictionary-meanings" start={start}>
     {meanings.map(({ entry, group, sense }, index) => {
       const related = ['inflection', 'source_relation'].includes(entry.match.type) && entry.headword !== query;
-      const headword = (showHeadwords || related) && entry.headword !== meanings[index - 1]?.entry.headword;
+      const headword = !grouped && (showHeadwords || related) && entry.headword !== meanings[index - 1]?.entry.headword;
       const part = group.part_of_speech ?? group.source_part_of_speech;
       const labels = [...new Set([...group.labels, ...sense.labels].map(label => label.text))];
-      return <li key={sense.id} className={overview ? 'dictionary-meaning dictionary-overview-line' : 'dictionary-meaning'} data-sense-id={sense.id}
+      return <li key={`${entry.id}:${group.id}:${sense.id}`} className={overview ? 'dictionary-meaning dictionary-overview-line' : 'dictionary-meaning'} data-sense-id={sense.id}
         data-overview-sense={overview ? sense.id : undefined} data-overview-headword={overview ? entry.headword : undefined}>
         {headword && <strong className="dictionary-overview-headword" lang="en">{related ? `${query} → ${entry.headword}` : entry.headword}</strong>}
         <div className="dictionary-meaning-line">
-          {part && <span className="dictionary-meaning-pos">{t(`dictionaryFlow.pos.${part}`, { defaultValue: group.source_part_of_speech ?? part })}</span>}
+          {part && !grouped && <span className="dictionary-meaning-pos">{t(`dictionaryFlow.pos.${part}`, { defaultValue: group.source_part_of_speech ?? part })}</span>}
           <p className="longman-meaning" lang={sense.meaning.zh ? 'zh' : 'en'}>
             {sense.meaning.zh ?? sense.meaning.en}{!!labels.length && <small className="dictionary-meaning-labels" lang="en"> {labels.join(' · ')}</small>}
           </p>
@@ -43,6 +44,31 @@ function collocations(entries: DictionaryEntry[]) {
     }
   }
   return [...items.values()];
+}
+
+function sentenceHeadwords(entries: DictionaryEntry[]) {
+  const headwords = new Map<string, DictionaryEntry[]>();
+  for (const entry of entries) {
+    const headword = entry.headword.toLowerCase();
+    headwords.set(headword, [...(headwords.get(headword) ?? []), entry]);
+  }
+  return [...headwords];
+}
+
+function sentenceParts(entries: DictionaryEntry[]) {
+  const parts = new Map<string, { part: string; sourcePart: string | null; senses: SenseSelection[]; entries: DictionaryEntry[]; forms: Set<string> }>();
+  for (const entry of entries) {
+    for (const group of entry.groups) {
+      if (!group.senses.length) continue;
+      const part = group.part_of_speech ?? group.source_part_of_speech ?? '';
+      const section = parts.get(part) ?? { part, sourcePart: group.source_part_of_speech, senses: [], entries: [], forms: new Set<string>() };
+      section.senses.push(...group.senses.map(sense => ({ entry, group, sense })));
+      section.entries.push({ ...entry, match: { ...entry.match, pattern: null }, groups: [group], related_expressions: [] });
+      for (const form of group.forms) section.forms.add(form.text);
+      parts.set(part, section);
+    }
+  }
+  return [...parts.values()].map(({ entries, ...section }) => ({ ...section, uses: collocations(entries) }));
 }
 
 export default function LongmanResult({ result, onInteract, sentenceView=false }: { sentenceView?: boolean; result: DictionaryResult; onInteract?: () => void }) {
@@ -71,32 +97,38 @@ export default function LongmanResult({ result, onInteract, sentenceView=false }
     {[...sources].map(([key, source]) => <DictionarySource key={key} source={source}/>)}
   </details>;
   if (sentenceView) {
-    const excerpt = new Set(overview.map(item => item.sense.id));
+    const excerpt = new Set(overview.map(item => item.sense));
     return <div className="longman-result word-families" data-result-status={result.status} onPointerDownCapture={onInteract} onKeyDownCapture={onInteract}>
-      {result.entries.map(entry => <div className="dictionary-entry" key={entry.id}>
-        {(multipleHeadwords || entry.headword!==query) && <strong lang="en">{entry.headword}</strong>}
-        {entry.groups.map(group => {
-          const senses = group.senses.map(sense => ({entry,group,sense}));
-          if (!senses.length) return null;
-          const uses = collocations([{...entry,match:{...entry.match,pattern:null},related_expressions:[],groups:[group]}]);
-          const preview = senses.filter(item => excerpt.has(item.sense.id));
-          const rest = senses.filter(item => !excerpt.has(item.sense.id));
-          const more = rest.length > 0 || uses.length > 0 || group.forms.length > 0;
-          const part = group.part_of_speech ?? group.source_part_of_speech;
-          const meaning = preview.length
-            ? <MeaningList meanings={preview} query={query} overview/>
-            : <span className="dictionary-meaning-pos">{part ? t(`dictionaryFlow.pos.${part}`, { defaultValue: group.source_part_of_speech ?? part }) : entry.headword}</span>;
-          if (!more) return <section key={group.id}>{meaning}</section>;
-          return <details className="pos-group" key={group.id}><summary>{meaning}
-            <small>{t('reader.senseCount',{count:senses.length})}{uses.length>0 && ' · '+t('dictionaryFlow.collocations')}</small>
-            {uses.length>0 && <em lang="en">{uses.slice(0,2).map(row=>row.text).join('　·　')}</em>}
-          </summary><div className="pos-rest">
-            {rest.length > 0 && <MeaningList meanings={rest} query={query} start={preview.length + 1}/>}
-            {uses.length>0 && <dl>{uses.map(use=><div key={use.text}><dt lang="en">{use.text}</dt><dd>{use.gloss}</dd></div>)}</dl>}
-            {group.forms.length>0 && <p lang="en">{group.forms.map(form=>form.text).join(' · ')}</p>}
-          </div></details>;
+      {sentenceHeadwords(result.entries).map(([headword, entries]) => <div className="dictionary-entry" key={headword}>
+        {headword !== query.toLowerCase() && <strong className="dictionary-overview-headword" lang="en">{entries[0].headword}</strong>}
+        {sentenceParts(entries).map(({ part, sourcePart, senses, uses, forms }) => {
+          const preview = senses.filter(item => excerpt.has(item.sense));
+          const rest = senses.filter(item => !excerpt.has(item.sense));
+          const more = rest.length > 0 || uses.length > 0 || forms.size > 0;
+          const heading = (part || more) && <div className="dictionary-pos-heading">
+            <span className="dictionary-meaning-pos" data-pos={part || undefined}>{part ? t(`dictionaryFlow.pos.${part}`, { defaultValue: sourcePart ?? part }) : t('dictionaryFlow.overview')}</span>
+            {more && <span className="dictionary-pos-count">
+              <span className="sr-only">{t('reader.senseCount', { count: senses.length })}</span>
+              <Layers size={14} aria-hidden="true"/><span aria-hidden="true">{senses.length}</span>
+            </span>}
+          </div>;
+          const meaning = preview.length > 0 && <MeaningList meanings={preview} query={query} grouped overview/>;
+          if (!more) return <section key={part}>{heading}{meaning}</section>;
+          return <details className="pos-group" key={part}>
+            <summary>
+              {heading}{meaning}
+              {uses.length > 0 && <em lang="en">{uses.slice(0, 2).map(row => row.text).join(' · ')}</em>}
+            </summary>
+            <div className="pos-rest">
+              {rest.length > 0 && <MeaningList meanings={rest} query={query} grouped start={preview.length + 1}/>}
+              {uses.length > 0 && <dl>{uses.map(use => <div key={use.text}><dt lang="en">{use.text}</dt><dd lang={use.chinese ? 'zh' : 'en'}>{use.gloss}</dd></div>)}</dl>}
+              {forms.size > 0 && <p lang="en">{[...forms].join(' · ')}</p>}
+            </div>
+          </details>;
         })}
-        {entry.related_expressions.length>0 && <p lang="en">{entry.related_expressions.map(item=>item.text).join(' · ')}</p>}
+        {entries.some(entry => entry.related_expressions.length > 0) && <p lang="en">
+          {[...new Set(entries.flatMap(entry => entry.related_expressions.map(item => item.text)))].join(' · ')}
+        </p>}
       </div>)}
       {result.status==='partial' && result.entries[0]?.source.provider!=='wiktionary' && <p role="status">{t('longman.partial')}</p>}
       {result.notices.filter(n=>n.code!=='online_free_english_only').map((n,i)=><p key={i} role="status">{t(`longman.notices.${n.code}`,{defaultValue:n.text})}</p>)}

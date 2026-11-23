@@ -139,6 +139,9 @@
 .figma-shell .reading-breadcrumb .page-back { display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; padding:0; }
 .figma-shell .reading-breadcrumb .page-back svg { display:block; }
 .figma-shell .reader-scroll { padding-top:25px; padding-bottom:80px; background:var(--approved-paper); scrollbar-gutter:stable; }
+@media (min-width:768px) {
+ .figma-shell .reader-scroll { padding-left:calc(var(--approved-back-inset) + 22px); }
+}
 .figma-shell .reading-paper { background:transparent; box-shadow:none; border:0; color:var(--approved-ink); }
 .figma-shell .reading-original { font-size:calc(24px * var(--learning-font-scale,1)); line-height:1.65; }
 .figma-shell .reading-translation { font-size:calc(15px * var(--auxiliary-font-scale,1)); line-height:1.8; }
@@ -197,7 +200,7 @@
 .approved-lookup-map.lookup-source-switch { border:0; padding:0; background:transparent; width:44px; }
 .approved-lookup-map.lookup-source-switch > button { position:relative; width:44px; min-width:44px; max-width:44px; height:44px; flex:none; border:0!important; background:transparent!important; color:var(--accent-700); padding:3px; box-shadow:none!important; }
 .approved-lookup-map > button > span { position:absolute; bottom:7px; right:3px; display:grid; place-items:center; width:18px; height:18px; border-radius:50%; background:var(--surface); color:var(--approved-warm); }
-.lookup-fixed-header { position:relative; }.lookup-fixed-header .lookup-source-host { position:absolute; top:0; right:54px; }.lookup-fixed-header .lookup-heading > div { padding-right:112px; }.approved-supplement { margin-top:18px; }.approved-supplement > h3 { font-size:13px; font-weight:500; color:var(--text-muted); margin-bottom:10px; }
+.lookup-fixed-header { position:relative; }.lookup-fixed-header .lookup-source-host { position:absolute; top:0; right:54px; }.approved-supplement { margin-top:18px; }.approved-supplement > h3 { font-size:13px; font-weight:500; color:var(--text-muted); margin-bottom:10px; }
 .approved-saved.saved-workspace { display:flex; flex-direction:column; width:100%; height:100%; max-width:none; padding:var(--approved-back-top) var(--approved-back-inset) 32px; background:var(--approved-desk); color:var(--approved-ink); overflow:hidden; }
 .approved-saved-header { display:flex; justify-content:space-between; align-items:center; flex:none; }
 .approved-saved-search { display:flex; justify-content:flex-end; align-items:center; gap:8px; }.approved-saved-search input { width:0; padding:0; border:0; border-bottom:1px solid var(--approved-secondary); background:none; color:var(--approved-ink); opacity:0; transition:width 220ms ease,opacity 170ms; }.approved-saved-search[data-open="true"] input { width:240px; padding:7px 2px; opacity:1; }.approved-saved-search input:focus { outline:0; border-bottom:2px solid var(--approved-focus); }
@@ -238,7 +241,6 @@
 .approved-edge:disabled { opacity:0!important; visibility:hidden; }
 .figma-shell .reading-breadcrumb .mobile-reading-path { display:none!important; }
 .lookup-fixed-header .lookup-source-host { top:65px; right:16px; z-index:2; }
-.context-panel.context-panel--lookup .lookup-heading > div { padding-right:96px; }
 .approved-settings-paper .approved-dictionary-book h2 { color:#fff6d9; font-size:24px; line-height:1.45; margin:13px 0; font-weight:500; }
 .approved-dictionary-book::after { content:''; position:absolute; inset:10px 10px 10px 17px; border:1px solid #e5d5a580; pointer-events:none; }
 .approved-settings-paper .dictionary-preference-row small { display:none; }

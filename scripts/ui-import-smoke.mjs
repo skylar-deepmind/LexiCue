@@ -58,7 +58,8 @@ try{
    window.__TAURI_INTERNALS__.metadata={currentWindow:{label:'main'},currentWebview:{label:'main'}};
    window.__TAURI_INTERNALS__.transformCallback=fn=>{const id=++next;callbacks.set(id,fn);return id;};
    window.__TAURI_INTERNALS__.unregisterCallback=id=>callbacks.delete(id);
-   window.__nativeDrop=paths=>{for(const {event,handler}of listeners.values())if(event==='tauri://drag-drop')callbacks.get(handler)?.({event,payload:{paths,position:{x:0,y:0}}});};
+   window.__nativeDrag=(type,paths=[])=>{for(const {event,handler}of listeners.values())if(event===`tauri://drag-${type}`)callbacks.get(handler)?.({event,payload:{paths,position:{x:930,y:330}}});};
+   window.__nativeDrop=paths=>window.__nativeDrag('drop',paths);
    const OriginalWorker=window.Worker;
    window.Worker=class extends OriginalWorker{
     constructor(url,options){super(url,options);this.holdBody=window.__holdImportBody&&String(url).includes('contentWorker');}
@@ -152,6 +153,15 @@ try{
   eq(Number(await page.locator('.approved-card[data-desk-active=true]').getAttribute('data-motion-file')),newCard.id,'the landing reveals this import as the active desk card');
   eq((await writes()).at(-1),lost,'retry resends exact operation payload');eq((await call('test_counts')).files,3,'idempotent retry has one result');
   // Native drag event adapter routes into the same prepare/preview state.
+  const dropVeil=page.locator('.lc-file-drop');
+  await page.evaluate(()=>window.__nativeDrag('enter',['/fixture/native-drag.srt']));
+  await dropVeil.waitFor();
+  eq(await dropVeil.innerText(),'松手以导入','native file enter shows the release prompt');
+  eq(await dropVeil.evaluate(n=>getComputedStyle(n).backdropFilter),'blur(5px)','desk remains visible through light blur');
+  await page.screenshot({path:`${output}/${theme}-drag-enter.png`});
+  await page.evaluate(()=>window.__nativeDrag('leave'));
+  await dropVeil.waitFor({state:'detached'});
+  ok(!await page.locator('.lc-import-modal').count(),'leaving the window does not start import');
   await page.evaluate(text=>{window.__uiFiles={'/fixture/native-drag.srt':text};window.__nativeDrop(['/fixture/native-drag.srt']);},srt('Native paths share the same preview.'));await preview();eq((await call('test_counts')).files,3,'native event adapter does not commit');
   await add();await tagName.fill('Discarded tag');await tagName.press('Escape');await close();
   eq((await call('list_tags')).map(tag=>tag.name),['Coast notes'],'closing discards an uncommitted tag');
@@ -160,7 +170,18 @@ try{
   await page.evaluate(text=>{window.__holdRead=true;window.__uiFiles={'/fixture/slow.srt':text};window.__nativeDrop(['/fixture/slow.srt']);},srt('This late file must never be saved.'));
   const preparation=page.locator('.lc-import-preparing');
   const grip=preparation.locator('.lc-import-paper-grip'),trash=page.locator('.trash-drop-target');
-  await grip.waitFor();await settle();
+  await grip.waitFor();
+  const firstFrame=await grip.evaluate(node=>{
+   const flight=node.getAnimations().find(animation=>animation.effect.getKeyframes()[0]?.transform?.includes('translate'));
+   if(!flight)return null;
+   const elapsed=flight.currentTime;
+   flight.currentTime=0;
+   const bounds=node.getBoundingClientRect();
+   flight.currentTime=elapsed;
+   return [Math.round(bounds.x+bounds.width/2),Math.round(bounds.y+bounds.height/2)];
+  });
+  eq(firstFrame,[930,330],'dropped paper starts at the reported cursor coordinates');
+  await settle();
   eq(await preparation.evaluate(n=>getComputedStyle(n).backgroundColor),'rgba(0, 0, 0, 0)','preparation has no enclosing panel surface');
   ok(await page.locator('.lc-import-preparing-layer .overlay-scrim').evaluate(n=>getComputedStyle(n).backdropFilter.includes('blur')),'the desk behind the preparation card is blurred');
   eq(await preparation.locator('button').count(),1,'the paper is the sole interactive control while loading');
@@ -369,6 +390,11 @@ try{
         await closeFull();await confirm();await landed();
         const saved=await call('export_all');
         ok(saved.data.files.some(file=>file.content===expected.content),theme+' cross-page PDF body survives SQLite import');
+        await page.locator('.approved-card[data-desk-active=true] .approved-card-open').click();
+        await page.locator('.reading-original').first().waitFor();
+        eq(await page.locator('.reading-paper select').count(),0,'multi-page PDF reader omits the section picker');
+        await page.locator('.reading-original').filter({hasText:'well-known lighthouse'}).waitFor();
+        await open();
       }
     }
     await close();

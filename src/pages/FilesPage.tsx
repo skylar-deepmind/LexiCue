@@ -262,7 +262,9 @@ function TagRail({ files, tags, returnFocus, onClose, onSelect }: { files: Mater
     await Promise.allSettled(next.jobs.map(job=>job.finished));
     if(mounted.current)onClose();
   };
-  return <Overlay label={t('readingDesk.library')} onClose={close} panelRef={panel} returnFocus={returnFocus} className="approved-tag-panel" layerClassName="approved-tag-layer">
+  return <Overlay label={t('readingDesk.library')} onClose={close} panelRef={panel} returnFocus={returnFocus}
+    className="approved-tag-panel" layerClassName="approved-tag-layer"
+    isPanelBackdrop={target => !target.closest('.approved-tag-stack, button, input, [data-no-trash]')}>
     <button className="approved-icon approved-back approved-rail-back" aria-label={t('common.back')} onClick={() => void close()}><ChevronLeft size={22}/></button>
     <div ref={rail} className="approved-tag-rail"><div className="approved-tag-track">
       {items.map(item => {

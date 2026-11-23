@@ -13,3 +13,6 @@
 .saved-timeline-reset.approved-icon { position:absolute; right:-8px; top:44px; width:44px; height:44px; min-width:44px; background:var(--approved-desk); }
 .saved-timeline-status { display:flex; align-items:center; justify-content:center; gap:12px; font-size:13px; color:var(--approved-secondary); }
 @media(prefers-reduced-motion:reduce) { .saved-timeline-mark { transition:none; } }
+
+.approved-timeline .saved-timeline-reset.approved-icon,
+.approved-timeline .saved-timeline-reset.approved-icon:is(:hover,:active) { background:transparent; }

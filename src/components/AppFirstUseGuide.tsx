@@ -40,7 +40,7 @@ export default function AppFirstUseGuide() {
     document.addEventListener('keydown',keys);return()=>document.removeEventListener('keydown',keys);
   },[location.pathname,navigate]);
   void revision;
-  if(starting||!guide.active||!guide.tour||document.querySelector('.sentence-note-dialog')||location.pathname==='/example'&&!document.querySelector('.reading-page'))return null;
+  if(starting||!guide.active||!guide.tour||location.pathname==='/example'&&!document.querySelector('.reading-page'))return null;
   const skip=()=>{guide.finish('skipped');if(origin)back();else if(location.pathname==='/example')navigate('/files',{replace:true});};
   const finish=()=>{guide.finish('completed');if(origin)back();else navigate('/files',{replace:true});};
   const startExample=()=>{useImportStore.getState().hide();navigate('/example',{state:location.state});};
@@ -68,7 +68,7 @@ export default function AppFirstUseGuide() {
     case 'recall':{
       progress=5;
       const history=document.querySelector('.recall-history .saved-sentence-original'), panel=document.querySelector('.context-panel');
-      if(history){target='.recall-history .saved-sentence[data-active=true]';title='记忆，带着它的来处';body='这里就是刚才保存的原句。以后再遇到这个表达，也能从侧袋回看原句和笔记。';action='开始自己的阅读';onNext=finish;}
+      if(history){target='.recall-history .saved-sentence';title='记忆，带着它的来处';body='这里就是刚才保存的原句。以后再遇到这个表达，也能从侧袋回看原句和笔记。';action='开始自己的阅读';onNext=finish;}
       else if(panel){target='.quiet-pocket';title='打开侧袋看看';body='点这里，找回你刚才记下的表达和原句。';}
       else{target='.reading-word[data-recall]';title='记下的词，有了轻标记';body='点一下带标记的词，再打开侧袋。这是你刚才真实记下的内容。';}
       break;

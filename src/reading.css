@@ -392,9 +392,6 @@
 .sentence-listen:disabled { color: var(--text-muted); cursor: not-allowed; opacity: 1; }
 .reading-document-nav { display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-bottom:24px; border-bottom:1px solid var(--border); padding-block:12px; font-size:.8125rem; color:var(--text-body); }
 .reading-document-nav > span { width:100%; overflow-wrap:anywhere; }
-.reading-document-nav label { display:flex; gap:8px; align-items:center; flex:1; min-width:0; }
-.reading-document-nav select { flex:1; min-width:0; max-width:360px; padding:8px; min-height:44px; color:var(--text-strong); background:var(--surface); border:1px solid var(--text-muted); border-radius:6px; }
-.reading-document-nav select:focus-visible { outline:none; box-shadow:inset 0 -2px 0 currentColor; }
 .reading-document-location { display:block; color:var(--text-body); font-size:.75rem; line-height:1.7; padding-bottom:4px; }
 .reading-translation-status { display:flex; flex-wrap:wrap; align-items:center; gap:12px; padding-bottom:16px; color:var(--text-body); font-size:.8125rem; line-height:1.7; }
 .reading-document-code { width:100%; }
