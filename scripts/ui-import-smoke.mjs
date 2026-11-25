@@ -116,12 +116,23 @@ try{
   eq(await page.locator('.lc-import-paper-fragment').count(),0,'YouTube replaces the three fragments');
   ok(await stars.evaluate(node=>{
     const animations=node.getAnimations({subtree:true}).filter(animation=>animation.animationName==='lc-import-paper-star-gather');
-    return animations.length===node.childElementCount&&animations.length>3&&animations.every(animation=>{
-      const {transform}=animation.effect.getKeyframes().at(-1);
-      const arrival=new DOMMatrix(transform);
-      return animation.effect.getTiming().iterations===Infinity&&arrival.e===0&&arrival.f===0;
-    });
-  }),'stars keep converging to one point while the source is pending');
+    const sheet=node.parentElement.querySelector('.lc-import-paper-sheet');
+    const {offsetWidth:width,offsetHeight:height}=sheet;
+    const sectors=new Set();
+    const landings=[];
+    for(const animation of animations){
+      if(animation.effect.getTiming().iterations!==Infinity)return false;
+      const keyframes=animation.effect.getKeyframes();
+      const source=new DOMMatrix(keyframes[0].transform);
+      const arrival=new DOMMatrix(keyframes.at(-1).transform);
+      if(Math.abs(source.e)<=width/2&&Math.abs(source.f)<=height/2)return false;
+      sectors.add(Math.round(Math.atan2(source.f,source.e)*4/Math.PI+8)%8);
+      landings.push([arrival.e/(width/2),arrival.f/(height/2)]);
+    }
+    return animations.length===42&&sectors.size===8
+      &&landings.every(([x,y])=>Math.abs(x)<1&&Math.abs(y)<1)
+      &&[0,1].every(axis=>landings.some(point=>point[axis]>.75)&&landings.some(point=>point[axis]<-.75));
+  }),'42 stars loop from all directions and land across the whole sheet');
   await settle();await page.screenshot({path:`${output}/${theme}-youtube-stars.png`});
   await page.emulateMedia({reducedMotion:'reduce'});
   eq(await stars.evaluate(node=>getComputedStyle(node).display),'none','reduced motion keeps the paper without moving stars');

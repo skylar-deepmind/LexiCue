@@ -153,7 +153,7 @@
     0% { opacity:0; transform:translate(var(--star-x), var(--star-y)) scale(1); }
     17% { opacity:.96; }
     72% { opacity:.74; }
-    96%,100% { opacity:0; transform:translate(0, 0) scale(.4); }
+    96%,100% { opacity:0; transform:translate(var(--star-land-x), var(--star-land-y)) scale(.4); }
 }
 @media(max-width:540px) {
     .overlay-panel.lc-import-modal { border-radius:18px; }

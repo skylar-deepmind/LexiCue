@@ -32,17 +32,26 @@ const fragments = [
     { start: [189, 28], end: [192, 75], width: 13, angle: 13 },
     { start: [250, 89], end: [221, 89], width: 10, angle: -11 },
 ];
-const stars = [
-    [-132, -32, 3, 1900, -480], [-113, -65, 5, 2300, -1380],
-    [-91, -91, 3, 2100, -940], [-60, -106, 2, 1840, -1040],
-    [-25, -97, 4, 2240, -420], [13, -114, 3, 1950, -1470],
-    [49, -95, 5, 2450, -1790], [82, -89, 2, 2040, -290],
-    [119, -64, 4, 2220, -620], [134, -27, 3, 1870, -1540],
-    [112, 17, 5, 2390, -1130], [88, 51, 3, 2010, -1780],
-    [45, 44, 2, 1890, -750], [7, 61, 3, 2330, -1960],
-    [-44, 50, 4, 2210, -1540], [-82, 59, 2, 2050, -1120],
-    [-115, 24, 5, 2340, -2040], [-141, 6, 3, 1950, -260],
-] as const;
+const starCount = 42;
+const starSizes = [2, 3, 2, 4, 3, 5, 2];
+const stars = Array.from({ length: starCount }, (_, index) => {
+    const angle = (index + .5) * 2 * Math.PI / starCount;
+    const x = Math.cos(angle), y = Math.sin(angle);
+    const distance = (index * 17) % 23;
+    const inset = .52 + ((index * 11) % 41) / 100;
+    // Project each direction onto the rectangular sheet, then vary the landing inset.
+    const reach = inset / Math.max(Math.abs(x), Math.abs(y));
+    const duration = 1800 + (index * 127) % 650;
+    return {
+        dx: Math.round((137 + distance) * x),
+        dy: Math.round(((y < 0 ? 126 : 94) + distance * .6) * y),
+        landX: x * reach,
+        landY: y * reach,
+        size: starSizes[index % starSizes.length],
+        duration,
+        delay: -((index * 977) % duration),
+    };
+});
 const lines = [
     { start: 47, english: 82, chinese: 36 },
     { start: 41, english: 62, chinese: 58 },
@@ -109,12 +118,13 @@ export default function ImportPaper({ disabled, finishing, items, dropOrigin }: 
                     '--cover-ink': `${Math.round(18 + 72 * cover)}%`,
                 } as CSSProperties}><i /></span>
                 {youtube ? <span className="lc-import-paper-stars"
-                    style={{ left: x - 130 + width / 2, top: y - 45 + 13 + coverHeight / 2 }}>
-                    {stars.map(([dx, dy, size, duration, delay], index) => <i key={index}
+                    style={{ left: x - 130 + width / 2, top: y - 45 + height / 2 }}>
+                    {stars.map(({ dx, dy, landX, landY, size, duration, delay }, index) => <i key={index}
                         className={size >= 4 ? 'lc-import-paper-star-spark' : undefined}
                         style={{
                             width: size, height: size, margin: -size / 2,
                             '--star-x': `${dx}px`, '--star-y': `${dy}px`,
+                            '--star-land-x': `${landX * width / 2}px`, '--star-land-y': `${landY * height / 2}px`,
                             animationDuration: `${duration}ms`, animationDelay: `${delay}ms`,
                         } as CSSProperties} />)}
                 </span> : fragments.map(({start, end, width, angle}, index) => {
