@@ -1929,10 +1929,6 @@
     "codeBlocks": "View source code blocks (excluded from speech)"
   },
   "readingDesk": {
-    "posterScale": "Postergröße",
-    "posterScale_large": "Große Poster",
-    "posterScale_medium": "Mittlere Poster",
-    "posterScale_small": "Kleine Poster",
     "resetFilters": "Filter zurücksetzen",
     "continueLabel": "Weiterlesen",
     "materialCount": "{{count}} Materialien",

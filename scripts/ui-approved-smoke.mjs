@@ -8,7 +8,7 @@ let checks=0,current;const ok=(v,s)=>{assert.ok(v,s);checks++;},eq=(a,b,s)=>{ass
 try{
  await call('test_reset');
  const tag=await call('create_tag',{name:'Coast'});
- for(let i=0;i<14;i++){
+ for(let i=0;i<18;i++){
   const lines=['I stood at the edge of the water and waited.','The air smelled of salt near the old pier.','We finally had time to catch up on the night train.',`I will take this path again tomorrow. Material ${i+1}.`];
   if(i%2)lines.push(...Array.from({length:8},(_,n)=>`A longer paragraph number ${n+1} gives us time to read and reflect on the day.`));
   const title=i===1 ? 'A Very Long Title About the Lighthouse and the Story of the Old Harbor Beyond the Coastal Road' : `${['After the Tide','Night Walk','Market Day','Shore Notes'][i%4]} ${i+1}`;
@@ -25,7 +25,12 @@ try{
   ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'no horizontal document overflow');
   await page.screenshot({path:`${output}/${theme}-${width}-home.png`});
   await page.getByRole('button',{name:'材料库',exact:true}).click();await page.locator('.approved-tag-panel').waitFor();
-  await page.getByRole('button',{name:'Coast · 14',exact:true}).click();
+  const scrim=await page.locator('.approved-tag-layer .overlay-scrim').evaluate(node=>{
+    const style=getComputedStyle(node);
+    return {color:style.backgroundColor,filter:style.backdropFilter};
+  });
+  eq(scrim,{color:'rgba(0, 0, 0, 0)',filter:`blur(13px) brightness(${theme==='midnight'?'0.9':'0.75'})`},'library backdrop dims without a tint');
+  await page.getByRole('button',{name:'Coast · 18',exact:true}).click();
   if(width>=768){
     const deal=page.locator('.approved-poster-deal');
     await deal.waitFor();
@@ -41,26 +46,25 @@ try{
     await deal.waitFor({state:'detached'});
   }
   await page.locator('.approved-poster').first().waitFor();
+  eq(await page.locator('.approved-wall > header button').count(),1,'the poster wall header has only its back control');
+  const captions=await page.locator('.approved-poster > button').evaluateAll(buttons=>buttons.every(button=>{
+    const image=button.querySelector('img'), caption=button.querySelector('span'), title=caption.querySelector('strong');
+    const cover=image.getBoundingClientRect(), strip=caption.getBoundingClientRect();
+    return Math.abs(cover.width-strip.width)<.5 && Math.abs(cover.left-strip.left)<.5
+      && getComputedStyle(title).fontStyle==='italic'
+      && getComputedStyle(caption).backgroundColor===(document.documentElement.dataset.theme==='midnight'?'rgb(45, 48, 51)':'rgb(242, 242, 242)');
+  }));
+  ok(captions,'each shaded serif caption is aligned and exactly as wide as its cover');
   if(width>=768){
     eq(await page.locator('.approved-projector').count(),0,'desktop poster wall omits the projector');
     const long=page.locator('.approved-poster').filter({hasText:'A Very Long Title'});
     ok(await long.evaluate(poster=>{
       const title=poster.querySelector('strong'), cover=poster.querySelector('img');
       const text=getComputedStyle(title), bounds=poster.getBoundingClientRect();
-      return text.webkitLineClamp==='2' && parseFloat(text.fontSize)<=20
+      return text.webkitLineClamp==='2' && parseFloat(text.fontSize)<=22
         && cover.getBoundingClientRect().height>=bounds.height*.58
         && poster.querySelector('button').title===title.textContent;
     }),'long desktop titles keep the cover visible and expose the full title on hover');
-    const controls=page.locator('.approved-poster-scales');
-    eq(await controls.locator('button').count(),3,'desktop wall has three graphically distinct scales');
-    const medium=await page.locator('.approved-poster-column').count();
-    await controls.getByRole('button',{name:'大图',exact:true}).click();
-    await page.locator('.approved-wall-viewport[data-reflowing]').waitFor();
-    ok(await page.locator('.approved-poster').evaluateAll(posters=>posters.some(p=>p.getAnimations().some(a=>a.effect.getTiming().duration===390))),'scale changes visually move and resize existing posters');
-    ok(await page.locator('.approved-poster-column').count()>medium,'large posters fit fewer materials per column');
-    await controls.getByRole('button',{name:'密集',exact:true}).click();
-    ok(await page.locator('.approved-poster-column').count()<medium,'compact scale fits more materials per column');
-    await controls.getByRole('button',{name:'大图',exact:true}).click();
     const wall=page.locator('.approved-wall-viewport');
     await wall.hover();
     await page.mouse.wheel(0,360);
@@ -69,7 +73,7 @@ try{
     await page.waitForFunction(()=>Math.abs(new DOMMatrix(getComputedStyle(document.querySelector('.approved-poster-plane')).transform).m41)<1);
     ok(true,'the mouse wheel and keyboard navigate the wall after removing the projector');
   }
-  if(width<768){eq(await page.locator('.approved-poster-scales').count(),0,'phone retains its two-column browsing');eq(await page.locator('.approved-phone-column').count(),2,'two vertical poster columns');await page.locator('.approved-wall-viewport').evaluate(node=>{node.scrollTop=420;});}
+  if(width<768){eq(await page.locator('.approved-phone-column').count(),2,'two vertical poster columns');await page.locator('.approved-wall-viewport').evaluate(node=>{node.scrollTop=420;});}
   await page.screenshot({path:`${output}/${theme}-${width}-wall.png`});
   const wallPosition=await page.locator('.approved-wall-viewport').evaluate(n=>({x:n.scrollLeft,y:n.scrollTop}));
   const visibleId=await page.locator('.approved-poster').evaluateAll(nodes=>nodes.find(n=>{const r=n.getBoundingClientRect();return r.top>=90&&r.bottom<=innerHeight-50;})?.getAttribute('data-motion-file'));
@@ -81,6 +85,7 @@ try{
   const word=page.locator('.reading-word').filter({hasText:/^air$/}).first();
   const prose=await page.locator('.reading-original').first().evaluate(n=>({width:n.getBoundingClientRect().width,font:getComputedStyle(n).fontSize,line:getComputedStyle(n).lineHeight}));
   await word.click();await page.locator('.context-panel').waitFor();await page.waitForFunction(()=>!document.querySelector('.reading-layout[data-lookup-moving]'));
+  if(theme==='sage')eq(await word.evaluate(node=>getComputedStyle(node).backgroundColor),'rgb(235, 246, 240)','light reading selection is pale mint');
   if(width<768){const after=await page.locator('.reading-original').first().evaluate(n=>({width:n.getBoundingClientRect().width,font:getComputedStyle(n).fontSize,line:getComputedStyle(n).lineHeight}));eq(after,prose,'opening dictionary preserves prose geometry');}
   await page.screenshot({path:`${output}/${theme}-${width}-lookup.png`});
   await page.keyboard.press('Escape');await page.locator('.context-panel').waitFor({state:'detached'});
@@ -94,10 +99,13 @@ try{
   ok((await page.locator('.approved-folio-translation').first().textContent()).length>0,'translation is visible by default');
   await page.screenshot({path:`${output}/${theme}-${width}-saved.png`});
   const selected=await page.locator('.approved-saved-word[aria-pressed="true"]').getAttribute('data-group');
+  eq(await page.locator('.approved-saved-word[aria-pressed="true"]').evaluate(node=>getComputedStyle(node).backgroundColor),theme==='midnight'?'rgb(52, 71, 88)':'rgb(235, 246, 240)','saved selection uses the theme palette');
   const source=page.locator('.approved-source-title').first();await source.click();await page.waitForURL(/\/files\/\d+/);await page.locator('[data-source-highlight="true"]').waitFor();
   await page.locator('.reading-breadcrumb .page-back').click();await openSelectedSavedExpression(page);eq(await page.locator('.approved-saved-word[aria-pressed="true"]').getAttribute('data-group'),selected,'source return restores selected entry');
   const savedBack=page.locator('.approved-saved-header .approved-back');await savedBack.click();if(width<768)await savedBack.click();await page.locator('.approved-desk').waitFor();
   await page.getByRole('button',{name:'设置',exact:true}).click();await page.locator('.approved-settings').waitFor();
+  if(theme==='sage')eq(await page.locator('[data-entry="lookup"] .settings-row-icon').evaluate(node=>getComputedStyle(node).stroke),'rgb(0, 0, 0)','light settings icons use black strokes');
+  eq(await page.locator('.approved-language-selection').evaluate(node=>getComputedStyle(node).backgroundColor),theme==='midnight'?'rgb(52, 71, 88)':'rgb(235, 246, 240)','language selection uses the theme palette');
   await page.locator('[data-entry="lookup"]').click();await page.locator('.approved-dictionary-book').first().waitFor();eq(await page.locator('.approved-dictionary-book').count(),3,'three real dictionary books');
   await page.screenshot({path:`${output}/${theme}-${width}-books.png`});
   await context.close();

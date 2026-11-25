@@ -1574,8 +1574,9 @@ button:disabled:is([class*='bg-blue-'], [class*='bg-purple-'], [class*='bg-gray-
  --approved-paper:#fff; --approved-settings:var(--approved-paper); --approved-hover:#f3f4f6;
  --approved-focus:#46576b; --approved-dot:#8b8b8b; --approved-cover-mat:#30343a;
  --approved-wall:#302d2b; --approved-wall-title:#343a44; --approved-emphasis:#28557f;
- --approved-selected:#e5eaf0; --approved-selected-ink:#242424;
- --approved-reading-selected:#e4edf6; --approved-reading-selected-ink:#28557f;
+ --approved-selected:#ebf6f0; --approved-selected-ink:#242424;
+ --approved-selection-line:#6d8176; --approved-line-icon:#000;
+ --approved-reading-selected:var(--approved-selected); --approved-reading-selected-ink:var(--approved-selected-ink);
 }
 :root[data-theme="midnight"] {
  --approved-empty-blend:screen; --approved-empty-filter:grayscale(1) invert(1);
@@ -1585,5 +1586,6 @@ button:disabled:is([class*='bg-blue-'], [class*='bg-purple-'], [class*='bg-gray-
  --approved-focus:#b5cce2; --approved-dot:#6e8d7a; --approved-cover-mat:#17211c;
  --approved-wall:#202321; --approved-wall-title:#24483e; --approved-emphasis:#adcde9;
  --approved-selected:#344758; --approved-selected-ink:#eef3f8;
+ --approved-selection-line:var(--approved-focus);
  --approved-reading-selected:#324b56; --approved-reading-selected-ink:#dceaf0;
 }

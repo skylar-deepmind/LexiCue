@@ -20,6 +20,13 @@
 .context-panel--lookup .lookup-tabs button { display:flex; align-items:center; justify-content:center; gap:6px; min-height:44px; padding:0 8px; border:0; border-radius:0; font-size:15px; line-height:22px; }
 .context-panel--lookup .lookup-tab-indicator { top:auto; bottom:0; left:calc(25% - 26px); width:52px; height:2px; border-radius:0; background:var(--accent-600); }
 .context-panel--lookup .lookup-tabs[data-tab='records'] .lookup-tab-indicator { left:calc(75% - 26px); }
+:root:not([data-theme="midnight"]) .context-panel--lookup .lookup-tab-indicator { background:var(--approved-selection-line); }
+:root:not([data-theme="midnight"]) .context-panel--lookup :is(.context-sheet-controls,.lookup-heading,.lookup-footer) button > svg {
+  color:var(--approved-line-icon);
+}
+:root:not([data-theme="midnight"]) .approved-lookup-map > button > span { color:var(--approved-line-icon); }
+:root:not([data-theme="midnight"]) .approved-lookup-map img { filter:grayscale(1) contrast(2); }
+:root:not([data-theme="midnight"]) .quiet-pocket .paper-seam { filter:grayscale(1); }
 .lookup-record-count { display:inline-flex; align-items:center; justify-content:center; min-width:22px; height:22px; padding:0 5px; border-radius:999px; font-size:13px; font-weight:400; line-height:20px; color:var(--accent-700); background:var(--accent-50); }
 .context-panel.context-panel--lookup .lookup-content { flex:1; min-height:0; overflow:clip; }
 .context-panel--lookup .lookup-content > .soft-refresh-current { flex:1; min-height:0; overflow:auto; overscroll-behavior:contain; }
@@ -35,6 +42,7 @@
 .saved-context-entry.saved-sentence + .saved-context-entry.saved-sentence { margin-top:16px; }
 .saved-sentence-row { position:relative; min-width:0; padding:8px 8px 8px 44px; border-radius:8px; cursor:pointer; }
 .saved-sentence[data-active='true'] .saved-sentence-row { background:var(--interactive-hover); }
+:root:not([data-theme="midnight"]) .saved-sentence[data-active='true'] .saved-sentence-row { background:var(--approved-selected); }
 .saved-sentence-copy { display:grid; gap:4px; min-width:0; }
 .saved-sentence:focus-visible, .saved-sentence-original:focus-visible, .saved-sentence-source:focus-visible { outline:2px solid var(--accent-700); outline-offset:2px; border-radius:3px; }
 .saved-sentence p { margin:0; overflow-wrap:anywhere; }
