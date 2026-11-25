@@ -1,4 +1,4 @@
-:root { --material-tag-paper:#fbfaf5; --material-tag-ink:#3e544b; }
+:root { --material-tag-paper:#fff; --material-tag-ink:#242424; }
 .card-tag-options { display:flex; align-items:center; --card-tag-gap:10px; gap:var(--card-tag-gap); overflow:auto hidden; padding:6px 4px 12px; scrollbar-width:none; overscroll-behavior-inline:contain; }
 .card-tag-listbox { display:flex; flex:none; align-items:center; gap:var(--card-tag-gap); }
 .card-tag-listbox > button,.home-create-tag-action { display:inline-flex; flex:none; align-items:center; justify-content:center; gap:7px; min-height:46px; padding:10px 18px; border:1px solid transparent; border-radius:13px; background:var(--material-tag-paper); color:var(--material-tag-ink); box-shadow:0 4px 14px #24382e0d; font:500 14px/1.4 system-ui; white-space:nowrap; cursor:pointer; }

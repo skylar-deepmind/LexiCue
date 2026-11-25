@@ -1,12 +1,12 @@
 /* Typed inherited colors keep the page interactive throughout a theme change. */
-@property --approved-card { syntax:"<color>"; inherits:true; initial-value:#fffdf9; }
+@property --approved-card { syntax:"<color>"; inherits:true; initial-value:#fff; }
 @property --approved-card-ink { syntax:"<color>"; inherits:true; initial-value:#242424; }
 @property --approved-ink { syntax:"<color>"; inherits:true; initial-value:#242424; }
 @property --approved-secondary { syntax:"<color>"; inherits:true; initial-value:#535353; }
 @property --approved-tag { syntax:"<color>"; inherits:true; initial-value:#5e5e5e; }
-@property --approved-paper { syntax:"<color>"; inherits:true; initial-value:#faf9f6; }
-@property --approved-settings { syntax:"<color>"; inherits:true; initial-value:#faf9f6; }
-@property --approved-hover { syntax:"<color>"; inherits:true; initial-value:#efede8; }
+@property --approved-paper { syntax:"<color>"; inherits:true; initial-value:#fff; }
+@property --approved-settings { syntax:"<color>"; inherits:true; initial-value:#fff; }
+@property --approved-hover { syntax:"<color>"; inherits:true; initial-value:#f3f4f6; }
 @property --approved-focus { syntax:"<color>"; inherits:true; initial-value:#46576b; }
 @property --approved-dot { syntax:"<color>"; inherits:true; initial-value:#8b8b8b; }
 @property --approved-cover-mat { syntax:"<color>"; inherits:true; initial-value:#30343a; }

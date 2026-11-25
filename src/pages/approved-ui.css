@@ -211,7 +211,7 @@
 .approved-settings-paper .dictionary-preferences { border:0; padding:0 0 28px; }.approved-settings-paper .dictionary-preferences > p { display:none; }
 .approved-settings-paper .dictionary-packs { display:flex; align-items:start; gap:26px; overflow-x:auto; padding:8px 4px 24px; scrollbar-width:none; scroll-snap-type:x proximity; }
 .approved-settings-paper .dictionary-pack { width:173px; flex:none; padding:0; margin:0; border:0; background:none; scroll-snap-align:start; }
-.dictionary-pack { --dictionary-cover:#32363c; --dictionary-cover-ink:#faf9f6; }
+.dictionary-pack { --dictionary-cover:#32363c; --dictionary-cover-ink:#fff; }
 .approved-dictionary-book { display:flex; align-items:center; flex-direction:column; position:relative; width:173px; height:231px; padding:26px 16px 18px 22px; border:0; border-radius:3px 7px 7px 3px; color:var(--dictionary-cover-ink); background:var(--dictionary-cover); box-shadow:inset 7px 0 #0003,inset 10px 0 #ffffff14,3px 4px 7px #0002; cursor:pointer; text-align:center; }
 .approved-dictionary-book h2 { font-size:24px; line-height:1.5; color:inherit; margin:13px 0; font-weight:500; }.approved-book-rule { display:block; width:100%; border-top:1px solid #f6dfae80; }.approved-book-status { font-size:13px; margin-top:12px; color:inherit; }.approved-book-mark { margin-top:auto; font:italic 30px Georgia,serif; opacity:.65; }
 .approved-dictionary-book progress { max-width:100%; height:4px; margin-top:14px; }.approved-settings-paper .dictionary-pack > p { margin:17px 0 12px; font-size:13px; line-height:1.6; color:var(--approved-secondary); }.dictionary-pack > details > summary { font-size:12px; color:var(--approved-tag); cursor:pointer; }.dictionary-pack > details > p { font-size:12px; }
@@ -255,7 +255,7 @@
 .figma-shell .reading-breadcrumb .mobile-reading-path { display:none!important; }
 .lookup-fixed-header .lookup-source-host { top:65px; right:16px; z-index:2; }
 .approved-settings-paper .approved-dictionary-book h2 { color:inherit; font-size:24px; line-height:1.45; margin:13px 0; font-weight:500; }
-.approved-dictionary-book::after { content:''; position:absolute; inset:10px 10px 10px 17px; border:1px solid #faf9f666; pointer-events:none; }
+.approved-dictionary-book::after { content:''; position:absolute; inset:10px 10px 10px 17px; border:1px solid #fff6; pointer-events:none; }
 .approved-settings-paper .dictionary-preference-row small { display:none; }
 .approved-settings-paper .dictionary-preferences { display:flex; align-items:center; flex-wrap:wrap; gap:0; padding-bottom:28px; }
 .approved-settings-paper .dictionary-preference-row { display:flex; gap:0; width:auto; padding:10px 18px; border:0; border-radius:24px; background:var(--approved-hover); }

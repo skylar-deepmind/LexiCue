@@ -1440,9 +1440,9 @@ button:disabled:is([class*='bg-blue-'], [class*='bg-purple-'], [class*='bg-gray-
 [data-theme='ocean'] {
   --app-bg:var(--approved-paper); --surface:#fff; --surface-muted:var(--approved-hover);
   --text-strong:var(--approved-ink); --text-body:#3d3d3d; --text-muted:var(--approved-secondary); --text-faint:var(--approved-tag);
-  --border:#cbc8c1; --border-soft:#e3e0d9;
+  --border:#cdd0d4; --border-soft:#e1e4e8;
   --accent-50:#eef3f8; --accent-100:#e4edf6; --accent-200:#becfe0; --accent-500:#557da2; --accent-600:#315f8a; --accent-700:var(--approved-emphasis);
-  --interactive-hover:var(--approved-hover); --interactive-pressed:var(--approved-selected); --interactive-disabled:#efede8; --on-accent:#fff;
+  --interactive-hover:var(--approved-hover); --interactive-pressed:var(--approved-selected); --interactive-disabled:var(--approved-hover); --on-accent:#fff;
   --desk-background:var(--app-bg); --desk-paper:var(--surface); --desk-underlay:var(--surface-muted); --desk-dock:var(--surface); --desk-ink:var(--text-strong); --desk-muted:var(--text-muted); --desk-border:var(--border); --desk-shadow:none;
   --panel-shadow:0 14px 32px #00000016;
   --desk-card-shadow:0 10px 24px #00000012;
@@ -1569,9 +1569,9 @@ button:disabled:is([class*='bg-blue-'], [class*='bg-purple-'], [class*='bg-gray-
 /* Reading-room surfaces and interaction colors. */
 :root {
  --approved-empty-blend:multiply; --approved-empty-filter:grayscale(1);
- --approved-desk:var(--approved-paper); --approved-card:#fffdf9; --approved-card-ink:#242424;
+ --approved-desk:var(--approved-paper); --approved-card:var(--approved-paper); --approved-card-ink:#242424;
  --approved-ink:#242424; --approved-secondary:#535353; --approved-tag:#5e5e5e;
- --approved-paper:#faf9f6; --approved-settings:var(--approved-paper); --approved-hover:#efede8;
+ --approved-paper:#fff; --approved-settings:var(--approved-paper); --approved-hover:#f3f4f6;
  --approved-focus:#46576b; --approved-dot:#8b8b8b; --approved-cover-mat:#30343a;
  --approved-wall:#302d2b; --approved-wall-title:#343a44; --approved-emphasis:#28557f;
  --approved-selected:#e5eaf0; --approved-selected-ink:#242424;
