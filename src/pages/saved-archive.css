@@ -2,7 +2,7 @@
   --saved-directory: var(--saved-paper);
   --saved-paper: var(--approved-paper);
   --saved-card: var(--approved-card);
-  --saved-meter: #668574;
+  --saved-meter: var(--approved-focus);
   --saved-sort-thumb: var(--saved-paper);
   --saved-row-height: 44px;
   --saved-row-gap: 3px;
@@ -183,6 +183,7 @@
 .approved-saved-word:enabled:hover { background: var(--approved-hover); }
 .approved-saved-word[aria-pressed="true"] { background: var(--approved-selected); color: var(--approved-selected-ink); font-weight: 600; }
 .approved-saved-word[aria-pressed="true"]:enabled:hover { background: color-mix(in srgb, var(--approved-selected) 85%, var(--approved-hover)); }
+.approved-saved-word[aria-pressed="true"] { box-shadow: inset 3px 0 var(--approved-focus); }
 .approved-saved :is(button, [role="slider"], .approved-folio-sentence):focus-visible {
   outline: 2px solid var(--approved-focus);
   outline-offset: -2px;
@@ -261,7 +262,7 @@
   font: 400 21px/27px 'Source Serif 4',Georgia,serif;
   overflow-wrap: anywhere;
 }
-.approved-folio-sentence strong { color: var(--approved-warm); font-style: italic; font-weight: 600; }
+.approved-folio-sentence strong { color: var(--approved-emphasis); font-style: italic; font-weight: 600; }
 .approved-folio-translation {
   margin: 0;
   font: 400 13px/1.45 'Noto Sans SC',system-ui,sans-serif;

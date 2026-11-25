@@ -18,8 +18,8 @@
 .approved-dictionary-book h2 { pointer-events:none; }
 .approved-book-size { position:absolute; left:20px; right:14px; bottom:24px; font:13px/1.4 system-ui; color:inherit; font-variant-numeric:tabular-nums; }
 .approved-book-state { position:absolute; top:12px; right:10px; opacity:.75; }
-.dictionary-book-control { position:absolute; z-index:3; top:-4px; right:-4px; width:44px; height:44px; display:grid; place-items:center; border:0; background:transparent; color:#fff6d9; cursor:pointer; }
-.dictionary-book-control:focus-visible,.approved-dictionary-book:focus-visible { outline:2px solid var(--approved-focus); outline-offset:3px; }
+.dictionary-book-control { position:absolute; z-index:3; top:-4px; right:-4px; width:44px; height:44px; display:grid; place-items:center; border:0; background:transparent; color:var(--dictionary-cover-ink); cursor:pointer; }
+.approved-settings :is(.dictionary-book-control,.approved-dictionary-book):focus-visible { outline:2px solid var(--approved-focus); outline-offset:3px; }
 .dictionary-cover-progress { position:absolute; bottom:12px; left:22px; right:14px; height:4px; border-radius:4px; overflow:hidden; background:#ffffff30; }
 .dictionary-cover-progress i { display:block; width:100%; height:100%; background:currentColor; transform-origin:left center; transition:transform 220ms linear; }
 .dictionary-cover-progress[data-indeterminate] i { width:35%; animation:dictionary-cover-scan 1s ease-in-out infinite; }

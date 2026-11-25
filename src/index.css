@@ -1438,14 +1438,14 @@ button:disabled:is([class*='bg-blue-'], [class*='bg-purple-'], [class*='bg-gray-
 
 /* The approved palette maps onto the existing semantic theme contract. */
 [data-theme='ocean'] {
-  --app-bg:#faf9f6; --surface:#fff; --surface-muted:#f0f2ed;
-  --text-strong:#263b32; --text-body:#485a50; --text-muted:#626e65;
-  --border:#d1dbd2; --border-soft:#e2e7e0;
-  --accent-50:#eaf1f4; --accent-100:#dce9ef; --accent-200:#bed4df; --accent-500:#648da2; --accent-600:#416d84; --accent-700:#34596d;
-  --interactive-hover:#edf2f3; --interactive-pressed:#dce9ef; --interactive-disabled:#eff1ec; --on-accent:#fff;
+  --app-bg:var(--approved-paper); --surface:#fff; --surface-muted:var(--approved-hover);
+  --text-strong:var(--approved-ink); --text-body:#3d3d3d; --text-muted:var(--approved-secondary); --text-faint:var(--approved-tag);
+  --border:#cbc8c1; --border-soft:#e3e0d9;
+  --accent-50:#eef3f8; --accent-100:#e4edf6; --accent-200:#becfe0; --accent-500:#557da2; --accent-600:#315f8a; --accent-700:var(--approved-emphasis);
+  --interactive-hover:var(--approved-hover); --interactive-pressed:var(--approved-selected); --interactive-disabled:#efede8; --on-accent:#fff;
   --desk-background:var(--app-bg); --desk-paper:var(--surface); --desk-underlay:var(--surface-muted); --desk-dock:var(--surface); --desk-ink:var(--text-strong); --desk-muted:var(--text-muted); --desk-border:var(--border); --desk-shadow:none;
-  --panel-shadow:0 14px 32px #1c302016;
-  --desk-card-shadow:0 10px 24px #1c302012;
+  --panel-shadow:0 14px 32px #00000016;
+  --desk-card-shadow:0 10px 24px #00000012;
   --tag-blue:#e6eff8; --tag-blue-text:#3a638b; --tag-green:#e4eee5; --tag-green-text:#376447; --tag-pink:#f4e8ee; --tag-pink-text:#89566e;
 }
 [data-theme='midnight'] {
@@ -1566,24 +1566,24 @@ button:disabled:is([class*='bg-blue-'], [class*='bg-purple-'], [class*='bg-gray-
 .settings-heading .settings-back { min-width:44px;min-height:44px;padding:0;display:inline-flex;align-items:center;justify-content:center;border:0;background:transparent; }
 @media(max-width:767px){.desktop-page-back{display:none}}
 
-/* Figma-approved reading-room surfaces; all interaction colors have dark peers. */
+/* Reading-room surfaces and interaction colors. */
 :root {
  --approved-empty-blend:multiply; --approved-empty-filter:grayscale(1);
- --approved-desk:var(--approved-paper); --approved-card:#fcf9f1; --approved-card-ink:#213c34;
- --approved-ink:#213b35; --approved-secondary:#42574d; --approved-tag:#526d59;
+ --approved-desk:var(--approved-paper); --approved-card:#fffdf9; --approved-card-ink:#242424;
+ --approved-ink:#242424; --approved-secondary:#535353; --approved-tag:#5e5e5e;
  --approved-paper:#faf9f6; --approved-settings:var(--approved-paper); --approved-hover:#efede8;
- --approved-focus:#487965; --approved-dot:#a2b3a6; --approved-cover-mat:#26312e;
- --approved-wall:#302d2b; --approved-wall-title:#24483e; --approved-warm:#a5470e;
- --approved-selected:#f4d6b9; --approved-selected-ink:#213b35;
- --approved-reading-selected:#dce9ef; --approved-reading-selected-ink:#34596d;
+ --approved-focus:#46576b; --approved-dot:#8b8b8b; --approved-cover-mat:#30343a;
+ --approved-wall:#302d2b; --approved-wall-title:#343a44; --approved-emphasis:#28557f;
+ --approved-selected:#e5eaf0; --approved-selected-ink:#242424;
+ --approved-reading-selected:#e4edf6; --approved-reading-selected-ink:#28557f;
 }
 :root[data-theme="midnight"] {
  --approved-empty-blend:screen; --approved-empty-filter:grayscale(1) invert(1);
  --approved-card:#28332e; --approved-card-ink:#f0eee2;
  --approved-ink:#e3e9df; --approved-secondary:#d3dcd0; --approved-tag:#b1c9b4;
  --approved-paper:#202926; --approved-settings:#2c3831; --approved-hover:#33433b;
- --approved-focus:#b4d7bd; --approved-dot:#6e8d7a; --approved-cover-mat:#17211c;
- --approved-wall:#202321; --approved-wall-title:#24483e; --approved-warm:#ffb175;
- --approved-selected:#604533; --approved-selected-ink:#e3e9df;
+ --approved-focus:#b5cce2; --approved-dot:#6e8d7a; --approved-cover-mat:#17211c;
+ --approved-wall:#202321; --approved-wall-title:#24483e; --approved-emphasis:#adcde9;
+ --approved-selected:#344758; --approved-selected-ink:#eef3f8;
  --approved-reading-selected:#324b56; --approved-reading-selected-ink:#dceaf0;
 }
