@@ -3,19 +3,26 @@ import type { ExtractedDocument } from './documentTypes';
 import type { WebpageResponse } from './contentExtract';
 import type { YoutubeSource } from './sourceMedia';
 
-type DownloadMessage = { part: 'page' | 'audio'; received: number; total: number | null }
-    | { part: 'caption_search' | 'captions' | 'audio_started' };
+type DownloadMessage = { part: 'page' | 'audio'; received: number; total: number | null } | { part: 'captions' | 'cover' };
 type Progress = (fraction: number) => void;
-export type YouTubeImportProgress = { phase: 'captions' | 'media' } | { phase: 'audio'; fraction?: number };
-
-const fraction = (received: number, total: number) => Math.max(0, Math.min(1, received / total));
 
 async function fetchLink<T>(command: 'fetch_import_webpage' | 'fetch_import_youtube', url: string, signal: AbortSignal,
-    progress: (message: DownloadMessage) => void, operationId?: string): Promise<T> {
+    progress: Progress, operationId?: string): Promise<T> {
     if (signal.aborted) throw Error('material_cancelled');
     const job = crypto.randomUUID();
+    // YouTube work can overlap. Track the completed parts independently so a
+    // late cover or a downloader retry cannot move the paper backwards.
+    let captions = 0, cover = 0, audio = 0;
     const onProgress = new Channel<DownloadMessage>(message => {
-        if (!signal.aborted) progress(message);
+        if (signal.aborted) return;
+        if (message.part === 'captions') captions = .34;
+        else if (message.part === 'cover') cover = .10;
+        else if ('total' in message && message.total) {
+            const ratio = Math.max(0, Math.min(1, message.received / message.total));
+            if (message.part === 'page') { progress(.95 * ratio); return; }
+            audio = Math.max(audio, .51 * ratio);
+        }
+        if (operationId) progress(captions + cover + audio);
     });
     const abort = () => { void invoke('cancel_import_webpage', { job }).catch(() => {}); };
     signal.addEventListener('abort', abort, { once: true });
@@ -29,28 +36,14 @@ async function fetchLink<T>(command: 'fetch_import_webpage' | 'fetch_import_yout
 
 export type YouTubeCaptions = { content: string; source: YoutubeSource; cover?: string | null; audio_unavailable?: boolean };
 
-export function prepareYouTube(url: string, operationId: string, signal: AbortSignal, progress: (value: YouTubeImportProgress) => void) {
-    let received = -1;
-    return fetchLink<YouTubeCaptions>('fetch_import_youtube', url, signal, message => {
-        if (message.part === 'caption_search') progress({ phase: 'captions' });
-        else if (message.part === 'captions') progress({ phase: 'media' });
-        else if (message.part === 'audio_started') progress({ phase: 'audio' });
-        else if (message.part === 'audio' && message.total) {
-            const next = fraction(message.received, message.total);
-            // A native download retry can restart the byte counter.
-            if (next <= received) return;
-            received = next;
-            progress({ phase: 'audio', fraction: next });
-        }
-    }, operationId);
+export function prepareYouTube(url: string, operationId: string, signal: AbortSignal, progress: Progress) {
+    return fetchLink<YouTubeCaptions>('fetch_import_youtube', url, signal, progress, operationId);
 }
 
 export async function prepareContent(kind:'clipboard'|'webpage',value:string,signal:AbortSignal,
     download: Progress, parsing: () => void, organize: Progress):Promise<ExtractedDocument>{
     if(signal.aborted)throw Error('material_cancelled');
-    const response = kind === 'webpage' ? await fetchLink<WebpageResponse>('fetch_import_webpage', value, signal, message => {
-        if (message.part === 'page' && message.total) download(.95 * fraction(message.received, message.total));
-    }) : undefined;
+    const response = kind === 'webpage' ? await fetchLink<WebpageResponse>('fetch_import_webpage', value, signal, download) : undefined;
     if(signal.aborted)throw Error('material_cancelled');
     parsing();
     return new Promise((resolve,reject)=>{

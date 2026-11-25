@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { useRestoreGuard } from './restoreGuard';
 import { useFeedbackStore } from './feedbackStore';
 import i18n from '../i18n';
-import { prepareContent, prepareYouTube, type YouTubeImportProgress } from '../lib/contentImport';
+import { prepareContent, prepareYouTube } from '../lib/contentImport';
 import type { YoutubeSource } from '../lib/sourceMedia';
 import { clipboardTitle } from '../lib/clipboardContent';
 import { invoke } from '@tauri-apps/api/core';
@@ -54,7 +54,6 @@ export interface ImportItem extends ImportSource {
     englishFallback?: string;
     fallbackSegments?: SegmentInput[];
     downloadProgress?: number;
-    youtubeProgress?: YouTubeImportProgress;
     bodyProgress?: number;
     translationProgress?: TranslationProgress;
     result?: MaterialImportResult;
@@ -97,8 +96,7 @@ export async function prepareImportQueue(items: ImportItem[], signal: AbortSigna
         try {
             const contentKind = item.kind === 'clipboard' || item.kind === 'webpage' ? item.kind : undefined;
             if (!contentKind && !/\.(pdf|docx|epub|md|markdown|vtt|srt|txt)$/i.test(item.name)) throw new Error('material_invalid_srt');
-            update(item.id, { stage: 'reading', error: undefined, downloadProgress: undefined, youtubeProgress: undefined,
-                bodyProgress: undefined, translationProgress: undefined });
+            update(item.id, { stage: 'reading', error: undefined, downloadProgress: undefined, bodyProgress: undefined, translationProgress: undefined });
             let received = 0;
             const download = (fraction: number) => {
                 if (signal.aborted || fraction <= received) return;
@@ -113,9 +111,7 @@ export async function prepareImportQueue(items: ImportItem[], signal: AbortSigna
                 update(item.id, { stage: 'parsing', bodyProgress: .18 });
             };
             const reusing = !!item.preparedSegments;
-            const captions = item.kind === 'youtube' && !reusing
-                ? await abortable(prepareYouTube(item.url!, item.id, signal, youtubeProgress => update(item.id, { youtubeProgress })), signal)
-                : undefined;
+            const captions = item.kind === 'youtube' && !reusing ? await abortable(prepareYouTube(item.url!, item.id, signal, download), signal) : undefined;
             const youtube = captions?.source ?? item.youtube;
             const presentation = youtube ? {
                 youtube, youtubeCoverData: captions ? captions.cover : item.youtubeCoverData,

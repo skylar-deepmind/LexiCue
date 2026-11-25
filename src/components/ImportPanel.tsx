@@ -17,10 +17,8 @@ import { takeImportFocus } from './importFocus';
 import { useFileStore } from '../stores/fileStore';
 import { useImportStore } from '../stores/importStore';
 import ImportPaper from './ImportPaper';
-import YouTubeImportLoading from './YouTubeImportLoading';
 import type { MaterialDropPoint } from './useMaterialDrop';
 import { useImportPresence } from './useImportPresence';
-import { useYouTubeLanding } from './useYouTubeLanding';
 import { classifyImportLink } from '../lib/importLink';
 import { authorizeImportedReading, validateImportedReading, consumeImportedReading } from '../lib/readingEntry';
 import '../import.css';
@@ -38,15 +36,12 @@ export default function ImportPanel({ dropOrigin }: { dropOrigin: RefObject<Mate
     const { destination, running, hide, clearDestination, phase } = state;
     const open = live.open;
     const present = useImportPresence(open, panelRef);
-    useYouTubeLanding(open, phase, panelRef);
-    const youtubeItem = state.items.length === 1 && state.items[0].kind === 'youtube' ? state.items[0] : null;
-    const youtubeImport = !!youtubeItem;
     const [paperPainted, setPaperPainted] = useState(false);
-    const finishingPaper = open && !youtubeImport && paperPainted && phase === 'preview' && state.items.some(item => item.stage === 'ready')
+    const finishingPaper = open && paperPainted && phase === 'preview' && state.items.some(item => item.stage === 'ready')
         && !matchMedia('(prefers-reduced-motion: reduce)').matches;
     const preparing = phase === 'preparing' || finishingPaper;
     useLayoutEffect(() => {
-        if (open && phase === 'preparing' && !youtubeImport) {
+        if (open && phase === 'preparing') {
             setPaperPainted(true);
         } else if (finishingPaper) {
             // The draft is already available. Let the paper land before
@@ -56,7 +51,7 @@ export default function ImportPanel({ dropOrigin }: { dropOrigin: RefObject<Mate
         } else {
             setPaperPainted(false);
         }
-    }, [open, phase, finishingPaper, youtubeImport]);
+    }, [open, phase, finishingPaper]);
     const placing = useRef(false), placed = useRef(new Set<string>());
     const tags = useFileStore(s => s.tags);
     const loadTags = useFileStore(s => s.loadTags);
@@ -128,14 +123,12 @@ export default function ImportPanel({ dropOrigin }: { dropOrigin: RefObject<Mate
         onClose={() => { if (useImportStore.getState().phase === 'preparing') state.cancel(); else hide(); }}
         dismissOnBackdrop={false} className="lc-import-modal lc-import-preparing"
         layerClassName={`${layer} lc-import-preparing-layer`} panelRef={panelRef}>
-        {youtubeItem ? <YouTubeImportLoading disabled={!open} item={youtubeItem} />
-            : <ImportPaper disabled={!open || finishingPaper} finishing={finishingPaper} items={state.items}
-                dropOrigin={dropOrigin.current} />}
+        <ImportPaper disabled={!open || finishingPaper} finishing={finishingPaper} items={state.items}
+            dropOrigin={dropOrigin.current} />
     </Overlay>;
     if (selected?.draft && (preview || committing || result)) {
         return <Overlay returnFocus={takeImportFocus} label={t('materials.import')} onClose={hide}
-            className="lc-import-modal import-card-modal"
-            layerClassName={`${layer}${youtubeItem ? ' lc-import-youtube-layer' : ''}`} panelRef={panelRef}>
+            className="lc-import-modal import-card-modal" layerClassName={layer} panelRef={panelRef}>
             <ImportMaterialCard item={selected} items={state.items} tags={tags} tagSelection={state.importTags} phase={phase}
                 busy={running || !!state.selectionBusy} canConfirm={valid.length > 0 && !state.selectionBusy}
                 retryable={retryable} onClose={hide} onConfirm={()=>void state.confirm()} onRetry={()=>void state.retry()} />
