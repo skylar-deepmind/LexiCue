@@ -32,6 +32,26 @@ const fragments = [
     { start: [189, 28], end: [192, 75], width: 13, angle: 13 },
     { start: [250, 89], end: [221, 89], width: 10, angle: -11 },
 ];
+const starCount = 42;
+const starSizes = [2, 3, 2, 4, 3, 5, 2];
+const stars = Array.from({ length: starCount }, (_, index) => {
+    const angle = (index + .5) * 2 * Math.PI / starCount;
+    const x = Math.cos(angle), y = Math.sin(angle);
+    const distance = (index * 17) % 23;
+    const inset = .52 + ((index * 11) % 41) / 100;
+    // Project each direction onto the rectangular sheet, then vary the landing inset.
+    const reach = inset / Math.max(Math.abs(x), Math.abs(y));
+    const duration = 1800 + (index * 127) % 650;
+    return {
+        dx: Math.round((137 + distance) * x),
+        dy: Math.round(((y < 0 ? 126 : 94) + distance * .6) * y),
+        landX: x * reach,
+        landY: y * reach,
+        size: starSizes[index % starSizes.length],
+        duration,
+        delay: -((index * 977) % duration),
+    };
+});
 const lines = [
     { start: 47, english: 82, chinese: 36 },
     { start: 41, english: 62, chinese: 58 },
@@ -85,6 +105,8 @@ export default function ImportPaper({ disabled, finishing, items, dropOrigin }: 
     const x = mix(141, 130, paper), y = mix(56, 45, paper);
     const width = mix(104, 126, paper), height = mix(136, 148, paper);
     const cover = finishing ? 1 : .33 * download + .42 * body + .25 * translation;
+    const coverHeight = mix(10, 51, cover);
+    const youtube = items.length === 1 && items[0].kind === 'youtube';
     return <div className="lc-import-paper-stage" data-stage={finishing ? 'ready' : active ?? 'reading'}>
         <button ref={card} type="button" className="lc-import-paper-grip" disabled={disabled}
             aria-label={t('reader.discardImport')} onClick={openTrashTarget}>
@@ -92,10 +114,20 @@ export default function ImportPaper({ disabled, finishing, items, dropOrigin }: 
                 <span className="lc-import-paper-shadow" style={box(x + 4, y + 8, width, height)} />
                 <span className="lc-import-paper-sheet" style={box(x, y, width, height)} />
                 <span className="lc-import-paper-cover" style={{
-                    ...box(x + 13, y + 13, width - 26, mix(10, 51, cover)),
+                    ...box(x + 13, y + 13, width - 26, coverHeight),
                     '--cover-ink': `${Math.round(18 + 72 * cover)}%`,
                 } as CSSProperties}><i /></span>
-                {fragments.map(({start, end, width, angle}, index) => {
+                {youtube ? <span className="lc-import-paper-stars"
+                    style={{ left: x - 130 + width / 2, top: y - 45 + height / 2 }}>
+                    {stars.map(({ dx, dy, landX, landY, size, duration, delay }, index) => <i key={index}
+                        className={size >= 4 ? 'lc-import-paper-star-spark' : undefined}
+                        style={{
+                            width: size, height: size, margin: -size / 2,
+                            '--star-x': `${dx}px`, '--star-y': `${dy}px`,
+                            '--star-land-x': `${landX * width / 2}px`, '--star-land-y': `${landY * height / 2}px`,
+                            animationDuration: `${duration}ms`, animationDelay: `${delay}ms`,
+                        } as CSSProperties} />)}
+                </span> : fragments.map(({start, end, width, angle}, index) => {
                     const arrival = clamp(download * (1.48 - .20 * index));
                     const fade = clamp((arrival - .59) / .41);
                     return <span key={index} className="lc-import-paper-fragment" style={{

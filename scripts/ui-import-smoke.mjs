@@ -73,6 +73,13 @@ try{
     if(command==='plugin:event|unlisten'){listeners.delete(args.eventId);return;}
     if(['plugin:fs|read_text_file','plugin:fs|read'].includes(command)&&window.__holdRead){await new Promise(done=>window.__releaseRead=done);}
     if(command==='cancel_import_translation'){window.__uiCalls.push({command,args:structuredClone(args)});return;}
+    if(command==='fetch_import_youtube'&&window.__starImportFixture){
+     const fixture=window.__starImportFixture;
+     await new Promise(done=>{window.__releaseStarImport=done;});
+     callbacks.get(args.onProgress.id)?.({index:0,end:true});
+     return fixture;
+    }
+    if(command==='discard_youtube_import_audio')return;
     if(command==='fetch_import_webpage'&&window.__webImportFixture){
      const response=window.__webImportFixture;
      let index=0;
@@ -96,6 +103,45 @@ try{
    };
   });
   await page.goto(`${url}/files`);await page.locator('.approved-desk').waitFor();
+  await page.evaluate(async content=>{
+    window.__starImportFixture={content,source:{video_id:'jNQXAC9IVRw',title:'Public YouTube example',audio:null},cover:null};
+    const {useImportStore}=await window.__uiStoreModule('importStore');
+    useImportStore.getState().showLink();
+  },srt('The opening caption is ready.'));
+  await page.locator('#lc-import-link').fill('https://youtu.be/jNQXAC9IVRw');
+  await page.locator('#lc-import-link').press('Enter');
+  await page.waitForFunction(()=>typeof window.__releaseStarImport==='function');
+  const stars=page.locator('.lc-import-paper-stars');
+  await stars.locator('i').first().waitFor();
+  eq(await page.locator('.lc-import-paper-fragment').count(),0,'YouTube replaces the three fragments');
+  ok(await stars.evaluate(node=>{
+    const animations=node.getAnimations({subtree:true}).filter(animation=>animation.animationName==='lc-import-paper-star-gather');
+    const sheet=node.parentElement.querySelector('.lc-import-paper-sheet');
+    const {offsetWidth:width,offsetHeight:height}=sheet;
+    const sectors=new Set();
+    const landings=[];
+    for(const animation of animations){
+      if(animation.effect.getTiming().iterations!==Infinity)return false;
+      const keyframes=animation.effect.getKeyframes();
+      const source=new DOMMatrix(keyframes[0].transform);
+      const arrival=new DOMMatrix(keyframes.at(-1).transform);
+      if(Math.abs(source.e)<=width/2&&Math.abs(source.f)<=height/2)return false;
+      sectors.add(Math.round(Math.atan2(source.f,source.e)*4/Math.PI+8)%8);
+      landings.push([arrival.e/(width/2),arrival.f/(height/2)]);
+    }
+    return animations.length===42&&sectors.size===8
+      &&landings.every(([x,y])=>Math.abs(x)<1&&Math.abs(y)<1)
+      &&[0,1].every(axis=>landings.some(point=>point[axis]>.75)&&landings.some(point=>point[axis]<-.75));
+  }),'42 stars loop from all directions and land across the whole sheet');
+  await settle();await page.screenshot({path:`${output}/${theme}-youtube-stars.png`});
+  await page.emulateMedia({reducedMotion:'reduce'});
+  eq(await stars.evaluate(node=>getComputedStyle(node).display),'none','reduced motion keeps the paper without moving stars');
+  await page.emulateMedia({reducedMotion:'no-preference'});
+  await page.evaluate(()=>window.__releaseStarImport());
+  await preview();
+  eq(await stars.count(),0,'the original preview replaces the loading paper');
+  eq((await writes()).length,0,'YouTube preview makes no library write');
+  await close();
   const callsBefore=await pickerCalls();
   await chooseFromDesk();
   eq(await pickerCalls(),callsBefore+1,'one click opens the system picker directly');
