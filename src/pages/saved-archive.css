@@ -1,5 +1,5 @@
 .approved-saved.saved-workspace {
-  --saved-directory: #f0f2ea;
+  --saved-directory: var(--saved-paper);
   --saved-paper: var(--approved-paper);
   --saved-card: var(--approved-card);
   --saved-meter: #668574;
@@ -76,6 +76,9 @@
   border-radius: 18px;
 }
 .saved-directory { padding: 24px; gap: 15px; background: var(--saved-directory); }
+:root:not([data-theme="midnight"]) .approved-saved :is(.saved-directory, .approved-saved-search) {
+  box-shadow: inset 0 0 0 1px #e1ddd5;
+}
 .saved-order-slider {
   display: grid;
   place-items: center;

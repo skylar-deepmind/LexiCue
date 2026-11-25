@@ -149,6 +149,21 @@
 .figma-shell .reading-translation-status { position:fixed; z-index:12; bottom:max(88px,calc(env(safe-area-inset-bottom) + 78px)); left:50%; transform:translateX(-50%); width:max-content; max-width:calc(100vw - 32px); padding:9px 14px; border:1px solid var(--border-soft); border-radius:10px; box-shadow:0 3px 15px #17352b12; background:var(--approved-settings); color:var(--approved-ink); }
 /* C settings composition, with the same categories on both platforms. */
 .figma-shell .approved-settings.materials-scroll { padding:var(--approved-back-top) var(--approved-back-inset) 50px; background:var(--approved-desk); color:var(--approved-ink); }
+:root:not([data-theme="midnight"]) .approved-settings {
+  --approved-ink:#35322d;
+  --approved-secondary:#5c574e;
+  --approved-focus:#655f55;
+  --settings-control-outline:#898378;
+  --surface:var(--approved-paper);
+  --surface-muted:var(--approved-hover);
+  --accent-50:var(--approved-paper);
+  --accent-100:var(--approved-hover);
+  --accent-500:var(--settings-control-outline);
+  --accent-600:var(--approved-secondary);
+  --accent-700:var(--approved-focus);
+  --interactive-hover:var(--approved-hover);
+  --interactive-pressed:#e7e4de;
+}
 .figma-shell .approved-settings .settings-directory { width:min(1140px,100%); padding:0; margin:0 auto; color:var(--approved-ink); }
 .approved-settings-back { display:flex; margin-bottom:28px; }
 .approved-settings-columns { display:grid; grid-template-columns:258px minmax(0,1fr); gap:22px; }
@@ -156,6 +171,19 @@
 .approved-settings-tabs > button { display:flex; align-items:center; gap:14px; min-height:66px; padding:9px 18px; border:0; border-radius:12px; color:var(--approved-secondary); background:transparent; cursor:pointer; text-align:left; font-size:19px; }
 .approved-settings-tabs > button[aria-current="page"] { background:var(--approved-hover); color:var(--approved-ink); font-weight:600; }
 .approved-settings-tabs > button:hover { background:var(--approved-hover); }
+:root:not([data-theme="midnight"]) .approved-settings :is(
+  .approved-settings-tabs > button[aria-current="page"],
+  .approved-language-selection,
+  .approved-voice-speed button[aria-pressed="true"],
+  .dictionary-preference-row:has(input:checked),
+  .device-sync .sync-primary:enabled
+) {
+  background:var(--approved-paper);
+  color:var(--approved-ink);
+  box-shadow:inset 0 0 0 1px var(--settings-control-outline);
+}
+:root:not([data-theme="midnight"]) .approved-settings .device-sync .sync-primary:hover:enabled { background:var(--approved-hover); }
+:root:not([data-theme="midnight"]) .approved-settings .device-sync .sync-primary:active:enabled { background:var(--interactive-pressed); }
 .approved-settings-paper { min-height:450px; padding:40px 44px; border-radius:22px; background:var(--approved-settings); min-width:0; }
 .approved-settings-paper > h1 { margin:3px 0 29px; font-size:34px; line-height:1.2; font-weight:500; outline:none; }
 .approved-settings-paper .settings-list { background:transparent; border:0; border-radius:0; margin-inline:-12px; }
