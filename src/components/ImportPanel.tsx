@@ -20,6 +20,7 @@ import ImportPaper from './ImportPaper';
 import YouTubeImportLoading from './YouTubeImportLoading';
 import type { MaterialDropPoint } from './useMaterialDrop';
 import { useImportPresence } from './useImportPresence';
+import { useYouTubeLanding } from './useYouTubeLanding';
 import { classifyImportLink } from '../lib/importLink';
 import { authorizeImportedReading, validateImportedReading, consumeImportedReading } from '../lib/readingEntry';
 import '../import.css';
@@ -37,6 +38,7 @@ export default function ImportPanel({ dropOrigin }: { dropOrigin: RefObject<Mate
     const { destination, running, hide, clearDestination, phase } = state;
     const open = live.open;
     const present = useImportPresence(open, panelRef);
+    useYouTubeLanding(open, phase, panelRef);
     const youtubeItem = state.items.length === 1 && state.items[0].kind === 'youtube' ? state.items[0] : null;
     const youtubeImport = !!youtubeItem;
     const [paperPainted, setPaperPainted] = useState(false);
@@ -132,7 +134,7 @@ export default function ImportPanel({ dropOrigin }: { dropOrigin: RefObject<Mate
     </Overlay>;
     if (selected?.draft && (preview || committing || result)) {
         return <Overlay returnFocus={takeImportFocus} label={t('materials.import')} onClose={hide}
-            className={`lc-import-modal import-card-modal${youtubeItem && preview ? ' lc-import-youtube-reveal' : ''}`}
+            className="lc-import-modal import-card-modal"
             layerClassName={`${layer}${youtubeItem ? ' lc-import-youtube-layer' : ''}`} panelRef={panelRef}>
             <ImportMaterialCard item={selected} items={state.items} tags={tags} tagSelection={state.importTags} phase={phase}
                 busy={running || !!state.selectionBusy} canConfirm={valid.length > 0 && !state.selectionBusy}

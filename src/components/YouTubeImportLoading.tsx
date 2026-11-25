@@ -13,7 +13,22 @@ const status = {
     parsing: 'youtubeLoadingText',
     translating: 'youtubeLoadingTranslation',
 } as const;
-const waveHeights = [10, 19, 31, 23, 36, 26, 15];
+// Each mark keeps its identity as it moves from the caption to the waveform
+// and then onto a line in the preview paper.
+const marks = [
+    { cue: [-30, 7], wave: [-24, .32], line: [-51, 66] },
+    { cue: [-15, 7], wave: [-16, .62], line: [-30, 66] },
+    { cue: [0, 7], wave: [-8, .94], line: [-8, 66] },
+    { cue: [15, 7], wave: [0, .71], line: [-51, 82] },
+    { cue: [30, 7], wave: [8, 1.12], line: [-30, 82] },
+    { cue: [-8, 18], wave: [16, .82], line: [-51, 98] },
+    { cue: [8, 18], wave: [24, .46], line: [-30, 98] },
+].map(({ cue, wave, line }, index) => ({
+    '--cue-x': `${cue[0]}px`, '--cue-y': `${cue[1]}px`,
+    '--wave-x': `${wave[0]}px`, '--wave-scale': wave[1],
+    '--line-x': `${line[0]}px`, '--line-y': `${line[1]}px`,
+    '--beat-delay': `${-index * 95}ms`,
+}) as CSSProperties);
 
 export default function YouTubeImportLoading({ item, disabled }: { item: ImportItem; disabled: boolean }) {
     const { t } = useTranslation();
@@ -53,16 +68,16 @@ export default function YouTubeImportLoading({ item, disabled }: { item: ImportI
             aria-label={t('reader.discardImport')} onClick={openTrashTarget}>
             <span className="lc-youtube-loading-card" aria-hidden="true">
                 <span className="lc-youtube-loading-cover">
-                    {stage === 'metadata' && <><Link2 size={32} strokeWidth={1.45} />
-                        <i className="lc-youtube-scan" /></>}
-                    {stage === 'captions' && <span className="lc-youtube-cues"><i /><i /></span>}
-                    {stage === 'audio' ? <span className="lc-youtube-wave">
-                        {waveHeights.map((height, index) => <i key={index}
-                            style={{ height, animationDelay: `${-index * 95}ms` }} />)}
-                    </span> : stage !== 'metadata' && stage !== 'captions' && <Image size={32} strokeWidth={1.45} />}
-                    {stage === 'audio' && <span className="lc-youtube-loading-track" data-indeterminate={progress === undefined}>
+                    <Link2 className="lc-youtube-link-symbol" size={32} strokeWidth={1.45} />
+                    <Image className="lc-youtube-image-symbol" size={32} strokeWidth={1.45} />
+                    <i className="lc-youtube-scan" />
+                    <span className="lc-youtube-loading-track" data-indeterminate={progress === undefined}>
                         <i style={{ '--lc-audio-progress': progress ?? 0 } as CSSProperties} />
-                    </span>}
+                        <i className="lc-youtube-pending" />
+                    </span>
+                </span>
+                <span className="lc-youtube-marks">
+                    {marks.map((style, index) => <i key={index} style={style}><b /></i>)}
                 </span>
                 <span className="lc-youtube-loading-lines">
                     {[0, 1, 2].map(index => <span key={index} className="lc-youtube-loading-line"

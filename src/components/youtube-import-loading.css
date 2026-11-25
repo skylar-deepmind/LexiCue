@@ -29,6 +29,7 @@
 }
 
 .lc-youtube-loading-card {
+    position:relative;
     display:grid;
     gap:15px;
     padding:10px 10px 15px;
@@ -50,58 +51,98 @@
     color:var(--approved-tag);
 }
 
-.lc-youtube-loading-cover > svg { animation:lc-youtube-symbol-in 270ms cubic-bezier(.18,.8,.28,1) both; }
+/* Every layer stays mounted so a fast stage can redirect the current motion. */
+.lc-youtube-loading {
+    --youtube-settle:300ms cubic-bezier(.2,.72,.23,1);
+}
+.lc-youtube-loading-cover > svg {
+    grid-area:1/1;
+    opacity:0;
+    transform:translateY(5px) scale(.83);
+    transition:transform var(--youtube-settle), opacity 220ms ease;
+}
+.lc-youtube-loading[data-stage='metadata'] .lc-youtube-link-symbol {
+    opacity:1;
+    transform:translateY(-6px);
+}
+.lc-youtube-loading[data-stage='media'] .lc-youtube-image-symbol {
+    opacity:.85;
+    transform:translateY(-8px);
+}
+.lc-youtube-loading:is([data-stage='audio'], [data-stage='parsing'], [data-stage='translating']) .lc-youtube-image-symbol {
+    opacity:.77;
+    transform:translate(-62px, -20px) scale(.55);
+}
 .lc-youtube-scan {
     position:absolute;
     inset:0 auto 0 0;
     inline-size:44%;
     border-right:1px solid color-mix(in srgb, var(--approved-tag) 16%, transparent);
     background:linear-gradient(90deg, transparent, color-mix(in srgb, var(--approved-tag) 14%, transparent));
-    transform:translateX(-110%);
-    animation:lc-youtube-scan 1840ms 140ms ease-in-out infinite;
+    opacity:0;
+    transition:opacity 210ms ease-out;
+    animation:lc-youtube-scan 1840ms ease-in-out infinite paused;
+}
+.lc-youtube-loading[data-stage='metadata'] .lc-youtube-scan {
+    opacity:1;
+    animation-play-state:running;
 }
 
-.lc-youtube-cues {
-    display:grid;
-    justify-items:center;
-    gap:7px;
-    inline-size:82px;
-    transform:translateY(17px);
+.lc-youtube-marks {
+    position:absolute;
+    inset:60px 0 auto;
+    height:0;
+    color:var(--approved-tag);
+    pointer-events:none;
 }
-
-.lc-youtube-cues i {
-    display:block;
-    inline-size:100%;
-    block-size:5px;
-    background:currentColor;
-    border-radius:4px;
-    animation:lc-youtube-cue-in 360ms cubic-bezier(.15,.82,.26,1) both;
-}
-
-.lc-youtube-cues i + i {
-    inline-size:70%;
-    opacity:.55;
-    animation-delay:75ms;
-    animation-direction:reverse;
-    animation-name:lc-youtube-cue-out;
-}
-
-.lc-youtube-wave {
-    display:flex;
-    align-items:center;
-    gap:4px;
-    padding-bottom:6px;
-    animation:lc-youtube-symbol-in 260ms cubic-bezier(.18,.8,.28,1) both;
-}
-
-.lc-youtube-wave i {
-    display:block;
-    inline-size:4px;
+.lc-youtube-marks > i {
+    position:absolute;
+    top:0;
+    left:50%;
+    width:4px;
+    height:32px;
+    opacity:.65;
     border-radius:3px;
-    background:currentColor;
-    animation:lc-youtube-wave 720ms ease-in-out infinite alternate;
+    transform:translate(calc(-50% + var(--x)), calc(-50% + var(--y))) scale(var(--sx), var(--sy));
+    transition:transform var(--youtube-settle), opacity 220ms ease;
+    --x:var(--wave-x);
+    --y:19px;
+    --sx:.72;
+    --sy:.1;
 }
-
+.lc-youtube-marks b {
+    display:block;
+    width:100%;
+    height:100%;
+    border-radius:inherit;
+    background:currentColor;
+    animation:lc-youtube-wave 780ms var(--beat-delay) ease-in-out infinite alternate paused;
+}
+.lc-youtube-loading:is([data-stage='captions'], [data-stage='media']) .lc-youtube-marks > i {
+    --x:var(--cue-x);
+    --y:var(--cue-y);
+    --sx:4;
+    --sy:.115;
+    opacity:.86;
+}
+.lc-youtube-loading[data-stage='media'] .lc-youtube-marks > i {
+    --y:calc(var(--cue-y) + 9px);
+    opacity:.69;
+}
+.lc-youtube-loading[data-stage='audio'] .lc-youtube-marks > i {
+    --y:0px;
+    --sx:1;
+    --sy:var(--wave-scale);
+    opacity:1;
+}
+.lc-youtube-loading[data-stage='audio'] .lc-youtube-marks b { animation-play-state:running; }
+.lc-youtube-loading:is([data-stage='parsing'], [data-stage='translating']) .lc-youtube-marks > i {
+    --x:var(--line-x);
+    --y:var(--line-y);
+    --sx:5.3;
+    --sy:.1;
+    opacity:.28;
+}
 .lc-youtube-loading-track {
     position:absolute;
     inset:auto 13px 11px;
@@ -109,21 +150,32 @@
     overflow:hidden;
     border-radius:3px;
     background:color-mix(in srgb, var(--approved-tag) 24%, transparent);
+    opacity:0;
+    transform:translateY(4px);
+    transition:opacity 210ms ease, transform var(--youtube-settle);
 }
-
+.lc-youtube-loading[data-stage='audio'] .lc-youtube-loading-track {
+    opacity:1;
+    transform:none;
+}
 .lc-youtube-loading-track > i {
-    display:block;
-    block-size:100%;
+    position:absolute;
+    inset:0;
     border-radius:inherit;
     background:var(--approved-tag);
     transform:scaleX(var(--lc-audio-progress, 0));
     transform-origin:left;
     transition:transform 180ms ease-out;
 }
-
-.lc-youtube-loading-track[data-indeterminate='true'] > i {
+.lc-youtube-loading-track > .lc-youtube-pending {
     inline-size:28%;
-    animation:lc-youtube-audio-pending 1350ms ease-in-out infinite alternate;
+    opacity:0;
+    transition:opacity 160ms ease;
+    animation:lc-youtube-audio-pending 1350ms ease-in-out infinite alternate paused;
+}
+.lc-youtube-loading[data-stage='audio'] .lc-youtube-loading-track[data-indeterminate='true'] .lc-youtube-pending {
+    opacity:.75;
+    animation-play-state:running;
 }
 
 .lc-youtube-loading-lines { display:grid; gap:7px; padding-inline:8px; }
@@ -140,11 +192,6 @@
 
 .lc-youtube-loading-line:nth-child(2) { --lc-line-width:62%; }
 .lc-youtube-loading-line:nth-child(3) { --lc-line-width:73%; }
-.lc-youtube-loading[data-stage='captions'] .lc-youtube-loading-line > i:first-child {
-    animation:lc-youtube-line-in 370ms cubic-bezier(.18,.8,.28,1) both;
-}
-.lc-youtube-loading[data-stage='captions'] .lc-youtube-loading-line:nth-child(2) > i:first-child { animation-delay:65ms; }
-.lc-youtube-loading[data-stage='captions'] .lc-youtube-loading-line:nth-child(3) > i:first-child { animation-delay:130ms; }
 .lc-youtube-loading:not([data-stage='metadata']) .lc-youtube-loading-line > i:first-child { opacity:1; }
 .lc-youtube-loading-line > i:nth-child(2) {
     opacity:1;
@@ -153,51 +200,39 @@
     transform-origin:left;
 }
 
-.lc-import-youtube-reveal .import-card-stage {
-    animation:lc-youtube-preview-in 260ms cubic-bezier(.16,.78,.25,1) both;
+.lc-youtube-loading.lc-youtube-landing-copy {
+    position:absolute;
+    z-index:1;
+    display:block;
+    padding:0;
+    pointer-events:none;
+    transform-origin:0 0;
+}
+.lc-youtube-landing-copy * {
+    animation:none !important;
+    transition:none !important;
 }
 
 @keyframes lc-youtube-card-in {
     from { opacity:.48; transform:translateY(10px) scale(.93); }
     to { opacity:1; transform:none; }
 }
-@keyframes lc-youtube-symbol-in {
-    from { opacity:0; transform:translateY(7px) scale(.84); }
-    to { opacity:1; transform:none; }
-}
 @keyframes lc-youtube-scan {
     0%, 11% { transform:translateX(-110%); }
     77%, 100% { transform:translateX(240%); }
 }
-@keyframes lc-youtube-cue-in {
-    from { opacity:0; transform:translateX(-32px) scaleX(.52); }
-    to { opacity:1; transform:none; }
-}
-@keyframes lc-youtube-cue-out {
-    from { opacity:.55; transform:none; }
-    to { opacity:0; transform:translateX(26px) scaleX(.6); }
-}
 @keyframes lc-youtube-wave {
-    from { transform:scaleY(.43); }
+    from { transform:scaleY(.72); }
     to { transform:scaleY(1); }
 }
 @keyframes lc-youtube-audio-pending {
     from { transform:translateX(0); }
     to { transform:translateX(257%); }
 }
-@keyframes lc-youtube-line-in {
-    from { opacity:.24; transform:translateX(-11px); }
-    to { opacity:1; transform:none; }
-}
-@keyframes lc-youtube-preview-in {
-    from { opacity:.75; transform:translateY(8px) scale(.91); }
-    to { opacity:1; transform:none; }
-}
-
 @media (prefers-reduced-motion:reduce) {
-    .lc-youtube-loading *, .lc-import-youtube-reveal .import-card-stage {
+    .lc-youtube-loading * {
         animation:none !important;
         transition:none !important;
     }
-    .lc-youtube-loading-track[data-indeterminate='true'] > i { transform:none; }
+    .lc-youtube-loading-track .lc-youtube-pending { transform:none; }
 }

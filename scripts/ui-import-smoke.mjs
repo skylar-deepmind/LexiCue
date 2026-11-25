@@ -136,11 +136,11 @@ try{
   eq(await youtubeStatus.evaluate(node=>[node.offsetWidth,node.offsetHeight]),[1,1],'loading status is visually hidden');
   eq(await youtubeLoading.locator('.lc-youtube-loading-card').textContent(),'','loading artwork contains no text');
   await youtubeLoading.locator('.lc-youtube-scan').waitFor();
+  const startingMarks=await youtubeLoading.locator('.lc-youtube-marks').elementHandle();
   await youtubeProgress({part:'caption_search'});await youtubeStage('captions');
-  await youtubeLoading.locator('.lc-youtube-cues').waitFor();
   await youtubeProgress({part:'captions'});await youtubeStage('media');
   await youtubeProgress({part:'audio_started'});await youtubeStage('audio');
-  await youtubeLoading.locator('.lc-youtube-wave').waitFor();
+  ok(await startingMarks.evaluate(node=>node.isConnected&&node.children.length===7),'captions and waveform keep the same marks mounted');
   const audioProgress=youtubeLoading.getByRole('progressbar');
   eq(await audioProgress.getAttribute('aria-valuenow'),null,'unknown audio bytes are indeterminate');
   await youtubeProgress({part:'audio',received:60,total:100});
@@ -154,19 +154,35 @@ try{
   await page.evaluate(async()=>{
     window.__youtubeHandoff=new Promise(resolve=>{
       const observer=new MutationObserver(()=>{
-        if(document.querySelector('.import-card-stage')){observer.disconnect();resolve(performance.now());}
+        const card=document.querySelector('.import-material-card');
+        if(card){
+          observer.disconnect();
+          const landing=document.querySelector('.lc-youtube-landing-copy');
+          const animation=card.getAnimations()[0];
+          if(!landing||!animation){resolve({time:performance.now(),matched:false,decorative:false});return;}
+          animation.pause();
+          animation.currentTime=0;
+          const rect=card.getBoundingClientRect();
+          animation.play();
+          const origin=window.__youtubeLoadingOrigin;
+          const matched=['x','y','width','height'].every(key=>Math.abs(rect[key]-origin[key])<4);
+          resolve({time:performance.now(),matched,decorative:landing.inert&&landing.getAttribute('aria-hidden')==='true'});
+        }
       });
       observer.observe(document.body,{childList:true,subtree:true});
     });
     const {useImportStore}=await window.__uiStoreModule('importStore');
     const unsubscribe=useImportStore.subscribe(state=>{if(state.phase==='preview'){window.__youtubeDraftReady=performance.now();unsubscribe();}});
+    window.__youtubeLoadingOrigin=document.querySelector('.lc-youtube-loading-card').getBoundingClientRect();
   });
   await page.evaluate(()=>{window.__translationHold=false;window.__releaseTranslation();});
   await preview();
-  ok(await page.evaluate(async()=>await window.__youtubeHandoff-window.__youtubeDraftReady<200),'ready preview mounts without the paper hold');
+  const handoff=await page.evaluate(async()=>({...await window.__youtubeHandoff,started:window.__youtubeDraftReady}));
+  ok(handoff.time-handoff.started<200,'ready preview mounts without the paper hold');
+  ok(handoff.matched&&handoff.decorative,'preview starts at the loading card bounds and its visible copy is inert');
   ok(await page.locator('.lc-import-youtube-layer .overlay-scrim').evaluate(node=>getComputedStyle(node).backdropFilter.includes('blur')),'the preview retains the loading backdrop');
   eq((await writes()).length,0,'YouTube preview makes no library write');
-  await settle();await page.screenshot({path:`${output}/${theme}-youtube-preview.png`});
+  await settle();await page.locator('.lc-youtube-landing-copy').waitFor({state:'detached'});await page.screenshot({path:`${output}/${theme}-youtube-preview.png`});
   await close();
   await page.emulateMedia({reducedMotion:'reduce'});
   await submitYouTube();
