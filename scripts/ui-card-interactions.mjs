@@ -31,11 +31,11 @@ try{
   }));
   const before=await depth();
   eq(before.filter(item=>item.filter==='none'&&item.opacity==='1').map(item=>item.id),[String(fileId)],'only the front card is sharp');
-  eq(before.filter(item=>item.id!==String(fileId)).map(item=>[item.filter,item.opacity]),[['blur(16px)','0.42']],'the back card fades to a blurred silhouette');
+  eq(before.filter(item=>item.id!==String(fileId)).map(item=>[item.filter,item.opacity]),[['blur(12px)','0.42']],'the back card fades to a blurred silhouette');
   const next=await page.locator('.approved-edge-next').isEnabled()?'.approved-edge-next':'.approved-edge-prev',back=next.endsWith('next')?'.approved-edge-prev':'.approved-edge-next';
   await page.locator(next).click();await page.waitForTimeout(1100);ok(await page.locator('.approved-dots').evaluate(n=>Number(getComputedStyle(n).opacity)>.95),'turn indicator remains visible after 1.1 seconds');
   const turned=await depth();
-  eq(turned.find(item=>item.id===String(fileId))?.filter,'blur(16px)','the former front card blurs after a turn');
+  eq(turned.find(item=>item.id===String(fileId))?.filter,'blur(12px)','the former front card blurs after a turn');
   eq(turned.find(item=>item.id!==String(fileId))?.filter,'none','the new front card becomes sharp after a turn');
   await page.locator(back).click();await page.waitForTimeout(1100);ok(await page.locator('.approved-dots').evaluate(n=>Number(getComputedStyle(n).opacity)>.95),'a second turn renews the hold without fading');await page.waitForFunction(()=>getComputedStyle(document.querySelector('.approved-dots')).opacity==='0');
   const drag=await cover.boundingBox();await page.mouse.move(drag.x+drag.width/2,drag.y+drag.height/2);await page.mouse.down();await page.mouse.move(drag.x+drag.width/2+20,drag.y+drag.height/2);await page.waitForTimeout(2200);ok(await page.locator('.approved-dots').evaluate(n=>Number(getComputedStyle(n).opacity)>.95),'indicator stays visible throughout a held horizontal gesture');await page.mouse.up();eq(new URL(page.url()).pathname,'/files','short horizontal gesture does not accidentally open reading');
