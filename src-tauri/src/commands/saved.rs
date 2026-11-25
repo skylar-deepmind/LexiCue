@@ -1988,9 +1988,10 @@ fn groups_in_range_with_catalog(
         .as_deref()
         .and_then(|id| matching.iter().find(|group| group.group_id == id))
         .or_else(|| {
-            options.focus_record_id.as_ref().and_then(|id| {
-                matching.iter().find(|group| group.record_ids.contains(id))
-            })
+            options
+                .focus_record_id
+                .as_ref()
+                .and_then(|id| matching.iter().find(|group| group.record_ids.contains(id)))
         })
         .map(|group| summarize(group))
         .transpose()?;
@@ -2910,7 +2911,11 @@ mod tests {
         assert_eq!(alphabet.total_groups, 5);
         assert_eq!(alphabet.total_records, 6);
         assert_eq!(
-            alphabet.groups.iter().map(|g| normalize(&g.expression)).collect::<Vec<_>>(),
+            alphabet
+                .groups
+                .iter()
+                .map(|g| normalize(&g.expression))
+                .collect::<Vec<_>>(),
             ["apple", "éclair"]
         );
         let focused = alphabet.focused_group.unwrap();
@@ -2922,7 +2927,10 @@ mod tests {
         assert_eq!(counts.groups[1].expression, "apple");
         let next = read(SavedGroupOrder::Count, 2, None);
         assert_eq!(
-            next.groups.iter().map(|g| normalize(&g.expression)).collect::<Vec<_>>(),
+            next.groups
+                .iter()
+                .map(|g| normalize(&g.expression))
+                .collect::<Vec<_>>(),
             ["éclair", "zebra"]
         );
         let non_letter = read(SavedGroupOrder::Alphabet, 4, None);
