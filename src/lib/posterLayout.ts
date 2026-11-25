@@ -18,28 +18,16 @@ export function phonePosterLayout(items: PosterMeasure[]): PosterPlacement[][] {
   return columns;
 }
 
-export type PosterScale = 'large' | 'medium' | 'small';
 type Column = { width: number; heights: number[] };
-const desktopPatterns: Record<PosterScale, Column[]> = {
-  large: [
-    { width: 268, heights: [1.7, 1] }, { width: 206, heights: [1, 1.45] },
-    { width: 244, heights: [1.35, 1] }, { width: 198, heights: [1, 1.65] },
-  ],
-  medium: [
-    { width: 222, heights: [1.7, 1] }, { width: 152, heights: [1, 1.6, 1] },
-    { width: 182, heights: [1.1, 1] }, { width: 163, heights: [1, 1.35, 1] },
-    { width: 207, heights: [1.35, 1] },
-  ],
-  small: [
-    { width: 139, heights: [1.7, 1, 1] }, { width: 104, heights: [1, 1.25, 1, 1] },
-    { width: 126, heights: [1.12, 1, 1.5] }, { width: 111, heights: [1, 1.5, 1, 1] },
-  ],
-};
-export function desktopPosterLayout<T>(items: readonly T[], scale: PosterScale) {
-  const pattern = desktopPatterns[scale];
+const desktopPattern: Column[] = [
+  { width: 222, heights: [1.7, 1] }, { width: 152, heights: [1, 1.6, 1] },
+  { width: 182, heights: [1.1, 1] }, { width: 163, heights: [1, 1.35, 1] },
+  { width: 207, heights: [1.35, 1] },
+];
+export function desktopPosterLayout<T>(items: readonly T[]) {
   const columns: (Column & { items: T[] })[] = [];
   for (let index = 0, offset = 0; offset < items.length; index++) {
-    const { width, heights } = pattern[index % pattern.length];
+    const { width, heights } = desktopPattern[index % desktopPattern.length];
     const column = items.slice(offset, offset + heights.length);
     columns.push({ width, heights: heights.slice(0, column.length), items: column });
     offset += column.length;

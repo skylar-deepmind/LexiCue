@@ -1,9 +1,10 @@
 .approved-saved.saved-workspace {
-  --saved-directory: #f0f2ea;
+  --saved-directory: var(--saved-paper);
   --saved-paper: var(--approved-paper);
   --saved-card: var(--approved-card);
-  --saved-meter: #668574;
-  --saved-sort-thumb: var(--saved-paper);
+  --saved-meter: var(--approved-ink);
+  --saved-sort-thumb: var(--approved-selected);
+  --saved-selection-edge: 2px;
   --saved-row-height: 44px;
   --saved-row-gap: 3px;
   --saved-gutter: 39px;
@@ -24,6 +25,10 @@
   --saved-card: var(--approved-settings);
   --saved-meter: #8cac96;
   --saved-sort-thumb: var(--saved-paper);
+  --saved-selection-edge: 3px;
+}
+:root:not([data-theme="midnight"]) .approved-saved :is(.approved-saved-search, .approved-back, .approved-folio-speech, .saved-order-track) svg {
+  color: var(--approved-line-icon);
 }
 
 .approved-saved-header,
@@ -76,6 +81,9 @@
   border-radius: 18px;
 }
 .saved-directory { padding: 24px; gap: 15px; background: var(--saved-directory); }
+:root:not([data-theme="midnight"]) .approved-saved :is(.saved-directory, .approved-saved-search) {
+  box-shadow: inset 0 0 0 1px var(--border-soft);
+}
 .saved-order-slider {
   display: grid;
   place-items: center;
@@ -115,6 +123,7 @@
   background: var(--saved-sort-thumb);
   transition: transform 200ms ease-out;
 }
+:root:not([data-theme="midnight"]) .saved-order-thumb { box-shadow: inset 0 -1px var(--approved-selection-line); }
 .saved-order-slider[data-order="count"] .saved-order-thumb { transform: translateX(43px); }
 .saved-order-slider[data-dragging="true"] .saved-order-thumb { transition: none; }
 
@@ -180,6 +189,7 @@
 .approved-saved-word:enabled:hover { background: var(--approved-hover); }
 .approved-saved-word[aria-pressed="true"] { background: var(--approved-selected); color: var(--approved-selected-ink); font-weight: 600; }
 .approved-saved-word[aria-pressed="true"]:enabled:hover { background: color-mix(in srgb, var(--approved-selected) 85%, var(--approved-hover)); }
+.approved-saved-word[aria-pressed="true"] { box-shadow: inset var(--saved-selection-edge) 0 var(--approved-selection-line); }
 .approved-saved :is(button, [role="slider"], .approved-folio-sentence):focus-visible {
   outline: 2px solid var(--approved-focus);
   outline-offset: -2px;
@@ -258,7 +268,7 @@
   font: 400 21px/27px 'Source Serif 4',Georgia,serif;
   overflow-wrap: anywhere;
 }
-.approved-folio-sentence strong { color: var(--approved-warm); font-style: italic; font-weight: 600; }
+.approved-folio-sentence strong { color: var(--approved-emphasis); font-style: italic; font-weight: 600; }
 .approved-folio-translation {
   margin: 0;
   font: 400 13px/1.45 'Noto Sans SC',system-ui,sans-serif;

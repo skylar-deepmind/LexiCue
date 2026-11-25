@@ -22,7 +22,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) { clear(); updateTheme(next); return; }
     // Interpolate inherited color tokens. No full-page snapshot can swallow a
     // second click, and reversing a CSS transition starts at its current color.
-    void getComputedStyle(root).getPropertyValue('--approved-desk');
+    void getComputedStyle(root).getPropertyValue('--approved-paper');
     root.dataset.themeTransition = 'true';
     if (!CSS.registerProperty) root.dataset.themeFallback = 'true';
     flushSync(() => updateTheme(next));

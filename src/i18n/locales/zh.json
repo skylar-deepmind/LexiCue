@@ -1908,10 +1908,6 @@
     "codeBlocks": "查看代码块原文（不朗读）"
   },
   "readingDesk": {
-    "posterScale": "海报缩放",
-    "posterScale_large": "大图",
-    "posterScale_medium": "中图",
-    "posterScale_small": "密集",
     "resetFilters": "清除筛选",
     "continueLabel": "继续阅读",
     "materialCount": "{{count}} 份材料",
