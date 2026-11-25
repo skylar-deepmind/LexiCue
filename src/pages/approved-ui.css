@@ -31,9 +31,9 @@
 .approved-deck::before { display:none; }
 .approved-card { display:flex; flex-direction:column; gap:0; position:absolute; left:calc(50% - 280px); top:0; width:560px; height:477px; min-height:0; padding:0; border:0; border-radius:16px; overflow:hidden; background:var(--approved-card); box-shadow:0 10px 17px #1b312b25; animation:none; transform-origin:center; transition:transform 430ms cubic-bezier(.22,.76,.21,1),filter 430ms ease,opacity 390ms ease; }
 .approved-card[data-desk-position="0"] { transform:none; z-index:3; }
-.approved-card[data-desk-position="-1"] { transform:translate(-175px,48px) rotate(-2deg); filter:blur(5px); opacity:.42; z-index:1; }
-.approved-card[data-desk-position="1"] { transform:translate(175px,48px) rotate(2deg); filter:blur(5px); opacity:.42; z-index:1; }
-:root:not([data-theme="midnight"]) .approved-card:is([data-desk-position="-1"],[data-desk-position="1"]) { filter:none; opacity:.55; }
+.approved-card[data-desk-position="-1"] { transform:translate(-175px,48px) rotate(-2deg); }
+.approved-card[data-desk-position="1"] { transform:translate(175px,48px) rotate(2deg); }
+.approved-card:is([data-desk-position="-1"],[data-desk-position="1"]) { filter:blur(16px); opacity:.42; z-index:1; }
 .approved-card:not([data-desk-position="0"],[data-desk-position="-1"],[data-desk-position="1"]) { opacity:0; visibility:hidden; pointer-events:none; transform:scale(.9); }
 .approved-card-open { display:flex; flex-direction:column; width:100%; height:100%; text-align:left; padding:0; background:transparent; color:var(--approved-card-ink); border:0; cursor:pointer; }
 .approved-card-cover { display:block; width:100%; height:315px; aspect-ratio:16/9; flex:none; object-fit:cover; }
