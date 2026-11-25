@@ -130,7 +130,11 @@ try {
     await page.locator('.reading-breadcrumb .page-back').click();
     await page.locator('.approved-saved-folio[data-current=true]').waitFor();
     equal(await page.locator('.approved-saved-folio[data-current=true]').getAttribute('data-record'), second, `${name} source return keeps the exact context`);
-    if (phone) await back.tap();
+    if (phone) {
+      await page.keyboard.press('Escape');
+      await index.waitFor();
+      equal(await cards.count(), 0, `${name} Escape also returns to the directory`);
+    }
     await slider.press('End');
     await page.waitForFunction(() => document.querySelector('.approved-saved-index .approved-saved-word')?.textContent === 'take off');
     equal(await slider.getAttribute('aria-valuenow'), '1', `${name} keyboard restores count order`);

@@ -186,6 +186,16 @@ export default function SavedArchivePage() {
     } else leave();
   }, [cancelSource, leave, mobileDetail, phone]);
   useEffect(() => backNavigation.setPage(() => { goBack(); return true; }, 3), [goBack]);
+  useEffect(() => {
+    if (!phone || !mobileDetail) return;
+    const escape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented || event.isComposing || backNavigation.hasLayers()) return;
+      event.preventDefault();
+      goBack();
+    };
+    window.addEventListener('keydown', escape);
+    return () => window.removeEventListener('keydown', escape);
+  }, [goBack, mobileDetail, phone]);
 
   const select = (group: SavedGroup, open: boolean) => {
     if (group.group_id !== groupId) {
