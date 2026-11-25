@@ -83,3 +83,12 @@ async function fixture(page,theme){
 }
 return {browser,url,call,fixture,errors,dispose:async()=>{await browser.close();if(server){await call('test_stop').catch(()=>{});await writeFile(`${output}/bridge.log`,log);}}};
 }
+
+export async function openSelectedSavedExpression(page){
+ await page.locator('.approved-saved').waitFor();
+ if(await page.evaluate(()=>matchMedia('(max-width: 767px)').matches)){
+  const directory=page.locator('.saved-directory');
+  if(await directory.isVisible())await directory.locator('.approved-saved-word[aria-pressed="true"]').click();
+ }
+ await page.locator('.approved-saved-folio[data-current="true"]').waitFor();
+}

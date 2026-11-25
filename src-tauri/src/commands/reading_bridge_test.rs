@@ -248,13 +248,15 @@ fn route(
             serde_json::to_value(saved::opening_context(c, a["recordId"].as_str())?)
                 .map_err(|e| e.to_string())
         }
-        "list_saved_groups" => serde_json::to_value(saved::groups_in_range(
+        "list_saved_groups" => serde_json::to_value(saved::groups_with_options(
             c,
             text("query"),
             a["limit"].as_i64().unwrap_or(50),
             id("offset"),
-            a["startMs"].as_i64(),
-            a["endMs"].as_i64(),
+            (a["startMs"].as_i64(), a["endMs"].as_i64()),
+            serde_json::from_value::<Option<saved::SavedGroupOptions>>(a["options"].clone())
+                .map_err(|error| error.to_string())?
+                .unwrap_or_default(),
         )?)
         .map_err(|e| e.to_string()),
         "saved_group_contexts" => serde_json::to_value(saved::contexts_in_range(

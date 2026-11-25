@@ -1344,6 +1344,13 @@
     "inferred": "KI-Einschätzung"
   },
   "savedRecords": {
+    "archiveTitle": "Gespeichert",
+    "directory": "Gespeicherte Ausdrücke",
+    "sort": "Gespeicherte Ausdrücke sortieren",
+    "sortAlphabet": "Alphabetisch",
+    "sortCount": "Nach Anzahl der Beispielsätze",
+    "exampleCount_one": "{{count}} gespeicherter Beispielsatz",
+    "exampleCount_other": "{{count}} gespeicherte Beispielsätze",
     "title": "Gespeichert",
     "settingsHint": "Originalsatz, Erklärung und Quelle zusammen aufbewahren.",
     "open": "Gespeicherte Einträge öffnen",

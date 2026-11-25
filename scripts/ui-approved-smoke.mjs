@@ -1,7 +1,7 @@
 /** Approved two-platform UI against actual Rust commands and disposable SQLite. */
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { createReadingHarness } from './ui-reading-support.mjs';
+import { createReadingHarness, openSelectedSavedExpression } from './ui-reading-support.mjs';
 const output=process.env.LEXICUE_APPROVED_UI_OUTPUT||'/tmp/lexicue-approved-ui';await mkdir(output,{recursive:true});
 const harness=await createReadingHarness(output);const {browser,url,call,fixture,errors}=harness;
 let checks=0,current;const ok=(v,s)=>{assert.ok(v,s);checks++;},eq=(a,b,s)=>{assert.deepEqual(a,b,s);checks++;};
@@ -89,14 +89,14 @@ try{
   ok(await page.locator(`[data-motion-file="${fileId}"]`).count(),'return retains source poster');
   const restored=await page.locator('.approved-wall-viewport').evaluate(n=>({x:n.scrollLeft,y:n.scrollTop}));ok(Math.abs(restored.x-wallPosition.x)<2&&Math.abs(restored.y-wallPosition.y)<2,'wall returns to exact scroll position');
   await page.getByRole('button',{name:'返回材料库',exact:true}).click();await page.locator('.approved-tag-panel').waitFor();await page.keyboard.press('Escape');await page.locator('.approved-tag-panel').waitFor({state:'detached'});
-  await page.getByRole('button',{name:'已保存',exact:true}).click();await page.locator('.approved-saved-folio').waitFor();await page.waitForFunction(()=>!document.documentElement.dataset.dissolve&&!document.querySelector('.approved-saved-flight'));
-  eq(await page.locator('.approved-saved-folio').count(),1,'only current sentence is presented');
-  ok((await page.locator('.approved-folio-translation').textContent()).length>0,'translation is visible by default');
+  await page.getByRole('button',{name:'已保存',exact:true}).click();await openSelectedSavedExpression(page);await page.waitForFunction(()=>!document.documentElement.dataset.dissolve&&!document.querySelector('.approved-saved-flight'));
+  ok(await page.locator('.approved-saved-folio').count()>0,'selected expression presents its saved contexts');
+  ok((await page.locator('.approved-folio-translation').first().textContent()).length>0,'translation is visible by default');
   await page.screenshot({path:`${output}/${theme}-${width}-saved.png`});
   const selected=await page.locator('.approved-saved-word[aria-pressed="true"]').getAttribute('data-group');
-  const source=page.locator('.approved-source-title');await source.click();await page.waitForURL(/\/files\/\d+/);await page.locator('[data-source-highlight="true"]').waitFor();
-  await page.locator('.reading-breadcrumb .page-back').click();await page.locator('.approved-saved-folio').waitFor();eq(await page.locator('.approved-saved-word[aria-pressed="true"]').getAttribute('data-group'),selected,'source return restores selected entry');
-  await page.locator('.approved-saved-header').getByRole('button',{name:'返回',exact:true}).click();await page.locator('.approved-desk').waitFor();
+  const source=page.locator('.approved-source-title').first();await source.click();await page.waitForURL(/\/files\/\d+/);await page.locator('[data-source-highlight="true"]').waitFor();
+  await page.locator('.reading-breadcrumb .page-back').click();await openSelectedSavedExpression(page);eq(await page.locator('.approved-saved-word[aria-pressed="true"]').getAttribute('data-group'),selected,'source return restores selected entry');
+  const savedBack=page.locator('.approved-saved-header .approved-back');await savedBack.click();if(width<768)await savedBack.click();await page.locator('.approved-desk').waitFor();
   await page.getByRole('button',{name:'设置',exact:true}).click();await page.locator('.approved-settings').waitFor();
   await page.locator('[data-entry="lookup"]').click();await page.locator('.approved-dictionary-book').first().waitFor();eq(await page.locator('.approved-dictionary-book').count(),3,'three real dictionary books');
   await page.screenshot({path:`${output}/${theme}-${width}-books.png`});

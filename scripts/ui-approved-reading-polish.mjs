@@ -1,7 +1,7 @@
 /** Mobile rail, inline home classification, and saved-sentence sizing in the real workspace. */
 import assert from 'node:assert/strict';
 import { writeFile } from 'node:fs/promises';
-import { createReadingHarness } from './ui-reading-support.mjs';
+import { createReadingHarness, openSelectedSavedExpression } from './ui-reading-support.mjs';
 
 const out = process.env.LEXICUE_READING_POLISH_OUTPUT || '/tmp/lexicue-reading-polish';
 const h = await createReadingHarness(out), checks = [];
@@ -99,28 +99,21 @@ try {
       const context = mobile ? phone : await h.browser.newContext({viewport:{width:1280,height:800}});
       if (!mobile) { page = await context.newPage(); await h.fixture(page,theme); }
       await page.goto(h.url+'/saved');
-      const sentence = page.locator('.approved-folio-sentence');
-      await sentence.waitFor();
-      await page.evaluate(()=>document.fonts.ready);
-      const reads = new Map();
-      const next = page.locator('.approved-context-pager button').last();
-      for(let i=0;i<examples.length;i++){
-        if(i>0){
-          const previous=await sentence.innerText();
-          await next.click();
-          await page.waitForFunction(old=>document.querySelector('.approved-folio-sentence')?.textContent!==old,previous);
-        }
-        const result=await sentence.evaluate(node=>{
-          const viewport=node.closest('.approved-folio-scroll');
-          return {example:node.textContent,size:parseFloat(getComputedStyle(node).fontSize),extra:viewport.scrollHeight-viewport.clientHeight};
-        });
-        const sample=examples.findIndex(([text])=>text===result.example);
-        reads.set(sample,result);
-        await page.screenshot({path:`${out}/${theme}-${mobile?'phone':'desktop'}-saved-${sample}.png`});
-      }
-      const sizes=[...reads.entries()].sort(([a],[b])=>a-b).map(([,row])=>row.size);
-      check(reads.size===4 && sizes.join()===(mobile?'34,30,26,24':'46,38,32,28'), `${theme} ${mobile?'phone':'desktop'} bounded font sizes across four lengths`);
-      check([0,1,2].every(i=>reads.get(i).extra<=1) && reads.get(3).extra>20, `${theme} ${mobile?'phone':'desktop'} only the extra-long fixture needs page scroll`);
+      await openSelectedSavedExpression(page);
+      const sentences = page.locator('.approved-folio-sentence');
+      await page.evaluate(() => document.fonts.ready);
+      const reads = await sentences.evaluateAll(nodes => nodes.map(node => ({
+        example: node.textContent,
+        width: node.clientWidth,
+        overflow: node.scrollWidth - node.clientWidth,
+        height: node.clientHeight,
+      })));
+      check(reads.length === examples.length && examples.every(([text])=>reads.some(row=>row.example===text)),
+        `${theme} ${mobile?'phone':'desktop'} retains all four full example sentences`);
+      check(reads.every(row=>row.width>0&&row.overflow<=1) && reads.find(row=>row.example===examples[3][0]).height>100,
+        `${theme} ${mobile?'phone':'desktop'} long examples wrap within the card`);
+      await sentences.filter({hasText:examples[3][0]}).scrollIntoViewIfNeeded();
+      await page.screenshot({path:`${out}/${theme}-${mobile?'phone':'desktop'}-saved-long.png`});
       if (!mobile) {
         const rail = page.locator('.approved-tag-rail');
         const tag = page.locator('.approved-card[data-desk-active=true] .approved-tag-edit');

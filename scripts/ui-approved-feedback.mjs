@@ -1,7 +1,7 @@
 /** Screenshot-feedback acceptance against real Rust commands and disposable SQLite. */
 import assert from 'node:assert/strict';
 import {mkdir,writeFile} from 'node:fs/promises';
-import {createReadingHarness} from './ui-reading-support.mjs';
+import {createReadingHarness,openSelectedSavedExpression} from './ui-reading-support.mjs';
 const out=process.env.LEXICUE_FEEDBACK_UI_OUTPUT||'/tmp/lexicue-approved-feedback';await mkdir(out,{recursive:true});
 const h=await createReadingHarness(out),checks=[];let page;
 const ok=(v,label)=>{assert.ok(v,label);checks.push(label);},eq=(a,b,label)=>{assert.deepEqual(a,b,label);checks.push(label);};
@@ -33,7 +33,7 @@ try{
   await page.locator('.approved-library-entry').click();await page.locator('.approved-tag-panel').waitFor();await page.locator('.approved-tag-flight').waitFor();ok(await page.locator('.approved-tag-flight').evaluate(n=>n.getAnimations({subtree:true}).some(a=>a.effect.getTiming().duration===430)),'library cards fly from the actual cover anchor');await settle();const railBack=await backRect('.approved-rail-back');await page.keyboard.press('Escape');await page.locator('.approved-tag-panel').waitFor({state:'detached'});await settle();
   await page.screenshot({path:`${out}/${theme}-${width}-home.png`});
   const preview=page.locator('.approved-pocket-preview');await preview.waitFor();ok((await preview.innerText()).includes('The air smelled of salt'),'pocket thumbnail contains its real full sentence');
-  await page.getByRole('button',{name:'已保存',exact:true}).click();await page.locator('.approved-saved-folio').waitFor();await settle();eq((await page.locator('.approved-folio-sentence').innerText()).trim(),'The air smelled of salt near the old pier.','miniature expands to the same saved sentence');eq(await backRect('.approved-saved-header .approved-back'),railBack,'saved and library back targets share the same position');await page.locator('.approved-saved-header').getByRole('button',{name:'返回',exact:true}).click();await page.locator('.approved-desk').waitFor();await settle();
+  await page.getByRole('button',{name:'已保存',exact:true}).click();await openSelectedSavedExpression(page);await settle();eq((await page.locator('.approved-folio-sentence').innerText()).trim(),'The air smelled of salt near the old pier.','miniature expands to the same saved sentence');const savedBack=await page.locator('.approved-saved-header .approved-back').boundingBox();ok(savedBack.width>=44&&savedBack.height>=44,'saved back keeps a full touch target');const savedBackButton=page.locator('.approved-saved-header .approved-back');await savedBackButton.click();if(width<768)await savedBackButton.click();await page.locator('.approved-desk').waitFor();await settle();
   await page.locator('.approved-card[data-desk-active=true] .approved-card-open').click();await page.locator('.approved-handoff [data-motion-piece=cover]').waitFor();
   const handoff = await page.locator('.approved-handoff').evaluate(layer => {
     const jobs = document.getAnimations().filter(animation => animation.effect.getTiming().duration === 580);
@@ -82,7 +82,7 @@ try{
   ok(await page.locator('.reading-layout').evaluate(n=>Number(getComputedStyle(n).opacity) === 1),'reader text is fully painted before cleanup');
   await page.locator('.approved-handoff').evaluate(()=>document.getAnimations().filter(a=>a.effect.getTiming().duration===580).forEach(a=>a.finish()));await settle();
   eq(await entryGeometry(),lastFrame,'the real reader has identical geometry across the final handoff frame');
-  eq(await backRect('.reading-breadcrumb .page-back'),railBack,'reader back stays at the same position as saved and library');
+  eq(await backRect('.reading-breadcrumb .page-back'),railBack,'reader back stays at the same position as the library');
   const docking = await page.evaluate(async () => {
     const viewport = document.querySelector('.reader-scroll');
     const heading = document.querySelector('.reading-title');
@@ -210,7 +210,7 @@ try{
     await toast.waitFor({state:'detached'});
   }
   eq(await page.locator('[data-entry=youtube], .youtube-download-settings').count(),0,'online subtitle settings have been removed');
-  await page.emulateMedia({reducedMotion:'reduce'});await page.goto(`${h.url}/files`);await page.locator('.approved-desk').waitFor();await page.getByRole('button',{name:'已保存',exact:true}).click();await page.locator('.approved-saved-folio').waitFor();eq(await page.locator('.approved-saved-flight,.approved-handoff,.approved-tag-flight').count(),0,'reduced motion opens real content without flights');ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'no horizontal overflow');
+  await page.emulateMedia({reducedMotion:'reduce'});await page.goto(`${h.url}/files`);await page.locator('.approved-desk').waitFor();await page.getByRole('button',{name:'已保存',exact:true}).click();await openSelectedSavedExpression(page);eq(await page.locator('.approved-saved-flight,.approved-handoff,.approved-tag-flight').count(),0,'reduced motion opens real content without flights');ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'no horizontal overflow');
   await context.close();
  }
  eq(h.errors,[],'no browser exceptions');await writeFile(`${out}/evidence.json`,JSON.stringify({checks,scope:'Chromium desktop and touch emulation, Sage/Midnight; real SQLite commands; speech transport controlled, no native acoustic claim'},null,2));console.log(`Approved feedback: ${checks.length} checks passed`);

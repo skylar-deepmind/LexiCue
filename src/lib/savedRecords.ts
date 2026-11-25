@@ -53,7 +53,13 @@ export interface SavedGroup {
   /** Read-only frozen dictionary meaning, independent of personal notes. */
   summary?: string | null;
 }
-export interface SavedGroupPage { groups: SavedGroup[]; total_groups: number; total_records: number }
+export type SavedGroupOrder = 'alphabet' | 'count';
+export interface SavedGroupPage {
+  groups: SavedGroup[];
+  total_groups: number;
+  total_records: number;
+  focused_group?: SavedGroup;
+}
 export interface SavedContextPage { records: SavedRecord[]; total: number }
 
 export interface SavedRecord {

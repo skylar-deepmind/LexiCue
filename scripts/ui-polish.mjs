@@ -1,7 +1,7 @@
 /** November polish: real disposable SQLite, controlled OS/service boundaries. */
 import assert from 'node:assert/strict';
 import {mkdir,writeFile} from 'node:fs/promises';
-import {createReadingHarness} from './ui-reading-support.mjs';
+import {createReadingHarness,openSelectedSavedExpression} from './ui-reading-support.mjs';
 const out=process.env.LEXICUE_POLISH_OUTPUT||'/tmp/lexicue-polish';await mkdir(out,{recursive:true});
 const h=await createReadingHarness(out);const checks=[];let page;
 const ok=(v,label)=>{assert.ok(v,label);checks.push(label);};
@@ -25,7 +25,7 @@ try{
    if(time===430)await page.screenshot({path:`${out}/${theme}-${width}-return.png`});
   }
   await page.evaluate(()=>document.getAnimations().filter(a=>a.effect?.getTiming().duration===580).forEach(a=>a.finish()));await settle();
-  await page.getByRole('button',{name:'已保存',exact:true}).click();await page.locator('.approved-folio-note').waitFor();await settle();
+  await page.getByRole('button',{name:'已保存',exact:true}).click();await openSelectedSavedExpression(page);await page.locator('.approved-folio-note').waitFor();await settle();
   const sentence=page.locator('.approved-folio-sentence'),before=await sentence.boundingBox();
   await page.locator('.approved-folio-note').click();await page.locator('.approved-inline-note textarea').waitFor();
   ok(await sentence.evaluate(n=>!n.closest('.approved-inline-note')),'inline explanation remains outside the sentence typography');
@@ -36,14 +36,6 @@ try{
   if(width<768)await page.setViewportSize({width:375,height:812});
   ok(await page.locator('input[type=date]').count()===0,'no precise date form');
   ok(await page.locator('.saved-timeline-period').count()===0,'single day has no date caption');
-  if(width<768){
-   const indexToggle=page.locator('.approved-index-toggle');
-   const neutralIndex=()=>indexToggle.evaluate(n=>getComputedStyle(n).backgroundColor===getComputedStyle(n.closest('.approved-saved')).backgroundColor);
-   await indexToggle.hover();ok(await neutralIndex(),'index arrow hover keeps the page background in both themes');
-   await indexToggle.click();ok(await neutralIndex(),'expanded index arrow has no selected background');
-   ok(await indexToggle.getAttribute('aria-expanded')==='true','index arrow expands without a selected surface');
-   await indexToggle.click();ok(await neutralIndex(),'collapsed index arrow has no sticky touch-hover surface');
-  }
   const halo=await page.locator('.approved-folio-speech').evaluate(n=>({overflow:getComputedStyle(n).overflow,inset:getComputedStyle(n,'::before').inset,width:n.getBoundingClientRect().width,height:n.getBoundingClientRect().height}));
   ok(halo.overflow==='visible'&&halo.width===halo.height,'speech button provides a complete square wave canvas');
   await page.goto(h.url+'/settings?section=lookup');await page.locator('.approved-dictionary-book').first().waitFor();

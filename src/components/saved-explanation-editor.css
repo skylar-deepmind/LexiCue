@@ -1,11 +1,10 @@
-.approved-saved-folio .approved-inline-note { display:flex; flex-direction:column; gap:5px; margin:0; min-width:0; }
+.saved-archive-term .approved-inline-note { display:flex; flex-direction:column; gap:5px; margin:0; min-width:0; }
 .approved-inline-note > label { color:var(--approved-secondary); font:14px/1.5 system-ui; }
-.approved-saved-folio .approved-inline-note textarea { display:block; resize:none; width:100%; min-height:44px; max-height:min(32dvh,250px); margin:0; padding:4px 0 6px; border:0; border-bottom:1px solid var(--approved-secondary); border-radius:0; background:transparent; color:var(--approved-ink); caret-color:var(--approved-warm); font:23px/1.5 system-ui; outline:none; box-shadow:none; }
+.saved-archive-term .approved-inline-note textarea { display:block; resize:none; width:100%; min-height:44px; max-height:min(32dvh,250px); margin:0; padding:4px 0 6px; border:0; border-bottom:1px solid var(--approved-secondary); border-radius:0; background:transparent; color:var(--approved-ink); caret-color:var(--approved-warm); font:23px/1.5 system-ui; outline:none; box-shadow:none; }
 .approved-inline-note textarea:focus-visible { border-bottom:2px solid var(--approved-focus); }
-.approved-saved-folio .approved-inline-note > div { display:flex; gap:8px; justify-content:flex-end; margin:0; }
+.saved-archive-term .approved-inline-note > div { display:flex; gap:8px; justify-content:flex-end; margin:0; }
 .approved-inline-note .saved-error { margin:4px 0; }
 .approved-saved.saved-workspace:has(.approved-inline-note) { height:var(--visual-height,100%); min-height:0; container-type:size; container-name:note-workspace; }
-.approved-folio-scroll:has(.approved-inline-note) { scroll-padding-block:16px 90px; }
-@media(max-width:767px) { .approved-saved-folio .approved-inline-note textarea { font-size:16px; line-height:1.6; }.approved-inline-note > label { font-size:12px; } }
+@media(max-width:767px) { .saved-archive-term .approved-inline-note textarea { font-size:16px; line-height:1.6; }.approved-inline-note > label { font-size:12px; } }
 
-@container note-workspace (max-height:520px) { .approved-timeline { display:none; }.approved-saved-columns { gap:10px; } }
+@container note-workspace (max-height:520px) { .approved-saved-columns { gap:10px; } }

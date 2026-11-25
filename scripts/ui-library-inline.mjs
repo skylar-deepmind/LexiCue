@@ -1,7 +1,7 @@
 /** Native-service-backed interaction regressions; no production user library. */
 import assert from 'node:assert/strict';
 import { writeFile } from 'node:fs/promises';
-import { createReadingHarness } from './ui-reading-support.mjs';
+import { createReadingHarness, openSelectedSavedExpression } from './ui-reading-support.mjs';
 const out=process.env.LEXICUE_LIBRARY_UI_OUTPUT||'/tmp/lexicue-library-inline',h=await createReadingHarness(out);let page,checks=0;
 const ok=(v,s)=>{assert.ok(v,s);checks++;},eq=(v,e,s)=>{assert.deepEqual(v,e,s);checks++;};
 const settle=()=>page.waitForFunction(()=>!document.querySelector('.approved-tag-flight,.approved-handoff,.approved-saved-flight'));
@@ -70,7 +70,7 @@ try {
   await page.evaluate(async()=>{const{useImportStore:i}=await window.__uiStoreModule('importStore');await i.getState().fromContent('clipboard','A new material waits near the harbor.',true);});await page.locator('.import-material-card').waitFor();eq(await page.locator('.import-edge-label').innerText(),'待整理','import preview shares the renamed default');await page.keyboard.press('Escape');
   // In-place explanation: cursor in original page, real persistence and cancel.
   await h.call('test_seed_recall',{count:1,records:[{expression:'air',sentence:'The air is cool near the harbor.',explanation:'保留的解释。',saved_at:Date.now()}]});
-  await page.goto(h.url+'/saved');await page.locator('.approved-folio-note').waitFor();await settle();await page.locator('.approved-folio-note').click();const editor=page.locator('.approved-inline-note'),input=editor.locator('textarea');await input.waitFor();
+  await page.goto(h.url+'/saved');await openSelectedSavedExpression(page);await page.locator('.approved-folio-note').waitFor();await settle();await page.locator('.approved-folio-note').click();const editor=page.locator('.approved-inline-note'),input=editor.locator('textarea');await input.waitFor();
   eq(await page.getByRole('dialog').count(),0,'personal explanation edits in the original page without a popup');ok(await input.evaluate(n=>n===document.activeElement),'inline explanation has the editing cursor');ok(await input.evaluate(n=>parseFloat(getComputedStyle(n).borderBottomWidth)>=1),'inline explanation uses an underline');
   await input.fill('不应保存的草稿');await editor.getByRole('button',{name:'取消',exact:true}).click();eq((await h.call('list_saved_records',{query:'',limit:10,offset:0}))[0].explanation,'保留的解释。','cancel does not write a note');
   await page.locator('.approved-folio-note').click();eq(await page.locator('.approved-inline-note textarea').inputValue(),'保留的解释。','cancel discards the inline draft');

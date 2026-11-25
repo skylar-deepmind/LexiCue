@@ -220,7 +220,8 @@ function MaterialDesk() {
         <button className="approved-saved-entry" onPointerDown={savedRoute.preload} onFocus={savedRoute.preload} aria-label={t('savedRecords.title')} onClick={event => {
           cancelReadingReturn();
           const open=()=>navigate('/saved',{state:{...visitState(location),pocketRecordId:pocket?.record_id}});
-          if(captureSavedEntrance(pocket?.record_id,event.currentTarget.querySelector<HTMLElement>('.approved-pocket-sheet')))open();else dissolvePage(open);
+          if (!matchMedia('(max-width: 767px)').matches && captureSavedEntrance(pocket?.record_id, event.currentTarget.querySelector<HTMLElement>('.approved-pocket-sheet'))) open();
+          else dissolvePage(open);
         }}><span className="approved-word-pocket" aria-hidden="true"><i/><SavedPocketPreview record={pocket}/><i/></span></button>
       </footer>
     </>}
