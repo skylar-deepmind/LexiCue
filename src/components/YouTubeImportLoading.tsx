@@ -1,5 +1,4 @@
-import { Image, Link2 } from 'lucide-react';
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useRef, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useImportStore, type ImportItem } from '../stores/importStore';
 import useTrashDrag from './useTrashDrag';
@@ -13,42 +12,25 @@ const status = {
     parsing: 'youtubeLoadingText',
     translating: 'youtubeLoadingTranslation',
 } as const;
-// Each mark keeps its identity as it moves from the caption to the waveform
-// and then onto a line in the preview paper.
-const marks = [
-    { cue: [-30, 7], wave: [-24, .32], line: [-51, 66] },
-    { cue: [-15, 7], wave: [-16, .62], line: [-30, 66] },
-    { cue: [0, 7], wave: [-8, .94], line: [-8, 66] },
-    { cue: [15, 7], wave: [0, .71], line: [-51, 82] },
-    { cue: [30, 7], wave: [8, 1.12], line: [-30, 82] },
-    { cue: [-8, 18], wave: [16, .82], line: [-51, 98] },
-    { cue: [8, 18], wave: [24, .46], line: [-30, 98] },
-].map(({ cue, wave, line }, index) => ({
-    '--cue-x': `${cue[0]}px`, '--cue-y': `${cue[1]}px`,
-    '--wave-x': `${wave[0]}px`, '--wave-scale': wave[1],
-    '--line-x': `${line[0]}px`, '--line-y': `${line[1]}px`,
-    '--beat-delay': `${-index * 95}ms`,
-}) as CSSProperties);
+
+// The line reserves space for each step. Only reported bytes and completed
+// sentences can advance it within the audio and translation steps.
+const step = { metadata: 0, captions: .18, media: .37, audio: .49, parsing: .75, translating: .79 } as const;
 
 export default function YouTubeImportLoading({ item, disabled }: { item: ImportItem; disabled: boolean }) {
     const { t } = useTranslation();
     const grip = useRef<HTMLButtonElement>(null);
     const download = item.youtubeProgress;
-    const [showParsing, setShowParsing] = useState(false);
-    useEffect(() => {
-        if (item.stage !== 'parsing' || !download) return;
-        // Fast subtitle parsing can finish between two video frames.
-        const timer = window.setTimeout(() => setShowParsing(true), 120);
-        return () => window.clearTimeout(timer);
-    }, [item.stage, download]);
-    const stage = item.stage === 'translating' ? 'translating'
-        : item.stage === 'parsing' && (showParsing || !download) ? 'parsing'
-        : download?.phase ?? 'metadata';
+    const stage = item.stage === 'parsing' || item.stage === 'translating'
+        ? item.stage : download?.phase ?? 'metadata';
     const label = t(`materials.importDialog.${status[stage]}`);
-    const translating = stage === 'translating';
-    const translation = translating ? item.translationProgress : undefined;
-    const progress = download?.phase === 'audio' ? download.fraction : undefined;
-    const lines = translation?.total ? Math.min(1, translation.done / translation.total) : 0;
+    const translation = stage === 'translating' ? item.translationProgress : undefined;
+    const audio = stage === 'audio' && download?.phase === 'audio' ? download.fraction : undefined;
+    const translated = translation?.total ? Math.min(1, translation.done / translation.total) : 0;
+    const fill = step[stage] + (stage === 'audio' ? (step.parsing - step.audio) * (audio ?? 0)
+        : (1 - step.translating) * translated);
+    const pending = stage === 'translating' ? !translation?.done : audio === undefined;
+
     const openTrashTarget = useTrashDrag(grip, {
         id: 'import-preparation',
         label,
@@ -67,30 +49,14 @@ export default function YouTubeImportLoading({ item, disabled }: { item: ImportI
         <button ref={grip} type="button" className="lc-youtube-loading-grip" disabled={disabled}
             aria-label={t('reader.discardImport')} onClick={openTrashTarget}>
             <span className="lc-youtube-loading-card" aria-hidden="true">
-                <span className="lc-youtube-loading-cover">
-                    <Link2 className="lc-youtube-link-symbol" size={32} strokeWidth={1.45} />
-                    <Image className="lc-youtube-image-symbol" size={32} strokeWidth={1.45} />
-                    <i className="lc-youtube-scan" />
-                    <span className="lc-youtube-loading-track" data-indeterminate={progress === undefined}>
-                        <i style={{ '--lc-audio-progress': progress ?? 0 } as CSSProperties} />
-                        <i className="lc-youtube-pending" />
-                    </span>
-                </span>
-                <span className="lc-youtube-marks">
-                    {marks.map((style, index) => <i key={index} style={style}><b /></i>)}
-                </span>
-                <span className="lc-youtube-loading-lines">
-                    {[0, 1, 2].map(index => <span key={index} className="lc-youtube-loading-line"
-                        style={{ '--lc-line-progress': Math.max(0, Math.min(1, lines * 3 - index)) } as CSSProperties}>
-                        <i /><i />
-                    </span>)}
-                </span>
+                <span className="lc-youtube-loading-track" data-pending={pending}
+                    style={{ '--youtube-fill': fill } as CSSProperties}><i /></span>
             </span>
         </button>
         <p className="sr-only" role="status">{label}</p>
         {translation?.total ? <span className="sr-only" role="progressbar" aria-label={label}
             aria-valuemin={0} aria-valuemax={translation.total} aria-valuenow={translation.done} />
             : stage === 'audio' && <span className="sr-only" role="progressbar" aria-label={label}
-                aria-valuenow={progress === undefined ? undefined : Math.round(progress * 100)} />}
+                aria-valuenow={audio === undefined ? undefined : Math.round(audio * 100)} />}
     </div>;
 }

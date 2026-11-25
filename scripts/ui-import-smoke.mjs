@@ -135,12 +135,11 @@ try{
   eq(await youtubeStatus.textContent(),'正在读取视频信息','metadata state is announced immediately');
   eq(await youtubeStatus.evaluate(node=>[node.offsetWidth,node.offsetHeight]),[1,1],'loading status is visually hidden');
   eq(await youtubeLoading.locator('.lc-youtube-loading-card').textContent(),'','loading artwork contains no text');
-  await youtubeLoading.locator('.lc-youtube-scan').waitFor();
-  const startingMarks=await youtubeLoading.locator('.lc-youtube-marks').elementHandle();
+  const startingTrack=await youtubeLoading.locator('.lc-youtube-loading-track').elementHandle();
   await youtubeProgress({part:'caption_search'});await youtubeStage('captions');
   await youtubeProgress({part:'captions'});await youtubeStage('media');
   await youtubeProgress({part:'audio_started'});await youtubeStage('audio');
-  ok(await startingMarks.evaluate(node=>node.isConnected&&node.children.length===7),'captions and waveform keep the same marks mounted');
+  ok(await startingTrack.evaluate(node=>node.isConnected&&node.children.length===1),'every stage advances the same single line');
   const audioProgress=youtubeLoading.getByRole('progressbar');
   eq(await audioProgress.getAttribute('aria-valuenow'),null,'unknown audio bytes are indeterminate');
   await youtubeProgress({part:'audio',received:60,total:100});
@@ -157,16 +156,15 @@ try{
         const card=document.querySelector('.import-material-card');
         if(card){
           observer.disconnect();
-          const landing=document.querySelector('.lc-youtube-landing-copy');
           const animation=card.getAnimations()[0];
-          if(!landing||!animation){resolve({time:performance.now(),matched:false,decorative:false});return;}
+          if(!card.hasAttribute('data-youtube-landing')||!animation){resolve({time:performance.now(),matched:false,decorative:false});return;}
           animation.pause();
           animation.currentTime=0;
           const rect=card.getBoundingClientRect();
           animation.play();
           const origin=window.__youtubeLoadingOrigin;
           const matched=['x','y','width','height'].every(key=>Math.abs(rect[key]-origin[key])<4);
-          resolve({time:performance.now(),matched,decorative:landing.inert&&landing.getAttribute('aria-hidden')==='true'});
+          resolve({time:performance.now(),matched,decorative:getComputedStyle(card,'::after').pointerEvents==='none'});
         }
       });
       observer.observe(document.body,{childList:true,subtree:true});
@@ -179,10 +177,10 @@ try{
   await preview();
   const handoff=await page.evaluate(async()=>({...await window.__youtubeHandoff,started:window.__youtubeDraftReady}));
   ok(handoff.time-handoff.started<200,'ready preview mounts without the paper hold');
-  ok(handoff.matched&&handoff.decorative,'preview starts at the loading card bounds and its visible copy is inert');
+  ok(handoff.matched&&handoff.decorative,'preview starts at the loading card bounds and its line does not intercept input');
   ok(await page.locator('.lc-import-youtube-layer .overlay-scrim').evaluate(node=>getComputedStyle(node).backdropFilter.includes('blur')),'the preview retains the loading backdrop');
   eq((await writes()).length,0,'YouTube preview makes no library write');
-  await settle();await page.locator('.lc-youtube-landing-copy').waitFor({state:'detached'});await page.screenshot({path:`${output}/${theme}-youtube-preview.png`});
+  await settle();await page.locator('.import-material-card[data-youtube-landing]').waitFor({state:'detached'});await page.screenshot({path:`${output}/${theme}-youtube-preview.png`});
   await close();
   await page.emulateMedia({reducedMotion:'reduce'});
   await submitYouTube();
