@@ -4,6 +4,7 @@ use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tauri::State;
+use unicode_normalization::{char::is_combining_mark, UnicodeNormalization};
 use uuid::Uuid;
 
 use crate::db::DbState;
@@ -1732,7 +1733,27 @@ pub struct SavedGroupPage {
     pub groups: Vec<SavedGroup>,
     pub total_groups: usize,
     pub total_records: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub focused_group: Option<SavedGroup>,
 }
+
+#[derive(Default, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SavedGroupOrder {
+    #[default]
+    Recent,
+    Alphabet,
+    Count,
+}
+
+#[derive(Default, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct SavedGroupOptions {
+    order: SavedGroupOrder,
+    focus_group_id: Option<String>,
+    focus_record_id: Option<String>,
+}
+
 #[derive(Serialize)]
 pub struct SavedContextPage {
     pub records: Vec<SavedRecord>,
@@ -1811,6 +1832,16 @@ fn group_preview(mut record: SavedRecord) -> SavedRecord {
     // selected sense, this source-labelled excerpt is useful on the word card.
     record
 }
+
+fn archive_alphabet_key(expression: &str) -> (bool, String) {
+    let folded: String = normalize(expression)
+        .nfd()
+        .filter(|c| !is_combining_mark(*c))
+        .collect();
+    let non_letter = !folded.starts_with(|c: char| c.is_ascii_alphabetic());
+    (non_letter, folded)
+}
+
 #[cfg(test)]
 pub fn groups(
     conn: &Connection,
@@ -1829,13 +1860,32 @@ pub fn groups_in_range(
     start_ms: Option<i64>,
     end_ms: Option<i64>,
 ) -> Result<SavedGroupPage, String> {
+    groups_with_options(
+        conn,
+        query,
+        limit,
+        offset,
+        (start_ms, end_ms),
+        SavedGroupOptions::default(),
+    )
+}
+
+#[cfg(test)]
+pub fn groups_with_options(
+    conn: &Connection,
+    query: &str,
+    limit: i64,
+    offset: i64,
+    dates: (Option<i64>, Option<i64>),
+    options: SavedGroupOptions,
+) -> Result<SavedGroupPage, String> {
     groups_in_range_with_catalog(
         conn,
         query,
         limit,
         offset,
-        start_ms,
-        end_ms,
+        dates,
+        options,
         super::dictionary_packs::relation_catalog_configured(),
     )
 }
@@ -1845,8 +1895,8 @@ fn groups_in_range_with_catalog(
     query: &str,
     limit: i64,
     offset: i64,
-    start_ms: Option<i64>,
-    end_ms: Option<i64>,
+    (start_ms, end_ms): (Option<i64>, Option<i64>),
+    options: SavedGroupOptions,
     catalog: RelationCatalog,
 ) -> Result<SavedGroupPage, String> {
     let archive = archive_for_dates(conn, catalog, start_ms, end_ms)?;
@@ -1895,32 +1945,60 @@ fn groups_in_range_with_catalog(
             })
             .collect()
     };
-    matching.sort_by(|a, b| {
-        b.latest_saved_at
-            .cmp(&a.latest_saved_at)
-            .then_with(|| a.group_id.cmp(&b.group_id))
-    });
+    if matches!(options.order, SavedGroupOrder::Recent) {
+        matching.sort_by(|a, b| {
+            b.latest_saved_at
+                .cmp(&a.latest_saved_at)
+                .then_with(|| a.group_id.cmp(&b.group_id))
+        });
+    } else {
+        matching.sort_by_cached_key(|group| {
+            let count = if matches!(options.order, SavedGroupOrder::Count) {
+                group.record_ids.len()
+            } else {
+                0
+            };
+            (
+                std::cmp::Reverse(count),
+                archive_alphabet_key(&group.expression),
+                group.group_id.clone(),
+            )
+        });
+    }
     let total_groups = matching.len();
     let total_records = matching.iter().map(|g| g.record_ids.len()).sum();
+    let summarize = |g: &ArchiveGroup| -> Result<SavedGroup, String> {
+        Ok(SavedGroup {
+            group_id: g.group_id.clone(),
+            expression: preview_text(&g.expression, 256),
+            context_count: g.record_ids.len(),
+            latest_saved_at: g.latest_saved_at,
+            preview: group_preview(get(conn, &g.record_ids[0])?.ok_or("saved_missing")?),
+            summary: g.summary_zh.as_ref().or(g.summary_en.as_ref()).cloned(),
+        })
+    };
     let groups = matching
-        .into_iter()
+        .iter()
         .skip(offset.max(0) as usize)
         .take(limit.clamp(1, 200) as usize)
-        .map(|g| {
-            Ok(SavedGroup {
-                group_id: g.group_id.clone(),
-                expression: preview_text(&g.expression, 256),
-                context_count: g.record_ids.len(),
-                latest_saved_at: g.latest_saved_at,
-                preview: group_preview(get(conn, &g.record_ids[0])?.ok_or("saved_missing")?),
-                summary: g.summary_zh.as_ref().or(g.summary_en.as_ref()).cloned(),
+        .map(|group| summarize(group))
+        .collect::<Result<Vec<_>, _>>()?;
+    let focused_group = options
+        .focus_group_id
+        .as_deref()
+        .and_then(|id| matching.iter().find(|group| group.group_id == id))
+        .or_else(|| {
+            options.focus_record_id.as_ref().and_then(|id| {
+                matching.iter().find(|group| group.record_ids.contains(id))
             })
         })
-        .collect::<Result<_, String>>()?;
+        .map(|group| summarize(group))
+        .transpose()?;
     Ok(SavedGroupPage {
         groups,
         total_groups,
         total_records,
+        focused_group,
     })
 }
 #[cfg(test)]
@@ -2105,6 +2183,7 @@ pub async fn list_saved_groups(
     offset: Option<i64>,
     start_ms: Option<i64>,
     end_ms: Option<i64>,
+    options: Option<SavedGroupOptions>,
 ) -> Result<SavedGroupPage, String> {
     let query = query.unwrap_or_default();
     let prepare = if query.trim().is_empty() {
@@ -2119,8 +2198,8 @@ pub async fn list_saved_groups(
                 &query,
                 limit.unwrap_or(50),
                 offset.unwrap_or(0),
-                start_ms,
-                end_ms,
+                (start_ms, end_ms),
+                options.unwrap_or_default(),
                 catalog,
             )
         })
@@ -2801,6 +2880,53 @@ mod tests {
             .unwrap()
             .contains(&"change".into()));
         assert_eq!(groups(&conn, "", 50, 0).unwrap().total_records, 1);
+    }
+
+    #[test]
+    fn archive_sorts_globally_before_paging_and_resolves_a_focused_record() {
+        let (_d, conn) = db();
+        let first = mutate(&conn, "count-first", &input(1)).unwrap().record;
+        let second = mutate(&conn, "count-second", &input(2)).unwrap().record;
+        save_surface(&conn, 3, "zebra", None);
+        save_surface(&conn, 4, "apple", None);
+        save_surface(&conn, 5, "Éclair", None);
+        save_surface(&conn, 6, "42 days", None);
+        let read = |order, offset, focus_record_id| {
+            groups_with_options(
+                &conn,
+                "",
+                2,
+                offset,
+                (None, None),
+                SavedGroupOptions {
+                    order,
+                    focus_record_id,
+                    ..Default::default()
+                },
+            )
+            .unwrap()
+        };
+        let alphabet = read(SavedGroupOrder::Alphabet, 0, Some(second.record_id));
+        assert_eq!(alphabet.total_groups, 5);
+        assert_eq!(alphabet.total_records, 6);
+        assert_eq!(
+            alphabet.groups.iter().map(|g| normalize(&g.expression)).collect::<Vec<_>>(),
+            ["apple", "éclair"]
+        );
+        let focused = alphabet.focused_group.unwrap();
+        assert_eq!(focused.context_count, 2);
+        let contexts = group_contexts(&conn, &focused.group_id, 50, 0).unwrap();
+        assert_eq!(contexts.records.len(), 2);
+        let counts = read(SavedGroupOrder::Count, 0, Some(first.record_id));
+        assert_eq!(counts.groups[0].expression, "take off");
+        assert_eq!(counts.groups[1].expression, "apple");
+        let next = read(SavedGroupOrder::Count, 2, None);
+        assert_eq!(
+            next.groups.iter().map(|g| normalize(&g.expression)).collect::<Vec<_>>(),
+            ["éclair", "zebra"]
+        );
+        let non_letter = read(SavedGroupOrder::Alphabet, 4, None);
+        assert_eq!(non_letter.groups[0].expression, "42 days");
     }
 
     #[test]

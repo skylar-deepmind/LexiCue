@@ -1,263 +1,370 @@
-import SavedExplanationEditor from '../components/SavedExplanationEditor';
-import useTrashDrag, { isTrashDragging } from '../components/useTrashDrag';
-import { bookmarkTitle } from '../lib/bookmarkDesk';
-import SavedTimeline from '../components/SavedTimeline';
-import '../components/saved-timeline.css';
-import SavedExcerpt from '../components/SavedExcerpt';
-import { finishSavedEntrance, prepareSavedReturn } from '../lib/savedEntrance';
-import { dissolvePage } from '../lib/pageDissolve';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
-import { ChevronDown, ChevronLeft, ChevronRight, Search, Undo2, Volume2 } from 'lucide-react';
-import { createViewCache, usePageReturn, viewKey, visitState } from '../lib/pageNavigation';
-import { backNavigation } from '../lib/backNavigation';
-import { readerNavigation, resolveSavedSource, savedNoteDrafts } from '../lib/readerNavigation';
-import { mutateSaved, savedErrorKey, undoSaved, type SavedContextPage, type SavedGroupPage, type SavedRecord } from '../lib/savedRecords';
-import { savedCover } from '../lib/materialCover';
-import { useRestoreGuard } from '../stores/restoreGuard';
-import MaterialCover from '../components/MaterialCover';
-import SpeechButton, { SpeechFeedback } from '../components/SpeechButton';
+import { ArrowLeft, Search, Undo2, X } from 'lucide-react';
+import SavedArchiveIndex from '../components/SavedArchiveIndex';
+import { SavedArchiveCard, SavedArchiveGloss } from '../components/SavedArchiveCard';
 import { BusyRing } from '../components/LoadingFeedback';
-import { bindMediaTarget } from '../lib/sourceMedia';
-import { useSourceMediaStore } from '../stores/sourceMediaStore';
+import { useMediaQuery } from '../components/useMediaQuery';
+import { useRestoreGuard } from '../stores/restoreGuard';
+import { backNavigation } from '../lib/backNavigation';
+import { createViewCache, usePageReturn, viewKey, visitState } from '../lib/pageNavigation';
+import { readerNavigation, resolveSavedSource } from '../lib/readerNavigation';
+import { finishSavedEntrance, prepareSavedReturn } from '../lib/savedEntrance';
+import { dissolvePage } from '../lib/pageDissolve';
+import { savedContextCache, savedGroupCache, useSavedReadRevision } from '../lib/savedReadCache';
+import { mutateSaved, savedErrorKey, undoSaved, type SavedContextPage, type SavedGroup, type SavedGroupOrder, type SavedGroupPage, type SavedRecord } from '../lib/savedRecords';
 import './source-return.css';
+import './saved-archive.css';
 
-import { savedContextCache, savedGroupCache, savedTimelineCache, useSavedReadRevision } from '../lib/savedReadCache';
+const groupsPerPage = 200;
+const contextsPerPage = 50;
+const emptyGroups: SavedGroupPage = { groups: [], total_groups: 0, total_records: 0 };
 
-const noGroups: SavedGroupPage = { groups: [], total_groups: 0, total_records: 0 };
-const noContexts: SavedContextPage = { records: [], total: 0 };
-const contextKey = (id: string | null, start: string, end: string) => JSON.stringify([id, start, end]);
-
-type View = { query: string; start: string; end: string; selected: string | null; record: string | null; expanded: boolean; listScroll: number };
+type View = {
+  query: string; order: SavedGroupOrder; group: SavedGroup | null; record: string | null;
+  mobileDetail: boolean; listScroll: number; detailScroll: number;
+};
 const views = createViewCache<View>();
-function bounds(start: string, end: string) {
-  const first = start ? new Date(`${start}T00:00:00`).getTime() : null;
-  const last = end ? new Date(`${end}T00:00:00`) : null;
-  if (last) last.setDate(last.getDate() + 1);
-  return { startMs: first, endMs: last?.getTime() ?? null };
+const groupCacheKey = (query: string, order: SavedGroupOrder, groupId: string | null, recordId: string | null) =>
+  JSON.stringify([query, order, groupId, recordId]);
+function readGroups(query: string, order: SavedGroupOrder, offset: number, groupId: string | null = null, recordId: string | null = null) {
+  return invoke<SavedGroupPage>('list_saved_groups', {
+    query, limit: groupsPerPage, offset, options: { order, focusGroupId: groupId, focusRecordId: recordId },
+  });
 }
+function readContexts(groupId: string, offset: number) {
+  return invoke<SavedContextPage>('saved_group_contexts', { groupId, limit: contextsPerPage, offset });
+}
+
 export default function SavedArchivePage() {
-  return <SavedArchive/>;
-}
-function SavedArchive() {
-  const { t } = useTranslation(), location = useLocation(), navigate = useNavigate(), key = viewKey(location);
-  useEffect(()=>{if(new URLSearchParams(location.search).get('view')==='manage')navigate('/saved',{replace:true,state:location.state});},[location.search,navigate,location.state]);
+  const { t } = useTranslation();
+  const location = useLocation(), navigate = useNavigate(), key = viewKey(location);
   const { back } = usePageReturn('/files');
+  const phone = useMediaQuery('(max-width: 767px)');
   const generation = useRestoreGuard(s => s.generation);
-  const pocketRecordId = (location.state as {pocketRecordId?:string}|null)?.pocketRecordId;
-  const [initial] = useState(() => views.get(key));
-  const [query, setQuery] = useState(initial?.query ?? ''), [searching, setSearching] = useState(!!initial?.query);
-  const [start, setStart] = useState(initial?.start ?? ''), [end, setEnd] = useState(initial?.end ?? '');
-  const groupKey = JSON.stringify([query, start, end]);
-  const [groups, setGroups] = useState(() => savedGroupCache.peek(groupKey) ?? noGroups);
-  const [needsOpeningContext] = useState(() => !savedGroupCache.isFresh(groupKey) && !initial?.selected);
-  const [opening, setOpening] = useState<{ record: SavedRecord; revision: number; generation: number } | null>(null);
-  const [selected, setSelected] = useState(() => initial?.selected
-    ?? groups.groups.find(group => group.preview.record_id === pocketRecordId)?.group_id
-    ?? groups.groups[0]?.group_id ?? null);
-  const [recordId, setRecordId] = useState<string | null>(initial?.record ?? pocketRecordId ?? null);
-  const [expanded, setExpanded] = useState(initial?.expanded ?? false);
   const savedRevision = useSavedReadRevision();
-  const activeContextKey = contextKey(selected, start, end);
-  const contextIdentity = JSON.stringify([activeContextKey, savedRevision, generation]);
-  const [contexts, setContexts] = useState(() => savedContextCache.peek(activeContextKey) ?? noContexts);
-  const [loadedContext, setLoadedContext] = useState(() => savedContextCache.isFresh(activeContextKey) ? contextIdentity : null);
-  const timezoneOffset = new Date().getTimezoneOffset(), timelineKey = String(timezoneOffset);
-  const [bins, setBins] = useState(() => savedTimelineCache.peek(timelineKey) ?? []);
-  const [timelineStatus, setTimelineStatus] = useState<'loading' | 'ready' | 'error'>(() => savedTimelineCache.isFresh(timelineKey) ? 'ready' : 'loading');
-  const [loading, setLoading] = useState(() => !savedGroupCache.isFresh(groupKey));
-  const [contextLoading, setContextLoading] = useState(false), [failure, setFailure] = useState(false), [revision, setRevision] = useState(0);
-  const [sourceBusy, setSourceBusy] = useState(false), [sourceError, setSourceError] = useState('');
+  const pocketRecord = (location.state as { pocketRecordId?: string } | null)?.pocketRecordId ?? null;
+  const [initial] = useState(() => views.get(key));
+  const [query, setQuery] = useState(initial?.query ?? '');
+  const [searching, setSearching] = useState(Boolean(initial?.query));
+  const [order, setOrder] = useState<SavedGroupOrder>(initial?.order ?? 'count');
+  const [mobileDetail, setMobileDetail] = useState(initial?.mobileDetail ?? false);
+  const [selected, setSelected] = useState<SavedGroup | null>(initial?.group ?? null);
+  const [recordId, setRecordId] = useState<string | null>(initial?.record ?? pocketRecord);
+  const [groupRead, setGroupRead] = useState<{ key: string; page: SavedGroupPage } | null>(null);
+  const [groupsLoading, setGroupsLoading] = useState(true);
+  const [groupError, setGroupError] = useState(false);
+  const [moreGroups, setMoreGroups] = useState(false);
+  const [groupRetry, setGroupRetry] = useState(0);
+  const [contextRead, setContextRead] = useState<{ identity: string; page: SavedContextPage } | null>(null);
+  const [contextError, setContextError] = useState(false);
+  const [moreContexts, setMoreContexts] = useState(false);
+  const [contextRetry, setContextRetry] = useState(0);
+  const [opening, setOpening] = useState<SavedRecord | null>(null);
+  const [sourceBusy, setSourceBusy] = useState<string | null>(null);
+  const [sourceError, setSourceError] = useState('');
+  const [receipt, setReceipt] = useState<string | null>(null);
+  const [writing, setWriting] = useState(false);
+
+  const list = useRef<HTMLDivElement>(null), detail = useRef<HTMLDivElement>(null), search = useRef<HTMLInputElement>(null);
+  const groupRequest = useRef(0), contextRequest = useRef(0), sourceRequest = useRef(0);
+  const groupPaging = useRef<number | null>(null), contextPaging = useRef<number | null>(null);
+  const pendingWrite = useRef(false), sourcePending = useRef(false);
+  const restoredGroup = useRef(initial?.group?.group_id ?? null);
   const removeIntents = useRef(new Map<string, { operation: string; revision: string }>());
-  const [receipt, setReceipt] = useState<string | null>(null), [undoing, setUndoing] = useState(false);
-  const [direction, setDirection] = useState(1);
-  const input = useRef<HTMLInputElement>(null), list = useRef<HTMLDivElement>(null), detail = useRef<HTMLDivElement>(null);
-  const request = useRef(0), contextRequest = useRef(0), sourceRequest = useRef(0), alive = useRef(true);
-  const gesture = useRef<{ x: number; y: number; direction: 'x' | 'y' | null } | null>(null), suppress = useRef(0);
-  const snapshot = useRef<View>({ query, start, end, selected, record: recordId, expanded, listScroll: initial?.listScroll ?? 0 });
-  snapshot.current = { query, start, end, selected, record: recordId, expanded, listScroll: list.current?.scrollTop ?? initial?.listScroll ?? 0 };
-  useEffect(() => () => { views.set(key, snapshot.current); }, [key]);
-  useEffect(() => { alive.current = true; return () => { alive.current = false; sourceRequest.current++; }; }, []);
-  useEffect(() => { if (searching) input.current?.focus(); }, [searching]);
+  const state = useRef<View>({
+    query, order, group: selected, record: recordId, mobileDetail,
+    listScroll: initial?.listScroll ?? 0, detailScroll: initial?.detailScroll ?? 0,
+  });
+  Object.assign(state.current, { query, order, group: selected, record: recordId, mobileDetail });
+
+  const groupId = selected?.group_id ?? null;
+  const showDetail = !phone || mobileDetail;
+  const filter = JSON.stringify([query, order]);
+  const groupPage = groupRead?.key === filter ? groupRead.page : emptyGroups;
+  const identity = JSON.stringify([groupId, savedRevision, generation, contextRetry]);
+  const contextPage = contextRead?.identity === identity ? contextRead.page : null;
+  const hasContextPage = contextPage !== null;
+  const openingRecord = showDetail && !query && !contextPage && opening?.record_id === recordId ? opening : null;
+  const records = contextPage?.records ?? (openingRecord ? [openingRecord] : []);
+  const record = records.find(item => item.record_id === recordId) ?? records[0];
+  const heading = selected?.expression ?? openingRecord?.expression;
+
   useEffect(() => {
-    if (!needsOpeningContext || query || start || end) return;
+    if (new URLSearchParams(location.search).get('view') === 'manage') {
+      navigate('/saved', { replace: true, state: location.state });
+    }
+  }, [location.search, location.state, navigate]);
+  useEffect(() => {
+    const snapshot = state.current;
+    return () => { views.set(key, snapshot); sourceRequest.current++; };
+  }, [key]);
+  useEffect(() => {
+    if (searching && !mobileDetail) search.current?.focus();
+  }, [searching, mobileDetail]);
+
+  useEffect(() => {
+    if (!showDetail || !pocketRecord || initial || query) return;
     let current = true;
-    void invoke<SavedRecord | null>('saved_opening_context', { recordId: pocketRecordId ?? null })
-      .then(record => { if (current) setOpening(record ? { record, revision: savedRevision, generation } : null); })
-      .catch(() => { /* The grouped archive owns the main loading and retry state. */ });
+    void invoke<SavedRecord | null>('saved_opening_context', { recordId: pocketRecord }).then(value => {
+      if (current) setOpening(value);
+    }).catch(() => { /* Group and context reads report their own failures. */ });
     return () => { current = false; };
-  }, [needsOpeningContext, pocketRecordId, query, start, end, savedRevision, generation]);
+  }, [initial, pocketRecord, query, showDetail]);
+
   useEffect(() => {
-    let current = true;
-    if (!savedTimelineCache.isFresh(timelineKey)) setTimelineStatus('loading');
-    void savedTimelineCache.fetch(timelineKey, () => invoke<typeof bins>('saved_date_histogram', { offsetMinutes: timezoneOffset }))
-      .then(value => { if (current) { setBins(value); setTimelineStatus('ready'); } })
-      .catch(() => { if (current) setTimelineStatus('error'); });
-    return () => { current = false; };
-  }, [revision, generation, savedRevision, timelineKey, timezoneOffset]);
-  useEffect(() => {
-    const token = ++request.current;
-    const cached = savedGroupCache.peek(groupKey);
-    setLoading(!cached); setFailure(false);
-    const load = () => void savedGroupCache.fetch(groupKey, () =>
-      invoke<SavedGroupPage>('list_saved_groups', { query, limit: 200, offset: 0, ...bounds(start, end) }),
-    ).then(next => {
-      if (token !== request.current) return;
-      setGroups(next);
-      setSelected(previous => next.groups.find(group => group.group_id === previous)?.group_id
-        ?? next.groups.find(group => group.preview.record_id === pocketRecordId)?.group_id
-        ?? next.groups[0]?.group_id ?? null);
-      setLoading(false);
-    }).catch(() => { if (token === request.current) { setFailure(true); setLoading(false); } });
+    const token = ++groupRequest.current;
+    const preferredGroup = state.current.group?.group_id ?? null;
+    const preferredRecord = !preferredGroup && state.current.record === pocketRecord ? pocketRecord : null;
+    const cache = groupCacheKey(query, order, preferredGroup, preferredRecord);
+    const cached = savedGroupCache.peek(cache);
+    setGroupRead(cached ? { key: filter, page: cached } : null);
+    setGroupsLoading(!cached);
+    setGroupError(false);
+    setMoreGroups(false);
+    const load = () => void savedGroupCache.fetch(cache, () => readGroups(query, order, 0, preferredGroup, preferredRecord)).then(page => {
+      if (token !== groupRequest.current) return;
+      setGroupRead({ key: filter, page });
+      setSelected(previous => page.groups.find(item => item.group_id === previous?.group_id) ?? page.focused_group ?? page.groups[0] ?? null);
+      if (!page.total_groups) setMobileDetail(false);
+      setGroupsLoading(false);
+    }).catch(() => {
+      if (token === groupRequest.current) { setGroupError(true); setGroupsLoading(false); }
+    });
     const timer = query && !cached ? setTimeout(load, 160) : undefined;
     if (timer === undefined) load();
-    return () => { clearTimeout(timer); request.current++; };
-  }, [query, start, end, revision, savedRevision, generation, pocketRecordId, groupKey]);
-  useEffect(() => {
-    const token = ++contextRequest.current; sourceRequest.current++; setSourceError(''); setSourceBusy(false);
-    if (!selected) { setContexts(noContexts); setLoadedContext(null); setContextLoading(false); return; }
-    const cached = savedContextCache.peek(activeContextKey);
-    setContextLoading(!cached);
-    if (cached) { setContexts(cached); setLoadedContext(contextIdentity); }
-    void savedContextCache.fetch(activeContextKey, () => invoke<SavedContextPage>(
-      'saved_group_contexts', { groupId: selected, limit: 50, offset: 0, ...bounds(start, end) },
-    )).then(next => {
-      if (token !== contextRequest.current) return;
-      setContexts(next);
-      setLoadedContext(contextIdentity);
-      setRecordId(previous => next.records.some(record => record.record_id === previous) ? previous : next.records[0]?.record_id ?? null);
-      setContextLoading(false);
-    }).catch(() => {
-      if (token === contextRequest.current) {
-        setContexts(noContexts);
-        setLoadedContext(contextIdentity);
-        setContextLoading(false);
-        setSourceError(t('approved.loadFailed'));
-      }
-    });
-    return () => { contextRequest.current++; };
-  }, [selected, start, end, revision, activeContextKey, contextIdentity, t]);
-  useLayoutEffect(() => { if (list.current && !loading) list.current.scrollTop = initial?.listScroll ?? 0; }, [loading, initial]);
-  const index = Math.max(0, contexts.records.findIndex(record => record.record_id === recordId));
-  const matchingContext = loadedContext === contextIdentity;
-  const selectedGroup = groups.groups.find(group => group.group_id === selected);
-  const openingRecord = !matchingContext && !query && !start && !end
-    && opening?.revision === savedRevision && opening.generation === generation
-    && (selected === null || selectedGroup?.preview.record_id === opening.record.record_id)
-    ? opening.record : undefined;
-  const record = matchingContext ? contexts.records[index] : openingRecord;
-  const currentRecordId=record?.record_id;
-  const leave = useCallback(() => { if (prepareSavedReturn(currentRecordId)) back(); else dissolvePage(back,true); },[back,currentRecordId]);
-  useEffect(() => backNavigation.setPage(() => { if(expanded)setExpanded(false);else leave();return true; },3),[expanded,leave]);
-  const previousFolio = useRef<string | null>(null);
-  useLayoutEffect(() => {
-    if(currentRecordId)finishSavedEntrance(currentRecordId);
-    const previous = previousFolio.current;
-    previousFolio.current = currentRecordId ?? null;
-    const node = detail.current; if (!node) return;
-    node.scrollTop = 0;
-    if (previous && currentRecordId && previous !== currentRecordId && !matchMedia('(prefers-reduced-motion: reduce)').matches) node.animate([{ transform: `translateX(${direction * 22}px)`, opacity: .45 }, { transform: 'none', opacity: 1 }], { duration: 185, easing: 'ease-out' });
-  }, [currentRecordId, direction]);
-  const choose = (id: string) => { if (performance.now() < suppress.current) return; setSelected(id); setRecordId(null); setExpanded(false); };
-  const turn = (step: number) => { if (contexts.records[index + step]) { setDirection(step); setRecordId(contexts.records[index + step].record_id); } };
-  const openSource = async () => {
-    if (!record || sourceBusy) return;
-    const token = ++sourceRequest.current; setSourceBusy(true); setSourceError('');
-    try {
-      const target = await resolveSavedSource(record);
-      if (!alive.current || token !== sourceRequest.current) return;
-      if (!target) { setSourceError(t('savedRecords.sourceMissing')); return; }
-      views.set(key, snapshot.current);
-      const visit = readerNavigation.create({ kind: 'saved', path: '/saved', view: { query, loadedGroups: groups.groups.length, expandedGroupId: selected, loadedContexts: {}, scrollTop: list.current?.scrollTop ?? 0, focusRecordId: record.record_id } }, target);
-      navigate(`/files/${target.fileId}?segment=${target.segmentIndex}`, { state: { ...visitState(location), sourceVisitToken: visit } });
-    } catch { if (alive.current && token === sourceRequest.current) setSourceError(t('savedRecords.sourceError')); }
-    finally { if (alive.current && token === sourceRequest.current) setSourceBusy(false); }
-  };
-  const remove = async () => {
-    if (!record || undoing) return false;
-    const intent = removeIntents.current.get(record.record_id) ?? { operation: crypto.randomUUID(), revision: record.revision }; removeIntents.current.set(record.record_id, intent); setUndoing(true);
-    try { await mutateSaved({ kind: 'remove', record_id: record.record_id, expected_revision: intent.revision }, intent.operation); setReceipt(intent.operation);setContexts(p=>({...p,records:p.records.filter(r=>r.record_id!==record.record_id),total:p.records.some(r=>r.record_id===record.record_id)?Math.max(0,p.total-1):p.total})); removeIntents.current.delete(record.record_id); return true; }
-    catch (cause) { setSourceError(t(savedErrorKey(cause))); return false; } finally { setUndoing(false); }
-  };
-  const loadMore = async () => {
-    const token = request.current; setLoading(true);
-    try { const next = await invoke<SavedGroupPage>('list_saved_groups', { query, limit: 200, offset: groups.groups.length, ...bounds(start, end) }); if (token === request.current) setGroups(previous => ({ ...next, groups: [...previous.groups, ...next.groups] })); }
-    catch { setFailure(true); } finally { if (token === request.current) setLoading(false); }
-  };
-  return <section className="approved-saved saved-workspace" aria-label={t('savedRecords.title')} onKeyDown={event => { if (event.key === 'Escape' && expanded) { event.preventDefault(); event.stopPropagation(); setExpanded(false); } }}>
-    <header className="approved-saved-header"><button className="approved-icon approved-back" aria-label={t('common.back')} onClick={leave}><ChevronLeft size={22}/></button><div className="approved-saved-search" data-open={searching}><input ref={input} type="search" aria-label={t('savedRecords.search')} value={query} onChange={event => setQuery(event.target.value)} onKeyDown={event => { if (event.key === 'Escape') { setSearching(false); input.current?.blur(); } }}/><button className="approved-icon" aria-label={t('savedRecords.search')} aria-expanded={searching} onClick={() => setSearching(value => !value)}><Search size={21}/></button></div></header>
-    <SavedTimeline bins={bins} recordCount={groups.total_records} start={start} end={end} status={timelineStatus} onRangeChange={(first, last) => { setStart(first); setEnd(last); }} onRetry={() => setRevision(value => value + 1)}/>
-    <div className="approved-saved-columns" data-expanded={expanded}>
-      <div ref={list} className="approved-saved-index" onKeyDown={event=>{
-        if(!['ArrowDown','ArrowUp','ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;
-        const buttons=[...event.currentTarget.querySelectorAll<HTMLButtonElement>('.approved-saved-word')];
-        const index=buttons.indexOf(document.activeElement as HTMLButtonElement);
-        const next=event.key==='Home'?0:event.key==='End'?buttons.length-1:Math.max(0,Math.min(buttons.length-1,index+(['ArrowDown','ArrowRight'].includes(event.key)?1:-1)));
-        if(buttons[next]){event.preventDefault();buttons[next].focus();choose(buttons[next].dataset.group!);}
-      }} onScroll={() => { snapshot.current.listScroll = list.current?.scrollTop ?? 0; }} onPointerDown={event => { gesture.current = { x: event.clientX, y: event.clientY, direction: null }; }} onPointerMove={event => { const g = gesture.current; if (!g) return; const x = event.clientX-g.x, y=event.clientY-g.y; if (!g.direction && Math.hypot(x,y)>8) g.direction=Math.abs(x)>Math.abs(y)?'x':'y'; if(g.direction==='y' && y>42) { setExpanded(true); suppress.current=performance.now()+350; } }} onPointerUp={() => { if (gesture.current?.direction) suppress.current=performance.now()+350; gesture.current=null; }}>
-        {groups.groups.map(group => <button key={group.group_id} className="approved-saved-word" data-group={group.group_id} aria-pressed={selected === group.group_id} disabled={loading} onClick={() => choose(group.group_id)}><span lang="en">{group.expression}</span>{group.context_count > 1 && <small>{group.context_count}</small>}<i aria-hidden="true"/></button>)}
-        {groups.groups.length < groups.total_groups && <button className="ui-button" disabled={loading} onClick={() => void loadMore()}>{t('approved.more')}</button>}
-      </div>
-      <button className="approved-index-toggle approved-icon" aria-expanded={expanded} aria-label={t('savedRecords.title')} onClick={() => setExpanded(value => !value)}><ChevronDown size={19}/></button>
-      <div className="approved-saved-detail">
-        {failure ? <div className="saved-error" role="alert"><p>{t('approved.loadFailed')}</p><button className="ui-button" onClick={() => setRevision(value => value+1)}>{t('common.retry')}</button></div> : !record && (loading && !groups.groups.length || contextLoading || selected && !matchingContext) ? <div role="status"><BusyRing/><span className="sr-only">{t('common.loading')}</span></div> : record ? <>
-          {matchingContext && contexts.total > 1 && <nav className="approved-context-pager" aria-label={t('dictionaryFlow.moreContexts', { count:contexts.total })}><button className="approved-icon" disabled={index===0} aria-label={t('history.previous')} onClick={() => turn(-1)}><ChevronLeft size={18}/></button><span>{index+1} / {contexts.total}</span><button className="approved-icon" disabled={index>=contexts.records.length-1} aria-label={t('history.next')} onClick={() => turn(1)}><ChevronRight size={18}/></button>{contexts.records.length<contexts.total && <button className="ui-button" onClick={() => { const token=contextRequest.current; void invoke<SavedContextPage>('saved_group_contexts',{groupId:selected,limit:50,offset:contexts.records.length,...bounds(start,end)}).then(next=>{if(token===contextRequest.current)setContexts(previous=>({...next,records:[...previous.records,...next.records]}));}).catch(()=>setSourceError(t('approved.loadFailed'))); }}>{t('approved.more')}</button>}</nav>}
-          <div ref={detail} className="approved-folio-scroll" onPointerDown={event => { if (!(event.target as Element).closest('button,input,textarea,summary')) gesture.current={x:event.clientX,y:event.clientY,direction:null}; }} onPointerMove={event=>{if(isTrashDragging()){gesture.current=null;return;}const g=gesture.current;if(!g)return;const x=event.clientX-g.x,y=event.clientY-g.y;if(!g.direction&&Math.hypot(x,y)>8)g.direction=Math.abs(x)>Math.abs(y)*1.25?'x':'y';}} onPointerUp={event=>{const g=gesture.current;gesture.current=null;if(!g)return;const x=event.clientX-g.x,y=event.clientY-g.y;if(g.direction==='x'&&Math.abs(x)>=36&&Math.abs(x)>Math.abs(y)*1.25){turn(x<0?1:-1);suppress.current=performance.now()+350;}}}>
-            <SavedFolio key={record.record_id} record={record} sourceBusy={sourceBusy} onSource={() => { if(performance.now()>=suppress.current)void openSource(); }} onChange={next=>setContexts(previous=>({...previous,records:previous.records.map(value=>value.record_id===next.record_id?next:value)}))} onRemove={remove} removing={undoing}/>
-          </div>
-        </> : <p role="status" className="approved-saved-empty">{t(query || start || end ? 'materials.noMatches' : 'savedRecords.empty')}</p>}
-        {sourceError && <p className="saved-error" role="alert">{sourceError}</p>}
-        {receipt && <div className="recall-undo" role="status"><span>{t('savedRecords.removed')}</span><button className="ui-button" disabled={undoing} onClick={()=>{setUndoing(true);void undoSaved(receipt).then(()=>setReceipt(null)).catch(cause=>setSourceError(t(savedErrorKey(cause)))).finally(()=>setUndoing(false));}}><Undo2 size={18}/>{t('savedRecords.undo')}</button></div>}
-      </div>
-    </div>
-  </section>;
-}
-function SavedFolio({ record, sourceBusy, onSource, onChange, onRemove, removing }: { record: SavedRecord; sourceBusy: boolean; onSource:()=>void; onChange:(record:SavedRecord)=>void; onRemove:()=>Promise<boolean>; removing:boolean }) {
-  const { t } = useTranslation(), paragraph = useRef<HTMLParagraphElement>(null), noteTrigger = useRef<HTMLButtonElement>(null);
-  const initial = useRef(savedNoteDrafts.get(record.record_id));
-  const [editing,setEditing]=useState(!!initial.current?.editing),[draft,setDraft]=useState(initial.current?.text??(record.explanation_source==='personal'?record.explanation??'':'')),[busy,setBusy]=useState(false),[error,setError]=useState('');
-  const revision=useRef(initial.current?.revision??record.revision),operation=useRef(initial.current?.operationId);
-  useTrashDrag(paragraph,{id:`saved:${record.record_id}`,label:record.sentence??record.expression,disabled:removing,remove:onRemove});
-  const media = record.source?.media;
-  const ready = useSourceMediaStore(s=>!!media && s.entries[media.source.key]?.status==='ready');
-  const sentence=record.sentence??t('savedRecords.missingOriginal');
-  const save=async()=>{if(busy)return;setBusy(true);setError('');operation.current??=crypto.randomUUID();savedNoteDrafts.set(record.record_id,{text:draft,revision:revision.current,operationId:operation.current,editing:true});try{const result=await mutateSaved({kind:'edit',record_id:record.record_id,expected_revision:revision.current,explanation:draft},operation.current);onChange(result.record);savedNoteDrafts.delete(record.record_id);revision.current=result.record.revision;operation.current=undefined;setEditing(false);}catch(cause){setError(t(savedErrorKey(cause)));}finally{setBusy(false);}};
-  useEffect(()=>{if(!editing&&!savedNoteDrafts.has(record.record_id)){revision.current=record.revision;setDraft(record.explanation_source==='personal'?record.explanation??'':'');}},[record,editing]);
-  useLayoutEffect(() => {
-    const node = paragraph.current;
-    const article = node?.parentElement;
-    const viewport = node?.closest('.approved-folio-scroll');
-    if (!node || !article || !viewport) return;
-    const mobile = matchMedia('(max-width: 767px)');
-    const fit = () => {
-      const padding = getComputedStyle(viewport);
-      const available = viewport.clientHeight - parseFloat(padding.paddingTop) - parseFloat(padding.paddingBottom)
-        - (article.getBoundingClientRect().height - node.getBoundingClientRect().height);
-      const floor = mobile.matches ? 24 : 28;
-      const ceiling = sentence.length > 120 ? (mobile.matches ? 26 : 32)
-        : sentence.length > 56 ? (mobile.matches ? 30 : 38) : (mobile.matches ? 34 : 46);
-      for (let size = ceiling; size >= floor; size -= 1) {
-        node.style.fontSize = `${size}px`;
-        if (node.getBoundingClientRect().height <= available + 1) break;
-      }
-    };
-    fit();
-    const observer = new ResizeObserver(fit);
-    observer.observe(viewport);
-    for (const child of article.children) if (child !== node) observer.observe(child);
-    mobile.addEventListener('change', fit);
-    return () => { observer.disconnect(); mobile.removeEventListener('change', fit); };
-  }, [sentence, editing, record.sentence_translation, record.explanation]);
-  const speechKey=`saved-folio:${record.record_id}`;
-  return <article className="approved-saved-folio" data-record={record.record_id}>
-    <header><button className="approved-source-cover" disabled={!record.source||sourceBusy} onClick={onSource} aria-label={t('savedRecords.returnToSource')}><MaterialCover src={savedCover(record)} identity={record.source?.content_hash??record.source_key}/></button><button className="approved-source-title" disabled={!record.source||sourceBusy} onClick={onSource} aria-label={t('savedRecords.returnToSource')}>{record.source?.file_name?bookmarkTitle(record.source.file_name):t('savedRecords.sourceMissing')}</button><SpeechButton className="approved-folio-speech" text={sentence} speechKey={speechKey} kind="sentence" label={t(ready&&media?'sourceAudio.playOriginal':'sourceAudio.read')} media={ready&&media?bindMediaTarget(media,{record_id:record.record_id}):undefined} idleIcon={<Volume2 size={39} strokeWidth={1.5}/>}/></header>
-    <p ref={paragraph} className="approved-folio-sentence" lang="en" tabIndex={0} aria-label={sentence}><SavedExcerpt record={record} fallback={t('savedRecords.missingOriginal')}/></p>
-    {record.sentence_translation&&<p className="approved-folio-translation">{record.sentence_translation}</p>}
-    {!editing&&<button ref={noteTrigger} className="approved-folio-note" aria-expanded={editing} onClick={()=>setEditing(true)}><span>{t('dictionaryFlow.personalMeaning')}：</span>{record.explanation_source==='personal'&&record.explanation?record.explanation:t('reader.personalExplanation')}</button>}
-    {editing&&<SavedExplanationEditor id={record.record_id} value={draft} busy={busy} error={error} returnFocus={()=>noteTrigger.current} onChange={text=>{setDraft(text);operation.current=undefined;savedNoteDrafts.set(record.record_id,{text,revision:revision.current,editing:true});}} onSave={()=>void save()} onCancel={()=>{savedNoteDrafts.delete(record.record_id);setDraft(record.explanation_source==='personal'?record.explanation??'':'');revision.current=record.revision;operation.current=undefined;setError('');setEditing(false);}}/>}
-    {error&&!editing&&<p className="saved-error" role="alert">{error}</p>}<SpeechFeedback speechKeys={[speechKey]}/>
+    return () => { clearTimeout(timer); if (groupRequest.current === token) groupRequest.current = token + 1; };
+  }, [filter, generation, groupRetry, order, pocketRecord, query, savedRevision]);
 
-  </article>;
+  useEffect(() => {
+    const token = ++contextRequest.current;
+    setContextError(false);
+    setMoreContexts(false);
+    if (!showDetail || !groupId) return;
+    const cached = savedContextCache.peek(groupId);
+    if (cached) setContextRead({ identity, page: cached });
+    void savedContextCache.fetch(groupId, () => readContexts(groupId, 0)).then(page => {
+      if (token !== contextRequest.current) return;
+      setContextRead({ identity, page });
+      setRecordId(previous => page.records.some(item => item.record_id === previous)
+        ? previous : page.records[0]?.record_id ?? null);
+    }).catch(() => { if (token === contextRequest.current) setContextError(true); });
+    return () => { contextRequest.current++; };
+  }, [groupId, identity, showDetail]);
+
+  useLayoutEffect(() => {
+    if (!groupsLoading && list.current && (!phone || !mobileDetail)) list.current.scrollTop = state.current.listScroll;
+  }, [groupsLoading, mobileDetail, phone]);
+  useLayoutEffect(() => {
+    if (restoredGroup.current !== groupId) {
+      restoredGroup.current = groupId;
+      state.current.detailScroll = 0;
+    }
+    if (showDetail && detail.current) detail.current.scrollTop = state.current.detailScroll;
+  }, [groupId, hasContextPage, showDetail]);
+  useLayoutEffect(() => {
+    if (record && showDetail) finishSavedEntrance(record.record_id);
+  }, [record, showDetail]);
+
+  const leave = useCallback(() => {
+    if (!phone && prepareSavedReturn(record?.record_id)) back();
+    else dissolvePage(back, true);
+  }, [back, phone, record?.record_id]);
+  const cancelSource = useCallback(() => {
+    sourceRequest.current++;
+    sourcePending.current = false;
+    setSourceBusy(null);
+    setSourceError('');
+  }, []);
+  const goBack = useCallback(() => {
+    if (phone && mobileDetail) {
+      cancelSource();
+      setMobileDetail(false);
+      requestAnimationFrame(() => list.current?.querySelector<HTMLButtonElement>('.approved-saved-word[aria-pressed="true"]')?.focus({ preventScroll: true }));
+    } else leave();
+  }, [cancelSource, leave, mobileDetail, phone]);
+  useEffect(() => backNavigation.setPage(() => { goBack(); return true; }, 3), [goBack]);
+
+  const select = (group: SavedGroup, open: boolean) => {
+    if (group.group_id !== groupId) {
+      cancelSource();
+      state.current.detailScroll = 0;
+      setRecordId(null);
+      setSelected(group);
+    }
+    if (phone && open) {
+      state.current.listScroll = list.current?.scrollTop ?? 0;
+      setMobileDetail(true);
+    }
+  };
+  const changeOrder = (next: SavedGroupOrder) => {
+    if (next === order) return;
+    state.current.listScroll = 0;
+    if (list.current) list.current.scrollTop = 0;
+    setOrder(next);
+  };
+  const changeQuery = (value: string) => {
+    cancelSource();
+    state.current.listScroll = 0;
+    if (list.current) list.current.scrollTop = 0;
+    setQuery(value);
+  };
+  const toggleSearch = () => {
+    if (!phone) { search.current?.focus(); return; }
+    if (searching && !mobileDetail) { changeQuery(''); setSearching(false); }
+    else { cancelSource(); setMobileDetail(false); setSearching(true); }
+  };
+
+  const rememberGroups = (page: SavedGroupPage) => {
+    savedGroupCache.prime(groupCacheKey(query, order, groupId, null), {
+      ...page, focused_group: selected ?? undefined,
+    });
+  };
+  const loadMoreGroups = async () => {
+    const token = groupRequest.current;
+    if (groupsLoading || !groupRead || groupRead.key !== filter || groupPaging.current === token) return;
+    groupPaging.current = token;
+    setMoreGroups(true);
+    try {
+      const page = await readGroups(query, order, groupPage.groups.length);
+      if (token !== groupRequest.current) return;
+      const combined = { ...page, groups: [...groupPage.groups, ...page.groups] };
+      setGroupRead({ key: filter, page: combined });
+      rememberGroups(combined);
+    } catch { if (token === groupRequest.current) setGroupError(true); }
+    finally {
+      if (groupPaging.current === token) groupPaging.current = null;
+      if (token === groupRequest.current) setMoreGroups(false);
+    }
+  };
+  const loadMoreContexts = async () => {
+    const token = contextRequest.current;
+    if (!groupId || !contextPage || contextPaging.current === token) return;
+    contextPaging.current = token;
+    setMoreContexts(true);
+    setSourceError('');
+    try {
+      const page = await readContexts(groupId, contextPage.records.length);
+      if (token !== contextRequest.current) return;
+      const combined = { ...page, records: [...contextPage.records, ...page.records] };
+      savedContextCache.prime(groupId, combined);
+      setContextRead({ identity, page: combined });
+    } catch { if (token === contextRequest.current) setSourceError('savedRecords.loadError'); }
+    finally {
+      if (contextPaging.current === token) contextPaging.current = null;
+      if (token === contextRequest.current) setMoreContexts(false);
+    }
+  };
+
+  const openSource = async (item: SavedRecord) => {
+    if (sourcePending.current) return;
+    const token = ++sourceRequest.current;
+    sourcePending.current = true;
+    setSourceBusy(item.record_id);
+    setSourceError('');
+    setRecordId(item.record_id);
+    try {
+      const target = await resolveSavedSource(item);
+      if (token !== sourceRequest.current) return;
+      if (!target) { setSourceError('savedRecords.sourceMissing'); return; }
+      rememberGroups(groupPage);
+      state.current.record = item.record_id;
+      state.current.detailScroll = detail.current?.scrollTop ?? state.current.detailScroll;
+      views.set(key, state.current);
+      const visit = readerNavigation.create({
+        kind: 'saved', path: '/saved', view: {
+          query, loadedGroups: groupPage.groups.length, expandedGroupId: groupId,
+          loadedContexts: groupId ? { [groupId]: records.length } : {},
+          scrollTop: state.current.listScroll, focusRecordId: item.record_id,
+        },
+      }, target);
+      navigate(`/files/${target.fileId}?segment=${target.segmentIndex}`, { state: { ...visitState(location), sourceVisitToken: visit } });
+    } catch { if (token === sourceRequest.current) setSourceError('savedRecords.sourceError'); }
+    finally {
+      if (token === sourceRequest.current) { sourcePending.current = false; setSourceBusy(null); }
+    }
+  };
+  const remove = async (item: SavedRecord) => {
+    if (pendingWrite.current) return false;
+    const intent = removeIntents.current.get(item.record_id) ?? { operation: crypto.randomUUID(), revision: item.revision };
+    removeIntents.current.set(item.record_id, intent);
+    pendingWrite.current = true;
+    setWriting(true);
+    try {
+      await mutateSaved({ kind: 'remove', record_id: item.record_id, expected_revision: intent.revision }, intent.operation);
+      setReceipt(intent.operation);
+      setContextRead(previous => previous?.identity === identity ? {
+        identity, page: { records: previous.page.records.filter(saved => saved.record_id !== item.record_id), total: Math.max(0, previous.page.total - 1) },
+      } : previous);
+      removeIntents.current.delete(item.record_id);
+      return true;
+    } catch (error) { setSourceError(savedErrorKey(error)); return false; }
+    finally { pendingWrite.current = false; setWriting(false); }
+  };
+  const undo = async () => {
+    if (!receipt || pendingWrite.current) return;
+    pendingWrite.current = true;
+    setWriting(true);
+    try { await undoSaved(receipt); setReceipt(null); }
+    catch (error) { setSourceError(savedErrorKey(error)); }
+    finally { pendingWrite.current = false; setWriting(false); }
+  };
+  const edit = (item: SavedRecord) => {
+    setContextRead(previous => previous?.identity === identity ? {
+      identity, page: { ...previous.page, records: previous.page.records.map(saved => saved.record_id === item.record_id ? item : saved) },
+    } : previous);
+  };
+
+  return <section className="approved-saved saved-workspace" aria-labelledby="saved-archive-title" data-mobile-detail={mobileDetail} data-searching={searching}>
+    <header className="approved-saved-header">
+      <div className="saved-archive-heading">
+        <button type="button" className="approved-icon approved-back" aria-label={t('common.back')} onClick={goBack}><ArrowLeft size={21} strokeWidth={1.65}/></button>
+        <h1 id="saved-archive-title">{t('savedRecords.archiveTitle')}</h1>
+      </div>
+      <div className="approved-saved-search">
+        <button type="button" className="approved-icon" aria-label={t('savedRecords.search')} aria-expanded={phone ? searching && !mobileDetail : undefined} onClick={toggleSearch}>
+          {phone && searching && !mobileDetail ? <X size={20}/> : <Search size={20} strokeWidth={1.65}/>}
+        </button>
+        <input ref={search} type="search" aria-label={t('savedRecords.search')} placeholder={t('savedRecords.search')} value={query}
+          onChange={event => changeQuery(event.target.value)} onKeyDown={event => {
+            if (event.key !== 'Escape') return;
+            event.stopPropagation();
+            if (query) changeQuery('');
+            else { setSearching(false); search.current?.blur(); }
+          }}/>
+      </div>
+    </header>
+    <div className="approved-saved-columns">
+      <SavedArchiveIndex
+        groups={groupPage.groups} order={order} selected={groupId} loading={groupsLoading} error={groupError}
+        loadingMore={moreGroups} hasMore={groupPage.groups.length < groupPage.total_groups} query={query} listRef={list}
+        onOrderChange={changeOrder} onChoose={group => select(group, true)} onPreview={group => { if (!phone) select(group, false); }}
+        onMore={() => void loadMoreGroups()} onRetry={() => setGroupRetry(retry => retry + 1)}
+        onScroll={event => { state.current.listScroll = event.currentTarget.scrollTop; }}
+      />
+      {showDetail && <div className="approved-saved-detail" aria-label={t('savedRecords.context')}>
+        {heading && <header className="saved-archive-term">
+          <h2 lang="en">{heading}</h2>
+          {record && <SavedArchiveGloss key={record.record_id} record={record} summary={selected?.summary} onChange={edit}/>}
+        </header>}
+        <div ref={detail} className="approved-folio-scroll" onScroll={event => { state.current.detailScroll = event.currentTarget.scrollTop; }}>
+          {records.map(item => <SavedArchiveCard key={item.record_id} record={item} current={record?.record_id === item.record_id}
+            sourceBusy={sourceBusy !== null} removing={writing} onSource={() => void openSource(item)} onRemove={() => remove(item)}
+            onActivate={() => setRecordId(item.record_id)}/>)}
+          {contextPage && contextPage.records.length < contextPage.total && <button className="saved-archive-action" type="button" disabled={moreContexts} onClick={() => void loadMoreContexts()}>{t(moreContexts ? 'common.loading' : 'savedRecords.loadMore')}</button>}
+          {(contextError || (phone && groupError)) && <div className="saved-archive-status" role="alert">
+            <p>{t('savedRecords.loadError')}</p><button type="button" className="saved-archive-action" onClick={() => {
+              if (groupError) setGroupRetry(retry => retry + 1);
+              if (contextError) setContextRetry(retry => retry + 1);
+            }}>{t('common.retry')}</button>
+          </div>}
+          {!records.length && !contextError && !groupError && (groupsLoading || (groupId && !contextPage)) && <div className="saved-archive-status" role="status"><BusyRing/><span className="sr-only">{t('common.loading')}</span></div>}
+        </div>
+        {sourceError && <p className="saved-error" role="alert">{t(sourceError)}</p>}
+      </div>}
+    </div>
+    {receipt && <div className="recall-undo" role="status"><span>{t('savedRecords.removed')}</span><button type="button" className="saved-archive-action" disabled={writing} onClick={() => void undo()}><Undo2 size={18}/>{t('savedRecords.undo')}</button></div>}
+  </section>;
 }

@@ -1344,6 +1344,13 @@
     "inferred": "AI inferred"
   },
   "savedRecords": {
+    "archiveTitle": "Saved",
+    "directory": "Saved expressions",
+    "sort": "Sort saved expressions",
+    "sortAlphabet": "Alphabetical",
+    "sortCount": "By example count",
+    "exampleCount_one": "{{count}} saved example",
+    "exampleCount_other": "{{count}} saved examples",
     "title": "Saved",
     "settingsHint": "Keep the original sentence, explanation and source together.",
     "open": "Open saved records",

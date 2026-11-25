@@ -42,7 +42,35 @@ export class DemoEngine {
  undo(id){const receipt=this.receipts.get(id);if(!receipt)throw Error('saved_conflict');const current=this.records.find(r=>r.record_id===receipt.result.record.record_id);if(!current||current.revision!==receipt.result.record.revision)throw Error('saved_conflict');if(receipt.before)Object.assign(current,clone(receipt.before),{revision:this.revision()});else{current.deleted_at=Date.now();current.revision=this.revision();}this.receipts.delete(id);return clone(current);}
  active(expression){return this.records.filter(r=>r.deleted_at===null&&(!expression||normalize(r.expression)===normalize(expression))).sort((a,b)=>(b.saved_at??0)-(a.saved_at??0));}
  dated(args={},expression){return this.active(expression).filter(r=>(args.startMs==null||r.saved_at>=args.startMs)&&(args.endMs==null||r.saved_at<args.endMs));}
- groups(args){const map=new Map();for(const r of this.dated(args))map.set(r.normalized_expression,[...(map.get(r.normalized_expression)||[]),r]);const groups=[...map.entries()].map(([key,records])=>({group_id:'demo-group:'+key,expression:records[0].expression,context_count:records.length,latest_saved_at:records[0].saved_at,preview:records[0],summary:null})).filter(g=>JSON.stringify(g).toLowerCase().includes(normalize(args.query)));return clone({groups:groups.slice(args.offset||0,(args.offset||0)+(args.limit||50)),total_groups:groups.length,total_records:groups.reduce((n,g)=>n+g.context_count,0)});}
+ groups(args){
+  const byExpression=new Map();
+  for(const record of this.dated(args)){
+   const members=byExpression.get(record.normalized_expression);
+   if(members)members.push(record);
+   else byExpression.set(record.normalized_expression,[record]);
+  }
+  const query=normalize(args.query),options=args.options??{};
+  const entries=[...byExpression.entries()].map(([key,records])=>({
+   records,group:{group_id:'demo-group:'+key,expression:records[0].expression,context_count:records.length,
+    latest_saved_at:records[0].saved_at,preview:records[0],summary:null},
+  })).filter(({records})=>records.some(record=>JSON.stringify(record).toLowerCase().includes(query)));
+  const focused=entries.find(({group,records})=>group.group_id===options.focusGroupId||
+   records.some(record=>record.record_id===options.focusRecordId));
+  const groups=entries.map(({group})=>group);
+  if(options.order==='count'||options.order==='alphabet'){
+   const key=expression=>normalize(expression).normalize('NFD').replace(/\p{M}/gu,'');
+   const compare=(a,b)=>a<b?-1:a>b?1:0;
+   groups.sort((a,b)=>{
+    const first=key(a.expression),second=key(b.expression);
+    return (options.order==='count'?b.context_count-a.context_count:0)
+     || Number(!/^[a-z]/.test(first))-Number(!/^[a-z]/.test(second))
+     || compare(first,second)||compare(a.group_id,b.group_id);
+   });
+  }
+  const offset=args.offset||0;
+  return clone({groups:groups.slice(offset,offset+(args.limit||50)),total_groups:groups.length,
+   total_records:groups.reduce((n,group)=>n+group.context_count,0),focused_group:focused?.group});
+ }
  invoke(command,args={}){switch(command){
   case 'list_materials':return clone(this.materials.map(x=>({...x.material,character_count:x.segments.reduce((n,s)=>n+[...s.en_text].length,0)})).filter(m=>(!args.untagged||!m.tags.length)&&(!args.tagIds?.length||args.tagIds.every(id=>m.tags.some(t=>t.id===id)))));
   case 'open_reading_material':return this.open(args.fileId);
@@ -79,6 +107,10 @@ export class DemoEngine {
   }
   case 'saved_date_histogram':{const bins=new Map();for(const r of this.active()){const day=Math.floor((r.saved_at-(args.offsetMinutes||0)*60000)/86400000);bins.set(day,(bins.get(day)||0)+1);}return [...bins].sort((a,b)=>a[0]-b[0]).map(([day,count])=>({day,count}));}
   case 'list_saved_groups':return this.groups(args);
+  case 'saved_opening_context':{
+   const records=this.active();
+   return clone((args.recordId?records.find(record=>record.record_id===args.recordId):records[0])??null);
+  }
   case 'saved_group_contexts':{const rows=this.dated(args,String(args.groupId).replace('demo-group:',''));return clone({records:rows.slice(args.offset||0,(args.offset||0)+(args.limit||10)),total:rows.length});}
   case 'saved_recall_contexts':{const rows=this.active(args.expression);return clone({records:rows.slice(args.offset||0,(args.offset||0)+(args.limit||10)),total:rows.length});}
   case 'saved_recall_catalog':return {expressions:[...new Set(this.active().map(r=>r.expression))],case_exclusions:[],literal_only:true};

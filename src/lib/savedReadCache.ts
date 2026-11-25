@@ -4,7 +4,6 @@ import type { SavedContextPage, SavedGroupPage, SavedRecord } from './savedRecor
 
 export const savedGroupCache = new QueryCache<SavedGroupPage>(8);
 export const savedContextCache = new QueryCache<SavedContextPage>(6);
-export const savedTimelineCache = new QueryCache<{ day: number; count: number }[]>(2);
 export const savedPocketCache = new QueryCache<SavedRecord | null>(1);
 let revision = 0;
 const listeners = new Set<() => void>();
@@ -19,7 +18,6 @@ export const useSavedReadRevision = () => useSyncExternalStore(subscribe, snapsh
 export function invalidateSavedReads() {
   savedGroupCache.clear();
   savedContextCache.clear();
-  savedTimelineCache.clear();
   savedPocketCache.clear();
   revision++;
   listeners.forEach(listener => listener());

@@ -1327,6 +1327,12 @@
     "inferred": "AI 判断"
   },
   "savedRecords": {
+    "archiveTitle": "已收藏",
+    "directory": "词条目录",
+    "sort": "收藏排序",
+    "sortAlphabet": "按字母",
+    "sortCount": "按例句数",
+    "exampleCount": "{{count}} 条收藏例句",
     "title": "已保存",
     "settingsHint": "原句、解释和出处保存在一起。",
     "open": "打开已保存",
