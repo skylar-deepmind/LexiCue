@@ -1,8 +1,9 @@
-import { AudioLines, Captions, Image, Link2 } from 'lucide-react';
+import { Image, Link2 } from 'lucide-react';
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useImportStore, type ImportItem } from '../stores/importStore';
 import useTrashDrag from './useTrashDrag';
+import './youtube-import-loading.css';
 
 const status = {
     metadata: 'youtubeLoadingVideo',
@@ -12,6 +13,7 @@ const status = {
     parsing: 'youtubeLoadingText',
     translating: 'youtubeLoadingTranslation',
 } as const;
+const waveHeights = [10, 19, 31, 23, 36, 26, 15];
 
 export default function YouTubeImportLoading({ item, disabled }: { item: ImportItem; disabled: boolean }) {
     const { t } = useTranslation();
@@ -32,7 +34,6 @@ export default function YouTubeImportLoading({ item, disabled }: { item: ImportI
     const translation = translating ? item.translationProgress : undefined;
     const progress = download?.phase === 'audio' ? download.fraction : undefined;
     const lines = translation?.total ? Math.min(1, translation.done / translation.total) : 0;
-    const Icon = stage === 'metadata' ? Link2 : stage === 'audio' ? AudioLines : stage === 'captions' ? Captions : Image;
     const openTrashTarget = useTrashDrag(grip, {
         id: 'import-preparation',
         label,
@@ -52,7 +53,13 @@ export default function YouTubeImportLoading({ item, disabled }: { item: ImportI
             aria-label={t('reader.discardImport')} onClick={openTrashTarget}>
             <span className="lc-youtube-loading-card" aria-hidden="true">
                 <span className="lc-youtube-loading-cover">
-                    <Icon size={28} strokeWidth={1.5} />
+                    {stage === 'metadata' && <><Link2 size={32} strokeWidth={1.45} />
+                        <i className="lc-youtube-scan" /></>}
+                    {stage === 'captions' && <span className="lc-youtube-cues"><i /><i /></span>}
+                    {stage === 'audio' ? <span className="lc-youtube-wave">
+                        {waveHeights.map((height, index) => <i key={index}
+                            style={{ height, animationDelay: `${-index * 95}ms` }} />)}
+                    </span> : stage !== 'metadata' && stage !== 'captions' && <Image size={32} strokeWidth={1.45} />}
                     {stage === 'audio' && <span className="lc-youtube-loading-track" data-indeterminate={progress === undefined}>
                         <i style={{ '--lc-audio-progress': progress ?? 0 } as CSSProperties} />
                     </span>}
@@ -65,12 +72,7 @@ export default function YouTubeImportLoading({ item, disabled }: { item: ImportI
                 </span>
             </span>
         </button>
-        <p className="lc-youtube-loading-label" role="status">
-            <span key={label}>{label}</span>
-            {translation?.total ? <span className="lc-youtube-loading-count" aria-hidden="true">
-                {t('materials.importDialog.youtubeLoadingCount', { done: translation.done, total: translation.total })}
-            </span> : null}
-        </p>
+        <p className="sr-only" role="status">{label}</p>
         {translation?.total ? <span className="sr-only" role="progressbar" aria-label={label}
             aria-valuemin={0} aria-valuemax={translation.total} aria-valuenow={translation.done} />
             : stage === 'audio' && <span className="sr-only" role="progressbar" aria-label={label}

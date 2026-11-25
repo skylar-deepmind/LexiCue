@@ -1529,7 +1529,6 @@
       "youtubeLoadingMedia": "Titelbild und Originalton werden vorbereitet",
       "youtubeLoadingText": "Untertitel werden aufbereitet",
       "youtubeLoadingTranslation": "Untertitel werden übersetzt",
-      "youtubeLoadingCount": "{{done}} / {{total}} Sätze",
       "writingTitle": "Material wird hinzugefügt",
       "resultTitle": "Importergebnisse",
       "preparingHint": "Reading and extracting locally. Translation is available on demand.",

@@ -131,10 +131,16 @@ try{
   const youtubeGrip=youtubeLoading.getByRole('button');
   await page.keyboard.press('Tab');
   ok(await youtubeGrip.evaluate(node=>node.matches(':focus-visible')&&getComputedStyle(node).outlineStyle==='solid'),'YouTube discard has visible keyboard focus');
-  eq(await youtubeLoading.getByRole('status').innerText(),'正在读取视频信息','metadata label starts immediately');
+  const youtubeStatus=youtubeLoading.getByRole('status');
+  eq(await youtubeStatus.textContent(),'正在读取视频信息','metadata state is announced immediately');
+  eq(await youtubeStatus.evaluate(node=>[node.offsetWidth,node.offsetHeight]),[1,1],'loading status is visually hidden');
+  eq(await youtubeLoading.locator('.lc-youtube-loading-card').textContent(),'','loading artwork contains no text');
+  await youtubeLoading.locator('.lc-youtube-scan').waitFor();
   await youtubeProgress({part:'caption_search'});await youtubeStage('captions');
+  await youtubeLoading.locator('.lc-youtube-cues').waitFor();
   await youtubeProgress({part:'captions'});await youtubeStage('media');
   await youtubeProgress({part:'audio_started'});await youtubeStage('audio');
+  await youtubeLoading.locator('.lc-youtube-wave').waitFor();
   const audioProgress=youtubeLoading.getByRole('progressbar');
   eq(await audioProgress.getAttribute('aria-valuenow'),null,'unknown audio bytes are indeterminate');
   await youtubeProgress({part:'audio',received:60,total:100});

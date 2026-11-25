@@ -1511,7 +1511,6 @@
       "youtubeLoadingMedia": "正在准备封面和原音",
       "youtubeLoadingText": "正在整理字幕",
       "youtubeLoadingTranslation": "正在翻译字幕",
-      "youtubeLoadingCount": "{{done}} / {{total}} 句",
       "writingTitle": "正在加入材料",
       "resultTitle": "导入结果",
       "preparingHint": "在本机读取与整理，预览前不翻译整篇。",

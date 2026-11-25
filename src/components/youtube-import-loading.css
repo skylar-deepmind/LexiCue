@@ -1,0 +1,203 @@
+.lc-youtube-loading {
+    display:grid;
+    place-items:center;
+    inline-size:min(268px, calc(100vw - 48px));
+    padding:16px;
+    color:var(--approved-ink);
+}
+
+.lc-youtube-loading-grip {
+    display:block;
+    inline-size:min(228px, 100%);
+    padding:0;
+    border:0;
+    border-radius:17px;
+    background:none;
+    color:inherit;
+    cursor:grab;
+    user-select:none;
+    touch-action:none;
+    -webkit-touch-callout:none;
+}
+
+.lc-youtube-loading-grip:active:not(:disabled) { cursor:grabbing; }
+.lc-youtube-loading-grip:disabled { cursor:default; }
+.lc-import-modal .lc-youtube-loading-grip:focus-visible {
+    outline:2px solid var(--approved-focus);
+    outline-offset:5px;
+    box-shadow:none;
+}
+
+.lc-youtube-loading-card {
+    display:grid;
+    gap:15px;
+    padding:10px 10px 15px;
+    border:1px solid var(--approved-dot);
+    border-radius:17px;
+    background:var(--approved-card);
+    box-shadow:0 9px 25px color-mix(in srgb, var(--approved-ink) 14%, transparent);
+    animation:lc-youtube-card-in 260ms cubic-bezier(.18,.8,.28,1) both;
+}
+
+.lc-youtube-loading-cover {
+    position:relative;
+    overflow:hidden;
+    display:grid;
+    place-items:center;
+    block-size:101px;
+    border-radius:9px;
+    background:var(--approved-hover);
+    color:var(--approved-tag);
+}
+
+.lc-youtube-loading-cover > svg { animation:lc-youtube-symbol-in 270ms cubic-bezier(.18,.8,.28,1) both; }
+.lc-youtube-scan {
+    position:absolute;
+    inset:0 auto 0 0;
+    inline-size:44%;
+    border-right:1px solid color-mix(in srgb, var(--approved-tag) 16%, transparent);
+    background:linear-gradient(90deg, transparent, color-mix(in srgb, var(--approved-tag) 14%, transparent));
+    transform:translateX(-110%);
+    animation:lc-youtube-scan 1840ms 140ms ease-in-out infinite;
+}
+
+.lc-youtube-cues {
+    display:grid;
+    justify-items:center;
+    gap:7px;
+    inline-size:82px;
+    transform:translateY(17px);
+}
+
+.lc-youtube-cues i {
+    display:block;
+    inline-size:100%;
+    block-size:5px;
+    background:currentColor;
+    border-radius:4px;
+    animation:lc-youtube-cue-in 360ms cubic-bezier(.15,.82,.26,1) both;
+}
+
+.lc-youtube-cues i + i {
+    inline-size:70%;
+    opacity:.55;
+    animation-delay:75ms;
+    animation-direction:reverse;
+    animation-name:lc-youtube-cue-out;
+}
+
+.lc-youtube-wave {
+    display:flex;
+    align-items:center;
+    gap:4px;
+    padding-bottom:6px;
+    animation:lc-youtube-symbol-in 260ms cubic-bezier(.18,.8,.28,1) both;
+}
+
+.lc-youtube-wave i {
+    display:block;
+    inline-size:4px;
+    border-radius:3px;
+    background:currentColor;
+    animation:lc-youtube-wave 720ms ease-in-out infinite alternate;
+}
+
+.lc-youtube-loading-track {
+    position:absolute;
+    inset:auto 13px 11px;
+    block-size:3px;
+    overflow:hidden;
+    border-radius:3px;
+    background:color-mix(in srgb, var(--approved-tag) 24%, transparent);
+}
+
+.lc-youtube-loading-track > i {
+    display:block;
+    block-size:100%;
+    border-radius:inherit;
+    background:var(--approved-tag);
+    transform:scaleX(var(--lc-audio-progress, 0));
+    transform-origin:left;
+    transition:transform 180ms ease-out;
+}
+
+.lc-youtube-loading-track[data-indeterminate='true'] > i {
+    inline-size:28%;
+    animation:lc-youtube-audio-pending 1350ms ease-in-out infinite alternate;
+}
+
+.lc-youtube-loading-lines { display:grid; gap:7px; padding-inline:8px; }
+.lc-youtube-loading-line { display:grid; gap:3px; }
+.lc-youtube-loading-line > i {
+    display:block;
+    inline-size:var(--lc-line-width, 81%);
+    block-size:3px;
+    border-radius:2px;
+    background:var(--approved-dot);
+    opacity:.24;
+    transition:opacity 180ms ease-out, transform 210ms cubic-bezier(.2,.72,.28,1);
+}
+
+.lc-youtube-loading-line:nth-child(2) { --lc-line-width:62%; }
+.lc-youtube-loading-line:nth-child(3) { --lc-line-width:73%; }
+.lc-youtube-loading[data-stage='captions'] .lc-youtube-loading-line > i:first-child {
+    animation:lc-youtube-line-in 370ms cubic-bezier(.18,.8,.28,1) both;
+}
+.lc-youtube-loading[data-stage='captions'] .lc-youtube-loading-line:nth-child(2) > i:first-child { animation-delay:65ms; }
+.lc-youtube-loading[data-stage='captions'] .lc-youtube-loading-line:nth-child(3) > i:first-child { animation-delay:130ms; }
+.lc-youtube-loading:not([data-stage='metadata']) .lc-youtube-loading-line > i:first-child { opacity:1; }
+.lc-youtube-loading-line > i:nth-child(2) {
+    opacity:1;
+    background:var(--approved-tag);
+    transform:scaleX(calc(var(--lc-line-progress, 0) * .74));
+    transform-origin:left;
+}
+
+.lc-import-youtube-reveal .import-card-stage {
+    animation:lc-youtube-preview-in 260ms cubic-bezier(.16,.78,.25,1) both;
+}
+
+@keyframes lc-youtube-card-in {
+    from { opacity:.48; transform:translateY(10px) scale(.93); }
+    to { opacity:1; transform:none; }
+}
+@keyframes lc-youtube-symbol-in {
+    from { opacity:0; transform:translateY(7px) scale(.84); }
+    to { opacity:1; transform:none; }
+}
+@keyframes lc-youtube-scan {
+    0%, 11% { transform:translateX(-110%); }
+    77%, 100% { transform:translateX(240%); }
+}
+@keyframes lc-youtube-cue-in {
+    from { opacity:0; transform:translateX(-32px) scaleX(.52); }
+    to { opacity:1; transform:none; }
+}
+@keyframes lc-youtube-cue-out {
+    from { opacity:.55; transform:none; }
+    to { opacity:0; transform:translateX(26px) scaleX(.6); }
+}
+@keyframes lc-youtube-wave {
+    from { transform:scaleY(.43); }
+    to { transform:scaleY(1); }
+}
+@keyframes lc-youtube-audio-pending {
+    from { transform:translateX(0); }
+    to { transform:translateX(257%); }
+}
+@keyframes lc-youtube-line-in {
+    from { opacity:.24; transform:translateX(-11px); }
+    to { opacity:1; transform:none; }
+}
+@keyframes lc-youtube-preview-in {
+    from { opacity:.75; transform:translateY(8px) scale(.91); }
+    to { opacity:1; transform:none; }
+}
+
+@media (prefers-reduced-motion:reduce) {
+    .lc-youtube-loading *, .lc-import-youtube-reveal .import-card-stage {
+        animation:none !important;
+        transition:none !important;
+    }
+    .lc-youtube-loading-track[data-indeterminate='true'] > i { transform:none; }
+}

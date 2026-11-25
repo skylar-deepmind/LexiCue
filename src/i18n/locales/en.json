@@ -1529,7 +1529,6 @@
       "youtubeLoadingMedia": "Preparing cover and original audio",
       "youtubeLoadingText": "Organizing captions",
       "youtubeLoadingTranslation": "Translating captions",
-      "youtubeLoadingCount": "{{done}} / {{total}} sentences",
       "writingTitle": "Adding to your materials",
       "resultTitle": "Import results",
       "preparingHint": "Reading and extracting locally. Translation is available on demand.",

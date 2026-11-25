@@ -1511,7 +1511,6 @@
       "youtubeLoadingMedia": "カバー画像とオリジナル音声を準備中",
       "youtubeLoadingText": "字幕を整理中",
       "youtubeLoadingTranslation": "字幕を翻訳中",
-      "youtubeLoadingCount": "{{done}} / {{total}} 文",
       "writingTitle": "教材に追加しています",
       "resultTitle": "取り込み結果",
       "preparingHint": "Reading and extracting locally. Translation is available on demand.",
