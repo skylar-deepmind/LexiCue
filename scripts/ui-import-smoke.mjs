@@ -73,6 +73,17 @@ try{
     if(command==='plugin:event|unlisten'){listeners.delete(args.eventId);return;}
     if(['plugin:fs|read_text_file','plugin:fs|read'].includes(command)&&window.__holdRead){await new Promise(done=>window.__releaseRead=done);}
     if(command==='cancel_import_translation'){window.__uiCalls.push({command,args:structuredClone(args)});return;}
+    if(command==='fetch_import_youtube'&&window.__youtubeImportFixture){
+     let index=0;
+     window.__youtubeImportProgress=message=>callbacks.get(args.onProgress.id)?.({index:index++,message});
+     await new Promise(done=>{window.__finishYouTubeRequest=done;});
+     callbacks.get(args.onProgress.id)?.({index,end:true});
+     if(window.__youtubeImportFailure)throw 'material_youtube_no_subtitles';
+     return window.__youtubeImportFixture;
+    }
+    if(command==='cancel_import_webpage'||command==='discard_youtube_import_audio'){
+     window.__uiCalls.push({command,args:structuredClone(args)});return;
+    }
     if(command==='fetch_import_webpage'&&window.__webImportFixture){
      const response=window.__webImportFixture;
      let index=0;
@@ -96,6 +107,75 @@ try{
    };
   });
   await page.goto(`${url}/files`);await page.locator('.approved-desk').waitFor();
+  // Live YouTube transport is measured separately. This holds real UI stages
+  // at the IPC boundary to exercise retries, focus, cancellation and handoff.
+  const youtubeLoading=page.locator('.lc-youtube-loading');
+  const youtubeStage=stage=>youtubeLoading.locator(`xpath=self::*[@data-stage="${stage}"]`).waitFor();
+  const youtubeProgress=message=>page.evaluate(value=>window.__youtubeImportProgress(value),message);
+  async function submitYouTube() {
+    await page.evaluate(async()=>{
+      window.__finishYouTubeRequest=null;
+      const {useImportStore}=await window.__uiStoreModule('importStore');
+      useImportStore.getState().showLink();
+    });
+    await page.locator('#lc-import-link').fill('https://youtu.be/jNQXAC9IVRw');
+    await page.locator('#lc-import-link').press('Enter');
+    await page.waitForFunction(()=>typeof window.__finishYouTubeRequest==='function');
+    await youtubeStage('metadata');
+  }
+  await page.evaluate(content=>{
+    window.__youtubeImportFixture={content,source:{title:'Public caption example',video_id:'jNQXAC9IVRw',audio:null},cover:null,audio_unavailable:true};
+    window.__translationHold=true;
+  }, srt('The opening caption is ready.'));
+  await submitYouTube();
+  const youtubeGrip=youtubeLoading.getByRole('button');
+  await page.keyboard.press('Tab');
+  ok(await youtubeGrip.evaluate(node=>node.matches(':focus-visible')&&getComputedStyle(node).outlineStyle==='solid'),'YouTube discard has visible keyboard focus');
+  eq(await youtubeLoading.getByRole('status').innerText(),'正在读取视频信息','metadata label starts immediately');
+  await youtubeProgress({part:'caption_search'});await youtubeStage('captions');
+  await youtubeProgress({part:'captions'});await youtubeStage('media');
+  await youtubeProgress({part:'audio_started'});await youtubeStage('audio');
+  const audioProgress=youtubeLoading.getByRole('progressbar');
+  eq(await audioProgress.getAttribute('aria-valuenow'),null,'unknown audio bytes are indeterminate');
+  await youtubeProgress({part:'audio',received:60,total:100});
+  eq(await audioProgress.getAttribute('aria-valuenow'),'60','known audio bytes are exposed');
+  await youtubeProgress({part:'audio',received:20,total:100});
+  eq(await audioProgress.getAttribute('aria-valuenow'),'60','a downloader retry cannot move audio progress backwards');
+  await settle();
+  await page.screenshot({path:`${output}/${theme}-youtube-audio.png`});
+  await page.evaluate(()=>window.__finishYouTubeRequest());await youtubeStage('translating');
+  eq(await youtubeLoading.getByRole('progressbar').getAttribute('aria-valuemax'),'1','translation shows the actual sentence total');
+  await page.evaluate(async()=>{
+    window.__youtubeHandoff=new Promise(resolve=>{
+      const observer=new MutationObserver(()=>{
+        if(document.querySelector('.import-card-stage')){observer.disconnect();resolve(performance.now());}
+      });
+      observer.observe(document.body,{childList:true,subtree:true});
+    });
+    const {useImportStore}=await window.__uiStoreModule('importStore');
+    const unsubscribe=useImportStore.subscribe(state=>{if(state.phase==='preview'){window.__youtubeDraftReady=performance.now();unsubscribe();}});
+  });
+  await page.evaluate(()=>{window.__translationHold=false;window.__releaseTranslation();});
+  await preview();
+  ok(await page.evaluate(async()=>await window.__youtubeHandoff-window.__youtubeDraftReady<200),'ready preview mounts without the paper hold');
+  ok(await page.locator('.lc-import-youtube-layer .overlay-scrim').evaluate(node=>getComputedStyle(node).backdropFilter.includes('blur')),'the preview retains the loading backdrop');
+  eq((await writes()).length,0,'YouTube preview makes no library write');
+  await settle();await page.screenshot({path:`${output}/${theme}-youtube-preview.png`});
+  await close();
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await submitYouTube();
+  eq(await youtubeLoading.evaluate(node=>node.getAnimations({subtree:true}).length),0,'YouTube loading respects reduced motion');
+  await page.keyboard.press('Escape');
+  await page.locator('.lc-import-modal').waitFor({state:'detached'});
+  ok(await page.evaluate(()=>window.__uiCalls.some(call=>call.command==='cancel_import_webpage')),'Escape cancels the live YouTube request');
+  await page.evaluate(()=>window.__finishYouTubeRequest());
+  await submitYouTube();
+  await page.evaluate(()=>{window.__youtubeImportFailure=true;window.__finishYouTubeRequest();});
+  await page.locator('.lc-import-modal [role=alert]').waitFor();
+  eq(await youtubeLoading.count(),0,'YouTube failure removes the loading card');
+  await close();
+  await page.evaluate(()=>{window.__youtubeImportFailure=false;window.__youtubeImportFixture=null;});
+  await page.emulateMedia({reducedMotion:'no-preference'});
   const callsBefore=await pickerCalls();
   await chooseFromDesk();
   eq(await pickerCalls(),callsBefore+1,'one click opens the system picker directly');

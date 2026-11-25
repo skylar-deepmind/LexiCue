@@ -427,6 +427,7 @@ async fn fetch(
         * 1000.)
         .round() as i64;
     let mut selected = Err(Failure::NoSubtitles);
+    progress(ImportDownload::CaptionSearch);
     for track in tracks.into_iter().flatten() {
         selected = trace
             .step(
@@ -471,9 +472,6 @@ async fn fetch(
     // The cover uses its own YouTube image endpoint. Request optional pieces
     // in order so observing a 429 precludes any later network step.
     let cover = cover.await;
-    if cover.is_ok() {
-        progress(ImportDownload::Cover);
-    }
     let started = Instant::now();
     let track = (1..=MAX_DURATION_MS)
         .contains(&duration_ms)
@@ -486,6 +484,7 @@ async fn fetch(
         (None, _, _) => trace.record("audio", 1, started, Some(Failure::NoAudioTrack)),
         (_, Err(reason), _) => trace.record("audio_probe", 1, started, Some(*reason)),
         (Some(track), Ok(probe), _) => {
+            progress(ImportDownload::AudioStarted);
             let audio = trace
                 .step("audio", Duration::from_secs(75), true, || {
                     download_audio(tools, &metadata_file, &track, directory.path(), &progress)

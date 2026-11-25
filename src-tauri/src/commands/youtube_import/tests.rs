@@ -141,10 +141,17 @@ async fn retries_audio_503_without_redownloading_captions_or_cover() {
     let fixture = Fixture::new("audio_recovers");
     let covers = AtomicUsize::new(0);
     let updates = AtomicUsize::new(0);
+    let phases = std::sync::Mutex::new(Vec::new());
     let result = fixture
         .fetch(
             Duration::from_secs(10),
             |progress| {
+                match progress {
+                    ImportDownload::CaptionSearch => phases.lock().unwrap().push("captions"),
+                    ImportDownload::Captions => phases.lock().unwrap().push("media"),
+                    ImportDownload::AudioStarted => phases.lock().unwrap().push("audio"),
+                    _ => (),
+                }
                 if matches!(
                     progress,
                     ImportDownload::Audio {
@@ -167,6 +174,7 @@ async fn retries_audio_503_without_redownloading_captions_or_cover() {
         ["metadata", "caption-en", "audio", "audio", "probe"]
     );
     assert_eq!(covers.load(Ordering::Relaxed), 1);
+    assert_eq!(phases.into_inner().unwrap(), ["captions", "media", "audio"]);
     assert_eq!(updates.load(Ordering::Relaxed), 2);
     assert!(result.source.audio.is_some());
     assert_eq!(result.source.subtitle_kind, "manual");

@@ -29,14 +29,16 @@ pub enum ImportDownload {
         total: Option<u64>,
     },
     #[cfg(all(target_os = "macos", not(feature = "apple-store")))]
+    CaptionSearch,
+    #[cfg(all(target_os = "macos", not(feature = "apple-store")))]
     Captions,
+    #[cfg(all(target_os = "macos", not(feature = "apple-store")))]
+    AudioStarted,
     #[cfg(all(target_os = "macos", not(feature = "apple-store")))]
     Audio {
         received: u64,
         total: Option<u64>,
     },
-    #[cfg(all(target_os = "macos", not(feature = "apple-store")))]
-    Cover,
 }
 pub fn public_ip(ip: IpAddr) -> bool {
     match ip {
