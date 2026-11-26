@@ -20,7 +20,7 @@
   position:relative; cursor:pointer; padding:5px; border:1px solid var(--border-soft); background:var(--surface); border-radius:12px;
   color:var(--text-strong); text-align:start; min-width:0;
 }
-.settings-directory .theme-choice[aria-pressed=true] { border-color:var(--accent-700); box-shadow:inset 0 0 0 1px var(--accent-700); }
+.settings-directory .theme-choice[aria-pressed=true] { background:var(--accent-50); font-weight:600; }
 .settings-theme-sample { display:grid; place-items:end center; height:84px; padding-top:12px; overflow:hidden; background:var(--book-tint); border-radius:7px 7px 0 0; }
 .settings-book { display:flex; flex-direction:column; gap:5px; width:72%; height:95px; padding:10px 10px 0 17px; border-radius:4px; background:linear-gradient(to right,transparent 7px,var(--book-tint) 7px 9px,transparent 9px),var(--book-paper); color:var(--preview-accent); }
 .settings-book em { margin-bottom:6px; font:italic 24px/1.2 Georgia,serif; }
@@ -62,7 +62,7 @@
 @media(hover:none), (pointer:coarse) {
   .settings-directory :is(.settings-row,.theme-choice,.settings-back):active { opacity:.65; transition:opacity 100ms ease 120ms; }
 }
-.settings-directory :is(.settings-row,.theme-choice,.settings-back):focus-visible { outline:2px solid var(--accent-700); outline-offset:-3px; }
+.settings-directory :is(.settings-row,.theme-choice,.settings-back):focus-visible { box-shadow:inset 0 -2px 0 currentColor; }
 .settings-detail { max-width:100%; overflow-wrap:anywhere; }
 .settings-detail .settings-row[aria-pressed] { justify-content:space-between; }
 .settings-facts { margin:0 0 16px; padding:0 16px; }

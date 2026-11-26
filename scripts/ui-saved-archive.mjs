@@ -141,6 +141,68 @@ try {
     equal(await page.evaluate(() => window.__uiCalls.some(call => call.command === 'saved_date_histogram' ||
       (call.command === 'list_saved_groups' && (call.args.startMs != null || call.args.endMs != null)))), false, `${name} no date filters or histogram calls`);
     equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `${name} no horizontal overflow`);
+    const selected = index.locator('.approved-saved-word[aria-pressed="true"]');
+    await page.mouse.move(0, 0);
+    equal(await selected.evaluate(node => {
+      const style = getComputedStyle(node);
+      return [style.outlineStyle, style.boxShadow, style.fontWeight];
+    }), ['none', 'none', '600'], `${name} selection uses emphasis without a perimeter`);
+    const search = page.locator('.approved-saved-search');
+    const searchButton = search.getByRole('button');
+    const searchInput = search.getByRole('searchbox');
+    const searchFocusStyle = () => searchInput.evaluate(input => {
+      const group = input.parentElement;
+      const style = getComputedStyle(input);
+      const placeholder = getComputedStyle(input, '::placeholder');
+      return {
+        active: document.activeElement === input,
+        outline: style.outlineStyle,
+        underline: style.boxShadow,
+        outerOutline: getComputedStyle(group).outlineStyle,
+        iconBackground: getComputedStyle(group.querySelector('button')).backgroundColor,
+        placeholderMatchesText: placeholder.color === style.color,
+        placeholderWeight: placeholder.fontWeight,
+        textWeight: style.fontWeight,
+        caretColor: style.caretColor,
+      };
+    });
+    const expectedFocus = {
+      active: true, outline: 'none', underline: 'none', outerOutline: 'none',
+      iconBackground: 'rgba(0, 0, 0, 0)', placeholderMatchesText: true,
+      placeholderWeight: '500', textWeight: '400',
+      caretColor: theme === 'midnight' ? 'rgb(181, 204, 226)' : 'rgb(70, 87, 107)',
+    };
+    if (phone) {
+      await searchButton.tap();
+    } else {
+      await back.focus();
+      await page.keyboard.press('Tab');
+      equal(await searchButton.evaluate(node => {
+        const style = getComputedStyle(node);
+        return [node.matches(':focus-visible'), style.outlineStyle, style.boxShadow.includes('inset')];
+      }), [true, 'none', true], `${name} search button keeps an inset keyboard indicator`);
+      await page.keyboard.press('Tab');
+      equal(await searchFocusStyle(), expectedFocus, `${name} keyboard focus uses caret and stronger placeholder text`);
+      await searchButton.click();
+      equal(await searchFocusStyle(), expectedFocus, `${name} clicking the search icon focuses input without leaving an icon fill`);
+      await searchInput.blur();
+      await searchInput.click();
+    }
+    equal(await searchFocusStyle(), expectedFocus, `${name} pointer focus adds no outline, underline or icon fill`);
+    await page.screenshot({ path: `${output}/${name}-search-focus.png`, caret: 'initial', animations: 'disabled' });
+    await searchInput.fill('harbor');
+    await page.waitForFunction(() => {
+      const words = document.querySelectorAll('.approved-saved-word');
+      return words.length === 1 && words[0].textContent === 'carry';
+    });
+    checks.push(`${name} focused search filters by saved context`);
+    equal(await searchFocusStyle(), expectedFocus, `${name} focused text keeps the regular weight and visible caret`);
+    await page.screenshot({ path: `${output}/${name}-search-filled.png`, caret: 'initial', animations: 'disabled' });
+    await searchInput.blur();
+    equal(await searchInput.evaluate(input => {
+      const placeholder = getComputedStyle(input, '::placeholder');
+      return [placeholder.fontWeight, placeholder.color !== getComputedStyle(input).color];
+    }), ['400', true], `${name} placeholder returns to its resting emphasis on blur`);
     await context.close();
   }
   equal(h.errors, [], 'no browser exceptions');

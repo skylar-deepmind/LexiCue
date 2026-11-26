@@ -265,7 +265,7 @@ try{
   ok(await page.locator('.lc-import-preparing-layer .overlay-scrim').evaluate(n=>getComputedStyle(n).backdropFilter.includes('blur')),'the desk behind the preparation card is blurred');
   eq(await preparation.locator('button').count(),1,'the paper is the sole interactive control while loading');
   await page.keyboard.press('Tab');
-  ok(await grip.evaluate(node=>node===document.activeElement&&getComputedStyle(node).outlineStyle==='solid'),'keyboard focus is visible around the preparation paper');
+  ok(await grip.evaluate(node=>{const style=getComputedStyle(node);return node===document.activeElement&&style.outlineStyle==='none'&&style.boxShadow.includes('inset');}),'keyboard focus stays inside the preparation paper');
   await page.screenshot({path:`${output}/${theme}-preparation.png`});
   const gripCenter=await center(grip);
   await page.mouse.move(gripCenter.x,gripCenter.y);await page.mouse.down();await trash.waitFor();

@@ -124,7 +124,7 @@ try {
         await row.focus();
         await page.keyboard.press('Shift+Tab');
         await page.keyboard.press('Tab');
-        assert.equal(await row.evaluate(node=>getComputedStyle(node).outlineStyle),'solid','keyboard focus stays visible');
+        assert.equal(await row.evaluate(node=>{const style=getComputedStyle(node);return style.outlineStyle==='none'&&style.boxShadow.includes('inset');}),true,'keyboard focus stays visible inside the row');
       }
       if(output) await page.screenshot({path:output+'/'+(phone?'iphone':'mac')+'-'+theme+'.png'});
       await checkPending('dictionary_pack_status', () => page.locator('[data-entry=dictionary]').click(), page.locator('[role=status] .busy-ring'));

@@ -154,7 +154,7 @@ try{
    if(phone)await play.tap();
    else {
     await page.keyboard.press('Tab');await original.focus();await page.keyboard.press('Tab');
-    ok(await play.evaluate(button=>button===document.activeElement&&getComputedStyle(button).outlineStyle==='solid'),'keyboard reaches play with visible focus');
+    ok(await play.evaluate(button=>{const style=getComputedStyle(button);return button===document.activeElement&&style.outlineStyle==='none'&&style.boxShadow.includes('inset');}),'keyboard reaches play with an inset focus indicator');
     await play.hover();await page.mouse.down();ok(await transparent(),'pressed play is transparent');await page.mouse.up();
    }
    await next.locator('.saved-sentence-play[data-speech-state=playing]').waitFor();

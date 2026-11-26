@@ -64,8 +64,8 @@ export default function FlashCard({ card, revealed, onReveal }: FlashCardProps) 
         onClick={() => {
           if (!revealed) onReveal();
         }}
-        className={`w-full rounded-2xl border-2 bg-white p-8 transition-all duration-300 ${
-          revealed ? 'border-green-200 shadow-sm' : 'cursor-pointer border-gray-200 hover:border-blue-200 hover:shadow-sm'
+        className={`w-full rounded-2xl border border-gray-200 bg-white p-8 transition-all duration-300 ${
+          revealed ? 'shadow-sm' : 'cursor-pointer hover:border-blue-200 hover:shadow-sm'
         }`}
       >
         <div className="flex min-h-[190px] flex-col items-center justify-center">

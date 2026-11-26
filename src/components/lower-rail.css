@@ -1,6 +1,6 @@
 .draw-dock{--mini-h:78px;--mini-w:58px;--rail-w:min(450px,calc(100vw - 26px));position:relative;width:var(--rail-w);max-width:100%;height:calc(var(--mini-h) + 16px);flex:none;z-index:8;pointer-events:none;text-align:center;isolation:isolate}
 .approved-desk>.draw-dock{position:absolute;top:var(--dock-top,80%);left:50%;transform:translateX(-50%)}
-.draw-dock .approved-tag-stack,.draw-dock .new-outline{width:var(--mini-w);height:var(--mini-h);min-width:0;flex:none;box-sizing:border-box;padding:0;border-radius:5px;overflow:hidden;user-select:none;-webkit-user-select:none;box-shadow:0 2px 5px #1c221d1b}
+.draw-dock .approved-tag-stack,.draw-dock .new-outline,.draw-dock .approved-tag-stack:focus-visible{width:var(--mini-w);height:var(--mini-h);min-width:0;flex:none;box-sizing:border-box;padding:0;border-radius:5px;overflow:hidden;user-select:none;-webkit-user-select:none;box-shadow:0 2px 5px #1c221d1b}
 .draw-dock .approved-tag-open{position:relative;min-height:0;flex:1;width:100%;overflow:hidden;pointer-events:none}
 .draw-dock .approved-tag-open>.library-cover-collage,.draw-dock .approved-tag-open>.empty-library-artwork{position:absolute;inset:0;width:100%;height:100%}
 .draw-dock .approved-tag-name{min-height:0;flex:none;display:grid;place-items:center;height:23px}
@@ -9,8 +9,11 @@
 .draw-rail::-webkit-scrollbar{display:none}
 .draw-track{width:max-content;display:flex;gap:10px;align-items:center;height:100%;padding-inline:calc((var(--rail-w) - var(--mini-w)) / 2);box-sizing:content-box}
 .draw-track button{cursor:pointer;touch-action:pan-x}
-.draw-track .approved-tag-stack[aria-pressed=true]{outline:1px solid var(--approved-secondary);outline-offset:2px}
-.draw-track [data-hot=true],.draw-dock .draw-track button:focus-visible{transform:translateY(-3px);outline:2px solid var(--approved-focus);outline-offset:2px}
+.draw-track .approved-tag-stack:is([aria-pressed=true],[data-hot=true]) .approved-tag-name{background:var(--approved-selected);color:var(--approved-selected-ink)}
+.draw-track .approved-tag-stack[aria-pressed=true] .approved-tag-name strong{font-weight:700}
+.draw-track [data-hot=true],.draw-dock .draw-track button:focus-visible{transform:translateY(-3px)}
+.draw-dock .draw-track .approved-tag-stack:focus-visible .approved-tag-name,.draw-dock .draw-track .new-outline:focus-visible{box-shadow:inset 0 -2px 0 currentColor}
+.draw-dock .new-outline[data-hot=true]{background:var(--approved-selected);color:var(--approved-selected-ink)}
 .draw-dock .new-outline{appearance:none;border:1px dashed var(--approved-secondary);background:transparent;color:var(--approved-secondary);box-shadow:none;display:grid;place-items:center}
 .draw-dock .write-name{pointer-events:auto;margin:auto;display:flex;width:min(230px,100%);height:100%;align-items:center;justify-content:center;gap:12px;color:var(--approved-ink)}
 .write-name input{width:145px;min-width:0;padding:8px 2px;border:0;border-bottom:1px solid var(--approved-secondary);background:transparent;color:inherit;font:16px/1.4 system-ui}

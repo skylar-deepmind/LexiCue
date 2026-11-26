@@ -67,7 +67,7 @@
 }
 .lc-import-paper-grip:active:not(:disabled) { cursor:grabbing; }
 .lc-import-paper-grip:disabled { cursor:default; }
-.lc-import-modal .lc-import-paper-grip:focus-visible { outline:2px solid var(--approved-focus); outline-offset:6px; box-shadow:none; }
+.lc-import-modal .lc-import-paper-grip:focus-visible { box-shadow:inset 0 -2px 0 var(--approved-focus); }
 .lc-import-paper-art {
     position:absolute; inset:0; display:block; pointer-events:none;
     --paper-transition:300ms cubic-bezier(.22,.55,.26,1);
