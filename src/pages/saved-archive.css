@@ -54,6 +54,7 @@
   min-width: 0;
   width: 138px;
   color: inherit;
+  caret-color: var(--approved-focus);
   background: transparent;
   border: 0;
   padding: 0;
@@ -62,7 +63,11 @@
 }
 .approved-saved-search input::placeholder { color: var(--approved-tag); opacity: 1; }
 .approved-saved-search input:focus { box-shadow: none; }
-.approved-saved-search:focus-within > button { background: var(--approved-hover); }
+.approved-saved-search input:focus::placeholder { color: currentColor; font-weight: 500; }
+.approved-saved-search > .approved-icon:hover:not(:disabled) { background: transparent; }
+@media (forced-colors: active) {
+  .approved-saved-search input { caret-color: currentColor; }
+}
 
 .approved-saved-columns {
   display: grid;
