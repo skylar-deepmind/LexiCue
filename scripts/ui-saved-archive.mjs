@@ -122,6 +122,7 @@ try {
       await page.keyboard.press('Escape');
       await index.waitFor();
       equal(await cards.count(), 0, `${name} Escape also returns to the directory`);
+      await page.waitForFunction(() => document.activeElement?.matches('.approved-saved-word[aria-pressed="true"]'));
     }
     await slider.press('End');
     await page.waitForFunction(() => document.querySelector('.approved-saved-index .approved-saved-word')?.textContent === 'take off');
@@ -138,31 +139,38 @@ try {
     const search = page.locator('.approved-saved-search');
     const searchButton = search.getByRole('button');
     const searchInput = search.getByRole('searchbox');
-    const searchFocusStyle = () => searchInput.evaluate(input => {
-      const group = input.parentElement;
+    const searchStyle = () => searchInput.evaluate(async input => {
+      const field = input.parentElement;
+      const group = field.parentElement;
+      await Promise.all(group.getAnimations({ subtree: true }).map(animation => animation.finished.catch(() => {})));
       const style = getComputedStyle(input);
-      const placeholder = getComputedStyle(input, '::placeholder');
+      const frame = getComputedStyle(group);
+      const line = getComputedStyle(field, '::after');
       return {
         active: document.activeElement === input,
-        outline: style.outlineStyle,
-        underline: style.boxShadow,
-        outerOutline: getComputedStyle(group).outlineStyle,
-        iconBackground: getComputedStyle(group.querySelector('button')).backgroundColor,
-        placeholderMatchesText: placeholder.color === style.color,
-        placeholderWeight: placeholder.fontWeight,
+        fieldOutline: style.outlineStyle,
+        outerOutline: frame.outlineStyle,
+        outerShadow: frame.boxShadow,
+        background: frame.backgroundColor,
+        lineWidth: line.borderBottomWidth,
+        lineColor: line.borderBottomColor,
+        placeholder: getComputedStyle(input, '::placeholder').color,
         textWeight: style.fontWeight,
         caretColor: style.caretColor,
+        iconColor: getComputedStyle(group.querySelector('svg.lucide-search')).color,
       };
     });
+    const searchInk = theme === 'midnight' ? 'rgb(227, 233, 223)' : 'rgb(0, 0, 0)';
     const expectedFocus = {
-      active: true, outline: 'none', underline: 'none', outerOutline: 'none',
-      iconBackground: 'rgba(0, 0, 0, 0)', placeholderMatchesText: true,
-      placeholderWeight: '500', textWeight: '400',
-      caretColor: theme === 'midnight' ? 'rgb(181, 204, 226)' : 'rgb(70, 87, 107)',
+      active: true, fieldOutline: 'none', outerOutline: 'none', outerShadow: 'none',
+      background: 'rgba(0, 0, 0, 0)', lineWidth: '1px', lineColor: searchInk,
+      placeholder: 'rgba(0, 0, 0, 0)', textWeight: '400', caretColor: searchInk, iconColor: searchInk,
     };
     if (phone) {
       await searchButton.tap();
+      equal(await searchButton.getAttribute('aria-expanded'), 'true', `${name} search can still be collapsed`);
     } else {
+      await page.screenshot({ path: `${output}/${name}-search-idle.png`, caret: 'initial' });
       await back.focus();
       await page.keyboard.press('Tab');
       equal(await searchButton.evaluate(node => {
@@ -170,13 +178,13 @@ try {
         return [node.matches(':focus-visible'), style.outlineStyle, style.boxShadow.includes('inset')];
       }), [true, 'none', true], `${name} search button keeps an inset keyboard indicator`);
       await page.keyboard.press('Tab');
-      equal(await searchFocusStyle(), expectedFocus, `${name} keyboard focus uses caret and stronger placeholder text`);
+      equal(await searchStyle(), expectedFocus, `${name} keyboard focus darkens the line and uses a visible native caret`);
       await searchButton.click();
-      equal(await searchFocusStyle(), expectedFocus, `${name} clicking the search icon focuses input without leaving an icon fill`);
+      equal(await searchStyle(), expectedFocus, `${name} clicking the search icon focuses the field`);
       await searchInput.blur();
       await searchInput.click();
     }
-    equal(await searchFocusStyle(), expectedFocus, `${name} pointer focus adds no outline, underline or icon fill`);
+    equal(await searchStyle(), expectedFocus, `${name} empty focus shows the magnifier, underline and native caret without an outer frame`);
     await page.screenshot({ path: `${output}/${name}-search-focus.png`, caret: 'initial', animations: 'disabled' });
     await searchInput.fill('harbor');
     await page.waitForFunction(() => {
@@ -184,13 +192,22 @@ try {
       return words.length === 1 && words[0].textContent === 'carry';
     });
     checks.push(`${name} focused search filters by saved context`);
-    equal(await searchFocusStyle(), expectedFocus, `${name} focused text keeps the regular weight and visible caret`);
+    equal(await searchStyle(), expectedFocus, `${name} typing keeps the focused underline and regular text weight`);
     await page.screenshot({ path: `${output}/${name}-search-filled.png`, caret: 'initial', animations: 'disabled' });
     await searchInput.blur();
-    equal(await searchInput.evaluate(input => {
-      const placeholder = getComputedStyle(input, '::placeholder');
-      return [placeholder.fontWeight, placeholder.color !== getComputedStyle(input).color];
-    }), ['400', true], `${name} placeholder returns to its resting emphasis on blur`);
+    const idle = await searchStyle();
+    equal([idle.active, idle.background, idle.outerShadow, idle.lineWidth, idle.placeholder],
+      [false, 'rgba(0, 0, 0, 0)', 'none', '1px', theme === 'midnight' ? 'rgb(177, 201, 180)' : 'rgb(94, 94, 94)'],
+      `${name} blur restores the gray hint and keeps only a fine underline`);
+    equal([idle.lineColor !== searchInk, idle.iconColor !== searchInk], [true, true], `${name} blur mutes the underline and magnifier`);
+    if (phone) {
+      await searchButton.tap();
+      equal(await searchInput.isVisible(), false, `${name} close collapses the search field`);
+      await searchButton.tap();
+      equal(await searchInput.inputValue(), '', `${name} closing clears the search query`);
+      await searchInput.blur();
+      await page.screenshot({ path: `${output}/${name}-search-idle.png`, caret: 'initial' });
+    }
     await searchInput.fill('adapt');
     const adapt = index.getByRole('button', { name: 'adapt', exact: true });
     await adapt.click();
