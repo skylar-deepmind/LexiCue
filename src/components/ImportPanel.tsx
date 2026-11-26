@@ -19,7 +19,6 @@ import { useImportStore } from '../stores/importStore';
 import ImportPaper from './ImportPaper';
 import type { MaterialDropPoint } from './useMaterialDrop';
 import { useImportPresence } from './useImportPresence';
-import { classifyImportLink } from '../lib/importLink';
 import { authorizeImportedReading, validateImportedReading, consumeImportedReading } from '../lib/readingEntry';
 import '../import.css';
 
@@ -29,7 +28,6 @@ export default function ImportPanel({ dropOrigin }: { dropOrigin: RefObject<Mate
     const location=useLocation();
     const live = useImportStore();
     const panelRef = useRef<HTMLDivElement>(null);
-    const linkInput = useRef<HTMLInputElement>(null);
     const previous = useRef(live);
     if (live.open) previous.current = live;
     const state = live.open ? live : previous.current;
@@ -104,12 +102,6 @@ export default function ImportPanel({ dropOrigin }: { dropOrigin: RefObject<Mate
         if (open && panel && !panel.contains(document.activeElement)) panel.focus({ preventScroll: true });
     }, [open, phase, preparing]);
     if (!present) return null;
-    if (phase === 'source') return <Overlay returnFocus={takeImportFocus}
-        label={t('materials.importDialog.linkTitle')} onClose={hide} panelRef={panelRef}
-        initialFocus={() => linkInput.current} className="lc-import-modal"
-        layerClassName={`lc-import-layer${open ? '' : ' lc-import-layer--closing'}`}>
-        <LinkImportForm input={linkInput} onClose={hide} />
-    </Overlay>;
     const committing = phase === 'committing';
     const preview = phase === 'preview';
     const result = phase === 'result';
@@ -154,41 +146,13 @@ export default function ImportPanel({ dropOrigin }: { dropOrigin: RefObject<Mate
                     {item.result?.outcome === 'duplicate' && <button className="ui-button" onClick={() => { state.hide(); navigate(item.result!.readable ? `/files/${item.result!.file_id}` : `/legacy?fileId=${item.result!.file_id}`,{state:{...visitState(location),reopenImport:true}}); }}>{t('materials.openExisting')}</button>}
                 </li>)}</ul>}
                 {retryable && <button className="ui-button" onClick={() => void state.retry()} disabled={running}>{t('materials.retryFailed')}</button>}
-                {preview && !selected && state.items.some(item => item.kind === 'webpage' || item.kind === 'youtube') && <button className="ui-button" onClick={state.showLink}>{t('materials.importDialog.linkTitle')}</button>}
+                {preview && !selected && state.items.some(item => item.kind === 'webpage' || item.kind === 'youtube') &&
+                    <button className="ui-button" aria-busy={state.readingLink} aria-disabled={state.readingLink || state.picking}
+                        onClick={() => void state.fromClipboardLink()}>{t('materials.importDialog.linkTitle')}</button>}
             </>}
         </div></MotionChange>
         <footer className="lc-import-footer">
             {committing ? <><p>{t('materials.importDialog.backgroundHint')}</p><button className="ui-button" disabled={state.stopping} onClick={state.cancel}>{t('materials.cancelRemaining')}</button></> : preview ? <><button className="ui-button ui-button--icon" aria-label={t('materials.importDialog.changeSource')} title={t('materials.importDialog.changeSource')} onClick={() => void state.choose()}><FileText size={20} aria-hidden="true" /></button>{valid.length > 0 && <button className="ui-button lc-import-primary" disabled={!valid.length || !!state.selectionBusy} onClick={() => void state.confirm()}>{t(valid.some(item => item.draft?.document?.extraction_status === 'partial') ? 'documents.importPartial' : 'materials.importDialog.confirm', { count: valid.length })}</button>}</> : <><button className="ui-button" onClick={() => void state.choose()}>{t('materials.importDialog.importMore')}</button><button className="ui-button ui-button--icon lc-import-primary" aria-label={t('common.close')} title={t('common.close')} onClick={hide}><X size={20} aria-hidden="true" /></button></>}
         </footer>
     </Overlay>;
-}
-
-function LinkImportForm({ input, onClose }: {
-    input: RefObject<HTMLInputElement | null>;
-    onClose: () => void;
-}) {
-    const { t } = useTranslation();
-    const [error, setError] = useState('');
-    const label = t('materials.importDialog.linkTitle');
-    return <>
-        <header className="lc-import-header">
-            <h2>{label}</h2>
-            <button type="button" className="ui-button ui-button--icon lc-import-close" aria-label={t('common.close')} onClick={onClose}><X size={20} aria-hidden="true" /></button>
-        </header>
-        <div className="lc-import-body lc-import-youtube">
-            <form noValidate onSubmit={event => {
-                event.preventDefault();
-                const link = classifyImportLink(input.current?.value ?? '');
-                if ('error' in link) { setError(link.error); input.current?.focus(); return; }
-                void useImportStore.getState().fromContent(link.kind, link.url);
-            }}>
-                <label htmlFor="lc-import-link">{t('materials.importDialog.linkLabel')}</label>
-                <input id="lc-import-link" ref={input} type="url" autoComplete="off" placeholder="https://…"
-                    aria-invalid={!!error} aria-describedby={error ? 'lc-import-link-error' : undefined}
-                    onChange={() => { if (error) setError(''); }} />
-                {error && <p id="lc-import-link-error" className="lc-import-error" role="alert">{t(`materials.importDialog.${error}`)}</p>}
-                <button className="ui-button lc-import-primary">{t('materials.importDialog.analyzeLink')}</button>
-            </form>
-        </div>
-    </>;
 }

@@ -51,7 +51,10 @@ const pack = zipSync({
 
 try{
  for(const theme of ['sage','midnight']){
-  await call('test_reset');const context=await browser.newContext({viewport:{width:1440,height:900}});page=await context.newPage();await page.routeWebSocket('**',socket=>socket.close());await fixture(page,theme);
+  await call('test_reset');const context=await browser.newContext({
+   viewport:{width:1440,height:900},
+   userAgent:'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/142.0 Safari/537.36',
+  });page=await context.newPage();await page.routeWebSocket('**',socket=>socket.close());await fixture(page,theme);
   await page.addInitScript(()=>{
    window.isTauri=true;
    const base=window.__TAURI_INTERNALS__.invoke,callbacks=new Map(),listeners=new Map();let next=100;
@@ -71,9 +74,15 @@ try{
    window.__TAURI_INTERNALS__.invoke=async(command,args={})=>{
     if(command==='plugin:event|listen'){const id=++next;listeners.set(id,args);return id;}
     if(command==='plugin:event|unlisten'){listeners.delete(args.eventId);return;}
+    if(command==='plugin:clipboard-manager|read_text'){
+     window.__uiCalls.push({command});
+     if(window.__clipboardError)throw 'clipboard-manager.read_text not allowed';
+     return window.__clipboardText ?? '';
+    }
     if(['plugin:fs|read_text_file','plugin:fs|read'].includes(command)&&window.__holdRead){await new Promise(done=>window.__releaseRead=done);}
     if(command==='cancel_import_translation'){window.__uiCalls.push({command,args:structuredClone(args)});return;}
     if(command==='fetch_import_youtube'&&window.__starImportFixture){
+     window.__uiCalls.push({command,args:{url:args.url}});
      const fixture=window.__starImportFixture;
      await new Promise(done=>{window.__releaseStarImport=done;});
      callbacks.get(args.onProgress.id)?.({index:0,end:true});
@@ -103,14 +112,36 @@ try{
    };
   });
   await page.goto(`${url}/files`);await page.locator('.approved-desk').waitFor();
-  await page.evaluate(async content=>{
+  const linkButton=page.getByRole('button',{name:'从剪贴板导入链接'});
+  const clipboardReads=()=>page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='plugin:clipboard-manager|read_text').length);
+  const fetches=()=>page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='fetch_import_youtube').map(c=>c.args.url));
+  eq(await clipboardReads(),0,'clipboard is not read on launch');
+  const toast=page.locator('.notification-host--top .toast-card[data-type=error]');
+  for(const [value,denied,message] of [
+   ['',false,'剪贴板为空。请复制一条链接后重试。'],
+   ['My private note',false,'请复制一条完整的网页或 YouTube 视频链接。'],
+   ['',true,'无法读取剪贴板。请允许访问剪贴板后重试。'],
+  ]){
+   await page.evaluate(({value,denied})=>{window.__clipboardText=value;window.__clipboardError=denied;},{value,denied});
+   await linkButton.click();
+   await toast.getByText(message,{exact:true}).waitFor();
+   eq(await page.locator('.lc-import-modal').count(),0,'clipboard errors keep the workspace open');
+   eq(await fetches(),[],'clipboard errors make no YouTube request');
+   await contrast(toast.locator('.toast-message'),theme+' clipboard error');
+   await toast.locator('button').last().click();
+  }
+  const sampleUrl='https://youtu.be/eLe8jAPWeQI?si=dJywgS5eMn5cxxN-';
+  await page.evaluate(({content,sampleUrl})=>{
     window.__starImportFixture={content,source:{video_id:'jNQXAC9IVRw',title:'Public YouTube example',audio:null},cover:null};
-    const {useImportStore}=await window.__uiStoreModule('importStore');
-    useImportStore.getState().showLink();
-  },srt('The opening caption is ready.'));
-  await page.locator('#lc-import-link').fill('https://youtu.be/jNQXAC9IVRw');
-  await page.locator('#lc-import-link').press('Enter');
+    window.__clipboardText=sampleUrl;
+    window.__clipboardError=false;
+  },{content:srt('The opening caption is ready.'),sampleUrl});
+  await linkButton.focus();
+  await page.keyboard.press('Enter');
   await page.waitForFunction(()=>typeof window.__releaseStarImport==='function');
+  eq(await clipboardReads(),4,'one clipboard read per explicit activation');
+  eq(await fetches(),[sampleUrl],'keyboard activation analyzes the clipboard URL immediately');
+  eq(await page.locator('input[type=url]').count(),0,'analysis has no intermediate link input');
   const stars=page.locator('.lc-import-paper-stars');
   await stars.locator('i').first().waitFor();
   eq(await page.locator('.lc-import-paper-fragment').count(),0,'YouTube replaces the three fragments');
@@ -141,7 +172,9 @@ try{
   await preview();
   eq(await stars.count(),0,'the original preview replaces the loading paper');
   eq((await writes()).length,0,'YouTube preview makes no library write');
+  await page.screenshot({path:`${output}/${theme}-youtube-clipboard-preview.png`});
   await close();
+  ok(await linkButton.evaluate(node=>node===document.activeElement),'closing the preview returns focus to link import');
   const callsBefore=await pickerCalls();
   await chooseFromDesk();
   eq(await pickerCalls(),callsBefore+1,'one click opens the system picker directly');
@@ -150,7 +183,7 @@ try{
   ok(await page.locator('.home-import-action').evaluate(node=>node===document.activeElement),'cancelled picker returns focus');
   await page.evaluate(text=>window.__uiFiles={'/fixture/真实英语.srt':text},flight);
   await chooseFromDesk();await preview();await settle();
-  eq(await page.evaluate(()=>window.__uiCalls.filter(c=>c.command==='plugin:clipboard-manager|read_text').length),0,'file entry never reads clipboard');
+  eq(await clipboardReads(),4,'file entry never reads clipboard');
   eq(await page.locator('#root').evaluate(n=>n.inert),true,'prepared-content modal owns focus');eq(await page.locator('.context-panel').count(),0,'import does not use context panel');eq(await page.locator('.b-shell').getAttribute('data-context-open'),'false','import never shifts reading workspace');
   await page.locator('.import-edge-label').focus();await page.keyboard.press('Tab');ok(await page.locator('.lc-import-modal').evaluate(n=>n.contains(document.activeElement)),'prepared-content dialog retains keyboard ownership');
   eq((await writes()).length,0,'native picker boundary has zero writes before confirmation');eq((await call('test_counts')).files,0,'no material before confirmation');

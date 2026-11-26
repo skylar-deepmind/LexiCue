@@ -5,6 +5,7 @@ import i18n from '../i18n';
 import { prepareContent, prepareYouTube } from '../lib/contentImport';
 import type { YoutubeSource } from '../lib/sourceMedia';
 import { clipboardTitle } from '../lib/clipboardContent';
+import { classifyImportLink, readImportClipboard } from '../lib/importLink';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { materialPackageCover, readMaterialPackage } from '../lib/materialPackage';
@@ -186,15 +187,15 @@ export async function commitImportQueue(items: ImportItem[], signal: AbortSignal
 
 let controller: AbortController | null = null;
 let generation = 0;
-let pickerGeneration = 0;
+let sourceGeneration = 0;
 let rangeGeneration = 0;
 const noImportTags: TagSelection = { tagIds: [], newTagNames: [] };
 const empty = { importTags: noImportTags, items: [] as ImportItem[], phase: 'source' as ImportPhase, selectedId: null as string | null,
-    running: false, stopping: false, destination: null as number | 'materials' | null, pickerError: false, picking: false, selectionBusy: null as string | null };
+    running: false, stopping: false, destination: null as number | 'materials' | null, pickerError: false, picking: false, readingLink: false, selectionBusy: null as string | null };
 function abandonPreparation() {
     generation++;
     rangeGeneration++;
-    pickerGeneration++;
+    sourceGeneration++;
     controller?.abort();
     controller = null;
 }
@@ -214,6 +215,7 @@ export const useImportStore = create<{
     running: boolean;
     stopping: boolean;
     picking: boolean;
+    readingLink: boolean;
     destination: number | 'materials' | null;
     pickerError: boolean;
     selectionBusy: string | null;
@@ -221,7 +223,7 @@ export const useImportStore = create<{
     setImportTags: (selection: TagSelection) => void;
     selectRange: (id: string, selection: DocumentSelection) => Promise<void>;
     show: () => void;
-    showLink: () => void;
+    fromClipboardLink: () => Promise<void>;
     hide: () => void;
     select: (id: string) => void;
     clearDestination: () => void;
@@ -241,7 +243,7 @@ export const useImportStore = create<{
         const token = generation;
         const active = new AbortController();
         controller = active;
-        set({ open: true, phase: 'preparing', running: true, stopping: false, items: all, selectedId: null, destination: null, pickerError: false, picking: false, selectionBusy: null });
+        set({ open: true, phase: 'preparing', running: true, stopping: false, items: all, selectedId: null, destination: null, pickerError: false, picking: false, readingLink: false, selectionBusy: null });
         const expanded: ImportItem[] = [];
         let nextItems = all;
         for (const item of items) {
@@ -280,10 +282,10 @@ export const useImportStore = create<{
         if (useRestoreGuard.getState().active) { useFeedbackStore.getState().show(i18n.t('fileStore.restoreInProgress'), 'error'); return; }
         if (get().running || get().selectionBusy || !items.length) return;
         // Lock synchronously, before the first await: double clicks cannot submit twice.
-        pickerGeneration++;
+        sourceGeneration++;
         const active = new AbortController();
         controller = active;
-        set({ phase: 'committing', running: true, stopping: false, picking: false, destination: null });
+        set({ phase: 'committing', running: true, stopping: false, picking: false, readingLink: false, destination: null });
         const { tagIds, newTagNames } = get().importTags;
         await commitImportQueue(items, active.signal, update, async (input, audio) => {
             const request = { ...input, ...(tagIds.length ? { tag_ids: tagIds } : {}), ...(newTagNames.length ? { new_tag_names: newTagNames } : {}) };
@@ -315,11 +317,28 @@ export const useImportStore = create<{
         open: false, ...empty,
         setImportTags: importTags => { if (!get().running && get().phase === 'preview') set({ importTags }); },
         show: () => { if (get().phase !== 'source') set({ open: true }); },
-        showLink: () => {
-            if (!get().running && !get().picking) {
-                discardYouTubeAudio(get().items);
-                set({ ...empty, open: true });
+        fromClipboardLink: async () => {
+            if (get().running || get().picking || get().readingLink) return;
+            const token = ++sourceGeneration;
+            set({ readingLink: true });
+            let value: string | null;
+            try {
+                value = await readImportClipboard();
+            } catch {
+                if (token === sourceGeneration) {
+                    set({ readingLink: false });
+                    useFeedbackStore.getState().show(i18n.t('materials.importDialog.clipboardFailed'), 'error', undefined, undefined, 'top');
+                }
+                return;
             }
+            if (token !== sourceGeneration) return;
+            set({ readingLink: false });
+            const link = classifyImportLink(value ?? '');
+            if ('error' in link) {
+                useFeedbackStore.getState().show(i18n.t(`materials.importDialog.${link.error}`), 'error', undefined, undefined, 'top');
+                return;
+            }
+            await get().fromContent(link.kind, link.url);
         },
         clearDestination: () => set({ destination: null }),
         hide: () => {
@@ -354,6 +373,7 @@ export const useImportStore = create<{
         },
         fromContent: async (kind, value) => {
             if(get().running)return;
+            discardYouTubeAudio(get().items);
             set({importTags:noImportTags});
             await prepare([{id:crypto.randomUUID(),stage:'queued',kind, name: kind === 'youtube' ? 'YouTube.srt' : kind === 'clipboard' ? clipboardTitle(value) : value, capturedText: kind === 'clipboard' ? value : undefined, url: kind === 'clipboard' ? undefined : value, read: async () => value}]);
         },
@@ -366,15 +386,15 @@ export const useImportStore = create<{
             update(id, {name: title, title, draft: Object.freeze({...item.draft, name: title, document})});
         },
         choose: async () => {
-            if (get().running || get().picking) return;
-            const token = ++pickerGeneration;
+            if (get().running || get().picking || get().readingLink) return;
+            const token = ++sourceGeneration;
             set({ picking: true, pickerError: false });
             try {
                 const paths = await open(materialPickerOptions());
-                if (token !== pickerGeneration || !paths) return;
+                if (token !== sourceGeneration || !paths) return;
                 await get().start((Array.isArray(paths) ? paths : [paths]).map(path => pickedMaterialSource(path, readDocumentFile)));
-            } catch { if (token === pickerGeneration) { set({ pickerError: true }); useFeedbackStore.getState().show(i18n.t('materials.importDialog.pickerFailed'),'error'); } }
-            finally { if (token === pickerGeneration) set({ picking: false }); }
+            } catch { if (token === sourceGeneration) { set({ pickerError: true }); useFeedbackStore.getState().show(i18n.t('materials.importDialog.pickerFailed'),'error'); } }
+            finally { if (token === sourceGeneration) set({ picking: false }); }
         },
         useEnglish: async id => {
             if (get().running || get().phase !== 'preview') return;

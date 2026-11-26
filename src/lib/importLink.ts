@@ -12,7 +12,6 @@ export function supportsMacLinkImport(): boolean {
 }
 
 export function classifyImportLink(value: string): { kind: 'webpage' | 'youtube'; url: string } | { error: string } {
-  if (!value.trim()) return { error: 'invalidLink' };
   const parsed = inspectClipboardContent(value);
   if (parsed.kind === 'webpage') return parsed;
   if (parsed.kind === 'text') return { error: 'invalidLink' };
@@ -40,7 +39,7 @@ export function inspectImportLink(text: string | null): ImportLink {
   return { url: value };
 }
 
-/** Called only from the user's Paste link action. No polling or write access. */
+/** Read once when the user activates link import. */
 export async function readImportClipboard(): Promise<string | null> {
   if (!isTauri()) return navigator.clipboard.readText();
   try { return await readText(); }

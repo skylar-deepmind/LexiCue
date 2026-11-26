@@ -33,7 +33,13 @@ case " $* " in
       echo 'ERROR: Read operation timed out' >&2
       exit 1
     fi
-    printf '{"id":"abcdefghijk","duration":2,"extractor":"generic","extractor_key":"Generic","language":"en","title":"Harbor","webpage_url":"https://example.org/private","formats":[{"ext":"m4a","vcodec":"none","acodec":"mp4a.40.2","language":"en","format_id":"140","url":"AUDIO_ENDPOINT","abr":90}],%s}\n' "$tracks"
+    if [ SCENARIO = large_metadata ]; then
+      printf '{"id":"abcdefghijk","duration":2,"title":"Harbor","subtitles":{"en":[{"ext":"vtt"}]},"automatic_captions":{"en-orig":[{"ext":"vtt"}],"fr":[{"data":"'
+      head -c 9000000 /dev/zero | tr '\000' x
+      printf '"}]}}\n'
+    else
+      printf '{"id":"abcdefghijk","duration":2,"extractor":"generic","extractor_key":"Generic","language":"en","title":"Harbor","webpage_url":"https://example.org/private","formats":[{"ext":"m4a","vcodec":"none","acodec":"mp4a.40.2","language":"en","format_id":"140","url":"AUDIO_ENDPOINT","abr":90}],%s}\n' "$tracks"
+    fi
     ;;
   *' --write-subs '*|*' --write-auto-subs '*)
     case " $* " in
@@ -134,6 +140,27 @@ esac
         let trace = Trace::new(Instant::now() + limit);
         fetch(VIDEO, &self.stage, &trace, &self.tools, progress, cover).await
     }
+}
+
+#[tokio::test]
+async fn large_translation_catalog_keeps_english_and_allows_import() {
+    let fixture = Fixture::new("large_metadata");
+    let metadata = load_metadata(&fixture.tools, fixture.workspace.path(), VIDEO)
+        .await
+        .unwrap();
+    assert_eq!(
+        metadata["automatic_captions"],
+        serde_json::json!({"en-orig": [{"ext":"vtt"}]})
+    );
+    let imported = fixture
+        .fetch(Duration::from_secs(10), |_| {}, async {
+            Ok("cover".into())
+        })
+        .await
+        .unwrap();
+    assert!(imported.content.contains("We saw the harbor."));
+    assert_eq!(fixture.requests(), ["metadata", "metadata", "caption-en"]);
+    fixture.no_temporary_files();
 }
 
 #[tokio::test]

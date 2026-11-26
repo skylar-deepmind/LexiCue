@@ -10,6 +10,7 @@ describe('clipboard import boundary', () => {
     expect(classifyImportLink('www.youtube.com/watch?v=abcdefghijk')).toEqual({ kind: 'youtube', url: 'https://www.youtube.com/watch?v=abcdefghijk' });
     expect(classifyImportLink('https://youtube.com/playlist?list=abcdefghijk')).toEqual({ error: 'unsupportedLink' });
     expect(classifyImportLink('A private reading note.')).toEqual({ error: 'invalidLink' });
+    expect(classifyImportLink(' \n ')).toEqual({ error: 'clipboardEmpty' });
     expect(classifyImportLink('https://example.org/a https://example.org/b')).toEqual({ error: 'multipleLinks' });
   });
   it.each([
