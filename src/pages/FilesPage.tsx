@@ -22,7 +22,7 @@ import { useMaterialStore } from '../stores/materialStore';
 import { useReadingDeskStore } from '../stores/readingDeskStore';
 import { useFileStore } from '../stores/fileStore';
 import { useImportStore } from '../stores/importStore';
-import { openImportFrom, rememberImportFocus } from '../components/importFocus';
+import { importLinkFrom, openImportFrom } from '../components/importFocus';
 import { supportsMacLinkImport } from '../lib/importLink';
 import { matchesMaterial, readingPosition } from '../lib/readingDesk';
 import { materialCover } from '../lib/materialCover';
@@ -56,6 +56,7 @@ function MaterialDesk() {
   const [params, setParams] = useSearchParams();
   const catalog = useMaterialStore(), desk = useReadingDeskStore();
   const picking = useImportStore(s => s.picking), importing = useImportStore(s => s.running), importOpen = useImportStore(s => s.open);
+  const readingLink = useImportStore(s => s.readingLink);
   const tags = useFileStore(s => s.tags), loadTags = useFileStore(s => s.loadTags);
   const { theme, setTheme } = useTheme();
   const libraryNames = useLibraryNames();
@@ -185,13 +186,11 @@ function MaterialDesk() {
         <button className="approved-brand" aria-label={t(theme === 'midnight' ? 'approved.light' : 'approved.dark')} aria-pressed={theme === 'midnight'} onClick={() => setTheme(current => current === 'midnight' ? 'sage' : 'midnight')}><span className="approved-wordmark" aria-hidden="true"/></button>
         <div>{supportsMacLinkImport() && <button type="button" className="approved-icon"
           aria-label={t('materials.importDialog.linkTitle')} title={t('materials.importDialog.linkTitle')}
-          aria-haspopup="dialog" disabled={picking || importing} onClick={event => {
-            rememberImportFocus(event.currentTarget);
-            useImportStore.getState().showLink();
-          }}><Link2 size={23} aria-hidden="true" /></button>}
+          aria-haspopup="dialog" aria-busy={readingLink} aria-disabled={picking || importing || readingLink}
+          onClick={event => importLinkFrom(event.currentTarget)}><Link2 size={23} aria-hidden="true" /></button>}
           <button type="button" data-guide="import" className="approved-icon home-import-action"
           aria-label={t(importing ? 'materials.importRunning' : 'materials.import')} aria-haspopup="dialog" aria-expanded={importOpen}
-          aria-busy={picking || importing} disabled={picking} onClick={event => openImportFrom(event.currentTarget)}>
+          aria-busy={picking || importing} disabled={picking || readingLink} onClick={event => openImportFrom(event.currentTarget)}>
           {picking || importing ? <BusyRing/> : <Plus size={24} aria-hidden="true"/>}
         </button>
           <button className="approved-icon home-settings-action" onPointerDown={settingsRoute.preload} onFocus={settingsRoute.preload} aria-label={t('sidebar.settings')} onClick={() => navigate('/settings', { state: visitState(location) })}><Settings size={23}/></button>

@@ -17,6 +17,7 @@ pub(super) enum Failure {
     ToolIncompatible,
     ToolFailed,
     InvalidMetadata,
+    MetadataTooLarge,
     InvalidSubtitles,
     NoAudioTrack,
     AudioInvalid,

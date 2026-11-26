@@ -30,7 +30,9 @@ const ORIGINAL_ENGLISH_CAPTIONS: [&str; 6] = [
 ];
 const IMPORT_LIMIT: Duration = Duration::from_secs(240);
 const MAX_CAPTION_BYTES: u64 = 8_000_000;
-const MAX_METADATA_BYTES: usize = 8_000_000;
+// yt-dlp can emit a large catalogue of automatic translations even with
+// translated_subs skipped. This is a tool-output budget, independent of SRT limits.
+const MAX_METADATA_BYTES: usize = 64 * 1024 * 1024;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct CaptionTrack {
@@ -157,8 +159,13 @@ async fn load_metadata(tools: &Tools, path: &Path, id: &str) -> Result<serde_jso
         "--",
         &canonical,
     ]);
-    let output = run_tool(command, MAX_METADATA_BYTES, |_| {}).await?;
-    let metadata: serde_json::Value = serde_json::from_slice(&output.stdout)
+    let output = run_tool(command, MAX_METADATA_BYTES, |_| {})
+        .await
+        .map_err(|failure| match failure {
+            Failure::TooLarge => Failure::MetadataTooLarge,
+            failure => failure,
+        })?;
+    let mut metadata: serde_json::Value = serde_json::from_slice(&output.stdout)
         .map_err(|_| output.issue.unwrap_or(Failure::InvalidMetadata))?;
     if metadata["id"] != id
         || metadata["duration"]
@@ -167,8 +174,14 @@ async fn load_metadata(tools: &Tools, path: &Path, id: &str) -> Result<serde_jso
     {
         return Err(output.issue.unwrap_or(Failure::InvalidMetadata));
     }
-    if caption_tracks(&metadata).iter().all(Option::is_none) {
+    let tracks = caption_tracks(&metadata);
+    if tracks.iter().all(Option::is_none) {
         return Err(output.issue.unwrap_or(Failure::NoSubtitles));
+    }
+    for (field, track) in ["subtitles", "automatic_captions"].into_iter().zip(tracks) {
+        if let Some(captions) = metadata[field].as_object_mut() {
+            captions.retain(|language, _| track.is_some_and(|track| language == track.language));
+        }
     }
     Ok(metadata)
 }

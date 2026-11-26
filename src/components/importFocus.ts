@@ -11,7 +11,18 @@ export function openImportFrom(element: HTMLElement) {
     rememberImportFocus(element);
     const state = useImportStore.getState();
     if (state.running) state.show();
-    else void state.choose().then(() => {
+    else restoreFocusIfIdle(element, state.choose());
+}
+
+export function importLinkFrom(element: HTMLElement) {
+    const state = useImportStore.getState();
+    if (state.running || state.picking || state.readingLink) return;
+    rememberImportFocus(element);
+    restoreFocusIfIdle(element, state.fromClipboardLink());
+}
+
+function restoreFocusIfIdle(element: HTMLElement, task: Promise<void>) {
+    void task.then(() => {
         if (!useImportStore.getState().open && opener === element) {
             opener = null;
             requestAnimationFrame(() => {

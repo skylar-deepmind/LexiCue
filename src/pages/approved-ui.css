@@ -12,8 +12,8 @@
 .figma-shell .b-dock { position:fixed; left:auto; right:40px; top:max(24px,env(safe-area-inset-top)); bottom:auto; transform:none; width:auto; }
 .figma-shell .b-dock nav,.figma-shell .dock-reading-tools { flex-direction:row; background:none; box-shadow:none; padding:0; }
 .approved-icon { display:inline-flex; align-items:center; justify-content:center; width:46px; height:46px; min-width:44px; min-height:44px; border:0; border-radius:8px; color:inherit; background:transparent; cursor:pointer; }
-.approved-icon:hover:not(:disabled) { background:var(--approved-hover); }
-.approved-icon:disabled { opacity:.45; cursor:default; }
+.approved-icon:hover:not(:disabled,[aria-disabled="true"]) { background:var(--approved-hover); }
+.approved-icon:is(:disabled,[aria-disabled="true"]) { opacity:.45; cursor:default; }
 .approved-icon:focus-visible,.approved-desk button:focus-visible { outline:2px solid var(--approved-focus); outline-offset:3px; }
 .approved-desk { position:relative; width:100%; height:100%; min-height:0; background:var(--approved-desk); color:var(--approved-ink); overflow:hidden; }
 .approved-home-header { position:absolute; z-index:5; top:max(34px,env(safe-area-inset-top)); left:48px; right:54px; display:flex; align-items:center; justify-content:space-between; }
