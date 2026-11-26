@@ -134,8 +134,9 @@ function SentenceDictionary({ result, attribution, onInteract }: {
       <small className="dictionary-plain-label">{t('dictionaryFlow.baseForm', { count: baseForms.length })}</small>
       <strong lang="en">{baseForms.join(' · ')}</strong>
     </p>}
-    {heads.map(([headword, entries]) => {
-      const showHead = heads.length > 1 || (headword !== query && !baseForms.length);
+    {heads.map(([headword, entries], index) => {
+      const namedByBaseForm = index === 0 && baseForms.length === 1 && headword === normalizedHeadword(baseForms[0]);
+      const showHead = !namedByBaseForm && (heads.length > 1 || headword !== query);
       const expressions = [...new Set(entries.flatMap(entry => entry.related_expressions.map(item => item.text)))];
       return <div className="dictionary-entry" key={headword}>
         {showHead && <strong className="dictionary-overview-headword" lang="en">{entries[0].headword}</strong>}
