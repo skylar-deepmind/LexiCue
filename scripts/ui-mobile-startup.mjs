@@ -41,7 +41,7 @@ async function tab(page,phase,path,from='home'){
  else await page.locator('.approved-saved-header').getByRole('button',{name:'返回',exact:true}).click();
  if(path==='/saved'){
    await page.locator('.approved-folio-sentence').filter({hasText:continuation}).waitFor({timeout:1500});
-   ok(await page.locator('.approved-folio-note').isEnabled(),'the real saved context can be edited');
+   ok(await page.locator('.approved-source-title').isEnabled(),'the real saved context can open its source');
    timings.push({phase,path:'/saved-context',ms:performance.now()-start});
    await page.locator('.approved-saved-word[aria-pressed="true"]:enabled').waitFor({timeout:1500});
    ok(await page.locator('.approved-saved-word[aria-pressed="true"]').isEnabled(),'saved index with real content is interactive');
@@ -140,11 +140,7 @@ ${continuation}`,normalized_kind:'txt',segments:[{index:0,en_text:opening},{inde
  await heldPage.waitForFunction(()=>typeof window.__releaseArchive==='function');
  await heldPage.locator('.approved-folio-sentence').filter({hasText:continuation}).waitFor({timeout:1000});
  eq(await heldPage.locator('.approved-saved-word').count(),0,'the grouping request is still pending');
- await heldPage.locator('.approved-folio-note').click();
- const heldNote=heldPage.getByRole('textbox',{name:'个人解释：',exact:true});
- await heldNote.waitFor();
- eq(await heldNote.inputValue(),'测试保存句','early folio is the full saved record');
- await heldPage.getByRole('button',{name:'取消',exact:true}).click();
+ eq(await heldPage.locator('.approved-folio-note').innerText(),'测试保存句','early folio includes the saved explanation');
  await heldPage.evaluate(()=>window.__releaseArchive());
  await heldPage.locator('.approved-saved-word[aria-pressed="true"]:enabled').waitFor({timeout:1500});
  await held.close();

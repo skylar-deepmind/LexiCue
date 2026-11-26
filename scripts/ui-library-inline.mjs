@@ -1,7 +1,7 @@
 /** Native-service-backed interaction regressions; no production user library. */
 import assert from 'node:assert/strict';
 import { writeFile } from 'node:fs/promises';
-import { createReadingHarness, openSelectedSavedExpression } from './ui-reading-support.mjs';
+import { createReadingHarness } from './ui-reading-support.mjs';
 const out=process.env.LEXICUE_LIBRARY_UI_OUTPUT||'/tmp/lexicue-library-inline',h=await createReadingHarness(out);let page,checks=0;
 const ok=(v,s)=>{assert.ok(v,s);checks++;},eq=(v,e,s)=>{assert.deepEqual(v,e,s);checks++;};
 const settle=()=>page.waitForFunction(()=>!document.querySelector('.approved-tag-flight,.approved-handoff,.approved-saved-flight'));
@@ -68,13 +68,6 @@ try {
   await page.locator('.approved-card[data-desk-active=true] .approved-tag-edit').waitFor();eq(await page.locator('.approved-card[data-desk-active=true] .approved-tag-edit').innerText(),'待整理','home uses the renamed untagged caption');
   await page.locator('.approved-card[data-desk-active=true] .approved-tag-edit').click();ok(await page.getByRole('button',{name:'待整理',exact:true}).isVisible(),'tag choices use the same renamed default');await page.keyboard.press('Escape');
   await page.evaluate(async()=>{const{useImportStore:i}=await window.__uiStoreModule('importStore');await i.getState().fromContent('clipboard','A new material waits near the harbor.',true);});await page.locator('.import-material-card').waitFor();eq(await page.locator('.import-edge-label').innerText(),'待整理','import preview shares the renamed default');await page.keyboard.press('Escape');
-  // In-place explanation: cursor in original page, real persistence and cancel.
-  await h.call('test_seed_recall',{count:1,records:[{expression:'air',sentence:'The air is cool near the harbor.',explanation:'保留的解释。',saved_at:Date.now()}]});
-  await page.goto(h.url+'/saved');await openSelectedSavedExpression(page);await page.locator('.approved-folio-note').waitFor();await settle();await page.locator('.approved-folio-note').click();const editor=page.locator('.approved-inline-note'),input=editor.locator('textarea');await input.waitFor();
-  eq(await page.getByRole('dialog').count(),0,'personal explanation edits in the original page without a popup');ok(await input.evaluate(n=>n===document.activeElement),'inline explanation has the editing cursor');ok(await input.evaluate(n=>parseFloat(getComputedStyle(n).borderBottomWidth)>=1),'inline explanation uses an underline');
-  await input.fill('不应保存的草稿');await editor.getByRole('button',{name:'取消',exact:true}).click();eq((await h.call('list_saved_records',{query:'',limit:10,offset:0}))[0].explanation,'保留的解释。','cancel does not write a note');
-  await page.locator('.approved-folio-note').click();eq(await page.locator('.approved-inline-note textarea').inputValue(),'保留的解释。','cancel discards the inline draft');
-  await page.evaluate(()=>window.__uiFailure={command:'mutate_saved_record',remaining:1,afterCommit:false});await page.locator('.approved-inline-note textarea').fill('原地保存的解释。');await page.getByRole('button',{name:'保存解释',exact:true}).click();await page.locator('.approved-inline-note [role=alert]').waitFor();eq(await page.locator('.approved-inline-note textarea').inputValue(),'原地保存的解释。','write failure keeps the explanation draft in place');await page.getByRole('button',{name:'保存解释',exact:true}).click();await page.locator('.approved-inline-note').waitFor({state:'detached'});ok((await h.call('list_saved_records',{query:'',limit:10,offset:0})).some(r=>r.explanation==='原地保存的解释。'),'inline explanation saves through Rust/SQLite');
   // Four real language controls, short nav labels and full accessible names.
   await page.goto(h.url+'/settings');for(const language of ['English','Deutsch','日本語','中文']){
    await page.getByRole('radio',{name:language,exact:true}).click();await page.getByRole('radio',{name:language,exact:true}).waitFor();

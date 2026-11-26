@@ -30,8 +30,8 @@ try {
     const start = text.indexOf(word);
     await h.call('mutate_saved_record', { operationId: crypto.randomUUID(), mutation: { kind: 'save', input: {
       segment_id: material.segments[index].id, expression: word, start_offset: start, end_offset: start + word.length,
-      explanation: word === 'take off' ? '起飞；离开地面。' : '来自原文的个人释义。',
-      explanation_source: 'personal',
+      explanation: word === 'adapt' ? null : word === 'take off' ? '起飞；离开地面。' : '来自原文的个人释义。',
+      explanation_source: word === 'adapt' ? 'unknown' : 'personal',
     } } });
   }
 
@@ -109,21 +109,9 @@ try {
     equal(await page.locator('.approved-folio-note').textContent(), '起飞；离开地面。', `${name} original Chinese explanation survives`);
     equal(await cards.first().locator('.approved-source-cover img').count(), 1, `${name} cover is present`);
     equal(await cards.first().locator('.approved-source-title').textContent(), 'A quiet journey', `${name} source label is visible`);
-    equal(await cards.first().locator('.approved-folio-speech').isEnabled(), true, `${name} sentence has a speech action`);
-    await page.evaluate(() => {
-      const invoke = window.__TAURI_INTERNALS__.invoke;
-      window.__TAURI_INTERNALS__.invoke = (command, args) => {
-        if (command === 'resolve_tts_audio') {
-          window.__archiveSpeech = args.request;
-          return Promise.reject('invalid_input');
-        }
-        return invoke(command, args);
-      };
-    });
-    await cards.first().locator('.approved-folio-speech').click();
-    await page.waitForFunction(() => window.__archiveSpeech);
-    equal(await page.evaluate(() => [window.__archiveSpeech.kind, window.__archiveSpeech.text]),
-      ['sentence', await cards.first().locator('.approved-folio-sentence').textContent()], `${name} pronunciation requests the exact full sentence`);
+    equal(await page.locator('.saved-archive-term').getByRole('button').count(), 0, `${name} existing explanation is read-only`);
+    equal(await cards.getByRole('button').count(), 6, `${name} only cover and source title are buttons in each context`);
+    await page.screenshot({ path: `${output}/${name}-detail.png` });
     const second = await cards.nth(1).getAttribute('data-record');
     await cards.nth(1).locator('.approved-source-title').click();
     await page.locator('[data-source-highlight=true]').waitFor();
@@ -203,6 +191,13 @@ try {
       const placeholder = getComputedStyle(input, '::placeholder');
       return [placeholder.fontWeight, placeholder.color !== getComputedStyle(input).color];
     }), ['400', true], `${name} placeholder returns to its resting emphasis on blur`);
+    await searchInput.fill('adapt');
+    const adapt = index.getByRole('button', { name: 'adapt', exact: true });
+    await adapt.click();
+    await cards.first().getByText('adapt', { exact: true }).waitFor();
+    equal(await page.locator('.saved-archive-term').innerText(), 'adapt', `${name} missing explanation leaves only the heading`);
+    equal(await cards.first().getByRole('button').count(), 2, `${name} context without an explanation still links to the source`);
+    await page.screenshot({ path: `${output}/${name}-no-explanation.png` });
     await context.close();
   }
   equal(h.errors, [], 'no browser exceptions');

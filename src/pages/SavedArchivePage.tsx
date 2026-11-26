@@ -321,11 +321,6 @@ export default function SavedArchivePage() {
     catch (error) { setSourceError(savedErrorKey(error)); }
     finally { pendingWrite.current = false; setWriting(false); }
   };
-  const edit = (item: SavedRecord) => {
-    setContextRead(previous => previous?.identity === identity ? {
-      identity, page: { ...previous.page, records: previous.page.records.map(saved => saved.record_id === item.record_id ? item : saved) },
-    } : previous);
-  };
 
   return <section className="approved-saved saved-workspace" aria-labelledby="saved-archive-title" data-mobile-detail={mobileDetail} data-searching={searching}>
     <header className="approved-saved-header">
@@ -357,7 +352,7 @@ export default function SavedArchivePage() {
       {showDetail && <div className="approved-saved-detail" aria-label={t('savedRecords.context')}>
         {heading && <header className="saved-archive-term">
           <h2 lang="en">{heading}</h2>
-          {record && <SavedArchiveGloss key={record.record_id} record={record} summary={selected?.summary} onChange={edit}/>}
+          {record && <SavedArchiveGloss record={record} summary={selected?.summary}/>}
         </header>}
         <div ref={detail} className="approved-folio-scroll" onScroll={event => { state.current.detailScroll = event.currentTarget.scrollTop; }}>
           {records.map(item => <SavedArchiveCard key={item.record_id} record={item} current={record?.record_id === item.record_id}

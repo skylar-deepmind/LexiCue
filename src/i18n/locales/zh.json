@@ -1342,7 +1342,6 @@
     "explanation": "个人解释",
     "saveChanges": "保存修改",
     "noExplanation": "尚无解释",
-    "edit": "修改解释",
     "original": "原句副本",
     "missingOriginal": "旧记录中已无原句副本。",
     "source": "{{name}} · 第 {{index}} 句",
@@ -1381,7 +1380,6 @@
     "englishMeaning": "旧英语解释",
     "extraSense": "扩展义",
     "example": "例句",
-    "saveExplanation": "保存解释",
     "groupActions": "“{{expression}}”的更多操作",
     "deleteGroupNamed": "删除“{{expression}}”及全部 {{count}} 句",
     "groupRemoved": "已删除“{{expression}}”及 {{count}} 句"
