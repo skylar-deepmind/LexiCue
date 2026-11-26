@@ -33,6 +33,16 @@ export function useHomePosition(enabled:boolean,locale:string,onLocale:(locale:s
  useLayoutEffect(()=>{if(!enabled||!pending.current)return;const position=pending.current;pending.current=null;restore(position);requestAnimationFrame(()=>{restore(position);restoring.current=false;remember(capturePosition());});},[enabled,locale]);
  useEffect(()=>{if(!enabled)return;const c=copy[locale],k=keynoteCopy[locale],url=siteUrl+(locale==='en'?'':locale+'/');document.title=keynoteTitle(locale)+' — LexiCue';for(const selector of ['meta[name=description]','meta[property="og:description"]'])document.querySelector(selector)?.setAttribute('content',k.intro);for(const selector of ['meta[property="og:title"]'])document.querySelector(selector)?.setAttribute('content',document.title);document.querySelector('link[rel=canonical]')?.setAttribute('href',url);document.querySelector('meta[property="og:url"]')?.setAttribute('content',url);document.querySelector('meta[property="og:image"]')?.setAttribute('content',siteUrl+'media/keynote/context.webp');document.querySelector('meta[property="og:locale"]')?.setAttribute('content',({en:'en_US',zh:'zh_CN',ja:'ja_JP',de:'de_DE'})[locale]);const schema=document.querySelector('script[type="application/ld+json"]');if(schema){try{const data=JSON.parse(schema.textContent);data.url=url;data.featureList=c.titles;schema.textContent=JSON.stringify(data);}catch{}}},[enabled,locale]);
  const switchLocale=(next:string)=>{if(!locales.includes(next))return;if(next===locale){history.replaceState({...history.state,lexicueLocale:next},'');onLocale(next);return;}const position=capturePosition();remember(position);pending.current=position;restoring.current=true;const url=new URL(homeUrl(next),location.href);const params=new URLSearchParams(location.search);params.delete('lang');params.delete('demo');for(const [k,v] of params)url.searchParams.set(k,v);url.hash=location.hash;history.pushState({lexicueHome:position,lexicueLocale:next},'',url.pathname+url.search+url.hash);onLocale(next);};
- const anchor=(event:any,id:string)=>{if(!enabled||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;event.preventDefault();remember(capturePosition());history.pushState({},'',location.pathname+location.search+'#'+id);document.getElementById(id)?.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'instant':'smooth'});};
+ const anchor=(event:any,id:string)=>{
+  if(!enabled||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
+  const target=document.getElementById(id);
+  if(!target)return;
+  event.preventDefault();
+  remember(capturePosition());
+  if(location.hash!=='#'+id)history.pushState({},'',location.pathname+location.search+'#'+id);
+  target.tabIndex=-1;
+  target.focus({preventScroll:true});
+  target.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'instant':'smooth'});
+ };
  return {switchLocale,anchor};
 }

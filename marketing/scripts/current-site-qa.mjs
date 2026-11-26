@@ -24,7 +24,7 @@ for(const locale of cfg.locales)for(const theme of cfg.themes)for(const width of
  const prefix=cfg.base+(locale==='en'?'':locale+'/');
  await page.goto(cfg.mode==='manual'?prefix+'guide/quick-start/':homeFor(locale));await page.evaluate(theme=>localStorage.setItem('lexicue-marketing-theme',theme),theme);await page.reload();
  if(cfg.mode!=='manual'){
-  await page.waitForSelector('.kn-hero h1');
+  await page.waitForSelector('.kn-tour.kn-enhanced');
   check(await page.evaluate(()=>document.querySelectorAll('.kn-story').length===3),'three visible product stories');
   await page.cdp('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'no-preference'}]});
   for(const id of ['highlights','lookup','memory']){
