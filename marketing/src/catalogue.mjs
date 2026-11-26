@@ -2,6 +2,7 @@
 export const locales=["en","zh","ja","de"];
 export const siteUrl="https://skylar-deepmind.github.io/LexiCue/";
 export const repoUrl="https://github.com/skylar-deepmind/LexiCue";
+export const macReleaseUrl=repoUrl+"/releases/tag/v0.4.7-macos";
 export const featureIds=["import","lookup","phrases","collect","review","progress","baseline","languages","privacy","sync"];
 export const copy={
   "en": {
@@ -115,7 +116,7 @@ export const copy={
     "privacyTitle": "Local first. Connected when you choose.",
     "privacyBody": "Materials, saved contexts and local dictionary data stay on your device. Webpage and YouTube imports, online dictionaries, translation and speech may make network requests. Optional cloud services receive the text needed for that action. Mac–iPhone sync transfers learning records directly over the local network; original media and device preferences stay on each device.",
     "installTitle": "A reading habit starts with one file.",
-    "installBody": "Public v0.4.5 downloads are available for macOS, Windows and Android. The newer reading workspace is available online and in current source; installing it requires a newer release or a source build.",
+    "installBody": "Download the notarized macOS v0.4.7 DMG for Apple Silicon or Intel. Windows and Android downloads are available in v0.4.5.",
     "installNote": "Check the release notes and platform installation guide before installing. No public iPhone package is offered.",
     "installGuide": "Installation guide",
     "support": "Support the author",
@@ -138,7 +139,7 @@ export const copy={
       ],
       "limitations": "README screenshots use sample data. The online workspace reuses the current desktop and mobile views with temporary demo data. Real device pairing and native update services are not connected; files, clipboard and speech use browser capabilities and applicable permissions."
     },
-    "releaseNote": "Version 0.4.7 is being prepared and is not public yet. Current main-branch features are described here. The latest public download is v0.4.5 (12 October 2026), which predates this reading workspace and Mac–iPhone sync. iPhone has been tested with a locally signed build; no public iPhone installer is available."
+    "releaseNote": "The macOS v0.4.7 release includes the new reading workspace. iOS testing is distributed through TestFlight."
   },
   "zh": {
     "tag": "读你喜欢的内容，记住真正会用的词。",
@@ -251,7 +252,7 @@ export const copy={
     "privacyTitle": "默认本地，需要时再连接。",
     "privacyBody": "材料、语境收藏与本地词典数据保存在设备上。网页与 YouTube 导入、在线词典、翻译和朗读可能发起联网请求；可选云服务会接收本次操作所需的文本。Mac–iPhone 同步通过局域网直接交换学习资料，媒体原件与设备偏好各自留机。",
     "installTitle": "一份喜欢的内容，就是起点。",
-    "installBody": "公开 v0.4.5 提供 macOS、Windows 与 Android 安装包。较新的阅读工作区可在线体验，也已包含在当前源码中；本地安装需要后续版本或自行构建。",
+    "installBody": "macOS v0.4.7 提供 Apple Silicon 和 Intel 的公证 DMG。Windows 与 Android 安装包可在 v0.4.5 下载。",
     "installNote": "安装前请查看版本说明和对应平台的安装指南。暂不提供公开 iPhone 安装包。",
     "installGuide": "安装指南",
     "support": "支持作者",
@@ -274,7 +275,7 @@ export const copy={
       ],
       "limitations": "README 截图使用样例数据。在线工作区复用当前桌面与手机版界面，使用临时演示数据。不连接真实设备配对与原生更新服务；文件、剪贴板和朗读使用浏览器能力及相应授权。"
     },
-    "releaseNote": "v0.4.7 正在准备，尚未公开发布。本文介绍当前 main 分支的功能。最新公开下载仍为 v0.4.5（2026 年 10 月 12 日），早于本次阅读工作区和 Mac–iPhone 同步。iPhone 已通过本地签名构建实测，尚无公开安装包。"
+    "releaseNote": "macOS v0.4.7 包含新版阅读工作区。iOS 测试版通过 TestFlight 分发。"
   },
   "ja": {
     "tag": "好きなものを読んで、使える言葉を覚える。",
@@ -387,7 +388,7 @@ export const copy={
     "privacyTitle": "基本はローカル。接続は自分で選ぶ。",
     "privacyBody": "素材、保存した文脈、ローカル辞書は端末に残ります。WebページやYouTubeの取得、オンライン辞書、翻訳、読み上げは通信する場合があります。任意のクラウドサービスには、その操作に必要な文章が送られます。Mac–iPhone 同期はローカルネットワークで資料を直接交換し、元のメディアと端末設定は各端末に残ります。",
     "installTitle": "読みたい素材が、はじまり。",
-    "installBody": "公開 v0.4.5 は macOS・Windows・Android 向けです。新しい読書ワークスペースはオンラインと現在のソースで利用でき、インストールには今後のリリースまたはソースビルドが必要です。",
+    "installBody": "macOS v0.4.7 では、Apple Silicon と Intel 向けの公証済み DMG をダウンロードできます。Windows と Android 向けは v0.4.5 を利用できます。",
     "installNote": "導入前にリリースノートと環境別のインストール案内を確認してください。公開 iPhone パッケージはありません。",
     "installGuide": "インストールガイド",
     "support": "作者を支援",
@@ -410,7 +411,7 @@ export const copy={
       ],
       "limitations": "README の画面はサンプルデータです。オンラインは現在のデスクトップ・モバイル画面と一時的なデモデータを使います。実際の端末ペアリングやネイティブ更新サービスには接続せず、ファイル・クリップボード・読み上げはブラウザの機能と必要な許可を使います。"
     },
-    "releaseNote": "v0.4.7 は準備中で、まだ公開されていません。ここでは現在の main ブランチの機能を紹介しています。公開ダウンロードは v0.4.5（2026年10月12日）で、この読書ワークスペースと Mac–iPhone 同期は含まれません。iPhone はローカル署名ビルドで実機確認済みですが、公開インストーラーはありません。"
+    "releaseNote": "macOS v0.4.7 には新しい読書ワークスペースが含まれます。iOS ベータ版は TestFlight で配布しています。"
   },
   "de": {
     "tag": "Lies, was du liebst. Behalte die Wörter.",
@@ -523,7 +524,7 @@ export const copy={
     "privacyTitle": "Lokal zuerst. Verbunden, wenn du willst.",
     "privacyBody": "Materialien, gespeicherte Kontexte und lokale Wörterbücher bleiben auf deinem Gerät. Webseiten- und YouTube-Import, Online-Wörterbücher, Übersetzung und Sprachausgabe können Netzwerkzugriffe auslösen. Optionale Cloud-Dienste erhalten den für die Aktion benötigten Text. Die Mac–iPhone-Synchronisierung überträgt Lerndaten direkt im lokalen Netzwerk; Originalmedien und Geräteeinstellungen bleiben jeweils vor Ort.",
     "installTitle": "Eine interessante Datei ist der Anfang.",
-    "installBody": "Öffentliche v0.4.5-Pakete gibt es für macOS, Windows und Android. Der neuere Lesearbeitsbereich steht online und im aktuellen Quellcode bereit; zur Installation ist ein neuerer Release oder eigener Build nötig.",
+    "installBody": "Für macOS v0.4.7 gibt es notarisierte DMG-Dateien für Apple Silicon und Intel. Windows und Android sind als v0.4.5 verfügbar.",
     "installNote": "Lies vor der Installation die Release-Hinweise und die Plattformanleitung. Ein öffentliches iPhone-Paket wird noch nicht angeboten.",
     "installGuide": "Installationsanleitung",
     "support": "Autor unterstützen",
@@ -546,7 +547,7 @@ export const copy={
       ],
       "limitations": "README-Screenshots verwenden Beispieldaten. Online werden die aktuellen Desktop- und Mobilansichten mit temporären Demodaten genutzt. Echte Gerätekopplung und native Update-Dienste sind nicht verbunden. Dateien, Zwischenablage und Sprachausgabe nutzen Browserfunktionen und erforderliche Berechtigungen."
     },
-    "releaseNote": "Version 0.4.7 wird vorbereitet und ist noch nicht veröffentlicht. Beschrieben ist der aktuelle main-Zweig. Der öffentliche Download v0.4.5 (12. Oktober 2026) enthält diesen Lesearbeitsplatz und die Mac–iPhone-Synchronisierung noch nicht. Das iPhone wurde mit einem lokal signierten Build geprüft; ein öffentlicher iPhone-Installer fehlt."
+    "releaseNote": "macOS v0.4.7 enthält den neuen Lesearbeitsplatz. Die iOS-Beta wird über TestFlight verteilt."
   }
 };
 export const features=featureIds.map((id,index)=>({id,index,seconds:8,core:index<6,limitations:id==='sync'?'Current main; Mac and iPhone only':null}));

@@ -11,7 +11,7 @@
   <a href="https://skylar-deepmind.github.io/LexiCue/de/#feature-languages"><img alt="Interface: English, Japanese, German, Chinese" src="https://img.shields.io/badge/interface-EN%20%7C%20JA%20%7C%20DE%20%7C%20ZH-526177?style=flat-square"></a>
 </p>
 
-<p align="center"><a href="https://github.com/skylar-deepmind/LexiCue/releases/latest"><strong>Kostenlos herunterladen</strong></a> · <a href="https://skylar-deepmind.github.io/LexiCue/de/">Arbeitsbereich öffnen</a> · <a href="DISTRIBUTION.md">Installationsanleitung</a></p>
+<p align="center"><a href="https://skylar-deepmind.github.io/LexiCue/de/download/"><strong>Kostenlos herunterladen</strong></a> · <a href="https://skylar-deepmind.github.io/LexiCue/de/">Arbeitsbereich öffnen</a> · <a href="DISTRIBUTION.md">Installationsanleitung</a></p>
 
 [![Deine englischen Materialien importieren](docs/media/current/de/materials-ocean-desktop.webp)](https://skylar-deepmind.github.io/LexiCue/de/)
 
@@ -19,7 +19,7 @@
 
 Bringe englische Artikel, Bücher oder Untertitel mit. Schlage nur nach, wenn du es brauchst, speichere die Bedeutung mit dem Originalsatz und erinnere dich beim nächsten Auftauchen.
 
-> Version 0.4.7 wird vorbereitet und ist noch nicht veröffentlicht. Beschrieben ist der aktuelle main-Zweig. Der öffentliche Download v0.4.5 (12. Oktober 2026) enthält diesen Lesearbeitsplatz und die Mac–iPhone-Synchronisierung noch nicht. Das iPhone wurde mit einem lokal signierten Build geprüft; ein öffentlicher iPhone-Installer fehlt.
+> macOS v0.4.7 enthält den neuen Lesearbeitsplatz. Die iOS-Beta wird über TestFlight verteilt.
 
 ## Ein einfacher Lernkreislauf
 
@@ -65,9 +65,9 @@ Gespeicherte Ausdrücke werden beim späteren Lesen hervorgehoben. Öffne frühe
 
 ## Download und Installation
 
-Öffentliche v0.4.5-Pakete gibt es für macOS, Windows und Android. Der neuere Lesearbeitsbereich steht online und im aktuellen Quellcode bereit; zur Installation ist ein neuerer Release oder eigener Build nötig.
+Für macOS v0.4.7 gibt es notarisierte DMG-Dateien für Apple Silicon und Intel. Windows und Android sind als v0.4.5 verfügbar.
 
-[**Kostenlos herunterladen — macOS / Windows / Android**](https://github.com/skylar-deepmind/LexiCue/releases/latest)
+[**macOS v0.4.7**](https://github.com/skylar-deepmind/LexiCue/releases/tag/v0.4.7-macos) · [**Windows / Android v0.4.5**](https://github.com/skylar-deepmind/LexiCue/releases/latest)
 
 Lies vor der Installation die Release-Hinweise und die Plattformanleitung. Ein öffentliches iPhone-Paket wird noch nicht angeboten. [Installationsanleitung](DISTRIBUTION.md).
 

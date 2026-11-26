@@ -11,7 +11,7 @@
   <a href="https://skylar-deepmind.github.io/LexiCue/ja/#feature-languages"><img alt="Interface: English, Japanese, German, Chinese" src="https://img.shields.io/badge/interface-EN%20%7C%20JA%20%7C%20DE%20%7C%20ZH-526177?style=flat-square"></a>
 </p>
 
-<p align="center"><a href="https://github.com/skylar-deepmind/LexiCue/releases/latest"><strong>無料でダウンロード</strong></a> · <a href="https://skylar-deepmind.github.io/LexiCue/ja/">ワークスペースを開く</a> · <a href="DISTRIBUTION.md">インストールガイド</a></p>
+<p align="center"><a href="https://skylar-deepmind.github.io/LexiCue/ja/download/"><strong>無料でダウンロード</strong></a> · <a href="https://skylar-deepmind.github.io/LexiCue/ja/">ワークスペースを開く</a> · <a href="DISTRIBUTION.md">インストールガイド</a></p>
 
 [![自分の英語素材を取り込む](docs/media/current/ja/materials-ocean-desktop.webp)](https://skylar-deepmind.github.io/LexiCue/ja/)
 
@@ -19,7 +19,7 @@
 
 読みたい英語の記事、本、字幕を取り込みます。分からない語句だけを調べ、元の文と一緒に保存。次に出会ったときに、前の文脈を思い出せます。
 
-> v0.4.7 は準備中で、まだ公開されていません。ここでは現在の main ブランチの機能を紹介しています。公開ダウンロードは v0.4.5（2026年10月12日）で、この読書ワークスペースと Mac–iPhone 同期は含まれません。iPhone はローカル署名ビルドで実機確認済みですが、公開インストーラーはありません。
+> macOS v0.4.7 には新しい読書ワークスペースが含まれます。iOS ベータ版は TestFlight で配布しています。
 
 ## シンプルな学習の流れ
 
@@ -65,9 +65,9 @@
 
 ## ダウンロードとインストール
 
-公開 v0.4.5 は macOS・Windows・Android 向けです。新しい読書ワークスペースはオンラインと現在のソースで利用でき、インストールには今後のリリースまたはソースビルドが必要です。
+macOS v0.4.7 では、Apple Silicon と Intel 向けの公証済み DMG をダウンロードできます。Windows と Android 向けは v0.4.5 を利用できます。
 
-[**無料でダウンロード — macOS / Windows / Android**](https://github.com/skylar-deepmind/LexiCue/releases/latest)
+[**macOS v0.4.7**](https://github.com/skylar-deepmind/LexiCue/releases/tag/v0.4.7-macos) · [**Windows / Android v0.4.5**](https://github.com/skylar-deepmind/LexiCue/releases/latest)
 
 導入前にリリースノートと環境別のインストール案内を確認してください。公開 iPhone パッケージはありません。 [インストールガイド](DISTRIBUTION.md).
 

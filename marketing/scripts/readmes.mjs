@@ -1,6 +1,6 @@
 import {writeFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
-import {copy,locales,features,siteUrl,repoUrl} from '../src/catalogue.mjs';
+import {copy,locales,features,siteUrl,repoUrl,macReleaseUrl} from '../src/catalogue.mjs';
 const root=resolve(import.meta.dirname,'../..');
 const files={en:'README.md',zh:'README.zh-CN.md',ja:'README.ja.md',de:'README.de.md'};
 for(const locale of locales){const c=copy[locale],r=c.readme;
@@ -17,7 +17,7 @@ for(const locale of locales){const c=copy[locale],r=c.readme;
   <a href="${siteUrl}${locale==='en'?'':locale+'/'}#feature-languages"><img alt="Interface: English, Japanese, German, Chinese" src="https://img.shields.io/badge/interface-EN%20%7C%20JA%20%7C%20DE%20%7C%20ZH-526177?style=flat-square"></a>
 </p>
 
-<p align="center"><a href="${repoUrl}/releases/latest"><strong>${c.download}</strong></a> · <a href="${siteUrl}${locale==='en'?'':locale+'/'}">${c.features}</a> · <a href="DISTRIBUTION.md">${c.installGuide}</a></p>
+<p align="center"><a href="${siteUrl}${locale==='en'?'':locale+'/'}download/"><strong>${c.download}</strong></a> · <a href="${siteUrl}${locale==='en'?'':locale+'/'}">${c.features}</a> · <a href="DISTRIBUTION.md">${c.installGuide}</a></p>
 
 [![${c.titles[0]}](docs/media/current/${locale}/materials-ocean-desktop.webp)](${siteUrl}${locale==='en'?'':locale+'/'})
 
@@ -45,7 +45,7 @@ ${features.map(f=>`- **[${c.titles[f.index]}](${siteUrl}${locale==='en'?'':local
 
 ${c.installBody}
 
-[**${c.download} — macOS / Windows / Android**](${repoUrl}/releases/latest)
+[**macOS v0.4.7**](${macReleaseUrl}) · [**Windows / Android v0.4.5**](${repoUrl}/releases/latest)
 
 ${c.installNote} [${c.installGuide}](DISTRIBUTION.md).
 
