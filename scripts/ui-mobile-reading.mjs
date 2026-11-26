@@ -54,7 +54,7 @@ try{
    const bar=page.locator('.mobile-reading-bar');ok(await bar.evaluate(n=>{const r=n.getBoundingClientRect();const b=[...n.querySelectorAll('button')].filter(b=>!b.closest('[inert]')).map(b=>b.getBoundingClientRect());return Math.round(r.width)===106&&b.length===2&&b.every(b=>b.left>=r.left&&b.right<=r.right+1&&b.width>=44);}), 'floating reading controls fit their 106 px capsule');
    const take=page.locator('.reading-word').filter({hasText:/^take$/}).first();await take.scrollIntoViewIfNeeded();const clickedGeometry=await geometry(page),clickedBottom=await sourceBottom(take);await take.click();await page.locator('.context-panel').waitFor();await settled(page);
    if(phone)await checkLookupSource(page,take,clickedGeometry,clickedBottom,`${theme}/${viewport.width} half drawer`);
-   await page.locator('.soft-refresh-current .longman-meaning').first().waitFor();const baseText=await page.locator('.soft-refresh-current .longman-meaning').first().innerText();
+   await page.locator('.soft-refresh-current .longman-meaning').first().waitFor();
    if(!phone){
     await page.waitForFunction(()=>!document.querySelector('.reading-paper').getAnimations().some(a=>a.playState==='running'));
     const bounds=await page.evaluate(()=>{
@@ -67,18 +67,9 @@ try{
     ok(Math.abs((await geometry(page)).width-clickedGeometry.width)<.5,'opening the drawer preserves the desktop prose measure');
    }
    const fixed=await drawerFrame(page);
-   const details=page.locator('.soft-refresh-current .pos-group').first();
-   const detailTrigger=details.locator('summary').first();
-   const count=detailTrigger.locator('.dictionary-pos-count');
-   ok(await count.evaluate(n=>getComputedStyle(n).backgroundColor==='rgba(0, 0, 0, 0)' &&
-      /^\d+$/.test(n.querySelector('span[aria-hidden]').textContent) && /\d+ 义/.test(n.querySelector('.sr-only').textContent)),
-    'the visible layers and count are transparent and include an accessible count');
-   eq(await page.locator('.lookup-heading h2').innerText(),'take','the query is the only primary headword');
-   ok(await count.evaluate(n=>{
-    const center=icon=>{const r=icon.getBoundingClientRect();return r.x+r.width/2;};
-    const audio=document.querySelector('.lookup-heading .speech-button svg');
-    return Math.abs(center(audio)-center(n.querySelector('svg')))<1;
-   }),'audio and sense-count icons share one vertical axis');
+   const content=page.locator('.soft-refresh-current:not([inert])');
+   eq(await content.locator('.dictionary-pos-count, details.pos-group').count(),0,'lookup shows all senses without a disclosure trigger');
+   eq(await page.locator('.lookup-heading h2').innerText(),'take','the query is the primary headword');
    const markers=page.locator('.word-families .dictionary-entry').first().locator('.dictionary-pos-heading [data-pos]');
    const highlights=await markers.evaluateAll(nodes=>nodes.map(node=>getComputedStyle(node).backgroundImage));
    ok(highlights.length>=2&&highlights.every(color=>color!=='none')&&new Set(highlights).size===highlights.length,
@@ -87,22 +78,18 @@ try{
     const labels=[...entry.querySelectorAll('.dictionary-pos-heading .dictionary-meaning-pos')].map(label=>label.textContent);
     return new Set(labels).size===labels.length;
    })),'same-headword senses share one heading per part of speech');
-   if(phone&&viewport.width===390)await page.screenshot({path:`${output}/${theme}-dictionary-overview.png`});
-   await detailTrigger.focus();await page.keyboard.press('Enter');
-   eq(await details.getAttribute('open'),'','keyboard can expand the definitions');
-   ok(await details.evaluate(node=>{
-    const preview=node.querySelector('summary ol'),extra=node.querySelector('.pos-rest ol');
-    return preview?.start===1 && extra?.start===preview.children.length+1 &&
-      [preview,extra].every(list=>getComputedStyle(list).listStyleType==='decimal');
-   }),'ordered sense markers continue from the overview into the expanded list');
-   eq(await drawerFrame(page),fixed,'opening extra dictionary content leaves drawer geometry fixed');
-   const content=page.locator('.soft-refresh-current');
-   eq(await content.locator('.longman-ipa,.longman-example').count(),0,'both result sections omit phonetics and examples');
+   eq(await content.locator('.longman-ipa,.longman-example').count(),0,'dictionary lookup omits phonetics and examples');
    ok(await content.evaluate(node=>{
     const ids=[...node.querySelectorAll('[data-sense-id]')].map(item=>item.dataset.senseId);
     return ids.length>3&&ids.length===new Set(ids).size;
-   }),'additional definitions extend the overview without repeating any of its senses');
-   if(phone&&viewport.width===390)await page.screenshot({path:`${output}/${theme}-dictionary-detail.png`});
+   }),'all senses are rendered once immediately');
+   ok(await content.locator('.dictionary-pos-group').evaluateAll(groups=>groups.every(group=>{
+    const list=group.querySelector('.dictionary-meanings');
+    const forms=group.querySelector('.dictionary-pos-forms');
+    return list.start===1 && (list.children.length===1 || getComputedStyle(list).listStyleType==='decimal') &&
+      (!forms || group.lastElementChild===forms) && getComputedStyle(group).borderTopWidth==='0px';
+   })),'definitions restart for each part of speech and any forms appear last without dividers');
+   if(phone&&viewport.width===390)await page.screenshot({path:`${output}/${theme}-dictionary-full.png`});
    await content.evaluate(node=>{node.scrollTop=node.scrollHeight;});
    ok(await content.evaluate(node=>node.scrollTop>0),'long dictionary contents scroll inside the fixed drawer');
    eq(await drawerFrame(page),fixed,'scrolling the result leaves the card fixed');

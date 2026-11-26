@@ -83,3 +83,74 @@ describe('dictionary reference presentation', () => {
     expect(markup).not.toContain('class="dictionary-more"');
   });
 });
+
+
+describe('reading lookup A layout', () => {
+  it('shows all senses with their own collocations and ends each part of speech with its forms', () => {
+    const value = result();
+    const [noun, verb] = value.entries[0].groups;
+    noun.forms = [{ text: 'records', label: 'plural' }, { text: 'records', label: 'source table' }];
+    verb.forms = [{ text: 'recorded', label: 'past' }];
+    const firstPattern = noun.senses[0].patterns[0];
+    noun.senses[0].patterns.push({ ...firstPattern, id: 'better-gloss', explanation: { en: null, zh: '名词搭配' } });
+    verb.senses[0].patterns.push({ ...firstPattern, id: 'shared-pattern' });
+    value.entries[0].related_expressions = [{ text: 'on record', scope_id: 'entry', expression_type: null, target_query: 'on record' }];
+
+    const markup = renderToStaticMarkup(createElement(LongmanResult, { result: value, sentenceView: true }));
+    expect(markup.match(/data-sense-id=/g)).toHaveLength(8);
+    expect(markup.match(/data-overview-sense=/g)).toHaveLength(3);
+    expect(markup).not.toContain('<details class="pos-group"');
+    const nounSenses = markup.split('data-sense-id="noun:1"')[1].split('data-sense-id="noun:2"')[0];
+    expect(nounSenses.match(/noun pattern 1/g)).toHaveLength(1);
+    expect(nounSenses).toContain('名词搭配');
+    expect(nounSenses).not.toContain('noun pattern 2');
+    expect(markup.match(/noun pattern 1/g)).toHaveLength(2);
+    expect(markup).toMatch(/noun释义4[\s\S]*?class="dictionary-pos-forms"[\s\S]*?>records<\/p><\/div><\/section><section/);
+    expect(markup).toMatch(/verb释义4[\s\S]*?class="dictionary-pos-forms"[\s\S]*?>recorded<\/p><\/div><\/section><div class="dictionary-related-expressions"/);
+  });
+
+  it('shows source-attested base forms before even an independent matching headword', () => {
+    const value = result();
+    value.query.text = 'Recorded';
+    const base = value.entries[0];
+    base.match.type = 'casefold_candidate';
+    base.match.note = 'recorded → record: form-of, participle, past';
+    base.groups = [base.groups[1]];
+    const exact = structuredClone(base);
+    exact.id = 'longman:recorded';
+    exact.headword = 'recorded';
+    exact.match = { ...exact.match, type: 'exact', note: null };
+    value.entries.unshift(exact);
+    const variant = structuredClone(base);
+    variant.id = 'longman:recorde';
+    variant.headword = 'recorde';
+    variant.match.type = 'source_relation';
+    variant.match.note = 'recorded → recorde: alt-of, clipping, plural';
+    value.entries.push(variant);
+
+    const markup = renderToStaticMarkup(createElement(LongmanResult, { result: value, sentenceView: true }));
+    expect(markup).toMatch(/class="dictionary-base-form"[\s\S]*?<strong lang="en">record<\/strong><\/p><div class="dictionary-entry">/);
+    expect(markup).toContain('<strong class="dictionary-overview-headword" lang="en">recorded</strong>');
+    expect(markup).toContain('<strong class="dictionary-overview-headword" lang="en">recorde</strong>');
+  });
+
+  it('keeps spelling variants and uncategorized phrases unmarked', () => {
+    const value = result();
+    value.query.text = 'colour';
+    const entry = value.entries[0];
+    entry.headword = 'color';
+    entry.match = { ...entry.match, type: 'source_relation', note: 'colour → color: alternative, Commonwealth' };
+    const group = entry.groups[0];
+    entry.groups = [group];
+    group.part_of_speech = null;
+    group.source_part_of_speech = null;
+    group.senses = [group.senses[0]];
+    group.senses[0].patterns = [];
+
+    const markup = renderToStaticMarkup(createElement(LongmanResult, { result: value, sentenceView: true }));
+    expect(markup).not.toMatch(/dictionary-base-form|dictionary-marker|dictionary-sense-collocations/);
+    expect(markup).toContain('<strong class="dictionary-overview-headword" lang="en">color</strong>');
+    expect(markup).toContain('class="dictionary-plain-label">annotation.meaning');
+    expect(markup).toContain('dictionary-meanings--single');
+  });
+});

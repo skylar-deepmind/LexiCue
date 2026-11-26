@@ -108,7 +108,14 @@ export default function ReadingLookup(props: LookupProps) {
     return <SpeechOwnerContext.Provider value={ownerScope}><ContextPanel view={props.session.panels.get(key)} compactHeader layoutSlot={props.layoutSlot} label={props.query.expression} interactionKey={props.query} readerSelectionKey={props.query.revealInReader ? key : undefined} onClose={props.onClose} onClosing={() => { useSpeechStore.getState().stopScope(ownerScope); }}>
       <div className="lookup-stage" data-face={effectiveTab} style={fontScaleStyle} data-lookup-state={ready ? 'ready' : 'loading'}>
         <div className="lookup-fixed-header">
-          <header className="lookup-heading"><div><div className="lookup-word-identity"><h2 lang="en" title={props.query.expression}>{props.query.expression}</h2></div><SpeechButton text={props.query.expression} speechKey="lookup:term" kind={/\s/.test(props.query.expression.trim()) ? 'phrase' : 'word'} label={t('reader.listenExpression')} idleIcon={<Volume2 size={20} strokeWidth={1.8} aria-hidden="true"/>}/></div></header>
+          <header className="lookup-heading">
+            <div>
+              <h2 lang="en" title={props.query.expression}>{props.query.expression}</h2>
+              <SpeechButton text={props.query.expression} speechKey="lookup:term"
+                kind={/\s/.test(props.query.expression.trim()) ? 'phrase' : 'word'}
+                label={t('reader.listenExpression')} idleIcon={<Volume2 size={20} strokeWidth={1.8} aria-hidden="true"/>}/>
+            </div>
+          </header>
         </div>
         <SoftContentRefresh className="lookup-content" contentKey={`${key}:${effectiveTab}`} ready={effectiveTab === 'meaning' ? ready : recordsReady} label={props.query.expression} pendingLabel={t('common.loading')}>
           <LookupContent key={key} {...props} togglePocket={()=>setTab(effectiveTab==='meaning'?'records':'meaning')} recordTotal={count} tab={effectiveTab} onRecordsReady={onRecordsReady} onReady={onReady} footerHost={footerHost}/>

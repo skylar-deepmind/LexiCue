@@ -290,8 +290,18 @@ pub fn query(packs: &[Pack], query: &str, context: Option<&str>) -> R<Value> {
         entry["groups"][0]["senses"]=json!(senses.into_iter().map(|(ordinal,sense)|{
             let sid=format!("{id}:s{ordinal}");
             let ancestors=sense["ancestors"].as_array().into_iter().flatten().enumerate().map(|(index,parent)|json!({"source_path":format!("/records/{line}/senses/{ordinal}/ancestors/{index}"),"meaning":{"en":parent["definition"],"zh":null},"labels":labels(&parent["labels"])})).collect::<Vec<_>>();
-            let examples=sense["examples"].as_array().into_iter().flatten().map(|example|json!({"id":format!("{sid}:x{}",example["ordinal"]),"english":example["text"],"chinese":null,"audio":null})).collect::<Vec<_>>();
-            json!({"id":sid,"source_path":format!("/records/{line}/senses/{ordinal}"),"content_kind":"definition","ancestors":ancestors,"meaning":{"en":sense["definition"],"zh":null},"labels":labels(&sense["labels"]),"patterns":[],"examples":examples,"notes":[]})
+            let source_examples = sense["examples"].as_array().into_iter().flatten();
+            let examples = source_examples.clone().map(|example| json!({
+                "id":format!("{sid}:x{}",example["ordinal"]),
+                "english":example["text"], "chinese":null, "audio":null
+            })).collect::<Vec<_>>();
+            // The pack records the original template for every verified example.
+            let patterns = source_examples.filter(|example| text(example, "template").eq_ignore_ascii_case("co"))
+                .map(|example| json!({
+                    "id":format!("{sid}:p{}",example["ordinal"]), "text":example["text"],
+                    "explanation":null, "labels":labels(&example["labels"]), "examples":[], "notes":[]
+                })).collect::<Vec<_>>();
+            json!({"id":sid,"source_path":format!("/records/{line}/senses/{ordinal}"),"content_kind":"definition","ancestors":ancestors,"meaning":{"en":sense["definition"],"zh":null},"labels":labels(&sense["labels"]),"patterns":patterns,"examples":examples,"notes":[]})
         }).collect::<Vec<_>>());
     }
     let mut entries = records.into_values().collect::<Vec<_>>();
@@ -428,6 +438,43 @@ mod tests {
             )
             .unwrap()
     }
+    #[test]
+    fn local_collocations_keep_their_sense_and_only_use_co_templates() {
+        let pack = daily();
+        let result = query(std::slice::from_ref(&pack), "book", None).unwrap();
+        assert!(schema().is_valid(&result));
+        let senses = result["entries"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .flat_map(|entry| entry["groups"].as_array().unwrap())
+            .flat_map(|group| group["senses"].as_array().unwrap())
+            .collect::<Vec<_>>();
+        let with_stamps = senses
+            .iter()
+            .filter(|sense| {
+                sense["patterns"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|pattern| pattern["text"] == "a book of stamps")
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(with_stamps.len(), 1);
+        let patterns = with_stamps[0]["patterns"].as_array().unwrap();
+        assert!(patterns
+            .iter()
+            .any(|pattern| pattern["text"] == "a book of raffle tickets"));
+        assert!(senses.iter().any(|sense| {
+            let patterns = sense["patterns"].as_array().unwrap();
+            sense["examples"].as_array().unwrap().iter().any(|example| {
+                !patterns
+                    .iter()
+                    .any(|pattern| pattern["text"] == example["english"])
+            })
+        }));
+    }
+
     #[test]
     fn real_adapter_preserves_source_scope_case_and_misses() {
         let p = daily();

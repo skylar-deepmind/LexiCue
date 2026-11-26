@@ -1803,6 +1803,8 @@
     "replay": "もう一度再生"
   },
   "dictionaryFlow": {
+    "baseForm": "原形",
+    "relatedExpressions": "関連表現",
     "prototype": "原形の候補",
     "overview": "辞書の意味",
     "more": "他の意味と用法",

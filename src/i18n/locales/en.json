@@ -1821,6 +1821,9 @@
     "replay": "Play again"
   },
   "dictionaryFlow": {
+    "baseForm_one": "Base form",
+    "baseForm_other": "Base forms",
+    "relatedExpressions": "Related expressions",
     "prototype": "Possible phrase",
     "overview": "Dictionary meanings",
     "more": "More meanings and usage",
