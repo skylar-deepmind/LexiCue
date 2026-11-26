@@ -1803,6 +1803,8 @@
     "replay": "重新播放"
   },
   "dictionaryFlow": {
+    "baseForm": "原形",
+    "relatedExpressions": "相关表达",
     "prototype": "原型候选",
     "overview": "词典释义",
     "more": "更多释义与用法",
