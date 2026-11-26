@@ -43,6 +43,10 @@ for(const locale of locales){
  check(download.includes(copy[locale].releaseNote)&&readme.includes(copy[locale].releaseNote),'release distinction in README and dedicated download page');
  check(html.includes(currentCopy[locale].downloadSummary),'concise download status below the app');
  check(html.includes('<iframe')&&html.includes('_demo/index.html?locale='+locale),'workspace embeds the live app');
+ for(const theme of ['ocean','midnight'])for(const layout of ['desktop','phone'])for(const clip of ['desk','lookup','memory']){
+  const path=`media/keynote/motion/${locale}-${theme}-${layout}-${clip}.mp4`;
+  check((await stat(resolve(root,'docs',path))).size>0,'localized product recording '+path);
+ }
  check(['kn-hero','id="highlights"','id="lookup"','id="memory"','href="#experience"'].every(mark=>html.includes(mark)), 'static feature story and live demo entry');
  check(!download.includes('<iframe')&&!support.includes('<iframe'),'download and support pages have their own purpose');
  check(support.includes('https://www.ifdian.net/a/skylar-lexicue')&&(locale==='zh'||support.includes('https://www.patreon.com/16942122/join')),'support destinations retained');

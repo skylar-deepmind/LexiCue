@@ -28,3 +28,5 @@ The marketing site does not load remote font services or music. Music is used on
 ## Product overview photography and feature details
 
 The optical-glass photograph in `docs/media/keynote/context.webp` was generated for the LexiCue website. The other images in that directory are crops of the browser demo built from main commit `3160d1f58449c34690da7955c18f1f31fe71ebd8`, using the sample materials “A quiet morning” and “The next journey” in the Ocean and Midnight themes. They show the material card, the lookup entry, a saved source sentence and its later recurrence.
+
+The silent clips in `docs/media/keynote/motion/` record the same built application opening a material, looking up a word, saving a sentence and retrieving it in another article. Each recording uses a fresh browser demo session and a visible pointer. All four interface languages have phone and desktop layouts in both themes.

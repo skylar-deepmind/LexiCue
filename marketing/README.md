@@ -1,6 +1,6 @@
 # LexiCue marketing sources
 
-The product homepage introduces LexiCue through close-ups of the reading desk, dictionary and saved sentences, followed by a working browser demo. It reuses the product’s desktop/mobile components and styles with isolated temporary data. The user guide, download page and support page are separate destinations. README and guide screenshots illustrate the same current interface.
+The product homepage follows one reading session on a shared stage. Scrolling changes chapters and plays a short, silent recording of the application. Each chapter can be paused or replayed. Reduced motion starts with a still, and visitors can open the live workspace to try the same interactions. It reuses the product’s desktop/mobile components and styles with isolated temporary data. The user guide, download page and support page are separate destinations. README and guide screenshots illustrate the same current interface.
 
 Public downloads and current source features are stated separately. Building the website does not publish an installer or deploy GitHub Pages.
 
@@ -79,3 +79,5 @@ The generator requires Ego Browser, the product test bridge and both dependency 
 `Sandbox.tsx`, `Scene.tsx`, `DocumentPlayer.tsx` and the older film/asset scripts remain available for historical video projects. Their vocabulary states, scheduled reviews, statistics and baseline flows describe an earlier product. They do not power the current Workspace. Do not regenerate current illustrations with archived GIF/guide capture commands. See [asset licenses](ASSET-LICENSES.md) for provenance.
 
 Commit the generated README files, website/demo sources and `docs/` output together. GitHub Pages serves `docs/`. Pushing a review branch and passing checks do not establish that the public site or installer release has changed; verify deployment separately.
+
+To refresh the chapter clips, serve the built website locally and set `LEXICUE_STATIC_URL` to its root. Run `node marketing/scripts/keynote-recordings.mjs` with Chrome and FFmpeg installed. Optional comma-separated arguments select locales, themes and layouts, for example `zh ocean phone`.

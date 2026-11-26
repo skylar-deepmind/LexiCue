@@ -26,10 +26,29 @@ for(const locale of cfg.locales)for(const theme of cfg.themes)for(const width of
  if(cfg.mode!=='manual'){
   await page.waitForSelector('.kn-hero h1');
   check(await page.evaluate(()=>document.querySelectorAll('.kn-story').length===3),'three visible product stories');
+  await page.cdp('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'no-preference'}]});
   for(const id of ['highlights','lookup','memory']){
    mark('feature/'+id);await page.focus('.kn-index a[href="#'+id+'"]');await page.keyboard.press('Enter');
    await page.waitForFunction(id=>location.hash==='#'+id,id);
-   await page.waitForFunction(id=>[...document.querySelectorAll('#'+id+' img')].every(img=>img.complete&&img.naturalWidth>0),id);
+   await page.waitForFunction(id=>document.querySelector('#'+id).hasAttribute('data-current')&&document.querySelector('.kn-view.is-current video')?.currentTime>.2,id);
+   check(await page.evaluate(()=>{const video=document.querySelector('.kn-view.is-current video');return video.videoWidth>0&&video.currentSrc.endsWith((innerWidth<=760?'phone':'desktop')+'-'+video.parentElement.dataset.clip+'.mp4');}),'active chapter plays its viewport recording');
+  }
+  if(locale==='zh'&&theme==='ocean'&&(width===390||width===1440)){
+   mark('feature/playback-controls');
+   const control='.kn-play';
+   await page.focus(control);await page.keyboard.press('Enter');
+   await page.waitForFunction(()=>document.querySelector('.kn-play').dataset.state==='play'&&document.querySelector('.kn-view.is-current video').paused);
+   await page.keyboard.press('Enter');await page.waitForFunction(()=>!document.querySelector('.kn-view.is-current video').paused);
+   await page.waitForFunction(()=>document.querySelector('.kn-play').dataset.state==='replay');
+   await page.keyboard.press('Enter');await page.waitForFunction(()=>{const v=document.querySelector('.kn-view.is-current video');return !v.paused&&v.currentTime<1;});
+   mark('feature/reduced-motion');
+   await page.cdp('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
+   await page.goto(homeFor(locale)+'#lookup');await page.reload();
+   await page.waitForFunction(()=>document.querySelector('#lookup[data-current]')&&document.querySelector('.kn-tour.kn-enhanced'));
+   check(await page.evaluate(()=>[...document.querySelectorAll('.kn-view video')].every(v=>!v.hasAttribute('src')&&v.paused)),'reduced motion starts with stills and no movie downloads');
+   await page.focus(control);await page.keyboard.press('Enter');
+   await page.waitForFunction(()=>document.querySelector('.kn-view.is-current video').currentTime>.2);
+   await page.cdp('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'no-preference'}]});
   }
   await page.focus('.kn-try');await page.keyboard.press('Enter');
   await page.waitForFunction(()=>location.hash==='#experience'&&document.querySelector('.live-app-frame')?.contentDocument?.querySelector('.app-layout'));
