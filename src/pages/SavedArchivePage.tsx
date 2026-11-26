@@ -82,6 +82,7 @@ export default function SavedArchivePage() {
 
   const groupId = selected?.group_id ?? null;
   const showDetail = !phone || mobileDetail;
+  const searchExpanded = phone && searching && !mobileDetail;
   const filter = JSON.stringify([query, order]);
   const groupPage = groupRead?.key === filter ? groupRead.page : emptyGroups;
   const identity = JSON.stringify([groupId, savedRevision, generation, contextRetry]);
@@ -223,7 +224,7 @@ export default function SavedArchivePage() {
   };
   const toggleSearch = () => {
     if (!phone) { search.current?.focus(); return; }
-    if (searching && !mobileDetail) { changeQuery(''); setSearching(false); }
+    if (searchExpanded) { changeQuery(''); setSearching(false); }
     else { cancelSource(); setMobileDetail(false); setSearching(true); }
   };
 
@@ -321,11 +322,21 @@ export default function SavedArchivePage() {
     catch (error) { setSourceError(savedErrorKey(error)); }
     finally { pendingWrite.current = false; setWriting(false); }
   };
-  const edit = (item: SavedRecord) => {
-    setContextRead(previous => previous?.identity === identity ? {
-      identity, page: { ...previous.page, records: previous.page.records.map(saved => saved.record_id === item.record_id ? item : saved) },
-    } : previous);
-  };
+
+  const searchToggle = <button key="toggle" type="button" className="approved-icon"
+    aria-label={t(searchExpanded ? 'common.close' : 'savedRecords.search')}
+    aria-expanded={phone ? searchExpanded : undefined} onClick={toggleSearch}>
+    {searchExpanded ? <X size={20} aria-hidden="true"/> : <Search size={20} strokeWidth={1.65} aria-hidden="true"/>}
+  </button>;
+  const searchField = <div key="field" className="approved-saved-search-field">
+    <input ref={search} type="search" aria-label={t('savedRecords.search')} placeholder={t('savedRecords.search')} value={query}
+      onChange={event => changeQuery(event.target.value)} onKeyDown={event => {
+        if (event.key !== 'Escape') return;
+        event.stopPropagation();
+        if (query) changeQuery('');
+        else { setSearching(false); search.current?.blur(); }
+      }}/>
+  </div>;
 
   return <section className="approved-saved saved-workspace" aria-labelledby="saved-archive-title" data-mobile-detail={mobileDetail} data-searching={searching}>
     <header className="approved-saved-header">
@@ -333,17 +344,12 @@ export default function SavedArchivePage() {
         <button type="button" className="approved-icon approved-back" aria-label={t('common.back')} onClick={goBack}><ArrowLeft size={21} strokeWidth={1.65}/></button>
         <h1 id="saved-archive-title">{t('savedRecords.archiveTitle')}</h1>
       </div>
-      <div className="approved-saved-search">
-        <button type="button" className="approved-icon" aria-label={t('savedRecords.search')} aria-expanded={phone ? searching && !mobileDetail : undefined} onClick={toggleSearch}>
-          {phone && searching && !mobileDetail ? <X size={20}/> : <Search size={20} strokeWidth={1.65}/>}
-        </button>
-        <input ref={search} type="search" aria-label={t('savedRecords.search')} placeholder={t('savedRecords.search')} value={query}
-          onChange={event => changeQuery(event.target.value)} onKeyDown={event => {
-            if (event.key !== 'Escape') return;
-            event.stopPropagation();
-            if (query) changeQuery('');
-            else { setSearching(false); search.current?.blur(); }
-          }}/>
+      <div className="approved-saved-search" data-expanded={searchExpanded}>
+        {searchExpanded ? [
+          <span key="glyph" className="approved-saved-search-glyph" aria-hidden="true"><Search size={20} strokeWidth={1.65}/></span>,
+          searchField,
+          searchToggle,
+        ] : [searchToggle, searchField]}
       </div>
     </header>
     <div className="approved-saved-columns">
@@ -357,7 +363,7 @@ export default function SavedArchivePage() {
       {showDetail && <div className="approved-saved-detail" aria-label={t('savedRecords.context')}>
         {heading && <header className="saved-archive-term">
           <h2 lang="en">{heading}</h2>
-          {record && <SavedArchiveGloss key={record.record_id} record={record} summary={selected?.summary} onChange={edit}/>}
+          {record && <SavedArchiveGloss record={record} summary={selected?.summary}/>}
         </header>}
         <div ref={detail} className="approved-folio-scroll" onScroll={event => { state.current.detailScroll = event.currentTarget.scrollTop; }}>
           {records.map(item => <SavedArchiveCard key={item.record_id} record={item} current={record?.record_id === item.record_id}

@@ -1360,7 +1360,6 @@
     "explanation": "Personal explanation",
     "saveChanges": "Save changes",
     "noExplanation": "No explanation yet",
-    "edit": "Edit explanation",
     "original": "Original sentence copy",
     "missingOriginal": "The original sentence was already missing from this legacy record.",
     "source": "{{name}} · Sentence {{index}}",
@@ -1399,7 +1398,6 @@
     "englishMeaning": "Previous English meaning",
     "extraSense": "Additional meaning",
     "example": "Example",
-    "saveExplanation": "Save explanation",
     "groupActions": "Actions for {{expression}}",
     "deleteGroupNamed": "Delete {{expression}} and all {{count}} sentences",
     "groupRemoved": "Deleted {{expression}} and {{count}} sentences"

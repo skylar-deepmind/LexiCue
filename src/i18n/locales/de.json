@@ -1360,7 +1360,6 @@
     "explanation": "Eigene Erklärung",
     "saveChanges": "Änderungen speichern",
     "noExplanation": "Noch keine Erklärung",
-    "edit": "Erklärung bearbeiten",
     "original": "Kopie des Originalsatzes",
     "missingOriginal": "Der Originalsatz fehlt bereits im alten Datensatz.",
     "source": "{{name}} · Satz {{index}}",
@@ -1399,7 +1398,6 @@
     "englishMeaning": "Bisherige englische Erklärung",
     "extraSense": "Weitere Bedeutung",
     "example": "Beispiel",
-    "saveExplanation": "Erklärung speichern",
     "groupActions": "Aktionen für {{expression}}",
     "deleteGroupNamed": "{{expression}} und alle {{count}} Sätze löschen",
     "groupRemoved": "{{expression}} und {{count}} Sätze gelöscht"

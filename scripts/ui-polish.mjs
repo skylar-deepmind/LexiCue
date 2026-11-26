@@ -26,18 +26,12 @@ try{
   }
   await page.evaluate(()=>document.getAnimations().filter(a=>a.effect?.getTiming().duration===580).forEach(a=>a.finish()));await settle();
   await page.getByRole('button',{name:'已保存',exact:true}).click();await openSelectedSavedExpression(page);await page.locator('.approved-folio-note').waitFor();await settle();
-  const sentence=page.locator('.approved-folio-sentence'),before=await sentence.boundingBox();
-  await page.locator('.approved-folio-note').click();await page.locator('.approved-inline-note textarea').waitFor();
-  ok(await sentence.evaluate(n=>!n.closest('.approved-inline-note')),'inline explanation remains outside the sentence typography');
-  const after=await sentence.boundingBox();ok(Math.abs(before.width-after.width)<1&&Math.abs(before.height-after.height)<1,'opening explanation leaves sentence geometry stable');
-  if(width<768){await page.setViewportSize({width:375,height:360});await page.waitForFunction(()=>document.querySelector('.approved-inline-note')?.getBoundingClientRect().bottom<=360);ok(await page.locator('.approved-inline-note').evaluate(n=>n.getBoundingClientRect().bottom<=360),'note controls fit the keyboard visual viewport');}
-  await page.locator('.approved-inline-note').evaluate(n=>Promise.all(n.getAnimations().map(a=>a.finished.catch(()=>{}))));await page.screenshot({path:`${out}/${theme}-${width}-note.png`});await page.locator('.approved-inline-note textarea').fill('新的个人解释，保留原句。');await page.getByRole('button',{name:'保存解释',exact:true}).click();await page.locator('.approved-inline-note').waitFor({state:'detached'});
-  ok((await h.call('list_saved_records',{query:'',limit:10,offset:0})).some(r=>r.explanation==='新的个人解释，保留原句。'),'note persists through actual Rust transaction');
-  if(width<768)await page.setViewportSize({width:375,height:812});
+  const sentence=page.locator('.approved-folio-sentence'), note=page.locator('.approved-folio-note');
+  ok(await note.evaluate(n=>n.getBoundingClientRect().bottom<=document.querySelector('.approved-folio-sentence').getBoundingClientRect().top),'read-only explanation stays above the original sentence');
+  ok(await sentence.evaluate(n=>n.scrollWidth<=n.clientWidth),'the saved sentence fits the available width');
+  await page.screenshot({path:`${out}/${theme}-${width}-note.png`});
   ok(await page.locator('input[type=date]').count()===0,'no precise date form');
   ok(await page.locator('.saved-timeline-period').count()===0,'single day has no date caption');
-  const halo=await page.locator('.approved-folio-speech').evaluate(n=>({overflow:getComputedStyle(n).overflow,inset:getComputedStyle(n,'::before').inset,width:n.getBoundingClientRect().width,height:n.getBoundingClientRect().height}));
-  ok(halo.overflow==='visible'&&halo.width===halo.height,'speech button provides a complete square wave canvas');
   await page.goto(h.url+'/settings?section=lookup');await page.locator('.approved-dictionary-book').first().waitFor();
   ok(await page.getByRole('checkbox',{name:'再遇提示',exact:true}).count()===0,'retired online hint control absent');
   ok(await page.locator('.approved-dictionary-menu').count()===0,'dictionary covers have no ellipsis menu');

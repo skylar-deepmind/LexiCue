@@ -1342,7 +1342,6 @@
     "explanation": "自分の説明",
     "saveChanges": "変更を保存",
     "noExplanation": "説明は未登録です",
-    "edit": "説明を編集",
     "original": "保存した原文",
     "missingOriginal": "旧記録には原文が残っていません。",
     "source": "{{name}} · {{index}} 文目",
@@ -1381,7 +1380,6 @@
     "englishMeaning": "旧英語の説明",
     "extraSense": "追加の意味",
     "example": "例文",
-    "saveExplanation": "説明を保存",
     "groupActions": "「{{expression}}」の操作",
     "deleteGroupNamed": "「{{expression}}」と全 {{count}} 文を削除",
     "groupRemoved": "「{{expression}}」と {{count}} 文を削除しました"
