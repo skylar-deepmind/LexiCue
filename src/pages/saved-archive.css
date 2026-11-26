@@ -61,6 +61,8 @@
   font: 400 13px/1.5 'Noto Sans SC',system-ui,sans-serif;
 }
 .approved-saved-search input::placeholder { color: var(--approved-tag); opacity: 1; }
+.approved-saved-search input:focus { box-shadow: none; }
+.approved-saved-search:focus-within > button { background: var(--approved-hover); }
 
 .approved-saved-columns {
   display: grid;
@@ -185,10 +187,11 @@
 .approved-saved-word:enabled:hover { background: var(--approved-hover); }
 .approved-saved-word[aria-pressed="true"] { background: var(--approved-selected); color: var(--approved-selected-ink); font-weight: 600; }
 .approved-saved-word[aria-pressed="true"]:enabled:hover { background: color-mix(in srgb, var(--approved-selected) 85%, var(--approved-hover)); }
-.approved-saved :is(button, [role="slider"], .approved-folio-sentence):focus-visible {
-  outline: 2px solid var(--approved-focus);
-  outline-offset: -2px;
+.approved-saved :is(button, .approved-folio-sentence):focus-visible {
+  box-shadow: inset 0 -2px 0 currentColor;
 }
+.saved-order-slider:focus-visible { box-shadow: none; }
+.saved-order-slider:focus-visible .saved-order-track { box-shadow: inset 0 -1px 0 var(--approved-focus); }
 .approved-saved :is(.approved-saved-word, .approved-source-cover, .approved-source-title, .saved-archive-action):disabled {
   opacity: .64;
   cursor: default;

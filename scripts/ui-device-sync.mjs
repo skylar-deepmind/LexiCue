@@ -104,7 +104,10 @@ try {
       const confirm = section.getByRole('button',{name:'验证码一致，配对'});
       await page.keyboard.press('Tab');
       await confirm.focus();
-      assert.equal(await confirm.evaluate(el => getComputedStyle(el).outlineStyle), 'solid');
+      assert.equal(await confirm.evaluate(el => {
+        const style = getComputedStyle(el);
+        return style.outlineStyle === 'none' && style.boxShadow.includes('inset');
+      }), true, 'pairing confirmation has an inset keyboard focus indicator');
       await page.keyboard.press('Space');
       await section.getByRole('button',{name:'等待另一端确认',disabled:true}).waitFor();
       await verifyContrast(section.getByRole('button',{name:'等待另一端确认'}), `${theme} disabled action`);

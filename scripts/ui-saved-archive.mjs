@@ -141,6 +141,48 @@ try {
     equal(await page.evaluate(() => window.__uiCalls.some(call => call.command === 'saved_date_histogram' ||
       (call.command === 'list_saved_groups' && (call.args.startMs != null || call.args.endMs != null)))), false, `${name} no date filters or histogram calls`);
     equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `${name} no horizontal overflow`);
+    const selected = index.locator('.approved-saved-word[aria-pressed="true"]');
+    await page.mouse.move(0, 0);
+    equal(await selected.evaluate(node => {
+      const style = getComputedStyle(node);
+      return [style.outlineStyle, style.boxShadow, style.fontWeight];
+    }), ['none', 'none', '600'], `${name} selection uses emphasis without a perimeter`);
+    const search = page.locator('.approved-saved-search');
+    const searchButton = search.getByRole('button');
+    const searchInput = search.getByRole('searchbox');
+    const searchStyle = async () => {
+      await page.waitForFunction(() => {
+        const button = document.querySelector('.approved-saved-search button');
+        return button && getComputedStyle(button).backgroundColor !== 'rgba(0, 0, 0, 0)';
+      });
+      return searchInput.evaluate(input => {
+        const style = getComputedStyle(input);
+        return [document.activeElement === input, style.outlineStyle, style.boxShadow,
+          getComputedStyle(input.parentElement).outlineStyle];
+      });
+    };
+    if (phone) {
+      await searchButton.tap();
+    } else {
+      await back.focus();
+      await page.keyboard.press('Tab');
+      equal(await searchButton.evaluate(node => {
+        const style = getComputedStyle(node);
+        return [node.matches(':focus-visible'), style.outlineStyle, style.boxShadow.includes('inset')];
+      }), [true, 'none', true], `${name} search button keeps an inset keyboard indicator`);
+      await page.keyboard.press('Tab');
+      equal(await searchStyle(), [true, 'none', 'none', 'none'], `${name} tabbing into search highlights the icon without a line`);
+      await searchInput.blur();
+      await searchInput.click();
+    }
+    equal(await searchStyle(), [true, 'none', 'none', 'none'], `${name} pointer focus has no search outline or underline`);
+    await page.screenshot({ path: `${output}/${name}-search-focus.png` });
+    await searchInput.fill('harbor');
+    await page.waitForFunction(() => {
+      const words = document.querySelectorAll('.approved-saved-word');
+      return words.length === 1 && words[0].textContent === 'carry';
+    });
+    checks.push(`${name} focused search filters by saved context`);
     await context.close();
   }
   equal(h.errors, [], 'no browser exceptions');

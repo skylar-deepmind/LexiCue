@@ -23,7 +23,6 @@
 .dock-import-slot { padding-bottom: 6px; display: flex; justify-content: center; }
 .b-dock-centered .dock-reading-tools { gap: 6px; padding-top: 6px; animation: none; }
 /* Keep focus rings inside the folding clip, including the Aa trigger. */
-.dock-presence .b-dock-control:focus-visible { outline-offset: -2px; }
 @media (max-width: 767px) {
   .mobile-reading-tools .dock-reading-tools { animation: none; }
 }

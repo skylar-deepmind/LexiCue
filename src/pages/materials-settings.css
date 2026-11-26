@@ -92,6 +92,5 @@ body:has(.materials-page) .tag-dialog .tag-manager__list .ui-button--danger:hove
 .device-sync .device-sync-option { display: flex; align-items: center; gap: .6rem; min-height: 44px; }
 .device-sync :is(summary, button) { min-height: 44px; }
 .device-sync summary { cursor: pointer; align-content: center; }
-.device-sync :is(summary, button, input):focus-visible { outline: 2px solid var(--accent-700); outline-offset: 2px; }
 .device-sync-candidate { display: flex; align-items: baseline; gap: .6rem; padding-block: .65rem; min-height: 44px; }
 .device-sync-candidate span { white-space: pre-wrap; overflow-wrap: anywhere; }
