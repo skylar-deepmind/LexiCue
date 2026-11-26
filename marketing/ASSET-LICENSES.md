@@ -24,3 +24,7 @@ Changes: excerpts of 90 / 30 seconds, reduced volume, fades, and mixed original 
 - Typography uses installed system fonts. No Apple font files are redistributed. The rendering machine and fonts are recorded in the delivery notes; exact glyph rendering requires the same fonts.
 
 The marketing site does not load remote font services or music. Music is used only in the local video export.
+
+## Product overview photography and feature details
+
+The optical-glass photograph in `docs/media/keynote/context.webp` was generated for the LexiCue website. The other images in that directory are crops of the browser demo built from main commit `3160d1f58449c34690da7955c18f1f31fe71ebd8`, using the sample materials “A quiet morning” and “The next journey” in the Ocean and Midnight themes. They show the material card, the lookup entry, a saved source sentence and its later recurrence.

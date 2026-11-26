@@ -11,7 +11,7 @@
   <a href="https://skylar-deepmind.github.io/LexiCue/ja/#feature-languages"><img alt="Interface: English, Japanese, German, Chinese" src="https://img.shields.io/badge/interface-EN%20%7C%20JA%20%7C%20DE%20%7C%20ZH-526177?style=flat-square"></a>
 </p>
 
-<p align="center"><a href="https://github.com/skylar-deepmind/LexiCue/releases/latest"><strong>無料でダウンロード</strong></a> · <a href="https://skylar-deepmind.github.io/LexiCue/ja/">ワークスペースを開く</a> · <a href="DISTRIBUTION.md">インストールガイド</a></p>
+<p align="center"><a href="https://github.com/skylar-deepmind/LexiCue/releases/latest"><strong>無料でダウンロード</strong></a> · <a href="https://skylar-deepmind.github.io/LexiCue/ja/#experience">ワークスペースを開く</a> · <a href="DISTRIBUTION.md">インストールガイド</a></p>
 
 [![自分の英語素材を取り込む](docs/media/current/ja/materials-ocean-desktop.webp)](https://skylar-deepmind.github.io/LexiCue/ja/)
 
