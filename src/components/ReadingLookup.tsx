@@ -105,7 +105,7 @@ export default function ReadingLookup(props: LookupProps) {
     if (prepared.key !== key) setPrepared({ key, ready: false });
     const onReady = useCallback((readyKey: string) => setPrepared(current => current.key === readyKey && !current.ready ? { key: readyKey, ready: true } : current), []);
     const ready = prepared.key === key && prepared.ready;
-    return <SpeechOwnerContext.Provider value={ownerScope}><ContextPanel view={props.session.panels.get(key)} compactHeader layoutSlot={props.layoutSlot} label={props.query.expression} interactionKey={props.query} readerSelectionKey={props.query.revealInReader ? key : undefined} onClose={props.onClose} onClosing={() => { useSpeechStore.getState().stopScope(ownerScope); }}>
+    return <SpeechOwnerContext.Provider value={ownerScope}><ContextPanel view={props.session.panels.get(key)} compactHeader layoutSlot={props.layoutSlot} label={props.query.expression} interactionKey={props.query} readerSelection={props.query.revealInReader ? props.query : undefined} onClose={props.onClose} onClosing={() => { useSpeechStore.getState().stopScope(ownerScope); }}>
       <div className="lookup-stage" data-face={effectiveTab} style={fontScaleStyle} data-lookup-state={ready ? 'ready' : 'loading'}>
         <div className="lookup-fixed-header">
           <header className="lookup-heading">

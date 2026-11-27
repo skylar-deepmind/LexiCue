@@ -11,11 +11,11 @@ import { useQuietScrollbars } from './useQuietScrollbars';
 /** Modeless: unused space dismisses the card without covering reading or controls.
  * Dragging, selection, scrolling and other dialogs retain their normal behavior. */
 export interface PanelView { expanded:boolean; scroll:number; scrolls?:number[];seen?:boolean }
-export default function ContextPanel({ view, label, children, onClose, canClose = true, onClosing, interactionKey, layoutSlot, readerSelectionKey, compactHeader = false }: {
+export default function ContextPanel({ view, label, children, onClose, canClose = true, onClosing, interactionKey, layoutSlot, readerSelection, compactHeader = false }: {
   view?:PanelView;
   label: string; children: ReactNode; onClose: () => void; canClose?: boolean; onClosing?: () => void; interactionKey?: unknown;
   layoutSlot?: RefObject<HTMLDivElement | null>;
-  readerSelectionKey?: string;
+  readerSelection?: object;
   compactHeader?: boolean;
 }) {
   const { t } = useTranslation();
@@ -70,50 +70,62 @@ export default function ContextPanel({ view, label, children, onClose, canClose 
   useLayoutEffect(() => {
     const layout = layoutSlot?.current?.closest<HTMLElement>('.reading-layout');
     const viewport = layout?.closest<HTMLElement>('.reader-scroll');
+    const paper = layout?.querySelector('.reading-paper');
     const panel = panelRef.current, layer = layerRef.current;
     readerRevealing.current = false;
-    if (!layout || !viewport || !panel || !layer || !readerSelectionKey || expanded || closing) return;
+    if (!layout || !viewport || !paper || !panel || !layer || !readerSelection || expanded || closing) return;
 
     const phone = matchMedia('(max-width: 767px)');
     const reduced = matchMedia('(prefers-reduced-motion: reduce)');
     const motion = createLookupScrollMotion(viewport);
-    const reveal = () => {
-      motion.cancel();
-      if (!phone.matches) return;
-      const words = [...layout.querySelectorAll<HTMLElement>('.reading-word[aria-pressed="true"]')];
+    let geometry = '';
+    let interrupted = false;
+    const reveal = (resized = false) => {
+      if (!phone.matches || interrupted) return;
+      const words = paper.querySelectorAll<HTMLElement>('.reading-word[aria-pressed="true"]');
       if (!words.length) return;
 
       const bounds = viewport.getBoundingClientRect();
       // Use the sheet's resting edge so the word can move as the sheet rises.
       const edge = Math.min(bounds.bottom, layer.getBoundingClientRect().bottom - panel.offsetHeight);
       const top = words[0].getBoundingClientRect().top;
-      const bottom = words.at(-1)!.getBoundingClientRect().bottom;
+      const bottom = words[words.length - 1].getBoundingClientRect().bottom;
+      const scroll = viewport.scrollTop;
+      const nextGeometry = [bounds.top, edge, top + scroll, bottom + scroll].join(':');
+      // The observer also delivers an initial measurement. Leave the opening motion alone.
+      if (resized && nextGeometry === geometry) return;
+      geometry = nextGeometry;
+      motion.cancel();
       if (bottom <= edge) return;
 
       const distance = Math.min(bottom - edge + 16, top - bounds.top - 8);
       if (distance <= 0) return;
-      const target = Math.ceil(viewport.scrollTop + distance);
+      const target = Math.ceil(scroll + distance);
       const missing = target - Math.max(0, viewport.scrollHeight - viewport.clientHeight);
       if (missing > 0) {
         const tail = parseFloat(layout.style.getPropertyValue('--lookup-reader-tail')) || 0;
         layout.style.setProperty('--lookup-reader-tail', `${tail + missing}px`);
       }
-      motion.move(target, reduced.matches);
+      // A resized sheet can already cover the word. Reveal it before the next paint.
+      motion.move(target, resized || reduced.matches);
       readerRevealing.current = true;
     };
 
     reveal();
+    const observer = new ResizeObserver(() => reveal(true));
+    [viewport, paper, panel, layer].forEach(element => observer.observe(element));
+    const interrupt = () => { interrupted = true; motion.cancel(); };
     const gestures = ['pointerdown', 'touchmove', 'wheel', 'reading-anchor-start'];
-    gestures.forEach(event => viewport.addEventListener(event, motion.cancel, { passive: true }));
-    window.addEventListener('resize', reveal);
-    reduced.addEventListener('change', reveal);
+    gestures.forEach(event => viewport.addEventListener(event, interrupt, { passive: true }));
+    const onMotionPreference = () => reveal();
+    reduced.addEventListener('change', onMotionPreference);
     return () => {
       motion.cancel();
-      gestures.forEach(event => viewport.removeEventListener(event, motion.cancel));
-      window.removeEventListener('resize', reveal);
-      reduced.removeEventListener('change', reveal);
+      observer.disconnect();
+      gestures.forEach(event => viewport.removeEventListener(event, interrupt));
+      reduced.removeEventListener('change', onMotionPreference);
     };
-  }, [layoutSlot, readerSelectionKey, closing, expanded]);
+  }, [layoutSlot, readerSelection, closing, expanded]);
   // Animate the paper and card on one timeline; interrupted closes resume from the visible frame.
   useLayoutEffect(() => {
     const panel = panelRef.current, layout = layoutSlot?.current?.closest<HTMLElement>('.reading-layout');

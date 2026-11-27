@@ -75,6 +75,47 @@ try {
   await page.keyboard.press('Escape');
   await page.locator('.context-panel').waitFor({state:'detached'});
 
+  if (viewport.width === 390) {
+   // A visual viewport update can resize the reader and drawer without a window resize.
+   const originalBottom = 370;
+   await word.evaluate((node,bottom)=>{
+    const scroll=node.closest('.reader-scroll');
+    scroll.scrollTop+=node.getBoundingClientRect().bottom-bottom;
+   },originalBottom);
+   await tapWord(word);
+   await page.getByRole('dialog',{name:'crosses',exact:true}).waitFor();
+   await page.locator('.reading-layout:not([data-lookup-moving])').waitFor();
+   await page.evaluate(()=>document.documentElement.style.setProperty('--visual-height','600px'));
+   await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+   const resized = await word.evaluate(node=>{
+    const word=node.getBoundingClientRect(), sheet=document.querySelector('.context-panel').getBoundingClientRect();
+    const reader=node.closest('.reader-scroll').getBoundingClientRect();
+    return {wordTop:word.top,wordBottom:word.bottom,readerTop:reader.top,sheetTop:sheet.top};
+   });
+   equal(resized.wordTop>=resized.readerTop && resized.wordBottom<=resized.sheetTop-14,true,
+         `${label}: the tapped word stays visible when the drawer moves up (${JSON.stringify(resized)})`);
+   await page.screenshot({path:`${output}/${theme}-shortened-viewport.png`,clip:{x:0,y:0,width:390,height:600}});
+
+   const manualPosition = await word.evaluate(async node=>{
+    const scroll=node.closest('.reader-scroll');
+    scroll.dispatchEvent(new Event('touchmove'));
+    const scrolled = new Promise(resolve=>scroll.addEventListener('scroll',resolve,{once:true}));
+    scroll.scrollTop-=96;
+    await scrolled;
+    return scroll.scrollTop;
+   });
+   await page.evaluate(async()=>{
+    document.documentElement.style.setProperty('--visual-height','620px');
+    await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+   });
+   equal(await page.locator('.reader-scroll').evaluate(node=>node.scrollTop),manualPosition,
+         `${label}: resizing respects a deliberate scroll after lookup`);
+
+   await page.keyboard.press('Escape');
+   await page.locator('.context-panel').waitFor({state:'detached'});
+   await page.evaluate(()=>document.documentElement.style.setProperty('--visual-height',`${innerHeight}px`));
+  }
+
   // Reduced motion still reveals the final word at the end of the document.
   await page.emulateMedia({reducedMotion:'reduce'});
   const last=page.locator('[data-sentence="13"] .reading-word').last();
