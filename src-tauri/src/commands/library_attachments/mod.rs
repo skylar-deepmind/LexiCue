@@ -154,26 +154,22 @@ fn cleanup_deleted(db: &Connection, dir: &Path, covers: &Path) -> Result<bool> {
             .map_err(err)?;
         match kind.as_str() {
             "audio" if media::valid_hash(&key) => cleanup_audio(&tx, dir, &key)?,
-            "cover" if super::youtube::is_valid_video_id(&key) => {
-                if !cover_attached(&tx, &key)? {
-                    tx.execute(
-                        "DELETE FROM library_youtube_artwork WHERE video_id=?",
-                        [&key],
-                    )
-                    .map_err(err)?;
-                    remove_attachment(&covers.join(format!("{key}.jpg")))?;
-                }
+            "cover" if super::youtube::is_valid_video_id(&key) && !cover_attached(&tx, &key)? => {
+                tx.execute(
+                    "DELETE FROM library_youtube_artwork WHERE video_id=?",
+                    [&key],
+                )
+                .map_err(err)?;
+                remove_attachment(&covers.join(format!("{key}.jpg")))?;
             }
-            "document" if media::valid_hash(&key) => {
-                if !document_attached(&tx, &key)? {
-                    tx.execute(
-                        "DELETE FROM library_document_originals WHERE sha256=?",
-                        [&key],
-                    )
-                    .map_err(err)?;
-                    remove_attachment(&original_path(dir, &key))?;
-                    cleanup_partial(dir, &key)?;
-                }
+            "document" if media::valid_hash(&key) && !document_attached(&tx, &key)? => {
+                tx.execute(
+                    "DELETE FROM library_document_originals WHERE sha256=?",
+                    [&key],
+                )
+                .map_err(err)?;
+                remove_attachment(&original_path(dir, &key))?;
+                cleanup_partial(dir, &key)?;
             }
             _ => {}
         }
