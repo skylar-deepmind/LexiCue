@@ -1,0 +1,58 @@
+export const keynoteCopy = {
+  zh: {
+    overview: '产品', category: '英语阅读', headline: ['在原句里，', '读懂每个词。'],
+    intro: '带上你想读的英文。点开一个词，把它的意思和第一次读到它的那句话一起留下。',
+    try: '打开在线体验', explore: '探索功能', details: '功能特写',
+    library: ["导入材料", "从你想读的那一篇开始。"],
+    lookup: ["正文查词", "点开 quiet，释义就在词旁。"],
+    listen: ["整句朗读", "听听这句话怎么读。"],
+    save: ["收藏原句", "把表达和原句一起留下。"],
+    memory: ["再次遇见", "再遇见，找回上次的原句。"],
+    hear: "朗读示例句",
+    stop: "停止朗读",
+    demo: '亲手读一段。', demoBody: '打开示例材料，点一个英文词，看看它在原句里的意思。',
+  },
+  en: {
+    overview: 'Product', category: 'English reading', headline: ['Read the word.', 'Keep the context.'],
+    intro: 'Bring something you want to read. Look up a word and keep the sentence where you first found it.',
+    try: 'Try LexiCue', explore: 'Explore features', details: 'Feature highlights',
+    library: ["Import", "Bring a passage of your own."],
+    lookup: ["Look up", "Select quiet. Read its meaning."],
+    listen: ["Listen", "Hear the whole sentence."],
+    save: ["Save", "Keep the phrase with its sentence."],
+    memory: ["Recall", "Meet it again. Find the first sentence."],
+    hear: "Listen to the sentence",
+    stop: "Stop reading aloud",
+    demo: 'Read a passage yourself.', demoBody: 'Open a sample and select an English word to see what it means in context.',
+  },
+  ja: {
+    overview: '製品', category: '英語リーディング', headline: ['出会った単語を、', 'その一文と。'],
+    intro: '読みたい英文を開いて、気になる単語をタップ。意味と一緒に、最初に出会った一文を残せます。',
+    try: 'オンラインで試す', explore: '機能を見る', details: '機能紹介',
+    library: ["取り込む", "読みたい一篇から始めよう。"],
+    lookup: ["辞書を引く", "quiet を選んで、その場で辞書を引く。"],
+    listen: ["聴く", "一文を声で聴いてみよう。"],
+    save: ["保存する", "表現を、その一文と一緒に。"],
+    memory: ["再会する", "再会した表現から、あの日の一文へ。"],
+    hear: "例文を聴く",
+    stop: "読み上げを止める",
+    demo: '実際に読んでみよう。', demoBody: 'サンプルを開き、英単語を一つ選んで文中の意味を確かめてみましょう。',
+  },
+  de: {
+    overview: 'Produkt', category: 'Englisch lesen', headline: ['Ein Wort verstehen.', 'Den Satz behalten.'],
+    intro: 'Lies einen Text, der dich interessiert. Schlage ein Wort nach und speichere den Satz, in dem du ihm zum ersten Mal begegnet bist.',
+    try: 'LexiCue ausprobieren', explore: 'Funktionen ansehen', details: 'Funktionen im Detail',
+    library: ["Importieren", "Bring deinen eigenen Lesestoff mit."],
+    lookup: ["Nachschlagen", "Tippe auf quiet und lies die Bedeutung."],
+    listen: ["Anhören", "Hör dir den ganzen Satz an."],
+    save: ["Sichern", "Speichere den Ausdruck mit seinem Satz."],
+    memory: ["Wiederfinden", "Beim Wiedersehen ist der erste Satz da."],
+    hear: "Beispielsatz anhören",
+    stop: "Vorlesen beenden",
+    demo: 'Lies selbst eine Passage.', demoBody: 'Öffne einen Beispieltext und wähle ein englisches Wort aus, um seine Bedeutung im Satz zu entdecken.',
+  },
+};
+
+export function keynoteTitle(locale) {
+  return keynoteCopy[locale].headline.join(['zh', 'ja'].includes(locale) ? '' : ' ');
+}

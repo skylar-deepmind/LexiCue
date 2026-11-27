@@ -17,7 +17,7 @@ for(const locale of locales){const c=copy[locale],r=c.readme;
   <a href="${siteUrl}${locale==='en'?'':locale+'/'}#feature-languages"><img alt="Interface: English, Japanese, German, Chinese" src="https://img.shields.io/badge/interface-EN%20%7C%20JA%20%7C%20DE%20%7C%20ZH-526177?style=flat-square"></a>
 </p>
 
-<p align="center"><a href="${siteUrl}${locale==='en'?'':locale+'/'}download/"><strong>${c.download}</strong></a> · <a href="${siteUrl}${locale==='en'?'':locale+'/'}">${c.features}</a> · <a href="DISTRIBUTION.md">${c.installGuide}</a></p>
+<p align="center"><a href="${siteUrl}${locale==='en'?'':locale+'/'}download/"><strong>${c.download}</strong></a> · <a href="${siteUrl}${locale==='en'?'':locale+'/'}#experience">${c.features}</a> · <a href="DISTRIBUTION.md">${c.installGuide}</a></p>
 
 [![${c.titles[0]}](docs/media/current/${locale}/materials-ocean-desktop.webp)](${siteUrl}${locale==='en'?'':locale+'/'})
 

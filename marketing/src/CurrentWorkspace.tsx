@@ -12,6 +12,6 @@ export function CurrentWorkspace({locale,theme,resetRevision=0,onReady}:{locale:
  useEffect(()=>{if(resetRevision)frame.current?.contentWindow?.postMessage({type:'lexicue-demo-reset'},location.origin);},[resetRevision]);
  useEffect(()=>{const ready=(event:MessageEvent)=>{if(event.origin===location.origin&&event.source===frame.current?.contentWindow&&event.data?.type==='lexicue-demo-ready'){readyDocument.current=frame.current?.contentDocument??null;onReady?.(true);send();}};addEventListener('message',ready);return()=>removeEventListener('message',ready);},[]);
  return <section className="live-workspace" id="experience" aria-label={String(currentCopy[locale].workspace)}>
-  <iframe ref={frame} className="live-app-frame" src={source} title={String(currentCopy[locale].onlineApp)} allow="clipboard-read; clipboard-write" onLoad={()=>{onReady?.(!!readyDocument.current&&readyDocument.current===frame.current?.contentDocument);send();}}/>
+  <iframe ref={frame} className="live-app-frame" loading="lazy" src={source} title={String(currentCopy[locale].onlineApp)} allow="clipboard-read; clipboard-write" onLoad={()=>{onReady?.(!!readyDocument.current&&readyDocument.current===frame.current?.contentDocument);send();}}/>
  </section>;
 }

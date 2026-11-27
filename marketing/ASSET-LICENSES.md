@@ -24,3 +24,11 @@ Changes: excerpts of 90 / 30 seconds, reduced volume, fades, and mixed original 
 - Typography uses installed system fonts. No Apple font files are redistributed. The rendering machine and fonts are recorded in the delivery notes; exact glyph rendering requires the same fonts.
 
 The marketing site does not load remote font services or music. Music is used only in the local video export.
+
+## Product overview photography and feature details
+
+The optical-glass photograph in `docs/media/keynote/context.webp` was generated for the LexiCue website.
+
+The animated WebP files in `docs/media/keynote/motion/` record the application built from main commit `ef572e2da66c6d1ecb91360a6960cea746b4492c` importing a bilingual sample, looking up a word, entering listening mode, saving a sentence and retrieving it in another article. Each recording uses a fresh browser demo session and a visible pointer. All four interface languages have phone and desktop layouts in both themes.
+
+The opt-in reading sample in `docs/media/keynote/quiet-morning.wav` speaks the original sentence “A quiet morning is a good time to read.” It was synthesized with en-US-JennyNeural, a voice supported by the app, and packaged as PCM for local playback.

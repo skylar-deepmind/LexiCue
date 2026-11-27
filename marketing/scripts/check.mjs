@@ -8,7 +8,7 @@ import {resolve} from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {prepareVideoFixture} from './video-fixture.mjs';
 import {screenshotPath,screenshotScenes,currentCopy} from '../src/current-copy.mjs';
-import {copy,locales,features,horizontalTimeline,verticalTimeline} from '../src/catalogue.mjs';
+import {copy,locales,siteUrl,features,horizontalTimeline,verticalTimeline} from '../src/catalogue.mjs';
 const root=resolve(import.meta.dirname,'../..');let checks=0;
 const check=(condition,label)=>{assert.ok(condition,label);checks++;};
 // The video adapter and semantic theme tokens are generated, ignored build inputs.
@@ -43,12 +43,17 @@ for(const locale of locales){
  check(download.includes(copy[locale].releaseNote)&&readme.includes(copy[locale].releaseNote),'release distinction in README and dedicated download page');
  check(html.includes(currentCopy[locale].downloadSummary),'concise download status below the app');
  check(html.includes('<iframe')&&html.includes('_demo/index.html?locale='+locale),'workspace embeds the live app');
- check(!html.includes('current-scenes')&&!html.includes('current-feature-grid')&&!html.includes('class="hero"'),'no screenshot gallery, feature list or advertising hero');
+ for(const theme of ['ocean','midnight'])for(const layout of ['desktop','phone'])for(const clip of ['desk','lookup','listen','save','memory']){
+  const path=`media/keynote/motion/${locale}-${theme}-${layout}-${clip}.webp`;
+  await access(resolve(root,'docs',path.replace('.webp','-still.webp')));
+  check((await stat(resolve(root,'docs',path))).size>0,'localized product recording '+path);
+ }
+ check(['kn-hero','id="highlights"','id="lookup"','id="memory"','href="#experience"'].every(mark=>html.includes(mark)), 'static feature story and live demo entry');
  check(!download.includes('<iframe')&&!support.includes('<iframe'),'download and support pages have their own purpose');
  check(support.includes('https://www.ifdian.net/a/skylar-lexicue')&&(locale==='zh'||support.includes('https://www.patreon.com/16942122/join')),'support destinations retained');
  for(const [name,page] of [['workspace',html],['download',download],['support',support]])for(const match of page.matchAll(/(?:src|href)="([^"]+)"/g)){if(/^(?:https?:|#|data:)/.test(match[1]))continue;const file=match[1].split(/[?#]/)[0];await access(resolve(root,`docs/${locale==='en'?'':locale+'/'}${name==='workspace'?'':name+'/'}`,file));checks++;}
  check(!readme.includes('docs/media/demo/'),'no obsolete README GIF');
- check(html.includes(screenshotPath(locale,'reading','ocean')),'current product in social preview');
+ check(html.includes('property="og:image" content="'+siteUrl+'media/keynote/context.webp"'),'product overview in social preview');
  check(JSON.stringify(schema.featureList)===JSON.stringify(copy[locale].titles),'source capability metadata remains localized');
  for(const scene of screenshotScenes)for(const theme of ['ocean','midnight'])for(const device of ['desktop','mobile']){await access(resolve(root,'docs',screenshotPath(locale,scene,theme,device)));checks++;}
  if(locale!=='zh')check(readme.includes('https://www.patreon.com/16942122/join'),'localized membership link retained');

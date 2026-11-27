@@ -1,12 +1,12 @@
 # LexiCue marketing sources
 
-The website’s Workspace is a working browser demo of the current application. It reuses the product’s desktop/mobile components and styles with isolated temporary data. The user guide, download page and support page are separate destinations. README and guide screenshots illustrate the same current interface.
+The product homepage follows one reading session on a shared stage. Five chapters show importing, lookup, listening, saving and recall. Each uses a looping WebP recorded from the app. As the chapter title changes, the reading excerpt stays in place and the next recording moves into focus. The final two chapters share the same underlined phrase while the surrounding words change. The speaker in the listening scene plays a local audio sample on request. Reduced motion uses still images, and visitors can open the live workspace to try the same interactions. It reuses the product’s desktop/mobile components and styles with isolated temporary data. The user guide, download page and support page are separate destinations. README and guide screenshots illustrate the same current interface.
 
 Public downloads and current source features are stated separately. Building the website does not publish an installer or deploy GitHub Pages.
 
 ## Website and live application
 
-- `src/main.tsx` renders four-purpose navigation: Workspace, User guide, Download and Support. Workspace contains the live app and a compact download/reset row, without a separate marketing hero, screenshot gallery or feature list.
+- `src/main.tsx` renders the Product, User guide, Download and Support navigation. The homepage uses the same localized feature markup from `src/keynote.mjs` in React and in the static Pages output. The primary action opens the live workspace at `#experience`.
 - `src/CurrentWorkspace.tsx` embeds `_demo/index.html`. The desktop preview is centered at a maximum 1120 px width with a 16:10 aspect ratio and a 400 px minimum height; phones retain the available viewport height. The product’s own responsive layout and internal scrolling apply. Changing the website language or theme updates the existing iframe; it does not recreate the demo session.
 - `demo/entry.tsx`, `demo/runtime.ts` and the browser adapters reuse the current product App, routes, stores and CSS. `vite.demo.config.mjs` changes the native boundary and static-host routing for the browser build; the desktop material stage uses the same corrected spacing as the installed application.
 - Demo materials, saved contexts, tags and preferences use an isolated current-tab namespace. Refreshing the same tab preserves the demo. Reset demo restores the initial materials and saved contexts after confirmation, without clearing website preferences or personal application data.
@@ -27,7 +27,7 @@ It sends `lexicue-demo-ready` to the parent when ready. The outer site checks bo
 
 `src/manual-content.mjs` is the four-language guide source. `manual-render.mjs` renders the same sections for React and static HTML. Existing chapter URLs remain valid; vocabulary/review/insights now explain saved contexts, re-encounters, reading position and legacy records. Older `#feature-*` links redirect to the corresponding guide.
 
-`npm run build` generates 44 localized workspace, download, support and guide pages plus their static navigation and metadata. It then invokes `scripts/build-demo.mjs`, which creates `docs/_demo/index.html`, real application assets and local document-parser resources. The outer site uses `docs/_marketing/`. Technical Markdown documents remain intact. Without JavaScript the guide and download/support pages remain readable; Workspace offers guidance to enable JavaScript or open the guide.
+`npm run build` generates 44 localized workspace, download, support and guide pages plus their static navigation and metadata. It then invokes `scripts/build-demo.mjs`, which creates `docs/_demo/index.html`, real application assets and local document-parser resources. The outer site uses `docs/_marketing/`. Technical Markdown documents remain intact. Without JavaScript the guide and download/support pages remain readable; the homepage includes its feature stories and a link to the guide.
 
 ## Regenerate and verify
 
@@ -64,7 +64,7 @@ Current screenshots live at:
 docs/media/current/{en,zh,ja,de}/{scene}-{ocean,midnight}-{desktop,mobile}.webp
 ```
 
-Scenes are `materials`, `reading`, `lookup`, `saved`, `recall` and `settings`. Desktop images are 1280×850; mobile images are 390×844. Guide illustrations select the matching language, theme and viewport. Social previews use the reading screenshot. They are documentation illustrations, not a substitute for the live Workspace.
+Scenes are `materials`, `reading`, `lookup`, `saved`, `recall` and `settings`. Desktop images are 1280×850; mobile images are 390×844. Guide illustrations select the matching language, theme and viewport. The homepage social preview uses the optical-glass photograph. Guide previews use the reading screenshot. They are documentation illustrations, not a substitute for the live Workspace.
 
 To refresh illustrations, start a dedicated product frontend and the disposable reading test bridge from `scripts/ui-reading-support.mjs`. Set `LEXICUE_READING_BRIDGE_INFO` to its info JSON (`temporary: true`) and `LEXICUE_UI_URL` to that frontend’s local URL, then run:
 
@@ -79,3 +79,5 @@ The generator requires Ego Browser, the product test bridge and both dependency 
 `Sandbox.tsx`, `Scene.tsx`, `DocumentPlayer.tsx` and the older film/asset scripts remain available for historical video projects. Their vocabulary states, scheduled reviews, statistics and baseline flows describe an earlier product. They do not power the current Workspace. Do not regenerate current illustrations with archived GIF/guide capture commands. See [asset licenses](ASSET-LICENSES.md) for provenance.
 
 Commit the generated README files, website/demo sources and `docs/` output together. GitHub Pages serves `docs/`. Pushing a review branch and passing checks do not establish that the public site or installer release has changed; verify deployment separately.
+
+To refresh the chapter clips, serve the built website locally and set `LEXICUE_STATIC_URL` to its root. Run `node marketing/scripts/keynote-recordings.mjs` with Chrome, FFmpeg and the WebP command-line tools installed. Optional comma-separated arguments select locales, themes and layouts, for example `zh ocean phone`.
