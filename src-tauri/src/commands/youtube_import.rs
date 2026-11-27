@@ -19,6 +19,8 @@ use tokio::{
     time::{timeout_at, Instant},
 };
 
+mod json3;
+
 const ENGLISH_CAPTIONS: [&str; 4] = ["en", "en-US", "en-GB", "en-orig"];
 const ORIGINAL_ENGLISH_CAPTIONS: [&str; 6] = [
     "en-orig",
@@ -38,6 +40,12 @@ const MAX_METADATA_BYTES: usize = 64 * 1024 * 1024;
 struct CaptionTrack {
     language: &'static str,
     kind: &'static str,
+}
+
+#[derive(Clone, Copy)]
+enum CaptionFormat {
+    Json3,
+    WebVtt,
 }
 
 #[derive(Serialize)]
@@ -241,32 +249,41 @@ async fn download_caption(
     metadata_file: &Path,
     directory: &Path,
     track: CaptionTrack,
+    format: CaptionFormat,
+    duration_ms: i64,
 ) -> Result<String, Failure> {
     let attempt = work_dir(directory)?;
     let mut command = tools.downloader(attempt.path());
-    command
-        .arg("--load-info-json")
-        .arg(metadata_file)
-        .args([
-            "--skip-download",
-            "--abort-on-error",
-            if track.kind == "manual" {
-                "--write-subs"
-            } else {
-                "--write-auto-subs"
-            },
-            "--sub-langs",
-            track.language,
-            "--sub-format",
-            "vtt",
-            "--ffmpeg-location",
-        ])
-        .arg(&tools.ffmpeg.path)
-        .args(["--convert-subs", "srt", "--output", "captions.%(ext)s"]);
+    command.arg("--load-info-json").arg(metadata_file).args([
+        "--skip-download",
+        "--abort-on-error",
+        if track.kind == "manual" {
+            "--write-subs"
+        } else {
+            "--write-auto-subs"
+        },
+        "--sub-langs",
+        track.language,
+        "--output",
+        "captions.%(ext)s",
+    ]);
+    let extension = match format {
+        CaptionFormat::Json3 => {
+            command.args(["--sub-format", "json3"]);
+            "json3"
+        }
+        CaptionFormat::WebVtt => {
+            command
+                .args(["--sub-format", "vtt", "--ffmpeg-location"])
+                .arg(&tools.ffmpeg.path)
+                .args(["--convert-subs", "srt"]);
+            "srt"
+        }
+    };
     let output = run_tool(command, 0, |_| {}).await?;
     let path = attempt
         .path()
-        .join(format!("captions.{}.srt", track.language));
+        .join(format!("captions.{}.{extension}", track.language));
     let file = fs::metadata(&path)
         .await
         .map_err(|_| output.issue.unwrap_or(Failure::InvalidSubtitles))?;
@@ -276,11 +293,13 @@ async fn download_caption(
     let content = fs::read_to_string(path)
         .await
         .map_err(|_| Failure::InvalidSubtitles)?;
-    Ok(if track.kind == "original" {
-        tidy_automatic_captions(content)
-    } else {
-        content
-    })
+    match format {
+        CaptionFormat::Json3 => {
+            json3::to_srt(&content, duration_ms).ok_or(Failure::InvalidSubtitles)
+        }
+        CaptionFormat::WebVtt if track.kind == "original" => Ok(tidy_automatic_captions(content)),
+        CaptionFormat::WebVtt => Ok(content),
+    }
 }
 
 async fn download_audio(
@@ -441,6 +460,10 @@ async fn fetch(
         .round() as i64;
     let mut selected = Err(Failure::NoSubtitles);
     for track in tracks.into_iter().flatten() {
+        let has_json3 = track.kind == "original"
+            && metadata["automatic_captions"][track.language]
+                .as_array()
+                .is_some_and(|formats| formats.iter().any(|format| format["ext"] == "json3"));
         selected = trace
             .step(
                 if track.kind == "manual" {
@@ -451,19 +474,40 @@ async fn fetch(
                 Duration::from_secs(30),
                 true,
                 || async {
-                    let content =
-                        download_caption(tools, &metadata_file, directory.path(), track).await?;
-                    let source = YoutubeSource::from_imported_captions(
-                        id,
-                        title.clone(),
-                        duration_ms,
-                        track.language,
-                        &content,
-                        track.kind,
-                        None,
-                    )
-                    .map_err(|_| Failure::InvalidSubtitles)?;
-                    Ok((track, content, source))
+                    let metadata_file = &metadata_file;
+                    let directory = directory.path();
+                    let title = &title;
+                    let load = |format| async move {
+                        let content = download_caption(
+                            tools,
+                            metadata_file,
+                            directory,
+                            track,
+                            format,
+                            duration_ms,
+                        )
+                        .await?;
+                        let source = YoutubeSource::from_imported_captions(
+                            id,
+                            title.clone(),
+                            duration_ms,
+                            track.language,
+                            &content,
+                            track.kind,
+                            None,
+                        )
+                        .map_err(|_| Failure::InvalidSubtitles)?;
+                        Ok((track, content, source))
+                    };
+                    if has_json3 {
+                        match load(CaptionFormat::Json3).await {
+                            Err(
+                                Failure::InvalidSubtitles | Failure::ToolFailed | Failure::TooLarge,
+                            ) => {}
+                            result => return result,
+                        }
+                    }
+                    load(CaptionFormat::WebVtt).await
                 },
             )
             .await;
