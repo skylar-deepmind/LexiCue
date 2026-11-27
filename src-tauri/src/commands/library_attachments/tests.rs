@@ -254,3 +254,38 @@ fn complete_archive_restores_covers_and_original_audio_with_a_portable_library()
         Some("同步测试。")
     );
 }
+
+#[test]
+fn audio_deletion_clears_partial_and_expiry_keeps_the_deletion_marker() {
+    let temp = tempfile::tempdir().unwrap();
+    let dir = temp.path();
+    let db = crate::db::init_db(&dir.join("library.db")).unwrap();
+    let (key, hash) = seed(
+        &db,
+        dir,
+        "abcdefghijk",
+        "Delete a test audio attachment.",
+        b"test audio",
+    );
+    let partial = dir.join(format!(".lan-{key}-{hash}.part"));
+    fs::write(&partial, b"partial").unwrap();
+    respond(
+        &db,
+        dir,
+        Request::Offer(Entry::AudioState {
+            key: key.clone(),
+            revision: 1,
+            deleted: true,
+        }),
+    )
+    .unwrap();
+    assert!(!partial.exists());
+    assert!(audio_recoverable(&db, &key).unwrap());
+    db.execute("UPDATE library_audio_removed_on SET removed_on=0", [])
+        .unwrap();
+    reclaim_expired_audio(&db, dir).unwrap();
+    assert!(audio_removed(&db, &key).unwrap());
+    assert!(!audio_recoverable(&db, &key).unwrap());
+    assert!(!dir.join(format!("{hash}.m4a")).exists());
+    assert!(set_audio_deleted(&db, &key, false).is_err());
+}

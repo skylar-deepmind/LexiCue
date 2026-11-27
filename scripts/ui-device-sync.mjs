@@ -62,6 +62,7 @@ try {
       }, {role, theme});
       await page.goto(new URL('/settings', process.env.LEXICUE_UI_URL).href);
       await page.locator('.mobile-startup').waitFor({state:'detached'});
+      await page.getByRole('button', {name:'资料与设备'}).click();
       const section = page.locator('.device-sync');
       const start = section.getByRole('button', {name:role === 'mac' ? '显示配对码' : '扫描 Mac 配对码'});
       const entry = page.locator('[data-entry=sync]');
@@ -113,13 +114,16 @@ try {
       await verifyContrast(section.getByRole('button',{name:'等待另一端确认'}), `${theme} disabled action`);
       assert.equal(await page.evaluate(() => window.qaActions.at(-1).confirmationId), 'fixture-candidate');
       for (const [state, label] of [['waiting','等待设备上线'], ['syncing','同步中'], ['synced','已同步'], ['update','需要更新另一台设备'], ['pending','有更改待处理'], ['permission','需要访问权限']]) {
-        await page.evaluate(state => Object.assign(window.qaStatus,{state,paired:true,issue:state === 'permission' ? 'localNetwork' : undefined}),state);
+        await page.evaluate(state => {
+          Object.assign(window.qaStatus,{state,paired:true,issue:state === 'permission' ? 'localNetwork' : undefined});
+          document.dispatchEvent(new Event('visibilitychange'));
+        },state);
         await section.getByRole('status').filter({hasText:label}).waitFor();
         if (state === 'syncing') {
           const status = section.locator('.sync-state');
           const track = status.locator('.activity-track[aria-hidden=true]');
           await track.waitFor();
-          for (const [phase, name] of [['preparing','准备合并'], ['exchanging','交换更改'], ['awaitingAck','等待对方确认']]) {
+          for (const [phase, name] of [['preparing','准备合并'], ['exchanging','交换更改'], ['awaitingAck','等待对方确认'], ['attachments','正在同步封面和原音频']]) {
             await page.evaluate(phase => { window.qaStatus.phase = phase; }, phase);
             await status.getByText(name, {exact:true}).waitFor();
             assert.equal(await status.getByText('已同步').count(),0);
@@ -140,6 +144,10 @@ try {
         }
       }
       await section.getByText('需要允许局域网访问。', {exact:false}).waitFor();
+      await page.evaluate(() => Object.assign(window.qaStatus, {state:'pending', issue:'attachmentStorage'}));
+      const storageNotice = section.locator('.sync-notice').filter({hasText:'设备空间不足'});
+      await storageNotice.waitFor();
+      await verifyContrast(storageNotice, `${theme} attachment storage notice`);
       assert.ok(await section.evaluate(el => el.scrollWidth <= el.clientWidth + 1));
       if (role === 'mac') {
         const receiver=section.getByRole('switch');

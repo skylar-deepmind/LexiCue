@@ -642,7 +642,12 @@ pub fn status(conn: &Connection, dir: &Path, r: &MediaRef) -> Result<MediaStatus
         .map_err(|e| e.to_string())?;
     if super::library_attachments::audio_removed(conn, &r.source.key)? {
         return Ok(MediaStatus {
-            status: "deleted".into(),
+            status: if super::library_attachments::audio_recoverable(conn, &r.source.key)? {
+                "deleted"
+            } else {
+                "removed"
+            }
+            .into(),
             error: None,
             asset_id: None,
         });
@@ -964,7 +969,12 @@ pub fn recover(conn: &Connection, dir: &Path) -> Result<(), String> {
     Ok(())
 }
 pub fn initialize(app: &tauri::AppHandle, conn: &Connection) -> Result<(), String> {
-    recover(conn, &root(app)?)
+    let dir = root(app)?;
+    recover(conn, &dir)?;
+    if let Err(error) = super::library_attachments::reclaim_expired_audio(conn, &dir) {
+        log::warn!("Could not reclaim expired original audio: {error}");
+    }
+    Ok(())
 }
 
 /// Validate portable file rows at every ingress; no device-local manifest is imported.

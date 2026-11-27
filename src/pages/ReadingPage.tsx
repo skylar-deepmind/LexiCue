@@ -143,7 +143,7 @@ export default function ReadingPage({ data, scope }: {
     const recoveredAudioReady = useSourceMediaStore(state =>
         !!material.source && !material.source.audio && state.entries[material.source.key]?.status === 'ready');
     const sourceDeleted = useSourceMediaStore(state =>
-        !!material.source && state.entries[material.source.key]?.status === 'deleted');
+        !!material.source && ['deleted', 'removed'].includes(state.entries[material.source.key]?.status ?? ''));
     const hasSourceAudio = !sourceDeleted && (!!material.source?.audio || recoveredAudioReady);
     const queryWithMedia = useMemo(() => query ? {...query,media:data.media_refs?.[query.segment.id]} : null, [query,data.media_refs]);
     const drafts = useRef(memory?.drafts ?? returnLookupMemory.get(location.state?.restoreVisitToken)?.drafts ?? new Map<string, LookupDraft>());

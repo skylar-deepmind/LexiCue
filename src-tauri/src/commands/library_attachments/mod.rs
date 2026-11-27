@@ -15,6 +15,7 @@ const CHUNK: usize = 256 * 1024;
 const ROUND_BYTES: usize = 4 * 1024 * 1024;
 const COVER_BYTES: usize = 512 * 1024;
 const PAGE: usize = 64;
+const AUDIO_RECOVERY_SECONDS: i64 = 30 * 24 * 60 * 60;
 const MAX_DOCUMENT_BYTES: u64 = 64 * 1024 * 1024;
 
 type Result<T> = std::result::Result<T, String>;
@@ -29,6 +30,24 @@ pub(crate) fn migrate(db: &Connection) -> rusqlite::Result<()> {
             source_key TEXT PRIMARY KEY, revision INTEGER NOT NULL,
             deleted INTEGER NOT NULL CHECK(deleted IN (0,1))
         ) STRICT;
+        CREATE TABLE IF NOT EXISTS library_audio_removed_on(
+            source_key TEXT PRIMARY KEY, removed_on INTEGER NOT NULL
+        ) STRICT;
+        INSERT OR IGNORE INTO library_audio_removed_on
+        SELECT source_key,unixepoch() FROM library_audio_state WHERE deleted=1;
+        CREATE TRIGGER IF NOT EXISTS library_audio_recovery_new
+        AFTER INSERT ON library_audio_state WHEN new.deleted=1 BEGIN
+          INSERT OR REPLACE INTO library_audio_removed_on VALUES(new.source_key,unixepoch());
+        END;
+        CREATE TRIGGER IF NOT EXISTS library_audio_recovery_changed
+        AFTER UPDATE OF deleted ON library_audio_state WHEN new.deleted<>old.deleted BEGIN
+          DELETE FROM library_audio_removed_on WHERE source_key=new.source_key;
+          INSERT INTO library_audio_removed_on SELECT new.source_key,unixepoch() WHERE new.deleted=1;
+        END;
+        CREATE TRIGGER IF NOT EXISTS library_audio_recovery_reset
+        AFTER DELETE ON library_audio_state BEGIN
+          DELETE FROM library_audio_removed_on WHERE source_key=old.source_key;
+        END;
         CREATE TABLE IF NOT EXISTS library_youtube_artwork(
             video_id TEXT PRIMARY KEY, sha256 TEXT NOT NULL, data BLOB NOT NULL
         ) STRICT;
@@ -89,7 +108,12 @@ pub(crate) fn audio_removed(db: &Connection, key: &str) -> Result<bool> {
 }
 
 #[tauri::command]
-pub fn set_library_audio_deleted(state: State<DbState>, file_id: i64, deleted: bool) -> Result<()> {
+pub fn set_library_audio_deleted(
+    app: AppHandle,
+    state: State<DbState>,
+    file_id: i64,
+    deleted: bool,
+) -> Result<()> {
     let db = state.conn.lock().map_err(err)?;
     let key: String = db
         .query_row(
@@ -98,12 +122,95 @@ pub fn set_library_audio_deleted(state: State<DbState>, file_id: i64, deleted: b
             |row| row.get(0),
         )
         .map_err(|_| "media_unavailable")?;
-    set_audio_deleted(&db, &key, deleted)
+    let dir = media::root(&app)?;
+    set_audio_deleted(&db, &key, deleted)?;
+    if deleted {
+        if let Err(error) = cleanup_partial(&dir, &key) {
+            log::warn!("Could not clear a removed audio transfer: {error}");
+        }
+    }
+    Ok(())
+}
+
+pub(super) fn audio_recoverable(db: &Connection, key: &str) -> Result<bool> {
+    db.query_row(
+        "SELECT EXISTS(SELECT 1 FROM library_audio_removed_on WHERE source_key=?
+         AND removed_on>unixepoch()-?)",
+        params![key, AUDIO_RECOVERY_SECONDS],
+        |row| row.get(0),
+    )
+    .map_err(err)
+}
+
+fn cleanup_partial(dir: &Path, key: &str) -> Result<()> {
+    let prefix = format!(".lan-{key}-");
+    for entry in fs::read_dir(dir).map_err(err)? {
+        let entry = entry.map_err(err)?;
+        if entry.file_name().to_string_lossy().starts_with(&prefix) {
+            if let Err(error) = fs::remove_file(entry.path()) {
+                if error.kind() != std::io::ErrorKind::NotFound {
+                    return Err(err(error));
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+pub(super) fn reclaim_expired_audio(db: &Connection, dir: &Path) -> Result<()> {
+    let mut query = db
+        .prepare(
+            "SELECT m.source_key,m.asset_id FROM source_media m
+         JOIN library_audio_removed_on d USING(source_key)
+         WHERE d.removed_on<=unixepoch()-? AND m.asset_id IS NOT NULL",
+        )
+        .map_err(err)?;
+    let expired = query
+        .query_map([AUDIO_RECOVERY_SECONDS], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })
+        .map_err(err)?
+        .collect::<rusqlite::Result<Vec<_>>>()
+        .map_err(err)?;
+    if expired.is_empty() {
+        return Ok(());
+    }
+    let tx =
+        rusqlite::Transaction::new_unchecked(db, TransactionBehavior::Immediate).map_err(err)?;
+    for (key, asset) in expired {
+        // Keep the deletion marker indefinitely. Only the physical copy and
+        // its local playback binding expire, and only if it has no other use.
+        if tx.execute(
+            "UPDATE source_media SET asset_id=NULL,status='missing',manifest_json=NULL,error=NULL
+             WHERE source_key=?1 AND asset_id=?2 AND EXISTS(SELECT 1 FROM library_audio_removed_on
+               WHERE source_key=?1 AND removed_on<=unixepoch()-?3)",
+            params![key, asset, AUDIO_RECOVERY_SECONDS],
+        ).map_err(err)? == 0 { continue; }
+        let still_bound: bool = tx
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM source_media WHERE asset_id=?)",
+                [&asset],
+                |row| row.get(0),
+            )
+            .map_err(err)?;
+        if !still_bound {
+            let path = media::asset_path(dir, &asset)?;
+            match fs::remove_file(&path) {
+                Ok(()) => sync_parent(&path)?,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => return Err(err(error)),
+            }
+        }
+    }
+    tx.commit().map_err(err)
 }
 
 fn set_audio_deleted(db: &Connection, key: &str, deleted: bool) -> Result<()> {
     if !media::valid_hash(key) {
         return Err("invalid audio identity".into());
+    }
+    if !deleted && audio_removed(db, key)? && !audio_recoverable(db, key)? {
+        return Err("audio recovery has expired".into());
     }
     db.execute(
         "INSERT INTO library_audio_state(source_key,revision,deleted) VALUES(?,1,?)

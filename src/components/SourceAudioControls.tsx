@@ -24,14 +24,20 @@ export default function SourceAudioControls({ reference, target, text, speechKey
   useEffect(() => {
     const refresh = () => {
       const { reference, target } = current.current;
-      if (reference) void useSourceMediaStore.getState().refresh(reference, target);
+      if (reference) void useSourceMediaStore.getState().refresh(reference, target).then(() => {
+        const status = useSourceMediaStore.getState().entries[reference.source.key]?.status;
+        const speech = useSpeechStore.getState();
+        if ((status === 'deleted' || status === 'removed') && speech.continuousSourceKey === reference.source.key) {
+          speech.stop();
+        }
+      });
     };
     refresh();
     window.addEventListener('lexicue-attachments-changed', refresh);
     return () => window.removeEventListener('lexicue-attachments-changed', refresh);
   }, [key, targetKey, playbackFailed]);
   if (statusOnly) {
-    if (!isTauri() || !reference || fileId === undefined || !status) return null;
+    if (!isTauri() || !reference || fileId === undefined || !status || status === 'removed') return null;
     const deleted = status === 'deleted';
     const change = async () => {
       setBusy(true);

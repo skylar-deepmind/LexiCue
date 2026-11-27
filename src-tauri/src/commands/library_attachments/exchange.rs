@@ -205,17 +205,6 @@ fn partial(dir: &Path, key: &str, hash: &str) -> PathBuf {
     dir.join(format!(".lan-{key}-{hash}.part"))
 }
 
-fn cleanup_partial(dir: &Path, key: &str) -> Result<()> {
-    let prefix = format!(".lan-{key}-");
-    for entry in fs::read_dir(dir).map_err(err)? {
-        let entry = entry.map_err(err)?;
-        if entry.file_name().to_string_lossy().starts_with(&prefix) {
-            fs::remove_file(entry.path()).map_err(err)?;
-        }
-    }
-    Ok(())
-}
-
 fn check_cover(key: &str, bytes: usize, hash: &str) -> Result<()> {
     if !super::super::youtube::is_valid_video_id(key)
         || !(1..=COVER_BYTES).contains(&bytes)
@@ -243,7 +232,9 @@ fn offer(db: &Connection, dir: &Path, entry: &Entry) -> Result<Need> {
                 params![key, revision, deleted],
             ).map_err(err)?;
             if changed > 0 && *deleted {
-                cleanup_partial(dir, key)?;
+                if let Err(error) = cleanup_partial(dir, key) {
+                    log::warn!("Could not clear a removed audio transfer: {error}");
+                }
             }
             Ok(Need::Done)
         }
@@ -595,6 +586,9 @@ pub fn sync_round<F>(db: &Connection, dir: &Path, mut remote: F) -> Result<Round
 where
     F: FnMut(Request) -> Result<Reply>,
 {
+    if let Err(error) = reclaim_expired_audio(db, dir) {
+        log::warn!("Could not reclaim expired original audio: {error}");
+    }
     let mut round = Round::default();
     // Pull and push each get a budget, so large incoming audio cannot
     // prevent the other side's attachments from making progress.
