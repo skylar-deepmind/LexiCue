@@ -54,6 +54,8 @@ export default function FilesPage() {
 function MaterialDesk() {
   const { t } = useTranslation(), navigate = useNavigate(), location = useLocation();
   const [params, setParams] = useSearchParams();
+  const wallTag = params.get('tag');
+  const groups = params.get('view') === 'library' && wallTag === null;
   const catalog = useMaterialStore(), desk = useReadingDeskStore();
   const picking = useImportStore(s => s.picking), importing = useImportStore(s => s.running), importOpen = useImportStore(s => s.open);
   const readingLink = useImportStore(s => s.readingLink);
@@ -64,7 +66,6 @@ function MaterialDesk() {
   const savedRevision = useSavedReadRevision();
   const [pocket, setPocket] = useState<SavedRecord | null>(() => savedPocketCache.peek('latest') ?? null);
   const [turning, setTurning] = useState(false);
-  const [groups, setGroups] = useState(params.get('view') === 'library' && !params.has('tag'));
   const [wallEntrance, setWallEntrance] = useState<PosterEntrance | null>(null);
   const home = useRef<HTMLDivElement>(null);
   const card = useRef<HTMLDivElement>(null), libraryButton = useRef<HTMLButtonElement>(null);
@@ -114,9 +115,6 @@ function MaterialDesk() {
     if (catalog.hasLoaded && (!selectedId || segment === null || quotes[quoteKey])) finishReadingReturn('desk');
   }, [catalog.hasLoaded, selectedId, segment, quotes, quoteKey]);
   useEffect(() => () => clearTimeout(timer.current), []);
-  useEffect(() => {
-    if (params.get('view') === 'library' && !params.has('tag')) setGroups(true);
-  }, [params]);
   const turn = (step: number) => {
     const next = recent[index + step];
     if (!next) return;
@@ -171,10 +169,9 @@ function MaterialDesk() {
       desk.removeEventListener('touchend', endTap);
     };
   }, []);
-  const wallTag = params.get('tag');
   const wallFiles = useMemo(() => wallTag === 'all' ? catalog.files : catalog.files.filter(file =>
     wallTag === 'untagged' ? !file.tags.length : file.tags.some(tag => String(tag.id) === wallTag)), [catalog.files, wallTag]);
-  const returnToTags = useCallback(() => { setWallEntrance(null); setParams({ view: 'library' }); setGroups(true); }, [setParams]);
+  const returnToTags = useCallback(() => { setWallEntrance(null); setParams({ view: 'library' }); }, [setParams]);
   const tagName = wallTag === 'all' ? libraryNames.all : wallTag === 'untagged' ? libraryNames.untagged : tags.find(tag => String(tag.id) === wallTag)?.name ?? t('readingDesk.library');
   useEffect(() => backNavigation.setPage(() => {
     if (wallTag !== null) { returnToTags(); return true; }
@@ -215,7 +212,7 @@ function MaterialDesk() {
         <button className="approved-edge approved-edge-prev" aria-label={t('history.previous')} disabled={index === 0} onClick={() => turn(-1)}><ChevronLeft size={18}/></button><button className="approved-edge approved-edge-next" aria-label={t('history.next')} disabled={index === recent.length - 1} onClick={() => turn(1)}><ChevronRight size={18}/></button>
       </div> : <EmptyMaterialGreeting/>}
         {selected&&!groups&&!importOpen&&!catalog.error&&(catalog.hasLoaded||!catalog.loading)&&<HomeCardTags key={selected.id} file={selected}/>}
-      <footer className="approved-home-footer"><button ref={libraryButton} className="approved-library-entry" aria-label={t('readingDesk.library')} aria-expanded={groups} onClick={() => { setGroups(true); setParams({ view: 'library' }); }}><span className="approved-stock" data-count={Math.min(catalog.files.length,3)} aria-hidden="true">{(catalog.files.length ? catalog.files.slice(0, 3) : [null]).map((file, i) => <MaterialCover key={i} src={file ? materialCover(file) : '/design/empty-material/waiting.png'} identity={file?.content_hash ?? String(i)}/>)}</span></button>
+      <footer className="approved-home-footer"><button ref={libraryButton} className="approved-library-entry" aria-label={t('readingDesk.library')} aria-expanded={groups} onClick={() => setParams({ view: 'library' })}><span className="approved-stock" data-count={Math.min(catalog.files.length,3)} aria-hidden="true">{(catalog.files.length ? catalog.files.slice(0, 3) : [null]).map((file, i) => <MaterialCover key={i} src={file ? materialCover(file) : '/design/empty-material/waiting.png'} identity={file?.content_hash ?? String(i)}/>)}</span></button>
         <button className="approved-saved-entry" onPointerDown={savedRoute.preload} onFocus={savedRoute.preload} aria-label={t('savedRecords.title')} onClick={event => {
           cancelReadingReturn();
           const open=()=>navigate('/saved',{state:{...visitState(location),pocketRecordId:pocket?.record_id}});
@@ -224,10 +221,9 @@ function MaterialDesk() {
         }}><span className="approved-word-pocket" aria-hidden="true"><i/><SavedPocketPreview record={pocket}/><i/></span></button>
       </footer>
     </>}
-    {groups && !importOpen && wallTag === null && <TagRail files={catalog.files} tags={tags} returnFocus={() => libraryButton.current} onClose={() => { setGroups(false); setParams({}); }} onSelect={(tag, origin) => {
+    {groups && !importOpen && <TagRail files={catalog.files} tags={tags} returnFocus={() => libraryButton.current} onClose={() => setParams({})} onSelect={(tag, origin) => {
       lastLibraryTag = tag;
       setWallEntrance({ tag, origin });
-      setGroups(false);
       setParams({ view: 'library', tag });
     }}/ >}
   </div>;
