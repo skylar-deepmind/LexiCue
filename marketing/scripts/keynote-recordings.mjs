@@ -1,7 +1,7 @@
 // Record real interactions in a fresh, disposable copy of the built browser demo.
 import {chromium} from 'playwright';
 import {execFileSync} from 'node:child_process';
-import {mkdir, mkdtemp, rm} from 'node:fs/promises';
+import {mkdir, mkdtemp, readdir, rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join, resolve} from 'node:path';
 
@@ -28,7 +28,15 @@ async function record(locale, theme, layout) {
     await action();
     await wait(950);
     await page.screencast.stop();
-    execFileSync('ffmpeg', ['-loglevel','error','-y','-i',path,'-an','-c:v','libx264','-crf','20','-preset','fast','-pix_fmt','yuv420p','-movflags','+faststart',join(out,file(name)+'.mp4')]);
+    const target = join(out,file(name));
+    const args = ['-loglevel','error','-y','-i',path];
+    const framesDir=join(scratch,file(name));
+    await mkdir(framesDir);
+    execFileSync('ffmpeg', [...args,'-vf','fps=14',join(framesDir,'%04d.png')]);
+    const frames=(await readdir(framesDir)).sort().map(name=>join(framesDir,name));
+    execFileSync('img2webp', ['-loop','0','-lossy','-q','78','-m','3','-d','72',...frames,'-o',target+'.webp']);
+    execFileSync('cwebp',['-quiet','-q','82',frames[Math.floor(frames.length*.73)],'-o',target+'-still.webp']);
+    await rm(framesDir,{recursive:true});
     console.log(file(name));
   }
 
@@ -69,16 +77,30 @@ async function record(locale, theme, layout) {
     await page.evaluate(async()=>{await document.fonts.ready;await Promise.all([...document.images].map(img=>img.decode().catch(()=>{})));});
     await wait(500);
     await clip('desk',async()=>{
-      await tap(cover);
-      await page.locator('.reading-word').first().waitFor();
+      const choose=page.waitForEvent('filechooser');
+      await tap(page.locator('[data-guide="import"]'));
+      await (await choose).setFiles({name:'A quiet morning.srt',mimeType:'text/plain',buffer:Buffer.from('1\n00:00:00,000 --> 00:00:04,000\nA quiet morning is a good time to read.\n安静的清晨很适合阅读。\n')});
+      await page.locator('.approved-import-preview').waitFor();
+      await wait(550);
     });
+    await page.reload();
+    await tap(cover);
+    await page.locator('.reading-word').first().waitFor();
     await clip('lookup',async()=>{
       await tap(page.locator('.reading-word').filter({hasText:/^quiet$/}).first());
       await selected('quiet').locator('.longman-meaning').first().waitFor();
     });
     await page.keyboard.press('Escape');
     await selected('quiet').waitFor({state:'hidden'});
-    await clip('memory',async()=>{
+    await clip('listen',async()=>{
+      const headphones=page.locator('[data-guide="tools"] button:visible').filter({has:page.locator('svg.lucide-headphones')}).first();
+      await tap(headphones);
+      await page.locator('.reading-page[data-listening="true"]').waitFor();
+      await wait(800);
+    });
+    await page.reload();
+    await page.locator('.reading-word').first().waitFor();
+    await clip('save',async()=>{
       const take=page.locator('.reading-word').filter({hasText:/^take$/}).first();
       await take.scrollIntoViewIfNeeded();
       const a=await take.boundingBox(), b=await page.locator('.reading-word').filter({hasText:/^off$/}).first().boundingBox();
@@ -90,6 +112,9 @@ async function record(locale, theme, layout) {
       await move(start.x,start.y);await page.mouse.down();await move(end.x,end.y);await wait(160);await page.mouse.up();
       await page.waitForFunction(()=>document.querySelector('.quiet-pocket')?.getAttribute('aria-label')?.endsWith(' · 1'));
       await wait(1050);
+    });
+    await clip('memory',async()=>{
+      const pocket=page.locator('.quiet-pocket');
       await page.evaluate(()=>location.hash='/files/7');
       const recalled=page.locator('.reading-word[data-recall="take off"]').first();
       await recalled.waitFor();await wait(580);await tap(recalled);

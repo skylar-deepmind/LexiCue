@@ -1,6 +1,6 @@
 # LexiCue marketing sources
 
-The product homepage follows one reading session on a shared stage. Scrolling changes chapters and plays a short, silent recording of the application. Each chapter can be paused or replayed. Reduced motion starts with a still, and visitors can open the live workspace to try the same interactions. It reuses the product’s desktop/mobile components and styles with isolated temporary data. The user guide, download page and support page are separate destinations. README and guide screenshots illustrate the same current interface.
+The product homepage follows one reading session on a shared stage. Five chapters show importing, lookup, listening, saving and recall. Each uses a looping WebP recorded from the app. Scrolling in either direction disperses the outgoing image into particles and assembles the incoming one. The speaker in the listening scene plays a local audio sample on request. Reduced motion uses still images, and visitors can open the live workspace to try the same interactions. It reuses the product’s desktop/mobile components and styles with isolated temporary data. The user guide, download page and support page are separate destinations. README and guide screenshots illustrate the same current interface.
 
 Public downloads and current source features are stated separately. Building the website does not publish an installer or deploy GitHub Pages.
 
@@ -80,4 +80,4 @@ The generator requires Ego Browser, the product test bridge and both dependency 
 
 Commit the generated README files, website/demo sources and `docs/` output together. GitHub Pages serves `docs/`. Pushing a review branch and passing checks do not establish that the public site or installer release has changed; verify deployment separately.
 
-To refresh the chapter clips, serve the built website locally and set `LEXICUE_STATIC_URL` to its root. Run `node marketing/scripts/keynote-recordings.mjs` with Chrome and FFmpeg installed. Optional comma-separated arguments select locales, themes and layouts, for example `zh ocean phone`.
+To refresh the chapter clips, serve the built website locally and set `LEXICUE_STATIC_URL` to its root. Run `node marketing/scripts/keynote-recordings.mjs` with Chrome, FFmpeg and the WebP command-line tools installed. Optional comma-separated arguments select locales, themes and layouts, for example `zh ocean phone`.

@@ -8,49 +8,41 @@
   </section>
   <div class="kn-tour">
     <nav class="kn-index" aria-label="機能紹介"><div class="kn-wrap"><strong>機能紹介</strong>
-      <a href="#highlights">読書デスク</a><a href="#lookup">本文で辞書を引く</a><a href="#memory">保存と振り返り</a>
+      <a href="#highlights">取り込む</a><a href="#lookup">辞書を引く</a><a href="#listen">聴く</a><a href="#save">保存する</a><a href="#memory">再会する</a>
     </div></nav>
     <div class="kn-sequence kn-wrap">
       <div class="kn-pin" hidden>
         <div class="kn-player">
           <div class="kn-screen">
             <div class="kn-view" data-clip="desk">
-              <div class="kn-poster kn-poster-desk" aria-hidden="true"><img class="kn-library-img" src="../media/keynote/library-ocean.webp" alt="A quiet morning の表紙、タグ、英文の抜粋" width="937" height="800" loading="lazy" decoding="async"></div>
-              <video muted playsinline preload="none" aria-label="読書デスク" data-desktop="../media/keynote/motion/ja-ocean-desktop-desk.mp4" data-phone="../media/keynote/motion/ja-ocean-phone-desk.mp4"></video>
+              <img alt="読みたい一篇から始めよう。" data-desktop="../media/keynote/motion/ja-ocean-desktop-desk" data-phone="../media/keynote/motion/ja-ocean-phone-desk">
             </div><div class="kn-view" data-clip="lookup">
-              <div class="kn-poster kn-poster-lookup" aria-hidden="true"><img class="kn-lookup-img" src="../media/keynote/ja-lookup-ocean.webp" alt="quiet の見出し語と読み上げボタン、形容詞の語義" width="780" height="400" loading="lazy" decoding="async"></div>
-              <video muted playsinline preload="none" aria-label="本文で辞書を引く" data-desktop="../media/keynote/motion/ja-ocean-desktop-lookup.mp4" data-phone="../media/keynote/motion/ja-ocean-phone-lookup.mp4"></video>
+              <img alt="quiet を選んで、その場で辞書を引く。" data-desktop="../media/keynote/motion/ja-ocean-desktop-lookup" data-phone="../media/keynote/motion/ja-ocean-phone-lookup">
+            </div><div class="kn-view" data-clip="listen">
+              <img alt="一文を声で聴いてみよう。" data-desktop="../media/keynote/motion/ja-ocean-desktop-listen" data-phone="../media/keynote/motion/ja-ocean-phone-listen">
+            </div><div class="kn-view" data-clip="save">
+              <img alt="表現を、その一文と一緒に。" data-desktop="../media/keynote/motion/ja-ocean-desktop-save" data-phone="../media/keynote/motion/ja-ocean-phone-save">
             </div><div class="kn-view" data-clip="memory">
-              <div class="kn-poster kn-poster-memory" aria-hidden="true"><figure><figcaption>保存した例文</figcaption><picture>
-    <source media="(max-width: 760px)" srcset="../media/keynote/saved-phone-ocean.webp" width="652" height="336">
-    <img class="kn-sentence-img" src="../media/keynote/saved-ocean.webp" alt="保存した文 We take off our coats and sit beside the window." width="1100" height="261" loading="lazy" decoding="async">
-  </picture></figure>
-      <figure><figcaption>別の文章での再会</figcaption><picture>
-    <source media="(max-width: 760px)" srcset="../media/keynote/recall-phone-ocean.webp" width="700" height="112">
-    <img class="kn-sentence-img" src="../media/keynote/recall-ocean.webp" alt="The plane will take off before dawn. の take off に下線が付いている。" width="618" height="70" loading="lazy" decoding="async">
-  </picture></figure></div>
-              <video muted playsinline preload="none" aria-label="保存と振り返り" data-desktop="../media/keynote/motion/ja-ocean-desktop-memory.mp4" data-phone="../media/keynote/motion/ja-ocean-phone-memory.mp4"></video>
+              <img alt="同じ表現が、別の物語に。" data-desktop="../media/keynote/motion/ja-ocean-desktop-memory" data-phone="../media/keynote/motion/ja-ocean-phone-memory">
             </div>
+            <canvas class="kn-dust" aria-hidden="true"></canvas>
           </div>
-          <div class="kn-transport"><span class="kn-transport-label">読書デスク</span>
-            <div class="kn-meter" aria-hidden="true"><i></i></div>
-            <button class="kn-play" type="button"><span class="kn-play-icon" aria-hidden="true"></span><span class="kn-play-label">デモを再生</span></button>
-          </div>
+          <button class="kn-hear" type="button" hidden aria-label="例文を聴く" aria-pressed="false" data-idle="例文を聴く" data-active="読み上げを止める">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10h4l5-4v12l-5-4H3z M16 9c2 2 2 4 0 6 M19 6c4 4 4 8 0 12"/></svg>
+          </button>
+          <audio preload="none" src="../media/keynote/quiet-morning.wav"></audio>
         </div>
       </div>
       <div class="kn-chapters"><section id="highlights" class="kn-story">
-        <div class="kn-story-copy"><p class="kn-label">読書デスク</p><h2>読みたい一冊から始めよう。</h2><p>電子書籍や記事、字幕を読書デスクに取り込めます。A quiet morning の表紙を開いて、最初の一文から読み始めましょう。</p><a class="kn-guide" aria-label="使い方ガイド · 読書デスク" href="../ja/guide/files/">使い方ガイド</a></div><div class="kn-print kn-poster-desk"><img class="kn-library-img" src="../media/keynote/library-ocean.webp" alt="A quiet morning の表紙、タグ、英文の抜粋" width="937" height="800" loading="lazy" decoding="async"></div>
+        <h2>読みたい一篇から始めよう。</h2><div class="kn-print"><picture><source media="(max-width:760px)" srcset="../media/keynote/motion/ja-ocean-phone-desk-still.webp"><img loading="lazy" src="../media/keynote/motion/ja-ocean-desktop-desk-still.webp" alt="読みたい一篇から始めよう。" width="832" height="560"></picture></div>
       </section><section id="lookup" class="kn-story">
-        <div class="kn-story-copy"><p class="kn-label">本文で辞書を引く</p><h2>quiet を選んで、その場で辞書を引く。</h2><p>quiet を選ぶと、見出し語の横に読み上げボタンが現れます。語義に目を通し、元の一文に合う意味を確かめましょう。</p><a class="kn-guide" aria-label="使い方ガイド · 本文で辞書を引く" href="../ja/guide/reading/">使い方ガイド</a></div><div class="kn-print kn-poster-lookup"><img class="kn-lookup-img" src="../media/keynote/ja-lookup-ocean.webp" alt="quiet の見出し語と読み上げボタン、形容詞の語義" width="780" height="400" loading="lazy" decoding="async"></div>
+        <h2>quiet を選んで、その場で辞書を引く。</h2><div class="kn-print"><picture><source media="(max-width:760px)" srcset="../media/keynote/motion/ja-ocean-phone-lookup-still.webp"><img loading="lazy" src="../media/keynote/motion/ja-ocean-desktop-lookup-still.webp" alt="quiet を選んで、その場で辞書を引く。" width="832" height="560"></picture></div>
+      </section><section id="listen" class="kn-story">
+        <h2>一文を声で聴いてみよう。</h2><div class="kn-print"><picture><source media="(max-width:760px)" srcset="../media/keynote/motion/ja-ocean-phone-listen-still.webp"><img loading="lazy" src="../media/keynote/motion/ja-ocean-desktop-listen-still.webp" alt="一文を声で聴いてみよう。" width="832" height="560"></picture></div>
+      </section><section id="save" class="kn-story">
+        <h2>表現を、その一文と一緒に。</h2><div class="kn-print"><picture><source media="(max-width:760px)" srcset="../media/keynote/motion/ja-ocean-phone-save-still.webp"><img loading="lazy" src="../media/keynote/motion/ja-ocean-desktop-save-still.webp" alt="表現を、その一文と一緒に。" width="832" height="560"></picture></div>
       </section><section id="memory" class="kn-story">
-        <div class="kn-story-copy"><p class="kn-label">保存と振り返り</p><h2>同じ表現が、別の物語に。</h2><p>take off を選び、コートを脱ぐ場面の一文を記録にドラッグ。次の文章で飛行機が離陸する場面に出会ったら、下線の付いた take off から前の例文を開けます。</p><a class="kn-guide" aria-label="使い方ガイド · 保存と振り返り" href="../ja/guide/review/">使い方ガイド</a></div><div class="kn-print kn-poster-memory"><figure><figcaption>保存した例文</figcaption><picture>
-    <source media="(max-width: 760px)" srcset="../media/keynote/saved-phone-ocean.webp" width="652" height="336">
-    <img class="kn-sentence-img" src="../media/keynote/saved-ocean.webp" alt="保存した文 We take off our coats and sit beside the window." width="1100" height="261" loading="lazy" decoding="async">
-  </picture></figure>
-      <figure><figcaption>別の文章での再会</figcaption><picture>
-    <source media="(max-width: 760px)" srcset="../media/keynote/recall-phone-ocean.webp" width="700" height="112">
-    <img class="kn-sentence-img" src="../media/keynote/recall-ocean.webp" alt="The plane will take off before dawn. の take off に下線が付いている。" width="618" height="70" loading="lazy" decoding="async">
-  </picture></figure></div>
+        <h2>同じ表現が、別の物語に。</h2><div class="kn-print"><picture><source media="(max-width:760px)" srcset="../media/keynote/motion/ja-ocean-phone-memory-still.webp"><img loading="lazy" src="../media/keynote/motion/ja-ocean-desktop-memory-still.webp" alt="同じ表現が、別の物語に。" width="832" height="560"></picture></div>
       </section></div>
     </div>
   </div><div class="kn-demo"><div class="kn-wrap"><h2 class="kn-demo-title">実際に読んでみよう。</h2><p class="kn-demo-intro">サンプルを開き、英単語を一つ選んで文中の意味を確かめてみましょう。</p></div><div class="workspace-main"><section id="experience" class="live-workspace" aria-label="ワークスペース"><iframe loading="lazy" class="live-app-frame" src="../_demo/index.html?locale=ja&amp;theme=ocean" title="LexiCue オンラインワークスペース" allow="clipboard-read; clipboard-write"></iframe></section><noscript><style>.live-workspace{display:none}</style><p class="workspace-noscript">オンラインワークスペースには JavaScript が必要です。使い方ガイドもご覧いただけます。 <a href="../ja/guide/quick-start/">使い方ガイド</a></p></noscript><section id="download" class="workspace-download"><p>公開ダウンロードは macOS・Windows・Android 向けの v0.4.5 です。オンラインでは新しい読書画面を体験できます。公開 iPhone インストーラーはありません。</p><div class="workspace-actions"><a href="../ja/download/">ダウンロード</a></div></section></div></div></main></div></body></html>

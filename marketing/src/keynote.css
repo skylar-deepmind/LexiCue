@@ -31,13 +31,13 @@
 .kn-hero h1 span { display: block; }
 .kn-intro { max-width: min(43%, 480px); line-height: 1.75; font-size: clamp(16px, 1.35vw, 20px); color: #dbe3f0; text-wrap: pretty; }
 .kn-actions { display: flex; flex-wrap: wrap; gap: 24px; align-items: center; margin-top: 32px; }
-.kn-try, .kn-explore, .kn-guide { min-height: 44px; display: inline-flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 650; }
+.kn-try, .kn-explore { min-height: 44px; display: inline-flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 650; }
 .kn-try { padding: 0 23px; border-radius: 28px; background: #f5f8ff; color: #141e30; }
 .kn-try:hover { background: #dbe7ff; }
 .kn-explore { color: #f2f5fc; }
 .kn-explore:hover, .kn-index a:hover { text-decoration: underline; text-underline-offset: 4px; }
 .kn-home a:focus-visible { outline: 3px solid #658cf1; outline-offset: 4px; }
-/* One reading surface carries the action from the lens through all three chapters. */
+/* One reading surface carries the action from the lens through the feature chapters. */
 .kn-optic { transform: translateY(calc(var(--kn-travel, 0) * 8%)) scale(calc(1 + var(--kn-travel, 0) * .09)); }
 .kn-hero-inner { transform: translateY(calc(var(--kn-travel, 0) * -30px)); }
 .kn-hero::before {
@@ -51,24 +51,27 @@
   background: linear-gradient(175deg,#080e17 4%,#101f32 39%,#152a3c 75%,#182b3b 90%);
   position: relative;
 }
+/* Match the recording's paper so its background dissolves into the full-width stage. */
+:root:not([data-theme="midnight"]) .kn-tour {
+  --kn-tour-ink:#182530;
+  background:linear-gradient(#080e17 0 70px,#e7edee min(44vh,380px),#f5f6f3 30%,#edf1ee 85%,#e8edeb);
+}
+:root:not([data-theme="midnight"]) .kn-story h2 { color:var(--kn-tour-ink); }
+:root:not([data-theme="midnight"]) .kn-index { background:#080e17; color:#f4f7fb; }
+:root:not([data-theme="midnight"]) .kn-screen { mix-blend-mode:multiply; }
+:root:not([data-theme="midnight"]) .kn-demo::before { background:linear-gradient(#e8edeb,var(--kn-rail)); }
 .kn-index { border-bottom: 1px solid #ffffff24; }
 .kn-index > div { display: flex; align-items: center; gap: clamp(16px,3vw,48px); min-height: 68px; }
 .kn-index strong { margin-right: auto; font-size: 16px; }
 .kn-index a { display: inline-flex; align-items: center; min-height: 44px; font-size: 15px; color: #c4d2e3; }
 .kn-index a[aria-current] { color: #fff; text-decoration: underline; text-underline-offset: 6px; }
-.kn-label { font-size: 15px; font-weight: 650; color: #aad0ee; margin-bottom: 18px; }
 .kn-story h2, .kn-demo-title { font-size: clamp(34px,3.8vw,61px); line-height: 1.13; letter-spacing: -.05em; font-weight: 660; margin: 0; text-wrap: balance; }
 .kn-story h2 { color: #fff; }
 .kn-demo-title { color: var(--kn-ink); }
-.kn-story-copy > p:not(.kn-label), .kn-demo-intro { margin-top: 18px; font-size: clamp(16px,1.27vw,19px); line-height: 1.75; text-wrap: pretty; }
-.kn-story-copy > p:not(.kn-label) { color: #c4d3e2; }
-.kn-guide { margin-top: 12px; color: #b7d7ff; text-decoration: underline; text-underline-offset: 5px; }
-.kn-guide:hover { text-decoration-thickness: 2px; }
+.kn-demo-intro { margin-top: 18px; font-size: clamp(16px,1.27vw,19px); line-height: 1.75; text-wrap: pretty; }
 .kn-story { padding-block: clamp(48px,7vw,100px); }
-.kn-print { margin-top: 28px; max-width: 680px; border-radius: 14px; background: #263a4c; padding: 24px; }
-.kn-print img { width: min(100%,420px); height: auto; border-radius: 8px; }
-.kn-print figure { margin: 12px 0; }
-.kn-print figcaption { margin-bottom: 8px; color: #c4d3e2; }
+.kn-print { margin-top: 28px; max-width: 680px; }
+.kn-print img { display:block; width:100%; height:auto; }
 .kn-enhanced .kn-print { display: none; }
 .kn-pin[hidden] { display: none; }
 .kn-enhanced .kn-sequence {
@@ -85,40 +88,23 @@
   height: calc(100svh - var(--kn-nav)); display: grid; place-items: center;
 }
 .kn-player {
-  width: min(100%,calc((100svh - var(--kn-nav) - 68px) * 832 / 560)); border: 1px solid #ffffff35; border-radius: 16px; overflow: hidden;
-  box-shadow: 0 26px 70px -32px #000b; background: #121d29; isolation: isolate;
+  position: relative; width: min(100%,calc((100svh - var(--kn-nav) - 48px) * 832 / 560));
 }
-.kn-screen { position: relative; overflow: hidden; aspect-ratio: 832 / 560; }
-.kn-view {
-  position: absolute; inset: 0; opacity: 0; pointer-events: none;
-  transform: translateY(6px) scale(.99); transition: opacity 360ms ease, transform 520ms cubic-bezier(.2,.7,.25,1);
+.kn-screen, .kn-print {
+  /* The recording fades into the stage on all four sides. Only the app's own controls have edges. */
+  mask-image: linear-gradient(90deg,transparent,#000 9%,#000 92%,transparent),
+              linear-gradient(transparent,#000 10%,#000 86%,transparent);
+  mask-composite: intersect;
 }
-.kn-view.is-current { opacity: 1; z-index: 1; transform: none; }
-.kn-view video, .kn-poster { position: absolute; inset: 0; width: 100%; height: 100%; }
-.kn-poster { display: grid; place-content: center; justify-items: center; padding: 6%; gap: 16px; background: #233747; }
-.kn-poster-desk { background: #39584f; }
-.kn-poster-lookup { background: #233b5b; }
-.kn-poster img { max-width: 100%; max-height: 100%; height: auto; width: auto; object-fit: contain; border-radius: 8px; }
-.kn-poster-desk img { max-width: 82%; }
-.kn-poster figure { margin: 0; min-height: 0; }
-.kn-poster figcaption { color: #dbe7f3; font-size: 14px; margin-bottom: 6px; }
-.kn-poster picture { display: block; }
-.kn-view video { object-fit: contain; opacity: 0; transition: opacity 240ms ease, transform 1150ms cubic-bezier(.2,.75,.2,1); }
-.kn-view.has-frame video { opacity: 1; }
-.kn-view.closeup video { transform: scale(1.19); transform-origin: 93% 50%; }
-.kn-transport {
-  display: flex; align-items: center; gap: 14px; padding: 2px 14px;
-  background: #162434; color: #e5edf7; min-height: 48px;
-}
-.kn-transport-label { font-size: 14px; font-weight: 600; }
-.kn-meter { height: 2px; flex: 1; background: #526173; overflow: hidden; }
-.kn-meter i { display: block; height: 100%; background: #d1e9ff; transform: scaleX(0); transform-origin: left; transition: transform 180ms linear; }
-.kn-play { min-height: 44px; display: inline-flex; align-items: center; gap: 8px; padding: 0 5px; color: inherit; font-size: 14px; background: none; border: 0; }
-.kn-play:hover { color: white; text-decoration: underline; text-underline-offset: 4px; }
-.kn-play:focus-visible { outline: 2px solid #a3c9ff; outline-offset: -3px; border-radius: 4px; }
-.kn-play:disabled { color: #bac6d3; cursor: default; }
-.kn-play-icon { width: 0; height: 0; border-block: 5px solid transparent; border-left: 8px solid currentColor; }
-.kn-play[data-state=pause] .kn-play-icon { width: 8px; height: 10px; border: 0; border-inline: 3px solid currentColor; }
+.kn-screen { position: relative; aspect-ratio: 832 / 560; isolation: isolate; }
+.kn-view, .kn-dust, .kn-view img { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+.kn-view { opacity:0; }
+.kn-view img { object-fit:fill; }
+.kn-dust { z-index:2; }
+.kn-hear { position:absolute; bottom:4%; left:50%; transform:translateX(-50%); display:grid; place-items:center; width:48px; height:48px; background:#16334b; color:#e8f7ff; border:1px solid #abcce177; border-radius:50%; cursor:pointer; }
+.kn-hear:hover, .kn-hear[aria-pressed=true] { color:white; background:#265676; }
+.kn-hear:focus-visible { outline:3px solid #afddff; outline-offset:4px; }
+.kn-hear[hidden], .kn-dust[hidden] { display:none; }
 .kn-demo { background: var(--kn-rail); padding-block: clamp(48px,6vw,90px) 0; }
 .kn-demo::before { content: ''; display: block; height: clamp(40px,8vw,110px); margin-top: calc(-1 * clamp(48px,6vw,90px)); margin-bottom: clamp(20px,3vw,50px); background: linear-gradient(#182b3b,var(--kn-rail)); }
 .kn-demo-intro { margin: 14px 0 28px; color: var(--kn-body); }
@@ -134,17 +120,14 @@
   .kn-index > div { min-height: 58px; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
   .kn-index strong { display: none; }
   .kn-index a { font-size: 14px; }
-  .kn-label { margin-bottom: 10px; }
   .kn-screen { aspect-ratio: 414 / 526; }
-  .kn-view.closeup video { transform: scale(1.09); transform-origin: 50% 96%; }
-  .kn-transport { gap: 8px; padding-inline: 10px; }
-  .kn-transport-label, .kn-play { font-size: 13px; }
   .kn-demo .live-workspace { width: 100%; }
 }
 @media (max-width: 760px) and (min-height: 481px) {
   .kn-enhanced .kn-sequence { display: block; width: 100%; }
   .kn-pin { z-index: 2; height: auto; padding-block: 12px; background: linear-gradient(#101c29 88%,#101c2900); }
-  .kn-player { width: min(89%,calc((49svh - 48px) * 414 / 526)); border-radius: 12px; }
+  :root:not([data-theme="midnight"]) .kn-pin { background:linear-gradient(#eef2ef 88%,#eef2ef00); }
+  .kn-player { width: min(89%,calc((49svh - 48px) * 414 / 526)); }
   .kn-chapters { width: 89%; margin: auto; }
   .kn-enhanced .kn-story { min-height: 49svh; padding: 24px 0 40px; scroll-margin-top: calc(49svh + 22px); }
 }
@@ -155,12 +138,10 @@
 }
 @media (max-height: 480px) and (max-width: 760px) {
   .kn-player { width: min(100%,calc((100svh - var(--kn-nav) - 50px) * .79)); }
-  .kn-transport-label, .kn-meter { display: none; }
-  .kn-transport { justify-content: center; }
 }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  .kn-view, .kn-view video, .kn-meter i { transition: none; transform: none; }
+  .kn-optic, .kn-hero-inner { transform: none; }
 }
 
 .site-nav {

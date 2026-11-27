@@ -8,49 +8,41 @@
   </section>
   <div class="kn-tour">
     <nav class="kn-index" aria-label="功能特写"><div class="kn-wrap"><strong>功能特写</strong>
-      <a href="#highlights">阅读桌面</a><a href="#lookup">正文查词</a><a href="#memory">收藏与重遇</a>
+      <a href="#highlights">导入材料</a><a href="#lookup">正文查词</a><a href="#listen">整句朗读</a><a href="#save">收藏原句</a><a href="#memory">再次遇见</a>
     </div></nav>
     <div class="kn-sequence kn-wrap">
       <div class="kn-pin" hidden>
         <div class="kn-player">
           <div class="kn-screen">
             <div class="kn-view" data-clip="desk">
-              <div class="kn-poster kn-poster-desk" aria-hidden="true"><img class="kn-library-img" src="../media/keynote/library-ocean.webp" alt="A quiet morning 的封面、标签和英文摘要" width="937" height="800" loading="lazy" decoding="async"></div>
-              <video muted playsinline preload="none" aria-label="阅读桌面" data-desktop="../media/keynote/motion/zh-ocean-desktop-desk.mp4" data-phone="../media/keynote/motion/zh-ocean-phone-desk.mp4"></video>
+              <img alt="从你想读的那一篇开始。" data-desktop="../media/keynote/motion/zh-ocean-desktop-desk" data-phone="../media/keynote/motion/zh-ocean-phone-desk">
             </div><div class="kn-view" data-clip="lookup">
-              <div class="kn-poster kn-poster-lookup" aria-hidden="true"><img class="kn-lookup-img" src="../media/keynote/zh-lookup-ocean.webp" alt="quiet 的词头、朗读按钮和形容词释义" width="780" height="400" loading="lazy" decoding="async"></div>
-              <video muted playsinline preload="none" aria-label="正文查词" data-desktop="../media/keynote/motion/zh-ocean-desktop-lookup.mp4" data-phone="../media/keynote/motion/zh-ocean-phone-lookup.mp4"></video>
+              <img alt="点开 quiet，释义就在词旁。" data-desktop="../media/keynote/motion/zh-ocean-desktop-lookup" data-phone="../media/keynote/motion/zh-ocean-phone-lookup">
+            </div><div class="kn-view" data-clip="listen">
+              <img alt="听听这句话怎么读。" data-desktop="../media/keynote/motion/zh-ocean-desktop-listen" data-phone="../media/keynote/motion/zh-ocean-phone-listen">
+            </div><div class="kn-view" data-clip="save">
+              <img alt="把表达和原句一起留下。" data-desktop="../media/keynote/motion/zh-ocean-desktop-save" data-phone="../media/keynote/motion/zh-ocean-phone-save">
             </div><div class="kn-view" data-clip="memory">
-              <div class="kn-poster kn-poster-memory" aria-hidden="true"><figure><figcaption>收藏的原句</figcaption><picture>
-    <source media="(max-width: 760px)" srcset="../media/keynote/saved-phone-ocean.webp" width="652" height="336">
-    <img class="kn-sentence-img" src="../media/keynote/saved-ocean.webp" alt="已收藏的原句 We take off our coats and sit beside the window." width="1100" height="261" loading="lazy" decoding="async">
-  </picture></figure>
-      <figure><figcaption>在另一篇里重遇</figcaption><picture>
-    <source media="(max-width: 760px)" srcset="../media/keynote/recall-phone-ocean.webp" width="700" height="112">
-    <img class="kn-sentence-img" src="../media/keynote/recall-ocean.webp" alt="The plane will take off before dawn. 句中已收藏的 take off 带有下划线。" width="618" height="70" loading="lazy" decoding="async">
-  </picture></figure></div>
-              <video muted playsinline preload="none" aria-label="收藏与重遇" data-desktop="../media/keynote/motion/zh-ocean-desktop-memory.mp4" data-phone="../media/keynote/motion/zh-ocean-phone-memory.mp4"></video>
+              <img alt="同一个短语，两段不同的记忆。" data-desktop="../media/keynote/motion/zh-ocean-desktop-memory" data-phone="../media/keynote/motion/zh-ocean-phone-memory">
             </div>
+            <canvas class="kn-dust" aria-hidden="true"></canvas>
           </div>
-          <div class="kn-transport"><span class="kn-transport-label">阅读桌面</span>
-            <div class="kn-meter" aria-hidden="true"><i></i></div>
-            <button class="kn-play" type="button"><span class="kn-play-icon" aria-hidden="true"></span><span class="kn-play-label">播放演示</span></button>
-          </div>
+          <button class="kn-hear" type="button" hidden aria-label="朗读示例句" aria-pressed="false" data-idle="朗读示例句" data-active="停止朗读">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10h4l5-4v12l-5-4H3z M16 9c2 2 2 4 0 6 M19 6c4 4 4 8 0 12"/></svg>
+          </button>
+          <audio preload="none" src="../media/keynote/quiet-morning.wav"></audio>
         </div>
       </div>
       <div class="kn-chapters"><section id="highlights" class="kn-story">
-        <div class="kn-story-copy"><p class="kn-label">阅读桌面</p><h2>从你想读的那一篇开始。</h2><p>把电子书、文章或字幕放上阅读桌面。点开《A quiet morning》的封面，就从第一句开始读。</p><a class="kn-guide" aria-label="使用手册 · 阅读桌面" href="../zh/guide/files/">使用手册</a></div><div class="kn-print kn-poster-desk"><img class="kn-library-img" src="../media/keynote/library-ocean.webp" alt="A quiet morning 的封面、标签和英文摘要" width="937" height="800" loading="lazy" decoding="async"></div>
+        <h2>从你想读的那一篇开始。</h2><div class="kn-print"><picture><source media="(max-width:760px)" srcset="../media/keynote/motion/zh-ocean-phone-desk-still.webp"><img loading="lazy" src="../media/keynote/motion/zh-ocean-desktop-desk-still.webp" alt="从你想读的那一篇开始。" width="832" height="560"></picture></div>
       </section><section id="lookup" class="kn-story">
-        <div class="kn-story-copy"><p class="kn-label">正文查词</p><h2>点开 quiet，释义就在词旁。</h2><p>原句留在眼前，词卡在旁边展开。读一遍释义，看看 quiet 在这个清晨是什么意思。</p><a class="kn-guide" aria-label="使用手册 · 正文查词" href="../zh/guide/reading/">使用手册</a></div><div class="kn-print kn-poster-lookup"><img class="kn-lookup-img" src="../media/keynote/zh-lookup-ocean.webp" alt="quiet 的词头、朗读按钮和形容词释义" width="780" height="400" loading="lazy" decoding="async"></div>
+        <h2>点开 quiet，释义就在词旁。</h2><div class="kn-print"><picture><source media="(max-width:760px)" srcset="../media/keynote/motion/zh-ocean-phone-lookup-still.webp"><img loading="lazy" src="../media/keynote/motion/zh-ocean-desktop-lookup-still.webp" alt="点开 quiet，释义就在词旁。" width="832" height="560"></picture></div>
+      </section><section id="listen" class="kn-story">
+        <h2>听听这句话怎么读。</h2><div class="kn-print"><picture><source media="(max-width:760px)" srcset="../media/keynote/motion/zh-ocean-phone-listen-still.webp"><img loading="lazy" src="../media/keynote/motion/zh-ocean-desktop-listen-still.webp" alt="听听这句话怎么读。" width="832" height="560"></picture></div>
+      </section><section id="save" class="kn-story">
+        <h2>把表达和原句一起留下。</h2><div class="kn-print"><picture><source media="(max-width:760px)" srcset="../media/keynote/motion/zh-ocean-phone-save-still.webp"><img loading="lazy" src="../media/keynote/motion/zh-ocean-desktop-save-still.webp" alt="把表达和原句一起留下。" width="832" height="560"></picture></div>
       </section><section id="memory" class="kn-story">
-        <div class="kn-story-copy"><p class="kn-label">收藏与重遇</p><h2>同一个短语，两段不同的记忆。</h2><p>选中 take off，把写着「脱下外套」的原句拖入记录。下一篇写到飞机起飞时，点开带下划线的 take off，上次读过的那句话也在。</p><a class="kn-guide" aria-label="使用手册 · 收藏与重遇" href="../zh/guide/review/">使用手册</a></div><div class="kn-print kn-poster-memory"><figure><figcaption>收藏的原句</figcaption><picture>
-    <source media="(max-width: 760px)" srcset="../media/keynote/saved-phone-ocean.webp" width="652" height="336">
-    <img class="kn-sentence-img" src="../media/keynote/saved-ocean.webp" alt="已收藏的原句 We take off our coats and sit beside the window." width="1100" height="261" loading="lazy" decoding="async">
-  </picture></figure>
-      <figure><figcaption>在另一篇里重遇</figcaption><picture>
-    <source media="(max-width: 760px)" srcset="../media/keynote/recall-phone-ocean.webp" width="700" height="112">
-    <img class="kn-sentence-img" src="../media/keynote/recall-ocean.webp" alt="The plane will take off before dawn. 句中已收藏的 take off 带有下划线。" width="618" height="70" loading="lazy" decoding="async">
-  </picture></figure></div>
+        <h2>同一个短语，两段不同的记忆。</h2><div class="kn-print"><picture><source media="(max-width:760px)" srcset="../media/keynote/motion/zh-ocean-phone-memory-still.webp"><img loading="lazy" src="../media/keynote/motion/zh-ocean-desktop-memory-still.webp" alt="同一个短语，两段不同的记忆。" width="832" height="560"></picture></div>
       </section></div>
     </div>
   </div><div class="kn-demo"><div class="kn-wrap"><h2 class="kn-demo-title">亲手读一段。</h2><p class="kn-demo-intro">打开示例材料，点一个英文词，看看它在原句里的意思。</p></div><div class="workspace-main"><section id="experience" class="live-workspace" aria-label="工作区"><iframe loading="lazy" class="live-app-frame" src="../_demo/index.html?locale=zh&amp;theme=ocean" title="LexiCue 在线工作区" allow="clipboard-read; clipboard-write"></iframe></section><noscript><style>.live-workspace{display:none}</style><p class="workspace-noscript">请启用 JavaScript 使用在线工作区，或打开使用手册。 <a href="../zh/guide/quick-start/">使用手册</a></p></noscript><section id="download" class="workspace-download"><p>公开下载为 v0.4.5，提供 macOS、Windows、Android 安装包。在线工作区体验较新的阅读界面，尚无公开 iPhone 安装包。</p><div class="workspace-actions"><a href="../zh/download/">下载</a></div></section></div></div></main></div></body></html>

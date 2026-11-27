@@ -8,49 +8,41 @@
   </section>
   <div class="kn-tour">
     <nav class="kn-index" aria-label="Feature highlights"><div class="kn-wrap"><strong>Feature highlights</strong>
-      <a href="#highlights">Reading desk</a><a href="#lookup">In-text lookup</a><a href="#memory">Save and recall</a>
+      <a href="#highlights">Import</a><a href="#lookup">Look up</a><a href="#listen">Listen</a><a href="#save">Save</a><a href="#memory">Recall</a>
     </div></nav>
     <div class="kn-sequence kn-wrap">
       <div class="kn-pin" hidden>
         <div class="kn-player">
           <div class="kn-screen">
             <div class="kn-view" data-clip="desk">
-              <div class="kn-poster kn-poster-desk" aria-hidden="true"><img class="kn-library-img" src="./media/keynote/library-ocean.webp" alt="A quiet morning with its cover, tag and English excerpt" width="937" height="800" loading="lazy" decoding="async"></div>
-              <video muted playsinline preload="none" aria-label="Reading desk" data-desktop="./media/keynote/motion/en-ocean-desktop-desk.mp4" data-phone="./media/keynote/motion/en-ocean-phone-desk.mp4"></video>
+              <img alt="Bring a passage of your own." data-desktop="./media/keynote/motion/en-ocean-desktop-desk" data-phone="./media/keynote/motion/en-ocean-phone-desk">
             </div><div class="kn-view" data-clip="lookup">
-              <div class="kn-poster kn-poster-lookup" aria-hidden="true"><img class="kn-lookup-img" src="./media/keynote/en-lookup-ocean.webp" alt="The entry for quiet with its pronunciation control and adjective definition" width="780" height="400" loading="lazy" decoding="async"></div>
-              <video muted playsinline preload="none" aria-label="In-text lookup" data-desktop="./media/keynote/motion/en-ocean-desktop-lookup.mp4" data-phone="./media/keynote/motion/en-ocean-phone-lookup.mp4"></video>
+              <img alt="Select quiet. Read its meaning." data-desktop="./media/keynote/motion/en-ocean-desktop-lookup" data-phone="./media/keynote/motion/en-ocean-phone-lookup">
+            </div><div class="kn-view" data-clip="listen">
+              <img alt="Hear the whole sentence." data-desktop="./media/keynote/motion/en-ocean-desktop-listen" data-phone="./media/keynote/motion/en-ocean-phone-listen">
+            </div><div class="kn-view" data-clip="save">
+              <img alt="Keep the phrase with its sentence." data-desktop="./media/keynote/motion/en-ocean-desktop-save" data-phone="./media/keynote/motion/en-ocean-phone-save">
             </div><div class="kn-view" data-clip="memory">
-              <div class="kn-poster kn-poster-memory" aria-hidden="true"><figure><figcaption>The sentence you saved</figcaption><picture>
-    <source media="(max-width: 760px)" srcset="./media/keynote/saved-phone-ocean.webp" width="652" height="336">
-    <img class="kn-sentence-img" src="./media/keynote/saved-ocean.webp" alt="Saved sentence: We take off our coats and sit beside the window." width="1100" height="261" loading="lazy" decoding="async">
-  </picture></figure>
-      <figure><figcaption>The next encounter</figcaption><picture>
-    <source media="(max-width: 760px)" srcset="./media/keynote/recall-phone-ocean.webp" width="700" height="112">
-    <img class="kn-sentence-img" src="./media/keynote/recall-ocean.webp" alt="The plane will take off before dawn, with the saved phrase take off underlined." width="618" height="70" loading="lazy" decoding="async">
-  </picture></figure></div>
-              <video muted playsinline preload="none" aria-label="Save and recall" data-desktop="./media/keynote/motion/en-ocean-desktop-memory.mp4" data-phone="./media/keynote/motion/en-ocean-phone-memory.mp4"></video>
+              <img alt="One phrase. Two different stories." data-desktop="./media/keynote/motion/en-ocean-desktop-memory" data-phone="./media/keynote/motion/en-ocean-phone-memory">
             </div>
+            <canvas class="kn-dust" aria-hidden="true"></canvas>
           </div>
-          <div class="kn-transport"><span class="kn-transport-label">Reading desk</span>
-            <div class="kn-meter" aria-hidden="true"><i></i></div>
-            <button class="kn-play" type="button"><span class="kn-play-icon" aria-hidden="true"></span><span class="kn-play-label">Play demo</span></button>
-          </div>
+          <button class="kn-hear" type="button" hidden aria-label="Listen to the sentence" aria-pressed="false" data-idle="Listen to the sentence" data-active="Stop reading aloud">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10h4l5-4v12l-5-4H3z M16 9c2 2 2 4 0 6 M19 6c4 4 4 8 0 12"/></svg>
+          </button>
+          <audio preload="none" src="./media/keynote/quiet-morning.wav"></audio>
         </div>
       </div>
       <div class="kn-chapters"><section id="highlights" class="kn-story">
-        <div class="kn-story-copy"><p class="kn-label">Reading desk</p><h2>Start with a story of your own.</h2><p>Bring a book, an article or subtitles to your reading desk. Open the cover of A quiet morning to start at the first sentence.</p><a class="kn-guide" aria-label="User guide · Reading desk" href="./guide/files/">User guide</a></div><div class="kn-print kn-poster-desk"><img class="kn-library-img" src="./media/keynote/library-ocean.webp" alt="A quiet morning with its cover, tag and English excerpt" width="937" height="800" loading="lazy" decoding="async"></div>
+        <h2>Bring a passage of your own.</h2><div class="kn-print"><picture><source media="(max-width:760px)" srcset="./media/keynote/motion/en-ocean-phone-desk-still.webp"><img loading="lazy" src="./media/keynote/motion/en-ocean-desktop-desk-still.webp" alt="Bring a passage of your own." width="832" height="560"></picture></div>
       </section><section id="lookup" class="kn-story">
-        <div class="kn-story-copy"><p class="kn-label">In-text lookup</p><h2>Select quiet to see what it means.</h2><p>The word opens beside the passage. Read its definition with the sentence still in sight, and hear the pronunciation from the same card.</p><a class="kn-guide" aria-label="User guide · In-text lookup" href="./guide/reading/">User guide</a></div><div class="kn-print kn-poster-lookup"><img class="kn-lookup-img" src="./media/keynote/en-lookup-ocean.webp" alt="The entry for quiet with its pronunciation control and adjective definition" width="780" height="400" loading="lazy" decoding="async"></div>
+        <h2>Select quiet. Read its meaning.</h2><div class="kn-print"><picture><source media="(max-width:760px)" srcset="./media/keynote/motion/en-ocean-phone-lookup-still.webp"><img loading="lazy" src="./media/keynote/motion/en-ocean-desktop-lookup-still.webp" alt="Select quiet. Read its meaning." width="832" height="560"></picture></div>
+      </section><section id="listen" class="kn-story">
+        <h2>Hear the whole sentence.</h2><div class="kn-print"><picture><source media="(max-width:760px)" srcset="./media/keynote/motion/en-ocean-phone-listen-still.webp"><img loading="lazy" src="./media/keynote/motion/en-ocean-desktop-listen-still.webp" alt="Hear the whole sentence." width="832" height="560"></picture></div>
+      </section><section id="save" class="kn-story">
+        <h2>Keep the phrase with its sentence.</h2><div class="kn-print"><picture><source media="(max-width:760px)" srcset="./media/keynote/motion/en-ocean-phone-save-still.webp"><img loading="lazy" src="./media/keynote/motion/en-ocean-desktop-save-still.webp" alt="Keep the phrase with its sentence." width="832" height="560"></picture></div>
       </section><section id="memory" class="kn-story">
-        <div class="kn-story-copy"><p class="kn-label">Save and recall</p><h2>One phrase. Two different stories.</h2><p>Select take off and drag the sentence about coats into your records. When a plane takes off in the next story, open the underlined phrase to see the sentence you saved.</p><a class="kn-guide" aria-label="User guide · Save and recall" href="./guide/review/">User guide</a></div><div class="kn-print kn-poster-memory"><figure><figcaption>The sentence you saved</figcaption><picture>
-    <source media="(max-width: 760px)" srcset="./media/keynote/saved-phone-ocean.webp" width="652" height="336">
-    <img class="kn-sentence-img" src="./media/keynote/saved-ocean.webp" alt="Saved sentence: We take off our coats and sit beside the window." width="1100" height="261" loading="lazy" decoding="async">
-  </picture></figure>
-      <figure><figcaption>The next encounter</figcaption><picture>
-    <source media="(max-width: 760px)" srcset="./media/keynote/recall-phone-ocean.webp" width="700" height="112">
-    <img class="kn-sentence-img" src="./media/keynote/recall-ocean.webp" alt="The plane will take off before dawn, with the saved phrase take off underlined." width="618" height="70" loading="lazy" decoding="async">
-  </picture></figure></div>
+        <h2>One phrase. Two different stories.</h2><div class="kn-print"><picture><source media="(max-width:760px)" srcset="./media/keynote/motion/en-ocean-phone-memory-still.webp"><img loading="lazy" src="./media/keynote/motion/en-ocean-desktop-memory-still.webp" alt="One phrase. Two different stories." width="832" height="560"></picture></div>
       </section></div>
     </div>
   </div><div class="kn-demo"><div class="kn-wrap"><h2 class="kn-demo-title">Read a passage yourself.</h2><p class="kn-demo-intro">Open a sample and select an English word to see what it means in context.</p></div><div class="workspace-main"><section id="experience" class="live-workspace" aria-label="Workspace"><iframe loading="lazy" class="live-app-frame" src="./_demo/index.html?locale=en&amp;theme=ocean" title="LexiCue online workspace" allow="clipboard-read; clipboard-write"></iframe></section><noscript><style>.live-workspace{display:none}</style><p class="workspace-noscript">Enable JavaScript to use the online workspace, or open the user guide. <a href="./guide/quick-start/">User guide</a></p></noscript><section id="download" class="workspace-download"><p>Public download: v0.4.5 for macOS, Windows and Android. The online workspace previews the newer reading interface; no public iPhone installer is available.</p><div class="workspace-actions"><a href="./download/">Download</a></div></section></div></div></main></div></body></html>

@@ -3,7 +3,7 @@ import {keynoteCopy,keynoteTitle} from './keynote-copy.mjs';
 import {copy,siteUrl,locales} from './catalogue.mjs';
 import {homeUrl,routeInfo} from './routes';
 const KEY='lexicue-home-position-v1';
-const regions=['main','highlights','lookup','memory','experience','download'];
+const regions=['main','highlights','lookup','listen','save','memory','experience','download'];
 export type HomePosition={region:string;offset:number;inner:number};
 export function capturePosition():HomePosition{
  let region='main';for(const id of regions){const node=document.getElementById(id);if(node&&node.getBoundingClientRect().top<=innerHeight*.35)region=id;}

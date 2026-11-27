@@ -1,23 +1,18 @@
 // The build and the interactive site share this markup, including its native anchor navigation.
-import {keynoteCopy,tourControls} from './keynote-copy.mjs';
+import {keynoteCopy} from './keynote-copy.mjs';
 import {escapeHtml as escape} from './manual-render.mjs';
 
-export function renderKeynote(locale, theme, asset, guide) {
+export function renderKeynote(locale, theme, asset) {
   const c = keynoteCopy[locale];
-  const imageUrl = name => escape(asset(`media/keynote/${name}-${theme}.webp`));
-  const image = (name, alt, className, width, height) => `<img class="${className}" src="${imageUrl(name)}" alt="${escape(alt)}" width="${width}" height="${height}" loading="lazy" decoding="async">`;
-  const sentence = (name, alt, width, height, phoneWidth, phoneHeight) => `<picture>
-    <source media="(max-width: 760px)" srcset="${imageUrl(name + '-phone')}" width="${phoneWidth}" height="${phoneHeight}">
-    ${image(name, alt, 'kn-sentence-img', width, height)}
-  </picture>`;
-  const intro = (copy, chapter) => `<div class="kn-story-copy"><p class="kn-label">${copy[0]}</p><h2>${copy[1]}</h2><p>${copy[2]}</p><a class="kn-guide" aria-label="${escape(c.guide + ' · ' + copy[0])}" href="${escape(guide(chapter))}">${c.guide}</a></div>`;
   const scenes = [
-    {id:'highlights', clip:'desk', copy:c.library, guide:'files', still:image('library', c.alts[0], 'kn-library-img', 937, 800)},
-    {id:'lookup', clip:'lookup', copy:c.lookup, guide:'reading', still:image(locale+'-lookup', c.alts[1], 'kn-lookup-img', 780, 400)},
-    {id:'memory', clip:'memory', copy:c.memory, guide:'review', still:`<figure><figcaption>${c.saved}</figcaption>${sentence('saved', c.alts[2], 1100, 261, 652, 336)}</figure>
-      <figure><figcaption>${c.again}</figcaption>${sentence('recall', c.alts[3], 618, 70, 700, 112)}</figure>`},
+    {id:'highlights', clip:'desk', copy:c.library},
+    {id:'lookup', clip:'lookup', copy:c.lookup},
+    {id:'listen', clip:'listen', copy:c.listen},
+    {id:'save', clip:'save', copy:c.save},
+    {id:'memory', clip:'memory', copy:c.memory},
   ];
-  const controls = tourControls[locale];
+  const source = (clip, layout) => escape(asset(`media/keynote/motion/${locale}-${theme}-${layout}-${clip}`));
+  const still = scene => `<picture><source media="(max-width:760px)" srcset="${source(scene.clip,'phone')}-still.webp"><img loading="lazy" src="${source(scene.clip,'desktop')}-still.webp" alt="${escape(scene.copy[1])}" width="832" height="560"></picture>`;
   return `<section class="kn-hero" aria-labelledby="kn-title">
     <img class="kn-optic" src="${escape(asset('media/keynote/context.webp'))}" alt="" width="1536" height="1024" fetchpriority="high">
     <div class="kn-wrap kn-hero-inner"><p class="kn-brandline"><span>LexiCue</span> / ${c.category}</p>
@@ -35,18 +30,18 @@ export function renderKeynote(locale, theme, asset, guide) {
         <div class="kn-player">
           <div class="kn-screen">
             ${scenes.map(scene=>`<div class="kn-view" data-clip="${scene.clip}">
-              <div class="kn-poster kn-poster-${scene.clip}" aria-hidden="true">${scene.still}</div>
-              <video muted playsinline preload="none" aria-label="${escape(scene.copy[0])}" data-desktop="${escape(asset('media/keynote/motion/'+locale+'-'+theme+'-desktop-'+scene.clip+'.mp4'))}" data-phone="${escape(asset('media/keynote/motion/'+locale+'-'+theme+'-phone-'+scene.clip+'.mp4'))}"></video>
+              <img alt="${escape(scene.copy[1])}" data-desktop="${source(scene.clip,'desktop')}" data-phone="${source(scene.clip,'phone')}">
             </div>`).join('')}
+            <canvas class="kn-dust" aria-hidden="true"></canvas>
           </div>
-          <div class="kn-transport"><span class="kn-transport-label">${c.library[0]}</span>
-            <div class="kn-meter" aria-hidden="true"><i></i></div>
-            <button class="kn-play" type="button"><span class="kn-play-icon" aria-hidden="true"></span><span class="kn-play-label">${controls.play}</span></button>
-          </div>
+          <button class="kn-hear" type="button" hidden aria-label="${c.hear}" aria-pressed="false" data-idle="${c.hear}" data-active="${c.stop}">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10h4l5-4v12l-5-4H3z M16 9c2 2 2 4 0 6 M19 6c4 4 4 8 0 12"/></svg>
+          </button>
+          <audio preload="none" src="${escape(asset('media/keynote/quiet-morning.wav'))}"></audio>
         </div>
       </div>
       <div class="kn-chapters">${scenes.map(scene=>`<section id="${scene.id}" class="kn-story">
-        ${intro(scene.copy,scene.guide)}<div class="kn-print kn-poster-${scene.clip}">${scene.still}</div>
+        <h2>${scene.copy[1]}</h2><div class="kn-print">${still(scene)}</div>
       </section>`).join('')}</div>
     </div>
   </div>`;

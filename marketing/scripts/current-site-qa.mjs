@@ -25,29 +25,25 @@ for(const locale of cfg.locales)for(const theme of cfg.themes)for(const width of
  await page.goto(cfg.mode==='manual'?prefix+'guide/quick-start/':homeFor(locale));await page.evaluate(theme=>localStorage.setItem('lexicue-marketing-theme',theme),theme);await page.reload();
  if(cfg.mode!=='manual'){
   await page.waitForSelector('.kn-tour.kn-enhanced');
-  check(await page.evaluate(()=>document.querySelectorAll('.kn-story').length===3),'three visible product stories');
+  check(await page.evaluate(()=>document.querySelectorAll('.kn-story').length===5),'five visible product stories');
   await page.cdp('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'no-preference'}]});
-  for(const id of ['highlights','lookup','memory']){
+  for(const id of ['highlights','lookup','listen','save','memory']){
    mark('feature/'+id);await page.focus('.kn-index a[href="#'+id+'"]');await page.keyboard.press('Enter');
    await page.waitForFunction(id=>location.hash==='#'+id,id);
-   await page.waitForFunction(id=>document.querySelector('#'+id).hasAttribute('data-current')&&document.querySelector('.kn-view.is-current video')?.currentTime>.2,id);
-   check(await page.evaluate(()=>{const video=document.querySelector('.kn-view.is-current video');return video.videoWidth>0&&video.currentSrc.endsWith((innerWidth<=760?'phone':'desktop')+'-'+video.parentElement.dataset.clip+'.mp4');}),'active chapter plays its viewport recording');
+   await page.waitForFunction(id=>{const img=document.querySelector('.kn-view.is-current img');return document.querySelector('#'+id).hasAttribute('data-current') && img?.complete && img.naturalWidth>0 && img.src.endsWith('.webp') && !img.src.endsWith('-still.webp');},id);
+   check(await page.evaluate(()=>{const img=document.querySelector('.kn-view.is-current img');return img.src.endsWith((matchMedia('(max-width:760px)').matches?'phone':'desktop')+'-'+img.parentElement.dataset.clip+'.webp');}),'active chapter loads its localized looping image');
+   if(id==='listen'){
+    await page.focus('.kn-hear'); await page.keyboard.press('Enter');
+    await page.waitForFunction(()=>document.querySelector('.kn-player audio').currentTime>0);
+   }
   }
+  check(await page.evaluate(()=>!document.querySelector('.kn-transport,.kn-story p,.kn-story a') && document.querySelector('.kn-player audio').paused),'feature artwork has no player chrome or small copy and audio stops on exit');
   if(locale==='zh'&&theme==='ocean'&&(width===390||width===1440)){
-   mark('feature/playback-controls');
-   const control='.kn-play';
-   await page.focus(control);await page.keyboard.press('Enter');
-   await page.waitForFunction(()=>document.querySelector('.kn-play').dataset.state==='play'&&document.querySelector('.kn-view.is-current video').paused);
-   await page.keyboard.press('Enter');await page.waitForFunction(()=>!document.querySelector('.kn-view.is-current video').paused);
-   await page.waitForFunction(()=>document.querySelector('.kn-play').dataset.state==='replay');
-   await page.keyboard.press('Enter');await page.waitForFunction(()=>{const v=document.querySelector('.kn-view.is-current video');return !v.paused&&v.currentTime<1;});
    mark('feature/reduced-motion');
    await page.cdp('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
    await page.goto(homeFor(locale)+'#lookup');await page.reload();
-   await page.waitForFunction(()=>document.querySelector('#lookup[data-current]')&&document.querySelector('.kn-tour.kn-enhanced'));
-   check(await page.evaluate(()=>[...document.querySelectorAll('.kn-view video')].every(v=>!v.hasAttribute('src')&&v.paused)),'reduced motion starts with stills and no movie downloads');
-   await page.focus(control);await page.keyboard.press('Enter');
-   await page.waitForFunction(()=>document.querySelector('.kn-view.is-current video').currentTime>.2);
+   await page.waitForFunction(()=>document.querySelector('#lookup[data-current]')&&document.querySelector('.kn-view.is-current img')?.src.endsWith('-still.webp'));
+   check(await page.evaluate(()=>document.querySelector('.kn-dust').hidden&&!performance.getEntriesByType('resource').some(r=>r.name.includes('/keynote/motion/')&&!r.name.endsWith('-still.webp'))),'reduced motion loads static artwork');
    await page.cdp('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'no-preference'}]});
   }
   await page.focus('.kn-try');await page.keyboard.press('Enter');
@@ -113,7 +109,7 @@ for(const locale of cfg.locales)for(const theme of cfg.themes)for(const width of
 // Static content remains useful without JavaScript.
 mark('no-javascript');
 await page.cdp('Emulation.setScriptExecutionDisabled',{value:true});
-for(const locale of cfg.locales){await page.goto(homeFor(locale));check(await page.evaluate(()=>!!document.querySelector('.workspace-noscript')&&document.querySelector('.workspace-download').textContent.includes('v0.4.5')&&document.querySelectorAll('.kn-story').length===3),'no-JavaScript guidance and real download status');if(cfg.mode!=='home')for(const chapter of cfg.guides[locale]){await page.goto(cfg.base+(locale==='en'?'':locale+'/')+'guide/'+chapter.id+'/');check(await page.evaluate(()=>document.querySelectorAll('.doc-section').length)===cfg.manualContent[locale][chapter.id].sections.length,'no-JavaScript complete guide');}}
+for(const locale of cfg.locales){await page.goto(homeFor(locale));check(await page.evaluate(()=>!!document.querySelector('.workspace-noscript')&&document.querySelector('.workspace-download').textContent.includes('v0.4.5')&&document.querySelectorAll('.kn-story').length===5),'no-JavaScript guidance and real download status');if(cfg.mode!=='home')for(const chapter of cfg.guides[locale]){await page.goto(cfg.base+(locale==='en'?'':locale+'/')+'guide/'+chapter.id+'/');check(await page.evaluate(()=>document.querySelectorAll('.doc-section').length)===cfg.manualContent[locale][chapter.id].sections.length,'no-JavaScript complete guide');}}
 await page.cdp('Emulation.setScriptExecutionDisabled',{value:false});
 await fs.writeFile(cfg.out+'/report-'+cfg.mode+'-'+cfg.locales.join('-')+'-'+cfg.widths.join('-')+'x'+cfg.height+'-'+cfg.themes.join('-')+'.json',JSON.stringify({checks,results,scope:'Chromium browser emulation; no native or physical-device acceptance'},null,2));console.log(checks+' current website checks passed.');
 }catch(error){

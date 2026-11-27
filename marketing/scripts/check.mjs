@@ -43,8 +43,9 @@ for(const locale of locales){
  check(download.includes(copy[locale].releaseNote)&&readme.includes(copy[locale].releaseNote),'release distinction in README and dedicated download page');
  check(html.includes(currentCopy[locale].downloadSummary),'concise download status below the app');
  check(html.includes('<iframe')&&html.includes('_demo/index.html?locale='+locale),'workspace embeds the live app');
- for(const theme of ['ocean','midnight'])for(const layout of ['desktop','phone'])for(const clip of ['desk','lookup','memory']){
-  const path=`media/keynote/motion/${locale}-${theme}-${layout}-${clip}.mp4`;
+ for(const theme of ['ocean','midnight'])for(const layout of ['desktop','phone'])for(const clip of ['desk','lookup','listen','save','memory']){
+  const path=`media/keynote/motion/${locale}-${theme}-${layout}-${clip}.webp`;
+  await access(resolve(root,'docs',path.replace('.webp','-still.webp')));
   check((await stat(resolve(root,'docs',path))).size>0,'localized product recording '+path);
  }
  check(['kn-hero','id="highlights"','id="lookup"','id="memory"','href="#experience"'].every(mark=>html.includes(mark)), 'static feature story and live demo entry');
