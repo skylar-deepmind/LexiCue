@@ -1,19 +1,30 @@
 //! Portable attachment identities and durable, bounded transfer of local files.
-use super::source_media::{self as media, Manifest, YoutubeSource};
+use super::source_media as media;
+#[cfg(target_vendor = "apple")]
+use super::source_media::{Manifest, YoutubeSource};
 use crate::db::DbState;
 use base64::{engine::general_purpose::STANDARD, Engine};
 use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
+#[cfg(target_vendor = "apple")]
 use serde::{Deserialize, Serialize};
+#[cfg(target_vendor = "apple")]
 use std::{
-    fs::{self, File, OpenOptions},
+    fs::OpenOptions,
     io::{Read, Seek, SeekFrom, Write},
+};
+use std::{
+    fs::{self, File},
     path::{Path, PathBuf},
 };
 use tauri::{AppHandle, State};
 
+#[cfg(target_vendor = "apple")]
 const CHUNK: usize = 256 * 1024;
+#[cfg(target_vendor = "apple")]
 const ROUND_BYTES: usize = 4 * 1024 * 1024;
+#[cfg(target_vendor = "apple")]
 const COVER_BYTES: usize = 512 * 1024;
+#[cfg(target_vendor = "apple")]
 const PAGE: usize = 64;
 const AUDIO_RECOVERY_SECONDS: i64 = 30 * 24 * 60 * 60;
 const MAX_DOCUMENT_BYTES: u64 = 64 * 1024 * 1024;
@@ -89,6 +100,7 @@ pub(crate) fn migrate(db: &Connection) -> rusqlite::Result<()> {
     )
 }
 
+#[cfg(target_vendor = "apple")]
 pub(crate) fn generation(db: &Connection) -> Result<i64> {
     db.query_row(
         "SELECT generation FROM library_attachment_clock WHERE id=1",
@@ -222,6 +234,7 @@ fn set_audio_deleted(db: &Connection, key: &str, deleted: bool) -> Result<()> {
     Ok(())
 }
 
+#[cfg(target_vendor = "apple")]
 pub(crate) fn store_cover(db: &Connection, video: &str, bytes: &[u8]) -> Result<()> {
     if !super::youtube::is_valid_video_id(video) || !valid_cover(bytes) {
         return Err("invalid artwork".into());
@@ -237,6 +250,7 @@ pub(crate) fn store_cover(db: &Connection, video: &str, bytes: &[u8]) -> Result<
     Ok(())
 }
 
+#[cfg(target_vendor = "apple")]
 fn valid_cover(bytes: &[u8]) -> bool {
     if bytes.len() > COVER_BYTES
         || !bytes.starts_with(&[0xff, 0xd8])

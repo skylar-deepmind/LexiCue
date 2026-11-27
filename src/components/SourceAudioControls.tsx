@@ -43,7 +43,7 @@ export default function SourceAudioControls({ reference, target, text, speechKey
       setBusy(true);
       setFailed(false);
       try {
-        if (!deleted && !await ask(t('sourceAudio.deleteEffect'), { title: t('sourceAudio.delete'), kind: 'warning' })) return;
+        if (!deleted && !await ask(t('sourceAudio.deleteEffect'), { title: t('sourceAudio.delete'), okLabel: t('sourceAudio.delete'), kind: 'warning' })) return;
         await invoke('set_library_audio_deleted', { fileId, deleted: !deleted });
         window.dispatchEvent(new Event('lexicue-attachments-changed'));
       } catch { setFailed(true); }
