@@ -113,7 +113,7 @@ pub fn run() {
             let db_state = DbState {
                 conn: Arc::new(Mutex::new(conn)),
             };
-            commands::files::resume_pending_delete_jobs(db_state.conn.clone());
+            commands::files::resume_pending_delete_jobs(app.handle(), db_state.conn.clone());
             app.manage(db_state);
             #[cfg(target_vendor = "apple")]
             if !isolated_runtime {
@@ -209,6 +209,13 @@ pub fn run() {
             commands::import::import_file,
             commands::import::check_duplicate,
             commands::source_media::source_media_status,
+            commands::library_attachments::material_youtube_artwork,
+            commands::library_attachments::upload_library_original,
+            commands::library_attachments::discard_library_original,
+            #[cfg(target_vendor = "apple")]
+            commands::library_attachments::backup::export_library_archive,
+            #[cfg(target_vendor = "apple")]
+            commands::library_attachments::backup::restore_library_archive,
             commands::source_media::resolve_source_media,
             commands::source_media::resolve_reading_media,
             commands::export::export_all,

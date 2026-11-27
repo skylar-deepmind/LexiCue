@@ -19,6 +19,7 @@ import { LIBRARY_SCOPE } from '../lib/readingScope';
 import { consumeImportedReading, validateImportedReading } from '../lib/readingEntry';
 import { useReadingDeskStore } from '../stores/readingDeskStore';
 import { useRestoreGuard } from '../stores/restoreGuard';
+import { useSpeechStore } from '../stores/speechStore';
 
 const pendingReads = new Map<string, Promise<ReadingMaterial>>();
 function openMaterial(id: number) {
@@ -51,8 +52,12 @@ function MaterialReader({ id }: { id: number }) {
     const [error, setError] = useState(false);
     const [revision, setRevision] = useState(0);
     useEffect(() => {
+        const refresh = () => setRevision(value => value + 1);
+        window.addEventListener('lexicue-sync-applied', refresh);
+        return () => window.removeEventListener('lexicue-sync-applied', refresh);
+    }, []);
+    useEffect(() => {
         let active = true;
-        if (!cached) setData(null);
         setError(false);
         if (!Number.isInteger(id) || id < 1) {
             setError(true);
@@ -67,11 +72,23 @@ function MaterialReader({ id }: { id: number }) {
             setData(next);
             useMaterialStore.setState({ current: next.material });
             void useMaterialStore.getState().ensure();
-        } }).catch(() => { if (active) {
-            consumeImportedReading(importToken); setError(true);
-        } });
+        } }).catch(error => {
+            if (!active) return;
+            consumeImportedReading(importToken);
+            if (String(error).includes('material_legacy_or_missing')) {
+                const current = useMaterialStore.getState().current;
+                if (current?.id === id) {
+                    const mediaIdentity = current.source?.key ?? current.document?.identity ?? current.content_hash;
+                    const speech = useSpeechStore.getState();
+                    if (speech.reading?.key.startsWith(`reader:${mediaIdentity}:`)) speech.exitReading();
+                    useMaterialStore.setState({ current: null });
+                }
+            }
+            setData(null);
+            setError(true);
+        });
         return () => { active = false; useReadingDeskStore.getState().clearNotice(); };
-    }, [id, revision, importToken,cached]);
+    }, [id, revision, importToken]);
     if (error || data && visit && !sourceMatches(visit.target, data))
         return <div className="reader-load-error"><p>{t('reader.unavailable')}</p>{visit && <blockquote lang="en">{visit.target.sentence}</blockquote>}<div><PageBack fallback={visit?.origin.path ?? '/files'}/><button className="ui-button" onClick={() => setRevision(revision + 1)}>{t('common.retry')}</button><VisitLink className="ui-button" to={`/legacy?fileId=${id}`}>{t('materials.history')}</VisitLink></div></div>;
     if (!data)

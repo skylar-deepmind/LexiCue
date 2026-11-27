@@ -175,10 +175,13 @@ export default function Layout() {
                 window.dispatchEvent(new Event('lexicue-sync-applied'));
             }, 350);
         });
+        const attachments = listen('device-sync-attachments', () => {
+            if (alive) window.dispatchEvent(new Event('lexicue-attachments-changed'));
+        });
         return () => {
             alive = false;
             window.clearTimeout(timer);
-            void subscription.then(stop => stop()).catch(() => {});
+            for (const listener of [subscription, attachments]) void listener.then(stop => stop()).catch(() => {});
         };
     }, []);
     return (<div className="app-layout b-shell figma-shell" data-approved-page={pathname.startsWith('/files/') || pathname === '/example' ? 'reader' : pathname.slice(1)} data-context-open={panels.length > 0}

@@ -23,7 +23,7 @@ mod import_lookup_tests;
 pub fn digest(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
-pub(super) fn valid_hash(value: &str) -> bool {
+pub(crate) fn valid_hash(value: &str) -> bool {
     value.len() == 64
         && value
             .bytes()
@@ -569,13 +569,13 @@ pub fn migrate(conn: &Connection) -> rusqlite::Result<()> {
     conn.execute_batch("CREATE INDEX IF NOT EXISTS files_media_identity ON files(media_identity);
     CREATE TABLE IF NOT EXISTS source_media(source_key TEXT PRIMARY KEY, source_json TEXT NOT NULL, asset_id TEXT, status TEXT NOT NULL DEFAULT 'missing', error TEXT, manifest_json TEXT, updated_at INTEGER NOT NULL) STRICT;")
 }
-pub(super) fn root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+pub(crate) fn root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     app.path()
         .app_data_dir()
         .map(|p| p.join("source-media"))
         .map_err(|e| e.to_string())
 }
-fn asset_path(dir: &Path, id: &str) -> Result<PathBuf, String> {
+pub(crate) fn asset_path(dir: &Path, id: &str) -> Result<PathBuf, String> {
     if !valid_hash(id) {
         return Err("media_invalid_asset".into());
     }
@@ -722,7 +722,7 @@ pub async fn resolve_source_media(
         .map_err(|_| "media_scope")?;
     Ok(result)
 }
-pub(super) fn file_digest(path: &Path) -> Result<String, String> {
+pub(crate) fn file_digest(path: &Path) -> Result<String, String> {
     use std::io::Read;
     let mut file = std::fs::File::open(path).map_err(|_| "media_missing")?;
     let mut hash = Sha256::new();
@@ -736,7 +736,8 @@ pub(super) fn file_digest(path: &Path) -> Result<String, String> {
     }
     Ok(format!("{:x}", hash.finalize()))
 }
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Manifest {
     pub video_id: String,
     pub format_id: String,
@@ -955,7 +956,10 @@ pub fn recover(conn: &Connection, dir: &Path) -> Result<(), String> {
     Ok(())
 }
 pub fn initialize(app: &tauri::AppHandle, conn: &Connection) -> Result<(), String> {
-    recover(conn, &root(app)?)
+    let dir = root(app)?;
+    recover(conn, &dir)?;
+    super::library_attachments::cleanup_after_commit(app, conn);
+    Ok(())
 }
 
 /// Validate portable file rows at every ingress; no device-local manifest is imported.

@@ -6,7 +6,7 @@ import Foundation
 #endif
 
 enum SyncPhase: String {
-  case preparing, exchanging, awaitingAck
+  case preparing, exchanging, awaitingAck, attachments
 }
 
 @available(macOS 12, *)
@@ -259,7 +259,11 @@ extension DeviceRuntime {
       let head = p["head"] as? NSNumber, let ack = p["acked"] as? NSNumber,
       let rx = p["received"] as? NSNumber
     else { throw DeviceLinkError.malformed }
-    return ["head": head.int64Value, "acked": ack.int64Value, "received": rx.int64Value]
+    var progress = ["head": head.int64Value, "acked": ack.int64Value, "received": rx.int64Value]
+    if let attachments = p["attachments"] as? NSNumber {
+      progress["attachments"] = attachments.int64Value
+    }
+    return progress
   }
 
   private func settled(_ a: [String: Int64], _ b: [String: Int64]) -> Bool {
@@ -267,34 +271,55 @@ extension DeviceRuntime {
     return h == a["acked"] && h == b["received"] && r == b["acked"] && r == a["received"]
   }
 
-  private func mark(_ link: LinkChannel, _ value: String = "syncing", phase: SyncPhase? = nil) {
+  private func mark(
+    _ link: LinkChannel, _ value: String = "syncing", phase: SyncPhase? = nil,
+    attachmentIssue: String? = nil
+  ) {
     queue.sync {
       if active === link.connection {
         state = value
         syncPhase = phase
         if value == "synced" { reconnectDelay = 1 }
-        issue = nil
+        issue = attachmentIssue
       }
     }
   }
 
   private func drive(_ link: LinkChannel, _ peer: PeerTrust) throws {
     var completed = false
+    var localAttachments: Int64?
+    var remoteAttachments: Int64?
+    var attachmentIssue: String?
+    var retryAfter: Date?
     while permitted(link, peer) && queue.sync(execute: { foreground }) {
       let local = try progress(peer)
-      try link.sendObject(["kind": "pulse", "progress": local, "completed": completed])
+      var pulse: [String: Any] = ["kind": "pulse", "progress": local, "completed": completed]
+      if let attachmentIssue { pulse["attachmentIssue"] = attachmentIssue }
+      try link.sendObject(pulse)
       let reply = try link.object()
       guard reply["kind"] as? String == "pulse", let remote = reply["progress"] as? [String: Int64]
       else { throw DeviceLinkError.malformed }
-      if completed && settled(local, remote) {
-        mark(link, "synced")
+      let unchanged = localAttachments == local["attachments"] && remoteAttachments == remote["attachments"]
+      let retryDue = retryAfter.map { $0 <= Date() } ?? false
+      if (completed || retryAfter != nil) && settled(local, remote) && unchanged && !retryDue {
+        if let attachmentIssue {
+          mark(link, "pending", attachmentIssue: attachmentIssue)
+        } else {
+          mark(link, "synced")
+        }
         Thread.sleep(forTimeInterval: 1.5)
       } else {
-        mark(link, phase: .exchanging)
+        mark(link, phase: settled(local, remote) ? .attachments : .exchanging)
         do {
-          _ = try journal.run("run", peer.route, link: link)
-          completed = true
-          mark(link, phase: .awaitingAck)
+          let result = try journal.run("run", peer.route, link: link) as? [String: Any]
+          let outOfSpace = result?["storage"] as? Bool == true
+          let unsupported = result?["attachmentsUnsupported"] as? Bool == true
+          attachmentIssue = outOfSpace ? "attachmentStorage" : (unsupported ? "attachmentUpdate" : nil)
+          retryAfter = outOfSpace ? Date().addingTimeInterval(15) : nil
+          localAttachments = local["attachments"]
+          remoteAttachments = remote["attachments"]
+          completed = result?["pending"] as? Bool != true && !outOfSpace
+          if completed { mark(link, phase: .awaitingAck) }
         } catch DeviceLinkError.reconcile {
           try? link.sendObject(["kind": "fault", "issue": "reconcile"])
           throw DeviceLinkError.reconcile
@@ -306,6 +331,7 @@ extension DeviceRuntime {
   private func serve(_ link: LinkChannel, _ peer: PeerTrust) throws {
     var exchanged = false
     var needsHello = true
+    var peerHasAttachments: Bool?
     while permitted(link, peer) {
       let raw = try link.receive(timeout: 30)
       guard permitted(link, peer) else { throw DeviceLinkError.canceled }
@@ -321,14 +347,26 @@ extension DeviceRuntime {
         }
         let local = try progress(peer)
         let synced = exchanged && message["completed"] as? Bool == true && settled(local, remote)
-        mark(link, synced ? "synced" : "syncing", phase: synced ? nil : .exchanging)
+        let reportedIssue = message["attachmentIssue"] as? String
+        let attachmentIssue = ["attachmentStorage", "attachmentUpdate"].first { $0 == reportedIssue }
+          ?? (peerHasAttachments == false ? "attachmentUpdate" : nil)
+        if let attachmentIssue, exchanged && settled(local, remote) {
+          mark(link, "pending", attachmentIssue: attachmentIssue)
+        } else {
+          mark(link, synced ? "synced" : "syncing", phase: synced ? nil : .exchanging)
+        }
         try link.sendObject(["kind": "pulse", "progress": local])
       } else {
-        mark(link, phase: .exchanging)
+        mark(link, phase: message["operation"].flatMap { $0 as? [String: Any] }?["Attachment"] == nil
+          ? .exchanging : .attachments)
         do {
           // A peer must prove both history boundaries before any data frame
           // in this round may enter the database, even on a trusted TLS link.
           let reply = try journal.run(needsHello ? "hello" : "respond", peer.route, input: raw)
+          if needsHello, let operations = message["operation"] as? [String: Any],
+             let hello = operations["Hello"] as? [String: Any] {
+            peerHasAttachments = hello["attachments"] as? Bool == true
+          }
           needsHello = false
           try link.send(
             String(

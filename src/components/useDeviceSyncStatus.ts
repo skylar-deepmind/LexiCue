@@ -7,7 +7,7 @@ export interface DeviceStatus {
   state: Phase;
   role: 'mac' | 'iphone';
   paired: boolean;
-  phase?: 'preparing' | 'exchanging' | 'awaitingAck';
+  phase?: 'preparing' | 'exchanging' | 'awaitingAck' | 'attachments';
   peerName?: string;
   code?: string;
   confirmationId?: string;

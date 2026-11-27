@@ -9,6 +9,7 @@ pub mod frequency_baseline;
 pub mod german;
 pub mod import;
 pub mod language;
+pub(crate) mod library_attachments;
 pub mod ollama;
 pub mod phrases;
 pub mod reviews;

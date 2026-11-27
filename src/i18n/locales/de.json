@@ -125,7 +125,8 @@
       "phase": {
         "preparing": "Zusammenführung wird vorbereitet",
         "exchanging": "Änderungen werden ausgetauscht",
-        "awaitingAck": "Bestätigung wird erwartet"
+        "awaitingAck": "Bestätigung wird erwartet",
+        "attachments": "Cover und Originalton werden synchronisiert"
       },
       "state": {
         "unpaired": "Kein Gerät gekoppelt",
@@ -141,6 +142,8 @@
         "error": "Synchronisierung angehalten"
       },
       "issue": {
+        "attachmentStorage": "Der Speicherplatz reicht für den Originalton nicht aus. Die Synchronisierung wird fortgesetzt, sobald Platz frei ist.",
+        "attachmentUpdate": "Aktualisiere LexiCue auf beiden Geräten, um Cover und Originalton zu synchronisieren.",
         "cameraDenied": "Erlaube LexiCue in den Einstellungen den Kamerazugriff und scanne erneut.",
         "cameraUnavailable": "Kamera nicht verfügbar. Öffne LexiCue im Vordergrund und versuche es erneut.",
         "invalidQR": "Code nicht erkannt. Scanne einen neuen Code vom Mac.",
@@ -979,6 +982,7 @@
     "dialogFilterText": "Text / Untertitel",
     "dialogFilterKnownWords": "Liste bekannter Wörter",
     "dialogFilterDictionary": "Offline-Wörterbuchpaket",
+    "dialogFilterFullBackup": "Vollständige LexiCue-Sicherung",
     "dialogFilterBackup": "JSON-Sicherung",
     "duplicateAsk": "Datei „{{name}}“ wurde bereits importiert. Überschreiben?",
     "duplicateTitle": "Doppelte Datei",
@@ -994,7 +998,7 @@
     "importFailed": "Import fehlgeschlagen. Bitte Dateiinhalt prüfen und erneut versuchen.",
     "importCancelled": "Import abgebrochen",
     "importing": "Importiere...",
-    "deleteAskWithContent": "„{{name}}“ und seinen Lesetext löschen? Gespeicherte Sätze, Bedeutungen und Notizen bleiben erhalten. Die Löschung wird auf gekoppelte Geräte übertragen und kann nicht direkt rückgängig gemacht werden.",
+    "deleteAskWithContent": "„{{name}}“ samt Cover, Untertiteln und Originalton löschen? Das Material wird auch auf gekoppelten Geräten gelöscht. Gespeicherte Sätze, Bedeutungen und Notizen bleiben erhalten.",
     "deleteAsk": "Diese Datei löschen?",
     "deleteTitle": "Material löschen",
     "fileDeleted": "Datei gelöscht",
@@ -1005,6 +1009,7 @@
     "backupExportFailed": "Export der Sicherung fehlgeschlagen",
     "backupVersionError": "Nicht unterstützte Sicherungsversion: {{version}}",
     "backupVersionTitle": "Wiederherstellung fehlgeschlagen",
+    "backupFullScope": "Enthält Lernverlauf, Lesepositionen und lokal gespeicherte Cover, Originaltöne und importierte Dateien.",
     "backupScope": "Die Sicherung enthält Lerninhalte und gespeicherte Lesepositionen. Design, Lesetisch und heruntergeladene Audiodateien verbleiben auf diesem Gerät.",
     "restoredWithBackup": "Wiederhergestellt. Sicherheitssicherung: {{path}}",
     "restoreSafetyFailed": "Die Sicherheitssicherung konnte nicht erstellt werden. Die aktuellen Daten wurden nicht geändert.",
@@ -1875,6 +1880,7 @@
     "compactContextCount_one": "{{count}} Satz"
   },
   "sourceAudio": {
+    "offlineReady": "Originalton offline verfügbar",
     "clip": "Original clip",
     "synthetic": "Synthetic voice",
     "preparing": "Preparing original audio…",

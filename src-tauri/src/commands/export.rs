@@ -399,16 +399,25 @@ pub(crate) fn restore_with_safety_backup(
     conn: &rusqlite::Connection,
     backup: &BackupPayload,
 ) -> Result<RestoreResult, String> {
+    restore_with_attachments(conn, backup, |_| Ok(()))
+}
+
+pub(super) fn restore_with_attachments(
+    conn: &rusqlite::Connection,
+    backup: &BackupPayload,
+    install: impl FnOnce(&rusqlite::Connection) -> Result<(), String>,
+) -> Result<RestoreResult, String> {
     validate_backup_version(backup)?;
     #[cfg(target_vendor = "apple")]
-    return crate::device_sync::with_restore_paused(|| replace_after_backup(conn, backup));
+    return crate::device_sync::with_restore_paused(|| replace_after_backup(conn, backup, install));
     #[cfg(not(target_vendor = "apple"))]
-    replace_after_backup(conn, backup)
+    replace_after_backup(conn, backup, install)
 }
 
 fn replace_after_backup(
     conn: &rusqlite::Connection,
     backup: &BackupPayload,
+    install: impl FnOnce(&rusqlite::Connection) -> Result<(), String>,
 ) -> Result<RestoreResult, String> {
     let path = conn.path().filter(|path| !path.is_empty()).ok_or(
         "restore_safety_backup_failed: database has no persistent path; restore was not started",
@@ -419,7 +428,7 @@ fn replace_after_backup(
                 format!("restore_safety_backup_failed: {error}; restore was not started")
             })?;
     let safety_backup_path = safety_backup.to_string_lossy().into_owned();
-    restore_backup(conn, backup).map_err(|error| {
+    restore_backup_inner(conn, backup, install).map_err(|error| {
         format!("restore_failed; safety_backup_path={safety_backup_path}: {error}")
     })?;
     Ok(RestoreResult { safety_backup_path })
@@ -428,7 +437,16 @@ fn replace_after_backup(
 /// Restores a portable backup into an existing database connection. Cloud
 /// recovery uses this after making a local safety export; keeping it separate
 /// from the Tauri command makes the destructive step testable and atomic.
+#[cfg(test)]
 pub fn restore_backup(conn: &rusqlite::Connection, backup: &BackupPayload) -> Result<(), String> {
+    restore_backup_inner(conn, backup, |_| Ok(()))
+}
+
+fn restore_backup_inner(
+    conn: &rusqlite::Connection,
+    backup: &BackupPayload,
+    install: impl FnOnce(&rusqlite::Connection) -> Result<(), String>,
+) -> Result<(), String> {
     validate_backup_version(backup)?;
     // RAII also rolls back a failed COMMIT (for example a deferred constraint),
     // so the shared connection never leaks a partially restored transaction.
@@ -441,6 +459,7 @@ pub fn restore_backup(conn: &rusqlite::Connection, backup: &BackupPayload) -> Re
     // a database where the optional LAN feature was previously enabled.
     lexicue_lan_journal::portable::guard_before_restore(&transaction)?;
     restore_rows(conn, backup)?;
+    install(&transaction)?;
     lexicue_lan_journal::portable::restore(&transaction, backup.data.lan_checkpoint.as_ref())?;
     transaction.commit().map_err(|e| e.to_string())
 }

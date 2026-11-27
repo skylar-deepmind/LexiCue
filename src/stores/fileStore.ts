@@ -24,6 +24,7 @@ import { useReaderStore } from './readerStore';
 import { useRecallStore } from './recallStore';
 import { useSpeechStore } from './speechStore';
 import { readerNavigation } from '../lib/readerNavigation';
+import { isIOSPlatform } from '../lib/platform';
 import { clearImportedReading } from '../lib/readingEntry';
 
 export interface DeleteJobStatus {
@@ -76,7 +77,7 @@ interface FileStore {
   confirmImport: () => Promise<void>;
   cancelImport: () => void;
   deleteFile: (id: number, name?: string, confirmation?: 'trash-drop') => Promise<boolean>;
-  exportAll: () => Promise<void>;
+  exportAll: (complete?: boolean) => Promise<void>;
   restoreAll: (mergeBackupId?: string) => Promise<void>;
 }
 
@@ -554,16 +555,20 @@ export const useFileStore = create<FileStore>((set, get) => ({
     }
   },
 
-  exportAll: async () => {
+  exportAll: async (complete = false) => {
     try {
-      const backup: BackupPayload = await invoke('export_all');
-      const json = JSON.stringify(backup, null, 2);
+      const extension = complete ? 'lexicuebackup' : 'json';
       const savePath = await save({
-        filters: [{ name: i18n.t('fileStore.dialogFilterBackup'), extensions: ['json'] }],
-        defaultPath: `lexicue-backup-${new Date().toISOString().slice(0, 10)}.json`,
+        filters: [{ name: i18n.t(complete ? 'fileStore.dialogFilterFullBackup' : 'fileStore.dialogFilterBackup'), extensions: [extension] }],
+        defaultPath: `lexicue-backup-${new Date().toISOString().slice(0, 10)}.${extension}`,
       });
       if (!savePath) return;
-      await writeTextFile(savePath, json);
+      if (complete) {
+        await invoke('export_library_archive', { path: savePath });
+      } else {
+        const backup: BackupPayload = await invoke('export_all');
+        await writeTextFile(savePath, JSON.stringify(backup, null, 2));
+      }
       useFeedbackStore.getState().show(i18n.t('fileStore.backupExported'), 'success');
     } catch (e) {
       console.error('Export failed:', e);
@@ -593,19 +598,25 @@ export const useFileStore = create<FileStore>((set, get) => ({
     };
     try {
       let backup: BackupPayload | undefined;
+      let archivePath: string | undefined;
       if (!mergeBackupId) {
         const selected = await open({
-          filters: [{ name: i18n.t('fileStore.dialogFilterBackup'), extensions: ['json'] }],
+          filters: [{ name: i18n.t('fileStore.dialogFilterBackup'),
+            extensions: isIOSPlatform() || /Macintosh/i.test(navigator.userAgent) ? ['json', 'lexicuebackup'] : ['json'] }],
           multiple: false,
         });
         if (!selected) return;
 
-        const json = await readTextFile(selected as string);
-        backup = JSON.parse(json) as BackupPayload;
-
-        if (!Number.isInteger(backup.schema_version) || backup.schema_version < 1 || backup.schema_version > 13) {
-          await message(i18n.t('fileStore.backupVersionError', { version: backup.schema_version }), { title: i18n.t('fileStore.backupVersionTitle'), kind: 'error' });
-          return;
+        if (typeof selected !== 'string') return;
+        if (/\.lexicuebackup$/i.test(selected)) {
+          archivePath = selected;
+        } else {
+          const json = await readTextFile(selected);
+          backup = JSON.parse(json) as BackupPayload;
+          if (!Number.isInteger(backup.schema_version) || backup.schema_version < 1 || backup.schema_version > 13) {
+            await message(i18n.t('fileStore.backupVersionError', { version: backup.schema_version }), { title: i18n.t('fileStore.backupVersionTitle'), kind: 'error' });
+            return;
+          }
         }
 
         const confirmed = await ask(i18n.t('fileStore.restoreAsk'), {
@@ -622,7 +633,11 @@ export const useFileStore = create<FileStore>((set, get) => ({
         return;
       }
       useRestoreGuard.getState().setActive(true); ownsGuard = true;
-      const result = await invoke<{ safety_backup_path: string }>(mergeBackupId ? 'restore_device_merge_backup' : 'restore_all', mergeBackupId ? {id: mergeBackupId} : {backup});
+      const result = mergeBackupId
+        ? await invoke<{ safety_backup_path: string }>('restore_device_merge_backup', { id: mergeBackupId })
+        : archivePath
+          ? await invoke<{ safety_backup_path: string }>('restore_library_archive', { path: archivePath })
+          : await invoke<{ safety_backup_path: string }>('restore_all', { backup });
       committed = result;
       discardRestoreState();
       await Promise.all([get().loadFiles(true, true), get().loadTags(true, true)]);

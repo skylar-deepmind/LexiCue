@@ -51,6 +51,7 @@ export interface ImportItem extends ImportSource {
     stage: ImportStage;
     error?: string;
     draft?: ImportDraft;
+    preserveOriginal?: boolean;
     extraction?: ExtractedDocument;
     englishFallback?: string;
     fallbackSegments?: SegmentInput[];
@@ -157,7 +158,7 @@ export async function prepareImportQueue(items: ImportItem[], signal: AbortSigna
                 wordCount: segments.reduce((count, segment) => count + (segment.en_text.match(/[A-Za-z]+(?:['’][A-Za-z]+)*/g)?.length ?? 0), 0),
                 ...(youtube ? { source: youtube } : {}),
                 ...(extraction ? {document: freezeDocument(extraction.document), normalized_kind: extraction.normalized_kind} : {}) });
-            update(item.id, { ...presentation, ...(preparedContent || youtube ? { name: draft.name, title: title ?? draft.name } : {}), stage: 'ready', draft, extraction: extraction ? {...extraction, segments} : undefined, englishFallback: undefined, fallbackSegments: undefined, translationProgress: undefined });
+            update(item.id, { ...presentation, ...(preparedContent || youtube ? { name: draft.name, title: title ?? draft.name } : {}), stage: 'ready', draft, preserveOriginal: read instanceof Uint8Array && !!extraction && !extraction.document.origin, extraction: extraction ? {...extraction, segments} : undefined, englishFallback: undefined, fallbackSegments: undefined, translationProgress: undefined });
         } catch (error) {
             if (signal.aborted) break;
             const known = materialError(error);
@@ -287,22 +288,33 @@ export const useImportStore = create<{
         controller = active;
         set({ phase: 'committing', running: true, stopping: false, picking: false, readingLink: false, destination: null });
         const { tagIds, newTagNames } = get().importTags;
+        const originalItems = new Map(items.filter(item => item.preserveOriginal && item.draft)
+            .map(item => [item.draft!.operation_id, item]));
+        const upload = async (command: string, operationId: string, data: Uint8Array) => {
+            const size = 1024 * 1024;
+            for (let offset = 0; offset < data.length; offset += size) {
+                const bytes = data.subarray(offset, offset + size);
+                let binary = '';
+                for (let i = 0; i < bytes.length; i += 8192)
+                    binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
+                await invoke(command, { operationId, offset, chunk: btoa(binary) });
+            }
+        };
         await commitImportQueue(items, active.signal, update, async (input, audio) => {
             const request = { ...input, ...(tagIds.length ? { tag_ids: tagIds } : {}), ...(newTagNames.length ? { new_tag_names: newTagNames } : {}) };
-            if (!audio) return invoke('import_reading_material', { input: request });
             const operationId = input.operation_id;
+            const original = originalItems.get(operationId);
             try {
-                const size = 1024 * 1024;
-                for (let offset = 0; offset < audio.length; offset += size) {
-                    const bytes = audio.subarray(offset, offset + size);
-                    let binary = '';
-                    for (let i = 0; i < bytes.length; i += 8192)
-                        binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
-                    await invoke('upload_local_material_audio', { operationId, offset, chunk: btoa(binary) });
+                if (original) {
+                    const bytes = await original.read(active.signal);
+                    if (!(bytes instanceof Uint8Array)) throw new Error('material_original_changed');
+                    await upload('upload_library_original', operationId, bytes);
                 }
-                return await invoke('import_material_with_local_audio', { input: request });
+                if (audio) await upload('upload_local_material_audio', operationId, audio);
+                return await invoke(audio ? 'import_material_with_local_audio' : 'import_reading_material', { input: request });
             } finally {
-                await invoke('discard_local_material_audio', { operationId }).catch(() => {});
+                if (audio) await invoke('discard_local_material_audio', { operationId }).catch(() => {});
+                if (original) await invoke('discard_library_original', { operationId }).catch(() => {});
             }
         });
         const current = get().items;

@@ -1,4 +1,5 @@
 use super::youtube_attempt::{Failure, Trace};
+use crate::db::DbState;
 use base64::{engine::general_purpose::STANDARD, Engine};
 use reqwest::{redirect::Policy, StatusCode};
 use std::{
@@ -11,9 +12,7 @@ use tauri::Manager;
 use tokio::{sync::Semaphore, time::Instant};
 
 const LIMIT: usize = 512 * 1024;
-const ENTRIES: usize = 128;
 static DOWNLOADS: Semaphore = Semaphore::const_new(3);
-static STORAGE: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 fn valid_jpeg(bytes: &[u8]) -> bool {
     if bytes.len() > LIMIT || !bytes.starts_with(&[0xff, 0xd8]) || !bytes.ends_with(&[0xff, 0xd9]) {
@@ -37,32 +36,6 @@ async fn cached(path: &Path) -> Option<Vec<u8>> {
     }
     let bytes = tokio::fs::read(path).await.ok()?;
     valid_jpeg(&bytes).then_some(bytes)
-}
-
-async fn store(dir: &Path, path: &Path, bytes: &[u8]) -> std::io::Result<()> {
-    let _guard = STORAGE.lock().await;
-    tokio::fs::create_dir_all(dir).await?;
-    let temp = dir.join(format!("{}.part", uuid::Uuid::new_v4()));
-    tokio::fs::write(&temp, bytes).await?;
-    if let Err(error) = tokio::fs::rename(&temp, path).await {
-        let _ = tokio::fs::remove_file(temp).await;
-        return Err(error);
-    }
-    let mut entries = tokio::fs::read_dir(dir).await?;
-    let mut jpgs = Vec::new();
-    while let Some(entry) = entries.next_entry().await? {
-        if entry.path().extension().is_some_and(|ext| ext == "jpg") && entry.path() != path {
-            jpgs.push((entry.metadata().await?.modified().ok(), entry.path()));
-        }
-    }
-    let remove = (jpgs.len() + 1).saturating_sub(ENTRIES);
-    if remove > 0 {
-        jpgs.sort_by_key(|(modified, _)| *modified);
-        for (_, stale) in jpgs.into_iter().take(remove) {
-            let _ = tokio::fs::remove_file(stale).await;
-        }
-    }
-    Ok(())
 }
 
 fn request_failure(error: reqwest::Error) -> Failure {
@@ -106,6 +79,16 @@ async fn fetch(client: &reqwest::Client, video: &str, quality: &str) -> Result<V
     valid_jpeg(&bytes)
         .then_some(bytes)
         .ok_or(Failure::CoverInvalid)
+}
+
+fn retain_artwork(app: &tauri::AppHandle, video_id: &str, bytes: &[u8]) {
+    if let Some(state) = app.try_state::<DbState>() {
+        if let Ok(db) = state.conn.lock() {
+            if let Err(error) = super::library_attachments::store_cover(&db, video_id, bytes) {
+                log::warn!("Could not retain material artwork: {error}");
+            }
+        }
+    }
 }
 
 pub(super) async fn import_cover(
@@ -153,10 +136,6 @@ pub(super) async fn import_cover(
             }
         })
         .await?;
-    let started = Instant::now();
-    if store(&dir, &path, &bytes).await.is_err() {
-        trace.record("cover_cache", 1, started, Some(Failure::LocalIo));
-    }
     Ok(format!("data:image/jpeg;base64,{}", STANDARD.encode(bytes)))
 }
 
@@ -166,9 +145,19 @@ pub async fn youtube_cover(app: tauri::AppHandle, video_id: String) -> Result<St
         return Err("invalid_url".into());
     }
     let trace = Trace::new(Instant::now() + Duration::from_secs(40));
-    import_cover(&app, &video_id, &trace)
+    let cover = import_cover(&app, &video_id, &trace)
         .await
-        .map_err(|error| error.code().into())
+        .map_err(|error| error.code().to_owned())?;
+    if let Some(bytes) = cover_bytes(&cover) {
+        retain_artwork(&app, &video_id, &bytes);
+    }
+    Ok(cover)
+}
+
+pub(super) fn cover_bytes(cover: &str) -> Option<Vec<u8>> {
+    STANDARD
+        .decode(cover.strip_prefix("data:image/jpeg;base64,")?)
+        .ok()
 }
 
 #[cfg(test)]
@@ -176,17 +165,17 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn caches_only_complete_decodable_jpegs() {
+    async fn reads_only_complete_decodable_legacy_jpegs() {
         let mut jpeg = Vec::new();
         image::codecs::jpeg::JpegEncoder::new(&mut jpeg)
             .encode(&vec![42; 120 * 90], 120, 90, image::ExtendedColorType::L8)
             .unwrap();
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("sample.jpg");
-        store(dir.path(), &path, &jpeg).await.unwrap();
+        tokio::fs::write(&path, &jpeg).await.unwrap();
         assert_eq!(cached(&path).await, Some(jpeg.clone()));
         jpeg.truncate(jpeg.len() / 2);
-        store(dir.path(), &path, &jpeg).await.unwrap();
+        tokio::fs::write(&path, &jpeg).await.unwrap();
         assert!(cached(&path).await.is_none());
         assert!(!valid_jpeg(&[0xff, 0xd8, 0, 0, 0xff, 0xd9]));
     }

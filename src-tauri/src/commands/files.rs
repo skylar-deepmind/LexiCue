@@ -201,7 +201,11 @@ fn now_ms() -> i64 {
 }
 
 #[tauri::command]
-pub fn delete_file_start(state: State<DbState>, file_id: i64) -> Result<DeleteJobStatus, String> {
+pub fn delete_file_start(
+    app: tauri::AppHandle,
+    state: State<DbState>,
+    file_id: i64,
+) -> Result<DeleteJobStatus, String> {
     let conn = state.conn.lock().map_err(|_| "local_delete_failed")?;
     let existing: Option<String> = conn
         .query_row(
@@ -251,9 +255,7 @@ pub fn delete_file_start(state: State<DbState>, file_id: i64) -> Result<DeleteJo
     )
     .map_err(|_| "local_delete_failed")?;
     let status = delete_job_status(&conn, &job_id)?;
-    let worker_conn = state.conn.clone();
-    let worker_job = job_id.clone();
-    tauri::async_runtime::spawn_blocking(move || run_delete_job(worker_conn, worker_job));
+    spawn_delete_job(app, state.conn.clone(), job_id);
     Ok(status)
 }
 
@@ -303,9 +305,18 @@ fn write_delete_backup(conn: &rusqlite::Connection) -> Result<(), String> {
     std::fs::write(path, bytes).map_err(|_| "local_backup_failed".to_string())
 }
 
-fn run_delete_job(conn: Arc<Mutex<rusqlite::Connection>>, job_id: String) {
+fn spawn_delete_job(app: tauri::AppHandle, conn: Arc<Mutex<rusqlite::Connection>>, job_id: String) {
+    tauri::async_runtime::spawn_blocking(move || {
+        run_delete_job(&conn, &job_id);
+        if let Ok(connection) = conn.lock() {
+            super::library_attachments::cleanup_after_commit(&app, &connection);
+        }
+    });
+}
+
+fn run_delete_job(conn: &Arc<Mutex<rusqlite::Connection>>, job_id: &str) {
     loop {
-        match delete_job_step(&conn, &job_id) {
+        match delete_job_step(conn, job_id) {
             Ok(true) => continue,
             Ok(false) => break,
             Err(_) => {
@@ -406,19 +417,22 @@ fn delete_job_step(conn: &Arc<Mutex<rusqlite::Connection>>, job_id: &str) -> Res
     }
 }
 
-pub fn resume_pending_delete_jobs(conn: Arc<Mutex<rusqlite::Connection>>) {
+pub fn resume_pending_delete_jobs(app: &tauri::AppHandle, conn: Arc<Mutex<rusqlite::Connection>>) {
     let jobs: Vec<String> = conn.lock().ok().and_then(|connection| {
         connection.prepare("SELECT job_id FROM sync_delete_jobs WHERE phase NOT IN ('done','failed') ORDER BY created_at").ok().and_then(|mut statement| statement.query_map([], |row| row.get(0)).ok().map(|rows| rows.filter_map(Result::ok).collect()))
     }).unwrap_or_default();
     for job_id in jobs {
-        let worker_conn = conn.clone();
-        tauri::async_runtime::spawn_blocking(move || run_delete_job(worker_conn, job_id));
+        spawn_delete_job(app.clone(), conn.clone(), job_id);
     }
 }
 
 #[tauri::command]
-pub fn delete_file(state: State<DbState>, file_id: i64) -> Result<DeleteJobStatus, String> {
-    delete_file_start(state, file_id)
+pub fn delete_file(
+    app: tauri::AppHandle,
+    state: State<DbState>,
+    file_id: i64,
+) -> Result<DeleteJobStatus, String> {
+    delete_file_start(app, state, file_id)
 }
 
 #[tauri::command]
@@ -547,7 +561,7 @@ mod tests {
         let job_id = "delete-test";
         connection.execute("INSERT INTO sync_delete_jobs(job_id,file_id,file_sync_id,phase,total_segments,total_occurrences,total_bytes,created_at,updated_at) SELECT ?1,?2,?3,'queued',COUNT(*),(SELECT COUNT(*) FROM occurrences o JOIN segments s ON s.id=o.segment_id WHERE s.file_id=?2),0,1,1 FROM segments WHERE file_id=?2", rusqlite::params![job_id, file_id, file_sync_id]).unwrap();
         let shared = Arc::new(Mutex::new(connection));
-        run_delete_job(shared.clone(), job_id.into());
+        run_delete_job(&shared, job_id);
         let connection = shared.lock().unwrap();
         let remaining: i64 = connection
             .query_row(

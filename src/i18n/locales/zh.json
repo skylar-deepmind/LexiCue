@@ -125,7 +125,8 @@
       "phase": {
         "preparing": "准备合并",
         "exchanging": "交换更改",
-        "awaitingAck": "等待对方确认"
+        "awaitingAck": "等待对方确认",
+        "attachments": "正在同步封面和原音频"
       },
       "state": {
         "unpaired": "尚未配对",
@@ -141,6 +142,8 @@
         "error": "同步暂停"
       },
       "issue": {
+        "attachmentStorage": "设备空间不足，原音频将在空间足够后继续同步。",
+        "attachmentUpdate": "两台设备都更新 LexiCue 后即可同步封面和原音频。",
         "cameraDenied": "请在系统设置中允许 LexiCue 使用相机，再重新扫码。",
         "cameraUnavailable": "暂时无法使用相机。请返回前台后重试。",
         "invalidQR": "无法识别这个配对码。请扫描 Mac 上新生成的码。",
@@ -963,6 +966,7 @@
     "dialogFilterText": "文本/字幕",
     "dialogFilterKnownWords": "已掌握词表",
     "dialogFilterDictionary": "离线词典包",
+    "dialogFilterFullBackup": "LexiCue 完整备份",
     "dialogFilterBackup": "JSON 备份",
     "duplicateAsk": "文件 “{{name}}” 已导入过，是否覆盖？",
     "duplicateTitle": "重复文件",
@@ -977,7 +981,7 @@
     "importFailed": "导入失败，请检查文件内容后重试",
     "importCancelled": "已取消导入操作",
     "importing": "导入中...",
-    "deleteAskWithContent": "删除“{{name}}”及其中的阅读内容？已保存的原句、释义和笔记会保留。此操作也会同步到已配对设备，无法直接撤销。",
+    "deleteAskWithContent": "删除“{{name}}”及其封面、字幕和原音频？已配对设备上的这份材料也会删除。已收藏的原句、释义和笔记会保留。",
     "deleteAsk": "确认删除这个文件吗？",
     "deleteTitle": "删除材料",
     "fileDeleted": "文件已删除",
@@ -988,6 +992,7 @@
     "backupExportFailed": "备份导出失败",
     "backupVersionError": "不支持的备份版本: {{version}}",
     "backupVersionTitle": "恢复失败",
+    "backupFullScope": "包含学习资料、阅读位置和本机已保存的封面、原音频与导入原件。",
     "backupScope": "备份包含学习资料与已保存的阅读位置。主题、桌面排列和下载的音频仅保留在本机。",
     "restoredWithBackup": "恢复完成。安全副本：{{path}}",
     "restoreSafetyFailed": "无法创建安全副本，当前数据未更改。",
@@ -1853,6 +1858,7 @@
     "compactContextCount": "{{count}} 句"
   },
   "sourceAudio": {
+    "offlineReady": "原音可离线听",
     "clip": "原片段",
     "synthetic": "合成朗读",
     "preparing": "原音准备中…",

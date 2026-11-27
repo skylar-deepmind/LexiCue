@@ -1,3 +1,6 @@
+use crate::commands::{
+    library_attachments, library_attachments::exchange as attachments, source_media,
+};
 use crate::lan_sync::{saved_delta::ReaderSaves, MergeBackup};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use lexicue_lan_journal::{self as journal, checkpoint::PublicationFence, session, Route};
@@ -350,7 +353,10 @@ unsafe fn execute_engine(
             Ok(Value::Null)
         }
         "progress" => {
-            serde_json::to_value(journal::progress(&db, &route)?).map_err(|e| e.to_string())
+            let mut progress =
+                serde_json::to_value(journal::progress(&db, &route)?).map_err(|e| e.to_string())?;
+            progress["attachments"] = json!(library_attachments::generation(&db)?);
+            Ok(progress)
         }
         "hello" | "respond" => respond(i, &mut db, &route, input, action == "hello"),
         "run" => catch_up(i, &mut db, &route, ctx, exchange),
@@ -422,6 +428,20 @@ unsafe fn respond(
     if needs_hello && !matches!(req.operation, session::Operation::Hello(_)) {
         return Err("verify replica history before delivering changes".into());
     }
+    if let session::Operation::Attachment(raw) = req.operation {
+        if req.route != route.reverse() {
+            return Err("incorrect attachment route".into());
+        }
+        journal::progress(db, route)?;
+        let previous = library_attachments::generation(db)?;
+        let request = serde_json::from_value(raw).map_err(|error| error.to_string())?;
+        let result = attachments::respond(db, &source_media::root(&i.app)?, request);
+        notify_attachment_changes(i, db, previous);
+        return serde_json::to_value(session::Reply::Attachment(
+            serde_json::to_value(result?).map_err(|error| error.to_string())?,
+        ))
+        .map_err(|error| error.to_string());
+    }
     let publishes = matches!(
         req.operation,
         session::Operation::Hello(_)
@@ -461,7 +481,7 @@ unsafe fn catch_up(
         .busy_timeout(std::time::Duration::from_secs(5))
         .map_err(|e| e.to_string())?;
     let previous = journal::progress(db, route)?.received;
-    let result = session::catch_up(db, route, &ReaderSaves, |req| {
+    let result = session::catch_up_capabilities(db, route, &ReaderSaves, |req| {
         if matches!(
             req.operation,
             session::Operation::Offer(_)
@@ -473,9 +493,34 @@ unsafe fn catch_up(
         call_peer(rpc, ctx, req)
     });
     notify_if_received(i, db, route, previous);
-    result?;
+    let supported = result?;
     i.fence()?.publish(db, route)?;
-    Ok(Value::Null)
+    if !supported {
+        return Ok(json!({"attachmentsUnsupported":true}));
+    }
+    let attachment_generation = library_attachments::generation(db)?;
+    let round = attachments::sync_round(db, &source_media::root(&i.app)?, |request| {
+        let req = session::Request {
+            version: session::SESSION_VERSION,
+            route: route.clone(),
+            operation: session::Operation::Attachment(
+                serde_json::to_value(request).map_err(|error| error.to_string())?,
+            ),
+        };
+        let session::Reply::Attachment(value) = call_peer(rpc, ctx, req)? else {
+            return Err("expected attachment reply".into());
+        };
+        serde_json::from_value(value).map_err(|error| error.to_string())
+    });
+    notify_attachment_changes(i, db, attachment_generation);
+    serde_json::to_value(round?).map_err(|error| error.to_string())
+}
+
+fn notify_attachment_changes(i: &Installation, db: &Connection, previous: i64) {
+    use tauri::Emitter;
+    if library_attachments::generation(db).is_ok_and(|generation| generation != previous) {
+        let _ = i.app.emit("device-sync-attachments", ());
+    }
 }
 
 unsafe fn call_peer(
@@ -505,6 +550,7 @@ unsafe fn call_peer(
 
 fn notify_if_received(i: &Installation, db: &Connection, route: &Route, before: i64) {
     use tauri::Emitter;
+    library_attachments::cleanup_after_commit(&i.app, db);
     if journal::progress(db, route).is_ok_and(|p| p.received > before) {
         let _ = i.app.emit("device-sync-applied", ());
     }
