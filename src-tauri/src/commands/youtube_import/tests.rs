@@ -29,6 +29,9 @@ case " $* " in
     record metadata
     tracks='"subtitles":{"en":[{"ext":"vtt"}]},"automatic_captions":{"en-orig":[{"ext":"vtt"}]}'
     [ SCENARIO = no_subtitles ] && tracks='"subtitles":{}'
+    case SCENARIO in
+      json3_*) tracks='"automatic_captions":{"en-orig":[{"ext":"vtt"},{"ext":"json3"}]}';;
+    esac
     if [ SCENARIO = timeout ] && [ "$(grep -c '^metadata$' "$root/requests")" -eq 1 ]; then
       echo 'ERROR: Read operation timed out' >&2
       exit 1
@@ -45,6 +48,29 @@ case " $* " in
     case " $* " in
       *' --write-subs '*) track=en ;;
       *) track=en-orig ;;
+    esac
+    case " $* " in
+      *' --sub-format json3 '*)
+        record "caption-$track-json3"
+        if [ SCENARIO = json3_rate_limit ]; then
+          echo 'ERROR: HTTP Error 429: Too Many Requests' >&2
+          exit 1
+        fi
+        if [ SCENARIO = json3_invalid ]; then
+          printf '{"events":[{"segs":[{"utf8":"Missing timing"}]}]}' > "captions.$track.json3"
+        else
+          cat > "captions.$track.json3" <<'JSON'
+{"events":[
+  {"tStartMs":0,"dDurationMs":2000,"id":1},
+  {"tStartMs":100,"dDurationMs":1500,"segs":[{"utf8":"Wait."}]},
+  {"tStartMs":690,"aAppend":1,"segs":[{"utf8":"\n"}]},
+  {"tStartMs":700,"dDurationMs":1300,"segs":[{"utf8":"Wait."}]},
+  {"tStartMs":1250,"dDurationMs":2000,"segs":[{"utf8":"We saw"},{"utf8":" the harbor.","tOffsetMs":340}]}
+]}
+JSON
+        fi
+        exit 0
+        ;;
     esac
     record "caption-$track"
     if [ SCENARIO = rate_limit ]; then
@@ -140,6 +166,70 @@ esac
         let trace = Trace::new(Instant::now() + limit);
         fetch(VIDEO, &self.stage, &trace, &self.tools, progress, cover).await
     }
+}
+
+#[tokio::test]
+async fn original_json3_imports_spoken_cues_without_replaying_the_rollup() {
+    let fixture = Fixture::new("json3_valid");
+    let imported = fixture
+        .fetch(Duration::from_secs(10), |_| {}, async {
+            Ok("cover".into())
+        })
+        .await
+        .unwrap();
+    assert_eq!(imported.source.subtitle_kind, "original");
+    let cues: Vec<_> = imported
+        .source
+        .cues
+        .iter()
+        .map(|cue| (cue.start_ms, cue.end_ms, cue.text.as_str()))
+        .collect();
+    assert_eq!(
+        cues,
+        [
+            (100, 700, "Wait."),
+            (700, 1250, "Wait."),
+            (1250, 2000, "We saw the harbor."),
+        ]
+    );
+    assert_eq!(
+        fixture.requests(),
+        ["metadata", "caption-en-orig-json3", "audio", "probe"]
+    );
+    fixture.no_temporary_files();
+}
+
+#[tokio::test]
+async fn original_json3_falls_back_for_invalid_content_but_respects_rate_limits() {
+    let fixture = Fixture::new("json3_invalid");
+    let imported = fixture
+        .fetch(Duration::from_secs(10), |_| {}, async {
+            Ok("cover".into())
+        })
+        .await
+        .unwrap();
+    assert_eq!(imported.source.cues[0].text, "We saw the harbor.");
+    assert_eq!(
+        fixture.requests(),
+        [
+            "metadata",
+            "caption-en-orig-json3",
+            "caption-en-orig",
+            "audio",
+            "probe"
+        ]
+    );
+    fixture.no_temporary_files();
+
+    let fixture = Fixture::new("json3_rate_limit");
+    let result = fixture
+        .fetch(Duration::from_secs(10), |_| {}, async {
+            Ok("cover".into())
+        })
+        .await;
+    assert!(matches!(result, Err(Failure::RateLimited)));
+    assert_eq!(fixture.requests(), ["metadata", "caption-en-orig-json3"]);
+    fixture.no_temporary_files();
 }
 
 #[tokio::test]
