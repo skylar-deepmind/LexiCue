@@ -13,6 +13,7 @@ pub mod ollama;
 pub mod phrases;
 pub mod reviews;
 pub mod source_media;
+pub(crate) mod library_attachments;
 pub mod stats;
 pub mod sync;
 pub mod tags;

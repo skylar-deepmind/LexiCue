@@ -23,7 +23,7 @@ mod import_lookup_tests;
 pub fn digest(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
-pub(super) fn valid_hash(value: &str) -> bool {
+pub(crate) fn valid_hash(value: &str) -> bool {
     value.len() == 64
         && value
             .bytes()
@@ -567,15 +567,16 @@ pub fn migrate(conn: &Connection) -> rusqlite::Result<()> {
         }
     }
     conn.execute_batch("CREATE INDEX IF NOT EXISTS files_media_identity ON files(media_identity);
-    CREATE TABLE IF NOT EXISTS source_media(source_key TEXT PRIMARY KEY, source_json TEXT NOT NULL, asset_id TEXT, status TEXT NOT NULL DEFAULT 'missing', error TEXT, manifest_json TEXT, updated_at INTEGER NOT NULL) STRICT;")
+    CREATE TABLE IF NOT EXISTS source_media(source_key TEXT PRIMARY KEY, source_json TEXT NOT NULL, asset_id TEXT, status TEXT NOT NULL DEFAULT 'missing', error TEXT, manifest_json TEXT, updated_at INTEGER NOT NULL) STRICT;")?;
+    super::library_attachments::migrate(conn)
 }
-pub(super) fn root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+pub(crate) fn root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     app.path()
         .app_data_dir()
         .map(|p| p.join("source-media"))
         .map_err(|e| e.to_string())
 }
-fn asset_path(dir: &Path, id: &str) -> Result<PathBuf, String> {
+pub(crate) fn asset_path(dir: &Path, id: &str) -> Result<PathBuf, String> {
     if !valid_hash(id) {
         return Err("media_invalid_asset".into());
     }
@@ -639,6 +640,13 @@ pub fn status(conn: &Connection, dir: &Path, r: &MediaRef) -> Result<MediaStatus
         )
         .optional()
         .map_err(|e| e.to_string())?;
+    if super::library_attachments::audio_removed(conn, &r.source.key)? {
+        return Ok(MediaStatus {
+            status: "deleted".into(),
+            error: None,
+            asset_id: None,
+        });
+    }
     let (mut status, error, asset_id) = row.unwrap_or(("missing".into(), None, None));
     if status == "ready"
         && !asset_id.as_deref().is_some_and(|id| {
@@ -722,7 +730,7 @@ pub async fn resolve_source_media(
         .map_err(|_| "media_scope")?;
     Ok(result)
 }
-pub(super) fn file_digest(path: &Path) -> Result<String, String> {
+pub(crate) fn file_digest(path: &Path) -> Result<String, String> {
     use std::io::Read;
     let mut file = std::fs::File::open(path).map_err(|_| "media_missing")?;
     let mut hash = Sha256::new();
@@ -736,7 +744,8 @@ pub(super) fn file_digest(path: &Path) -> Result<String, String> {
     }
     Ok(format!("{:x}", hash.finalize()))
 }
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Manifest {
     pub video_id: String,
     pub format_id: String,

@@ -91,8 +91,9 @@ pub async fn import_material_with_local_audio(
     let shared = state.conn.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let attachment = prepare_attachment(&staging.0, &input)?;
+        let original = super::library_attachments::Original::staged(&app, &input)?;
         let conn = shared.lock().map_err(|e| e.to_string())?;
-        materials::import_material_with_attachment(&conn, &input, Some(&attachment))
+        materials::import_material_with_files(&conn, &input, Some(&attachment), original.as_ref())
     })
     .await
     .map_err(|e| e.to_string())?

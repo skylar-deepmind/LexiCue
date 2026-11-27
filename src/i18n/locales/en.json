@@ -125,7 +125,8 @@
       "phase": {
         "preparing": "Preparing to merge",
         "exchanging": "Exchanging changes",
-        "awaitingAck": "Waiting for confirmation"
+        "awaitingAck": "Waiting for confirmation",
+        "attachments": "Syncing covers and original audio"
       },
       "state": {
         "unpaired": "No paired device",
@@ -141,6 +142,8 @@
         "error": "Sync paused"
       },
       "issue": {
+        "attachmentStorage": "There is not enough space for original audio. Sync will resume when space is available.",
+        "attachmentUpdate": "Update LexiCue on both devices to sync covers and original audio.",
         "cameraDenied": "Allow LexiCue camera access in Settings, then scan again.",
         "cameraUnavailable": "The camera is unavailable. Bring LexiCue to the foreground and retry.",
         "invalidQR": "Unrecognized code. Scan a new code from your Mac.",
@@ -979,6 +982,7 @@
     "dialogFilterText": "Text / Subtitles",
     "dialogFilterKnownWords": "Known word list",
     "dialogFilterDictionary": "Offline dictionary pack",
+    "dialogFilterFullBackup": "Complete LexiCue backup",
     "dialogFilterBackup": "JSON backup",
     "duplicateAsk": "File “{{name}}” was already imported. Overwrite?",
     "duplicateTitle": "Duplicate File",
@@ -1005,6 +1009,7 @@
     "backupExportFailed": "Failed to export backup",
     "backupVersionError": "Unsupported backup version: {{version}}",
     "backupVersionTitle": "Restore Failed",
+    "backupFullScope": "Includes learning records, reading positions and the covers, original audio and imported files saved on this device.",
     "backupScope": "The backup includes learning records and saved reading positions. Theme, desk layout and downloaded audio stay on this device.",
     "restoredWithBackup": "Restored. Safety backup: {{path}}",
     "restoreSafetyFailed": "Could not create the safety backup. Current data was not changed.",
@@ -1875,6 +1880,12 @@
     "compactContextCount_one": "{{count}} sentence"
   },
   "sourceAudio": {
+    "offlineReady": "Original audio available offline",
+    "deleted": "Original audio deleted",
+    "delete": "Delete original audio",
+    "deleteEffect": "This removes the original audio on paired devices. Subtitles and learning records are kept.",
+    "restore": "Restore original audio",
+    "changeFailed": "Could not update original audio. Try again.",
     "clip": "Original clip",
     "synthetic": "Synthetic voice",
     "preparing": "Preparing original audio…",

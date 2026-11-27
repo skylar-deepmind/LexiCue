@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import VisitLink from './VisitLink';
 import { useTranslation } from 'react-i18next';
+import { isIOSPlatform } from '../lib/platform';
 import { useFileStore } from '../stores/fileStore';
 
 export default function BackupSettings() {
@@ -20,6 +21,7 @@ export default function BackupSettings() {
         });
         return () => cancelAnimationFrame(frame);
     }, [busy]);
+    const fullBackup = isIOSPlatform() || /Macintosh/i.test(navigator.userAgent);
     const backup = async (restore = false) => {
         if (restore) returnRestoreFocus.current = true;
         setBusy(true);
@@ -28,11 +30,11 @@ export default function BackupSettings() {
                 await useFileStore.getState().restoreAll();
             }
             else
-                await useFileStore.getState().exportAll();
+                await useFileStore.getState().exportAll(fullBackup);
         }
         finally {
             setBusy(false);
         }
     };
-    return <><p>{t('fileStore.backupScope')}</p><div className="settings-options"><button className="ui-button settings-quiet-action" disabled={busy} onClick={() => void backup()}>{t('history.export')}</button><button ref={restoreButton} className="ui-button settings-quiet-action" disabled={busy} onClick={() => void backup(true)}>{t('history.restore')}</button><VisitLink className="ui-button" to="/legacy">{t('materials.history')}</VisitLink></div></>;
+    return <><p>{t(fullBackup ? 'fileStore.backupFullScope' : 'fileStore.backupScope')}</p><div className="settings-options"><button className="ui-button settings-quiet-action" disabled={busy} onClick={() => void backup()}>{t('history.export')}</button><button ref={restoreButton} className="ui-button settings-quiet-action" disabled={busy} onClick={() => void backup(true)}>{t('history.restore')}</button><VisitLink className="ui-button" to="/legacy">{t('materials.history')}</VisitLink></div></>;
 }

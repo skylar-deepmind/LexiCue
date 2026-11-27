@@ -142,7 +142,9 @@ export default function ReadingPage({ data, scope }: {
     const lookupView = useRef({ tab: returnView?.query?.tab ?? 'meaning', provider: returnView?.query?.provider });
     const recoveredAudioReady = useSourceMediaStore(state =>
         !!material.source && !material.source.audio && state.entries[material.source.key]?.status === 'ready');
-    const hasSourceAudio = !!material.source?.audio || recoveredAudioReady;
+    const sourceDeleted = useSourceMediaStore(state =>
+        !!material.source && state.entries[material.source.key]?.status === 'deleted');
+    const hasSourceAudio = !sourceDeleted && (!!material.source?.audio || recoveredAudioReady);
     const queryWithMedia = useMemo(() => query ? {...query,media:data.media_refs?.[query.segment.id]} : null, [query,data.media_refs]);
     const drafts = useRef(memory?.drafts ?? returnLookupMemory.get(location.state?.restoreVisitToken)?.drafts ?? new Map<string, LookupDraft>());
     const lookupSession = useRef<LookupSession>(memory?.session ?? returnLookupMemory.get(location.state?.restoreVisitToken)?.session ?? {receipts:new Map(), actions:new Map(), undos:new Map()});
@@ -584,7 +586,7 @@ export default function ReadingPage({ data, scope }: {
       <p>{t('onboarding.privacy')}</p>
       <p className="example-instruction" role="status">{guide.active && !guide.tour ? t(`onboarding.step${guide.step}`) : ''}</p>
     </section>}
-    {Object.entries(data.media_refs ?? {}).slice(0,1).map(([id, ref]) => <SourceAudioControls key={ref.source.key} reference={ref} target={{segment_id:Number(id)}} text={segments[0]?.en_text ?? ''} speechKey="reader:source" statusOnly/>)}
+    {Object.entries(data.media_refs ?? {}).slice(0,1).map(([id, ref]) => <SourceAudioControls key={ref.source.key} reference={ref} target={{segment_id:Number(id)}} text={segments[0]?.en_text ?? ''} speechKey="reader:source" fileId={material.id} statusOnly/>)}
     {material.document && (material.document.origin || material.document.blocks.some(block => block.kind === 'code')) && <div className="reading-document-nav">
         {material.document.origin && <details className="reading-document-code"><summary>{t('documents.fullPreview')}</summary>{material.document.blocks.map(block => <p key={block.id} style={{whiteSpace:'pre-wrap'}}>{block.text}</p>)}</details>}
         {material.document.blocks.some(block => block.kind === 'code') && <details className="reading-document-code"><summary>{t('documents.codeBlocks')}</summary>{material.document.blocks.filter(block => block.kind === 'code').map(block => <pre key={block.id}>{block.text}</pre>)}</details>}

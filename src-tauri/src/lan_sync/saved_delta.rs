@@ -86,6 +86,9 @@ fn portable_saved_context(record: &SavedRecord) -> bool {
 }
 
 impl SavedStore for ReaderSaves {
+    fn supports_attachments(&self) -> bool {
+        true
+    }
     fn validate_source(
         &self,
         source: &lexicue_lan_journal::material::Source,

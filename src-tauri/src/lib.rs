@@ -209,6 +209,14 @@ pub fn run() {
             commands::import::import_file,
             commands::import::check_duplicate,
             commands::source_media::source_media_status,
+            commands::library_attachments::material_youtube_artwork,
+            commands::library_attachments::set_library_audio_deleted,
+            commands::library_attachments::upload_library_original,
+            commands::library_attachments::discard_library_original,
+            #[cfg(target_vendor = "apple")]
+            commands::library_attachments::backup::export_library_archive,
+            #[cfg(target_vendor = "apple")]
+            commands::library_attachments::backup::restore_library_archive,
             commands::source_media::resolve_source_media,
             commands::source_media::resolve_reading_media,
             commands::export::export_all,

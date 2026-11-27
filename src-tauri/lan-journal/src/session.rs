@@ -20,6 +20,7 @@ pub enum Operation {
     Deliver(Batch),
     Pull { through: i64 },
     Confirm(Ack),
+    Attachment(serde_json::Value),
 }
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Reply {
@@ -30,9 +31,13 @@ pub enum Reply {
     Applied(Ack),
     Pending(Option<Batch>),
     Confirmed,
+    Attachment(serde_json::Value),
 }
 
 pub trait SavedStore {
+    fn supports_attachments(&self) -> bool {
+        false
+    }
     fn validate_source(
         &self,
         _source: &material::Source,
@@ -60,7 +65,8 @@ pub fn respond(
         Operation::ReadChunk(cursor) => Ok(Reply::Chunk(transfer::read(db, local, cursor)?)),
         Operation::PutChunk(chunk) => Ok(Reply::Staged(transfer::stage(db, local, chunk)?)),
         Operation::Hello(peer) => {
-            let here = Hello::read(db, local)?;
+            let mut here = Hello::read(db, local)?;
+            here.attachments = store.supports_attachments();
             peer.verify(db, local, &here.progress)?;
             compact(db, local, peer.progress.acked)?;
             Ok(Reply::Hello(here))
@@ -71,6 +77,7 @@ pub fn respond(
             confirm(db, local, &ack)?;
             Ok(Reply::Confirmed)
         }
+        Operation::Attachment(_) => Err("attachments are unavailable".into()),
     }
 }
 
@@ -78,8 +85,17 @@ pub fn catch_up(
     db: &mut Connection,
     local: &Route,
     store: &impl SavedStore,
-    mut exchange: impl FnMut(Request) -> Result<Reply>,
+    exchange: impl FnMut(Request) -> Result<Reply>,
 ) -> Result<()> {
+    catch_up_capabilities(db, local, store, exchange).map(|_| ())
+}
+
+pub fn catch_up_capabilities(
+    db: &mut Connection,
+    local: &Route,
+    store: &impl SavedStore,
+    mut exchange: impl FnMut(Request) -> Result<Reply>,
+) -> Result<bool> {
     let mut call = |operation| {
         exchange(Request {
             version: SESSION_VERSION,
@@ -87,7 +103,8 @@ pub fn catch_up(
             operation,
         })
     };
-    let here = Hello::read(db, local)?;
+    let mut here = Hello::read(db, local)?;
+    here.attachments = store.supports_attachments();
     let p = here.progress.clone();
     let Reply::Hello(proof) = call(Operation::Hello(here))? else {
         return Err("expected saved peer progress".into());
@@ -160,5 +177,5 @@ pub fn catch_up(
             }
         }
     }
-    Ok(())
+    Ok(proof.attachments)
 }

@@ -163,6 +163,15 @@ pub(super) fn import_material_with_attachment(
     input: &MaterialInput,
     attachment: Option<&super::source_media::LocalAttachment>,
 ) -> Result<ImportResult, String> {
+    import_material_with_files(conn, input, attachment, None)
+}
+
+pub(super) fn import_material_with_files(
+    conn: &Connection,
+    input: &MaterialInput,
+    attachment: Option<&super::source_media::LocalAttachment>,
+    original: Option<&super::library_attachments::Original>,
+) -> Result<ImportResult, String> {
     let source = attachment
         .map(|entry| &entry.source)
         .or(input.source.as_ref());
@@ -279,6 +288,9 @@ pub(super) fn import_material_with_attachment(
         if let Some(attachment) = attachment {
             attachment.install(&tx)?;
         }
+        if let Some(original) = original {
+            original.install(&tx)?;
+        }
         tx.commit().map_err(|e| e.to_string())?;
         return Ok(ImportResult {
             file_id: id,
@@ -347,6 +359,9 @@ pub(super) fn import_material_with_attachment(
     if let Some(attachment) = attachment {
         attachment.install(&tx)?;
     }
+    if let Some(original) = original {
+        original.install(&tx)?;
+    }
     tx.commit().map_err(|e| e.to_string())?;
     Ok(result)
 }
@@ -360,8 +375,7 @@ pub async fn import_reading_material(
     tauri::async_runtime::spawn_blocking(move || {
         #[cfg(all(target_os = "macos", not(feature = "apple-store")))]
         let staged = super::youtube_import::take_attachment(&app, &input)?;
-        #[cfg(not(all(target_os = "macos", not(feature = "apple-store"))))]
-        let _ = app;
+        let original = super::library_attachments::Original::staged(&app, &input)?;
         let conn = shared.lock().map_err(|e| e.to_string())?;
         #[cfg(all(target_os = "macos", not(feature = "apple-store")))]
         if let Some((path, attachment)) = staged {
@@ -369,7 +383,7 @@ pub async fn import_reading_material(
             let _ = std::fs::remove_dir_all(path);
             return Ok(result);
         }
-        import_material(&conn, &input)
+        import_material_with_files(&conn, &input, None, original.as_ref())
     })
     .await
     .map_err(|e| e.to_string())?

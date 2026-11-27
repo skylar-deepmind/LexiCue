@@ -125,7 +125,8 @@
       "phase": {
         "preparing": "統合の準備中",
         "exchanging": "変更を交換中",
-        "awaitingAck": "相手の確認を待機中"
+        "awaitingAck": "相手の確認を待機中",
+        "attachments": "表紙と元の音声を同期中"
       },
       "state": {
         "unpaired": "未ペアリング",
@@ -141,6 +142,8 @@
         "error": "同期を一時停止しました"
       },
       "issue": {
+        "attachmentStorage": "空き容量が不足しています。空き容量が増えると元の音声の同期を再開します。",
+        "attachmentUpdate": "両方の端末で LexiCue を更新すると、表紙と元の音声を同期できます。",
         "cameraDenied": "設定で LexiCue にカメラへのアクセスを許可し、再度読み取ってください。",
         "cameraUnavailable": "カメラを使用できません。LexiCue を前面にしてもう一度お試しください。",
         "invalidQR": "コードを認識できません。Mac で新しいコードを表示してください。",
@@ -963,6 +966,7 @@
     "dialogFilterText": "テキスト/字幕",
     "dialogFilterKnownWords": "既知の単語リスト",
     "dialogFilterDictionary": "オフライン辞書パック",
+    "dialogFilterFullBackup": "LexiCue の完全バックアップ",
     "dialogFilterBackup": "JSON バックアップ",
     "duplicateAsk": "ファイル「{{name}}」はインポート済みです。上書きしますか？",
     "duplicateTitle": "重複ファイル",
@@ -988,6 +992,7 @@
     "backupExportFailed": "バックアップのエクスポートに失敗しました",
     "backupVersionError": "サポートされていないバックアップバージョン: {{version}}",
     "backupVersionTitle": "復元に失敗しました",
+    "backupFullScope": "学習記録、読書位置、この端末に保存された表紙、元の音声とファイルを含みます。",
     "backupScope": "学習資料と保存済みの読書位置がバックアップされます。テーマ、デスクの配置、ダウンロードした音声はこのデバイスに保持されます。",
     "restoredWithBackup": "復元しました。安全バックアップ：{{path}}",
     "restoreSafetyFailed": "安全バックアップを作成できませんでした。現在のデータは変更されていません。",
@@ -1855,6 +1860,12 @@
     "compactContextCount": "{{count}} 文"
   },
   "sourceAudio": {
+    "offlineReady": "元の音声をオフラインで再生できます",
+    "deleted": "元の音声を削除しました",
+    "delete": "元の音声を削除",
+    "deleteEffect": "ペアリング済みの端末から元の音声を削除します。字幕と学習記録は保持されます。",
+    "restore": "元の音声を復元",
+    "changeFailed": "元の音声を更新できませんでした。もう一度お試しください。",
     "clip": "Original clip",
     "synthetic": "Synthetic voice",
     "preparing": "Preparing original audio…",

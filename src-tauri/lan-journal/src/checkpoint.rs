@@ -55,6 +55,8 @@ pub fn incoming(db: &Connection, seq: i64) -> Result<Option<Point>> {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Hello {
     pub progress: Progress,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub attachments: bool,
     acknowledged: Option<Point>,
     received: Option<Point>,
 }
@@ -66,6 +68,7 @@ impl Hello {
             acknowledged: outgoing(db, route, p.acked)?,
             received: incoming(db, p.received)?,
             progress: p,
+            attachments: false,
         })
     }
 

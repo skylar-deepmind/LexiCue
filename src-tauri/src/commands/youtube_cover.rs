@@ -1,4 +1,5 @@
 use super::youtube_attempt::{Failure, Trace};
+use crate::db::DbState;
 use base64::{engine::general_purpose::STANDARD, Engine};
 use reqwest::{redirect::Policy, StatusCode};
 use std::{
@@ -108,6 +109,16 @@ async fn fetch(client: &reqwest::Client, video: &str, quality: &str) -> Result<V
         .ok_or(Failure::CoverInvalid)
 }
 
+fn retain_artwork(app: &tauri::AppHandle, video_id: &str, bytes: &[u8]) {
+    if let Some(state) = app.try_state::<DbState>() {
+        if let Ok(db) = state.conn.lock() {
+            if let Err(error) = super::library_attachments::store_cover(&db, video_id, bytes) {
+                log::warn!("Could not retain material artwork: {error}");
+            }
+        }
+    }
+}
+
 pub(super) async fn import_cover(
     app: &tauri::AppHandle,
     video_id: &str,
@@ -125,6 +136,7 @@ pub(super) async fn import_cover(
         .await
         .map_err(|_| Failure::CoverUnavailable)?;
     if let Some(bytes) = cached(&path).await {
+        retain_artwork(app, video_id, &bytes);
         trace.record("cover_cache", 1, started, None);
         return Ok(format!("data:image/jpeg;base64,{}", STANDARD.encode(bytes)));
     }
@@ -157,6 +169,7 @@ pub(super) async fn import_cover(
     if store(&dir, &path, &bytes).await.is_err() {
         trace.record("cover_cache", 1, started, Some(Failure::LocalIo));
     }
+    retain_artwork(app, video_id, &bytes);
     Ok(format!("data:image/jpeg;base64,{}", STANDARD.encode(bytes)))
 }
 
