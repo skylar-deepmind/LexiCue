@@ -550,6 +550,7 @@ unsafe fn call_peer(
 
 fn notify_if_received(i: &Installation, db: &Connection, route: &Route, before: i64) {
     use tauri::Emitter;
+    library_attachments::cleanup_after_commit(&i.app, db);
     if journal::progress(db, route).is_ok_and(|p| p.received > before) {
         let _ = i.app.emit("device-sync-applied", ());
     }

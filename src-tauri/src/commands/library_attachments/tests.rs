@@ -2,6 +2,7 @@ use super::{exchange::*, *};
 use crate::commands::{
     import::SegmentInput,
     materials::{self, MaterialInput},
+    saved::{self, Mutation, SaveInput},
     source_media::AudioTrack,
 };
 use crate::lan_sync::saved_delta::ReaderSaves;
@@ -86,7 +87,7 @@ fn seed(
 }
 
 #[test]
-fn automatic_duplex_attachments_resume_and_ignore_old_audio_after_deletion() {
+fn automatic_duplex_attachments_resume_and_delete_with_material_while_saves_survive() {
     let temp = tempfile::tempdir().unwrap();
     let left_path = temp.path().join("left.db");
     let right_path = temp.path().join("right.db");
@@ -139,8 +140,8 @@ fn automatic_duplex_attachments_resume_and_ignore_old_audio_after_deletion() {
     );
     drop((left, right));
 
-    let left = crate::db::init_db(&left_path).unwrap();
-    let right = crate::db::init_db(&right_path).unwrap();
+    let mut left = crate::db::init_db(&left_path).unwrap();
+    let mut right = crate::db::init_db(&right_path).unwrap();
     let mut resumed_at = None;
     let status = sync_round(&left, &left_files, |request| {
         if let Request::Write {
@@ -178,37 +179,98 @@ fn automatic_duplex_attachments_resume_and_ignore_old_audio_after_deletion() {
         );
     }
 
-    set_audio_deleted(&right, &deleted_key, true).unwrap();
-    sync_round(&left, &left_files, |request| {
-        respond(&right, &right_files, request)
-    })
-    .unwrap();
-    for db in [&left, &right] {
-        assert!(audio_removed(db, &deleted_key).unwrap());
-        let count: i64 = db
-            .query_row(
-                "SELECT count(*) FROM segments WHERE zh_text='同步测试。'",
-                [],
-                |r| r.get(0),
-            )
-            .unwrap();
-        assert_eq!(count, 2);
-    }
-    // An old device still has the same bytes and proposes an active state.
-    let old = Entry::AudioState {
-        key: deleted_key.clone(),
-        revision: 1,
-        deleted: false,
-    };
-    respond(&left, &left_files, Request::Offer(old)).unwrap();
-    assert!(audio_removed(&left, &deleted_key).unwrap());
+    // Save from the Mac while the other device deletes the source offline.
+    let segment_id: i64 = left
+        .query_row(
+            "SELECT s.id FROM segments s JOIN files f ON f.id=s.file_id WHERE f.media_identity=?",
+            [&deleted_key],
+            |row| row.get(0),
+        )
+        .unwrap();
+    let record = saved::mutate(
+        &left,
+        "favorite-before-delete",
+        &Mutation::Save {
+            input: SaveInput {
+                segment_id,
+                expression: "original".into(),
+                start_offset: 4,
+                end_offset: 12,
+                explanation: Some("A personal meaning from the subtitle.".into()),
+                explanation_source: "personal".into(),
+                dictionary_snapshot: None,
+                dictionary_reference: None,
+            },
+        },
+    )
+    .unwrap()
+    .record;
+    assert_eq!(
+        record.sentence.as_deref(),
+        Some("The original version begins here.")
+    );
+    let old_audio = list(&left, "")
+        .unwrap()
+        .into_iter()
+        .find(|entry| matches!(entry, Entry::Audio { key, .. } if key == &deleted_key))
+        .unwrap();
 
-    set_audio_deleted(&left, &deleted_key, false).unwrap();
+    right
+        .execute("DELETE FROM files WHERE media_identity=?", [&deleted_key])
+        .unwrap();
+    cleanup_deleted(&right, &right_files, &right_files).unwrap();
+    session::catch_up_capabilities(&mut left, &route, &ReaderSaves, |request| {
+        session::respond(&mut right, &route.reverse(), request, &ReaderSaves)
+    })
+    .unwrap();
+    cleanup_deleted(&left, &left_files, &left_files).unwrap();
     sync_round(&left, &left_files, |request| {
         respond(&right, &right_files, request)
     })
     .unwrap();
-    assert!(!audio_removed(&right, &deleted_key).unwrap());
+
+    for (db, dir) in [(&left, &left_files), (&right, &right_files)] {
+        assert_eq!(media::bound_hash(db, &deleted_key).unwrap(), None);
+        assert!(!dir.join(format!("{left_hash}.m4a")).exists());
+        assert!(dir.join(format!("{right_hash}.m4a")).exists());
+        assert!(!cover_attached(db, "abcdefghijk").unwrap());
+        assert_eq!(
+            db.query_row("SELECT video_id FROM library_youtube_artwork", [], |r| {
+                r.get::<_, String>(0)
+            })
+            .unwrap(),
+            "abcdefghijl"
+        );
+        assert_eq!(
+            db.query_row("SELECT count(*) FROM segments", [], |r| r.get::<_, i64>(0))
+                .unwrap(),
+            1
+        );
+        let kept = saved::get(db, &record.record_id).unwrap().unwrap();
+        assert_eq!(kept.sentence, record.sentence);
+        assert_eq!(kept.sentence_translation, record.sentence_translation);
+        assert_eq!(kept.explanation, record.explanation);
+        assert!(saved::resolve_source(db, &record.record_id)
+            .unwrap()
+            .is_none());
+        assert!(matches!(
+            respond(db, dir, Request::Offer(old_audio.clone())).unwrap(),
+            Reply::Need(Need::Done)
+        ));
+    }
+
+    // Verify the reverse deletion using the same pair.
+    left.execute("DELETE FROM files WHERE media_identity=?", [&right_key])
+        .unwrap();
+    cleanup_deleted(&left, &left_files, &left_files).unwrap();
+    session::catch_up_capabilities(&mut left, &route, &ReaderSaves, |request| {
+        session::respond(&mut right, &route.reverse(), request, &ReaderSaves)
+    })
+    .unwrap();
+    cleanup_deleted(&right, &right_files, &right_files).unwrap();
+    assert!(!right_files.join(format!("{right_hash}.m4a")).exists());
+    assert!(list(&right, "").unwrap().is_empty());
+    assert!(saved::get(&right, &record.record_id).unwrap().is_some());
 }
 
 #[test]
@@ -256,36 +318,55 @@ fn complete_archive_restores_covers_and_original_audio_with_a_portable_library()
 }
 
 #[test]
-fn audio_deletion_clears_partial_and_expiry_keeps_the_deletion_marker() {
+fn last_material_reference_removes_shared_files_and_interrupted_transfers() {
     let temp = tempfile::tempdir().unwrap();
     let dir = temp.path();
     let db = crate::db::init_db(&dir.join("library.db")).unwrap();
-    let (key, hash) = seed(
-        &db,
-        dir,
-        "abcdefghijk",
-        "Delete a test audio attachment.",
-        b"test audio",
-    );
-    let partial = dir.join(format!(".lan-{key}-{hash}.part"));
-    fs::write(&partial, b"partial").unwrap();
-    respond(
-        &db,
-        dir,
-        Request::Offer(Entry::AudioState {
-            key: key.clone(),
-            revision: 1,
-            deleted: true,
-        }),
-    )
-    .unwrap();
-    assert!(!partial.exists());
-    assert!(audio_recoverable(&db, &key).unwrap());
-    db.execute("UPDATE library_audio_removed_on SET removed_on=0", [])
+    let video = "abcdefghijk";
+    let (first, hash) = seed(&db, dir, video, "First library entry.", b"shared audio");
+    let (second, _) = seed(&db, dir, video, "Second library entry.", b"shared audio");
+    let original = media::digest(b"test original");
+    let partial_audio = dir.join(format!(".lan-{first}-{hash}.part"));
+    let partial_document = dir.join(format!(".lan-{original}-{original}.part"));
+    let legacy_cover = dir.join(format!("{video}.jpg"));
+    for staged in [&partial_audio, &partial_document, &legacy_cover] {
+        fs::write(staged, b"partial").unwrap();
+    }
+    let source_document = serde_json::json!({"source_sha256": original}).to_string();
+    db.execute("UPDATE files SET document_source=?", [source_document])
         .unwrap();
-    reclaim_expired_audio(&db, dir).unwrap();
-    assert!(audio_removed(&db, &key).unwrap());
-    assert!(!audio_recoverable(&db, &key).unwrap());
+    fs::write(original_path(dir, &original), b"test original").unwrap();
+    put_original(&db, &original, 13).unwrap();
+
+    // A failed transaction must not enqueue deletion.
+    let tx = db.unchecked_transaction().unwrap();
+    tx.execute("DELETE FROM files WHERE media_identity=?", [&first])
+        .unwrap();
+    tx.rollback().unwrap();
+    cleanup_deleted(&db, dir, dir).unwrap();
+    assert!(partial_audio.exists());
+
+    db.execute("DELETE FROM files WHERE media_identity=?", [&first])
+        .unwrap();
+    cleanup_deleted(&db, dir, dir).unwrap();
+    assert!(!partial_audio.exists());
+    assert_eq!(media::bound_hash(&db, &first).unwrap(), None);
+    assert!(dir.join(format!("{hash}.m4a")).exists());
+    assert!(original_path(dir, &original).exists());
+    assert!(legacy_cover.exists());
+    assert!(partial_document.exists());
+
+    db.execute("DELETE FROM files WHERE media_identity=?", [&second])
+        .unwrap();
+    drop(db);
+    let reopened = crate::db::init_db(&dir.join("library.db")).unwrap();
+    cleanup_deleted(&reopened, dir, dir).unwrap();
     assert!(!dir.join(format!("{hash}.m4a")).exists());
-    assert!(set_audio_deleted(&db, &key, false).is_err());
+    assert!(!original_path(dir, &original).exists());
+    assert!(!partial_document.exists());
+    assert!(!legacy_cover.exists());
+    assert!(list(&reopened, "").unwrap().is_empty());
+    assert_eq!(reopened.query_row("SELECT (SELECT count(*) FROM library_document_originals)
+       +(SELECT count(*) FROM library_youtube_artwork)+(SELECT count(*) FROM library_attachment_cleanup)",
+       [], |row| row.get::<_, i64>(0)).unwrap(), 0);
 }

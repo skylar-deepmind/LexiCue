@@ -13,7 +13,7 @@ struct Index {
 
 fn name(entry: &wire::Entry) -> Result<Option<String>> {
     let path = match entry {
-        wire::Entry::AudioState { key, revision, .. }
+        wire::Entry::LegacyAudioState { key, revision, .. }
             if media::valid_hash(key) && *revision > 0 =>
         {
             return Ok(None);
@@ -70,7 +70,7 @@ pub(super) fn export_archive(db: &Connection, media_dir: &Path, destination: &Pa
     let temporary = scratch.0.join("archive");
     let file = File::create(&temporary).map_err(err)?;
     let snapshot =
-        rusqlite::Transaction::new_unchecked(db, TransactionBehavior::Deferred).map_err(err)?;
+        rusqlite::Transaction::new_unchecked(db, TransactionBehavior::Immediate).map_err(err)?;
     let payload = export::backup_payload(&snapshot)?;
     let mut zip = ZipWriter::new(file);
     let options = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
@@ -110,7 +110,7 @@ pub(super) fn export_archive(db: &Connection, media_dir: &Path, destination: &Pa
                                 .ok_or("backup is missing an original document")?;
                             stream_file(&mut zip, &path, hash, *bytes)?;
                         }
-                        wire::Entry::AudioState { .. } => unreachable!(),
+                        wire::Entry::LegacyAudioState { .. } => unreachable!(),
                     }
                 }
             }
@@ -212,22 +212,10 @@ fn read_json<T: serde::de::DeserializeOwned>(
 
 impl Prepared {
     pub(super) fn install(&self, db: &Connection, dir: &Path) -> Result<()> {
-        db.execute("DELETE FROM library_audio_state", [])
-            .map_err(err)?;
         for entry in &self.index.entries {
             let path = name(entry)?.and_then(|name| self.staged.get(&name));
             match entry {
-                wire::Entry::AudioState {
-                    key,
-                    revision,
-                    deleted,
-                } => {
-                    db.execute(
-                        "INSERT INTO library_audio_state VALUES(?,?,?)",
-                        params![key, revision, deleted],
-                    )
-                    .map_err(err)?;
-                }
+                wire::Entry::LegacyAudioState { .. } => {}
                 wire::Entry::Cover { key, .. } => {
                     let bytes = fs::read(path.ok_or("missing backup cover")?).map_err(err)?;
                     store_cover(db, key, &bytes)?;
@@ -285,7 +273,7 @@ pub async fn export_library_archive(
         .to_owned();
     tauri::async_runtime::spawn_blocking(move || {
         let connection =
-            Connection::open_with_flags(database, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+            Connection::open_with_flags(database, rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE)
                 .map_err(err)?;
         connection
             .busy_timeout(std::time::Duration::from_secs(5))
@@ -311,6 +299,7 @@ pub async fn restore_library_archive(
         export::restore_with_attachments(&db, &prepared.payload, |transaction| {
             prepared.install(transaction, &dir)
         })
+        .inspect(|_| cleanup_after_commit(&app, &db))
     })
     .await
     .map_err(err)?

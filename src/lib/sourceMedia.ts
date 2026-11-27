@@ -11,7 +11,7 @@ export interface MediaRef {
   padding_before_ms: 0; padding_after_ms: 0; expected_sha256?: string | null;
 }
 export type MediaTarget = ({ segment_id: number; record_id?: never } | { record_id: string; segment_id?: never }) & { source_key?: string; start_ms?: number; end_ms?: number };
-export interface MediaStatus { status: 'missing' | 'preparing' | 'ready' | 'failed' | 'deleted' | 'removed'; error?: string | null; asset_id?: string | null }
+export interface MediaStatus { status: 'missing' | 'preparing' | 'ready' | 'failed'; error?: string | null; asset_id?: string | null }
 
 export function bindMediaTarget(reference: MediaRef, target: MediaTarget): MediaTarget {
   return { ...target, source_key: reference.source.key, start_ms: reference.start_ms, end_ms: reference.end_ms };

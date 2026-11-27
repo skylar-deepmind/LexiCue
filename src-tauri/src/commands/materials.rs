@@ -378,12 +378,15 @@ pub async fn import_reading_material(
         let original = super::library_attachments::Original::staged(&app, &input)?;
         let conn = shared.lock().map_err(|e| e.to_string())?;
         #[cfg(all(target_os = "macos", not(feature = "apple-store")))]
-        if let Some((path, attachment)) = staged {
+        if let Some((_, attachment)) = staged {
             let result = import_material_with_attachment(&conn, &input, Some(&attachment))?;
-            let _ = std::fs::remove_dir_all(path);
+            super::youtube_import::retain_staged_cover(&app, &conn, &input);
             return Ok(result);
         }
-        import_material_with_files(&conn, &input, None, original.as_ref())
+        let result = import_material_with_files(&conn, &input, None, original.as_ref())?;
+        #[cfg(all(target_os = "macos", not(feature = "apple-store")))]
+        super::youtube_import::retain_staged_cover(&app, &conn, &input);
+        Ok(result)
     })
     .await
     .map_err(|e| e.to_string())?

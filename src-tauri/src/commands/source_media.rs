@@ -567,8 +567,7 @@ pub fn migrate(conn: &Connection) -> rusqlite::Result<()> {
         }
     }
     conn.execute_batch("CREATE INDEX IF NOT EXISTS files_media_identity ON files(media_identity);
-    CREATE TABLE IF NOT EXISTS source_media(source_key TEXT PRIMARY KEY, source_json TEXT NOT NULL, asset_id TEXT, status TEXT NOT NULL DEFAULT 'missing', error TEXT, manifest_json TEXT, updated_at INTEGER NOT NULL) STRICT;")?;
-    super::library_attachments::migrate(conn)
+    CREATE TABLE IF NOT EXISTS source_media(source_key TEXT PRIMARY KEY, source_json TEXT NOT NULL, asset_id TEXT, status TEXT NOT NULL DEFAULT 'missing', error TEXT, manifest_json TEXT, updated_at INTEGER NOT NULL) STRICT;")
 }
 pub(crate) fn root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     app.path()
@@ -640,18 +639,6 @@ pub fn status(conn: &Connection, dir: &Path, r: &MediaRef) -> Result<MediaStatus
         )
         .optional()
         .map_err(|e| e.to_string())?;
-    if super::library_attachments::audio_removed(conn, &r.source.key)? {
-        return Ok(MediaStatus {
-            status: if super::library_attachments::audio_recoverable(conn, &r.source.key)? {
-                "deleted"
-            } else {
-                "removed"
-            }
-            .into(),
-            error: None,
-            asset_id: None,
-        });
-    }
     let (mut status, error, asset_id) = row.unwrap_or(("missing".into(), None, None));
     if status == "ready"
         && !asset_id.as_deref().is_some_and(|id| {
@@ -971,9 +958,7 @@ pub fn recover(conn: &Connection, dir: &Path) -> Result<(), String> {
 pub fn initialize(app: &tauri::AppHandle, conn: &Connection) -> Result<(), String> {
     let dir = root(app)?;
     recover(conn, &dir)?;
-    if let Err(error) = super::library_attachments::reclaim_expired_audio(conn, &dir) {
-        log::warn!("Could not reclaim expired original audio: {error}");
-    }
+    super::library_attachments::cleanup_after_commit(app, conn);
     Ok(())
 }
 

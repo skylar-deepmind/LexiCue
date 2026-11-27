@@ -3,7 +3,8 @@ use super::*;
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "kind", deny_unknown_fields)]
 pub enum Entry {
-    AudioState {
+    #[serde(rename = "AudioState")]
+    LegacyAudioState {
         key: String,
         revision: i64,
         deleted: bool,
@@ -26,7 +27,7 @@ pub enum Entry {
 impl Entry {
     pub(super) fn order(&self) -> String {
         match self {
-            Self::AudioState { key, .. } => format!("0{key}"),
+            Self::LegacyAudioState { key, .. } => format!("0{key}"),
             Self::Cover { key, .. } => format!("1{key}"),
             Self::Original { hash, .. } => format!("2{hash}"),
             Self::Audio { key, .. } => format!("3{key}"),
@@ -35,7 +36,7 @@ impl Entry {
 
     pub(super) fn bytes(&self) -> usize {
         match self {
-            Self::AudioState { .. } => 0,
+            Self::LegacyAudioState { .. } => 0,
             Self::Cover { bytes, .. } | Self::Original { bytes, .. } => *bytes,
             Self::Audio { manifest, .. } => manifest.bytes as usize,
         }
@@ -82,22 +83,19 @@ pub struct Round {
 pub(super) fn list(db: &Connection, after: &str) -> Result<Vec<Entry>> {
     let mut sql = db
         .prepare(
-            "SELECT identity,key,value,bytes,revision,deleted FROM (
-           SELECT '0'||source_key identity, source_key key, NULL value, 0 bytes, revision, deleted
-             FROM library_audio_state
-           UNION ALL
-           SELECT '1'||video_id, video_id, sha256, length(data),0,0 FROM library_youtube_artwork a
-             WHERE EXISTS(SELECT 1 FROM files f WHERE
-               json_extract(f.media_source,'$.provider')='youtube'
+            "SELECT identity,key,value,bytes FROM (
+           SELECT '1'||video_id identity,video_id key,sha256 value,length(data) bytes FROM library_youtube_artwork a
+             WHERE EXISTS(SELECT 1 FROM files f WHERE json_valid(f.media_source)
+               AND json_extract(f.media_source,'$.provider')='youtube'
                AND json_extract(f.media_source,'$.video_id')=a.video_id)
            UNION ALL
-           SELECT '2'||sha256,sha256,NULL,bytes,0,0 FROM library_document_originals a
-             WHERE EXISTS(SELECT 1 FROM files f WHERE json_extract(f.document_source,'$.source_sha256')=a.sha256)
+           SELECT '2'||sha256,sha256,NULL,bytes FROM library_document_originals a
+             WHERE EXISTS(SELECT 1 FROM files f WHERE json_valid(f.document_source)
+               AND json_extract(f.document_source,'$.source_sha256')=a.sha256
+               AND json_extract(f.document_source,'$.origin') IS NULL)
            UNION ALL
-           SELECT '3'||source_key,source_key,manifest_json,0,0,0 FROM source_media m
+           SELECT '3'||source_key,source_key,manifest_json,0 FROM source_media m
              WHERE status='ready' AND asset_id IS NOT NULL AND manifest_json IS NOT NULL
-               AND NOT EXISTS(SELECT 1 FROM library_audio_state d
-                 WHERE d.source_key=m.source_key AND d.deleted)
                AND EXISTS(SELECT 1 FROM files f WHERE f.media_identity=m.source_key)
          ) WHERE identity>? ORDER BY identity LIMIT ?",
         )
@@ -109,20 +107,13 @@ pub(super) fn list(db: &Connection, after: &str) -> Result<Vec<Entry>> {
                 row.get::<_, String>(1)?,
                 row.get::<_, Option<String>>(2)?,
                 row.get::<_, usize>(3)?,
-                row.get::<_, i64>(4)?,
-                row.get::<_, bool>(5)?,
             ))
         })
         .map_err(err)?;
     let mut entries = Vec::new();
     for row in rows {
-        let (id, key, value, bytes, revision, deleted) = row.map_err(err)?;
+        let (id, key, value, bytes) = row.map_err(err)?;
         match id.as_bytes()[0] {
-            b'0' => entries.push(Entry::AudioState {
-                key,
-                revision,
-                deleted,
-            }),
             b'1' => entries.push(Entry::Cover {
                 key,
                 bytes,
@@ -166,9 +157,6 @@ pub(super) fn target(
         || !(1..=media::MAX_BYTES).contains(&m.bytes)
     {
         return Err("invalid audio attachment".into());
-    }
-    if audio_removed(db, key)? {
-        return Ok(None);
     }
     let Some((raw, source)) = attached_source(db, key)? else {
         return Ok(None);
@@ -217,31 +205,12 @@ fn check_cover(key: &str, bytes: usize, hash: &str) -> Result<()> {
 
 fn offer(db: &Connection, dir: &Path, entry: &Entry) -> Result<Need> {
     match entry {
-        Entry::AudioState {
-            key,
-            revision,
-            deleted,
-        } => {
-            if !media::valid_hash(key) || !(1..i64::MAX).contains(revision) {
-                return Err("invalid audio deletion".into());
-            }
-            let changed = db.execute(
-                "INSERT INTO library_audio_state VALUES(?,?,?)
-                 ON CONFLICT(source_key) DO UPDATE SET revision=excluded.revision,deleted=excluded.deleted
-                 WHERE (excluded.revision,excluded.deleted)>(revision,deleted)",
-                params![key, revision, deleted],
-            ).map_err(err)?;
-            if changed > 0 && *deleted {
-                if let Err(error) = cleanup_partial(dir, key) {
-                    log::warn!("Could not clear a removed audio transfer: {error}");
-                }
-            }
-            Ok(Need::Done)
-        }
+        // Older preview builds may still send this record.
+        Entry::LegacyAudioState { .. } => Ok(Need::Done),
         Entry::Cover { key, bytes, hash } => {
             check_cover(key, *bytes, hash)?;
             let needs: bool = db.query_row(
-                "SELECT EXISTS(SELECT 1 FROM files WHERE
+                "SELECT EXISTS(SELECT 1 FROM files WHERE json_valid(media_source) AND
                    json_extract(media_source,'$.provider')='youtube'
                    AND json_extract(media_source,'$.video_id')=?1)
                  AND NOT EXISTS(SELECT 1 FROM library_youtube_artwork WHERE video_id=?1 AND sha256<=?2)",
@@ -292,11 +261,7 @@ pub(super) fn original_target(
     if !media::valid_hash(hash) || !(1..=MAX_DOCUMENT_BYTES as usize).contains(&bytes) {
         return Err("invalid original document attachment".into());
     }
-    let known: bool = db.query_row(
-        "SELECT EXISTS(SELECT 1 FROM files WHERE json_extract(document_source,'$.source_sha256')=?1
-          AND json_extract(document_source,'$.origin') IS NULL)",
-        [hash], |row| row.get(0),
-    ).map_err(err)?;
+    let known = document_attached(db, hash)?;
     let path = original_path(dir, hash);
     if fs::symlink_metadata(&path).is_ok_and(|m| !m.is_file()) {
         return Err("invalid original document path".into());
@@ -380,18 +345,16 @@ fn finish_audio(db: &Connection, dir: &Path, key: &str, manifest: &Manifest) -> 
         fs::remove_file(&temp).map_err(err)?;
         return Err("audio attachment checksum mismatch".into());
     }
-    let tx =
-        rusqlite::Transaction::new_unchecked(db, TransactionBehavior::Immediate).map_err(err)?;
-    if let Some((source, path)) = target(&tx, dir, key, manifest)? {
+    if let Some((source, path)) = target(db, dir, key, manifest)? {
         fs::rename(&temp, path).map_err(err)?;
         File::open(dir)
             .and_then(|dir| dir.sync_all())
             .map_err(err)?;
-        bind_audio(&tx, key, &source, manifest)?;
+        bind_audio(db, key, &source, manifest)?;
     } else {
         fs::remove_file(temp).map_err(err)?;
     }
-    tx.commit().map_err(err)
+    Ok(())
 }
 
 fn finish_original(db: &Connection, dir: &Path, hash: &str, bytes: usize) -> Result<()> {
@@ -400,16 +363,14 @@ fn finish_original(db: &Connection, dir: &Path, hash: &str, bytes: usize) -> Res
         fs::remove_file(&temp).map_err(err)?;
         return Err("original document checksum mismatch".into());
     }
-    let tx =
-        rusqlite::Transaction::new_unchecked(db, TransactionBehavior::Immediate).map_err(err)?;
-    if let Some(path) = original_target(&tx, dir, hash, bytes)? {
+    if let Some(path) = original_target(db, dir, hash, bytes)? {
         fs::rename(&temp, &path).map_err(err)?;
         sync_parent(&path)?;
-        put_original(&tx, hash, bytes as u64)?;
+        put_original(db, hash, bytes as u64)?;
     } else {
         fs::remove_file(temp).map_err(err)?;
     }
-    tx.commit().map_err(err)
+    Ok(())
 }
 
 fn read_chunk(path: &Path, offset: usize, size: usize) -> Result<Vec<u8>> {
@@ -437,7 +398,7 @@ pub(super) fn read(
             }
             let data: Option<Vec<u8>> = db.query_row(
                 "SELECT data FROM library_youtube_artwork WHERE video_id=? AND sha256=?
-                 AND EXISTS(SELECT 1 FROM files WHERE json_extract(media_source,'$.video_id')=? AND json_extract(media_source,'$.provider')='youtube')",
+                 AND EXISTS(SELECT 1 FROM files WHERE json_valid(media_source) AND json_extract(media_source,'$.video_id')=? AND json_extract(media_source,'$.provider')='youtube')",
                 params![key, hash, key], |r| r.get(0),
             ).optional().map_err(err)?;
             let Some(data) = data else {
@@ -473,7 +434,7 @@ pub(super) fn read(
             }
             read_chunk(&path, offset, *bytes)?
         }
-        Entry::AudioState { .. } => return Err("deletion does not carry bytes".into()),
+        Entry::LegacyAudioState { .. } => return Err("deletion does not carry bytes".into()),
     };
     Ok(Some(STANDARD.encode(bytes)))
 }
@@ -570,25 +531,32 @@ fn append_chunk(
 
 pub fn respond(db: &Connection, dir: &Path, request: Request) -> Result<Reply> {
     match request {
-        Request::List { after } if after.len() <= 65 => Ok(Reply::List(list(db, &after)?)),
-        Request::List { .. } => Err("invalid attachment page".into()),
-        Request::Offer(entry) => Ok(Reply::Need(offer(db, dir, &entry)?)),
-        Request::Read { entry, offset } => Ok(Reply::Data(read(db, dir, &entry, offset)?)),
+        Request::List { after } if after.len() <= 65 => return Ok(Reply::List(list(db, &after)?)),
+        Request::List { .. } => return Err("invalid attachment page".into()),
+        _ => {}
+    }
+    // Keep file operations and reference checks serialized with material
+    // deletion. The lock is released before the reply crosses the network.
+    let tx =
+        rusqlite::Transaction::new_unchecked(db, TransactionBehavior::Immediate).map_err(err)?;
+    let reply = match request {
+        Request::Offer(entry) => Reply::Need(offer(&tx, dir, &entry)?),
+        Request::Read { entry, offset } => Reply::Data(read(&tx, dir, &entry, offset)?),
         Request::Write {
             entry,
             offset,
             data,
-        } => Ok(Reply::Need(write(db, dir, &entry, offset, &data)?)),
-    }
+        } => Reply::Need(write(&tx, dir, &entry, offset, &data)?),
+        Request::List { .. } => unreachable!(),
+    };
+    tx.commit().map_err(err)?;
+    Ok(reply)
 }
 
 pub fn sync_round<F>(db: &Connection, dir: &Path, mut remote: F) -> Result<Round>
 where
     F: FnMut(Request) -> Result<Reply>,
 {
-    if let Err(error) = reclaim_expired_audio(db, dir) {
-        log::warn!("Could not reclaim expired original audio: {error}");
-    }
     let mut round = Round::default();
     // Pull and push each get a budget, so large incoming audio cannot
     // prevent the other side's attachments from making progress.

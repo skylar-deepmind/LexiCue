@@ -589,6 +589,19 @@ pub async fn fetch_import_youtube(
             reason
         }
     });
+    if let Ok(import) = &result {
+        if let Some(cover) = import
+            .cover
+            .as_deref()
+            .and_then(super::youtube_cover::cover_bytes)
+        {
+            if let Err(error) = std::fs::create_dir_all(&stage)
+                .and_then(|_| std::fs::write(stage.join("cover.jpg"), cover))
+            {
+                log::warn!("Could not stage material artwork: {error}");
+            }
+        }
+    }
     trace.finish(started, result.as_ref().err().map(String::as_str));
     result
 }
@@ -601,6 +614,27 @@ pub async fn discard_youtube_import_audio(
     let path = staging_path(&source_media::root(&app)?, &operation_id)?;
     let _ = fs::remove_dir_all(path).await;
     Ok(())
+}
+
+pub(super) fn retain_staged_cover(
+    app: &AppHandle,
+    db: &rusqlite::Connection,
+    input: &MaterialInput,
+) {
+    let Some(source) = input.source.as_ref() else {
+        return;
+    };
+    let Ok(stage) =
+        source_media::root(app).and_then(|root| staging_path(&root, &input.operation_id))
+    else {
+        return;
+    };
+    if let Ok(bytes) = std::fs::read(stage.join("cover.jpg")) {
+        if let Err(error) = super::library_attachments::store_cover(db, &source.video_id, &bytes) {
+            log::warn!("Could not retain material artwork: {error}");
+        }
+    }
+    let _ = std::fs::remove_dir_all(stage);
 }
 
 pub(super) fn take_attachment(
