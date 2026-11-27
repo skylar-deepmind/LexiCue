@@ -11,7 +11,7 @@
   <a href="https://skylar-deepmind.github.io/LexiCue/zh/#feature-languages"><img alt="Interface: English, Japanese, German, Chinese" src="https://img.shields.io/badge/interface-EN%20%7C%20JA%20%7C%20DE%20%7C%20ZH-526177?style=flat-square"></a>
 </p>
 
-<p align="center"><a href="https://github.com/skylar-deepmind/LexiCue/releases/latest"><strong>免费下载</strong></a> · <a href="https://skylar-deepmind.github.io/LexiCue/zh/">打开工作区</a> · <a href="DISTRIBUTION.md">安装指南</a></p>
+<p align="center"><a href="https://skylar-deepmind.github.io/LexiCue/zh/download/"><strong>免费下载</strong></a> · <a href="https://skylar-deepmind.github.io/LexiCue/zh/">打开工作区</a> · <a href="DISTRIBUTION.md">安装指南</a></p>
 
 [![带来自己的英文材料](docs/media/current/zh/materials-ocean-desktop.webp)](https://skylar-deepmind.github.io/LexiCue/zh/)
 
@@ -19,7 +19,7 @@
 
 带来想读的英文文章、书籍或字幕。遇到不懂的词句再查，连同原句与理解一起保存，在下次遇见时唤回记忆。
 
-> v0.4.7 正在准备，尚未公开发布。本文介绍当前 main 分支的功能。最新公开下载仍为 v0.4.5（2026 年 10 月 12 日），早于本次阅读工作区和 Mac–iPhone 同步。iPhone 已通过本地签名构建实测，尚无公开安装包。
+> macOS v0.4.7 包含新版阅读工作区。iOS 测试版通过 TestFlight 分发。
 
 ## 简单的学习闭环
 
@@ -65,9 +65,9 @@
 
 ## 下载与安装
 
-公开 v0.4.5 提供 macOS、Windows 与 Android 安装包。较新的阅读工作区可在线体验，也已包含在当前源码中；本地安装需要后续版本或自行构建。
+macOS v0.4.7 提供 Apple Silicon 和 Intel 的公证 DMG。Windows 与 Android 安装包可在 v0.4.5 下载。
 
-[**免费下载 — macOS / Windows / Android**](https://github.com/skylar-deepmind/LexiCue/releases/latest)
+[**macOS v0.4.7**](https://github.com/skylar-deepmind/LexiCue/releases/tag/v0.4.7-macos) · [**Windows / Android v0.4.5**](https://github.com/skylar-deepmind/LexiCue/releases/latest)
 
 安装前请查看版本说明和对应平台的安装指南。暂不提供公开 iPhone 安装包。 [安装指南](DISTRIBUTION.md).
 

@@ -1,8 +1,6 @@
 # 安装与常见问题
 
-LexiCue 的预编译安装包由 [GitHub Actions](.github/workflows/build-installers.yml) 手动触发构建。由于目前尚未购买 Apple Developer / Windows 代码签名证书 / Google Play 开发者账号，安装包暂时为**未签名版本**，各平台系统会给出安全拦截提示，属预期行为。
-
-以下按平台说明正确的安装方法。**每个安装包副本只需处理一次**，之后可正常使用。
+从 [GitHub Releases](https://github.com/skylar-deepmind/LexiCue/releases) 下载 LexiCue。
 
 本地 AI 使用内置 Gemma 引擎，默认关闭。安装后在设置中单独下载 E2B/E4B，
 或导入清单匹配的模型文件。权重不随安装包捆绑，也无需另装 Ollama。
@@ -13,46 +11,11 @@ Android 需要 arm64、Android 9/API 28 或更新版本；模型还需约 2.6–
 
 ## macOS
 
-### 现象
+从 [macOS v0.4.7](https://github.com/skylar-deepmind/LexiCue/releases/tag/v0.4.7-macos) 下载对应的 DMG。安装包已使用 Developer ID 签名，并通过 Apple 公证。
 
-打开 App 或 DMG 时出现：
-
-- 「“LexiCue”已损坏，无法打开。你应该将它移到废纸篓。」
-- 「无法打开“LexiCue”，因为 Apple 无法检查其是否包含恶意软件。」
-
-### 原因
-
-通过浏览器/Safari/邮件下载的文件会被 macOS 打上隔离标记（`com.apple.quarantine`）。系统校验发现 App 未签名、未公证，便拦截打开并提示“已损坏”。
-
-### 安装步骤
-
-1. 双击 DMG，将 **LexiCue.app** 拖入「应用程序」（Applications）文件夹。
-2. 用任一方式移除隔离标记（**任选其一即可**，每个副本只需一次）：
-
-   **方式 A：一键脚本（推荐）**
-
-   ```bash
-   bash scripts/fix-macos-quarantine.sh
-   ```
-
-   > 脚本默认修复 `/Applications/LexiCue.app`；若 App 在其他位置，可传入路径：
-   > `bash scripts/fix-macos-quarantine.sh /path/to/LexiCue.app`
-
-   **方式 B：命令行**
-
-   ```bash
-   xattr -dr com.apple.quarantine "/Applications/LexiCue.app"
-   ```
-
-   **方式 C：右键打开**
-
-   在「应用程序」中按住 **Control** 并点击 **LexiCue**，选择「打开」，然后在弹窗中点击「打开」。
-
-3. 首次启动后即可正常使用。之后每次打开不会再提示。
-
-> 若系统设置里仍拦截，可前往 **系统设置 → 隐私与安全性**，在「安全性」区块点击 **仍要打开**。
-
-> 什么时候需要再次处理？只有在你**重新下载、换新电脑、或删除后再次从 DMG 拖出新副本**时，新副本会重新被打上隔离标记，届时需再执行一次上面的命令。
+1. 在「关于本机」查看芯片或处理器。Apple 芯片选 `aarch64.dmg`，Intel 处理器选 `x64.dmg`。
+2. 双击 DMG，把 LexiCue 拖到「应用程序」。已有应用可以直接覆盖更新。
+3. 从「应用程序」打开 LexiCue。
 
 ---
 

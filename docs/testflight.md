@@ -12,7 +12,8 @@ The API key is optional; Xcode Organizer can also upload the archive.
 
 `npm run ios:prepare` includes `src-tauri/PrivacyInfo.xcprivacy` in the native
 application's Resources phase and replaces the generated template icons with
-opaque RGB versions of the existing LexiCue assets in `src-tauri/icons/ios`.
+full-bleed opaque RGB LexiCue assets from `src-tauri/icons/ios`. iOS applies
+its own rounded mask.
 Verify the actual exported icon, not only the source icon directory.
 Do not remove local signing settings when updating
 an existing generated project. Verify that the exported app contains the manifest

@@ -8,7 +8,7 @@ export const manualContent={
           "id": "install",
           "title": "Version and installation",
           "body": [
-            "This guide describes current main. Public v0.4.5 downloads for macOS, Windows and Android predate this workspace and Mac–iPhone sync. Use a newer release when available or build from source. iPhone has a locally tested signed build, but no public installer."
+            "Use the notarized macOS v0.4.7 installer for the reading workspace described here. The Windows and Android v0.4.5 downloads predate this workspace. iPhone testing is distributed through TestFlight."
           ],
           "steps": [],
           "links": [
@@ -289,7 +289,7 @@ export const manualContent={
           "id": "installation",
           "title": "Which version can I download?",
           "body": [
-            "The latest public release checked for this update is v0.4.5, published 12 October 2026, with macOS, Windows and Android packages. The current main features shown here came later. No public iPhone installer is available."
+            "Get macOS v0.4.7 or Windows and Android v0.4.5 from the download page. The iOS beta is available through TestFlight."
           ],
           "steps": [],
           "links": [
@@ -355,7 +355,7 @@ export const manualContent={
           "id": "install",
           "title": "版本与安装",
           "body": [
-            "本手册介绍当前 main。公开 v0.4.5 的 macOS、Windows、Android 下载早于本次工作区和 Mac–iPhone 同步；请等待后续版本或从源码构建。iPhone 已有本地签名实测构建，尚无公开安装包。"
+            "本手册所示的阅读工作区可通过 macOS v0.4.7 公证安装包使用。Windows 与 Android 的 v0.4.5 早于新版工作区。iPhone 测试版通过 TestFlight 分发。"
           ],
           "steps": [],
           "links": [
@@ -636,7 +636,7 @@ export const manualContent={
           "id": "installation",
           "title": "可以下载哪个版本？",
           "body": [
-            "本次更新核对的最新公开版本为 2026 年 10 月 12 日发布的 v0.4.5，提供 macOS、Windows、Android 安装包；本文展示的当前 main 功能晚于该版本。尚无公开 iPhone 安装包。"
+            "下载页提供 macOS v0.4.7，以及 Windows 和 Android v0.4.5。iOS 测试版通过 TestFlight 分发。"
           ],
           "steps": [],
           "links": [
@@ -702,7 +702,7 @@ export const manualContent={
           "id": "install",
           "title": "バージョンと導入",
           "body": [
-            "このガイドは現在の main の説明です。公開版 v0.4.5（macOS・Windows・Android）には、このワークスペースと Mac–iPhone 同期は含まれません。今後のリリースまたはソースビルドを利用してください。iPhone はローカル署名で実機確認済みですが、公開パッケージはありません。"
+            "このガイドの読書ワークスペースは、macOS v0.4.7 の公証済みインストーラーで利用できます。Windows と Android 向けの v0.4.5 は新しいワークスペースより前の版です。iPhone ベータ版は TestFlight で配布しています。"
           ],
           "steps": [],
           "links": [
@@ -983,7 +983,7 @@ export const manualContent={
           "id": "installation",
           "title": "どのバージョンを取得できますか？",
           "body": [
-            "今回確認した公開最新版は2026年10月12日のv0.4.5で、macOS・Windows・Android向けです。ここに示すmainの機能は後の追加です。公開iPhoneインストーラーはありません。"
+            "ダウンロードページから macOS v0.4.7 と、Windows・Android 向けの v0.4.5 を入手できます。iOS ベータ版は TestFlight で配布しています。"
           ],
           "steps": [],
           "links": [
@@ -1049,7 +1049,7 @@ export const manualContent={
           "id": "install",
           "title": "Version und Installation",
           "body": [
-            "Dieses Handbuch beschreibt main. Die öffentlichen v0.4.5-Pakete für macOS, Windows und Android enthalten diesen Arbeitsplatz und die Mac–iPhone-Synchronisierung noch nicht. Nutze einen künftigen Release oder baue aus dem Quellcode. Das iPhone wurde lokal signiert geprüft; ein öffentlicher Installer fehlt."
+            "Der hier beschriebene Lesearbeitsplatz ist im notarisierten macOS-Installer v0.4.7 enthalten. Die Version v0.4.5 für Windows und Android ist älter als der neue Lesearbeitsplatz. Die iPhone-Beta wird über TestFlight verteilt."
           ],
           "steps": [],
           "links": [
@@ -1330,7 +1330,7 @@ export const manualContent={
           "id": "installation",
           "title": "Welche Version kann ich herunterladen?",
           "body": [
-            "Der für diese Aktualisierung geprüfte öffentliche Release ist v0.4.5 vom 12. Oktober 2026 mit Paketen für macOS, Windows und Android. Die gezeigten main-Funktionen kamen später. Ein öffentlicher iPhone-Installer fehlt."
+            "Auf der Downloadseite findest du macOS v0.4.7 und v0.4.5 für Windows und Android. Die iOS-Beta wird über TestFlight verteilt."
           ],
           "steps": [],
           "links": [
