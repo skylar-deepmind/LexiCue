@@ -479,11 +479,55 @@ try{
     await close();
   }
   await page.evaluate(()=>document.documentElement.style.fontSize='100%');await page.setViewportSize({width:1440,height:900});await close();await page.emulateMedia({reducedMotion:'reduce'});await page.evaluate(()=>window.__uiFiles={});await chooseFromDesk();eq(await page.locator('.lc-import-modal').count(),0,'reduced motion keeps direct picker behavior');
-  await page.evaluate(async()=>{const{useImportStore}=await window.__uiStoreModule('importStore');void useImportStore.getState().start([{name:'reduced.srt',read:()=>new Promise(done=>window.__reducedRead=done)}]);});await page.locator('.lc-import-paper-art').waitFor();eq(await page.locator('.lc-import-paper-art').evaluate(n=>n.getAnimations({subtree:true}).length),0,'reduced motion paper');await close();await page.evaluate(()=>window.__reducedRead(''));await context.close();
+  await page.evaluate(async()=>{const{useImportStore}=await window.__uiStoreModule('importStore');void useImportStore.getState().start([{name:'reduced.srt',read:()=>new Promise(done=>window.__reducedRead=done)}]);});await page.locator('.lc-import-paper-art').waitFor();eq(await page.locator('.lc-import-paper-art').evaluate(n=>n.getAnimations({subtree:true}).length),0,'reduced motion paper');await close();await page.evaluate(()=>window.__reducedRead(''));
+
+  // Commit a link with the same media identity shape as the native fetch.
+  const caption = 'The opening caption is ready.';
+  const content = srt(caption);
+  const subtitleHash = createHash('sha256').update(content).digest('hex');
+  const videoId = 'eLe8jAPWeQI';
+  const key = createHash('sha256').update(JSON.stringify([videoId, 'en', subtitleHash, null, 3000])).digest('hex');
+  await page.evaluate(({ fixture, sampleUrl }) => {
+    window.__starImportFixture = fixture;
+    window.__releaseStarImport = undefined;
+    window.__clipboardText = sampleUrl;
+  }, { sampleUrl, fixture: { content, cover: null, source: {
+    version: 1, provider: 'youtube', key, video_id: videoId, url: `https://www.youtube.com/watch?v=${videoId}`,
+    title: 'Public YouTube example', duration_ms: 3000, subtitle_track: 'en', subtitle_language: 'en',
+    subtitle_kind: 'manual', subtitle_sha256: subtitleHash, audio: null,
+    cues: [{ id: 0, start_ms: 1000, end_ms: 3000, text: caption }],
+  } } });
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await linkButton.click();
+  await page.waitForFunction(() => typeof window.__releaseStarImport === 'function');
+  await page.evaluate(() => window.__releaseStarImport());
+  await preview();
+  await confirm();
+  await landed();
+  const linkedMaterial = (await call('list_materials')).find(material => material.source?.key === key);
+  assert.ok(linkedMaterial, 'confirmation saved YouTube media metadata');
+  const activeCard = page.locator('.approved-card[data-desk-active=true]');
+  eq(Number(await activeCard.getAttribute('data-motion-file')), linkedMaterial.id, theme+' YouTube import lands directly on the active home card');
+  await activeCard.locator('.approved-card-open').click();
+  await page.locator('.reading-original').filter({ hasText: caption }).waitFor();
+  await open();
+
+  // A drop can start while the library overlay is open on the home route.
+  await page.locator('.approved-library-entry').click();
+  await page.locator('.approved-tag-panel').waitFor();
+  await drop([['Library drop.srt', srt('This card was imported from the library overlay.')]]);
+  await preview();
+  await confirm();
+  await landed();
+  eq(await page.locator('.approved-tag-panel').count(), 0, theme+' importing from the library reveals the home desk');
+  eq(await activeCard.locator('.approved-card-title').innerText(), 'Library drop', theme+' dropped card lands in the foreground');
+  await page.screenshot({ path: `${output}/${theme}-home-after-import.png` });
+  await context.close();
  }
  // The native OS hands us file URLs on iOS and permission-bearing content
  // URIs on Android. Simulate both delivery boundaries with the real Worker's bytes.
  for(const platform of ['ios','android']){
+  await call('test_reset');
   const ios=platform==='ios';
   const platformContext=await browser.newContext({
    viewport:{width:375,height:812},isMobile:true,hasTouch:true,
@@ -526,7 +570,9 @@ try{
   await page.keyboard.press('Escape');
   await page.locator('.import-material-card').getByText('morning-cues',{exact:true}).waitFor();
   eq((await draft()).content,bodies['morning-cues.srt'].content,platform+' queues the new file and opens it after the first draft');
-  await close();
+  await confirm();
+  await landed();
+  eq(await page.locator('.approved-card[data-desk-active=true] .approved-card-title').innerText(), 'morning-cues', platform+' confirmation surfaces the imported card on home');
   const picksBefore=await pickerCalls();
   await page.evaluate(()=>window.__uiFiles={});
   await chooseFromDesk();

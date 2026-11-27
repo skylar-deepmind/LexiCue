@@ -1,4 +1,5 @@
 import type { ImportItem } from '../stores/importStore';
+import { computeHash } from './hash';
 import type { ReadingMaterial } from './materials';
 
 export type ReadingOrigin = 'desk' | 'library';
@@ -18,14 +19,18 @@ export function authorizeImportedReading(item: ImportItem): string | null {
 }
 export async function validateImportedReading(token: unknown, data: ReadingMaterial): Promise<boolean> {
     const ticket = pending;
-    if (!ticket || ticket.token !== token || ticket.fileId !== data.material.id || !data.segments.length) return false;
-    let digest: ArrayBuffer;
-    try { digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(ticket.draft.content)); }
+    const { material } = data;
+    if (!ticket || ticket.token !== token || ticket.fileId !== material.id || !data.segments.length) return false;
+    const source = ticket.draft.source;
+    const savedSource = material.source;
+    const sourceMatches = ticket.hasLocalAudio ? savedSource?.provider === 'local'
+        : source ? savedSource?.provider === source.provider && savedSource.key === source.key
+        : !savedSource;
+    if (!sourceMatches || (ticket.draft.document?.identity ?? null) !== (material.document?.identity ?? null)) return false;
+    let hash: string;
+    try { hash = await computeHash(ticket.draft.content); }
     catch { return false; } // Optional desk placement must never make a successful reader open fail.
-    const hash = [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2,'0')).join('').slice(0,16);
-    return pending === ticket && hash === data.material.content_hash &&
-        (ticket.draft.document?.identity ?? null) === (data.material.document?.identity ?? null) &&
-        (ticket.hasLocalAudio ? data.material.source?.provider === 'local' : !data.material.source);
+    return pending === ticket && hash === material.content_hash;
 }
 export function consumeImportedReading(token: unknown) {
     if (!pending || pending.token !== token) return false;
