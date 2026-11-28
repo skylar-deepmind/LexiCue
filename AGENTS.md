@@ -1,3 +1,11 @@
+# Start Here
+
+- Read the product rules below and [the current handoff](docs/progress.md) before choosing a baseline or resuming work. Use the linked PRs, source and verification results to check what applies to your revision.
+- Start new work on a development branch from synchronized `main`. Resume on the existing task branch. Check the worktree and index before switching or editing, and preserve other work and local files.
+- Follow [development checks](docs/development-testing.md) and choose checks for the affected behavior. For changes involving dictionary data or packaging, also read [dictionary policy and maintenance](docs/dictionary/README.md). For distribution, use [release validation](docs/release-validation-policy.md) and [installation and distribution](DISTRIBUTION.md).
+- In the primary checkout, read the local `docs/ai-workflow.md` when present for the development board, device installation, rollback and publishing procedures. Verify the PR and its target before merging with explicit approval. Verify the synchronized target before any post-merge installation. Obtain separate approval for branch deletion and public releases.
+- Record acceptance criteria and detailed results in the task's existing PR or verification document. Update the relevant product or implementation document when a decision changes and link its source. Update [the handoff](docs/progress.md) when the active scope, next action, or latest verified baseline changes. Include the date, commit, platform, check and evidence location. Keep raw device receipts, signing materials and private data local.
+
 # UI Theme Requirements
 
 When adding or changing UI, verify the `midnight` theme in addition to the default theme.
