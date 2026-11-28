@@ -67,8 +67,9 @@ records and audio already stored on the device remain usable.
 The ZIP limit is 64 MiB. Supported subtitle files are SRT and VTT. The importer
 accepts JPEG, PNG, and WebP covers and supports common audio tracks, including
 AAC in MP4 and Opus in WebM. A subtitle file named `Lesson.en.vtt` can match
-`Lesson.webp` and `Lesson.webm`. A local audio file remains on the device that
-imports it.
+`Lesson.webp` and `Lesson.webm`. Builds with the updated Mac and iPhone LAN
+sync can transfer imported material audio after pairing. See
+[attachment sync and verification](implementation/lan-device-sync-v1.md#16-材料附件与整份删除).
 
 ## Mac App Store
 

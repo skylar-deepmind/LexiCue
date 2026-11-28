@@ -1,5 +1,7 @@
 # Approved desktop and mobile reading surfaces
 
+This handoff records the approved design and the implementation verified at the time. See [the current handoff](../progress.md) for later changes and the latest available verification.
+
 Source: [LexiCue Figma](https://www.figma.com/design/FsjOfhLGQ7Rs5Ig9pfCVpK), desktop `383:14757` / code layer `462:14758`, mobile `480:3` / code layer `539:3`. The delivered handoff source and its design measurements are the implementation reference. The React application renders real material and saved-record state; it does not embed the prototype, an iframe, a screenshot, or sample article content.
 
 ## Product mapping
